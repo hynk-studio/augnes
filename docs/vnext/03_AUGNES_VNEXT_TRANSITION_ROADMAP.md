@@ -1344,6 +1344,27 @@ the option within the first assigned task using the existing L1/L2 evidence
 criteria below; this adds no evaluation allocation, neural dependency or
 expansion of the retained #1468/#1478 retrieval scope.
 
+**Research-informed question order.** Within assigned L1/L2 work, select the next
+unanswered question in this practical order: conditional experience use in an
+ordinary follow-up; where an outcome warrants it, discriminating diagnosis and
+local revision; and selective reconsideration when a meaningful event changes
+the current basis. This selects evidence, not new phases, assignments or
+completion gates. Reconsideration may be needed without an earlier failure, and
+one task may answer several questions. Reuse sufficient existing observations.
+The full L1/L2 successor requirements remain; an individual diagnostic observation
+need not add a fresh executor unless it claims later use or continuity.
+
+[WikiSkill](https://arxiv.org/html/2608.27454v1) and
+[REM](https://arxiv.org/html/2610.27377v1) inform the compact-method/source-reading
+question; [ProactMem](https://arxiv.org/html/2610.36967v1) informs event relevance.
+These are bounded design references, not adopted frameworks or Augnes benefit
+evidence. Keep observation availability, timing and attribution within
+[#1213](https://github.com/hynk-studio/augnes/issues/1213), and execution-context
+prediction/applicability changes with
+[#1473](https://github.com/hynk-studio/augnes/pull/1473), under their existing scopes.
+Current/Next work, owners, resource allocations and terminal study dispositions
+remain unchanged; use the existing L1/L2 evidence scope below.
+
 Choose an actual task with usable existing assets and a real next consumer.
 Inspect the #1431 executable assets, #1453 return/correction path and existing
 selective-report consumer as relevant; no particular fixture or CSV product is

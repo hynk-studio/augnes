@@ -810,6 +810,17 @@ These are not interchangeable memory problems. Do not fabricate a defect or a
 causal explanation to justify the next patch; report an unresolved cause when
 the observation cannot distinguish it.
 
+For example, an outcome mismatch may arise from an input or observation problem,
+changed applicability or a faulty rule, or an implementation that did not execute
+that rule. Where the evidence distinguishes these possibilities, revise only the
+supported target and preserve unaffected conditions and unresolved causes.
+[SmartLabel](https://arxiv.org/abs/2508.15750) and
+[Memento3](https://arxiv.org/html/2610.11794v1) inform this distinction;
+[Kintsugi](https://arxiv.org/html/2605.09487v1) informs local revision. This is a
+case-specific example, not a fixed taxonomy, new engine or checklist for every
+change. Developer-authored repairs and supplied diagnoses remain distinct from
+the product model's observed judgment and later use.
+
 An optional development-only diagnostic may manually design high-quality support
 from permitted information to ask whether better support can improve the target
 behavior at all, then distinguish extraction, selection, timely delivery, and
@@ -839,6 +850,19 @@ adaptation. Before a fixed comparison, predefine
 method, update rules, source access and relevant availability/cutoffs, authority,
 model, tools/budget, scoring, contamination/exposure handling and stop conditions.
 Freeze those rules, not the memory/state whose adaptation is being tested.
+
+When evaluating repaired experience, distinguish removing harm from the earlier
+version from net benefit in genuinely separate later work.
+[After the Fix](https://arxiv.org/html/2609.34603v2) motivates contrasts on the same
+later task using the earlier experience, the repaired experience and a capable
+independent solve, as relevant to the claim. Match or disclose available task
+information and experience, tools, exposure and total preparation,
+diagnosis/repair and execution burden. An independent solve names a comparison
+path; a fresh invocation does not make an exposed case independent. An
+Augnes-specific contribution still requires the strong same-access adaptive
+memo/code comparison above. Select only the contrasts needed for the claim and
+reuse adequate existing observations; no mandatory three-arm study, new
+allocation or restart of P4.6 or other completed studies follows.
 
 | Comparison | Conditions and interpretation |
 |---|---|
