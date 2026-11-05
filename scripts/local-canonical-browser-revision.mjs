@@ -56,7 +56,7 @@ function probeFlags(flags) {
   return Object.fromEntries(probeNames.map(name => [name, typeof flags?.[name] === "boolean" ? flags[name] : null]));
 }
 
-export function verifyBrowserRevisionPreservation(previous, live) {
+export function verifyBrowserRevisionPreservation(previous, live, { requireSameBinding = false } = {}) {
   const state = live?.state;
   const observation = live?.diagnostics;
   const evaluated = Date.now();
@@ -66,6 +66,7 @@ export function verifyBrowserRevisionPreservation(previous, live) {
     ...preservationChecks(state, observation),
     same_service: state?.service_identity === previous.service_identity,
     same_state: state?.status === previous.status,
+    ...(requireSameBinding ? { same_binding: state?.preservation_binding === previous.preservation_binding } : {}),
   };
   const failed = Object.keys(checks).filter(name => !checks[name]);
   if (!Number.isFinite(age)) failed.push("observation_time_unavailable");
@@ -196,9 +197,9 @@ export function verifyReviewedBrowserFailure(r, stock, inputs, phaseIds) {
 
 // Both reviewed continuations require the physical ordinal-one Full to have
 // stopped at a natural child failure with settled resources and accounted stock.
-export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBrowser, allowIncompleteBrowser = false) {
+export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBrowser, allowIncompleteBrowser = false, expectedOrdinal = 1) {
   const failed = r.phases?.findIndex(p => p.status === "failure") ?? -1;
-  if (r.attempt?.source_correction?.commission?.ordinal !== 1 ||
+  if (r.attempt?.source_correction?.commission?.ordinal !== expectedOrdinal ||
       r.run?.id !== r.attempt.attempt_id || r.attempt.contract_fingerprint !== r.inputs?.fingerprint ||
       r.evidence?.mode !== "full" || r.evidence.selected_plan !== "full-canonical" || r.evidence.deciding !== false ||
       r.verification_context?.kind !== "isolated-worktree" || r.repository.worktree_before !== "clean" || r.repository.worktree_after !== "clean" ||

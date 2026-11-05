@@ -33,7 +33,9 @@ const repoRoot = path.resolve(
 const nestedAppRoot = path.join(repoRoot, "apps/augnes_apps");
 const suiteName = process.argv[2];
 const projectWorkFocus = process.argv[3] === "--project-work-only";
-if (process.argv.length > 3 && (!projectWorkFocus || suiteName !== "integration" || process.argv.length !== 4))
+const revisionFocus = process.argv[3] === "--reviewed-revision-only";
+if (process.argv.length > 3 && (process.argv.length !== 4 ||
+    !(projectWorkFocus && suiteName === "integration" || revisionFocus && suiteName === "authority")))
   throw new Error("unsupported canonical suite focus");
 const rootNode = (...args) => ({
   command: process.execPath,
@@ -159,6 +161,14 @@ const goldenStep = {
   timeoutMs: 360_000,
   requireNaturalExit: true,
 };
+
+const reviewedRevisionSteps = ["revision", "settlement", "browser", "git"].map(group => ({
+  id: "local-canonical-reviewed-revision-" + group,
+  label: "reviewed revision controls: " + group,
+  ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--reviewed-revision-controls", group),
+  timeoutMs: 30_000,
+  requireNaturalExit: true,
+}));
 
 const suites = {
   unit: [
@@ -1473,13 +1483,7 @@ const suites = {
       timeoutMs: AUXILIARY_EXECUTION_BUDGETS.reviewChildResultHarnessMs,
       requireNaturalExit: true,
     },
-    {
-      id: "local-canonical-reviewed-revision",
-      label: "reviewed revision admission, settlement, exclusive authority and fresh stock",
-      ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--reviewed-revision-controls"),
-      timeoutMs: 30_000,
-      requireNaturalExit: true,
-    },
+    ...reviewedRevisionSteps,
     {
       id: "operator-project-home-readiness-observation",
       label: "bounded Project Home observations preserve the original condition result",
@@ -1874,7 +1878,7 @@ try {
   );
   const selectedSteps = projectWorkFocus
     ? suites[suiteName].filter(step => ["project-work-initialization", "project-work-scoped-host"].includes(step.id))
-    : suites[suiteName];
+    : revisionFocus ? suites.authority.filter(step => reviewedRevisionSteps.includes(step)) : suites[suiteName];
   const preparedSteps = selectedSteps.map((step, index) => {
     const resourceOwner = createCanonicalTestResourceRoot(`ag-c${String(index + 1).padStart(2, "0")}-`);
     const resourceRoot = resourceOwner.root;
@@ -2031,7 +2035,7 @@ try {
 
   summary = {
         suite: suiteName,
-        coverage: projectWorkFocus ? "focused_project_work_children_only" : "complete_suite",
+        coverage: projectWorkFocus ? "focused_project_work_children_only" : revisionFocus ? "focused_reviewed_revision_children_only" : "complete_suite",
         status: "pass",
         environment_isolation_verified: forbiddenEnvironmentKeysForwarded === 0,
         forbidden_environment_keys_forwarded: forbiddenEnvironmentKeysForwarded,

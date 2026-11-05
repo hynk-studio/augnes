@@ -13,7 +13,7 @@ import {runCanonicalChild} from "../canonical-child-runner.mjs";
 import {finalizeReceipt,inspectReceiptForDecision} from "../local-canonical-receipt.mjs";
 import {createPrivateReviewExport,inspectPrivateReviewExport} from "../local-canonical-review-export.mjs";
 import {runBrowserRevisionControls, browserFixtureReceipt} from "./local-canonical-browser-revision.mjs";
-import {gitFixtureDeclaration,gitFixtureReceipt,runGitRevisionControls} from "./local-canonical-git-observation.mjs";
+import {checkSpentCommission,gitFixtureDeclaration,gitFixtureReceipt,runGitRevisionControls} from "./local-canonical-git-observation.mjs";
 import {baseReceipt} from "./local-canonical-receipt-v3.mjs";
 
 const self=fileURLToPath(import.meta.url), quiet={write(){}}, clone=v=>structuredClone(v);
@@ -53,12 +53,14 @@ function receipt(c,a,disposition="product_failure"){
   phases:[{id:"integration",status:disposition==="completed_success"?"pass":"failure"}],outcome:{disposition,safety:fault?"blocked":"preserved_within_observed_scope",first_fault:fault},checkout_ownership:{released:true},capacity_ownership:{released:true},
   cleanup:{completed:true,remaining_owned_processes:0,companion_service:{restored:true},isolated_resources:{completed:true}}});}
 const storeReceipt=(c,r)=>write(path.join(c.checkout,".augnes-local-verification/receipts",r.run.id+".json"),r);
+const gitFor = c => args => execFileSync("git", args, {cwd:c.checkout, env:c.env, timeout:5000, maxBuffer:1024*1024, stdio:["ignore","pipe","pipe"]});
 function setup(root,browser=false){
   const gitIncident=browser==="git", product="apps/web_planning/src/client.js.txt";
   const c={checkout:path.join(root,"checkout"),anchor:path.join(root,"anchor"),branch:"codex/reviewed-revision",root};
   mkdirSync(c.checkout);mkdirSync(c.anchor);c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});c.env=buildCanonicalChildEnvironment({temporaryRoot:root});
-  c.git=args=>execFileSync("git",args,{cwd:c.checkout,env:c.env,timeout:5000,maxBuffer:1024*1024,stdio:["ignore","pipe","pipe"]});
+  c.git = gitFor(c);
   c.commit=value=>{write(path.join(c.checkout,"scripts/fixture.mjs"),"export const value="+value+";\n"+(gitIncident?'import assert from "node:assert/strict";\nassert.equal(value,4);\nconsole.log("corrected behavior");\n':""));c.git(["add","scripts"]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","value "+value]);return c.git(["rev-parse","HEAD"]).toString().trim();};
+  if (gitIncident) for (const scenario of ["registration", "final-check"]) write(path.join(c.checkout, "scripts/" + scenario + ".mjs"), 'import assert from "node:assert/strict";\nassert.equal(false, true);\n');
   c.git(["init","--quiet","-b",c.branch]);c.base=c.commit(1);c.baseTree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();
   c.inputs={contract:"augnes.local-canonical-runtime-inputs.v1",node:{location_fingerprint:digest("current-node"),observation:{present:true,sha256:digest("node"),metadata:{mode:"33261",uid:"1",gid:"1",device:"1",inode:"1",links:"1",bytes:"4",mtime_ns:"1",ctime_ns:"1"},permission_identity:digest("node permissions"),executable_identity_policy:"shared-posix-v1"}},
     headers:{location_fingerprint:digest("headers"),observation:{contract:"augnes.local-canonical-node-headers.v1",present:true,location_fingerprint:digest("headers"),inventory_sha256:digest("inventory"),content_sha256:digest("content"),permission_sha256:digest("permissions"),entries:2,bytes:10}}};
@@ -158,11 +160,29 @@ if(process.argv[2]==="--cold"){
   try{const p=proof(c),a=await auth(c,p);write(c.ready,"ready");while(!existsSync(c.go))await new Promise(r=>setTimeout(r,5));
     try{begin(c,p,a);console.log("admitted");}catch(e){assert(["EEXIST","ENOENT","attempt_latest_tip_required"].includes(e.code),e.message);console.log("refused");}
   }finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
-}else if(process.argv[2]==="--run-git-fixtures"){
-  const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
-  const c=setup(owner.root,"git");
-  try{await runGitRevisionControls(c,{prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,finish:finishAttempt,fresh:packet=>freshReader(c,packet)});}
-  finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0});assert(cleanupCanonicalTestResources([owner])[0].completed);}
+}else if(["--run-git-fixtures", "--run-prospective-fixtures"].includes(process.argv[2])){
+  const owner = createCanonicalTestResourceRoot("ag-resource-test-");
+  beginCanonicalTestResourceUse(owner);
+  const snapshot = process.argv[3];
+  let c;
+  try {
+    if (snapshot) assert.equal(snapshot, path.join(process.env.AUGNES_CANONICAL_TEMP_ROOT, "prospective-fixture"));
+    const prospective = process.argv[2] === "--run-prospective-fixtures";
+    if (prospective) {
+      c = read(path.join(snapshot, "context.json"));
+      c.checkout = path.join(snapshot, "checkout"); c.anchor = path.join(snapshot, "anchor");
+      c.file = path.join(c.checkout, c.proofPath); c.artifacts = path.dirname(c.file);
+      c.env = buildCanonicalChildEnvironment({temporaryRoot:owner.root}); c.git = gitFor(c);
+      c.owner = acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});
+    } else c = setup(owner.root, "git");
+    const helpers = {prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,finish:finishAttempt,fresh:packet=>freshReader(c,packet)};
+    if (prospective) await checkSpentCommission(c, helpers);
+    else await runGitRevisionControls(c, {...helpers, snapshot});
+  } finally {
+    if (c?.owner) releaseCheckoutVerificationOwnership(c.owner,c.checkout);
+    settleCanonicalTestResourceUse(owner,{exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0});
+    assert(cleanupCanonicalTestResources([owner])[0].completed);
+  }
 }else if(process.argv[2]==="--run-browser-fixtures"){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
   const c=setup(owner.root,true);
@@ -400,4 +420,6 @@ if(process.argv[2]==="--cold"){
     findings.push("actual concurrent exclusive admission; orphaned interrupted edge remains consumed");
     console.log(JSON.stringify({reviewed_revision_controls:findings,synthetic_only:true}));
   }finally{if(c.owner)releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:liveChildren===0,streams_closed:liveChildren===0,cleanup_completed:liveChildren===0,remaining_owned_processes:liveChildren});assert(cleanupCanonicalTestResources([owner])[0].completed);}
+} else {
+  throw new Error("unsupported reviewed revision fixture selector");
 }

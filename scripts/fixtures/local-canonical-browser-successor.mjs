@@ -23,7 +23,8 @@ const runtimeKeys = ["AUGNES_CANONICAL_NODE_HEADERS", "AUGNES_CANONICAL_NODE_HEA
 
 export async function behavior(c) {
   const script = 'import assert from "node:assert/strict"; import {value} from "./scripts/fixture.mjs"; assert.equal(value,4); console.log("corrected behavior");';
-  const args = c.gitDeclaration ? ["scripts/fixture.mjs"] : ["--input-type=module", "-e", script];
+  const source = c.behaviorPath ?? "scripts/fixture.mjs";
+  const args = c.gitDeclaration ? [source] : ["--input-type=module", "-e", script];
   let output = "";
   const sink = { write(bytes) { output += bytes; } };
   const result = await runCanonicalChild({
@@ -31,7 +32,7 @@ export async function behavior(c) {
     args, cwd: c.checkout, env: c.env, timeoutMs: 5000, stdout: sink, stderr: sink
   });
   assert(result.cleanup_completed && result.remaining_owned_processes === 0 && result.termination_reason === "natural_exit");
-  return { command: c.gitDeclaration ? "node scripts/fixture.mjs" : "node --input-type=module -e " + JSON.stringify(script), result, output, finished_at: now(), tested_source_head: c.head };
+  return { command: c.gitDeclaration ? "node " + source : "node --input-type=module -e " + JSON.stringify(script), result, output, finished_at: now(), tested_source_head: c.head };
 }
 
 function declaration(c) {

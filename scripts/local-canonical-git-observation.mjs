@@ -5,6 +5,12 @@ import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 export const isGitObservationRevision = p =>
   p?.schema === "augnes.local-canonical-source-correction.v10" && p.kind === "reviewed_revision";
 export const isGitObservationSuccessor = p => isGitObservationRevision(p) && p.commission?.ordinal === 2;
+// A v7 commission descending from the spent Git-observation chain keeps the
+// complete input inventory throughout its physical lineage.
+export const isInventoryBoundRevision = p => p?.schema === "augnes.local-canonical-source-correction.v7" &&
+  p.kind === "reviewed_revision" && Object.hasOwn(p.inputs ?? {}, "inventory_sha256");
+export const usesGitInventory = p => isGitObservationRevision(p) || isInventoryBoundRevision(p);
+
 const equal = (a,b) => a !== undefined && b !== undefined && digest(a) === digest(b);
 const sha = value => /^[a-f0-9]{64}$/u.test(value ?? "");
 const fail = code => { throw Object.assign(new Error(code), { code }); };
@@ -96,14 +102,14 @@ export function gitRevisionInventory(snapshot) {
   }));
 }
 
-export function verifyGitRevisionFailure(receipt, stock, inputs, phases) {
+export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expectedOrdinal = 1) {
   const previous = receipt.attempt?.source_correction;
   const { contract, path_kind, binding, resources } = receipt.inputs;
-  if (!isGitObservationRevision(previous) || previous.commission.ordinal !== 1 ||
+  if (!usesGitInventory(previous) || previous.commission.ordinal !== expectedOrdinal ||
       gitRevisionInventory(receipt.inputs) !== previous.inputs.inventory_sha256 ||
       digest({ contract, path_kind, binding, resources }) !== receipt.inputs.fingerprint)
     fail("revision_git_predecessor_invalid");
-  verifySettledPhaseFailure(receipt, stock, inputs, phases, resources.find(r => r.id === "browser-executable"));
+  verifySettledPhaseFailure(receipt, stock, inputs, phases, resources.find(r => r.id === "browser-executable"), false, expectedOrdinal);
 }
 
 // Ordinal two repairs a failing executable source. Observe the same command
@@ -142,11 +148,25 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
 // Read the two operative paragraphs of the maintainer's bounded delegation.
 // An investigation, quoted template or negative decision with matching IDs
 // does not delegate publication of a reviewed candidate's execution grant.
-export function delegatesGitRevisionGrant(body, branch, pullRequest) {
+function visibleDelegationParagraphs(body) {
   // This authority format uses visible prose, headings and links. Reject markup
   // which can hide normative paragraphs in a comment, collapsed block or example.
-  if (/[<>\u202a-\u202e\u2066-\u2069]/u.test(body) || /^(?: {4}|\t| {0,3}(?:`{3,}|~{3,}|\$\$))/mu.test(body)) return false;
-  const paragraphs = body.replaceAll("\r\n", "\n").trim().split(/\n[ \t]*\n/u);
+  if (/[<>\u202a-\u202e\u2066-\u2069]/u.test(body) || /^(?: {4}|\t| {0,3}(?:`{3,}|~{3,}|\$\$))/mu.test(body)) return [];
+  return body.replaceAll("\r\n", "\n").trim().split(/\n[ \t]*\n/u);
+}
+
+export function delegatesProspectiveCommission(body, branch, pullRequest) {
+  const paragraphs = visibleDelegationParagraphs(body);
+  const heading = "### 4. Delegated public recording after independent source review";
+  const index = paragraphs.indexOf(heading);
+  const assignment = "This authorizes one cohesive correction and qualification assignment on " + branch + " in Draft PR #" + pullRequest;
+  return paragraphs[1]?.startsWith(assignment + ", following the ") && index > 1 && index === paragraphs.lastIndexOf(heading) &&
+    paragraphs[index + 1] === "After a separate read-only reviewer accepts the actual final published registration, continuation, policy and control changes, the implementation operator is authorized to publish the independent decision faithfully and the subsequent required prospective commission/execution authority through the existing authenticated maintainer identity under this task delegation.";
+}
+
+export function delegatesGitRevisionGrant(body, branch, pullRequest) {
+  const paragraphs = visibleDelegationParagraphs(body);
+  if (!paragraphs.length) return false;
   const scope = paragraphs[0].match(/^Authorize one cohesive correction and qualification assignment for issue #[1-9]\d* on (.+) and Draft PR #([1-9]\d*)\.$/u);
   const title = "## Delegated recording after independent review";
   const section = paragraphs.indexOf(title);

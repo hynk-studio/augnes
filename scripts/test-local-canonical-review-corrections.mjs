@@ -76,6 +76,12 @@ if (process.argv[2] === "--phase-probe") {
   process.exit(0);
 }
 
+const groups = ["revision", "settlement", "browser", "git"];
+const [selector, group, ...extra] = process.argv.slice(2);
+if (selector !== undefined && (selector !== "--reviewed-revision-controls" ||
+    (group !== undefined && !groups.includes(group)) || extra.length))
+  throw new Error("unsupported reviewed revision selector");
+
 const owner = createCanonicalTestResourceRoot("ag-resource-test-");
 const root = owner.root, env = buildCanonicalChildEnvironment({ temporaryRoot: root });
 const findings = []; let inFlight = false, lastChildDiagnostic = "";
@@ -96,16 +102,24 @@ async function child(args, options = {}) {
   return result;
 }
 try {
-  if (process.argv[2] === "--reviewed-revision-controls") {
-    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs"), "--run-revision-fixtures"], { controlId: "reviewed-revision", timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr });
-    assert.equal(result.exit_code, 0, lastChildDiagnostic);
-    const settlement = await child([path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs"), "--run-settlement-fixtures"], { controlId: "reviewed-revision-settlement", timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr });
-    assert.equal(settlement.exit_code, 0, lastChildDiagnostic);
-    const browser = await child([path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs"), "--run-browser-fixtures"], { controlId: "reviewed-revision-browser", timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr });
-    assert.equal(browser.exit_code, 0, lastChildDiagnostic);
-    const git = await child([path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs"), "--run-git-fixtures"], {controlId:"reviewed-revision-git",timeoutMs:15000,stdout:process.stdout,stderr:process.stderr});
-    assert.equal(git.exit_code, 0, lastChildDiagnostic);
-    findings.push("reviewed revision: real admission and refusal, terminal legacy preservation, two-invocation commission, concurrency and interrupted reservation, fresh stock");
+  if (selector === "--reviewed-revision-controls") {
+    for (const name of group === undefined ? groups : [group]) {
+      const fixture = path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs");
+      const snapshot = path.join(root, "prospective-fixture");
+      const result = await child([fixture, "--run-" + name + "-fixtures", ...(name === "git" ? [snapshot] : [])], {
+        controlId: name === "revision" ? "reviewed-revision" : "reviewed-revision-" + name,
+        timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr,
+      });
+      assert.equal(result.exit_code, 0, lastChildDiagnostic);
+      if (name === "git") {
+        // Start the new commission from a separate copy of the prepared synthetic ledger.
+        const continuation = await child([fixture, "--run-prospective-fixtures", snapshot], {
+          controlId: "spent-commission", timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr,
+        });
+        assert.equal(continuation.exit_code, 0, lastChildDiagnostic);
+      }
+      findings.push("reviewed revision controls: " + name);
+    }
   } else {
   const observer = await child([self, "--observer-controls"], { controlId: "observer-controls", timeoutMs: AUXILIARY_EXECUTION_BUDGETS.observerControlsMs });
   assert.equal(observer.exit_code, 0, lastChildDiagnostic);

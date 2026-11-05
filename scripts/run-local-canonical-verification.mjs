@@ -21,7 +21,7 @@ import os from "node:os";
 import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, createInputReader, classifyInputChange, nonFaultInputChange, inputReadOptions, supportedInputContract, createGitTrackingResource, observeCanonicalRuntimeInputs, canonicalRuntimeInputEnvironment, observePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
 import { beginAttempt, finishAttempt, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords, hasRetiredQualificationMarker, isReviewedRevision, isWebPlanningClientRevision, authorizeReviewedRevision, REVIEWED_REVISION_PHASES } from "./local-canonical-attempts.mjs";
 import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-evidence-retention.mjs";
-import { isGitObservationRevision, gitRevisionInventory } from "./local-canonical-git-observation.mjs";
+import { isGitObservationRevision, isInventoryBoundRevision, gitRevisionInventory } from "./local-canonical-git-observation.mjs";
 import { isBrowserRevision, browserBindingMatches } from "./local-canonical-browser-revision.mjs";
 import { browserInstallationRoot } from "./local-canonical-inputs.mjs";
 import { BROWSER_IDENTITY_PREFIX, validPhaseBrowserUse, browserConsumersForPhase, MAX_BROWSER_USE_RECORDS, parseBrowserUseLine } from "./local-canonical-browser-identity.mjs";
@@ -677,7 +677,7 @@ export async function executeLocalCanonicalVerification({
         if (historicalInputsRequired) historicalInputs = prepareHistoricalInputs({
           context: verificationContext, repositoryRoot, checkoutOwner, invocationId,
         });
-        const observed = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: isBrowserRevision(sourceCorrection) || isGitObservationRevision(sourceCorrection) });
+        const observed = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: isBrowserRevision(sourceCorrection) || isGitObservationRevision(sourceCorrection) || isInventoryBoundRevision(sourceCorrection) });
         serviceLifecycleBefore = observed.state;
         serviceObservations.before = observed.diagnostics;
         if (!observed.state.preservation_valid) throw Object.assign(
@@ -752,7 +752,7 @@ export async function executeLocalCanonicalVerification({
               isBrowserRevision(sourceCorrection) ? await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: true }) : null;
             if (revisionAuthorization && (mode !== "full" || checkoutContext !== "isolated-worktree" || plan.selected_plan !== "full-canonical" ||
                 digest(phaseDefinitions.map(p => p.id)) !== digest(REVIEWED_REVISION_PHASES))) throw Object.assign(new Error("reviewed_revision_workload_invalid"), { code: "reviewed_revision_workload_invalid" });
-            if (isGitObservationRevision(sourceCorrection)) {
+            if (isGitObservationRevision(sourceCorrection) || isInventoryBoundRevision(sourceCorrection)) {
               revisionLive = await observeGitRevisionTarget(verificationContext, hostResult.browserExecutablePath, runtimeInputs);
               if (gitRevisionInventory(inputs.snapshot()) !== revisionLive.inventory) throw Object.assign(new Error("revision_git_inputs_changed"), {code:"revision_git_inputs_changed"});
             }
@@ -877,7 +877,7 @@ export async function executeLocalCanonicalVerification({
       }
       if (serviceLifecycleBefore !== null) {
         if (checkoutContext === "isolated-worktree") {
-          const observed = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: isBrowserRevision(sourceCorrection) || isGitObservationRevision(sourceCorrection) });
+          const observed = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: isBrowserRevision(sourceCorrection) || isGitObservationRevision(sourceCorrection) || isInventoryBoundRevision(sourceCorrection) });
           serviceLifecycleAfter = observed.state;
           serviceObservations.after = observed.diagnostics;
         } else {
@@ -1456,7 +1456,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
     try { revisionAuthorization = await authorizeReviewedRevision(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
     try { runtimeInputs = observeRevisionInputs(receipt.attempt.source_correction, validationHost); } catch { /* stock refuses unavailable runtime input */ }
     if (isBrowserRevision(receipt.attempt.source_correction)) try { revisionLive = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: true }); } catch { /* stock requires coherent current preservation */ }
-    if (isGitObservationRevision(receipt.attempt.source_correction)) try {
+    if (isGitObservationRevision(receipt.attempt.source_correction) || isInventoryBoundRevision(receipt.attempt.source_correction)) try {
       revisionLive = await observeGitRevisionTarget(verificationContext, validationHost.browserExecutablePath, runtimeInputs);
       if (gitRevisionInventory(receipt.inputs) !== revisionLive.inventory) revisionLive = null;
     } catch { /* stock refuses incomplete or changed current observations */ }

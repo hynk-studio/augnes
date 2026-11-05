@@ -914,8 +914,35 @@ and separate fresh-process stock before candidate revision. Without a supported
 remedy, or after the second invocation, finish diagnosis and cleanup and report
 the precise blocker.
 
-A genuinely new authenticated commission may follow a spent v7 commission at
-its latest settled tip. Its initial ordinal binds that tip as its root; all old
+A genuinely new authenticated v7 commission may follow a spent v7 commission at
+its latest settled tip. A settled v10 ordinal-two Full with a naturally failed
+phase can also supply that tip. Its original commission, grants, false stock,
+receipts and exclusive edges remain spent and reconstructible. This boundary
+requires a material change to implicated source, completed focused commands on
+the new head and the full protected input inventory, including shared Git
+configuration. Preparation reads the physical tip and installed Companion
+observation before independent review. It cannot reserve or issue authority.
+
+For this continuation, the published source review begins with
+`Source review decision: ACCEPT / RETAIN for prospective qualification.` and
+binds head, tree, base, predecessor and preparation commitment. The unedited
+maintainer grant begins with `Authorize a NEW prospective v7 reviewed_revision
+commission.` and gives the existing prospective terms, exact initial target,
+source-review URL and operative task-delegation URL. Read current maintainer
+permission. If ordinal one fails, retain that initial acceptance and grant for
+accounting. A new commit-anchored contract review on the same PR binds the
+second candidate and its preparation commitment. The same readers check its
+material repair, current inventory, predecessor and exclusive reservation.
+
+The existing reviewed-revision fixture groups have separate serial authority
+registrations in revision, settlement, browser and git order. Each requires a
+natural exit within 30 seconds and retains its 15-second nested fixture bound.
+The Git group also exercises the spent-commission boundary in a separate
+15-second child. `node scripts/run-canonical-test-suite.mjs authority
+--reviewed-revision-only` selects these actual registrations with their normal
+resource and cleanup owners. The aggregate has no additional registration.
+
+The new commission's initial ordinal binds its latest tip as its root. All old
 grant IDs and consumption are reconstructed from the existing exclusive chain.
 An old grant, edited grant, older tip, competing edge or new root within the same
 commission cannot reset consumption. Historical accepted source evidence retains
@@ -949,7 +976,10 @@ reconstruction requires the bound settlement originals. Old stock stays invalid.
 
 This route requires the final clean published source, authenticated current-main
 and ancestry, admitted Mac worktree, pinned Node/npm, ownership/capacity,
-immutable inputs and stopped/exact installed-state preservation. It executes the
+immutable inputs and coherent installed-state preservation. The inventory-bound
+v7 continuation observes the same live/exact or stopped/exact service through
+the isolated read-only owner at admission, cleanup and stock. The separate
+external-restoration path above requires its stopped/exact observation. It executes the
 unchanged planner-complete Full, including every dedicated Browser owner, with
 unchanged assertions, deadlines, ordering, concurrency and cleanup. Stock
 reconstructs the original records, authority and current inputs without writes.

@@ -1,6 +1,6 @@
 // Synthetic Git, ledger and authenticated read transport. No production admission.
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { digest, INPUT_CONTRACT, inputEventIdentity } from "../local-canonical-inputs.mjs";
 import { CANONICAL_NODE_VERSION } from "../local-canonical-environment.mjs";
@@ -179,6 +179,19 @@ async function checkGitSourceSuccessor(c, h, initial, initialCapability) {
     assert.throws(() => h.begin(...args), /attempt_latest_tip_required/);
     return reserved;
   }};
+  if (h.snapshot) {
+    // Fork the synthetic inputs before reservation. The existing case retains its
+    // passing ordinal two. The sibling independently executes a failure there.
+    mkdirSync(h.snapshot, {mode:0o700});
+    cpSync(c.checkout, path.join(h.snapshot, "checkout"), {
+      recursive:true, filter:file => path.basename(file) !== "checkout-owner.json",
+    });
+    cpSync(c.anchor, path.join(h.snapshot, "anchor"), {recursive:true});
+    h.write(path.join(h.snapshot, "context.json"), {
+      branch:c.branch, base:c.base, head:c.head, tree:c.tree, inputs:c.inputs, gitDeclaration:c.gitDeclaration,
+      authority:c.authority, live:c.live, proofPath:path.relative(c.checkout,c.file), browser, packages,
+    });
+  }
   const second=await executeFixture(c,competing,proof,cap,browser,packages);
   assert.equal(second.stock.valid_deciding_evidence,true);
   assert(!h.stock({...c,live:{...c.live,inventory:digest("changed")}},second.receipt,cap));
@@ -186,6 +199,157 @@ async function checkGitSourceSuccessor(c, h, initial, initialCapability) {
   assert.deepEqual(tip().revision_grants,[firstAuthority.grant.id,grant.id]);assert.throws(()=>h.begin(c,proof,cap));assert.throws(()=>prepare(p));
   console.log(JSON.stringify({synthetic_only:true,material_successor:{first_stock:false,second_stock:true,consumed:2,same_commission:true,
     refused:["stale and changed originals","reset and third ordinal","identical and whitespace-only source","wrong witness","missing and edited authority","unstable inputs","competing successor"]}}));
+}
+
+// Continue an independently executed failure on the fork. Exercise the new
+// commission and its prospective second ordinal through the same cold stock reader.
+export async function checkSpentCommission(c, h) {
+  const tip = () => reconstructAttemptTip({anchorRoot:c.anchor, repositoryRoot:c.checkout, branch:c.branch});
+  const p2 = h.proof(c), oldGrant = c.authority.grant, spentIdentity = tip().revision_commission;
+  c.behaviorPath = "scripts/registration.mjs";
+  const failed = await executeFixture(c, h, p2, await h.auth(c,p2), c.browser, c.packages);
+  assert.equal(failed.stock.valid_deciding_evidence, false);
+  const spent = tip();
+  assert.equal(spent.reviewed_revision_consumed, 2);
+  assert.equal(spent.revision_commission, spentIdentity);
+  const prefix = "https://github.com/hynk-studio/augnes/pull/999#";
+  const delegation = {...oldGrant, id:21, body:[
+    "## Ongoing task delegation",
+    "This authorizes one cohesive correction and qualification assignment on "+c.branch+" in Draft PR #999, following the receiving audit.",
+    "### 4. Delegated public recording after independent source review",
+    "After a separate read-only reviewer accepts the actual final published registration, continuation, policy and control changes, the implementation operator is authorized to publish the independent decision faithfully and the subsequent required prospective commission/execution authority through the existing authenticated maintainer identity under this task delegation.",
+  ].join("\n\n")};
+  const priorBytes = [p2.local_relative_path, ".augnes-local-verification/receipts/"+failed.receipt.run.id+".json"]
+    .map(file => [path.join(c.checkout,file), digest(readFileSync(path.join(c.checkout,file)))]);
+  let prior = failed, accepted, grant;
+  for (const ordinal of [1, 2]) {
+    const file = c.behaviorPath;
+    c.prior = prior.receipt; c.grantId = 23;
+    const commit = text => {
+      h.write(path.join(c.checkout,file), text); c.git(["add",file]);
+      c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","synthetic registration repair"]);
+    };
+    const was = readFileSync(path.join(c.checkout,file),"utf8");
+    commit(was.replace("false, true", "true, true"));
+    if (ordinal === 1) {
+      c.acceptedHead=c.git(["rev-parse","HEAD"]).toString().trim();
+      c.acceptedTree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();
+    }
+    h.prepare(c,ordinal);
+    const p=c.proof, artifact=(name,value)=>h.artifact(c,name,value);
+    const readItem=ref=>h.read(path.join(c.artifacts,ref.artifact));
+    p.commission.delegation={id:delegation.id,sha256:digest(reviewedRevisionAuthorityObservation(delegation,"task_delegation"))};
+    p.inputs.inventory_sha256=c.live.inventory; p.inputs.predecessor_sha256=p2.inputs.identity_sha256;
+    p.originals.stock=artifact("prior-stock.log",JSON.stringify(prior.stock));
+    const green=await behavior(c);
+    assert.equal(green.result.exit_code,0);
+    const raw=readFileSync(path.join(c.checkout,file)), stdout=artifact("green.log",green.output);
+    p.source=artifact("source.json",{...readItem(p.source),reviewed_at:time(0)});
+    p.focused=artifact("focused.json",{...readItem(p.focused),finished_at:time(0),failed_phase:"authority",
+      implicated_paths:[file],source_files:[{path:file,sha256:digest(raw),byte_size:raw.length}],input_remedy_resources:[],
+      diagnosis:"A real bounded command failed before the remaining fixture work could run.",
+      commands:[{command:green.command,tested_source_head:p.head,result:green.result,stdout,record:artifact("green.json",green)}]});
+    if (ordinal === 2) p.accepted=accepted;
+    const prepFile=path.join(c.artifacts,"preparation.json");
+    const prepare=(q,live=c.live)=>{
+      const material=structuredClone(q);delete material.authorization;if(ordinal===1)delete material.accepted.review;
+      h.write(prepFile,material);
+      return inspectGitRevisionPreparation({file:prepFile,repositoryRoot:c.checkout,predecessorRoot:c.checkout,
+        anchorRoot:c.anchor,runtimeInputs:c.inputs,live});
+    };
+    const prepared=prepare(p);
+    assert.equal(prepared.consumed, ordinal===1?2:1); assert.equal(prepared.reserved,false);
+    const review={...c.authority.review,id:21+ordinal,commit_id:p.head,submitted_at:time(1),body:[
+      "Source review decision: ACCEPT / RETAIN for prospective qualification.",p.base,p.head,p.tree,p.prior_receipt_fingerprint,prepared.target,
+    ].join("\n")};
+    const ref=role=>({id:review.id,sha256:digest(reviewedRevisionAuthorityObservation(review,role))});
+    if(ordinal===1) {
+      assert.throws(()=>prepare({...p,prior_attempt_id:"skipped"}));
+      const priorFolder = path.dirname(path.join(c.checkout,p2.local_relative_path));
+      const firstOriginals = Object.fromEntries(Object.entries(p2.originals).map(([key,ref]) =>
+        [key, artifact("first-"+ref.artifact,readFileSync(path.join(priorFolder,ref.artifact)))]));
+      const firstTip = {prior_family_id:p2.prior_family_id, prior_number:p2.prior_number, prior_attempt_id:p2.prior_attempt_id,
+        prior_receipt_fingerprint:p2.prior_receipt_fingerprint};
+      assert.throws(()=>prepare({...p,...firstTip,originals:firstOriginals,commission:{...p.commission,
+        root_family_id:firstTip.prior_family_id,root_number:firstTip.prior_number,root_attempt_id:firstTip.prior_attempt_id,
+        root_receipt_fingerprint:firstTip.prior_receipt_fingerprint}}), /revision_git_lineage_invalid/);
+      assert.throws(()=>prepare({...p,inputs:{...p.inputs,inventory_sha256:undefined}}));
+      const priorStock = path.join(c.artifacts,p.originals.stock.artifact), oldStock = readFileSync(priorStock);
+      h.write(priorStock,JSON.stringify({...prior.stock,issues:[]}));
+      try {assert.throws(()=>prepare(p));} finally {h.write(priorStock,oldStock);}
+      const previousPath = path.join(c.checkout, p2.local_relative_path);
+      const oldProof = readFileSync(previousPath); h.write(previousPath,{...p2,base:p.head});
+      try {assert.throws(()=>prepare(p));} finally {h.write(previousPath,oldProof);}
+      const otherService = structuredClone(c.live);
+      otherService.service.state.preservation_binding = digest("different service binding");
+      otherService.service.diagnostics.before_binding = otherService.service.diagnostics.after_binding = otherService.service.state.preservation_binding;
+      assert.throws(()=>prepare(p,otherService), /revision_current_preservation_unsafe/);
+      // Recompute every source/command binding for a candidate whose only changes
+      // are file mode and whitespace. Reject the actual Git delta, not a stale hash.
+      const parent = prior.receipt.repository.head_sha;
+      const diff = (from,to) => {const raw=c.git(["diff","--binary","--full-index","--no-ext-diff","--no-textconv",from,to,"--"]);
+        return {bytes:raw.length,sha256:digest(raw),paths:c.git(["diff","--name-only",from,to,"--"]).toString().trim().split("\n").filter(Boolean).sort()};};
+      for (const changed of [false,true]) {
+        const content = changed ? was.replace("false, true","false,  true") : was;
+        h.write(path.join(c.checkout,file),content);c.git(["add",file]);
+        if (changed) c.git(["update-index","--chmod=+x",file]);
+        const tree=c.git(["write-tree"]).toString().trim();
+        const head=c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit-tree",tree,"-p",parent,"-m","cosmetic"]).toString().trim();
+        c.git(["restore","--source=HEAD","--staged","--worktree","--",file]);
+        const source={...readItem(p.source),accepted_to_final:diff(head,head),predecessor_to_final:diff(parent,head),main_to_final:diff(p.base,head)};
+        const focus=readItem(p.focused), record=artifact("cosmetic-command.json",{...green,tested_source_head:head});
+        const cosmetic={...focus,source_files:[{path:file,byte_size:Buffer.byteLength(content),sha256:digest(Buffer.from(content))}],
+          commands:[{...focus.commands[0],tested_source_head:head,record}]};
+        assert.throws(()=>prepare({...p,head,tree,accepted:{head,tree,base:p.base},source:artifact("cosmetic-source.json",source),
+          focused:artifact("cosmetic-focused.json",cosmetic)}),/revision_material_remedy_required/);
+      }
+      assert.throws(()=>prepare(p,{...c.live,inventory:digest("unstable")}));
+      const oldCompletion=path.join(c.anchor,".augnes-local-verification/families",spent.family_id,"completion-1.json");
+      const bytes=readFileSync(oldCompletion);h.write(oldCompletion,{...h.read(oldCompletion),cleanup_complete:false});
+      try {assert.throws(()=>prepare(p));} finally {h.write(oldCompletion,bytes);}
+      p.accepted.review=ref("accepted_revision");accepted=structuredClone(p.accepted);
+      grant={...oldGrant,id:23,created_at:time(3),body:[
+        "Authorize a NEW prospective v7 reviewed_revision commission.",p.schema,p.branch,p.base,p.head,p.tree,prepared.target,p.prior_receipt_fingerprint,
+        prefix+"pullrequestreview-"+review.id,prefix+"issuecomment-"+delegation.id,
+        "The old commission remains spent. At most two admitted deciding invocations total, demonstrated material correction with focused support, zero unchanged-target retry and zero extra recovery. Reservation/interruption consumes. Separate fresh-process stock and independent audit.",
+      ].join("\n")};grant.updated_at=grant.created_at;
+      c.authority.review=review;
+    } else {
+      c.authority.review=c.firstReview;
+      c.authority.linked={["repos/hynk-studio/augnes/pulls/999/reviews/"+review.id]:review};
+    }
+    c.authority.grant=grant; c.authority.linked={...c.authority.linked,["repos/hynk-studio/augnes/issues/comments/"+delegation.id]:delegation};
+    p.authorization={grant_comment_id:grant.id,grant_sha256:digest(reviewedRevisionAuthorityObservation(grant,"execution_commission")),
+      ...(ordinal===2?{contract_review:{...ref("contract_review"),head:p.head,pull_request:p.pull_request}}:{})};
+    h.write(c.file,p);
+    const proof=h.proof(c), cap=await h.auth(c,proof);
+    if (ordinal===1) {
+      c.firstReview=review;
+      for(const used of spent.revision_grants) {
+        h.write(c.file,{...p,authorization:{...p.authorization,grant_comment_id:used}});
+        assert.throws(()=>h.proof(c),/revision_commission_lineage_invalid/);
+      }
+      h.write(c.file,p);
+      for(const id of [grant.id,delegation.id]) await assert.rejects(h.auth(c,proof,(v,e)=>e.endsWith("/"+id)?{...v,body:"edited"}:v));
+      await assert.rejects(h.auth(c,proof,(v,e)=>e.includes("/permission")?{...v,permission:"read"}:v));
+      assert.throws(()=>h.begin(c,proof,cap,{revisionLive:{...c.live,inventory:digest("changed")}}));
+      c.behaviorPath="scripts/final-check.mjs";
+    }
+    const competing={...h,begin(ctx,src,authority,opts) {
+      const input={...opts,runId:"new-commission-"+ordinal};
+      const record=h.begin(ctx,src,authority,input);
+      assert.throws(()=>h.begin(ctx,src,authority,input));return record;
+    }};
+    prior=await executeFixture(c,competing,proof,cap,c.browser,c.packages);
+    assert.equal(prior.stock.valid_deciding_evidence,ordinal===2);
+    const current=tip();assert.notEqual(current.revision_commission,spentIdentity);
+    if(ordinal===1)c.newIdentity=current.revision_commission;
+    assert.equal(current.revision_commission,c.newIdentity);
+    assert.deepEqual(current.revision_grants,[...spent.revision_grants,grant.id]);
+    assert.equal(current.reviewed_revision_consumed,ordinal);
+  }
+  for(const [file,hash] of priorBytes)assert.equal(digest(readFileSync(file)),hash);
+  console.log(JSON.stringify({synthetic_only:true,spent_v10_to_v7:true,old_consumed:2,new_consumed:2,fresh_stock:[false,false,true]}));
 }
 
 export async function runGitRevisionControls(c,h) {
