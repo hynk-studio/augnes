@@ -419,15 +419,22 @@ function returnOptions(){
   $('return-name-field').hidden=!used;$('return-text-field').hidden=mode!=='adapted';
   $('return-goal-field').hidden=dest.value!=='new';returnPrepared=null;$('return-commit').hidden=true;$('return-preview').textContent='';
 }
+function returnInputsChanged(epoch) {
+  if (accessLost) return true;
+  if (inputEpoch === epoch) return false;
+  status('Your edits changed during this request. They were retained. Inspect or preview again when ready.');
+  return true;
+}
 async function inspectReturned(ref,index){
   if(returnMarker){$('return-recovery').hidden=false;status('Check the pending return save first.');return;}
-  if(returnEdited&&!confirm('Discard this unsaved return decision?'))return;
+  if((returnEdited||returnPrepared)&&!confirm('Discard this unsaved return decision?'))return;
+  const edits=inputEpoch;
   let view;try{view=await api('/api/work/'+ref.work_id+'/inspect-return',{returned:ref,index,after:null});}
-  catch(e){if(ref.work_id!==work&&['work_not_found','work_erased','return_selection_unavailable'].includes(e.message)){
+  catch(e){if(returnInputsChanged(edits))return;if(ref.work_id!==work&&['work_not_found','work_erased','return_selection_unavailable'].includes(e.message)){
     resetReturnPanel();const message=$('return-status');
     message.textContent='Recorded source unavailable: '+returnRef(ref)+' · file '+(index+1)+'. The saved destination bytes and their recorded attribution remain here.';
     message.focus();return;}throw e;}
-  if(accessLost)return;resetReturnPanel();returnView=view;
+  if(returnInputsChanged(edits))return;resetReturnPanel();returnView=view;
   const box=$('return-basis'),file=view.returned.files[index];
   returnText(box,'Request: '+view.request.message+' · '+returnRef(view.request.ref));
   for(const file of view.request.files){returnText(box,'Requested file: '+file.name+' · '+file.digest);box.append(returnButton('Download requested '+file.name,()=>downloadExchangeFile(file)));addTextReader(box,file,null);}
@@ -473,13 +480,16 @@ $('return-prepare').onclick=()=>run(async()=>{
     rationale:$('return-reason').value,limits:$('return-limits').value,reported_check:$('return-checks').value,next_action:$('return-next').value};
   const id=dest.value==='current'?returnView.current.ref.work_id:dest.value;
   if(id===work&&returnDraftBusy()){status('Finish the destination draft first. Its edits and save base are unchanged.');return;}
-  const savedTarget=id==='new'?null:(await api('/api/work/'+id)).saved;
+  const edits=inputEpoch,selection=returnView.selection,goal=$('return-goal').value;
   const observed=dest.value==='current'?returnView.current.ref.fingerprint:dest.selectedOptions[0].dataset.fingerprint;
+  const savedTarget=id==='new'?null:(await api('/api/work/'+id)).saved;
+  if(returnInputsChanged(edits))return;
   if(savedTarget&&(savedTarget.fingerprint!==observed||(work===id&&saved?.fingerprint!==savedTarget.fingerprint))){status('The selected destination changed. Inspect its current conditions and choose it again.');return;}
   const {prepareReturnDraft}=await import('/planning-notes.mjs');
-  let p;try{p=await prepareReturnDraft(api,returnView.selection,judgment,savedTarget?{saved:savedTarget}:{goal:$('return-goal').value});}
-  catch(e){if(accessLost)return;const why=messages[e.message]??e.message.replaceAll('_',' ');$('return-status').textContent='Preview unavailable: '+why+' Nothing was saved.';return;}
-  if(accessLost)return;returnPrepared=p;$('return-commit').hidden=false;
+  if(returnInputsChanged(edits))return;
+  let p;try{p=await prepareReturnDraft(api,selection,judgment,savedTarget?{saved:savedTarget}:{goal});}
+  catch(e){if(returnInputsChanged(edits))return;const why=messages[e.message]??e.message.replaceAll('_',' ');$('return-status').textContent='Preview unavailable: '+why+' Nothing was saved.';return;}
+  if(returnInputsChanged(edits))return;returnPrepared=p;$('return-commit').hidden=false;
   $('return-preview').textContent='Prepared, not saved: '+p.body.definition.goal+' · '+p.work_id+' · base '+p.expected.revision+' / '+(p.expected.fingerprint??'new work')+'\n'+
     [...p.body.definition.success_criteria,...p.body.notes.map(n=>n.text),...p.body.files.map(f=>f.name)].join('\n')+'\n'+
     mode+': '+(judgment.name??'no material selected')+' · '+judgment.rationale+' · Next: '+judgment.next_action;
@@ -499,7 +509,10 @@ async function finishReturn(response){
   $('return-recovery').hidden=$('return-commit').hidden=true;$('return-fields').disabled=false;
   const notice='Saved '+d.return_use.decision+' in '+d.definition.goal+' · '+returnRef(d)+'. Next: '+d.return_use.next_action;
   $('return-status').textContent=notice;
-  if(work===d.work_id&&!returnDraftBusy()){const latest=await api('/api/work/'+work);await show(latest.saved,latest.exchanges);}
+  if(work===d.work_id&&!returnDraftBusy()){
+    const edits=inputEpoch,latest=await api('/api/work/'+work);
+    if(!returnInputsChanged(edits)&&!returnDraftBusy())await show(latest.saved,latest.exchanges);
+  }
   else if(returnView){const s=returnView.selection;await inspectReturned(s.returned,s.index);}
   $('return-status').textContent=notice;
 }

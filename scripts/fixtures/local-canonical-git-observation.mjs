@@ -84,7 +84,7 @@ export async function runGitRevisionControls(c,h) {
   assert.deepEqual(inspectGitRevisionPreparation(args).target,gitReviewTarget(p));assert.throws(()=>readSourceCorrectionProof(prep,c.checkout));
   assert.throws(()=>inspectGitRevisionPreparation({...args,live:{...c.live,inventory:digest("changed")}}));
   h.write(prep,{...material,prior_attempt_id:"stale-tip"});assert.throws(()=>inspectGitRevisionPreparation(args));h.write(prep,material);
-  for(const mutate of [w=>w.modules[0].sha256=digest("different source"),w=>w.fixture_sha256=digest("wrong regression"),w=>w.result.exit_code=0]){
+  for(const mutate of [w=>w.tested_source_head=c.head,w=>delete w.tested_source_head,w=>w.modules[0].sha256=digest("different source"),w=>w.fixture_sha256=digest("wrong regression"),w=>w.result.exit_code=0]){
     const bad=structuredClone(red);mutate(bad);
     h.write(prep,{...material,focused:retain("bad-focus",{...focus,regression:{...focus.regression,before:retain("bad-red",bad)}})});
     assert.throws(()=>inspectGitRevisionPreparation(args),/revision_git_regression_invalid/);
@@ -92,17 +92,20 @@ export async function runGitRevisionControls(c,h) {
   h.write(prep,material);
   const {review,grant}=c.authority;
   const target=gitReviewTarget(p);
-  review.body=[p.base,p.head,p.tree,p.prior_receipt_fingerprint,target,"Source review decision: ACCEPT / RETAIN for prospective qualification."].join("\n");
+  review.body=["Source review decision: ACCEPT / RETAIN for prospective qualification.",p.base,p.head,p.tree,p.prior_receipt_fingerprint,target].join("\n");
   review.submitted_at=time(-8000);grant.created_at=grant.updated_at=time(-5000);
-  grant.body=[p.schema,p.branch,p.base,p.head,p.tree,p.prior_receipt_fingerprint,target,"https://github.com/hynk-studio/augnes/pull/999#pullrequestreview-10",
-    "Separate fresh-process stock and independent audit.","Authorize prospective Mac qualification of this reviewed Git-observation successor."].join("\n");
+  grant.body=["Authorize prospective Mac qualification of this reviewed Git-observation successor.",p.schema,p.branch,p.base,p.head,p.tree,p.prior_receipt_fingerprint,target,"https://github.com/hynk-studio/augnes/pull/999#pullrequestreview-10",
+    "Separate fresh-process stock and independent audit."].join("\n");
   const bind=()=>{p.accepted.review.sha256=digest(reviewedRevisionAuthorityObservation(review,"accepted_revision"));
     p.authorization.grant_sha256=digest(reviewedRevisionAuthorityObservation(grant,"execution_commission"));h.write(c.file,p);};
   const reviewBody=review.body,grantBody=grant.body;
-  for (const bad of ["DO NOT MERGE "+reviewBody.split("\n").slice(0,-1).join(" "),reviewBody.replace(p.head,"a".repeat(40))]){
+  for (const bad of ["Source review decision: HOLD. Example for a later review:\n~~~text\n"+reviewBody+"\n~~~","> "+reviewBody,reviewBody.replace(p.head,"a".repeat(40))]){
     review.body=bad;bind();await assert.rejects(h.auth(c,h.proof(c)),/revision_authority_scope_invalid/);
   }
-  review.body=reviewBody;grant.body=grantBody.replace(target,"");bind();await assert.rejects(h.auth(c,h.proof(c)),/revision_authority_scope_invalid/);
+  review.body=reviewBody;
+  for(const bad of ["Execution denied. A future commission might read:\n~~~text\n"+grantBody+"\n~~~","> "+grantBody,grantBody.replace(target,"")]){
+    grant.body=bad;bind();await assert.rejects(h.auth(c,h.proof(c)),/revision_authority_scope_invalid/);
+  }
   grant.body=grantBody;bind();const proof=h.proof(c),cap=await h.auth(c,proof);
   assert.throws(()=>h.begin(c,proof,{observations:cap.observations}));
   assert.throws(()=>h.begin(c,proof,cap,{revisionLive:{...c.live,inventory:digest("unstable")}}),/revision_git_target_unverified/);

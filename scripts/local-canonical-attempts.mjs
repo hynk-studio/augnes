@@ -660,9 +660,12 @@ export function validateReviewedRevisionAuthorityRecords(p, review, grant, permi
     Date.parse(observations.execution_commission.timestamp) > Date.parse(observations.contract_review.timestamp);
   // The acceptance here belongs to the published corrected source. A negative
   // review on the predecessor cannot stand in for it or for prospective authority.
-  const gitScope = isGitObservationRevision(p) && review.body.split(/\r?\n/u).includes("Source review decision: ACCEPT / RETAIN for prospective qualification.") &&
+  // Only a first-line decision is operative. An example in prose, a quote or
+  // fenced code is not the reviewer's decision or the maintainer's commission.
+  const firstLine = body => body.split(/\r?\n/u).find(line => line.trim().length);
+  const gitScope = isGitObservationRevision(p) && firstLine(review.body) === "Source review decision: ACCEPT / RETAIN for prospective qualification." &&
     [gitReviewTarget(p), p.prior_receipt_fingerprint].every(s => review.body.includes(s)) &&
-    grant.body.split(/\r?\n/u).includes("Authorize prospective Mac qualification of this reviewed Git-observation successor.") &&
+    firstLine(grant.body) === "Authorize prospective Mac qualification of this reviewed Git-observation successor." &&
     [p.schema, p.head, p.tree, p.base, p.branch, p.prior_receipt_fingerprint, gitReviewTarget(p),
       `https://github.com/hynk-studio/augnes/pull/${p.pull_request}#pullrequestreview-${p.accepted.review.id}`].every(s => grant.body.includes(s)) &&
     grant.created_at === grant.updated_at;
@@ -965,7 +968,7 @@ function readRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
         !focused.commands?.some(c => c.command === green.command && c.tested_source_head === p.head))
       throw fail("revision_git_regression_invalid");
     for (const [witness, head, code] of [[red,prior.head,1],[green,p.head,0]]) {
-      if (witness.head !== head || !revisionEqual(witness.modules, modules.map(name => ({path:name,sha256:digest(git(["show", `${head}:${name}`]))}))) ||
+      if (witness.head !== head || witness.tested_source_head !== head || !revisionEqual(witness.modules, modules.map(name => ({path:name,sha256:digest(git(["show", `${head}:${name}`]))}))) ||
           witness.fixture_sha256 !== fixtureHash || !sha(witness.environment) || witness.environment !== red.environment ||
           witness.node_version !== CANONICAL_NODE_VERSION || witness.command !== green.command ||
           witness.result.exit_code !== code || witness.result.timed_out !== false || witness.result.cancelled !== false ||

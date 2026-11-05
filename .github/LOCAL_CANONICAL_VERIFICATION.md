@@ -1086,10 +1086,10 @@ any authority exists. It checks the latest ledger tip, current main, clean
 branch, source, witnesses and fresh stable inputs without reserving an attempt.
 
 The authenticated commit-anchored review covers the **published corrected
-source**, commitment and predecessor fingerprint. It records the standalone
+source**, commitment and predecessor fingerprint. It starts with the standalone
 line `Source review decision: ACCEPT / RETAIN for prospective qualification.`
 An unedited prospective commission on the same Draft PR follows that review and
-records the standalone line `Authorize prospective Mac qualification of this
+starts with the standalone line `Authorize prospective Mac qualification of this
 reviewed Git-observation successor.` Include the schema, branch, current base,
 head, tree, predecessor fingerprint, commitment, exact review URL, separate
 fresh-process stock and independent audit scope. Reuse v7's authenticated

@@ -64,6 +64,23 @@ export async function browserReturnedFiles({c,fresh,origin,env,root,click,set,se
   await set(c,'goal','Local edit to check the loading door');
   await ordinaryWhileEditing('dirty work form submit',()=>c.eval("$('work-form').requestSubmit()"));
   assert.equal(await c.eval("$('goal').value"),'Local edit to check the loading door');
+  // Type while a real response is paused. A ticket for earlier text must not
+  // become actionable and a previously confirmed inspection must not erase new edits.
+  const preview=await barrier(c,'/api/drafts');await click(c,'return-prepare');await preview.wait();
+  const latestText='Label six kits for 22 seated guests on the ground floor.';
+  await set(c,'return-text',latestText);await preview.release();
+  assert.equal(await c.eval("$('return-text').value"),latestText);
+  assert.equal(await c.eval("returnPrepared===null && !$('return-commit').checkVisibility()"),true);
+  const priorSelection=(await draftState()).selection,inspect=await barrier(c,'/inspect-return');
+  const confirmDiscard=m=>{if(m.method==='Page.javascriptDialogOpening')c.send('Page.handleJavaScriptDialog',{accept:true}).catch(()=>{});};
+  c.handlers.push(confirmDiscard);
+  try {
+    await c.eval("[...[...document.querySelectorAll('#exchange-list a')].find(e=>e.download==='aisle.txt').closest('li').querySelectorAll('button')].find(b=>b.textContent==='Inspect return and decide').click()");
+    await inspect.wait();await set(c,'return-reason','The closed mezzanine makes ground-floor labels necessary.');await inspect.release();
+  } finally {c.handlers.splice(c.handlers.indexOf(confirmDiscard),1);}
+  const edited=await draftState();
+  assert.deepEqual(edited.selection,priorSelection);assert.equal(edited.text,latestText);assert.match(edited.reason,/ground-floor labels/);
+  console.log(JSON.stringify({return_delayed_responses:{stale_preview_unavailable:true,inspection_retained_selection:true,text:edited.text,rationale:edited.reason}}));
   await click(c,'return-prepare');await settled(c);
   assert.equal((await draftState()).prepared,true);
   await ordinaryWhileEditing('prepared decision and ordinary Save',()=>click(c,'save'));
@@ -78,6 +95,8 @@ export async function browserReturnedFiles({c,fresh,origin,env,root,click,set,se
   await click(c,'return-resolve');await settled(c);assert.equal(await c.eval("$('return-retry').checkVisibility()"),true);
   await click(c,'return-retry');await settled(c);assert.match(await c.eval("$('return-status').innerText"),/Saved adapted/);
   assert.equal(await c.eval("$('goal').value"),'Local edit to check the loading door');
+  const committed=requests.filter(r=>r.path.endsWith('/save')).map(r=>JSON.parse(r.body??'{}').return_choice).filter(Boolean);
+  assert.equal(committed.at(-1).text,latestText);assert.equal(committed.at(-1).rationale,edited.reason);
   await set(c,'goal',goal);await click(c,'save');await settled(c);
   assert.equal(await c.eval('returnMarker'),null);await byTitle(c,goal);
   checks.push('Ordinary no-op and edited work Save, prepared and unresolved return decisions preserve visible text, choice, rationale and the original retry');
@@ -99,10 +118,15 @@ export async function browserReturnedFiles({c,fresh,origin,env,root,click,set,se
   await byTitle(c,goal);await click(c,'return-resolve');await settled(c);assert.equal(await c.eval("$('return-retry').checkVisibility()&&!$('return-abandon').checkVisibility()"),true);
   const lost=await barrier(c,'/api/work/'+before.work+'/save');await click(c,'return-retry');await lost.wait();await lost.release('disconnect');await settled(c);
   assert.equal(await c.eval("$('return-recovery').checkVisibility()"),true);assert.equal(await c.eval('saved.fingerprint'),before.base.fingerprint);
-  await click(c,'return-resolve');await settled(c);
+  const refresh=await barrier(c,'/api/work/'+before.work);await click(c,'return-resolve');await refresh.wait();
+  await set(c,'goal','Keep the van checklist open while checking the saved aisle.');await refresh.release();
+  assert.deepEqual(await c.eval("({text:$('goal').value,dirty,base:saved.fingerprint})"),
+    {text:'Keep the van checklist open while checking the saved aisle.',dirty:true,base:before.base.fingerprint});
+  assert.match(await c.eval("$('return-status').innerText"),/Saved unchanged/);
+  console.log(JSON.stringify({return_acknowledgement_refresh:{saved_notice_visible:true,draft_retained:true,original_base:before.base.fingerprint}}));
+  c.handlers.push(onDialog);try{await byTitle(c,goal);}finally{c.handlers.splice(c.handlers.indexOf(onDialog),1);}
   const retained=await c.eval('saved');assert.equal(retained.revision,before.base.revision+1);assert.equal(retained.return_use.decision,'unchanged');
   assert.deepEqual(retained.sources,before.notes);assert.deepEqual(retained.files[0],before.files[0]);assert.equal(retained.files[1].digest,seed.files[0].digest);
-  assert.match(await c.eval("$('return-status').innerText"),/Saved unchanged/);
   checks.push('Return inspection is read-only; genuine lost acknowledgement resolves one current revision with exact returned bytes and untouched notes/files');
   async function cli(label,args){let stdout='',stderr='';const ch=await runCanonicalChild({suite:'web-planning-browser',label:'return-owner-'+label,command:process.execPath,cwd:process.cwd(),env,
     args:['apps/augnes_apps/scripts/file-exchange.mjs',...args],timeoutMs:10000,stdout:{write:b=>{stdout+=b;}},stderr:{write:b=>{stderr+=b;}}});
