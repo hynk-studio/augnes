@@ -27,7 +27,7 @@ export async function browserWorkSearch({c,origin,clientEnvironment,click,set,se
   await search(phrase);
   assert.match(await c.eval("$('search-state').textContent"),/10 saved works.*0 matches.*More work remains/);
   await next();assert.equal(await c.eval("$('search-results').children.length"),1);
-  const choose=async()=>{await c.eval("$('search-results').querySelector('button').click()");await settled(c);};
+  const choose=async(index=0)=>{await c.eval("$('search-results').children["+index+"].querySelector('button').click()");await settled(c);};
   await choose();assert.match(await c.eval("$('search-view').textContent"),/29 guests, 7 bring bowls/);
   assert.equal(await c.eval("$('search-revision').value"),'2');
   assert.equal(await c.eval('saved'),null);
@@ -82,15 +82,60 @@ export async function browserWorkSearch({c,origin,clientEnvironment,click,set,se
   assert.equal(followupRead.observed.fingerprint,result.fingerprint);
   assert(followupRead.observed.sources.some(s=>s.bounded_summary===followup));
   console.log(JSON.stringify({work_search_same_project_client:{source:sourceRead,followup:followupRead}}));
+  // Reuse the saved, incorporated note above. From the project entry there is
+  // no editor to reveal an origin accidentally rendered in its history pane.
+  await navigate(c,origin+'/');await wait(()=>c.eval("!!$('work-search')&&$('list-state').textContent!=='Reading saved work…'"),'search entry again');
+  await c.eval("$('work-search-tools').querySelector('summary').click()");
+  await search(phrase);
+  const editorState=()=>c.eval("({work,base:saved?binding(saved):null,draft:draft(false),editorHidden:$('editor').hidden,history:$('history-view').innerHTML})");
+  async function followOrigin(label){
+    const before=await editorState(),start=requests.length;
+    await choose();
+    assert.equal(await c.eval("$('search-view').querySelector(':scope > section > h3').innerText"),result.definition.goal);
+    await c.eval("[...$('search-view').querySelectorAll('button')].find(b=>b.textContent==='Inspect recorded source note').click()");await settled(c);
+    // Open the identity as a user can, then check rendered content and ancestor
+    // visibility. textContent in a hidden editor would not prove navigation.
+    await c.eval("$('search-view').querySelector(':scope > section > details > summary').click()");
+    const shown=await c.eval(`(()=>{
+      const pane=$('search-view'),section=pane.querySelector('section'),title=section.querySelector('h3'),identity=section.querySelector('details > p');
+      const note=[...pane.querySelectorAll('[data-history-note]')].find(n=>n.querySelector('strong')?.textContent==='Recorded source note');
+      const visible=n=>!!n&&n.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})&&n.getBoundingClientRect().width>0&&n.getBoundingClientRect().height>0;
+      const picker=$('search-revision'),rect=picker.getBoundingClientRect();
+      return {pane_visible:visible(pane),title_visible:visible(title),identity_visible:visible(identity),note_visible:visible(note?.querySelector('.note-text')),
+        goal:title.innerText,identity:identity.innerText,revision:picker.value,note:note?.querySelector('.note-text').innerText,
+        source_ref:note?.querySelector('details > p').innerText,notes:[...pane.querySelectorAll('.note-text')].map(n=>n.innerText),
+        focused:document.activeElement===picker,picker_in_view:rect.top>=0&&rect.bottom<=innerHeight};
+    })()`);
+    console.log(JSON.stringify({work_search_recorded_origin:{label,before,shown,expected:{work_id:fixture.observed.work_id,revision:fixture.observed.revision,fingerprint:fixture.observed.fingerprint,source_ref:fixture.observed.sources[0].source_ref}}}));
+    assert(shown.pane_visible&&shown.title_visible&&shown.identity_visible&&shown.note_visible,'the original must be rendered in the visible inspection pane');
+    assert.equal(shown.goal,fixture.observed.definition.goal,'the visible pane must leave the matched work for its recorded origin');
+    assert.equal(shown.identity,fixture.observed.work_id+' · '+fixture.observed.fingerprint);
+    assert.equal(shown.revision,String(fixture.observed.revision));
+    assert.equal(shown.source_ref,fixture.observed.sources[0].source_ref);
+    assert.deepEqual(shown.notes,[fixture.observed.sources[0].bounded_summary]);
+    assert.equal(shown.note,fixture.observed.sources[0].bounded_summary);
+    assert(shown.focused&&shown.picker_in_view,'the visible origin inspector receives focus');
+    assert.deepEqual(await editorState(),before,'following an origin must preserve the active work, draft, save base and editor history');
+    assert(requests.slice(start).filter(r=>!r.path.endsWith('/capacity')).every(r=>r.method==='GET'),'following an origin must not save');
+  }
+  assert.equal((await editorState()).base,null);assert.equal((await editorState()).editorHidden,true);
+  await followOrigin('project entry, no editor');
+  await c.eval("$('work-list').querySelector('button').click()");await settled(c);
+  assert.equal(await c.eval('saved.fingerprint'),result.fingerprint);
+  await set(c,'goal','Unsaved destination edit retained');
+  await followOrigin('unrelated draft and save base retained');
+  // Restore the source match for the existing stale/erased-result checks.
+  await next();
+  checks.push('search recorded origin: visible exact work/revision/note from the entry screen and with an unrelated draft, focused inspector, no save or work switch');
   // Hold the old observed match while its source advances and then is erased.
   await set(c,'goal','Unsaved destination edit retained');
   const advanced=await c.eval(`(async()=>{const r=${JSON.stringify(fixture.observed)},t=await api('/api/work/'+r.work_id+'/ticket',{expected:binding(r)});
     return (await api('/api/work/'+r.work_id+'/save',{ticket:t.ticket,definition:{...r.definition,goal:'Changed source'},notes:[]})).saved;})()`);
-  await choose();assert.match(await c.eval("$('search-view').textContent"),/advanced to revision 3.*exact observed revision 2/);
+  await choose(1);assert.match(await c.eval("$('search-view').textContent"),/advanced to revision 3.*exact observed revision 2/);
   assert.match(await c.eval("$('search-view').textContent"),/29 guests/);
   assert.equal(await c.eval('saved.fingerprint'),result.fingerprint);
   await c.eval(`api('/api/work/'+${JSON.stringify(advanced.work_id)}+'/erase',{expected:${JSON.stringify({revision:advanced.revision,fingerprint:advanced.fingerprint})},confirm:'erase-whole-work'})`);
-  await choose();assert.match(await c.eval("$('search-view').textContent"),/Source unavailable/);
+  await choose(1);assert.match(await c.eval("$('search-view').textContent"),/Source unavailable/);
   assert.equal(await c.eval("$('goal').value"),'Unsaved destination edit retained');
   c.searchFailure='http';await search('unmatched phrase');assert.match(await c.eval("$('search-state').textContent"),/could not complete/);
   c.searchFailure='partial';await search('unmatched phrase');assert.match(await c.eval("$('search-state').textContent"),/could not complete/);

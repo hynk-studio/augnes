@@ -67,7 +67,7 @@ async function inspectNoteHistory(id,chosen,view=$('history-view')){
           element('p',m?.from?`${m.kind} from work ${m.from.work_id}, revision ${m.from.revision} · ${m.from.fingerprint} · note ${m.from.source_ref}`:'Authored in this work.'));
         if(m?.from){
           const origin=element('button','Inspect recorded source note');origin.type='button';
-          origin.onclick=()=>run(()=>inspectNoteHistory(m.from.work_id,m.from));source.append(origin);
+          origin.onclick=()=>run(()=>inspectNoteHistory(m.from.work_id,m.from,view));source.append(origin);
         }
         const text=element('p',note.text);text.className='note-text';
         const deps=(m?.dependencies??[]).map(ref=>revision.sources.findIndex(s=>s.source_ref===ref)+1);
