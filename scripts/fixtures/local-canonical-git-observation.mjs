@@ -465,6 +465,20 @@ export async function checkFinalDependency(c,h,stage) {
   c.authority.linked={...c.authority.linked,["repos/hynk-studio/augnes/issues/comments/"+forward.id]:forward,["repos/hynk-studio/augnes/pulls/999/reviews/"+review.id]:review};
   p.authorization={...first.authorization,contract_review:{...record(review,"contract_review"),head:p.head,pull_request:p.pull_request}};
   h.write(c.file,p);const proof=h.proof(c), cap=await h.auth(c,proof);
+  // Rebind the mocked record identities and target: refusal must come from
+  // the operative decision/link, not a hash mismatch on an edited response.
+  for (const [body,link] of [
+    [forward.body.replace("I authorize the minimal","I decline the minimal"),true],
+    [forward.body.replace(p.prior_attempt_id,"different-attempt"),true],
+    [forward.body,false],
+  ]) {
+    const candidate=structuredClone(p), wrongForward={...forward,body};
+    candidate.commission.forward_decision=record(wrongForward,"forward_decision");
+    const wrongReview={...review,body:review.body.replace(prepared.target,gitReviewTarget(candidate))};
+    if (!link) wrongReview.body=wrongReview.body.replace(baseUrl+"issuecomment-"+forward.id,"");
+    candidate.authorization.contract_review={...candidate.authorization.contract_review,...record(wrongReview,"contract_review")};
+    await assert.rejects(h.auth(c,candidate,(v,e)=>e.endsWith("/"+forward.id)?wrongForward:e.endsWith("/"+review.id)?wrongReview:v),/revision_authority_scope_invalid/);
+  }
   for (const id of [forward.id,review.id]) await assert.rejects(h.auth(c,proof,(v,e)=>e.endsWith("/"+id)?{...v,body:"changed"}:v));
   await assert.rejects(h.auth(c,proof,(v,e)=>e.endsWith("/"+forward.id)?null:v));
   await assert.rejects(h.auth(c,proof,(v,e)=>e.includes("/permission")?{...v,permission:"read"}:v));

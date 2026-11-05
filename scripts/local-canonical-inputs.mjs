@@ -258,7 +258,7 @@ export function preparedDependencyIdentity(value) {
         entry.state === "proven_empty" && Object.keys(entry).sort().join(",") === "metadata,parent_metadata,parent_security,parent_security_sha256,path,security,security_sha256,state" &&
         securityRecord(entry.security) && securityRecord(entry.parent_security) && sha(entry.security_sha256) && entry.security_sha256 === entry.parent_security_sha256 &&
         entry.security_sha256 === digest(entry.security) && entry.parent_security_sha256 === digest(entry.parent_security) && entry.metadata && entry.parent_metadata &&
-        generatedModeMatches(entry.metadata.mode, entry.parent_metadata.mode) &&
+        entry.metadata.uid === String(process.getuid?.()) && generatedModeMatches(entry.metadata.mode, entry.parent_metadata.mode) &&
         ["uid", "gid", "dev"].every(key => entry.metadata[key] === entry.parent_metadata[key]) &&
         [entry.metadata, entry.parent_metadata].every(m => Object.keys(m).sort().join(",") === "ctimeNs,dev,gid,ino,mode,mtimeNs,nlink,size,uid" &&
           Object.values(m).every(v => typeof v === "string" && /^\d{1,40}$/u.test(v)))));

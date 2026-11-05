@@ -607,6 +607,10 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
       const copy = structuredClone(narrow); copy.generated_directories.find(v => v.path === name)[side].mode = mode;
       assert.throws(() => preparedDependencyIdentity(copy), /dependency_input_observation_invalid/);
     }
+    const foreign = structuredClone(narrow), foreignDir = foreign.generated_directories.find(v => v.path === name);
+    foreignDir.metadata.uid = foreignDir.parent_metadata.uid = String(process.getuid() + 1);
+    assert.throws(() => preparedDependencyIdentity(foreign), /dependency_input_observation_invalid/);
+    assert.equal(gitInputApi.comparePreparedDependencyInputs(narrow,foreign), "observer_failure");
     for (const [child,parent] of [[0o40711,0o40710],[0o44700,0o40755],[0o40700,0o41755],[0o40700,0o40777]]) {
       const copy=structuredClone(narrow), d=copy.generated_directories.find(v=>v.path===name);
       d.metadata.mode=String(child);d.parent_metadata.mode=String(parent);
