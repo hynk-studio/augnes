@@ -846,6 +846,13 @@ path supports the demonstrated Current project return correction; it does not
 extend the verifier-correction module allowlist or change any regression,
 source-review, predecessor or successor requirement.
 
+For v2 `source_revision`, the four raw JavaScript modules that the Web planning
+handler serves together as `/client.js` also qualify: `apps/web_planning/src/client.js.txt`,
+`apps/web_planning/src/exchange-client.js.txt`, `apps/web_planning/src/history-client.js.txt`
+and `apps/web_planning/src/search-client.js.txt`. The reader compares these literal
+repository-relative paths without normalization. This addition applies only to
+that proof kind; other text assets, unregistered siblings and aliases remain outside it.
+
 A meaningful revision after PASS or an ordinary product/cancelled result requires
 the same retained deterministic regression failing on the prior Git source and
 passing on the corrected source, under the same environment and Canonical Node.
