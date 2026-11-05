@@ -1208,6 +1208,34 @@ or untested according to current source, even if the simulation passes. A script
 counterpart using actual owners can establish that narrower controlled path. Do not
 promote synthetic cases into demand, actual payment, live-operation evidence or authority.
 
+#### Same-project independent contribution qualification
+
+For [same-project independent contributions](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#same-project-independent-contributions-and-integration),
+distinguish independently checked and used A/B contributions in one project from
+cross-project isolation and executor-internal division of one deliverable.
+When the affected capability is implemented or claimed, exercise relevant cases
+through its actual supported readers/writers and execution owners:
+
+1. A/B retain distinct task/source bindings and return/check/use decisions; a
+   managed-parallelism claim includes actual overlapping same-project runs, not
+   only an authored profile, simulated coordinator or cross-project A/B success.
+2. A's failure, cancellation or reassignment preserves B's authorized progress
+   and result. Unsettled effects, remaining obligations and aggregate limits
+   survive without becoming whole-work success or renewed authority.
+3. After A changes conditions from S0 to S1, a late B return retains its S0 basis.
+   Check both still-applicable material and a changed assumption requiring
+   recheck/non-use; no stale overwrite, blanket discard or relaxed admission.
+4. Lost responses or restart do not duplicate dispatch or adoption. Use existing
+   identity/readback and uncertain-effect reconciliation before an authorized retry.
+5. A fresh supervisor/executor can recover each contribution's returned material,
+   check status, unresolved obligations and next authorized action without manual binding repair;
+   this does not grant broader access or add routine human approval.
+
+Reuse existing lifecycle, contribution/use and [total-burden](#cost-and-user-burden)
+owners. Add only missing affected-path checks; no universal matrix, separate
+benchmark campaign or live-study allocation follows from this design case.
+Functional qualification alone establishes neither lower burden nor adoption.
+
 #### Subsequent harness-specific qualification
 
 When an increment actually changes or claims harness capability, retain the

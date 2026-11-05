@@ -556,6 +556,38 @@ strict contract. In-scope automatic commissioning is a permitted normal target
 under [01](./01_AUGNES_VNEXT_MASTERPLAN.md#non-model-harness-responsibility), not a
 claim that the present preparation/review paths already implement it.
 
+#### Same-project independent contributions and integration
+
+[Conductor's workflow](https://www.conductor.build/docs/concepts/workflow) and
+[parallel-work distinction](https://www.conductor.build/docs/concepts/parallel-agents)
+motivate a bounded case for existing delegation and checked-use owners, not
+adoption of its executor. Where separate delivery/use, cancellation/reassignment
+or continuing obligations matter, retain independently attributable contributions
+within one project; native delegation may suffice for one shared deliverable.
+
+Current [managed-run admission](../../lib/vnext/runtime/live-native-host-run-service.ts)
+and [current-work selection](../../lib/vnext/runtime/project-work-initialization.ts)
+use one active managed-run/current-work flow per project and refuse ambiguous
+current packets. Cross-project client/worktree independence does not qualify
+same-project independent managed deliveries. This limit does not describe all
+external contributions or host-internal delegation supported by a given profile.
+
+Keep each contribution's task/source basis, return, checking/use responsibility
+and outstanding effects distinguishable from project direction and other work.
+If A is accepted before B returns, preserve B's original basis and reassess
+affected applicability under current conditions: neither blindly overwrite current
+state nor discard all B material merely because its basis is older. Historical return
+preservation does not relax current packet, grant or Transition admission.
+Contribution completion is not whole-work success; existing authorized automatic
+use remains possible without a new routine human-approval step.
+
+Use the existing application order to map actual readers/writers and specify only
+a missing relation; do not make every agent a new project or mandatory object.
+[04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#same-project-independent-contribution-qualification)
+owns affected qualification. This design case adds no schema, shared parent/child
+state machine, scheduler, dashboard or live study, reorders no Current/Next work
+and establishes no implemented parallel capability.
+
 #### Application order and completion conditions
 
 1. **Fix the intended behavior before mechanisms.** Use the paired hypothetical
