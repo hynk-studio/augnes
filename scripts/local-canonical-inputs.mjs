@@ -251,7 +251,8 @@ export function preparedDependencyIdentity(value) {
   const legacy = value?.contract === LEGACY_PREPARED_DEPENDENCY_CONTRACT;
   const securityRecord = s => exactKeys(s,"acl,attributes,flags") && Array.isArray(s.acl) &&
     s.acl.every(line => typeof line === "string" && /^ [0-9]+: /u.test(line)) &&
-    (s.flags === null ? s.attributes === null && s.acl.length === 0 : typeof s.flags === "string" && /^\d+$/u.test(s.flags) && typeof s.attributes === "string");
+    (process.platform === "linux" ? s.flags === null && s.attributes === null && s.acl.length === 0 :
+      process.platform === "darwin" && typeof s.flags === "string" && /^\d+$/u.test(s.flags) && typeof s.attributes === "string");
   const validGenerated = () => Array.isArray(value.generated_directories) && value.generated_directories.length === generatedDependencyDirectories.length &&
     value.generated_directories.every((entry, index) => entry?.path === generatedDependencyDirectories[index] &&
       (entry.state === "absent" ? Object.keys(entry).sort().join(",") === "path,state" :

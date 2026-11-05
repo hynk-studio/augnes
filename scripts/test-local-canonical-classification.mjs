@@ -611,6 +611,11 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
     foreignDir.metadata.uid = foreignDir.parent_metadata.uid = String(process.getuid() + 1);
     assert.throws(() => preparedDependencyIdentity(foreign), /dependency_input_observation_invalid/);
     assert.equal(gitInputApi.comparePreparedDependencyInputs(narrow,foreign), "observer_failure");
+    const incompatible = structuredClone(narrow), native = incompatible.generated_directories.find(v => v.path === name);
+    native.security = native.parent_security = process.platform === "darwin" ? {acl:[],flags:null,attributes:null} : {acl:[],flags:"0",attributes:""};
+    native.security_sha256 = native.parent_security_sha256 = digest(native.security);
+    assert.throws(() => preparedDependencyIdentity(incompatible), /dependency_input_observation_invalid/);
+    assert.equal(gitInputApi.comparePreparedDependencyInputs(narrow,incompatible), "observer_failure");
     for (const [child,parent] of [[0o40711,0o40710],[0o44700,0o40755],[0o40700,0o41755],[0o40700,0o40777]]) {
       const copy=structuredClone(narrow), d=copy.generated_directories.find(v=>v.path===name);
       d.metadata.mode=String(child);d.parent_metadata.mode=String(parent);
