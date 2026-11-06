@@ -1369,6 +1369,25 @@ the option within the first assigned task using the existing L1/L2 evidence
 criteria below; this adds no evaluation allocation, neural dependency or
 expansion of the retained #1468/#1478 retrieval scope.
 
+**Conditional environment-representation improvement.** Where actual L1 use shows
+repeated lookup or avoidable context/tool cost, consider a smaller source-linked
+view through existing guide, packet and selected-source consumers.
+[EnvOpt v1](https://arxiv.org/abs/2611.07372v1) motivates this untested Augnes option,
+not an adopted optimizer or inherited performance gain. Start with the smallest
+useful presentation change against the capable direct-reading/adaptive alternative;
+consider automated iteration only if residual cost and likely reuse before
+invalidation justify it within the existing assignment.
+
+Keep stable navigation/method guidance distinct from mutable state, source revisions
+and access/approval conditions. Preserve mandatory packet material and relevant
+condition/correction/counterevidence groups. Disclose coverage and omissions, retaining
+permitted expansion to exact sources; an abbreviated view is not a complete record.
+Derived guidance must not override the packet, suppress required source/currentness
+checks or bypass approval. Apply the [existing L1 evidence criteria](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#current-understanding-guided-work-evidence).
+This creates no optimizer service, persistent index, extra model-call requirement,
+research allocation or new gate; Current/Next ordering, existing study dispositions
+and the retained #1468/#1478 scope stay unchanged.
+
 **Research-informed question order.** Within assigned L1/L2 work, select the next
 unanswered question in this practical order: conditional experience use in an
 ordinary follow-up; where an outcome warrants it, discriminating diagnosis and
