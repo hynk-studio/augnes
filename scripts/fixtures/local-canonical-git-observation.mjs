@@ -503,6 +503,17 @@ export async function checkFinalDependency(c,h,stage) {
   await authorizeBody(other,false);
   await authorizeBody(other+appendix+active,false);
   await authorizeBody(other+appendix+forward.body,false);
+  // These two fields are absent from the active record. Only an excluded
+  // peer heading (also valid with a leading space), inline example, or list
+  // supplies their values. Refuse all of them before any reservation.
+  const pair=["Actual latest attempt: "+p.prior_attempt_id,"Latest failed receipt: "+p.prior_receipt_fingerprint];
+  const missing=forward.body.split("\n").filter(line=>!pair.includes(line)).join("\n");
+  const excluded="Historical comparison only — this predecessor is excluded";
+  for (const nonoperative of ["### "+excluded," ### "+excluded,excluded+"\n---"])
+    await authorizeBody(missing.replace(correction,nonoperative+"\n\n"+pair.join("\n")+"\n\n"+correction),false);
+  await authorizeBody(missing.replace(correction,"Excluded example: `\n"+pair.join("\n")+"\n`\n\n"+correction),false);
+  await authorizeBody(missing.replace(correction,"- "+excluded+":\n"+pair.map(line=>"  "+line).join("\n")+"\n\n"+correction),false);
+  await authorizeBody(forward.body.replace(active,active.split(/\n+/u).reverse().join("\n\n")));
   for (const wrap of [s=>"> "+s.replaceAll("\n","\n> "),s=>"```text\n"+s+"\n```",s=>"~~~\n"+s+"\n~~~",
     s=>"<!--\n"+s+"\n-->",s=>"    "+s.replaceAll("\n","\n    ")]) {
     await authorizeBody(wrap(forward.body),false);

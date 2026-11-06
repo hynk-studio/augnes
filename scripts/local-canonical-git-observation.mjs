@@ -256,7 +256,9 @@ export function permitsFinalDependencySuccessor(body, p, commissionIdentity) {
   const paragraphs = visibleDelegationParagraphs(lines.slice(0, headings[4]?.index ?? lines.length).join("\n"));
   const section = paragraphs.indexOf(permission);
   const link = (type,id) => "https://github.com/hynk-studio/augnes/pull/"+p.pull_request+"#"+type+"-"+id;
-  const fields = lines.slice(headings[1].index+1, headings[2].index).map(line => line.trim());
+  const fields = lines.slice(headings[1].index+1, headings[2].index);
+  // The target is the first complete flat record after the heading. Do not scan
+  // through prose or Markdown for fields that this record did not supply.
   const expected = {
     "Base/main": p.accepted.base, "Audited head": p.accepted.head, "Audited tree": p.accepted.tree,
     "Actual latest attempt": p.prior_attempt_id, "Latest failed receipt": p.prior_receipt_fingerprint,
@@ -264,6 +266,8 @@ export function permitsFinalDependencySuccessor(body, p, commissionIdentity) {
     "Initial source acceptance": link("pullrequestreview",p.accepted.review.id),
     "Existing prospective grant": link("issuecomment",p.authorization.grant_comment_id),
   };
+  const entries = Object.entries(expected);
+  const record = fields.filter(line => line.trim()).slice(0, entries.length).map(line => line.trimEnd());
   return /^## Forward decision for the [\w.-]+ final-input failure — continue the same assignment$/u.test(paragraphs[0] ?? "") &&
     paragraphs[1]?.startsWith("This decision follows ") &&
     paragraphs[1].endsWith("and extends the existing [ongoing task delegation "+p.commission.delegation.id+"]("+link("issuecomment",p.commission.delegation.id)+") for the specific settled failure below.") &&
@@ -271,10 +275,8 @@ export function permitsFinalDependencySuccessor(body, p, commissionIdentity) {
     paragraphs[3] === boundary && section > 3 &&
     paragraphs[section+1] === "I authorize the minimal existing-owner and policy extension needed for a materially corrected second candidate to follow this exact all-phase-pass, final dependency-observation failure." &&
     paragraphs[section+2]?.includes("the isolated dependency_input_cache_unsafe event on dependencies-web-planning, its missing v2 after-observation") &&
-    Object.entries(expected).every(([label,value]) => {
-      const matches = fields.filter(line => line.startsWith(label+":"));
-      return matches.length === 1 && matches[0] === label+": "+value;
-    });
+    entries.every(([label,value]) => record.includes(label+": "+value) &&
+      fields.filter(line => line.trimStart().startsWith(label+":")).length === 1);
 }
 
 export function delegatesProspectiveCommission(body, branch, pullRequest) {
