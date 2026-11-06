@@ -792,6 +792,17 @@ only relevant expectations after model/harness/environment changes; W3 separates
 inherited evidence from direct performance. Prefer task fit and complementary
 evidence over a general model ranking.
 
+The [Collaborative Intelligence study (v1)](https://arxiv.org/abs/2611.02633v1)
+motivates a conditional refinement of this follow-through: select relevant
+[role-aware response and outcome contrasts](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#role-aware-collaborative-response-and-outcome-evidence)
+or the [valid-format misleading-handoff contrast](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#conditional-case-valid-format-misleading-predecessor-material).
+Inspect current producers, consumers and evidence first; sufficient coverage
+may justify `no_change_needed_with_evidence`. Missing cases remain conditional
+follow-through under #1443/#1453 or P5.2, not a new assignment, benchmark campaign,
+organization engine or model-selection rule. These are unexecuted Augnes
+hypotheses, not demonstrated benefit or long-horizon organizational reliability.
+Current priorities, frozen findings and resource limits remain unchanged.
+
 For a real counterpart that supports it, [A2A 1.0.0](https://a2a-protocol.org/v1.0.0/specification/)
 (sections 4.1, 4.4 and 4.6) remains an optional, version-pinned reference:
 AgentCard/AgentSkill for declared interfaces and skills, Task/Message/Artifact
