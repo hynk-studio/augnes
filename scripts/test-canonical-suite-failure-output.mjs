@@ -19,9 +19,11 @@ export async function assertCanonicalSuiteFailureOutput(sourcePath = "scripts/ru
   const inner = `process.stdout.write(${JSON.stringify(first) + ");process.stdout.write('x'.repeat(262144));process.stdout.write(" + JSON.stringify(terminal)});process.stderr.write('controlled child failure\\n');process.exitCode=7;`;
   const intermediary = path.join(resource.root, "intermediary.mjs");
   writeFileSync(intermediary, `import {runCanonicalChild} from ${JSON.stringify(pathToFileURL(path.join(root, "scripts/canonical-child-runner.mjs")).href)};
-import {createCanonicalTestResourceRoot,cleanupCanonicalTestResources} from ${JSON.stringify(pathToFileURL(path.join(root, "scripts/canonical-test-environment.mjs")).href)};
+import {createCanonicalTestResourceDirectory,beginCanonicalTestResourceUse,settleCanonicalTestResourceUse,cleanupCanonicalTestResources} from ${JSON.stringify(pathToFileURL(path.join(root, "scripts/canonical-test-environment.mjs")).href)};
+const temporaryOwner=createCanonicalTestResourceDirectory(${JSON.stringify(path.join(resource.root,"handoff"))});
+const handoffInUse=true;beginCanonicalTestResourceUse(temporaryOwner);
 const result=await runCanonicalChild({suite:'output-control',label:'failing child',command:process.execPath,args:['--eval',${JSON.stringify(inner)}],cwd:${JSON.stringify(root)},env:process.env,timeoutMs:2000,heartbeatMs:0});
-const suiteName='output-control',repoRoot=${JSON.stringify(root)},serviceMaintenance=null,serviceMaintenanceRelease=null,ownedResourceRoots=[],temporaryOwner=createCanonicalTestResourceRoot('ag-suite-');let summary;const suiteFailure=new Error('child failed with '+result.exit_code);try {}finally {
+const suiteName='output-control',repoRoot=${JSON.stringify(root)},serviceMaintenance=null,serviceMaintenanceRelease=null,ownedResourceRoots=[],lastHandoffChild=result;let summary;const suiteFailure=new Error('child failed with '+result.exit_code);try {}finally {
 ${source.slice(offset)}`);
   let out = "", err = "", limit = false, timedOut = false, closed, cleanup;
   const child = spawn(process.execPath, [intermediary], { cwd: root, env: process.env, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" });
@@ -35,7 +37,12 @@ ${source.slice(offset)}`);
   finally { clearTimeout(resume); clearTimeout(deadline); await cleanupOwnedProcesses(owner); cleanup = cleanupCanonicalTestResources([resource]); }
   const result = { exit_code: closed.code, timed_out: timedOut, output_limit_exceeded: limit,
     full_payload: out.includes(first + payload + terminal), child_terminal: out.includes('child_result label="failing child"'),
-    cleanup_terminal: out.includes('"resource_cleanup"'), failure_terminal: err.includes("canonical suite execution or cleanup failed"),
+    cleanup_terminal: out.split("\n").some(line => {
+      if (!line.startsWith('{"suite":"output-control","resource_cleanup":')) return false;
+      const records = JSON.parse(line).resource_cleanup;
+      return records.length === 1 && records[0].root === path.join(resource.root, "handoff") &&
+        records[0].completed === true && records[0].failure_count === 0;
+    }), failure_terminal: err.includes("canonical suite execution or cleanup failed"),
     cleanup_complete: owner.size === 0 && cleanup.every(x => x.completed) };
   console.log(JSON.stringify({ test: "canonical-suite-failure-output", ...result }));
   assert.equal(result.exit_code, 1); assert.equal(timedOut, false); assert.equal(limit, false);
