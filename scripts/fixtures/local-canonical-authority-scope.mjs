@@ -9,6 +9,9 @@ const {body,p,commission}=JSON.parse(readFileSync(process.env.AUGNES_AUTHORITY_S
 const {permitsFinalDependencySuccessor:permits}=await import(pathToFileURL(path.resolve("scripts/local-canonical-git-observation.mjs")));
 const boundary="### Exact historical boundary and existing authority", correction="### Authorized bounded source correction";
 const active=body.slice(body.indexOf(boundary)+boundary.length,body.indexOf(correction)).trim();
+const activeLines=active.split("\n");
+const recordEnd=activeLines.map((line,i)=>line.trim()?i:-1).filter(i=>i>=0)[8]+1;
+const reordered=activeLines.slice(0,recordEnd).filter(l=>l.trim()).reverse().join("\n\n")+"\n"+activeLines.slice(recordEnd).join("\n");
 const pair=["Actual latest attempt: "+p.prior_attempt_id,"Latest failed receipt: "+p.prior_receipt_fingerprint];
 const missing=body.split("\n").filter(line=>!pair.includes(line)).join("\n");
 const appendix="\n\n### Historical comparison — excluded from this authorization\n\nThis other target is not approved.\n\n";
@@ -21,7 +24,7 @@ const cases=[
   ["missing predecessor under indented heading",missing.replace(correction," ### "+excluded+"\n\n"+pair.join("\n")+"\n\n"+correction),false],
   ["missing predecessor in inline example",missing.replace(correction,"Excluded example: `\n"+pair.join("\n")+"\n`\n\n"+correction),false],
   ["missing predecessor in list",missing.replace(correction,"- "+excluded+":\n"+pair.map(l=>"  "+l).join("\n")+"\n\n"+correction),false],
-  ["reordered record with blank separators",body.replace(active,active.split(/\n+/u).reverse().join("\n\n")),true],
+  ["reordered record with blank separators",body.replace(active,reordered),true],
 ];
 for(const [name,text,expected] of cases){
   const actual=permits(text,p,commission);
