@@ -349,6 +349,8 @@ export function readPostPassDecision(body,p,commissionIdentity) {
   const initial=reviewed?.match(/^- Current reviewed correction: head `([a-f0-9]{40})`, tree `([a-f0-9]{40})`, base\/main `([a-f0-9]{40})`\.$/u);
   if (!initial || paragraphs[0]!==titles[0] || paragraphs[3]!==titles[1]) return null;
   const url=(kind,id)=>"https://github.com/hynk-studio/augnes/pull/"+p.pull_request+"#"+kind+"-"+id;
+  const intro=paragraphs[1]?.match(/^The user explicitly approved this same-commission post-PASS proposal on (\d{4}-\d{2}-\d{2}), after the \[receiving r([1-9]\d*) source and evidence audit ([1-9]\d*)\]\(([^)]+)\)\. (.*)$/u);
+  if (!intro || intro[4]!==url("pullrequestreview",intro[3]) || intro[5]!=="The receiving ChatGPT is recording that approved prospective decision through the existing authenticated maintainer account. The operative scope below is the approved proposal; its draft-only wrapper has been removed. This records scope and conditional publication authority, not an already-issued runtime capability or a completed qualification.") return null;
   const assignment=paragraphs[2]?.replace(/^Continue issue #[1-9]\d*/u,"Continue issue");
   const expected=[reviewed,
     "- Actual latest settled qualification: head `"+p.accepted.head+"`, tree `"+p.accepted.tree+"`, base `"+p.accepted.base+"`.",
@@ -384,11 +386,12 @@ export function permitsPostPassReview(body,p,commissionIdentity) {
   const fields=Object.entries(postPassReviewFields(p,commissionIdentity));
   const section=lines.slice(headings[0]?.index+1,headings[1]?.index ?? lines.length);
   const record=section.filter(l=>l.trim()).slice(0,fields.length).map(l=>l.trimEnd());
+  const recordEnd=section.map((line,index)=>line.trim()?index:-1).filter(index=>index>=0)[fields.length-1];
   return lines[0]==="Source review decision: ACCEPT / RETAIN for prospective qualification." &&
     headings[0]?.title===heading && headings.filter(h=>h.title===heading).length===1 &&
     lines.slice(1,headings[0].index).every(l=>!l.trim()) &&
     fields.every(([label,value])=>record.includes(label+": "+value) && section.filter(l=>l.trimStart().startsWith(label+":")).length===1) &&
-    visibleDelegationParagraphs(section.join("\n")).includes("Under the authenticated forward decision above, I record the independently accepted final source and authorize only ordinal two of the retained commission for this exact preparation commitment. No unchanged-target retry or extra recovery is authorized.");
+    visibleDelegationParagraphs(section.slice(recordEnd+1).join("\n"))[0]==="Under the authenticated forward decision above, I record the independently accepted final source and authorize only ordinal two of the retained commission for this exact preparation commitment. No unchanged-target retry or extra recovery is authorized.";
 }
 
 export function delegatesProspectiveCommission(body, branch, pullRequest) {

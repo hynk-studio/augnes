@@ -978,13 +978,15 @@ evidence does not acquire the remaining invocation.
 
 An unedited authenticated post-PASS forward decision must bind the operative
 positive predecessor, initial source acceptance, original grant, root receipt,
-commission and remaining ordinal. Its first complete target record cannot be
+commission and remaining ordinal. Its introduction must identify an operative
+approved proposal, and its first complete target record cannot be
 completed by later examples or history. The reviewed correction's head and base
 must be ancestors of the eventual candidate and current base, respectively. After independent
 final-source review, the existing subsequent contract review records an exact
 plain target record: final source/base, preparation commitment, full inventory,
 runtime, positive predecessor, original grant/commission, ordinal and forward
-decision, followed by its explicit bounded recording/authorization paragraph.
+decision, immediately followed by its explicit bounded recording/authorization
+paragraph. Intervening prose or examples cannot supply that permission.
 This is conditional maintainer recording, not self-approval or a new commission.
 The production authenticated transport supplies the capability. Admission requires
 that capability's positive-tip scope to agree with the material reader; the

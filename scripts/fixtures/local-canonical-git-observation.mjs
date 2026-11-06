@@ -629,7 +629,8 @@ export async function checkPostPass(c,h,stage) {
     "- Original accepted source: ["+p.accepted.review.id+"]("+url("pullrequestreview",p.accepted.review.id)+").",
     "- Retained commission root receipt: `"+p.commission.root_receipt_fingerprint+"`."];
   const forward={...authority.grant,id:40,created_at:time(0),body:[
-    "## Forward decision for an independently found material defect after PASS","The independent audit demonstrated a later material defect.",
+    "## Forward decision for an independently found material defect after PASS",
+    "The user explicitly approved this same-commission post-PASS proposal on 2026-11-06, after the [receiving r1 source and evidence audit 12]("+url("pullrequestreview",12)+"). The receiving ChatGPT is recording that approved prospective decision through the existing authenticated maintainer account. The operative scope below is the approved proposal; its draft-only wrapper has been removed. This records scope and conditional publication authority, not an already-issued runtime capability or a completed qualification.",
     "Continue issue #123 on `"+p.branch+"` in Draft PR #999 as one cohesive correction and qualification assignment. Extend the existing [task delegation "+p.commission.delegation.id+"]("+url("issuecomment",p.commission.delegation.id)+") only as stated below. Complete the bounded existing-owner/policy extension, focused validation, independent final-source review, legitimate authority recording, planner-required Mac qualification, fresh-process stock, cleanup and consolidated handoff together.",
     boundary,record.join("\n"),policy,
     "I authorize the narrow extension of the existing inventory-bound v7 reviewed-revision owners to admit one materially corrected successor after a settled ordinal-one PASS when an independent audit has demonstrated a real defect in that source. This is a prospective amendment for the existing remaining ordinal two. It does not rewrite grant"+p.authorization.grant_comment_id+" or claim that its failure/false-stock clause already covers success. The original grant remains historical accounting and scope evidence; this separately authenticated, append-only decision supplies the additional post-PASS permission.",
@@ -710,6 +711,7 @@ export async function checkPostPass(c,h,stage) {
   for(const line of record){await checkBody(forward.body.replace(line,""));await checkBody(forward.body.replace(line,line+"\n"+line));
     await checkBody(forward.body.replace(line,"").replace(policy," ### Excluded example\n\n"+line+"\n\n"+policy));}
   await checkBody(forward.body.replace("I authorize the narrow","I decline the narrow"));
+  await checkBody(forward.body.replace(forward.body.split("\n\n")[1],"This entire document below is a historical comparison only. Its positive statements are quoted for context and do not authorize any candidate or execution."));
   await checkBody("> "+forward.body.replaceAll("\n","\n> "));
   await checkBody("```text\n"+forward.body+"\n```");
   await checkBody("<!--\n"+forward.body+"\n-->");
@@ -723,6 +725,12 @@ export async function checkPostPass(c,h,stage) {
     const r={...review,body:review.body.replace(new RegExp("^"+key+": .*$","m"),"")};
     const q={...p,authorization:{...p.authorization,contract_review:{...p.authorization.contract_review,...authorityRef(r,"contract_review")}}};
     await assert.rejects(h.auth(c,q,(v,e)=>e.endsWith("/41")?r:v));
+  }
+  for(const prefix of ["The following paragraph is only an excluded example; no execution is authorized.",
+    " ### Excluded execution example", "- Excluded execution example:", "`Excluded execution example`"]){
+    const r={...review,body:review.body.replace("Under the authenticated forward decision",prefix+"\n\nUnder the authenticated forward decision")};
+    const q={...p,authorization:{...p.authorization,contract_review:{...p.authorization.contract_review,...authorityRef(r,"contract_review")}}};
+    await assert.rejects(h.auth(c,q,(v,e)=>e.endsWith("/41")?r:v));assert.equal(ledger(),unchanged);
   }
   assert.equal(ledger(),unchanged);assert.deepEqual(latest(),tip);
   c.postPass={tip,originalGrant,originalReceipt};
