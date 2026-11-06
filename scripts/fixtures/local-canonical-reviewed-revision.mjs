@@ -19,6 +19,13 @@ import {baseReceipt} from "./local-canonical-receipt-v3.mjs";
 const self=fileURLToPath(import.meta.url), quiet={write(){}}, clone=v=>structuredClone(v);
 const write=(f,v)=>{mkdirSync(path.dirname(f),{recursive:true,mode:0o700});writeFileSync(f,typeof v==="string"||Buffer.isBuffer(v)?v:JSON.stringify(v),{mode:0o600});};
 const read=f=>JSON.parse(readFileSync(f,"utf8")), time=n=>new Date(Date.now()+n).toISOString();
+// A handoff retains synthetic service identity, not a reusable current observation.
+// Model a new read at each consumer boundary; historical receipt bytes stay frozen.
+const observeFixtureLive=c=>{
+  const live=clone(c.live), observation=live?.service?.diagnostics ?? live?.diagnostics;
+  if(observation) observation.finished_at=time(0);
+  return live;
+};
 const family=(b,p)=>digest(["augnes.local-canonical-attempt-family.v1","hynk-studio/augnes",b,...(p?["verified_source_correction",p.prior_attempt_id,p.head,p.tree]:[])]);
 const transport=(c,mutate=v=>v)=>createGitHubObserverAuthorizationTransport(999,{runner:async request=>{
   assert.equal(request.operation,"fetch_browser_authority");assert(request.args.includes("GET")); const e=request.args[1];
@@ -160,6 +167,12 @@ if(process.argv[2]==="--cold"){
   const c=read(process.argv[3]),p=proof(c),a=await auth(c,p);
   if (c.stockContext) {
     const r=read(path.join(c.checkout,".augnes-local-verification/receipts",c.stockContext.expectedRunId+".json"));
+    const stale=observeFixtureLive(c), observation=stale?.service?.diagnostics ?? stale?.diagnostics;
+    if(observation){
+      observation.finished_at=time(-61000);
+      assert.equal(stock({...c,live:stale},r,a),false,"stale current observation must refuse stock");
+    }
+    c.live=observeFixtureLive(c);
     const git=args=>execFileSync("git",args,{cwd:c.checkout,encoding:"utf8",timeout:5000}).trim();
     const currentIdentity={...c.stockContext.currentIdentity,head_sha:git(["rev-parse","HEAD"]),branch:git(["symbolic-ref","--short","HEAD"])};
     const result=inspectReceiptForDecision(r,{...c.stockContext,currentIdentity,currentAttemptRecordsValid:stock(c,r,a),
@@ -192,6 +205,7 @@ if(process.argv[2]==="--cold"){
       c.file=path.join(c.checkout,c.proofPath); c.artifacts=path.dirname(c.file);
       c.env=buildCanonicalChildEnvironment({temporaryRoot:owner.root}); attachGit(c,true);
       c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});
+      c.live=observeFixtureLive(c);
     }
     const helpers={prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,finish:finishAttempt,fresh:packet=>freshReader(c,packet),
       snapshot:path.join(handoff.root,"prospective-fixture"),fork:path.join(handoff.root,"final-case"),positive:path.join(handoff.root,"post-pass-case")};

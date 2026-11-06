@@ -116,6 +116,14 @@ try {
     }
     for (const name of group === undefined ? groups : [group]) {
       const fixture = path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs");
+      if(name === "post-pass-successor") {
+        // Deterministically represent a serial handoff older than the production
+        // 60-second current-observation window, without sleeping or extending bounds.
+        const contextFile=path.join(handoff.root,"post-pass-case/context.json");
+        const context=JSON.parse(readFileSync(contextFile,"utf8"));
+        context.live.service.diagnostics.finished_at=new Date(Date.now()-61000).toISOString();
+        write(contextFile,context);
+      }
       const result = await child([fixture, "--run-" + name + "-fixtures", ...(groups.indexOf(name) >= 3 ? [JSON.stringify(handoff)] : [])], {
         controlId: name === "revision" ? "reviewed-revision" : "reviewed-revision-" + name,
         timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr,
