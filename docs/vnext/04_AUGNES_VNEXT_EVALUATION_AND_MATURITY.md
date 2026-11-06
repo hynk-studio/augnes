@@ -599,6 +599,25 @@ clarified guidance or no implementation change; use the observation to retain,
 revise or stop the increment. The guide's presence or a retrieval hit alone does
 not establish appropriate recall, and this criterion allocates no separate study.
 
+For the conditional EnvOpt-inspired option, apply the existing
+[strong-comparison rules](#strong-comparisons-and-independence): distinguish
+presentation from source selection, model/harness changes and tool behavior.
+Keep worker/effort, permitted source access and realistic cache conditions
+comparable, or qualify attribution. Within the assigned work, inspect the next
+supported action and avoidable rereads/round trips as relevant, without accepting
+critical omissions, stale corrections or skipped before-use permission checks
+as efficiency gains.
+
+Apply the existing total-burden criteria to plausible valid reuse, accounting for
+necessary refresh/invalidation; distinguish reusable preparation from refresh-specific
+work rather than assuming a lifetime of repeated use. Report actual usage and
+cache treatment when available; the packet's character-based token estimate is
+not provider usage or money, and unavailable billing stays unknown. Hypothetical
+amortization is not realized savings. Use existing observations where sufficient;
+this requires neither new telemetry nor an automated-optimization comparison arm.
+Retain/no-change, simplify and stop remain valid under the existing allocation
+and fixed-evaluation rules.
+
 Keep functional correctness, semantic appropriateness, experience contribution
 and comparative usefulness separate. If claiming that prior experience causes
 better later work (L2), hold current inputs comparable and distinguish relevant
