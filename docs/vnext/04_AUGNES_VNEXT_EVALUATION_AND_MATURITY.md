@@ -182,6 +182,41 @@ not an Augnes benefit result or new benchmark commission. Preserve the
 [#1464](https://github.com/hynk-studio/augnes/issues/1464) tie/SIMPLIFY dispositions;
 no-change or ordinary code remains a valid decision.
 
+### Role-aware collaborative response and outcome evidence
+
+Select only contrasts needed for the current contribution/continuation claim.
+A first bounded observation comparison can use an already supported entry,
+returned result or relevant change; no standing all-agent observer is implied.
+This is a scoped starting case, not a ceiling on later authorized capability.
+
+Separate a relevant opportunity and permitted information access, observable
+reading/reporting, response authority, actual response and checked
+effect. Silence does not establish absent internal awareness; do not collect
+hidden reasoning. Distinguish:
+
+- an issue resolved and checked against its relevant acceptance condition;
+- an issue still unresolved but appropriately held/escalated within role and
+  authority, with the next owner/recipient, any observed response and remaining
+  responsibility;
+- an issue left unhandled.
+
+A role-correct escalation need not go to a human and is not project completion.
+Do not invent accepted follow-up where ownership or delivery remains unknown.
+Include missed issues, false alerts, unnecessary interference and primary-task
+delay, not only correctly noticed problems.
+
+Where negotiating or challenging a counterpart matters, contrast unsupported
+pressure with valid new evidence or a change made by the authority responsible
+for the terms. Separate current hard acceptance/authority boundaries from
+negotiable resource or scheduling preferences. Report actual goal/joint outcomes
+and no-deal/deadlock separately from any behavioral score, judged against the
+declared acceptable terms; refusal may be correct. Include coordination, checking,
+recovery and human burden under the existing comparison rules. Capability-
+qualified teamwork scores do not replace outcomes over all assigned work.
+A high teamwork score neither establishes completion nor offsets authority
+violations. These are evaluation distinctions, not a new universal team score,
+runtime state machine or gate on unrelated approved work.
+
 ### Strategic operating-profile evidence
 
 For #1518, the supported validation/preview entry and consumer, not a type alone,
@@ -2432,6 +2467,31 @@ repeated-input and retrieval costs included. This conditional P5.2/P5.4 case
 requires no swarm or new runtime mechanism. It does not authorize execution,
 reopen completed findings, change execution limits or add a completion gate to
 active implementation.
+
+##### Conditional case: valid-format misleading predecessor material
+
+Where the source-first check finds an uncovered case, use disposable predecessor
+material whose format, source bindings and hashes are valid but whose conclusion
+or artifact is misleading, such as false completion or unexplained test removal.
+This is a semantic-consumption contrast, not another malformed-input test or
+evidence of a defect in current transport.
+
+From one pre-perturbation task checkpoint, compare a clean handoff with the
+declared semantic perturbation at matched remaining resources, permitted sources
+and tool capability. The [Collaborative Intelligence taking-over baseline](https://github.com/zou-group/collaborative-intelligence/blob/3de5f7d0a652c0b393342b4fbae59b78034034ea/docs/dimensions/taking_over.md)
+starts fresh; it is not a clean-handoff control. Keep checker-only answers out of
+both inputs. Preserve predecessor attribution and separate reported prior
+verification from locally observed checks; an inherited claim is not "we verified
+it".
+
+Include a legitimate correction or authorized revision under the existing
+justified-change contrast. Observe actual continuation and checked outcome,
+residual error/false completion, valid knowledge needlessly discarded and
+unnecessary rechecking. Keep deterministic checks and any model-adjudicated
+interpretation separately attributable. Attribution or an explicit change view
+is a candidate intervention, not a proven repair. Any benefit comparison retains
+the equally informed strong native/adaptive-memo alternative and aggregate
+budget; deterministic fixtures alone do not demonstrate live successor reliability.
 
 These are evaluation-report distinctions, not new Core states or an obligation
 database. No new continuity score, automatic goal editor, standing model judge,
