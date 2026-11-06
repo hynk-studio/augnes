@@ -1,3 +1,4 @@
+import { participantFeedback } from "./participation-contract";
 import { Buffer } from "node:buffer";
 import { boundedText, canonical, exact, fail, hash, reference, UUID, workRef, type Payload, type Revision } from "./contract";
 import { exchangeView } from "./exchange";
@@ -43,7 +44,7 @@ export async function inspectReturn(s:Store,id:string,input:Record<string,unknow
 
 export async function applyReturn(s:Store,id:string,chain:Revision[],prepared:{payload:Payload;bodies:FileBody[]},choice:unknown) {
   if(choice===undefined)return prepared;
-  exact(choice,"selection,decision,name,text,rationale,limits,reported_check,next_action");
+  exact(choice,"selection,decision,name,text,rationale,limits,reported_check,next_action"+(choice && typeof choice === "object" && "participant_feedback" in choice?",participant_feedback":""));
   const sel=choice.selection;exact(sel,"returned,index,source_head,original");
   const ref=workRef(sel.returned),observed=workRef(sel.source_head);
   const source=ref.work_id===id?chain:await readWork(s,ref.work_id);
@@ -58,6 +59,11 @@ export async function applyReturn(s:Store,id:string,chain:Revision[],prepared:{p
   }
   const use:ReturnUse={request:reference(request),request_basis:reference(basis),returned:ref,source_head:observed,index:sel.index,original,decision:choice.decision,
     rationale:boundedText(choice.rationale,true),limits:boundedText(choice.limits),reported_check:boundedText(choice.reported_check),next_action:boundedText(choice.next_action,true),output:null};
+  if(returned.exchange?.contributor)use.contributor=returned.exchange.contributor;
+  if("participant_feedback" in choice){
+    if(!returned.exchange?.contributor)fail("participant_return_required");
+    use.participant_feedback=participantFeedback(choice.participant_feedback);
+  }
   const bodies=[...prepared.bodies];
   if(use.decision==="unchanged"||use.decision==="adapted"){
     if(typeof choice.name!=="string"||choice.name===SCENE_FILE||payload.files.some(f=>f.name===choice.name)||

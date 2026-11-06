@@ -2931,6 +2931,24 @@ developer-exposed disposable evidence, not ordinary-use usefulness, Autohunt,
 hosted adoption, independent transfer or installed-plugin rollout. Final exact-head
 verification and Draft review remain recorded with the candidate PR.
 
+### Current P2/P5 candidate — Request-scoped Web participation (#1589)
+
+The [request-scoped flow](../../apps/web_planning/README.md#request-scoped-participants-and-shared-feedback-1589)
+connects owner-selected originals/brief, a separately verified recipient,
+source-bound return, the existing #1587 checked-use/adaptation/non-use workflow,
+and deliberately shared committed feedback. Browser and local/agent clients
+use the same enforced scope. Private destination work is not disclosed.
+The additive operational grant is separate from portable contribution history;
+existing deployments stay owner-only unless explicitly activated.
+
+This completes the bounded implementation target for a requested Web W1 path,
+subject to exact-candidate qualification and independent review. Controlled
+separate-principal D1/Chrome/client observations belong to the PR evidence;
+they do not establish hosted outsider adoption, organic demand, W2 operation or
+native-store synchronization. #1587 and the completed native review/status,
+#1509, #1544, #1562 and #1569 records retain their original accepted scopes.
+Production audience changes, invitations and deployment remain separate actions.
+
 ### Current P2 — Task file requests and returns (#1569)
 
 The candidate adds request-bound originals, edited returns and next actions

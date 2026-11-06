@@ -1,0 +1,104 @@
+'use strict';
+const $=id=>document.getElementById(id), grant=document.querySelector('meta[name="participation"]').content, root='/api/participation/'+grant;
+const csrf=document.querySelector('meta[name="csrf-token"]').content;
+let state=null,pending=null,busy=false,edit=null,cursor=null,accessLost=false;
+const status=text=>{$('status').textContent=text;};
+function text(parent,value){const p=document.createElement('p');p.textContent=value;parent.append(p);}
+function button(parent,label,fn){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=()=>run(fn);parent.append(b);return b;}
+async function journal(action,value){
+  const db=await new Promise((ok,no)=>{const q=indexedDB.open('augnes-participant-drafts',1);q.onupgradeneeded=()=>q.result.createObjectStore('drafts');q.onsuccess=()=>ok(q.result);q.onerror=()=>no(Error('Recovery storage unavailable. Use the local client.'));});
+  try{return await new Promise((ok,no)=>{const tx=db.transaction('drafts',action==='get'?'readonly':'readwrite'),store=tx.objectStore('drafts');
+    const q=action==='get'?store.get(grant):action==='put'?store.put(value,grant):store.delete(grant);let result;
+    q.onsuccess=()=>{result=q.result;};tx.oncomplete=()=>ok(result);tx.onerror=tx.onabort=()=>no(Error('Recovery storage unavailable. The draft is retained.'));});}
+  finally{db.close();}
+}
+function controls(){ $('fields').disabled=busy||!!pending||!state?.can_submit||accessLost;$('recovery').hidden=!pending; }
+async function run(fn){if(busy)return;busy=true;controls();try{await fn();}catch(e){status(e.message.replaceAll('_',' ')+'. Your pending return is retained.');}finally{busy=false;controls();}}
+function loseAccess(){accessLost=true;state=null;edit=null;cursor=null;for(const id of ['files','returned','feedback','brief','conditions','identity'])$(id).replaceChildren();}
+async function request(path,body){
+  const response=await fetch(root+path,{method:body===undefined?'GET':'POST',redirect:'manual',cache:'no-store',credentials:'same-origin',
+    headers:body===undefined?{}:{'Content-Type':'application/json','X-CSRF-Token':csrf},...(body===undefined?{}:{body:JSON.stringify({...body,workspace_id:state.workspace_id,project_id:state.project_id})})});
+  if(response.headers.get('x-web-planning-response')!=='1'){loseAccess();throw Error('participant_login_required');}
+  if(!response.ok){const error=(await response.json().catch(()=>({}))).error??'request_unavailable';
+    if(response.status===403||response.status===410)loseAccess();
+    throw Error(error);}
+  return response;
+}
+const json=async(path,body)=>(await request(path,body)).json();
+async function digest(bytes){return 'sha256:'+Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');}
+function download(bytes,name){const url=URL.createObjectURL(new Blob([bytes],{type:'application/octet-stream'})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+async function bytes(file){
+  if(!file.download.startsWith(root+'/files/'))throw Error('scope_denied');
+  const data=new Uint8Array(await (await request(file.download.slice(root.length))).arrayBuffer());
+  if(data.length!==file.bytes||await digest(data)!==file.digest)throw Error('file_content_integrity');return data;
+}
+function drawFile(parent,file,original){
+  const section=document.createElement('article');text(section,file.name+' · '+file.bytes+' bytes · '+file.digest);
+  button(section,'Download '+file.name,async()=>download(await bytes(file),file.name));
+  if(/\.(txt|md|markdown|log|json|patch|mjs)$/i.test(file.name)){
+    const reader=document.createElement('div');section.append(reader);
+    let next=0;const read=button(reader,'Read '+file.name,async()=>{
+      const page=await json(file.download.slice(root.length)+'/text',{offset:next,find:''});
+      if(page.file.digest!==file.digest||page.total!==file.bytes)throw Error('file_content_integrity');
+      const pre=document.createElement('pre');pre.textContent=page.text;reader.append(pre);
+      text(reader,'Bytes '+page.start+'–'+page.end+' of '+page.total+(page.next===null?' · End of file':' · Partial view'));
+      next=page.next;read.disabled=next===null;read.textContent='Continue reading '+file.name;
+    });
+    if(original&&file.bytes<=32768&&/\.(txt|md|markdown)$/i.test(file.name))button(section,'Edit '+file.name,async()=>{
+      if(pending||!state.can_submit)throw Error('Check the pending or answered request first');
+      const m=await import(root+'/exchange-text.mjs'),data=await bytes(file);
+      edit={file,source:m.decodeExchangeText(data,file.name),replace:m.replaceExchangePassage};
+      $('edit').hidden=false;$('edit-name').textContent=file.name;$('upload').disabled=$('review').disabled=true;$('find').focus();
+    });
+  }
+  parent.append(section);
+}
+async function feedback(append=false){
+  const result=await json('/feedback'+(append&&cursor?'?cursor='+encodeURIComponent(cursor):''));
+  if(!append)$('feedback').replaceChildren();
+  for(const f of result.feedback){const section=document.createElement('article');text(section,f.disposition+' · returned file '+(f.file_index+1)+' · '+f.recorded_at);text(section,f.explanation);text(section,'Next: '+f.next_action);$('feedback').append(section);}
+  if(!$('feedback').children.length)text($('feedback'),'No shared committed decision is available.');
+  cursor=result.next;$('more').hidden=!cursor;
+}
+async function refresh(){
+  state=await json('');accessLost=false;
+  const original=state.items[0];$('brief').textContent=original.message;$('conditions').textContent=original.next_action;
+  $('identity').textContent='Request revision '+original.ref.revision+' · '+original.ref.fingerprint+' · Access ends '+new Date(state.expires).toLocaleString()+'. '+state.attribution;
+  $('files').replaceChildren();for(const file of original.files)drawFile($('files'),file,true);
+  $('returned').replaceChildren();for(const item of state.items.slice(1)){text($('returned'),item.message);text($('returned'),'Next: '+item.next_action);for(const file of item.files)drawFile($('returned'),file,false);}
+  await feedback();status(state.can_submit?'Read the selected originals and send your return.':'The request is answered or its save basis changed. The disclosed originals remain the same.');
+}
+async function send(resolve){
+  const result=await json(resolve?'/resolve':'/save',pending);
+  $('retry').hidden=true;$('release').hidden=true;
+  if(result.outcome==='saved'){
+    await journal('delete');pending=null;$('return').reset();edit=null;$('edit').hidden=true;await refresh();status('Return saved. The owner can now inspect and decide.');
+  }else{
+    $('retry').hidden=!result.retry_allowed;$('release').hidden=result.retry_allowed;
+    status(result.retry_allowed?'No matching save observed. Only retry this exact pending return; a request may still be in flight.':'This return was not recorded and its save basis is no longer eligible. Keep its recovery copy before starting again.');
+  }
+}
+$('return').onsubmit=event=>{event.preventDefault();run(async()=>{
+  if(pending||!state.can_submit)return;
+  let selected=Array.from($('upload').files);
+  if(edit){
+    let find=$('find').value,replacement=$('replacement').value;
+    if(find.includes('\n')||replacement.includes('\n')){const separators=new Set(edit.source.match(/\r\n|\r|\n/g));if(separators.size>1)throw Error('Use a single-line edit for mixed line endings');const [sep='\n']=separators;find=find.replaceAll('\n',sep);replacement=replacement.replaceAll('\n',sep);}
+    selected=[new File([edit.replace(edit.source,find,replacement)],edit.file.name,{type:edit.file.media_type??''})];
+  }else if(!selected.length&&$('review').value.trim())selected=[new File([$('review').value],'review.md',{type:'text/markdown'})];
+  if(!selected.length||selected.length>8||selected.some(f=>f.size>6291456)||selected.reduce((n,f)=>n+f.size,0)>7340032)throw Error('Choose files within the stated limits');
+  const files=[];for(const f of selected){const data=new Uint8Array(await f.arrayBuffer()),chunks=[];for(let i=0;i<data.length;i+=24576)chunks.push(btoa(String.fromCharCode(...data.subarray(i,i+24576))));files.push({name:f.name,bytes:data.length,digest:await digest(data),media_type:f.type||null,data:chunks.join('')});}
+  const body={expected:state.head,request_key:crypto.randomUUID(),kind:'return',basis:state.items[0].ref,message:$('message').value,next_action:$('next').value,files};
+  await journal('put',body);pending=body;await send(false);
+});};
+$('cancel-edit').onclick=()=>{if(!busy&&!pending){edit=null;$('edit').hidden=true;$('upload').disabled=$('review').disabled=false;}};
+$('check').onclick=()=>run(()=>send(true));$('retry').onclick=()=>run(()=>send(false));
+function recoveryCopy(){download(JSON.stringify({format:'augnes_participant_pending.v1',grant_id:grant,origin:location.origin,body:pending},null,2),'augnes-pending-return.json');}
+$('recover').onclick=()=>{if(pending)recoveryCopy();};
+$('release').onclick=()=>run(async()=>{const result=await json('/resolve',pending);if(result.outcome==='saved')return send(true);if(result.retry_allowed)throw Error('The same save is still eligible');recoveryCopy();await journal('delete');pending=null;await refresh();});
+$('refresh').onclick=()=>run(refresh);$('more').onclick=()=>run(()=>feedback(true));
+run(async()=>{pending=await journal('get')??null;await refresh();if(pending)await send(true);});
+
+$('signout').addEventListener('click',loseAccess);
+addEventListener('pagehide',loseAccess);
+addEventListener('pageshow',event=>{if(event.persisted)run(refresh);});

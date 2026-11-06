@@ -45,6 +45,20 @@ export const erased=sqliteTable('web_planning_erased',{
   foreignKey({columns:[t.workspace_id,t.project_id],foreignColumns:[workspace.workspace_id,workspace.project_id]}),
 ]);
 
+// Operational access grants are excluded from revision/export reconstruction.
+export const participation=sqliteTable('web_planning_participation',{
+  workspace_id:text('workspace_id').notNull(),project_id:text('project_id').notNull(),
+  grant_id:text('grant_id').notNull(),work_id:text('work_id').notNull(),
+  recipient_login:text('recipient_login').notNull(),recipient_hash:text('recipient_hash').notNull(),
+  disclosure:text('disclosure').notNull(),disclosure_fingerprint:text('disclosure_fingerprint').notNull(),
+  expires:integer('expires').notNull(),revoked_at:text('revoked_at'),
+},t=>[
+  primaryKey({columns:[t.workspace_id,t.project_id,t.grant_id]}),
+  foreignKey({columns:[t.workspace_id,t.project_id],foreignColumns:[workspace.workspace_id,workspace.project_id]}),
+  index('web_planning_participation_request').on(t.workspace_id,t.project_id,t.work_id),
+  check('web_planning_participation_disclosure',sql`json_valid(${t.disclosure})`),
+]);
+
 // Quotas are also enforced by the migration's transaction-local INSERT trigger.
 export const file=sqliteTable('web_planning_file',{
   workspace_id:text('workspace_id').notNull(),project_id:text('project_id').notNull(),

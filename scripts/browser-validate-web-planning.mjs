@@ -1,3 +1,5 @@
+import { browserParticipation } from './browser-web-planning-participation.mjs';
+import { participantBindings } from './web-planning-participation-checks.mjs';
 import { selectBrowserPath } from "./local-canonical-browser-input.mjs";
 import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { browserSceneJourney } from "./browser-web-planning-scenes.mjs";
@@ -36,7 +38,15 @@ async function set(c,id,value){await c.eval(`(()=>{const e=document.getElementBy
 async function state(c,expression){return c.eval(expression);}
 async function visible(c,id){return c.eval(`!!document.getElementById(${JSON.stringify(id)})&&!document.getElementById(${JSON.stringify(id)}).hidden`);}
 async function saved(c,n){await wait(()=>c.eval(`document.getElementById('saved-label')?.textContent.startsWith('Saved revision ${n} ')`),'saved '+n);}
-async function page(debug,origin){const target=await (await fetch(`http://127.0.0.1:${debug}/json/new?about:blank`,{method:'PUT'})).json();const c=await new CDP(target.webSocketDebuggerUrl).open();clients.push(c);
+async function page(debug,origin,isolated=false){
+ let target;
+ if(isolated){
+   const info=await (await fetch(`http://127.0.0.1:${debug}/json/version`)).json(),browser=await new CDP(info.webSocketDebuggerUrl).open();
+   try{const {browserContextId}=await browser.send('Target.createBrowserContext');const {targetId}=await browser.send('Target.createTarget',{url:'about:blank',browserContextId});
+     target=(await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find(t=>t.id===targetId);assert(target,'isolated_browser_target');
+   }finally{await browser.close();}
+ }else target=await (await fetch(`http://127.0.0.1:${debug}/json/new?about:blank`,{method:'PUT'})).json();
+ const c=await new CDP(target.webSocketDebuggerUrl).open();clients.push(c);
  c.targetId=target.id;c.origin=origin;
  c.interceptions=observeWebPlanningInterceptions(c,{targetId:target.id,origin});
  c.direct=origin.startsWith('https://127.0.0.1:');
@@ -313,8 +323,12 @@ try {
  }
  await browserBranchJourney({a,debug,origin,page,click,set,settled,saved,wait,visible,navigate,login,requestsOnly,requests,responses,revisionCount,readWindow,contextRequest,overlapCapacity,checks,
    restart:async()=>{const options={root:path.join(root,'runtime'),port:Number(new URL(origin).port),bindings:local.env,code:local.code};await closeLocalRuntime();local=null;local=await startLocal(options);}});
- assert.deepEqual(interceptionErrors,[]);
  await click(a,'signout');await wait(()=>a.eval("document.title==='Local synthetic workspace'"),'signout');assert(!await a.eval("document.body.innerText.includes('Evening noise')"));
+ for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=null;
+ local=await startLocal({root:path.join(root,'participation-browser'),bindings:participantBindings()});
+ const participantOwner=await page(debug,local.origin);await login(participantOwner,local.origin);
+ await browserParticipation({owner:participantOwner,participant:()=>page(debug,local.origin,true),local,root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
+ assert.deepEqual(interceptionErrors,[]);
  // The same complete product journey now enters the compiled direct Worker
  // through workerd's platform Access simulation, without local login cookies.
  for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=null;

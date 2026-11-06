@@ -1,3 +1,4 @@
+import { PARTICIPATION_FORMAT, PARTICIPATION_COMPATIBILITY } from "./participation-contract";
 import { USE_FORMAT, USE_COMPATIBILITY, returnUse } from "./return-use";
 import { canonical, COMPATIBILITY, fail, FINGERPRINT, FORMAT, hash, headBinding, RELATION_COMPATIBILITY, RELATION_FORMAT,
   UUID, type Revision, type Scope } from "./contract";
@@ -10,7 +11,7 @@ import { fileManifest, FILE_COMPATIBILITY, FILE_FORMAT, FILE_RELATION_COMPATIBIL
 export const listEnvelope = `CASE WHEN revision=(SELECT n FROM summary)
   OR json_type(envelope,'$.exchange') IS NOT NULL OR json_extract(envelope,'$.format')='${EXCHANGE_FORMAT}'
   THEN envelope ELSE json_remove(envelope,'$.sources','$.definition','$.relations','$.return_use') END`;
-export const revisionCompatibility = new Map<string,string>([[USE_FORMAT,USE_COMPATIBILITY],[FORMAT,COMPATIBILITY],[RELATION_FORMAT,RELATION_COMPATIBILITY],
+export const revisionCompatibility = new Map<string,string>([[PARTICIPATION_FORMAT,PARTICIPATION_COMPATIBILITY],[USE_FORMAT,USE_COMPATIBILITY],[FORMAT,COMPATIBILITY],[RELATION_FORMAT,RELATION_COMPATIBILITY],
   [FILE_FORMAT,FILE_COMPATIBILITY],[FILE_RELATION_FORMAT,FILE_RELATION_COMPATIBILITY],[EXCHANGE_FORMAT,EXCHANGE_COMPATIBILITY],[LARGE_FORMAT,LARGE_COMPATIBILITY]]);
 const previewLimit = 2;
 
@@ -27,7 +28,7 @@ export function projectWorkListItem(scope:Scope,id:string,rows:Revision[]) {
   let returnedFiles = 0, predecessor:string|null = null;
   for (const [i,row] of rows.entries()) {
     if (row.schema!==1 || !revisionCompatibility.has(row.format) || revisionCompatibility.get(row.format)!==row.compatibility ||
-        (row.format===EXCHANGE_FORMAT || row.format===LARGE_FORMAT)!==("exchange" in row)) fail("incompatible_format",409);
+        (row.format===EXCHANGE_FORMAT || row.format===LARGE_FORMAT || (row.format===PARTICIPATION_FORMAT && !!row.exchange?.contributor))!==("exchange" in row)) fail("incompatible_format",409);
     if (row.work_id!==id || !UUID.test(id) || row.workspace_id!==scope.workspace_id ||
         row.project_id!==scope.project_id || row.author_ref!==scope.author_ref || row.revision!==i+1 ||
         row.predecessor!==predecessor || !FINGERPRINT.test(row.fingerprint) || !UUID.test(row.request_key) ||
@@ -39,12 +40,12 @@ export function projectWorkListItem(scope:Scope,id:string,rows:Revision[]) {
       if (hash(canonical(material))!==fingerprint) fail("history_integrity",409);
     }
     if(row===head){
-      if((row.format===USE_FORMAT)!==("return_use" in row))fail("incompatible_format",409);
+      if((row.format===USE_FORMAT || (row.format===PARTICIPATION_FORMAT && !!(row.return_use?.participant_feedback||row.return_use?.contributor)))!==("return_use" in row))fail("incompatible_format",409);
       if(row.return_use)returnUse(row.return_use,row,id);
     }
     if (!row.exchange) continue;
     const event=exchangeRecord(row.exchange);
-    if (largeExchange(event)!==(row.format===LARGE_FORMAT)) fail("incompatible_format",409);
+    if (row.format!==PARTICIPATION_FORMAT && largeExchange(event)!==(row.format===LARGE_FORMAT)) fail("incompatible_format",409);
     if (!i) fail("invalid_exchange");
     if (event.kind==="request") awaiting.set(row.fingerprint,row);
     else {

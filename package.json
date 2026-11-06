@@ -170,6 +170,7 @@
     "web:build": "node scripts/build-web-planning.mjs",
     "web:build:cloudflare": "node scripts/build-web-planning.mjs cloudflare",
     "web:dev": "node scripts/run-web-planning.mjs dev",
+    "web:test:participation": "node scripts/run-web-planning.mjs participation",
     "web:test": "node scripts/run-web-planning.mjs test",
     "web:test:browser": "node scripts/run-web-planning.mjs browser",
     "web:typecheck": "tsc -p apps/web_planning/tsconfig.json --noEmit",

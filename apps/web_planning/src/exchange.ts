@@ -1,3 +1,4 @@
+import { contributor, type Contributor } from "./participation-contract";
 import { decisionView } from "./return-use";
 import { boundedText, canonical, exact, fail, headBinding, reference, workRef, type Revision, type WorkRef } from "./contract";
 import { FILE_LIMIT, SELECTION_BYTES, fileManifest, type FileEntry } from "./files";
@@ -15,6 +16,7 @@ export function largeExchange(event:Exchange) {
 export interface ExchangeFile { file: FileEntry; media_type: string | null }
 export interface Exchange {
   kind: "request" | "return";
+  contributor?: Contributor;
   basis: WorkRef | null;
   message: string;
   next_action: string;
@@ -28,7 +30,8 @@ export function mediaType(value: unknown): string | null {
 }
 
 export function exchangeRecord(value: unknown): Exchange {
-  exact(value, "kind,basis,message,next_action,artifacts");
+  exact(value, "kind,basis,message,next_action,artifacts"+(value && typeof value === "object" && "contributor" in value?",contributor":""));
+  if("contributor" in value){if(value.kind!=="return")fail("invalid_contributor");contributor(value.contributor);}
   if (!["request", "return"].includes(value.kind)) fail("invalid_exchange");
   if (boundedText(value.message, true) !== value.message || boundedText(value.next_action, value.kind === "return") !== value.next_action) fail("invalid_exchange_text");
   if (!Array.isArray(value.artifacts) || !value.artifacts.length) fail("exchange_file_required");
@@ -62,7 +65,7 @@ export function exchangeView(revision: Revision) {
     ...file, media_type,
     download: `/api/work/${ref.work_id}/exchange-files/${ref.revision}/${ref.fingerprint.slice(7)}/${i}`
   }));
-  return { ref, expected:{revision:revision.revision-1,fingerprint:revision.predecessor}, request_key: revision.request_key, kind, basis, message, next_action, files };
+  return { ref, ...(revision.exchange!.contributor?{contributor:revision.exchange!.contributor}:{}), expected:{revision:revision.revision-1,fingerprint:revision.predecessor}, request_key: revision.request_key, kind, basis, message, next_action, files };
 }
 
 export function exchangeList(chain: Revision[]) {

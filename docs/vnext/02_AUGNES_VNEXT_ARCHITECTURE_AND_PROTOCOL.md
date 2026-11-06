@@ -4033,6 +4033,45 @@ different writers and evidence. Local execution and the existing selected-source
 admission remain independently scoped. The [Web contract](../../apps/web_planning/README.md#ask-for-work-on-files-and-collect-the-return)
 owns wire formats, replay, retention, erasure and recovery.
 
+#### Request-scoped Web participation (#1589)
+
+An opt-in operational grant binds a separately verified ingress email to one
+immutable Web request, selected original file occurrences, disclosed brief and
+return conditions, observed save base and finite expiry. Possession of a link or
+setup is not authorization. Every participant operation rechecks identity,
+request/material/action scope and current access; the atomic return INSERT also
+checks grant expiry/revocation and the frozen base. Later revisions never
+substitute a newly selected basis. Stale writes refuse; permitted original reads
+remain historical. The existing exchange writer owns one-answer, idempotency,
+exact bytes and atomic persistence, independently of native stores.
+
+The Web storage author and contributor are distinct: new return revisions retain
+a grant ID, hashed normalized email reference and actual authentication class.
+Email control does not establish a named human, model identity or independent
+judgment. Deliberate downstream use retains the contributor attestation and
+exact source identities. New attributed returns/use and optional shared feedback
+use v0.8; earlier revision/export bytes remain unchanged.
+
+A return-use decision may include a deliberately shared explanation and next
+action. The participant projection derives disposition and these fields only
+from the authoritative committed decision, including a private destination's
+commit. It excludes destination identifiers/titles/files, private reasons,
+reported checks and unrelated notes; pagination must not disclose these either.
+Unshared or unavailable feedback is not rejection. Feedback reads write no
+readback, use or acceptance state. Revocation/expiry preserves committed history
+while stopping server access. Source erasure does not erase a separate
+destination's output and attribution. Exports omit access grants and credentials;
+supported reconstruction revokes any retained grants atomically and never
+reactivates them. Imported attribution is attestation, not renewed access or
+independent verification. The [Web operational contract](../../apps/web_planning/README.md#request-scoped-participants-and-shared-feedback-1589)
+owns activation, local recovery, ingress and rollback details.
+
+
+An authenticated original recipient may use a recovery-only entry after expiry,
+revocation or source erasure to download an existing browser-local pending return.
+This exposes no server request, file, feedback or save outcome, performs no write,
+and grants no renewed access. Unknown submission status remains unknown.
+
 ### 13.6 Explicit portable Web source admission (#1475)
 
 The [local handoff](../WEB_EXPORT_NATIVE_HANDOFF.md) directly reuses the Web v0.3

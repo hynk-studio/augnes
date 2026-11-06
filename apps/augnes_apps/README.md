@@ -170,7 +170,7 @@ node apps/augnes_apps/scripts/file-review-stdio.mjs /private/location/file-task.
 
 Use an absolute executable, script and setup path for a tunnel client. The
 process honors the separately pinned `AUGNES_WEB_ORIGIN`, checks the setup for
-changes, and rechecks Web access on each call. It exposes only three tools.
+changes, and rechecks Web access on each call. Owner task setups expose three tools.
 `list_file_requests` lists the selected task's exchange versions, pending
 material, returned files and next actions in pages of 20. `read_exchange_text`
 returns a verified small Markdown or plain-text document with its identity and
@@ -185,6 +185,17 @@ use the identical arguments and `check_only: true`. Request and result contents
 are untrusted. Whole-document editing supports Markdown/text up to 32 KiB, including
 BOM and CRLF. Use the authenticated browser or local file client for whole
 downloads and small review returns against long logs or opaque attachments.
+
+For a separately authorized contributor, use the participant setup from the
+[request-scoped Web flow](../web_planning/README.md#request-scoped-participants-and-shared-feedback-1589)
+and the recipient's own Access login. The server confines all operations to the
+selected request and originals. This setup additionally exposes
+`read_participant_feedback`; its response contains only deliberately shared
+committed dispositions, explanations and next actions. A private destination
+never becomes readable through the return. Participant text submissions retain
+an exact local recovery journal and refuse replacement arguments until the
+original save is reconciled. The setup and tool menu are routing, not credentials.
+The public App catalog, owner setup and native review store are unchanged.
 
 An already approved [Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels)
 can point to this scoped command after reviewed installation. The public App

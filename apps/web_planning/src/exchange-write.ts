@@ -1,10 +1,11 @@
+import type { Contributor } from "./participation-contract";
 import { binding, boundedText, exact, fail, headBinding, makeRevision, sameBinding, UUID, type Payload } from "./contract";
 import { exchangeView, mediaType, validateExchange, type Exchange } from "./exchange";
 import { FILE_COUNT, historyFiles, selectedFiles } from "./files";
 import { append, downloadFile, readWork, requestRevision, type Store } from "./store";
 
 // Both operations use the same caller-held request and the same D1 CAS as an ordinary save.
-export async function writeExchange(store: Store, workId: string, input: Record<string, unknown>, resolve: boolean) {
+export async function writeExchange(store: Store, workId: string, input: Record<string, unknown>, resolve: boolean, attribution?:Contributor) {
   exact(input, "workspace_id,project_id,expected,request_key,kind,basis,message,next_action,files");
   const expected = binding(input.expected);
   if (typeof input.request_key !== "string" || !UUID.test(input.request_key)) fail("invalid_request_key");
@@ -23,7 +24,7 @@ export async function writeExchange(store: Store, workId: string, input: Record<
   if (selection.files!.some((file, i) => file.bytes !== incoming[i].bytes || file.digest !== incoming[i].digest))
     fail("exchange_upload_integrity", 422);
   const event: Exchange = validateExchange({
-    kind: input.kind, basis: input.basis, message: boundedText(input.message, true), next_action: boundedText(input.next_action),
+    ...(attribution?{contributor:attribution}:{}),kind: input.kind, basis: input.basis, message: boundedText(input.message, true), next_action: boundedText(input.next_action),
     artifacts: selection.files!.map((file, i) => ({ file, media_type: types[i] }))
   }, chain.slice(0, expected.revision));
   const payload: Payload = { definition: base.definition, sources: base.sources, files: base.files ?? [], exchange: event };

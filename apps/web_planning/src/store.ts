@@ -11,7 +11,7 @@ export interface Statement {
   run(): Promise<{ meta: { changes: number } }>;
 }
 export interface Database { prepare(sql: string): Statement; batch(statements: Statement[]): Promise<unknown[]> }
-export type Store = Scope & { DB: Database; historyRead?: { rows:number; bytes:number } };
+export type Store = Scope & { DB: Database; historyRead?: { rows:number; bytes:number }; participantGrant?: { id:string; recipient_hash:string; disclosure_fingerprint:string } };
 // Includes authentication and batch statements; leave ten queries below D1's
 // Free invocation ceiling. No retry or replica/session substitution is used.
 export function boundedDatabase(db:Database):Database {
@@ -117,6 +117,8 @@ export async function append(s: Store, chain: Revision[], r: Revision, source?: 
     SELECT ?,?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM web_planning_erased WHERE ${where})
     AND COALESCE((SELECT MAX(revision) FROM web_planning_revision WHERE ${where}),0) = ?
     AND (? = 0 OR EXISTS (SELECT 1 FROM web_planning_revision WHERE ${where} AND revision = ? AND fingerprint = ?))
+    ${s.participantGrant ? `AND EXISTS (SELECT 1 FROM web_planning_participation WHERE workspace_id=? AND project_id=? AND grant_id=? AND work_id=?
+      AND recipient_hash=? AND disclosure_fingerprint=? AND revoked_at IS NULL AND expires > (julianday('now')-2440587.5)*86400000)` : ""}
     ${source ? `AND ${sourceGate}` : ""}
     ${selections.length ? `AND NOT EXISTS (SELECT 1 FROM json_each(?) pick WHERE NOT EXISTS
       (SELECT 1 FROM web_planning_revision src WHERE src.workspace_id=? AND src.project_id=?
@@ -124,7 +126,8 @@ export async function append(s: Store, chain: Revision[], r: Revision, source?: 
        AND src.fingerprint=json_extract(pick.value,'$.fingerprint') AND NOT EXISTS
        (SELECT 1 FROM web_planning_erased e WHERE e.workspace_id=src.workspace_id AND e.project_id=src.project_id AND e.work_id=src.work_id)))` : ""}
     ON CONFLICT DO NOTHING`).bind(s.workspace_id,s.project_id,r.work_id,r.revision,r.fingerprint,r.request_key,r.request_fingerprint,canonical(r),
-      ...args(s,r.work_id),...args(s,r.work_id),r.revision-1,r.revision-1,...args(s,r.work_id),r.revision-1,r.predecessor,...(source?sourceArgs(s,source):[]),
+      ...args(s,r.work_id),...args(s,r.work_id),r.revision-1,r.revision-1,...args(s,r.work_id),r.revision-1,r.predecessor,
+      ...(s.participantGrant?[s.workspace_id,s.project_id,s.participantGrant.id,r.work_id,s.participantGrant.recipient_hash,s.participantGrant.disclosure_fingerprint]:[]),...(source?sourceArgs(s,source):[]),
       ...(selections.length?[canonical(selections),s.workspace_id,s.project_id]:[]));
   if(r.files===undefined)await statement.run();
   else {
@@ -168,7 +171,9 @@ export async function reconstructWorks(s:Store,works:{chain:Revision[];bodies:Fi
   if(chunks.length>16)fail("reconstruction_budget_exceeded",422);
   // A CHECK-constrained assertion is the first statement in the same transaction.
   // Emptiness includes erased IDs: reconstruction cannot resurrect erased work.
+  const grants=await s.DB.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='web_planning_participation'").first();
   await s.DB.batch([
+    ...(grants?[s.DB.prepare("UPDATE web_planning_participation SET revoked_at=COALESCE(revoked_at,?)").bind(new Date().toISOString())]:[]),
     s.DB.prepare(`UPDATE web_planning_workspace SET singleton = CASE WHEN
       EXISTS(SELECT 1 FROM web_planning_revision) OR EXISTS(SELECT 1 FROM web_planning_erased) OR EXISTS(SELECT 1 FROM web_planning_file)
       THEN 0 ELSE 1 END WHERE singleton=1`),
