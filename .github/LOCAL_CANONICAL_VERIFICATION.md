@@ -954,6 +954,13 @@ the new run establishes its own before and after observations.
 This edge requires an unedited forward decision from a current maintainer on
 the same PR for this exact predecessor, original commission and delegation. Its
 operative section authorizes the second candidate for this final input fault.
+The forward decision's opening delegation and assignment paragraphs bind the
+delegation and branch/PR. Its unique `Exact historical boundary and existing
+authority` section binds each labeled source, attempt, receipt, commission,
+acceptance and grant field exactly once, before the bounded correction and
+explicit continuation sections. Missing, conflicting or nonoperative fields
+refuse before reservation. Historical appendices may describe other targets;
+their prose, quotations, code and comments cannot supply an operative binding.
 The subsequent source review links that decision and binds the resulting
 preparation commitment. The initial acceptance, grant and two-invocation
 accounting do not change. An ordinary failed phase still uses its original path.

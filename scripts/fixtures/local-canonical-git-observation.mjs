@@ -1,6 +1,6 @@
 // Synthetic Git, ledger and authenticated read transport. No production admission.
 import assert from "node:assert/strict";
-import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { digest, INPUT_CONTRACT, inputEventIdentity } from "../local-canonical-inputs.mjs";
 import { CANONICAL_NODE_VERSION } from "../local-canonical-environment.mjs";
@@ -439,10 +439,16 @@ export async function checkFinalDependency(c,h,stage) {
   const latest=()=>reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch});
   const originalTip=latest(), baseUrl="https://github.com/hynk-studio/augnes/pull/999#";
   const forward={...authority.grant,id:31,created_at:time(0),body:[
-    "## Forward decision for the fixture final-input failure — continue the same assignment",c.branch+" in Draft PR #999","Base/main: "+p.accepted.base,"Audited head: "+p.accepted.head,"Audited tree: "+p.accepted.tree,
+    "## Forward decision for the fixture final-input failure — continue the same assignment",
+    "This decision follows the independent audit and extends the existing [ongoing task delegation "+p.commission.delegation.id+"]("+baseUrl+"issuecomment-"+p.commission.delegation.id+") for the specific settled failure below.",
+    "Complete the correction and qualification as one assignment on "+c.branch+" in Draft PR #999.",
+    "### Exact historical boundary and existing authority",
+    "Base/main: "+p.accepted.base,"Audited head: "+p.accepted.head,"Audited tree: "+p.accepted.tree,
     "Actual latest attempt: "+p.prior_attempt_id,"Latest failed receipt: "+p.prior_receipt_fingerprint,
     "Previous receipt: "+p.commission.root_receipt_fingerprint,"Current commission: "+originalTip.revision_commission+", consumed 1/2",
-    baseUrl+"issuecomment-"+authority.grant.id,baseUrl+"issuecomment-"+p.commission.delegation.id,baseUrl+"pullrequestreview-"+p.accepted.review.id,
+    "Initial source acceptance: "+baseUrl+"pullrequestreview-"+p.accepted.review.id,
+    "Existing prospective grant: "+baseUrl+"issuecomment-"+authority.grant.id,
+    "### Authorized bounded source correction", "Correct the restrictive-mode observation while retaining the failure.",
     "### Explicit prospective continuation for this settled failure",
     "I authorize the minimal existing-owner and policy extension needed for a materially corrected second candidate to follow this exact all-phase-pass, final dependency-observation failure.",
     "Require the isolated dependency_input_cache_unsafe event on dependencies-web-planning, its missing v2 after-observation.",
@@ -465,6 +471,65 @@ export async function checkFinalDependency(c,h,stage) {
   c.authority.linked={...c.authority.linked,["repos/hynk-studio/augnes/issues/comments/"+forward.id]:forward,["repos/hynk-studio/augnes/pulls/999/reviews/"+review.id]:review};
   p.authorization={...first.authorization,contract_review:{...record(review,"contract_review"),head:p.head,pull_request:p.pull_request}};
   h.write(c.file,p);const proof=h.proof(c), cap=await h.auth(c,proof);
+  const ledgerBytes=()=>digest(readdirSync(c.anchor,{recursive:true}).sort().filter(f=>statSync(path.join(c.anchor,f)).isFile())
+    .map(f=>[f,digest(readFileSync(path.join(c.anchor,f)))]));
+  const unchangedLedger=ledgerBytes();
+  let acceptedBodies=0, refusedBodies=0;
+  const authorizeBody=async(body,accepted=true,link=true,changes={})=>{
+    const candidate=structuredClone(p), decision={...forward,...changes,body};
+    candidate.commission.forward_decision=record(decision,"forward_decision");
+    const sourceReview={...review,body:review.body.replace(prepared.target,gitReviewTarget(candidate))};
+    if (!link) sourceReview.body=sourceReview.body.replace(baseUrl+"issuecomment-"+forward.id,"");
+    candidate.authorization.contract_review={...candidate.authorization.contract_review,...record(sourceReview,"contract_review")};
+    const authorize=()=>h.auth(c,candidate,(v,e)=>e.endsWith("/"+forward.id)?decision:e.endsWith("/"+review.id)?sourceReview:v);
+    if (accepted) { await authorize(); acceptedBodies++; }
+    else { await assert.rejects(authorize,/revision_authority_scope_invalid/); refusedBodies++; }
+    // The reader is read-only. Check the complete physical ledger after each
+    // refusal, without rerunning unrelated Git reconstruction for every body.
+    assert.equal(ledgerBytes(),unchangedLedger);
+  };
+  // Operative B remains authorized with a historical, explicitly excluded A.
+  // Conversely all of B's missing bindings in an appendix cannot authorize B
+  // when the operative decision names A. Use real authenticated-reader records,
+  // with both record hashes and the separate review commitment rebound.
+  const boundary="### Exact historical boundary and existing authority";
+  const correction="### Authorized bounded source correction";
+  const start=forward.body.indexOf(boundary), end=forward.body.indexOf(correction);
+  const active=forward.body.slice(start+boundary.length,end).trim();
+  const appendix="\n\n### Historical comparison — excluded from this authorization\n\nThis other target is not approved.\n\n";
+  const other=forward.body.replace(p.prior_attempt_id,"other-candidate-attempt").replace(p.prior_receipt_fingerprint,digest("other receipt"));
+  const otherFields=other.slice(start,other.indexOf(correction));
+  await authorizeBody(forward.body+appendix+otherFields.replace(boundary,"Rejected target:"));
+  await authorizeBody(other,false);
+  await authorizeBody(other+appendix+active,false);
+  await authorizeBody(other+appendix+forward.body,false);
+  for (const wrap of [s=>"> "+s.replaceAll("\n","\n> "),s=>"```text\n"+s+"\n```",s=>"~~~\n"+s+"\n~~~",
+    s=>"<!--\n"+s+"\n-->",s=>"    "+s.replaceAll("\n","\n    ")]) {
+    await authorizeBody(wrap(forward.body),false);
+    await authorizeBody(other+appendix+wrap(forward.body),false);
+    await authorizeBody(forward.body+appendix+wrap(other));
+  }
+  await authorizeBody("## Historical example only\n\n"+forward.body,false);
+  await authorizeBody(forward.body.replace(boundary,"### Historical example only"),false);
+  await authorizeBody(forward.body.replace(boundary,boundary+"\n\n"+boundary),false);
+  await authorizeBody(forward.body+appendix+"```text\n<!--\n```\n\n"+boundary+"\n\n"+active,false);
+  await authorizeBody(forward.body+appendix+"<!--\n```\n"+other+"\n-->\n");
+  for (const field of active.split(/\n+/u)) {
+    await authorizeBody(forward.body.replace(field,"")+appendix+field,false);
+    await authorizeBody(forward.body.replace(field,field+"\n"+field),false);
+    await authorizeBody(forward.body.replace(field,field+"\n"+field.split(": ")[0]+": conflicting target"),false);
+    await authorizeBody(forward.body.replace(field,field+" suffix"),false);
+  }
+  for (const value of [c.branch,"Draft PR #999","ongoing task delegation "+p.commission.delegation.id])
+    await authorizeBody(forward.body.replace(value,"wrong binding")+appendix+value,false);
+  await authorizeBody(forward.body,false,true,{created_at:review.submitted_at,updated_at:review.submitted_at});
+  await authorizeBody(forward.body,false,true,{created_at:authority.grant.created_at,updated_at:authority.grant.created_at});
+  assert.deepEqual(latest(),originalTip);
+  console.log(JSON.stringify({synthetic_only:true,authority_scope:"operative boundary",authorized_with_excluded_appendix:true,
+    excluded_target_refused:true,nonoperative_decisions_refused:true,missing_conflicting_fields_refused:true,
+    accepted_bodies:acceptedBodies,refused_bodies:refusedBodies,refusals_changed_ledger:false}));
+  assert.throws(()=>h.begin(c,proof,null),/revision_authenticated_authority_required/);
+  assert.equal(ledgerBytes(),unchangedLedger);
   // Rebind the mocked record identities and target: refusal must come from
   // the operative decision/link, not a hash mismatch on an edited response.
   for (const [body,link] of [

@@ -229,19 +229,52 @@ function visibleDelegationParagraphs(body) {
 }
 
 export function permitsFinalDependencySuccessor(body, p, commissionIdentity) {
-  const paragraphs = visibleDelegationParagraphs(body);
-  const title = "### Explicit prospective continuation for this settled failure";
-  const section = paragraphs.indexOf(title);
+  // Read this existing decision format, not arbitrary mentions of its target.
+  // Ignore quoted/code/comment headings when locating sections. The operative
+  // prefix itself must still be ordinary visible prose; later appendices may
+  // contain historical records, including their own quoted decision templates.
+  const lines = body.replaceAll("\r\n", "\n").trim().split("\n"), headings = [];
+  let fence = null, comment = false;
+  for (const [index, line] of lines.entries()) {
+    const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/u);
+    if (fence) {
+      if (marker && marker[1][0] === fence[0] && marker[1].length >= fence.length && !marker[2].trim()) fence = null;
+      continue;
+    }
+    if (comment || line.includes("<!--")) {
+      if (line.includes("-->") || line.includes("<!--")) comment = line.lastIndexOf("<!--") > line.lastIndexOf("-->");
+      continue;
+    }
+    if (marker) { fence = marker[1]; continue; }
+    if (/^#{1,6} /u.test(line)) headings.push({ title: line, index });
+  }
+  const boundary = "### Exact historical boundary and existing authority";
+  const correction = "### Authorized bounded source correction";
+  const permission = "### Explicit prospective continuation for this settled failure";
+  if (headings[1]?.title !== boundary || headings[2]?.title !== correction || headings[3]?.title !== permission ||
+      [boundary, permission].some(title => headings.filter(h => h.title === title).length !== 1)) return false;
+  const paragraphs = visibleDelegationParagraphs(lines.slice(0, headings[4]?.index ?? lines.length).join("\n"));
+  const section = paragraphs.indexOf(permission);
   const link = (type,id) => "https://github.com/hynk-studio/augnes/pull/"+p.pull_request+"#"+type+"-"+id;
+  const fields = lines.slice(headings[1].index+1, headings[2].index).map(line => line.trim());
+  const expected = {
+    "Base/main": p.accepted.base, "Audited head": p.accepted.head, "Audited tree": p.accepted.tree,
+    "Actual latest attempt": p.prior_attempt_id, "Latest failed receipt": p.prior_receipt_fingerprint,
+    "Previous receipt": p.commission.root_receipt_fingerprint, "Current commission": commissionIdentity+", consumed 1/2",
+    "Initial source acceptance": link("pullrequestreview",p.accepted.review.id),
+    "Existing prospective grant": link("issuecomment",p.authorization.grant_comment_id),
+  };
   return /^## Forward decision for the [\w.-]+ final-input failure — continue the same assignment$/u.test(paragraphs[0] ?? "") &&
-    section > 0 && section === paragraphs.lastIndexOf(title) &&
+    paragraphs[1]?.startsWith("This decision follows ") &&
+    paragraphs[1].endsWith("and extends the existing [ongoing task delegation "+p.commission.delegation.id+"]("+link("issuecomment",p.commission.delegation.id)+") for the specific settled failure below.") &&
+    paragraphs[2]?.startsWith("Complete ") && paragraphs[2].endsWith("as one assignment on "+p.branch+" in Draft PR #"+p.pull_request+".") &&
+    paragraphs[3] === boundary && section > 3 &&
     paragraphs[section+1] === "I authorize the minimal existing-owner and policy extension needed for a materially corrected second candidate to follow this exact all-phase-pass, final dependency-observation failure." &&
     paragraphs[section+2]?.includes("the isolated dependency_input_cache_unsafe event on dependencies-web-planning, its missing v2 after-observation") &&
-    [p.branch+" in Draft PR #"+p.pull_request, "Base/main: "+p.accepted.base, "Audited head: "+p.accepted.head, "Audited tree: "+p.accepted.tree,
-      "Actual latest attempt: "+p.prior_attempt_id, "Latest failed receipt: "+p.prior_receipt_fingerprint,
-      "Previous receipt: "+p.commission.root_receipt_fingerprint, "Current commission: "+commissionIdentity+", consumed 1/2",
-      link("issuecomment",p.authorization.grant_comment_id), link("issuecomment",p.commission.delegation.id),
-      link("pullrequestreview",p.accepted.review.id)].every(value => body.includes(value));
+    Object.entries(expected).every(([label,value]) => {
+      const matches = fields.filter(line => line.startsWith(label+":"));
+      return matches.length === 1 && matches[0] === label+": "+value;
+    });
 }
 
 export function delegatesProspectiveCommission(body, branch, pullRequest) {
