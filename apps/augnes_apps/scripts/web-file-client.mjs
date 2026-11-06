@@ -1,3 +1,4 @@
+import { prepareReturnDraft } from './planning-notes.mjs';
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -113,6 +114,49 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
     const path = root + '/exchange-files/' + version + '/' + item.ref.fingerprint.slice(7) + '/' + index;
     return {path,item,file};
   }
+  async function inspectReturn(version,name,after=null) {
+    const {item,file}=await locate(version,name);if(item.kind!=='return')fail('Choose a returned version.');
+    const index=item.files.findIndex(f=>f.name===name);
+    const view=await json('/inspect-return',{returned:item.ref,index,after});
+    if(view.returned?.ref?.fingerprint!==item.ref.fingerprint||view.request?.ref?.fingerprint!==item.basis?.fingerprint||
+      view.selection?.index!==index||view.selection.original?.file?.digest!==file.digest||view.current?.ref?.work_id!==work_id)fail('Returned basis could not be confirmed.');
+    return view;
+  }
+  const projectJson=async(path,body)=>(await request(path,body)).json();
+  async function prepareReturn(selection,judgment,destination){
+    if(selection?.returned?.work_id!==work_id)fail('Return belongs to another selected task.');
+    return prepareReturnDraft(projectJson,selection,judgment,destination);
+  }
+  async function sendReturn(pending,resolve=false){
+    if(!uuid.test(pending?.work_id)||pending.body?.return_choice?.selection?.returned?.work_id!==work_id)fail('Pending return belongs to a different task.');
+    return projectJson('/api/work/'+pending.work_id+(resolve?'/resolve':'/save'),pending.body);
+  }
+  async function recordedOrigin(version){
+    const d=(await list()).decisions?.find(d=>d.destination.revision===version);
+    if(!d)fail('Choose a listed decision revision.');
+    const {returned,index}=d;
+    const v=await projectJson('/api/work/'+returned.work_id+'/inspect-return',{returned,index,after:null});
+    if(v.selection.returned.fingerprint!==returned.fingerprint||v.request.ref.fingerprint!==d.request.fingerprint||
+       v.selection.original.file.digest!==d.original.file.digest||v.selection.original.file.name!==d.original.file.name)fail('Recorded origin mismatch.');
+    return v;
+  }
+  async function readOrigin(version,offset=0,find=''){
+    const v=await recordedOrigin(version),ref=v.selection.returned,f=v.returned.files[v.selection.index];
+    const path='/api/work/'+ref.work_id+'/exchange-files/'+ref.revision+'/'+ref.fingerprint.slice(7)+'/'+v.selection.index;
+    if(f.download!==path)fail('Recorded origin mismatch.');
+    const page=await projectJson(path+'/text',{offset,find});
+    if(page.ref?.fingerprint!==ref.fingerprint||page.file?.digest!==f.digest||page.total!==f.bytes)fail('Original content mismatch.');return page;
+  }
+  async function savedFile(version,name){
+    const decision=(await list()).decisions?.find(d=>d.destination.revision===version&&d.output?.name===name);
+    if(!decision)fail('Choose a listed destination revision and output name.');
+    const ref=decision.destination;
+    if(ref.work_id!==work_id||!fingerprint.test(ref.fingerprint)||!decision.download?.startsWith(root+'/files/'+version+'/'+ref.fingerprint.slice(7)+'/'))fail('Saved output identity mismatch.');
+    const bytes=Buffer.from(await (await request(decision.download)).arrayBuffer());
+    if(bytes.length!==decision.output.bytes||digest(bytes)!==decision.output.digest)fail('Saved output digest mismatch.');
+    let text=null;try{text=new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(bytes);}catch{};
+    return {decision,data:bytes.toString('base64'),text};
+  }
   async function readPage(version,name,offset=0,find=''){
     const {path,item,file}=await locate(version,name);
     const page=await (await request(path+'/text',{offset,find})).json();
@@ -134,5 +178,5 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
   async function write(body, resolve = false) {
     return (await request(root + '/exchanges/' + (resolve ? 'resolve' : 'save'), body)).json();
   }
-  return { project: project.name, work_id, setupDigest: digest(selected), planning, list, get, readPage, write };
+  return { project: project.name, work_id, setupDigest: digest(selected), planning, list, get, readPage, write, inspectReturn, prepareReturn, sendReturn, savedFile, recordedOrigin, readOrigin };
 }

@@ -1,0 +1,1 @@
+CREATE INDEX `web_planning_return_destination` ON `web_planning_revision` (`workspace_id`,`project_id`,envelope ->> '$.return_use.returned.fingerprint',envelope ->> '$.return_use.index',`work_id`,`revision`) WHERE (envelope ->> '$.return_use.returned.fingerprint') IS NOT NULL;

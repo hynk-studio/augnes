@@ -4011,6 +4011,18 @@ selection. Unresolved statements/corrections remain consumer review material.
 
 ### Project-scoped file requests and returns
 
+A receiving Web owner can separately judge a particular file occurrence in a
+return. A positive decision binds the original request basis, request, return,
+file position and manifest, observed source head, and the destination revision’s
+actual selected output. An unchanged copy retains the original bytes; an
+adaptation retains newly authored bytes. A recorded check is an attributed
+report, not verification. Deferral or non-use records reasons on the original
+without manufacturing downstream work. Source inspection and previews are
+read-only. The source view of use derives from committed destination revisions;
+unknown saves do not constitute use. A destination retains its own bytes and
+attribution when its source is unavailable. These are scoped Web revision
+semantics, not a new Core kind or execution grant.
+
 Within the existing private Web workspace, a file request binds the exact task
 revision, selected original bytes and author-attributed question. A return
 binds the request's immutable work/revision/fingerprint and retains the edited

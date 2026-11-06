@@ -759,9 +759,11 @@ const isolatedChild = canonicalSuite.slice(isolatedChildStart, canonicalSuite.in
 for (const fragment of ['timeoutMs: 30_000', 'requireNaturalExit: true', '"scripts/test-local-canonical-isolation.mjs"'])
   requireText(isolatedChild, fragment, "isolated verification has a bounded authority child and complete cleanup");
 
-const revisionChild = readCanonicalChildRegistration(canonicalSuite, "local-canonical-reviewed-revision");
-for (const fragment of ['"--reviewed-revision-controls"', 'timeoutMs: 30_000', 'requireNaturalExit: true'])
-  requireText(revisionChild.block, fragment, "live revision and settlement retain their complete direct owner");
+const revisionSteps = canonicalSuite.slice(canonicalSuite.indexOf("const reviewedRevisionSteps ="), canonicalSuite.indexOf("const suites ="));
+for (const fragment of ['["revision", "settlement", "browser", "git", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor"].map(group', '"--reviewed-revision-controls", group',
+  'timeoutMs: 30_000', 'requireNaturalExit: true'])
+  requireText(revisionSteps, fragment, "each reviewed fixture group has its own bounded natural-exit registration");
+assert.equal(countOccurrences(canonicalSuite, "...reviewedRevisionSteps,"), 1);
 assert.equal(countOccurrences(canonicalSuite, '"--reviewed-revision-controls"'), 1);
 assert.doesNotMatch(canonicalSuite, /--operating-profile-succession-controls/u);
 for (const route of ["operating-profile-succession", "successor-budget-succession"]) {
@@ -1393,7 +1395,7 @@ for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 45_000', '"pro
   requireText(continuationRegistration.block, fragment, "persisted continuation must retain bounded serial ownership");
 assert.equal(countOccurrences(firstWorkFixture, "await assertPersistedScopedContinuationV01();"), 1,
   "persisted continuation cases run once through their complete child");
-requireText(canonicalSuite, `coverage: projectWorkFocus ? "focused_project_work_children_only" : "complete_suite"`,
+requireText(canonicalSuite, `coverage: projectWorkFocus ? "focused_project_work_children_only" : revisionFocus ? "focused_reviewed_revision_children_only" : "complete_suite"`,
   "focused children cannot impersonate a complete suite");
 const qualifiedRuntimeRegistryRegistration = readCanonicalChildRegistration(
   integrationSource,

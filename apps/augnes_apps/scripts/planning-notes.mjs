@@ -1,3 +1,19 @@
+// A preview allocates only a signed ticket. The destination revision and bytes
+// are created together, by the ordinary save, including for a new work.
+export function returnDraft(selection, judgment, destination) {
+  const base=destination.saved;
+  if(!base && !destination.goal?.trim())throw Error('Choose a follow-on goal.');
+  const draft=base?planningDraft(base):{definition:{goal:destination.goal,success_criteria:[judgment.next_action],non_goals:[]},notes:[],files:[]};
+  const return_choice={selection,decision:judgment.decision,rationale:judgment.rationale,limits:judgment.limits??'',
+    reported_check:judgment.reported_check??'',next_action:judgment.next_action,name:judgment.name??null,text:judgment.text??null};
+  return {...draft,return_choice};
+}
+export async function prepareReturnDraft(api,selection,judgment,destination){
+  const base=destination.saved,body=returnDraft(selection,judgment,destination),expected=base?{revision:base.revision,fingerprint:base.fingerprint}:{revision:0,fingerprint:null};
+  const prepared=base?await api('/api/work/'+base.work_id+'/ticket',{...body,expected}):await api('/api/drafts',body);
+  return {work_id:base?.work_id??prepared.work_id,expected,body:{...body,ticket:prepared.ticket}};
+}
+
 // Pure draft composition shared by the browser editor and the scoped task client.
 // The Worker resolves the reference again for capacity, ticket, save and replay.
 export function noteFields(s) {

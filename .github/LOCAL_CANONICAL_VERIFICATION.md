@@ -914,8 +914,102 @@ and separate fresh-process stock before candidate revision. Without a supported
 remedy, or after the second invocation, finish diagnosis and cleanup and report
 the precise blocker.
 
-A genuinely new authenticated commission may follow a spent v7 commission at
-its latest settled tip. Its initial ordinal binds that tip as its root; all old
+A genuinely new authenticated v7 commission may follow a spent v7 commission at
+its latest settled tip. A settled v10 ordinal-two Full with a naturally failed
+phase can also supply that tip. Its original commission, grants, false stock,
+receipts and exclusive edges remain spent and reconstructible. This boundary
+requires a material change to implicated source and the full protected input
+inventory, including shared Git configuration. Run the same behavioral script
+and arguments on the settled predecessor and on the candidate. Bind both Git
+blobs, runtime identities, exit results and output originals. The predecessor
+must fail and the candidate must pass naturally with clean settlement. The test
+driver may stay unchanged when it exercises the corrected source. A successful
+syntax check on both sides of a comment-only change refuses preparation. Preparation reads the physical tip and installed Companion
+observation before independent review. It cannot reserve or issue authority.
+
+For this continuation, the published source review begins with
+`Source review decision: ACCEPT / RETAIN for prospective qualification.` and
+binds head, tree, base, predecessor and preparation commitment. The unedited
+maintainer grant begins with `Authorize a NEW prospective v7 reviewed_revision
+commission.` and gives the existing prospective terms, exact initial target,
+source-review URL and operative task-delegation URL. Read current maintainer
+permission. If ordinal one fails, retain that initial acceptance and grant for
+accounting. A new commit-anchored contract review on the same PR binds the
+second candidate and its preparation commitment. The same readers check its
+material repair, current inventory, predecessor and exclusive reservation.
+
+An inventory-bound ordinal two may also follow a settled ordinal one whose Full
+and Browser phases all passed naturally but whose only fault occurred in the final
+Web dependency observation. The v2 Web record must have the cache-safety error
+and a missing after-state. All other dependency observations, the phase and
+Browser records, runtime inventory, released owners, Companion preservation,
+physical completion and false stock must agree. No historical observation is
+filled in. A later identical command runs each Git version of the input reader on
+the retained physical tree. It must refuse the old exact-mode condition and
+accept only a proven empty, more restrictive `.vite-temp` with the original
+content, layout, security and package identities. Preparation and reservation
+reread the retained tree. Physical replay and stock read the bound originals;
+the new run establishes its own before and after observations.
+
+This edge requires an unedited forward decision from a current maintainer on
+the same PR for this exact predecessor, original commission and delegation. Its
+operative section authorizes the second candidate for this final input fault.
+The forward decision's opening delegation and assignment paragraphs bind the
+delegation and branch/PR. Its unique `Exact historical boundary and existing
+authority` section binds each labeled source, attempt, receipt, commission,
+acceptance and grant field exactly once, before the bounded correction and
+explicit continuation sections. Missing, conflicting or nonoperative fields
+refuse before reservation. Historical appendices may describe other targets;
+their prose, quotations, code and comments cannot supply an operative binding.
+The subsequent source review links that decision and binds the resulting
+preparation commitment. The initial acceptance, grant and two-invocation
+accounting do not change. An ordinary failed phase still uses its original path.
+
+The remaining inventory-bound v7 ordinal two may also follow its actual settled
+ordinal-one PASS after an independently demonstrated material defect. This is
+not a failed historical phase or a recovery invocation. The complete positive
+receipt, all planned natural phase and Browser passes, unchanged prepared inputs,
+settled ownership/Companion and true fresh-process stock must remain intact.
+Preparation and physical replay validate those originals and the same retained
+behavioral driver: natural RED on the actual predecessor's Git modules, natural
+GREEN on the final Git modules, matching controlled runtime, exact driver/module
+identities, output originals and complete cleanup. Cosmetic or nondiscriminating
+evidence does not acquire the remaining invocation.
+
+An unedited authenticated post-PASS forward decision must bind the operative
+positive predecessor, initial source acceptance, original grant, root receipt,
+commission and remaining ordinal. Its introduction must identify an operative
+approved proposal, and its first complete target record cannot be
+completed by later examples or history. The reviewed correction's head and base
+must be ancestors of the eventual candidate and current base, respectively. After independent
+final-source review, the existing subsequent contract review records an exact
+plain target record: final source/base, preparation commitment, full inventory,
+runtime, positive predecessor, original grant/commission, ordinal and forward
+decision, immediately followed by its explicit bounded recording/authorization
+paragraph. Intervening prose or examples cannot supply that permission.
+This is conditional maintainer recording, not self-approval or a new commission.
+The production authenticated transport supplies the capability. Admission requires
+that capability's positive-tip scope to agree with the material reader; the
+exclusive append and cold physical stock replay retain the original success and
+one prior consumption. Reservation/interruption consumes ordinal two with zero
+unchanged-target retry or extra recovery. Existing failed/spent-boundary rules
+retain their independent scope; this amendment is not unlimited post-PASS authority.
+
+Reviewed-revision controls run as serial authority registrations. Each requires
+a natural exit within 30 seconds with one 15-second nested fixture. Git,
+commission and successor cases pass their synthetic checkout and ledger between
+registrations in the suite's private physical resource root. Each registration
+retains its own environment; the suite owns the handoff until consumers settle.
+The final-input case forks the unreserved synthetic first ordinal and checks
+the refused predecessor and passing successor through independent stock processes.
+Three subsequent registrations fork the same unreserved fixture for a positive
+predecessor, material/authority controls and its successor. They retain these bounds
+and cleanup owners; the additional negative controls do not enlarge a deadline.
+`node scripts/run-canonical-test-suite.mjs authority
+--reviewed-revision-only` selects these actual registrations with their normal
+resource and cleanup owners. The aggregate has no additional registration.
+
+The new commission's initial ordinal binds its latest tip as its root. All old
 grant IDs and consumption are reconstructed from the existing exclusive chain.
 An old grant, edited grant, older tip, competing edge or new root within the same
 commission cannot reset consumption. Historical accepted source evidence retains
@@ -949,7 +1043,10 @@ reconstruction requires the bound settlement originals. Old stock stays invalid.
 
 This route requires the final clean published source, authenticated current-main
 and ancestry, admitted Mac worktree, pinned Node/npm, ownership/capacity,
-immutable inputs and stopped/exact installed-state preservation. It executes the
+immutable inputs and coherent installed-state preservation. The inventory-bound
+v7 continuation observes the same live/exact or stopped/exact service through
+the isolated read-only owner at admission, cleanup and stock. The separate
+external-restoration path above requires its stopped/exact observation. It executes the
 unchanged planner-complete Full, including every dedicated Browser owner, with
 unchanged assertions, deadlines, ordering, concurrency and cleanup. Stock
 reconstructs the original records, authority and current inputs without writes.
@@ -1046,13 +1143,94 @@ its content, topology, permissions, ownership and package/lock sources at final
 settlement and fresh stock. Prepared-dependency v2 separately records raw presence,
 metadata and security for only physical empty top-level `.cache` and `.vite-temp`
 directories. Each must belong to the task user, match its still-bound physical
-parent's owner/mode/device and complete ACL, flags and attributes, and remain
-empty throughout the coherent observation. Safe appearance/disappearance leaves
+parent's uid, gid, device, directory type, special bits, owner permissions and
+complete ACL, flags and attributes, and remain empty throughout the coherent
+observation. Group and other permission bits may only be removed from the
+parent's mode. Both recorded modes are validated as decimal directory modes;
+the original values remain observable. Safe appearance/disappearance leaves
 dependency code identity unchanged. Nonempty known generated directories refuse;
 unknown directories remain binding. Unsafe links, permission changes and failed
 observations refuse. Legacy v1 receipts retain their original interpretation,
-including binding `.vite-temp`. These bounded observations do not prove absence
+including exact mode equality for a normalized empty `.cache` and binding `.vite-temp`. These bounded observations do not prove absence
 of transient changes between their observation windows.
+
+#### Corrected source after a protected Git observation interruption (source-correction v10)
+
+An ordinary isolated Full can settle after the Git metadata reader raced and a
+later sample measured a changed protected branch configuration. V10 accepts
+that ordered pair only. The first fault remains `unknown_relevance`. The
+retained hashes identify two observations without reconstructing the intervening
+settings or their writer. Keep the complete original receipt, attempt,
+completion and false separate stock. Check full phase order, the cancelled
+child, released ownership, isolated cleanup and coherent installed-service
+preservation. Other unknown faults and changes in scope or permissions refuse.
+
+Use the existing `reviewed_revision` commission and exclusive successor of the
+latest settled attempt. Review the complete predecessor-to-candidate and
+current-main-to-candidate Git deltas. Bind the corrected production module and
+the same retained regression on both sides to Git bytes, execution environment,
+command, exit and output. The pre-correction run must fail on the product
+behavior and the final-source run must pass. The independent reviewer examines
+that distinction, the verifier change and its refusal controls. Earlier focused
+work keeps its original attribution. Only the new invocation can execute the
+outstanding canonical phases.
+
+Finish publishing the candidate and configuring its upstream before taking the
+current input inventory. Preparation, admission and separate stock read the
+executor's entire declared resource set using its existing policies. They
+additionally bind the complete shared Git configuration observation, including
+its protected projection. The normal monitor, current-head, ownership and
+capacity checks apply throughout. The read-only preparation
+`inspectGitRevisionPreparation` returns the `gitReviewTarget` commitment before
+any authority exists. It checks the latest ledger tip, current main, clean
+branch, source, witnesses and fresh stable inputs without reserving an attempt.
+
+The authenticated commit-anchored review covers the **published corrected
+source**, commitment and predecessor fingerprint. It starts with the standalone
+line `Source review decision: ACCEPT / RETAIN for prospective qualification.`
+An unedited prospective commission on the same Draft PR follows that review and
+starts with the standalone line `Authorize prospective Mac qualification of this
+reviewed Git-observation successor.` Include the schema, branch, current base,
+head, tree, predecessor fingerprint, commitment, exact review URL, separate
+fresh-process stock and independent audit scope. Reuse v7's authenticated
+maintainer-level reader, existing commission consumption and append-only ledger.
+The implementation owner's preparation, a negative predecessor review or a
+reservation alone confers no authority. Run the unchanged planner-complete Full
+and validate the resulting receipt with separate stock under the same inputs.
+
+If that first reviewed Full settles with a natural child failure, ordinal two
+can qualify a material source repair. Retain both failed receipts, both false
+stock results, the physical attempts, completions and first proof. Replay the
+first edge and require the latest receipt's full phase order, accounted stock,
+stable input binding, released ownership and preserved Companion. The second
+proof takes its accounting identity from the initial accepted source and
+authorization, the same commission root and its original maximum of two.
+Current source acceptance and execution authority refer to the new target.
+
+Run the implicated executable test on the first and corrected source with
+the same command and canonical runtime. Bind both Git blobs, the failing and
+passing child results and their output, the diagnosed phase and the complete
+Git deltas. Non-reserving preparation checks the new inventory, the physical
+tip and its single consumed ordinal. A different commit with the same tree,
+a whitespace-only edit, stale materials or a competing reservation refuses.
+
+After independent source review of the published target, a separate unedited
+grant starts with the standalone line `Authorize ordinal two of the original
+reviewed Git-observation commission.` Include the original accounting
+identity and root receipt alongside the new candidate, predecessor, commitment
+and review required above. Link the initial grant, the task delegation and the
+new review. Record reviewer and submitter provenance when recording the decision
+or grant under delegation. The delegation opens by authorizing the correction
+and qualification assignment for its issue, branch and Draft PR. Its operative
+paragraph under `Delegated recording after independent review` expressly
+delegates publication through the maintainer identity after independent
+acceptance of the published source. Use visible prose, headings and links.
+Raw HTML, quoted or fenced examples, investigation-only scope and a file-mode
+change without a material source change refuse.
+The authenticated reader checks current maintainer
+permission and the original review and grant references. The physical
+successor consumes the remaining ordinal on reservation; replay through
+separate fresh-process stock is read-only.
 
 ### Completed source-correction routes v3-v6
 

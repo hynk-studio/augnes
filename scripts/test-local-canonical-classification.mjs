@@ -597,6 +597,35 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
     mkdirSync(generated); const present = dependencyObservation();
     assert.equal(present.generated_directories.find(entry => entry.path === name).state, "proven_empty");
     assert.deepEqual(preparedDependencyIdentity(present), prepared, "safe appearance is normalized, raw presence retained");
+    // Control the parent's permissions independently of the invoking umask.
+    chmodSync(dependencyRoot, 0o755); chmodSync(generated, 0o700);
+    const narrow = dependencyObservation(), item = narrow.generated_directories.find(v => v.path === name);
+    assert.equal(Number(item.metadata.mode), 0o40700); assert.equal(Number(item.parent_metadata.mode), 0o40755);
+    preparedDependencyIdentity(narrow);
+    for (const [side,mode] of [["metadata","16895"], ["metadata","16704"], ["metadata","50112"],
+      ...["metadata","parent_metadata"].flatMap(side => [true,16832,"0x41c0","16832 ","16832\n","+16832","016832","82368"].map(v => [side,v]))]) {
+      const copy = structuredClone(narrow); copy.generated_directories.find(v => v.path === name)[side].mode = mode;
+      assert.throws(() => preparedDependencyIdentity(copy), /dependency_input_observation_invalid/);
+    }
+    const foreign = structuredClone(narrow), foreignDir = foreign.generated_directories.find(v => v.path === name);
+    foreignDir.metadata.uid = foreignDir.parent_metadata.uid = String(process.getuid() + 1);
+    assert.throws(() => preparedDependencyIdentity(foreign), /dependency_input_observation_invalid/);
+    assert.equal(gitInputApi.comparePreparedDependencyInputs(narrow,foreign), "observer_failure");
+    const incompatible = structuredClone(narrow), native = incompatible.generated_directories.find(v => v.path === name);
+    native.security = native.parent_security = process.platform === "darwin" ? {acl:[],flags:null,attributes:null} : {acl:[],flags:"0",attributes:""};
+    native.security_sha256 = native.parent_security_sha256 = digest(native.security);
+    assert.throws(() => preparedDependencyIdentity(incompatible), /dependency_input_observation_invalid/);
+    assert.equal(gitInputApi.comparePreparedDependencyInputs(narrow,incompatible), "observer_failure");
+    for (const [child,parent] of [[0o40711,0o40710],[0o44700,0o40755],[0o40700,0o41755],[0o40700,0o40777]]) {
+      const copy=structuredClone(narrow), d=copy.generated_directories.find(v=>v.path===name);
+      d.metadata.mode=String(child);d.parent_metadata.mode=String(parent);
+      assert.throws(()=>preparedDependencyIdentity(copy),/dependency_input_observation_invalid/);
+    }
+    if (name === ".cache") assert.throws(() => observePreparedDependencyInputs({repositoryRoot:dependencyProject,
+      phaseId:"dependencies-root",contract:"augnes.local-canonical-prepared-dependencies.v1"}), /dependency_input_cache_unsafe/);
+    chmodSync(dependencyRoot, 0o710); chmodSync(generated, 0o711);
+    assert.throws(dependencyObservation, /dependency_input_cache_unsafe/);
+    chmodSync(dependencyRoot, matchingMode); chmodSync(generated, matchingMode);
     write(path.join(generated, "unexpected"), "unexpected bytes"); assert.throws(dependencyObservation, /dependency_input_generated_unsafe/);
     rmSync(path.join(generated, "unexpected"));
     chmodSync(generated, mismatchedMode);

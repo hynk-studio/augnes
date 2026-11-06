@@ -1,3 +1,4 @@
+import { USE_FORMAT, USE_COMPATIBILITY, returnUse } from "./return-use";
 import { canonical, COMPATIBILITY, fail, FINGERPRINT, FORMAT, hash, headBinding, RELATION_COMPATIBILITY, RELATION_FORMAT,
   UUID, type Revision, type Scope } from "./contract";
 import { exchangeRecord, exchangeView, EXCHANGE_COMPATIBILITY, EXCHANGE_FORMAT, LARGE_COMPATIBILITY, LARGE_FORMAT, largeExchange } from "./exchange";
@@ -8,8 +9,8 @@ import { fileManifest, FILE_COMPATIBILITY, FILE_FORMAT, FILE_RELATION_COMPATIBIL
 // lineage and file membership, not notes, definitions, scenes or comparisons.
 export const listEnvelope = `CASE WHEN revision=(SELECT n FROM summary)
   OR json_type(envelope,'$.exchange') IS NOT NULL OR json_extract(envelope,'$.format')='${EXCHANGE_FORMAT}'
-  THEN envelope ELSE json_remove(envelope,'$.sources','$.definition','$.relations') END`;
-export const revisionCompatibility = new Map<string,string>([[FORMAT,COMPATIBILITY],[RELATION_FORMAT,RELATION_COMPATIBILITY],
+  THEN envelope ELSE json_remove(envelope,'$.sources','$.definition','$.relations','$.return_use') END`;
+export const revisionCompatibility = new Map<string,string>([[USE_FORMAT,USE_COMPATIBILITY],[FORMAT,COMPATIBILITY],[RELATION_FORMAT,RELATION_COMPATIBILITY],
   [FILE_FORMAT,FILE_COMPATIBILITY],[FILE_RELATION_FORMAT,FILE_RELATION_COMPATIBILITY],[EXCHANGE_FORMAT,EXCHANGE_COMPATIBILITY],[LARGE_FORMAT,LARGE_COMPATIBILITY]]);
 const previewLimit = 2;
 
@@ -36,6 +37,10 @@ export function projectWorkListItem(scope:Scope,id:string,rows:Revision[]) {
     if (row===head || row.exchange) {
       const {fingerprint,...material}=row;
       if (hash(canonical(material))!==fingerprint) fail("history_integrity",409);
+    }
+    if(row===head){
+      if((row.format===USE_FORMAT)!==("return_use" in row))fail("incompatible_format",409);
+      if(row.return_use)returnUse(row.return_use,row,id);
     }
     if (!row.exchange) continue;
     const event=exchangeRecord(row.exchange);

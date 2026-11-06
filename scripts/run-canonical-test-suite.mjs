@@ -16,6 +16,8 @@ import {
 } from "./canonical-child-runner.mjs";
 import {
   buildCanonicalChildEnvironment,
+  beginCanonicalTestResourceUse,
+  settleCanonicalTestResourceUse,
   createCanonicalTestResourceRoot,
   cleanupCanonicalTestResources,
   findForbiddenAmbientKeysForwarded,
@@ -33,7 +35,9 @@ const repoRoot = path.resolve(
 const nestedAppRoot = path.join(repoRoot, "apps/augnes_apps");
 const suiteName = process.argv[2];
 const projectWorkFocus = process.argv[3] === "--project-work-only";
-if (process.argv.length > 3 && (!projectWorkFocus || suiteName !== "integration" || process.argv.length !== 4))
+const revisionFocus = process.argv[3] === "--reviewed-revision-only";
+if (process.argv.length > 3 && (process.argv.length !== 4 ||
+    !(projectWorkFocus && suiteName === "integration" || revisionFocus && suiteName === "authority")))
   throw new Error("unsupported canonical suite focus");
 const rootNode = (...args) => ({
   command: process.execPath,
@@ -159,6 +163,15 @@ const goldenStep = {
   timeoutMs: 360_000,
   requireNaturalExit: true,
 };
+
+const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor"].map(group => ({
+  id: "local-canonical-reviewed-revision-" + group,
+  label: "reviewed revision controls: " + group,
+  sharedFixture: !["revision", "settlement", "browser"].includes(group),
+  ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--reviewed-revision-controls", group),
+  timeoutMs: 30_000,
+  requireNaturalExit: true,
+}));
 
 const suites = {
   unit: [
@@ -1473,13 +1486,7 @@ const suites = {
       timeoutMs: AUXILIARY_EXECUTION_BUDGETS.reviewChildResultHarnessMs,
       requireNaturalExit: true,
     },
-    {
-      id: "local-canonical-reviewed-revision",
-      label: "reviewed revision admission, settlement, exclusive authority and fresh stock",
-      ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--reviewed-revision-controls"),
-      timeoutMs: 30_000,
-      requireNaturalExit: true,
-    },
+    ...reviewedRevisionSteps,
     {
       id: "operator-project-home-readiness-observation",
       label: "bounded Project Home observations preserve the original condition result",
@@ -1866,6 +1873,7 @@ let canonicalChildrenChecked = 0;
 let serviceMaintenance = null;
 let serviceMaintenanceRelease = null;
 let suiteFailure = null;
+let handoffInUse = false, lastHandoffChild = null;
 let summary;
 
 try {
@@ -1874,7 +1882,7 @@ try {
   );
   const selectedSteps = projectWorkFocus
     ? suites[suiteName].filter(step => ["project-work-initialization", "project-work-scoped-host"].includes(step.id))
-    : suites[suiteName];
+    : revisionFocus ? suites.authority.filter(step => reviewedRevisionSteps.includes(step)) : suites[suiteName];
   const preparedSteps = selectedSteps.map((step, index) => {
     const resourceOwner = createCanonicalTestResourceRoot(`ag-c${String(index + 1).padStart(2, "0")}-`);
     const resourceRoot = resourceOwner.root;
@@ -1916,7 +1924,8 @@ try {
       suite: suiteName,
       label: step.label,
       command: step.command,
-      args: step.args,
+      sharedFixture: step.sharedFixture === true,
+      args: step.sharedFixture ? [...step.args, JSON.stringify(temporaryOwner)] : step.args,
       cwd: step.cwd,
       env: childEnvironment,
       timeoutMs,
@@ -1988,7 +1997,12 @@ try {
     completedResults = [];
     for (const step of preparedSteps) {
       console.log();
+      if (step.sharedFixture) {
+        if (!handoffInUse) { beginCanonicalTestResourceUse(temporaryOwner); handoffInUse = true; }
+        lastHandoffChild = null;
+      }
       const result = await runCanonicalChild(step);
+      if (step.sharedFixture) lastHandoffChild = result;
       completedResults.push(result);
       const acceptanceFailure = canonicalChildAcceptanceFailure(result, {
         suite: suiteName,
@@ -2031,7 +2045,7 @@ try {
 
   summary = {
         suite: suiteName,
-        coverage: projectWorkFocus ? "focused_project_work_children_only" : "complete_suite",
+        coverage: projectWorkFocus ? "focused_project_work_children_only" : revisionFocus ? "focused_reviewed_revision_children_only" : "complete_suite",
         status: "pass",
         environment_isolation_verified: forbiddenEnvironmentKeysForwarded === 0,
         forbidden_environment_keys_forwarded: forbiddenEnvironmentKeysForwarded,
@@ -2077,7 +2091,13 @@ try {
       });
     } catch (error) { failures.push(error); }
   }
+  if (handoffInUse && lastHandoffChild) {
+    try { settleCanonicalTestResourceUse(temporaryOwner, lastHandoffChild); }
+    catch (error) { failures.push(error); }
+  }
+  const cleanupStart = performance.now();
   const resourceCleanup = cleanupCanonicalTestResources([...ownedResourceRoots, temporaryOwner]);
+  if (handoffInUse) console.log(JSON.stringify({review_fixture_cleanup_ms:Math.ceil(performance.now()-cleanupStart)}));
   console.log(JSON.stringify({ suite: suiteName, resource_cleanup: resourceCleanup }));
   for (const result of resourceCleanup) if (!result.completed)
     failures.push(new Error(`canonical resource cleanup refused: ${result.root}: ${result.failures.join(",")}`));

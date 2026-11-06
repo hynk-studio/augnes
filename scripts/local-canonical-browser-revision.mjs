@@ -56,7 +56,7 @@ function probeFlags(flags) {
   return Object.fromEntries(probeNames.map(name => [name, typeof flags?.[name] === "boolean" ? flags[name] : null]));
 }
 
-export function verifyBrowserRevisionPreservation(previous, live) {
+export function verifyBrowserRevisionPreservation(previous, live, { requireSameBinding = false } = {}) {
   const state = live?.state;
   const observation = live?.diagnostics;
   const evaluated = Date.now();
@@ -66,6 +66,7 @@ export function verifyBrowserRevisionPreservation(previous, live) {
     ...preservationChecks(state, observation),
     same_service: state?.service_identity === previous.service_identity,
     same_state: state?.status === previous.status,
+    ...(requireSameBinding ? { same_binding: state?.preservation_binding === previous.preservation_binding } : {}),
   };
   const failed = Object.keys(checks).filter(name => !checks[name]);
   if (!Number.isFinite(age)) failed.push("observation_time_unavailable");
@@ -91,7 +92,7 @@ export function verifyBrowserRevisionPreservation(previous, live) {
   } });
 }
 
-function browserResourcesSettled(r) {
+export function settledIsolatedResources(r) {
   const c = r.cleanup, svc = c?.companion_service;
   return c?.completed === true && c.remaining_owned_processes === 0 && same(c.failure_codes, []) &&
     [r.checkout_ownership, r.capacity_ownership].every(o => o?.required === true && o.acquired === true && o.released === true && o.failure_code === null) &&
@@ -100,6 +101,21 @@ function browserResourcesSettled(r) {
     (!r.historical_inputs?.required || (r.historical_inputs.unchanged === true && r.historical_inputs.completed === true && same(r.historical_inputs.failures, []))) &&
     svc?.restored === true && svc.maintenance_acquired === false && svc.maintenance_released === true && svc.scope === "accepted_checkout_read_only" &&
     same(svc.before, svc.after) && ["before", "after"].every(side => coherentPreservation(svc[side], svc.observations?.[side]));
+}
+
+export function cancelledPhase(phases, observedAt) {
+  const failed = phases.findIndex(p => p.status === "failure");
+  if (failed < 0 || !phases.every((p, index) => {
+    if (index > failed) return p.status === "not_run" && p.failure_code === "phase_not_run" && p.exit_status === null;
+    const l = p.cleanup;
+    if (l?.completed !== true || l.remaining_owned_processes !== 0 || l.exit_observed !== true || l.streams_closed !== true ||
+        !(l.listener_residue_count === 0 || l.listener_residue_count === null) || p.timed_out !== false) return false;
+    if (index < failed) return p.status === "pass" && p.failure_code === null && p.exit_status === 0 && l.termination_reason === "natural_exit";
+    const t = Date.parse(observedAt);
+    return p.failure_code === "phase_cancelled" && l.termination_reason === "operator_cancelled" &&
+      t >= Date.parse(p.started_at) && t <= Date.parse(p.finished_at);
+  })) return null;
+  return phases[failed].id;
 }
 
 export function settledBrowserInterruption(r) {
@@ -111,7 +127,7 @@ export function settledBrowserInterruption(r) {
       r.outcome?.disposition !== "safety_violation" || r.outcome.safety !== "blocked" || r.outcome.validity !== "invalid_or_unknown" ||
       r.outcome.execution !== "incomplete_or_failed" || r.final?.result !== "failure" || r.final.exit_status !== 1 ||
       !same(r.final.reason_codes, ["phase_cancelled", "selected_phases_incomplete", "verification_cancelled"]) ||
-      !browserResourcesSettled(r) ||
+      !settledIsolatedResources(r) ||
       !same(i?.secondary_faults, []) || !same(i.first_fault, r.outcome.first_fault) ||
       !Array.isArray(i.resources) || new Set(i.resources.map(v => v.id)).size !== i.resources.length || !Array.isArray(i.events) || i.events.length >= 64) return null;
 
@@ -143,16 +159,7 @@ export function settledBrowserInterruption(r) {
     records.forEach(v => versions.add(v.actual_version));
   }
   if (versions.size > 1) return null;
-  if (failed < 0 || !r.phases.every((p, index) => {
-    if (index > failed) return p.status === "not_run" && p.failure_code === "phase_not_run" && p.exit_status === null;
-    const l = p.cleanup;
-    if (l?.completed !== true || l.remaining_owned_processes !== 0 || l.exit_observed !== true || l.streams_closed !== true ||
-        !(l.listener_residue_count === 0 || l.listener_residue_count === null) || p.timed_out !== false) return false;
-    if (index < failed) return p.status === "pass" && p.failure_code === null && p.exit_status === 0 && l.termination_reason === "natural_exit";
-    const t = Date.parse(replacement.observed_at);
-    return p.failure_code === "phase_cancelled" && l.termination_reason === "operator_cancelled" &&
-      t >= Date.parse(p.started_at) && t <= Date.parse(p.finished_at);
-  })) return null;
+  if (!cancelledPhase(r.phases,replacement.observed_at)) return null;
   return { resource, replacement, phase: r.phases[failed].id };
 }
 
@@ -181,9 +188,18 @@ export function browserPredecessorEvidence(r, attempt, completion, stock) {
 // Ordinal two is a source correction after a settled, observed child failure.
 // Its predecessor already consumed and monitored the protected installation.
 export function verifyReviewedBrowserFailure(r, stock, inputs, phaseIds) {
-  const previous = r.attempt?.source_correction;
+  if (r.attempt?.source_correction?.schema !== BROWSER_REVISION_SCHEMA || !browserBindingMatches(r.inputs, inputs?.browser))
+    throw fail("revision_browser_failure_invalid");
+  const expected = { location_fingerprint: inputs.browser.executable.location_fingerprint,
+    before: inputs.browser.executable.observation, actual_version: inputs.browser.actual_version };
+  verifySettledPhaseFailure(r, stock, inputs, phaseIds, expected, true);
+}
+
+// Both reviewed continuations require the physical ordinal-one Full to have
+// stopped at a natural child failure with settled resources and accounted stock.
+export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBrowser, allowIncompleteBrowser = false, expectedOrdinal = 1) {
   const failed = r.phases?.findIndex(p => p.status === "failure") ?? -1;
-  if (previous?.schema !== BROWSER_REVISION_SCHEMA || previous.commission?.ordinal !== 1 ||
+  if (r.attempt?.source_correction?.commission?.ordinal !== expectedOrdinal ||
       r.run?.id !== r.attempt.attempt_id || r.attempt.contract_fingerprint !== r.inputs?.fingerprint ||
       r.evidence?.mode !== "full" || r.evidence.selected_plan !== "full-canonical" || r.evidence.deciding !== false ||
       r.verification_context?.kind !== "isolated-worktree" || r.repository.worktree_before !== "clean" || r.repository.worktree_after !== "clean" ||
@@ -196,13 +212,11 @@ export function verifyReviewedBrowserFailure(r, stock, inputs, phaseIds) {
           e.classification === role.classification && classifyInputChange(role.before, e.after, role, r.inputs) === e.disposition;
       }) ||
       r.final?.result !== "failure" || r.final.exit_status !== 1 || !same(r.final.reason_codes, ["phase_failed", "selected_phases_incomplete"]) ||
-      !browserResourcesSettled(r) || r.historical_inputs?.required !== true ||
+      !settledIsolatedResources(r) || r.historical_inputs?.required !== true ||
       failed < 0 || !same(r.phases.map(p => p.id), phaseIds) ||
-      !same(inputs, r.inputs.binding?.runtime_inputs) || !browserBindingMatches(r.inputs, inputs?.browser))
+      !same(inputs, r.inputs.binding?.runtime_inputs))
     throw fail("revision_browser_failure_invalid");
 
-  const expected = { location_fingerprint: inputs.browser.executable.location_fingerprint,
-    before: inputs.browser.executable.observation, actual_version: inputs.browser.actual_version };
   const environments = r.inputs.binding.phase_environment_fingerprints;
   if (!Array.isArray(environments) || !same(environments.map(e => e.id), phaseIds))
     throw fail("revision_browser_failure_invalid");
@@ -225,10 +239,10 @@ export function verifyReviewedBrowserFailure(r, stock, inputs, phaseIds) {
         (index < failed ? phase.status !== "pass" || phase.exit_status !== 0 || phase.failure_code !== null :
           phase.failure_code !== "phase_failed" || !Number.isSafeInteger(phase.exit_status) || phase.exit_status <= 0))
       throw fail("revision_browser_failure_invalid");
-    if (!validPhaseBrowserUse(phase, records, expected)) {
+    if (!validPhaseBrowserUse(phase, records, expectedBrowser)) {
       const required = browserConsumersForPhase(phase.id);
-      if (index !== failed || !Array.isArray(records) ||
-          !records.every(v => validBrowserUse(v, expected) && Object.hasOwn(required, v.consumer)) ||
+      if (!allowIncompleteBrowser || index !== failed || !Array.isArray(records) ||
+          !records.every(v => validBrowserUse(v, expectedBrowser) && Object.hasOwn(required, v.consumer)) ||
           Object.entries(required).some(([name, count]) => records.filter(v => v.consumer === name).length > count))
         throw fail("revision_browser_failure_invalid");
       issues.add("receipt_browser_identity_invalid:" + phase.id);

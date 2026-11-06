@@ -5,7 +5,7 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { runCanonicalChild } from "../canonical-child-runner.mjs";
 import { baseReceipt, validContext } from "./local-canonical-receipt-v3.mjs";
-import { digest, observePreparedDependencyInputs } from "../local-canonical-inputs.mjs";
+import { digest, inputEventIdentity, observePreparedDependencyInputs } from "../local-canonical-inputs.mjs";
 import { browserConsumersForPhase } from "../local-canonical-browser-identity.mjs";
 import { BROWSER_SUCCESSOR_SCHEMA, browserReviewTarget, browserBindingMatches } from "../local-canonical-browser-revision.mjs";
 import {
@@ -21,16 +21,18 @@ const clone = structuredClone;
 const now = () => new Date().toISOString();
 const runtimeKeys = ["AUGNES_CANONICAL_NODE_HEADERS", "AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT", "npm_config_nodedir", "AUGNES_BROWSER_EXECUTABLE_PATH"];
 
-async function behavior(c) {
+export async function behavior(c, syntaxOnly = false) {
   const script = 'import assert from "node:assert/strict"; import {value} from "./scripts/fixture.mjs"; assert.equal(value,4); console.log("corrected behavior");';
+  const source = c.behaviorPath ?? "scripts/fixture.mjs";
+  const args = c.gitDeclaration ? (syntaxOnly ? ["--check", source] : [source]) : ["--input-type=module", "-e", script];
   let output = "";
   const sink = { write(bytes) { output += bytes; } };
   const result = await runCanonicalChild({
     suite: "browser-successor", label: "source behavior", command: process.execPath,
-    args: ["--input-type=module", "-e", script], cwd: c.checkout, env: c.env, timeoutMs: 5000, stdout: sink, stderr: sink
+    args, cwd: c.checkout, env: c.env, timeoutMs: 5000, stdout: sink, stderr: sink
   });
   assert(result.cleanup_completed && result.remaining_owned_processes === 0 && result.termination_reason === "natural_exit");
-  return { command: "node --input-type=module -e " + JSON.stringify(script), result, output, finished_at: now(), tested_source_head: c.head };
+  return { command: c.gitDeclaration ? ["node", ...args].join(" ") : "node --input-type=module -e " + JSON.stringify(script), result, output, finished_at: now(), tested_source_head: c.head };
 }
 
 function declaration(c) {
@@ -56,8 +58,7 @@ function declaration(c) {
   };
 }
 
-function dependencyRecords(c) {
-  const project = path.join(c.root, "fixture-dependencies");
+export function dependencyRecords(c, project = path.join(c.root, "fixture-dependencies")) {
   return [["dependencies-root", ""], ["dependencies-nested", "apps/augnes_apps"], ["dependencies-web-planning", "apps/web_planning"]].map(([id, dir]) => {
     const location = path.join(project, dir);
     mkdirSync(path.join(location, "node_modules/fixture"), { recursive: true });
@@ -69,8 +70,12 @@ function dependencyRecords(c) {
   });
 }
 
-async function executeFixture(c, h, proof, cap, browserRecord, dependencies) {
-  const input = declaration(c), start = now();
+export async function executeFixture(c, h, proof, cap, browserRecord, dependencies) {
+  const input = c.gitDeclaration ? { ...c.gitDeclaration, binding: {
+    head: c.head, tree: c.tree, executor_fingerprint: baseReceipt.executor.source_fingerprint, runtime_inputs: c.inputs,
+    environment_keys: runtimeKeys, phase_environment_fingerprints: REVIEWED_REVISION_PHASES.map(id => ({id, fingerprint:digest(id)}))
+  } } : declaration(c);
+  const start = now();
   const attempt = h.begin(c, proof, cap, { contractFingerprint: digest(input) });
   const child = await behavior(c), passed = child.result.exit_code === 0, finish = now();
   const r = clone(baseReceipt);
@@ -110,7 +115,8 @@ async function executeFixture(c, h, proof, cap, browserRecord, dependencies) {
     ...r.cleanup.isolated_resources, contract: HISTORICAL_INPUT_CONTRACT, anchor_fingerprint: r.verification_context.anchor_fingerprint,
     source_fingerprint: digest("fixture source"), content_fingerprint: digest("fixture contents"), unchanged: true, file_count: 1, byte_count: 1
   };
-  const service = c.live.state, obs = { ...c.live.diagnostics, started_at: start, finished_at: finish };
+  const live = c.gitDeclaration ? c.live.service : c.live;
+  const service = live.state, obs = { ...live.diagnostics, started_at: start, finished_at: finish };
   r.cleanup.companion_service = {
     scope: "accepted_checkout_read_only", before: service, after: service,
     maintenance_acquired: false, maintenance_released: true, restored: true, observations: { before: obs, after: obs }
@@ -127,7 +133,7 @@ async function executeFixture(c, h, proof, cap, browserRecord, dependencies) {
     return {
       ...baseReceipt.phases[0], id, label: phase.label, command: phase.display, cwd_scope: phase.cwdScope, exclusive: phase.exclusive,
       status, browser: phase.browser, base_sha: c.base, head_sha: c.head,
-      started_at: i > failure ? null : start, finished_at: i > failure ? null : finish, duration_ms: i === failure ? child.result.duration_ms : 0,
+      started_at: i > failure ? null : start, finished_at: i > failure ? null : passed && i < plan.length-1 ? start : finish, duration_ms: i === failure ? child.result.duration_ms : 0,
       exit_status: i > failure ? null : i === failure ? child.result.exit_code : 0,
       failure_code: i > failure ? "phase_not_run" : i === failure ? "phase_failed" : null,
       invocation_id: r.run.invocation_id, environment_fingerprint: i > failure ? null : digest(id),
@@ -148,6 +154,21 @@ async function executeFixture(c, h, proof, cap, browserRecord, dependencies) {
     ...r.final, result: passed ? "pass" : "failure", exit_status: child.result.exit_code,
     reason_codes: passed ? [] : ["phase_failed", "selected_phases_incomplete"]
   };
+  if (h.finalInputFailure) {
+    assert(passed);
+    const error = await h.finalInputFailure();
+    assert.equal(error,"dependency_input_cache_unsafe");
+    const at=now(), ns=String(process.hrtime.bigint()), resource="dependencies-web-planning";
+    const fault={resource,disposition:"safety_violation",observed_at:at,monotonic_ns:ns};
+    const event={...fault,classification:"execution",after:null};event.identity=inputEventIdentity(event);
+    for (const phase of r.phases.slice(0,-1)) phase.finished_at=start;
+    r.run.finished_at=at; r.run.duration_ms=Date.parse(at)-Date.parse(start);
+    r.evidence.deciding=r.evidence.transferable=false;
+    r.inputs.events=[event];r.inputs.first_fault=fault;
+    r.inputs.prepared_dependencies=dependencies.map(v=>v.phase_id===resource?{...v,after:null,unchanged:false,error}:v);
+    r.outcome={...r.outcome,disposition:"safety_violation",first_fault:fault,safety:"blocked",validity:"invalid_or_unknown",execution:"incomplete_or_failed"};
+    r.final={...r.final,result:"failure",exit_status:1,reason_codes:["verification_cancelled"]};
+  }
   const receipt = finalizeReceipt(r);
   h.storeReceipt(c, receipt);
   finishAttempt(attempt, { receiptFingerprint: receipt.integrity.content_fingerprint, disposition: r.outcome.disposition, cleanupComplete: true });
@@ -163,7 +184,7 @@ async function executeFixture(c, h, proof, cap, browserRecord, dependencies) {
   const stockOutput = path.join(c.artifacts, "fresh-stock.json"), packet = path.join(c.artifacts, "cold-packet.json");
   h.write(packet, {
     anchor: c.anchor, checkout: c.checkout, file: c.file, inputs: c.inputs, authority: c.authority, live: c.live,
-    stockContext, stockOutput, expectedPass: passed
+    stockContext, stockOutput, expectedPass: passed && !h.finalInputFailure
   });
   await h.fresh(packet);
   return { receipt, stock: h.read(stockOutput), child };

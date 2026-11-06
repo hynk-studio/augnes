@@ -1,6 +1,6 @@
 import { AUXILIARY_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
 import assert from "node:assert/strict";
-import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, linkSync, lstatSync, realpathSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
@@ -76,6 +76,12 @@ if (process.argv[2] === "--phase-probe") {
   process.exit(0);
 }
 
+const groups = ["revision", "settlement", "browser", "git", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor"];
+const [selector, group, ...extra] = process.argv.slice(2);
+if (selector !== undefined && (selector !== "--reviewed-revision-controls" ||
+    (group !== undefined && !groups.includes(group)) || extra.length > 1 || extra.length && groups.indexOf(group) < 3))
+  throw new Error("unsupported reviewed revision selector");
+
 const owner = createCanonicalTestResourceRoot("ag-resource-test-");
 const root = owner.root, env = buildCanonicalChildEnvironment({ temporaryRoot: root });
 const findings = []; let inFlight = false, lastChildDiagnostic = "";
@@ -96,14 +102,35 @@ async function child(args, options = {}) {
   return result;
 }
 try {
-  if (process.argv[2] === "--reviewed-revision-controls") {
-    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs"), "--run-revision-fixtures"], { controlId: "reviewed-revision", timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr });
-    assert.equal(result.exit_code, 0, lastChildDiagnostic);
-    const settlement = await child([path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs"), "--run-settlement-fixtures"], { controlId: "reviewed-revision-settlement", timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr });
-    assert.equal(settlement.exit_code, 0, lastChildDiagnostic);
-    const browser = await child([path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs"), "--run-browser-fixtures"], { controlId: "reviewed-revision-browser", timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr });
-    assert.equal(browser.exit_code, 0, lastChildDiagnostic);
-    findings.push("reviewed revision: real admission and refusal, terminal legacy preservation, two-invocation commission, concurrency and interrupted reservation, fresh stock");
+  if (selector === "--reviewed-revision-controls") {
+    // Registrations have separate resource roots. Only the suite's physical,
+    // task-owned sibling (or this aggregate's own root) spans serial groups.
+    const handoff = extra.length ? JSON.parse(extra[0]) : owner;
+    if (extra.length) {
+      const s = lstatSync(handoff.root);
+      assert.equal(path.dirname(handoff.root),path.dirname(process.env.AUGNES_CANONICAL_TEMP_ROOT));
+      assert.match(path.basename(handoff.root),/^ag-suite-[A-Za-z0-9]{6}$/u);
+      assert.equal(realpathSync(handoff.root),handoff.root);
+      assert(s.isDirectory() && s.uid === process.getuid() && (s.mode & 0o777) === 0o700);
+      assert.equal(String(s.dev),handoff.device); assert.equal(String(s.ino),handoff.inode);
+    }
+    for (const name of group === undefined ? groups : [group]) {
+      const fixture = path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs");
+      if(name === "post-pass-successor") {
+        // Deterministically represent a serial handoff older than the production
+        // 60-second current-observation window, without sleeping or extending bounds.
+        const contextFile=path.join(handoff.root,"post-pass-case/context.json");
+        const context=JSON.parse(readFileSync(contextFile,"utf8"));
+        context.live.service.diagnostics.finished_at=new Date(Date.now()-61000).toISOString();
+        write(contextFile,context);
+      }
+      const result = await child([fixture, "--run-" + name + "-fixtures", ...(groups.indexOf(name) >= 3 ? [JSON.stringify(handoff)] : [])], {
+        controlId: name === "revision" ? "reviewed-revision" : "reviewed-revision-" + name,
+        timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr,
+      });
+      assert.equal(result.exit_code, 0, lastChildDiagnostic);
+      findings.push("reviewed revision controls: " + name);
+    }
   } else {
   const observer = await child([self, "--observer-controls"], { controlId: "observer-controls", timeoutMs: AUXILIARY_EXECUTION_BUDGETS.observerControlsMs });
   assert.equal(observer.exit_code, 0, lastChildDiagnostic);

@@ -206,6 +206,78 @@ For a draft selecting another work, use a material-bound ticket. Keep the exact
 pending draft: its signed input and the saved destination revision can resolve
 a lost response even after the source disappears. Reading a failed history request as an empty list is unsupported.
 
+## Use a returned file in current or follow-on work
+
+Open a saved work, find its answered request and choose **Inspect return and
+decide** beside a particular file. Read or download the exact originals.
+Compare the planning revision on which the request was made with the conditions
+shown now. A return, a sender’s proposed next step and an owner’s reported
+checks do not by themselves mean that any material was used.
+
+Choose **Use unchanged bytes** or **Author an adaptation**, give the local
+output a free filename, and record why, limits and the next action. An adaptation
+is newly authored UTF-8 content, different from the original; unchanged use can
+retain opaque bytes. Preview the saved effect on the original, another listed
+work, or a new follow-on with an explicit goal, then save. Existing files and
+notes are retained; a same-name file is never silently substituted or replaced.
+**Defer** and **Do not use** instead preserve the reason and next action on the
+original without creating new work. Each judgment is a separate saved revision.
+Ordinary file limits still apply: eight names, 256 KiB per output, 512 KiB
+together and the existing per-work history quotas. A larger return can still be
+read/downloaded intact, or used as the basis of a smaller authored adaptation.
+
+The original item lists decisions on that exact returned file (ten per page).
+A destination’s **File requests and returns** also lists its recorded decisions
+and the output bytes at the revision where they were saved. **Inspect recorded
+return** follows the exact source. If it has been erased, the destination still
+owns its saved bytes and recorded identity; it cannot recreate a missing source.
+Reading history/export and quiesced recovery retain the destination independently.
+Reconstruction is an imported attestation, not a new verification of its origin.
+
+The authenticated owner CLI uses the same flow. Start with `tasks` / `select` or
+`search` / `select-match`. Use the version and filename from `list`. An observation
+and a pending file are new, private local files; preserve them until confirmed.
+
+```sh
+node "$FILE_CLIENT" "$TASK" list
+node "$FILE_CLIENT" "$TASK" inspect-return 6 seat-plan.md ./observed.json
+node "$FILE_CLIENT" "$TASK" read 6 seat-plan.md
+node "$FILE_CLIENT" "$TASK" prepare-use ./observed.json ./choice.json new ./pending.json "Pack seating kits"
+node "$FILE_CLIENT" "$TASK" commit-use ./pending.json
+node "$FILE_CLIENT" "$TASK" check-use ./pending.json
+```
+
+For an existing destination, replace `new` with `current` or a separately
+selected task setup and omit the new goal. A choice for the example is:
+
+```json
+{"decision":"adapted","name":"kit-order.md","text":"Pack six kits of four for 22 guests.","rationale":"The room now admits 24 including two staff.","limits":"Ground floor only","reported_check":"Compared with the venue update.","next_action":"Label six kits."}
+```
+
+Use `unchanged` without `text`, or `deferred` / `declined` with neither
+`name` nor `text`. Preview returns the actual destination and its base without
+saving work. Check after an ambiguous response; retry only the same pending
+file. In the browser use **Check return save**; after a reload an exact retry
+may require re-entering authored text. No file contents are stored in tab
+storage. A changed source head or destination requires fresh assessment.
+On a fresh destination setup, `list` shows the committed destination revision;
+`read-saved REV NAME` returns verified output bytes and text when decodable.
+`inspect-origin REV` and `read-origin REV` follow that recorded occurrence.
+Use `more-decisions VERSION NAME 'CURSOR_JSON'` with a returned `next` cursor.
+The three task-bound reviewer tools are unchanged.
+
+The v0.7 revision stores `return_use` only on the committing revision. Its
+request basis, request, return, file position/manifest, reviewed source head,
+decision and output are covered by the normal revision seal. Source and target
+checks, destination bytes and revision commit in the existing transaction. The
+source view reads these committed revisions through the additive
+`0005_return_destination.sql` partial index; there is no second write or
+cross-work receipt to repair. Earlier v0.1–v0.6 envelopes and exports retain
+their existing bytes and compatibility; a history containing a judgment exports
+as v0.7 and uses the existing exchange reconstruction route. The migration adds
+only an index to schema 4. Apply it through the established migration owner
+before activating this version; neither migration nor activation happens here.
+
 ## Ask for work on files and collect the return
 
 Open your private project, select a task by title, or choose **New work** and save

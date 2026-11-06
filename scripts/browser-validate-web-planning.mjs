@@ -7,6 +7,7 @@ import { observeWebPlanningInterceptions } from './web-planning-interception.mjs
 import { browserStoryJourney } from './browser-web-planning-story.mjs';
 import { browserFileJourney } from './browser-web-planning-files.mjs';
 import { browserFileExchanges } from './browser-web-planning-exchanges.mjs';
+import { browserReturnedFiles } from './browser-web-planning-returns.mjs';
 import { browserWorkSearch } from './browser-web-planning-search.mjs';
 import { browserOrdinaryFileJourney } from './browser-web-planning-ordinary-files.mjs';
 import { browserHistoryJourney, browserRetainedNotes, browserIndependentNotes, browserConflictSource } from './browser-web-planning-history.mjs';
@@ -20,7 +21,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { startLocal, availablePort, accessSimulation } from './web-planning-local-runtime.mjs';
 import { buildCloudflarePlanning } from './build-web-planning.mjs';
 import { registerOwnedChild, terminateOwnedProcessTree } from './test-harness-process-lifecycle.mjs';
-import { browserCapacityJourney } from './browser-web-planning-capacity.mjs';
+import { browserCapacityJourney, browserNavigationCapacity, browserNavigateWithCapacity } from './browser-web-planning-capacity.mjs';
 import { browserBranchJourney } from './browser-web-planning-branches.mjs';
 import { assertReadOnlyRequestWindow, testReadOnlyRequestWindow } from './browser-web-planning-requests.mjs';
 const root=process.env.AUGNES_CANONICAL_TEMP_ROOT;if(!root)throw new Error('owned_browser_root_required');
@@ -61,7 +62,9 @@ async function intercept(c,p,origin){
  if(p.responseStatusCode!==undefined&&c.sceneResponseBarrier&&u.endsWith(c.sceneResponseBarrier.suffix)){
    assert.equal(c.sceneResponseBarrier.response,null);c.sceneResponseBarrier.response=p;return;
  }
- if(c.beforeRequest&&u===origin+c.beforeRequest.path&&p.request.method===c.beforeRequest.method){const before=c.beforeRequest;c.beforeRequest=null;await before.run();}
+ if(c.beforeRequest&&u===origin+c.beforeRequest.path&&p.request.method===c.beforeRequest.method){const before=c.beforeRequest;c.beforeRequest=null;
+   if(before.unavailable)return c.send('Fetch.fulfillRequest',{requestId:p.requestId,responseCode:503,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'X-Web-Planning-Response',value:'1'}],body:Buffer.from('{"error":"storage_unavailable"}').toString('base64')});
+   await before.run();}
  if(c.direct&&u===origin+'/cdn-cgi/access/logout'){
    c.logoutObserved=true;
    await local.setOptions({access:undefined});
@@ -178,7 +181,27 @@ async function retainedAcknowledgement(c,n,failure){
  acknowledgementChecks.push({reply:c.acknowledgedReply.path.endsWith('/resolve')?'resolve':'save',failure,revision:n,list_recovery_requests:1,additional_writes:0,stored_revisions:stored});
 }
 async function closeLocalRuntime(){for(const c of clients)c.interceptions.mark('runtime_close_requested',{runtime_origin:local.origin});await local.close();}
-async function navigate(c,url){await c.send('Page.navigate',{url});await wait(()=>c.eval("document.readyState==='complete'"),'page complete');}
+async function navigate(c,url){
+ // Navigation destroys the old document's paused Fetch requests. Settle its
+ // normal capacity read first; do not cancel, retry or ignore a CDP failure.
+ await wait(()=>c.eval(`(async()=>{
+   if(typeof capacityInFlight==='undefined')return true;
+   if(capacityInFlight)return false;
+   if(pending||accessLost||!$('draft-capacity')||!$('draft-capacity').dataset.state||['fits','blocked','unavailable'].includes($('draft-capacity').dataset.state))return true;
+   if(!$('editor').hidden)return false;
+   // Erasure hides the editor after show schedules the normal 500ms debounce.
+   // A focus read can instead cancel it while hidden. Let any earlier timer
+   // run on the browser's clock, then require an unchanged epoch and no read.
+   const epoch=capacityEpoch;await new Promise(resolve=>setTimeout(resolve,500));
+   return epoch===capacityEpoch&&!capacityInFlight;
+ })()`),'capacity before navigation');
+ const {frameId,loaderId,errorText}=await c.send('Page.navigate',{url});assert.equal(errorText,undefined);
+ // The command response can precede document commit. An old complete document,
+ // including one at the same URL, cannot satisfy the new navigation.
+ await wait(async()=>{const {frame}= (await c.send('Page.getFrameTree')).frameTree;
+   return frame.id===frameId&&(!loaderId||frame.loaderId===loaderId)&&await c.eval(`document.readyState==='complete'&&location.href===${JSON.stringify(frame.url)}`);
+ },'destination document complete');
+}
 async function login(c,origin){await navigate(c,origin+'/_local/login');await wait(()=>c.eval("!!document.querySelector('form button')"),'login');await c.eval("document.querySelector('form button').click()");await wait(()=>c.eval("document.getElementById('list-state')?.textContent!=='Reading saved work…'&&!!document.getElementById('new-work')"),'workspace');}
 async function reopen(c){await wait(()=>c.eval("document.querySelectorAll('#work-list button').length>0"),'saved list');await c.eval("document.querySelector('#work-list button').click()");await wait(()=>visible(c,'editor'),'editor');}
 let checks=[], browserUse;
@@ -193,6 +216,7 @@ try {
  browserUse.version((await (await fetch(`http://127.0.0.1:${debug}/json/version`)).json()).Browser);
  browserUse.version((await a.send("Browser.getVersion")).product,"cdp");
  await login(a,origin);
+ await browserNavigationCapacity({c:a,click,set,wait,navigate,origin,checks});
  await a.send('Page.bringToFront');await a.eval("document.getElementById('new-work').focus()");await a.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,text:'\r'});await a.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
  await wait(()=>a.eval("document.activeElement.id==='goal'"),'keyboard new work');
  await set(a,'goal','Choose a quiet reading room');await set(a,'criteria','Preserve one owner\nReopen the plan');await set(a,'non-goals','No file uploads');
@@ -240,9 +264,14 @@ try {
  assert(await a.eval("[...document.querySelectorAll('input:not([type=hidden]),textarea,select')].every(e=>!!document.querySelector('label[for=\"'+e.id+'\"]'))"));checks.push('responsive widths and labelled keyboard controls');
  await a.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads});await a.eval("document.getElementById('history-tools').open=true");await click(a,'export');await wait(async()=> (await readdir(downloads)).some(p=>p.endsWith('.json')),'export download');
  const exported=JSON.parse(await readFile(path.join(downloads,(await readdir(downloads)).find(p=>p.endsWith('.json'))),'utf8'));assert.equal(exported.revisions.length,4);
- await click(a,'erase');await wait(()=>visible(a,'erase-confirm'),'erase confirmation');await click(a,'cancel-erase');assert(await visible(a,'editor'));await click(a,'erase');await click(a,'confirm-erase');await wait(()=>a.eval("document.getElementById('status').textContent.startsWith('Whole work erased')"),'whole erase');
+ await click(a,'erase');await wait(()=>visible(a,'erase-confirm'),'erase confirmation');await click(a,'cancel-erase');assert(await visible(a,'editor'));await click(a,'erase');
+ await wait(()=>a.eval("!capacityInFlight&&['fits','blocked','unavailable'].includes($('draft-capacity').dataset.state)"),'capacity before erase');a.holdCapacity=true;
+ await click(a,'confirm-erase');await wait(()=>a.eval("document.getElementById('status').textContent.startsWith('Whole work erased')"),'whole erase');
  assert.equal((await local.db.prepare('SELECT count(*) n FROM web_planning_revision').first()).n,0);assert.equal((await local.db.prepare('SELECT count(*) n FROM web_planning_erased').first()).n,1);checks.push('actual export download and exact whole-work erasure');
- await settled(a);await click(a,'new-work');await set(a,'goal','Private acknowledged plan');await set(a,'criteria','Keep one saved revision');
+ await settled(a);await browserNavigateWithCapacity({c:a,wait,navigate,label:'hidden editor after actual erasure'});
+ await navigate(a,origin+'/');await wait(()=>a.eval("$('list-state').textContent==='No saved work yet.'"),'erased fresh entry');
+ checks.push('hidden editor scheduled capacity settles before navigation; actual erasure stays empty');
+ await click(a,'new-work');await set(a,'goal','Private acknowledged plan');await set(a,'criteria','Keep one saved revision');
  for(const [index,failure] of ['http','transport'].entries()){
    if(index)await set(a,'goal','Private acknowledged plan after transport failure');
    await failListAfterReply(a,'save',failure);const before=requests.length;
@@ -352,6 +381,9 @@ try {
  await browserWorkSearch({c:searchPage,origin:local.origin,
    clientEnvironment:{...process.env,AUGNES_WEB_ORIGIN:local.origin,AUGNES_WEB_FIXTURE_COOKIE:'web_planning_local='+local.env.LOCAL_SESSION},
    click,set,settled,saved,wait,navigate,checks,requests});
+ for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=null;
+ local=await startLocal({root:path.join(root,'returned-continuation')});const receiver=await page(debug,local.origin),reader=await page(debug,local.origin);await login(receiver,local.origin);
+ await browserReturnedFiles({c:receiver,fresh:reader,origin:local.origin,env:{...process.env,AUGNES_WEB_ORIGIN:local.origin,AUGNES_WEB_FIXTURE_COOKIE:'web_planning_local='+local.env.LOCAL_SESSION},root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks,requests});
  assert.deepEqual(interceptionErrors,[]);
  assert.equal(exceptions,0);assert.equal(external,0);assert.equal(unexpectedFailures,0);assert.equal(expectedFailures.size,0);
  console.log(JSON.stringify({web_planning_browser_checks:checks,acknowledgement_checks:acknowledgementChecks,actual_agent_read:false,sites_ingress_verified:false,cloudflare_access_hosted_verified:false,external_requests:external,script_exceptions:exceptions}));
