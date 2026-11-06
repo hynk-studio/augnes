@@ -1,12 +1,12 @@
 // Synthetic Git, ledger and authenticated read transport. No production admission.
 import assert from "node:assert/strict";
-import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync } from "node:fs";
 import path from "node:path";
 import { digest, INPUT_CONTRACT, inputEventIdentity } from "../local-canonical-inputs.mjs";
 import { CANONICAL_NODE_VERSION } from "../local-canonical-environment.mjs";
 import { finalizeReceipt } from "../local-canonical-receipt.mjs";
 import { REVIEWED_REVISION_PHASES, reconstructAttemptTip, inspectGitRevisionPreparation, readSourceCorrectionProof, reviewedRevisionAuthorityObservation } from "../local-canonical-attempts.mjs";
-import { gitObservationIncident, gitRevisionInventory, gitReviewTarget, finalDependencyCommand, finalDependencyProbe, verifyGitRevisionFailure } from "../local-canonical-git-observation.mjs";
+import { gitObservationIncident, gitRevisionInventory, gitReviewTarget, finalDependencyCommand, finalDependencyProbe, verifyGitRevisionFailure, verifyGitRevisionSuccess, postPassReviewFields } from "../local-canonical-git-observation.mjs";
 
 import { runCanonicalChild } from "../canonical-child-runner.mjs";
 import { behavior, dependencyRecords, executeFixture } from "./local-canonical-browser-successor.mjs";
@@ -358,6 +358,7 @@ export async function checkSpentCommission(c, h, stage) {
       h.write(path.join(h.fork,"context.json"),{branch:c.branch,base:c.base,acceptedHead:c.acceptedHead,acceptedTree:c.acceptedTree,
         head:c.head,tree:c.tree,inputs:c.inputs,gitDeclaration:c.gitDeclaration,authority:c.authority,live:c.live,
         proofPath:path.relative(c.checkout,c.file),browser:c.browser,packages:c.packages,grantId:c.grantId});
+      cpSync(h.fork,h.positive,{recursive:true});
 
     }
     const competing={...h,begin(ctx,src,authority,opts) {
@@ -570,6 +571,180 @@ export async function checkFinalDependency(c,h,stage) {
   assert.equal(result.stock.valid_deciding_evidence,true);assert.equal(latest().revision_commission,originalTip.revision_commission);
   assert.equal(latest().reviewed_revision_consumed,2);
   console.log(JSON.stringify({synthetic_only:true,material_final_input_successor:true,old_stock:false,stock:true,consumed:2}));
+}
+
+// A separate fork retains a genuine synthetic PASS. Its later audit is not a
+// failed Full phase, and its append-only decision retains the original grant.
+export async function checkPostPass(c,h,stage) {
+  if(stage==="post-pass-successor") return completePostPass(c,h);
+  const latest=()=>reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch});
+  c.behaviorPath="scripts/registration.mjs";
+  if(stage==="post-pass") {
+    const p=h.proof(c),cap=await h.auth(c,p);
+    c.passed=await executeFixture(c,{...h,begin:(ctx,p,cap,opts)=>h.begin(ctx,p,cap,{...opts,runId:"positive-first"})},p,cap,c.browser,c.packages);
+    delete c.passed.child;
+    assert.equal(c.passed.stock.valid_deciding_evidence,true);
+    verifyGitRevisionSuccess(c.passed.receipt,c.passed.stock,c.inputs,phaseIds);
+    assert.equal(latest().reviewed_revision_consumed,1);
+    console.log(JSON.stringify({synthetic_only:true,post_pass_predecessor:true,stock:true,consumed:1}));
+    return;
+  }
+  const success=c.passed,first=h.proof(c),authority=structuredClone(c.authority),tip=latest();
+  const originalGrant=JSON.stringify(authority.grant),originalReceipt=digest(success.receipt);
+  for(const change of [r=>r.phases.pop(),r=>r.phases.at(-1).browser_use=[],r=>r.final.result="failure",
+    r=>r.evidence.deciding=false,r=>r.cleanup.completed=false,r=>r.checkout_ownership.released=false,
+    r=>r.inputs.prepared_dependencies[2].after=null,r=>r.inputs.events=[{disposition:"input_invalidation"}],
+    r=>r.inputs.first_fault={},r=>r.inputs.binding.runtime_inputs.node.location_fingerprint=digest("other")]) {
+    const r=structuredClone(success.receipt);change(r);assert.throws(()=>verifyGitRevisionSuccess(r,success.stock,c.inputs,phaseIds));
+  }
+  assert.throws(()=>verifyGitRevisionSuccess(success.receipt,{...success.stock,valid_deciding_evidence:false},c.inputs,phaseIds));
+  const subject="scripts/audit-subject.mjs",driver="scripts/audit-driver.mjs",beforeHead=c.head;
+  c.behaviorPath=driver;const red=await behavior(c);assert.equal(red.result.exit_code,1);
+  h.write(path.join(c.checkout,subject),"export const permitted = false;\n");
+  c.git(["add",subject]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","Repair independently found material defect"]);
+  c.prior=success.receipt;h.prepare(c,2);const p=c.proof,pr=c.authority.pr;c.authority={...authority,pr};
+  p.accepted=first.accepted;p.authorization={...first.authorization};p.inputs.inventory_sha256=c.live.inventory;
+  const ref=(name,value)=>h.artifact(c,name,value),get=ref=>h.read(path.join(c.artifacts,ref.artifact));
+  p.originals.stock=ref("prior-stock.log",JSON.stringify(success.stock));
+  const green=await behavior(c);assert.equal(green.result.exit_code,0);
+  const raw=c.git(["show",p.head+":"+driver]),environment=digest({controlled:c.inputs,command:red.command});
+  const witness=(label,run,head)=>ref(label+".json",{...run,node_version:CANONICAL_NODE_VERSION,
+    file_sha256:digest(raw),fixture_sha256:digest(raw),environment,runtime_inputs_sha256:p.inputs.identity_sha256,
+    modules:[{path:subject,sha256:digest(c.git(["show",head+":"+subject]))}],stdout:ref(label+".log",run.output)});
+  const before=witness("red",red,beforeHead),after=witness("green",green,p.head);
+  p.source=ref("source.json",{...get(p.source),reviewed_at:time(0)});
+  const focused={...get(p.focused),finished_at:time(0),failed_phase:null,input_remedy_resources:[],implicated_paths:[subject],
+    source_files:[subject,driver].map(name=>{const raw=c.git(["show",p.head+":"+name]);return {path:name,sha256:digest(raw),byte_size:raw.length};}),
+    regression:{path:driver,args:[],before,after},diagnosis:"An independent later audit found an incorrect authorization result despite a complete historical PASS.",
+    commands:[{command:green.command,tested_source_head:p.head,result:green.result,record:after,stdout:get(after).stdout}]};
+  p.focused=ref("focused.json",focused);
+  const url=(kind,id)=>"https://github.com/hynk-studio/augnes/pull/999#"+kind+"-"+id;
+  const boundary="### Exact preserved boundary",policy="### Prospective policy and authority amendment";
+  const record=[
+    "- Current reviewed correction: head `"+beforeHead+"`, tree `"+first.tree+"`, base/main `"+p.base+"`.",
+    "- Actual latest settled qualification: head `"+p.accepted.head+"`, tree `"+p.accepted.tree+"`, base `"+p.accepted.base+"`.",
+    "- Actual attempt: `"+p.prior_attempt_id+"`.","- Latest successful receipt: `"+p.prior_receipt_fingerprint+"`.",
+    "- Original prospective grant: ["+p.authorization.grant_comment_id+"]("+url("issuecomment",p.authorization.grant_comment_id)+").",
+    "- Current commission: `"+tip.revision_commission+"`, consumed 1/2.",
+    "- Original accepted source: ["+p.accepted.review.id+"]("+url("pullrequestreview",p.accepted.review.id)+").",
+    "- Retained commission root receipt: `"+p.commission.root_receipt_fingerprint+"`."];
+  const forward={...authority.grant,id:40,created_at:time(0),body:[
+    "## Forward decision for an independently found material defect after PASS","The independent audit demonstrated a later material defect.",
+    "Continue issue #123 on `"+p.branch+"` in Draft PR #999 as one cohesive correction and qualification assignment. Extend the existing [task delegation "+p.commission.delegation.id+"]("+url("issuecomment",p.commission.delegation.id)+") only as stated below. Complete the bounded existing-owner/policy extension, focused validation, independent final-source review, legitimate authority recording, planner-required Mac qualification, fresh-process stock, cleanup and consolidated handoff together.",
+    boundary,record.join("\n"),policy,
+    "I authorize the narrow extension of the existing inventory-bound v7 reviewed-revision owners to admit one materially corrected successor after a settled ordinal-one PASS when an independent audit has demonstrated a real defect in that source. This is a prospective amendment for the existing remaining ordinal two. It does not rewrite grant"+p.authorization.grant_comment_id+" or claim that its failure/false-stock clause already covers success. The original grant remains historical accounting and scope evidence; this separately authenticated, append-only decision supplies the additional post-PASS permission.",
+    "### Material proof and full-boundary controls","Retain the same natural RED and GREEN driver and exact Git modules.",
+    "### Conditional recording and final qualification",
+    "After a separate read-only reviewer accepts the actual final published source, policy and controls, the implementation operator is authorized under this decision and task delegation"+p.commission.delegation.id+" to transcribe that independent decision faithfully and publish the required final-source authority binding through the existing authenticated maintainer identity. Preserve the review original verbatim and disclose reviewer versus submitting operator. Bind the actual final head/tree/current base, preparation/current-input commitment and inventory, successful predecessor, original grant/commission, ordinal two and this prospective amendment. The eventual final-source acceptance must follow the completed source and focused evidence; current r1 review12 is not approval of an unseen future change.",
+  ].join("\n\n")};forward.updated_at=forward.created_at;
+  const authorityRef=(value,role)=>({id:value.id,sha256:digest(reviewedRevisionAuthorityObservation(value,role))});
+  p.commission.forward_decision=authorityRef(forward,"forward_decision");
+  const prepFile=path.join(c.artifacts,"preparation.json");
+  const prepare=(candidate,live=c.live)=>{const material=structuredClone(candidate);delete material.authorization;h.write(prepFile,material);
+    return inspectGitRevisionPreparation({file:prepFile,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live});};
+  const prepared=prepare(p);assert.equal(prepared.consumed,1);assert.equal(prepared.ordinal,2);assert.equal(prepared.predecessor_commission,tip.revision_commission);
+  const ledger=()=>digest(readdirSync(c.anchor,{recursive:true}).sort().filter(f=>statSync(path.join(c.anchor,f)).isFile()).map(f=>[f,digest(readFileSync(path.join(c.anchor,f)))]));
+  const unchanged=ledger();
+  for(const mutation of [q=>delete q.commission.forward_decision,q=>q.commission.ordinal=1,q=>q.commission.root_receipt_fingerprint=digest("changed"),
+    q=>q.prior_attempt_id="skipped",q=>q.prior_family_id=first.prior_family_id,q=>q.prior_receipt_fingerprint=first.prior_receipt_fingerprint,
+    q=>Object.assign(q,{head:beforeHead,tree:first.tree}),q=>q.inputs.inventory_sha256=digest("changed")]){
+    const q=structuredClone(p);mutation(q);assert.throws(()=>prepare(q));assert.equal(ledger(),unchanged);
+  }
+  assert.throws(()=>prepare(p,{...c.live,inventory:digest("unstable")}));
+  const foreign=structuredClone(c.live);foreign.service.state.preservation_binding=digest("foreign");assert.throws(()=>prepare(p,foreign));
+  for(const item of Object.values(p.originals)){
+    const name=path.join(c.artifacts,item.artifact),raw=readFileSync(name);h.write(name,Buffer.concat([raw,Buffer.from("\n")]));
+    try{assert.throws(()=>prepare(p));}finally{h.write(name,raw);}
+  }
+  for(const name of ["attempt-1.json","completion-1.json"]){
+    const file=path.join(c.anchor,".augnes-local-verification/families",p.prior_family_id,name),raw=readFileSync(file);
+    h.write(file,Buffer.concat([raw,Buffer.from("\n")]));try{assert.throws(()=>prepare(p));}finally{h.write(file,raw);}
+  }
+  for(const file of [...Object.values(p.originals).map(r=>path.join(c.artifacts,r.artifact)),
+    ...["attempt-1.json","completion-1.json"].map(n=>path.join(c.anchor,".augnes-local-verification/families",p.prior_family_id,n))]){
+    renameSync(file,file+".withheld");try{assert.throws(()=>prepare(p));}finally{renameSync(file+".withheld",file);}
+    assert.equal(ledger(),unchanged);
+  }
+  for(const changes of [{fixture_sha256:digest("other driver")},{modules:[]},{environment:digest("other runtime")},{result:green.result}]){
+    const bad=ref("bad-red.json",{...get(before),...changes});
+    assert.throws(()=>prepare({...p,focused:ref("bad-focused.json",{...focused,regression:{...focused.regression,before:bad}})}));
+  }
+  // Both sides of a syntax-only or comment-only probe pass: that is not a RED.
+  const syntax=await behavior(c,true);assert.equal(syntax.result.exit_code,0);
+  assert.throws(()=>prepare({...p,focused:ref("nondiscriminating.json",{...focused,regression:{...focused.regression,before:after}})}));
+  // A fully rebound comment-only candidate still has the defective behavior.
+  // Keep its natural result; do not manufacture a GREEN or change the driver.
+  const cosmeticText=c.git(["show",beforeHead+":"+subject]).toString()+"// Historical explanation only.\n";
+  h.write(path.join(c.checkout,subject),cosmeticText);c.git(["add",subject]);
+  const cosmeticTree=c.git(["write-tree"]).toString().trim();
+  const cosmeticHead=c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit-tree",cosmeticTree,"-p",beforeHead,"-m","Comment only"]).toString().trim();
+  const cosmeticRun=await behavior({...c,head:cosmeticHead});assert.equal(cosmeticRun.result.exit_code,1);
+  const cosmeticAfter=witness("cosmetic",cosmeticRun,cosmeticHead);
+  c.git(["restore","--source=HEAD","--staged","--worktree","--",subject]);
+  const delta=from=>{const raw=c.git(["diff","--binary","--full-index","--no-ext-diff","--no-textconv",from,cosmeticHead,"--"]);
+    return {bytes:raw.length,sha256:digest(raw),paths:c.git(["diff","--name-only",from,cosmeticHead,"--"]).toString().trim().split("\n").filter(Boolean).sort()};};
+  const cosmeticFocus={...focused,finished_at:time(0),regression:{...focused.regression,after:cosmeticAfter},
+    source_files:focused.source_files.map(f=>f.path===subject?{path:subject,sha256:digest(Buffer.from(cosmeticText)),byte_size:Buffer.byteLength(cosmeticText)}:f),
+    commands:[{command:cosmeticRun.command,tested_source_head:cosmeticHead,result:cosmeticRun.result,record:cosmeticAfter,stdout:get(cosmeticAfter).stdout}]};
+  c.git(["switch","-C",c.branch,cosmeticHead]);
+  try{assert.throws(()=>prepare({...p,head:cosmeticHead,tree:cosmeticTree,
+    source:ref("cosmetic-source.json",{...get(p.source),accepted_to_final:delta(first.accepted.head),predecessor_to_final:delta(beforeHead),main_to_final:delta(p.base)}),
+    focused:ref("cosmetic-focused.json",cosmeticFocus)}),/revision_focused_remedy_invalid|revision_material_remedy_required/);}
+  finally{c.git(["switch","-C",c.branch,p.head]);}
+  assert.equal(ledger(),unchanged);
+  const reviewBody=q=>["Source review decision: ACCEPT / RETAIN for prospective qualification.","### Exact post-PASS successor",
+    Object.entries(postPassReviewFields(q,tip.revision_commission)).map(([k,v])=>k+": "+v).join("\n"),
+    "Under the authenticated forward decision above, I record the independently accepted final source and authorize only ordinal two of the retained commission for this exact preparation commitment. No unchanged-target retry or extra recovery is authorized."].join("\n\n");
+  const review={...authority.review,id:41,commit_id:p.head,submitted_at:time(0),body:reviewBody(p)};
+  p.authorization.contract_review={...authorityRef(review,"contract_review"),head:p.head,pull_request:p.pull_request};
+  c.authority.linked={...authority.linked,["repos/hynk-studio/augnes/issues/comments/40"]:forward,["repos/hynk-studio/augnes/pulls/999/reviews/41"]:review};
+  h.write(c.file,p);const proof=h.proof(c);
+  const checkBody=async(body,ok=false)=>{
+    const q=structuredClone(p),f={...forward,body};q.commission.forward_decision=authorityRef(f,"forward_decision");
+    const r={...review,body:reviewBody(q)};q.authorization.contract_review={...q.authorization.contract_review,...authorityRef(r,"contract_review")};
+    const request=()=>h.auth(c,q,(v,e)=>e.endsWith("/40")?f:e.endsWith("/41")?r:v);
+    if(ok)await request();else await assert.rejects(request);assert.equal(ledger(),unchanged);
+  };
+  await checkBody(forward.body,true);
+  await checkBody(forward.body+"\n\n### Historical appendix\n\nThis other target is excluded.\n\n"+record.join("\n"),true);
+  for(const line of record){await checkBody(forward.body.replace(line,""));await checkBody(forward.body.replace(line,line+"\n"+line));
+    await checkBody(forward.body.replace(line,"").replace(policy," ### Excluded example\n\n"+line+"\n\n"+policy));}
+  await checkBody(forward.body.replace("I authorize the narrow","I decline the narrow"));
+  await checkBody("> "+forward.body.replaceAll("\n","\n> "));
+  await checkBody("```text\n"+forward.body+"\n```");
+  await checkBody("<!--\n"+forward.body+"\n-->");
+  await checkBody(forward.body.replace(record[0],record[0].replace(beforeHead,"0".repeat(40))));
+  for(const id of [forward.id,review.id,authority.grant.id,authority.review.id,p.commission.delegation.id])
+    await assert.rejects(h.auth(c,proof,(v,e)=>e.endsWith("/"+id)?{...v,body:"edited"}:v));
+  await assert.rejects(h.auth(c,proof,(v,e)=>e.endsWith("/40")?null:v));
+  await assert.rejects(h.auth(c,proof,(v,e)=>e.includes("/permission")?{...v,permission:"read"}:v));
+  await assert.rejects(h.auth(c,proof,(v,e)=>e.endsWith("/40")?{...v,created_at:authority.grant.created_at,updated_at:authority.grant.created_at}:v));
+  for(const key of Object.keys(postPassReviewFields(p,tip.revision_commission))){
+    const r={...review,body:review.body.replace(new RegExp("^"+key+": .*$","m"),"")};
+    const q={...p,authorization:{...p.authorization,contract_review:{...p.authorization.contract_review,...authorityRef(r,"contract_review")}}};
+    await assert.rejects(h.auth(c,q,(v,e)=>e.endsWith("/41")?r:v));
+  }
+  assert.equal(ledger(),unchanged);assert.deepEqual(latest(),tip);
+  c.postPass={tip,originalGrant,originalReceipt};
+  console.log(JSON.stringify({synthetic_only:true,post_pass_controls:true,refusals_changed_ledger:false}));
+}
+
+async function completePostPass(c,h) {
+  const {tip,originalGrant,originalReceipt}=c.postPass,proof=h.proof(c),cap=await h.auth(c,proof);
+  const latest=()=>reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch});
+  assert.deepEqual(latest(),tip);
+  assert.throws(()=>h.begin(c,proof,null));assert.throws(()=>h.begin(c,proof,cap,{revisionLive:{...c.live,inventory:digest("changed")}}));
+  c.behaviorPath="scripts/registration.mjs";
+  const second=await executeFixture(c,{...h,begin(ctx,p,cap,opts){const a=h.begin(ctx,p,cap,{...opts,runId:"positive-successor"});assert.throws(()=>h.begin(ctx,p,cap,opts));return a;}},proof,cap,c.browser,c.packages);
+  assert.equal(second.stock.valid_deciding_evidence,true);assert.equal(latest().reviewed_revision_consumed,2);
+  assert.equal(latest().revision_commission,tip.revision_commission);assert.deepEqual(latest().revision_grants,tip.revision_grants);
+  assert.equal(JSON.stringify(c.authority.grant),originalGrant);assert.equal(digest(c.passed.receipt),originalReceipt);
+  const material=structuredClone(proof);delete material.authorization;delete material.sha256;delete material.local_relative_path;
+  const file=path.join(c.artifacts,"spent-preparation.json");h.write(file,material);
+  assert.throws(()=>inspectGitRevisionPreparation({file,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live:c.live}));
+  assert.throws(()=>h.begin(c,proof,cap));
+  console.log(JSON.stringify({synthetic_only:true,post_pass_successor:true,original_stock:true,successor_stock:true,same_commission:true,
+    consumed:2,unchanged_original_success:true,unchanged_original_grant:true,refusals_changed_ledger:false}));
 }
 
 export async function runGitRevisionControls(c,h) {

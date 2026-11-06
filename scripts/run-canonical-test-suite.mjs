@@ -164,7 +164,7 @@ const goldenStep = {
   requireNaturalExit: true,
 };
 
-const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-successor", "commission", "successor", "final-input", "final-successor"].map(group => ({
+const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor"].map(group => ({
   id: "local-canonical-reviewed-revision-" + group,
   label: "reviewed revision controls: " + group,
   sharedFixture: !["revision", "settlement", "browser"].includes(group),

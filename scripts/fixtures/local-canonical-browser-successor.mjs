@@ -133,7 +133,7 @@ export async function executeFixture(c, h, proof, cap, browserRecord, dependenci
     return {
       ...baseReceipt.phases[0], id, label: phase.label, command: phase.display, cwd_scope: phase.cwdScope, exclusive: phase.exclusive,
       status, browser: phase.browser, base_sha: c.base, head_sha: c.head,
-      started_at: i > failure ? null : start, finished_at: i > failure ? null : finish, duration_ms: i === failure ? child.result.duration_ms : 0,
+      started_at: i > failure ? null : start, finished_at: i > failure ? null : passed && i < plan.length-1 ? start : finish, duration_ms: i === failure ? child.result.duration_ms : 0,
       exit_status: i > failure ? null : i === failure ? child.result.exit_code : 0,
       failure_code: i > failure ? "phase_not_run" : i === failure ? "phase_failed" : null,
       invocation_id: r.run.invocation_id, environment_fingerprint: i > failure ? null : digest(id),

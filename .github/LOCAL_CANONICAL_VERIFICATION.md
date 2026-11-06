@@ -965,13 +965,45 @@ The subsequent source review links that decision and binds the resulting
 preparation commitment. The initial acceptance, grant and two-invocation
 accounting do not change. An ordinary failed phase still uses its original path.
 
+The remaining inventory-bound v7 ordinal two may also follow its actual settled
+ordinal-one PASS after an independently demonstrated material defect. This is
+not a failed historical phase or a recovery invocation. The complete positive
+receipt, all planned natural phase and Browser passes, unchanged prepared inputs,
+settled ownership/Companion and true fresh-process stock must remain intact.
+Preparation and physical replay validate those originals and the same retained
+behavioral driver: natural RED on the actual predecessor's Git modules, natural
+GREEN on the final Git modules, matching controlled runtime, exact driver/module
+identities, output originals and complete cleanup. Cosmetic or nondiscriminating
+evidence does not acquire the remaining invocation.
+
+An unedited authenticated post-PASS forward decision must bind the operative
+positive predecessor, initial source acceptance, original grant, root receipt,
+commission and remaining ordinal. Its first complete target record cannot be
+completed by later examples or history. The reviewed correction's head and base
+must be ancestors of the eventual candidate and current base, respectively. After independent
+final-source review, the existing subsequent contract review records an exact
+plain target record: final source/base, preparation commitment, full inventory,
+runtime, positive predecessor, original grant/commission, ordinal and forward
+decision, followed by its explicit bounded recording/authorization paragraph.
+This is conditional maintainer recording, not self-approval or a new commission.
+The production authenticated transport supplies the capability. Admission requires
+that capability's positive-tip scope to agree with the material reader; the
+exclusive append and cold physical stock replay retain the original success and
+one prior consumption. Reservation/interruption consumes ordinal two with zero
+unchanged-target retry or extra recovery. Existing failed/spent-boundary rules
+retain their independent scope; this amendment is not unlimited post-PASS authority.
+
 Reviewed-revision controls run as serial authority registrations. Each requires
 a natural exit within 30 seconds with one 15-second nested fixture. Git,
 commission and successor cases pass their synthetic checkout and ledger between
 registrations in the suite's private physical resource root. Each registration
 retains its own environment; the suite owns the handoff until consumers settle.
 The final-input case forks the unreserved synthetic first ordinal and checks
-the refused predecessor and passing successor through independent stock processes. `node scripts/run-canonical-test-suite.mjs authority
+the refused predecessor and passing successor through independent stock processes.
+Three subsequent registrations fork the same unreserved fixture for a positive
+predecessor, material/authority controls and its successor. They retain these bounds
+and cleanup owners; the additional negative controls do not enlarge a deadline.
+`node scripts/run-canonical-test-suite.mjs authority
 --reviewed-revision-only` selects these actual registrations with their normal
 resource and cleanup owners. The aggregate has no additional registration.
 

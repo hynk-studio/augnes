@@ -13,7 +13,7 @@ import {runCanonicalChild} from "../canonical-child-runner.mjs";
 import {finalizeReceipt,inspectReceiptForDecision} from "../local-canonical-receipt.mjs";
 import {createPrivateReviewExport,inspectPrivateReviewExport} from "../local-canonical-review-export.mjs";
 import {runBrowserRevisionControls, browserFixtureReceipt} from "./local-canonical-browser-revision.mjs";
-import {checkSpentCommission,completeGitRevisionControls,checkFinalDependency,gitFixtureDeclaration,gitFixtureReceipt,runGitRevisionControls} from "./local-canonical-git-observation.mjs";
+import {checkSpentCommission,completeGitRevisionControls,checkFinalDependency,checkPostPass,gitFixtureDeclaration,gitFixtureReceipt,runGitRevisionControls} from "./local-canonical-git-observation.mjs";
 import {baseReceipt} from "./local-canonical-receipt-v3.mjs";
 
 const self=fileURLToPath(import.meta.url), quiet={write(){}}, clone=v=>structuredClone(v);
@@ -32,7 +32,7 @@ async function freshReader(c, packet) {
   assert.equal(result.exit_code,0);
 }
 const proof=c=>readSourceCorrectionProof(c.file,c.checkout);
-const auth=(c,p,mutate)=>authorizeReviewedRevision(p,{transport:transport(c,mutate), ...(c.authority.contractReview ? {
+const auth=(c,p,mutate)=>authorizeReviewedRevision(p,{transport:transport(c,mutate),repositoryRoot:c.checkout, ...(c.authority.contractReview ? {
   reviewTransport: createGitHubObserverAuthorizationTransport(c.authority.contractPr,{runner:async req=>{
     assert(req.args[1].endsWith("/pulls/"+c.authority.contractPr+"/reviews/"+p.authorization.contract_review.id));
     return (mutate??(v=>v))(clone(c.authority.contractReview),req.args[1]);
@@ -70,6 +70,10 @@ function setup(root,browser=false){
     write(path.join(c.checkout,"scripts/local-canonical-inputs.mjs"), 'export * from '+JSON.stringify(module)+';\nimport {observePreparedDependencyInputs as observe} from '+JSON.stringify(module)+';\nexport function observePreparedDependencyInputs(args){const v=observe(args); if(v.generated_directories.some(d=>d.state==="proven_empty" && d.metadata.mode!==d.parent_metadata.mode)) throw Object.assign(new Error("mode differs"),{code:"dependency_input_cache_unsafe"}); return v;}\n');
   }
   if (gitIncident) for (const scenario of ["registration", "final-check"]) write(path.join(c.checkout, "scripts/" + scenario + ".mjs"), 'import assert from "node:assert/strict";\nassert.equal(false, true);\nconsole.log("fixture assertion passed");\n');
+  if (gitIncident) {
+    write(path.join(c.checkout,"scripts/audit-subject.mjs"),"export const permitted = true;\n");
+    write(path.join(c.checkout,"scripts/audit-driver.mjs"),'import assert from "node:assert/strict";\nimport {permitted} from "./audit-subject.mjs";\nconsole.log(JSON.stringify({permitted,expected:false}));\nassert.equal(permitted,false);\n');
+  }
   c.git(["init","--quiet","-b",c.branch]);c.base=c.commit(1);c.baseTree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();
   c.inputs={contract:"augnes.local-canonical-runtime-inputs.v1",node:{location_fingerprint:digest("current-node"),observation:{present:true,sha256:digest("node"),metadata:{mode:"33261",uid:"1",gid:"1",device:"1",inode:"1",links:"1",bytes:"4",mtime_ns:"1",ctime_ns:"1"},permission_identity:digest("node permissions"),executable_identity_policy:"shared-posix-v1"}},
     headers:{location_fingerprint:digest("headers"),observation:{contract:"augnes.local-canonical-node-headers.v1",present:true,location_fingerprint:digest("headers"),inventory_sha256:digest("inventory"),content_sha256:digest("content"),permission_sha256:digest("permissions"),entries:2,bytes:10}}};
@@ -169,14 +173,14 @@ if(process.argv[2]==="--cold"){
   try{const p=proof(c),a=await auth(c,p);write(c.ready,"ready");while(!existsSync(c.go))await new Promise(r=>setTimeout(r,5));
     try{begin(c,p,a);console.log("admitted");}catch(e){assert(["EEXIST","ENOENT","attempt_latest_tip_required"].includes(e.code),e.message);console.log("refused");}
   }finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
-}else if (["git","git-successor","commission","successor","final-input","final-successor"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
+}else if (["git","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
   const group = process.argv[2].slice(6,-9), handoff = JSON.parse(process.argv[3]);
   const outer = process.env.AUGNES_CANONICAL_TEMP_ROOT, physical = lstatSync(handoff.root);
   assert(handoff.root === outer || path.dirname(handoff.root) === path.dirname(path.dirname(outer)) &&
     /^ag-suite-[A-Za-z0-9]{6}$/u.test(path.basename(handoff.root)));
   assert(physical.isDirectory() && realpathSync(handoff.root) === handoff.root && physical.uid === process.getuid() &&
     (physical.mode & 0o777) === 0o700 && String(physical.dev) === handoff.device && String(physical.ino) === handoff.inode);
-  const dir = path.join(handoff.root,group.startsWith("git") ? "git-case" : group.startsWith("final") ? "final-case" : "prospective-fixture");
+  const dir = path.join(handoff.root,group.startsWith("git") ? "git-case" : group.startsWith("final") ? "final-case" : group.startsWith("post-pass") ? "post-pass-case" : "prospective-fixture");
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
   let c;
   try {
@@ -190,12 +194,13 @@ if(process.argv[2]==="--cold"){
       c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});
     }
     const helpers={prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,finish:finishAttempt,fresh:packet=>freshReader(c,packet),
-      snapshot:path.join(handoff.root,"prospective-fixture"),fork:path.join(handoff.root,"final-case")};
+      snapshot:path.join(handoff.root,"prospective-fixture"),fork:path.join(handoff.root,"final-case"),positive:path.join(handoff.root,"post-pass-case")};
     if (group==="git") await runGitRevisionControls(c,helpers);
     else if (group==="git-successor") await completeGitRevisionControls(c,helpers);
     else if (group.startsWith("final")) await checkFinalDependency(c,helpers,group);
+    else if (group.startsWith("post-pass")) await checkPostPass(c,helpers,group);
     else await checkSpentCommission(c,helpers,group);
-    if (["git","commission","final-input"].includes(group)) {
+    if (["git","commission","final-input","post-pass","post-pass-controls"].includes(group)) {
       const {env,owner,git,commit,...state}=c;
       write(path.join(dir,"context.json"),{...state,proofPath:path.relative(c.checkout,c.file)});
     }
