@@ -94,10 +94,11 @@ async function show(r=null,exchanges=null){invalidateSceneContext();invalidateSc
   $('search-view').hidden=true;
   $('edit-fields').disabled=false;$('save').disabled=false;reviewChanges();queueCapacity();
   openExchanges(r,exchanges);
+  if(r)await restoreReassessments(r.work_id);
   await reopenAuthored(r);
   await loadScenes(r);
 }
-function mayLeave(){return !returnMarker && (!(returnEdited||returnPrepared) || confirm('Discard the unsaved return decision?')) && !exchangePending && (!exchangeDraft || confirm("Discard the unsent file request or return?")) && !pending && !relationPending && !sceneReviewPending && (!(dirty||directionDirty) || confirm('Discard the unsaved edits in this tab?'));}
+function mayLeave(){return !reassessmentRows.length && (!(reassessmentEdited||reassessmentPrepared)||confirm('Discard the unsaved consumer decision?')) && !returnMarker && (!(returnEdited||returnPrepared) || confirm('Discard the unsaved return decision?')) && !exchangePending && (!exchangeDraft || confirm("Discard the unsent file request or return?")) && !pending && !relationPending && !sceneReviewPending && (!(dirty||directionDirty) || confirm('Discard the unsaved edits in this tab?'));}
 const number=value=>value.toLocaleString('en-US');
 function capacityQuantity(name,q,unit='bytes') {return q.used===null?`${name}: unavailable until the invalid material is corrected.`:
   `${name}: ${number(q.used)} / ${number(q.limit)} ${unit} · ${number(Math.abs(q.remaining))} ${q.remaining<0?'over':'remaining'}.`;}

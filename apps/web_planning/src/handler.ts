@@ -6,6 +6,8 @@ import participantRecoveryClient from "./participation-recovery.js.txt?raw";
 import participantJournal from "./participation-journal.js.txt?raw";
 import participantClient from "./participation-client.js.txt?raw";
 import { applyReturn, inspectReturn } from "./return-continuation";
+import { inspectUse, previewReassessment, saveReassessment } from "./return-reassessment-ops";
+import { REASSESSMENT_EXPORT } from "./return-reassessment";
 import { USE_EXPORT } from "./return-use";
 import { readExchangePage } from "./exchange-reading";
 import { inspectWorkMatch, searchQuery, searchWork } from "./work-search";
@@ -24,6 +26,7 @@ import { append, completeExport, downloadFile, eraseWork, headBinding, headsCurr
 import { page, renderContext, renderComparison, renderPreview, style } from "./page";
 import { compare, editedPayload, previewOperation, referenceAvailability, saveOperation, selectionHistories } from "./relations";
 import exchangeClient from "./exchange-client.js.txt?raw";
+import reassessmentClient from "./reassessment-client.js.txt?raw";
 import exchangeTextModule from "../../augnes_apps/scripts/exchange-text.mjs?raw" with { type: "text" };
 import planningNotes from "../../augnes_apps/scripts/planning-notes.mjs?raw" with { type: "text" };
 import client from "./client.js.txt?raw";
@@ -129,7 +132,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
         const csrf=csrfToken(access,request);
         return html(page(csrf,access),{"Set-Cookie":csrfCookie(access,csrf)});
       }
-      if(path==="/client.js" && !url.search) return new Response(client+"\n"+exchangeClient+"\n"+historyClient+"\n"+searchClient,{headers:{...headers,"Content-Type":"text/javascript; charset=utf-8"}});
+      if(path==="/client.js" && !url.search) return new Response(client+"\n"+exchangeClient+"\n"+historyClient+"\n"+searchClient+"\n"+participantJournal+"\n"+reassessmentClient,{headers:{...headers,"Content-Type":"text/javascript; charset=utf-8"}});
       if(path==="/exchange-text.mjs" && !url.search) return new Response(exchangeTextModule,{headers:{...headers,"Content-Type":"text/javascript; charset=utf-8"}});
       if(path==="/planning-notes.mjs" && !url.search) return new Response(planningNotes,{headers:{...headers,"Content-Type":"text/javascript; charset=utf-8"}});
       if(path==="/style.css" && !url.search) return new Response(style,{headers:{...headers,"Content-Type":"text/css; charset=utf-8"}});
@@ -193,14 +196,23 @@ export async function handle(request:Request,env:Environment,principal:Principal
     requireScope(access,input);
     const grant=path.match(/^\/api\/work\/([a-f0-9-]+)\/participation\/(create|revoke)$/);
     if(grant&&UUID.test(grant[1]))return json(await (grant[2]==='create'?createGrant(access,grant[1],input):revokeGrant(access,grant[1],input)));
-    const text=path.match(/^\/api\/work\/([a-f0-9-]+)\/exchange-files\/([1-9][0-9]{0,15})\/([a-f0-9]{64})\/([0-7])\/text$/);
+    const text=path.match(/^\/api\/work\/([a-f0-9-]+)\/(exchange-files|files)\/([1-9][0-9]{0,15})\/([a-f0-9]{64})\/([0-7])\/text$/);
     if(text && UUID.test(text[1])){
-      const chain=await readWork(access,text[1]),r=chain[Number(text[2])-1];
-      if(!r || r.fingerprint!=="sha256:"+text[3])fail("file_revision_unavailable",409);
-      return json(await readExchangePage(access,r,Number(text[4]),input));
+      const chain=await readWork(access,text[1]),r=chain[Number(text[3])-1];
+      if(!r || r.fingerprint!=="sha256:"+text[4])fail("file_revision_unavailable",409);
+      return json(await readExchangePage(access,r,Number(text[5]),input,text[2]==="exchange-files"));
     }
     const inspection=path.match(/^\/api\/work\/([a-f0-9-]+)\/inspect-return$/);
     if(inspection && UUID.test(inspection[1]))return json(await inspectReturn(access,inspection[1],input));
+    const reassessment=path.match(/^\/api\/work\/([a-f0-9-]+)\/(inspect-use|reassessment-preview|reassessment-save|reassessment-resolve)$/);
+    if(reassessment && UUID.test(reassessment[1])){
+      const [,id,action]=reassessment;
+      if(action==="inspect-use")return json(await inspectUse(access,id,input));
+      if(action==="reassessment-preview"){exact(input,"workspace_id,project_id,intent");return json(await previewReassessment(access,id,input.intent));}
+      const resolve=action==="reassessment-resolve";
+      exact(input,"workspace_id,project_id,ticket"+(resolve?"":",intent"));
+      return json(await saveReassessment(access,id,input.ticket,input.intent,resolve));
+    }
     if(exchange && UUID.test(exchange[1]))return json(await writeExchange(access,exchange[1],input,exchange[2]==="resolve"));
     const capacity=path.match(/^\/api\/work\/([a-f0-9-]+)\/capacity$/);
     if(path==="/api/capacity" || (capacity && UUID.test(capacity[1]))) {
@@ -224,7 +236,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
     if(path==="/api/reconstruct" || path==="/api/reconstruct-files" || extendedRestore) {
       exact(input,"workspace_id,project_id,export,confirm");
       if(env.RECONSTRUCTION_MODE!=="quiesced-empty-store" || input.confirm!=="reconstruct-empty-store")fail("reconstruction_disabled",403);
-      if(path==="/api/reconstruct-exchange" && ![LARGE_EXPORT,USE_EXPORT,PARTICIPATION_EXPORT].includes(input.export?.format) ||
+      if(path==="/api/reconstruct-exchange" && ![LARGE_EXPORT,USE_EXPORT,PARTICIPATION_EXPORT,REASSESSMENT_EXPORT].includes(input.export?.format) ||
          path==="/api/reconstruct-directions" && input.export?.format!==DIRECTION_EXPORT)fail("incompatible_format",409);
       if((path==="/api/reconstruct-files" || path==="/api/reconstruct-directions") && input.export?.format===DIRECTION_EXPORT){
         const works=validateDirectionExport(access,input.export);await reconstructWorks(access,works);
@@ -283,7 +295,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
       if(!sameBinding(headBinding(head),expected))fail("refresh_required",409);
       if(action==="context") {const refs=await referenceAvailability(access,head);
         if(!await headsCurrent(access,reference(head),reference(head)))fail("refresh_required",409);
-        return html(renderContext(head,chain.at(-2),refs.availability,refs.reviewSource));}
+        return html(renderContext(head,chain.at(-2),refs.availability,refs.reviewSource,exchangeList(chain).decisions.flatMap(d=>"current" in d?[d.current!]:[])));}
       if(action==="ticket") {
         const {histories}=await selectionHistories(access,id,input.material_edits);
         const prepared=bound?await applyReturn(access,id,chain,await prepareSceneDraft(access,chain,selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,chain,histories),input.files,head),input.scene),input.return_choice):undefined;
