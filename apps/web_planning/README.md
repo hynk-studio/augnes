@@ -355,9 +355,12 @@ the journal intact; it cannot prove noncommit or authorize a new answer.
 A permitted owner can reconcile the original request key in committed history.
 The opt-in `file-review-stdio.mjs` accepts this same setup, retains its three
 file tools and adds `read_participant_feedback`. Participant text returns also
-retain a private `.review-pending.json` alongside the setup. Reuse the original
-arguments with `check_only: true`; changed arguments cannot replace an unknown
-submission. Preserve the recovery file when a stale/refused return needs human
+retain private `.review-pending.<body-hash>.json` files alongside the setup.
+Each immutable file belongs to one exact operation, so a delayed acknowledgement
+from another SDK call or process cannot clear its bytes. Existing single
+`.review-pending.json` records remain readable and clear only when their original
+arguments reconcile as saved. Reuse those arguments with `check_only: true`;
+changed arguments cannot replace an unknown submission. Preserve the recovery file when a stale/refused return needs human
 reconciliation. The public App catalog and the owner task setup remain unchanged.
 
 ### Authorization, data and activation

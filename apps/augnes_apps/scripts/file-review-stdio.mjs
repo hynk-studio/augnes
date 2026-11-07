@@ -1,5 +1,6 @@
-import { readFile, open, unlink } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
+import { readFile, open, unlink, readdir, link } from 'node:fs/promises';
+import { createHash, randomUUID } from 'node:crypto';
+import { dirname, basename, join } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
@@ -49,18 +50,39 @@ tool('return_text_edit', 'Return an edited file against a listed original. Repla
     // Stable UUID-shaped idempotency key for this exact source, edit and observed save base.
     const h = createHash('sha256').update(JSON.stringify(body)).digest('hex');
     const request_key = [h.slice(0,8), h.slice(8,12), '4'+h.slice(13,16), '8'+h.slice(17,20), h.slice(20,32)].join('-');
-    const exactBody={...body,request_key},journal=setup+'.review-pending.json';
+    const exactBody={...body,request_key},legacy=setup+'.review-pending.json',journal=setup+'.review-pending.'+h+'.json';
+    const record=JSON.stringify({setup_digest:setupDigest,body:exactBody}),owned=[];
     if(client.participant){
-      let prior;try{prior=JSON.parse(await readFile(journal,'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
-      if(prior && (prior.setup_digest!==setupDigest || JSON.stringify(prior.body)!==JSON.stringify(exactBody)))
-        throw Error('Resolve the original arguments first. The complete pending return is retained at '+journal);
-      if(!prior && !args.check_only){
-        const file=await open(journal,'wx',0o600);try{await file.writeFile(JSON.stringify({setup_digest:setupDigest,body:exactBody}));await file.sync();}finally{await file.close();}
+      const prefix=basename(setup)+'.review-pending.';
+      const names=(await readdir(dirname(setup))).filter(name=>name===basename(legacy) ||
+        (name.startsWith(prefix) && /^[a-f0-9]{64}\.json$/.test(name.slice(prefix.length))));
+      for(const name of names){
+        const path=join(dirname(setup),name);let prior;
+        try{prior=JSON.parse(await readFile(path,'utf8'));}catch(e){if(e.code==='ENOENT')continue;throw e;}
+        if(prior.setup_digest!==setupDigest || JSON.stringify(prior.body)!==JSON.stringify(exactBody))
+          throw Error('Resolve the original arguments first. The complete pending return is retained at '+path);
+        owned.push(path);
+      }
+      if(!owned.length && !args.check_only){
+        // Publish complete, immutable bytes at an operation-owned name. Concurrent
+        // processes may retain different returns; one acknowledgement cannot clear another.
+        const tmp=journal+'.'+randomUUID()+'.tmp',file=await open(tmp,'wx',0o600);
+        try{
+          await file.writeFile(record);await file.sync();
+          await link(tmp,journal).catch(async e=>{
+            if(e.code!=='EEXIST')throw e;
+            if(await readFile(journal,'utf8')!==record)throw Error('The pending return changed. Keep its original recovery file.');
+          });
+        }finally{await file.close();await unlink(tmp);}
+        owned.push(journal);
       }
     }
     const result=await client.write(exactBody,args.check_only);
-    if(client.participant && result.outcome==='saved')await unlink(journal).catch(e=>{if(e.code!=='ENOENT')throw e;});
-    return text({...result,...(client.participant&&result.outcome!=='saved'?{recovery_file:journal}:{} )});
+    // No new writer uses the legacy name. Existing legacy bytes remain readable
+    // until their exact operation is reconciled; new records never reuse that name.
+    if(client.participant && result.outcome==='saved')for(const path of owned)
+      await unlink(path).catch(e=>{if(e.code!=='ENOENT')throw e;});
+    return text({...result,...(client.participant&&result.outcome!=='saved'?{recovery_file:owned[0]??journal}:{} )});
   });
 if(participantSetup)tool('read_participant_feedback', 'Read only deliberately shared committed decisions for the exact participant setup. No private destination or owner reasoning is returned.', {cursor:z.string().max(1200).optional()}, true,
   async(client,{cursor})=>text(await client.feedback(cursor)));

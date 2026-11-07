@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mkdir,readFile,writeFile,readdir } from 'node:fs/promises';
+import { mkdir,readFile,writeFile,readdir,unlink,rename } from 'node:fs/promises';
+import { setTimeout as delay } from 'node:timers/promises';
 import path from 'node:path';
 import { randomUUID,createHash } from 'node:crypto';
 import { headBinding,reference,canonical } from '../apps/web_planning/src/contract.ts';
@@ -181,9 +182,26 @@ async function checkParticipantMcp({server,seed,req,passed}){
   const s=await seed('Agent recipient fixture'),p=await participantClient(server,s.grant.id),setup=path.join(dir,'participant.json');
   await writeFile(setup,JSON.stringify((await p.request('/setup')).data),{mode:0o600});
   const env={...process.env,AUGNES_WEB_ORIGIN:server.origin,AUGNES_WEB_FIXTURE_COOKIE:'web_planning_local='+server.env.LOCAL_PARTICIPANT_SESSION};
-  const host=new Client({name:'controlled-participant-client',version:'1'}),transport=new StdioClientTransport({command:process.execPath,args:[path.join(apps,'scripts/file-review-stdio.mjs'),setup],env,stderr:'pipe'});
+  // Delay only delivery of a real successful resolve response. Both SDK processes
+  // retain their normal HTTP, D1, authentication and server one-answer assertions.
+  const gate=path.join(dir,'response-order.mjs');
+  await writeFile(gate,`import {readFile,writeFile,unlink} from 'node:fs/promises';
+import {setTimeout as delay} from 'node:timers/promises';
+const root=${JSON.stringify(dir)},real=globalThis.fetch;
+globalThis.fetch=async(...args)=>{const response=await real(...args);
+if(String(args[0]).endsWith('/resolve')){
+  let armed=false;try{await unlink(root+'/arm');armed=true;}catch(e){if(e.code!=='ENOENT')throw e;}
+  if(armed){await writeFile(root+'/held-body',args[1].body);await writeFile(root+'/held',String(response.status));const deadline=Date.now()+10000;
+    while(true){try{await readFile(root+'/release');break;}catch(e){if(e.code!=='ENOENT')throw e;}
+      if(Date.now()>deadline)throw Error('controlled_response_deadline');await delay(10);}}
+}return response;};`);
+  const connect=async(name,gated=false)=>{const client=new Client({name,version:'1'}),transport=new StdioClientTransport({command:process.execPath,
+    args:[...(gated?['--import',gate]:[]),path.join(apps,'scripts/file-review-stdio.mjs'),setup],env,stderr:'pipe'});
+    await client.connect(transport);return {client,transport};};
+  const {client:host,transport}=await connect('controlled-participant-client',true);let peer;
+  const journals=async()=>Promise.all((await readdir(dir)).filter(n=>/^participant\.json\.review-pending(?:\.[a-f0-9]{64})?\.json$/.test(n))
+    .map(async name=>({path:path.join(dir,name),record:JSON.parse(await readFile(path.join(dir,name),'utf8'))})));
   try{
-    await host.connect(transport);
     assert.deepEqual((await host.listTools()).tools.map(t=>t.name).sort(),['list_file_requests','read_exchange_text','read_participant_feedback','return_text_edit']);
     const call=async(name,args={})=>{const r=await host.callTool({name,arguments:args});assert(!r.isError,r.content[0]?.text);return JSON.parse(r.content[0].text);};
     assert.equal((await call('list_file_requests')).items[0].files.length,1);
@@ -192,15 +210,39 @@ async function checkParticipantMcp({server,seed,req,passed}){
     const edit={version:2,filename:'notice.md',source_digest:read.file.digest,save_base:read.save_base,find:'north entrance',replacement:'east ramp',review:'Corrected accessible entrance.',next_action:'Confirm the arrival time.'};
     const sent=await call('return_text_edit',edit);assert.equal(sent.item.contributor.grant_id,s.grant.id);
     assert.equal((await call('return_text_edit',{...edit,check_only:true})).item.ref.fingerprint,sent.item.ref.fingerprint);
-    assert(!await readdir(dir).then(v=>v.includes('participant.json.review-pending.json')));
+    assert.equal((await journals()).length,0);
     const inspected=await req(route(s.base,'inspect-return'),{returned:sent.item.ref,index:0,after:null});
     const choice=await prepareReturnDraft(req,inspected.selection,{decision:'deferred',rationale:'PRIVATE_PENDING_CONFIRMATION',next_action:'PRIVATE_CHECK_BOOKING',participant_feedback:{explanation:'The entrance correction is useful; the arrival time still needs confirmation.',next_action:'Please wait for confirmation.'}},{saved:(await req(route(s.base))).saved});
     await req(route(choice,'save'),choice.body);
     const feedback=await call('read_participant_feedback');assert.equal(feedback.feedback[0].disposition,'deferred');assert(!JSON.stringify(feedback).includes('PRIVATE_'));
-    assert((await host.callTool({name:'return_text_edit',arguments:{...edit,replacement:'west ramp'}})).isError);
-    const journal=JSON.parse(await readFile(setup+'.review-pending.json','utf8'));assert.equal(journal.body.files[0].name,'notice.md');
+    peer=await connect('concurrent-participant-client');await writeFile(path.join(dir,'arm'),'');
+    const late=call('return_text_edit',{...edit,check_only:true});late.catch(()=>{});
+    const deadline=Date.now()+10000;
+    while(!(await readdir(dir)).includes('held')){assert(Date.now()<deadline,'resolve response was not held');await delay(10);}
+    assert.equal(await readFile(path.join(dir,'held'),'utf8'),'200');
+    const b=await peer.client.callTool({name:'return_text_edit',arguments:{...edit,replacement:'west ramp'}});
+    assert(b.isError);assert.match(b.content[0].text,/refresh_required/);
+    const [pending]=await journals();assert(pending);assert.equal(pending.record.body.files[0].name,'notice.md');
+    await writeFile(path.join(dir,'release'),'');assert.equal((await late).item.ref.fingerprint,sent.item.ref.fingerprint);
+    assert.deepEqual(await journals(),[pending],'late A acknowledgement must preserve the different B recovery record');
+    assert.equal((await req(route(s.base,'exchanges'))).items.filter(item=>item.kind==='return').length,1);
     assert((await host.callTool({name:'return_text_edit',arguments:{...edit,replacement:'south ramp'}})).isError);
-    assert.deepEqual(JSON.parse(await readFile(setup+'.review-pending.json','utf8')),journal);
-  }finally{await host.close();await transport.close();}
-  passed('participant MCP: separate fixture login, real scoped SDK read/edit/return, exact acknowledgement, shared feedback, and retained conflicting draft; no model or owner credentials');
+    assert.deepEqual(await journals(),[pending]);
+    // A fresh process must still inspect/reconcile an unresolved legacy record.
+    await rename(pending.path,setup+'.review-pending.json');await peer.client.close();await peer.transport.close();
+    peer=await connect('fresh-participant-client');
+    const legacy=await peer.client.callTool({name:'return_text_edit',arguments:{...edit,replacement:'west ramp',check_only:true}});
+    assert(!legacy.isError,legacy.content[0].text);assert.equal(JSON.parse(legacy.content[0].text).outcome,'unknown');
+    assert.deepEqual((await journals())[0].record,pending.record);
+    assert((await peer.client.callTool({name:'return_text_edit',arguments:edit})).isError);
+    assert.deepEqual((await journals())[0].record,pending.record);
+    // Seed the earlier format for the already committed A, then reconcile it.
+    await unlink(setup+'.review-pending.json');
+    const {workspace_id,project_id,...oldBody}=JSON.parse(await readFile(path.join(dir,'held-body'),'utf8'));
+    await writeFile(setup+'.review-pending.json',JSON.stringify({...pending.record,body:oldBody}));
+    const acknowledged=await peer.client.callTool({name:'return_text_edit',arguments:{...edit,check_only:true}});
+    assert(!acknowledged.isError,acknowledged.content[0].text);assert.equal(JSON.parse(acknowledged.content[0].text).outcome,'saved');
+    assert.equal((await journals()).length,0);
+  }finally{await writeFile(path.join(dir,'release'),'');if(peer){await peer.client.close();await peer.transport.close();}await host.close();await transport.close();}
+  passed('participant MCP: real concurrent SDK processes, delayed saved A reconciliation preserves refused B bytes, fresh legacy recovery, exact acknowledgement and shared feedback; one server return, no model or owner credentials');
 }
