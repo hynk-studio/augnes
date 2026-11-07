@@ -4,6 +4,76 @@ import path from 'node:path';
 import { runCanonicalChild,canonicalChildAcceptanceFailure } from './canonical-child-runner.mjs';
 import { participantEmail } from './web-planning-participation-checks.mjs';
 
+// The two pages intentionally share ONE real Chrome context and IndexedDB.
+// Hold actual server responses: a synthetic successful response could conceal
+// a broken one-answer/CAS contract or fail to exercise acknowledgement cleanup.
+export async function browserParticipationRecovery({owner,participant,local,root,click,set,settled,wait,navigate,barrier,checks}){
+  const folder=path.join(root,'participant-race-downloads');await mkdir(folder);
+  async function seed(){return owner.eval(`(async()=>{
+    const d=await api('/api/drafts',{}),base='/api/work/'+d.work_id;
+    const saved=(await api(base+'/save',{ticket:d.ticket,definition:{goal:'Shared-tab recovery',success_criteria:['Check the room.'],non_goals:[]},notes:[],files:[]})).saved;
+    const bytes=new TextEncoder().encode('Confirm the room.');
+    const request=await api(base+'/exchanges/save',{kind:'request',basis:null,expected:binding(saved),request_key:crypto.randomUUID(),message:'Room request',next_action:'Confirm the room.',files:[{name:'room.md',bytes:bytes.length,digest:await exchangeDigest(bytes),media_type:'text/plain',data:btoa('Confirm the room.')}]});
+    const grant=await api(base+'/participation/create',{grant_id:crypto.randomUUID(),request:request.item.ref,expected:request.head,recipient:${JSON.stringify(participantEmail)},brief:'Confirm the room.',next_action:'Return a review.',indices:[0],expires:Date.now()+86400000});
+    return {...grant,work_id:d.work_id};
+  })()`);}
+  async function enter(c,link){await navigate(c,link);await wait(()=>c.eval("typeof state!=='undefined'&&!!state&&!busy"),'participant recovery entry');}
+  async function drafts(c){return c.eval(`(async()=>{const db=await new Promise((ok,no)=>{const q=indexedDB.open('augnes-participant-drafts',1);q.onsuccess=()=>ok(q.result);q.onerror=()=>no(q.error);});try{return await new Promise((ok,no)=>{const rows=[],q=db.transaction('drafts').objectStore('drafts').openCursor();q.onsuccess=()=>{const c=q.result;if(!c)return ok(rows);if(c.key===grant||Array.isArray(c.key)&&c.key[0]===grant)rows.push(c.value);c.continue();};q.onerror=()=>no(q.error);});}finally{db.close();}})()`);}
+  const a=await participant(),b=await participant(a);assert(a.browserContextId&&a.browserContextId===b.browserContextId);assert.notEqual(a.targetId,b.targetId);
+  await a.send('Network.setCookie',{name:'web_planning_local',value:local.env.LOCAL_PARTICIPANT_SESSION,url:local.origin,httpOnly:true,sameSite:'Strict'});
+  for(const releaseFirst of [false,true]){
+    const downloadFolder=path.join(folder,String(releaseFirst));await mkdir(downloadFolder);
+    await b.send('Page.setDownloadBehavior',{behavior:'allow',downloadPath:downloadFolder});
+    const g=await seed();await enter(a,g.link);await enter(b,g.link);
+    assert.equal(await a.eval('pending'),null);assert.equal(await b.eval('pending'),null);
+    for(const [c,name] of [[a,'A'],[b,'B']]){await set(c,'message','Tab '+name+' room proposal');await set(c,'review','Retain room '+name+' and its distinct preparation.');await set(c,'next','Check room '+name+'.');}
+    const held=await barrier(a,'/api/participation/'+g.id+'/save');await click(a,'send');await held.wait();const bodyA=await a.eval('pending');
+    const refused=await barrier(b,'/api/participation/'+g.id+'/save',409);await click(b,'send');await refused.wait();const bodyB=await b.eval('pending');
+    const before=await drafts(a);await refused.release();assert.match(await b.eval("$('status').innerText"),/pending return is retained/);
+    if(!releaseFirst)await held.release();
+    await enter(b,g.link);const recovered=await b.eval('pending'),after=await drafts(b);
+    console.log(JSON.stringify({participant_shared_tab_race:{release_before_ack:releaseFirst,browser_context:a.browserContextId,targets:[a.targetId,b.targetId],operation_a:bodyA.request_key,operation_b:bodyB.request_key,before_ack:before.map(v=>v.request_key),after_reload:after.map(v=>v.request_key),recovered:recovered?.request_key??null,server_revisions:(await local.db.prepare('SELECT count(*) n FROM web_planning_revision WHERE work_id=?').bind(g.work_id).first()).n}}));
+    assert.deepEqual(recovered,bodyB,'the refused B return must survive A acknowledgement and B reload');
+    assert(before.some(v=>v.request_key===bodyA.request_key),'B must not overwrite unresolved A');
+    assert(before.some(v=>v.request_key===bodyB.request_key));
+    assert.equal((await local.db.prepare('SELECT count(*) n FROM web_planning_revision WHERE work_id=?').bind(g.work_id).first()).n,3,'only A is committed');
+    assert.equal(await b.eval("$('recovery').checkVisibility()&&!$('recover').disabled"),true);
+    assert.equal(await b.eval("$('release').hidden"),false);
+    // The actual operation/body owner rejects replacement and mismatched clears.
+    for(const action of ['put','delete'])assert.equal(await b.eval(`journal(${JSON.stringify(action)},{...pending,message:'Altered body'}).then(()=>false,()=>true)`),true);
+    assert.deepEqual(await b.eval('pending'),bodyB);assert.deepEqual(await drafts(b),after);
+    if(releaseFirst){
+      await click(b,'release');await settled(b);
+      assert((await drafts(a)).some(v=>v.request_key===bodyA.request_key),'B release cannot clear unresolved A');
+      await held.release();assert.equal((await drafts(a)).length,0);
+    }else{
+      // Ended access must still recover B, without server read or write access.
+      await owner.eval(`api('/api/work/'+${JSON.stringify(g.work_id)}+'/participation/revoke',{grant_id:${JSON.stringify(g.id)}})`);
+      await navigate(b,g.link);await wait(()=>b.eval("document.getElementById('recover')?.hidden===false"),'ended-access B recovery');
+      assert.match(await b.eval('document.body.innerText'),/saved status is unknown/);await click(b,'recover');
+    }
+    const filename=path.join(downloadFolder,'augnes-pending-return.json');
+    await wait(async()=>{try{return JSON.parse(await readFile(filename,'utf8')).body.request_key===bodyB.request_key;}catch{return false;}},'exact refused B download');
+    assert.deepEqual(JSON.parse(await readFile(filename,'utf8')).body,bodyB);
+    // Preserve the ended-access body; use a new grant for the next case.
+    checks.push('Shared IndexedDB: '+(releaseFirst?'exact stale release preserves A until its acknowledgement':'A acknowledgement preserves refused B across reload and ended-access download'));
+  }
+  // An unresolved v1 grant-keyed record stays recoverable. Recreate that exact
+  // persisted layout, then use normal reconciliation and exact retry controls.
+  const legacy=await seed();await enter(a,legacy.link);
+  await set(a,'message','Legacy room confirmation');await set(a,'review','Room C is available.');await set(a,'next','Check the booking.');
+  a.beforeRequest={method:'POST',path:'/api/participation/'+legacy.id+'/save',unavailable:true};
+  await click(a,'send');await settled(a);const body=await a.eval('pending');assert(body);
+  assert.equal((await local.db.prepare('SELECT count(*) n FROM web_planning_revision WHERE work_id=?').bind(legacy.work_id).first()).n,2);
+  await a.eval(`(async()=>{const db=await new Promise(ok=>{const q=indexedDB.open('augnes-participant-drafts',1);q.onsuccess=()=>ok(q.result);});try{await new Promise((ok,no)=>{const tx=db.transaction('drafts','readwrite'),s=tx.objectStore('drafts');s.delete([grant,pending.request_key]);s.put(pending,grant);tx.oncomplete=ok;tx.onabort=()=>no(tx.error);});}finally{db.close();}})()`);
+  await enter(a,legacy.link);assert.deepEqual(await a.eval('pending'),body);assert.equal(await a.eval("$('retry').hidden"),false);
+  await a.eval("journal('put',pending)");assert.deepEqual(await drafts(a),[body],'exact retry cannot duplicate the legacy record');
+  await click(a,'retry');await settled(a);assert.equal(await a.eval('pending'),null);assert.deepEqual(await drafts(a),[]);
+  assert.match(await a.eval("$('returned').innerText"),/Legacy room confirmation/);
+  assert.equal((await local.db.prepare('SELECT count(*) n FROM web_planning_revision WHERE work_id=?').bind(legacy.work_id).first()).n,3);
+  checks.push('Legacy v1 body: unavailable submission, reload reconciliation, exact retry, one committed return and exact acknowledgement cleanup');
+}
+
 export async function browserParticipation({owner,participant,local,root,click,set,settled,wait,navigate,barrier,checks}){
   const origin=local.origin,folder=path.join(root,'participant-cli');await mkdir(folder,{mode:0o700});
   const seed=await owner.eval(`(async()=>{

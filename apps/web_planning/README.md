@@ -298,8 +298,12 @@ existing exact byte-position reader; downloads verify the recorded size and
 SHA-256. Small Markdown/text files support the existing unique-passage edit,
 including BOM and line-ending preservation. Alternatively upload returned files
 or write `review.md`. Sending retains a private local recovery copy in IndexedDB
-until the response is confirmed. A reload resolves the same submission before
-offering an exact retry. Keep a recovery download when access may end. When access expires, is revoked,
+until the response is confirmed. Each pending operation keeps its own exact body;
+another tab cannot overwrite it or clear it with a different acknowledgement or
+release. The pending-return selector also exposes other retained operations for
+this request. Existing grant-keyed recovery copies remain readable. A reload
+resolves the selected submission before offering an exact retry. Keep a recovery
+download when access may end. When access expires, is revoked,
 or the source is erased, the same authenticated recipient can reopen a recovery-only
 page to download an existing local pending draft. It reveals no server material or
 save outcome and does not restore access. Disabling participation altogether also

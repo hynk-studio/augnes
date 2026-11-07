@@ -1,0 +1,39 @@
+'use strict';
+// Keep the v1 store and legacy grant-keyed bodies readable. New records have
+// one compound key per exact operation; no tab owns another tab's recovery.
+async function participantJournal(grant,action,value){
+  const db=await new Promise((ok,no)=>{const q=indexedDB.open('augnes-participant-drafts',1);q.onupgradeneeded=()=>q.result.createObjectStore('drafts');q.onsuccess=()=>ok(q.result);q.onerror=()=>no(Error('Recovery storage unavailable'));});
+  try{return await new Promise((ok,no)=>{
+    const tx=db.transaction('drafts',action==='get'?'readonly':'readwrite'),store=tx.objectStore('drafts');
+    const records=[];let remaining=2,result,error;
+    const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+    function complete(){
+      if(--remaining)return;
+      try{
+        if(action!=='get'){
+          if(!value||typeof value.request_key!=='string'||!value.request_key)throw Error('Recovery operation is missing');
+          const matching=records.filter(r=>r.body.request_key===value.request_key);
+          if(matching.some(r=>!same(r.body,value)))throw Error('This operation already has a different recovery body');
+          if(action==='put'){
+            // Comparison and creation happen in this same serialized transaction.
+            if(!matching.length){const key=[grant,value.request_key];store.add(value,key);records.push({key,body:value});}
+          }else if(action==='delete'){
+            for(const r of matching){store.delete(r.key);records.splice(records.indexOf(r),1);}
+          }else throw Error('Unknown recovery operation');
+        }
+        const unique=new Map();
+        for(const r of records){const old=unique.get(r.body.request_key);if(old&&!same(old,r.body))throw Error('Conflicting recovery bodies need to be preserved');unique.set(r.body.request_key,r.body);}
+        result=[...unique.values()];
+      }catch(e){error=e;tx.abort();}
+    }
+    const legacy=store.get(grant);legacy.onsuccess=()=>{if(legacy.result)records.push({key:grant,body:legacy.result});complete();};
+    const cursor=store.openCursor(IDBKeyRange.bound([grant,''],[grant,'\uffff']));
+    cursor.onsuccess=()=>{const c=cursor.result;if(!c)return complete();records.push({key:c.key,body:c.value});c.continue();};
+    tx.oncomplete=()=>ok(result);tx.onerror=tx.onabort=()=>no(error??Error('Recovery storage unavailable; existing copies were not changed'));
+  });}finally{db.close();}
+}
+// A tab preference selects a body; it never owns or deletes recovery bytes.
+function participantPreferred(grant,value){
+  try{const key='augnes-participant-operation:'+grant;if(value===undefined)return sessionStorage.getItem(key);if(value===null)sessionStorage.removeItem(key);else sessionStorage.setItem(key,value);}catch{}
+  return null;
+}

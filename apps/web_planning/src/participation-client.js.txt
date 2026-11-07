@@ -1,19 +1,21 @@
 'use strict';
 const $=id=>document.getElementById(id), grant=document.querySelector('meta[name="participation"]').content, root='/api/participation/'+grant;
 const csrf=document.querySelector('meta[name="csrf-token"]').content;
-let state=null,pending=null,busy=false,edit=null,cursor=null,accessLost=false;
+let state=null,pending=null,busy=false,edit=null,cursor=null,accessLost=false,pendingChoices=[];
 const status=text=>{$('status').textContent=text;};
 function text(parent,value){const p=document.createElement('p');p.textContent=value;parent.append(p);}
 function button(parent,label,fn){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=()=>run(fn);parent.append(b);return b;}
-async function journal(action,value){
-  const db=await new Promise((ok,no)=>{const q=indexedDB.open('augnes-participant-drafts',1);q.onupgradeneeded=()=>q.result.createObjectStore('drafts');q.onsuccess=()=>ok(q.result);q.onerror=()=>no(Error('Recovery storage unavailable. Use the local client.'));});
-  try{return await new Promise((ok,no)=>{const tx=db.transaction('drafts',action==='get'?'readonly':'readwrite'),store=tx.objectStore('drafts');
-    const q=action==='get'?store.get(grant):action==='put'?store.put(value,grant):store.delete(grant);let result;
-    q.onsuccess=()=>{result=q.result;};tx.oncomplete=()=>ok(result);tx.onerror=tx.onabort=()=>no(Error('Recovery storage unavailable. The draft is retained.'));});}
-  finally{db.close();}
+const journal=(action,value)=>participantJournal(grant,action,value);
+function choosePending(rows,key){
+  pendingChoices=rows;pending=rows.find(v=>v.request_key===key)??null;participantPreferred(grant,pending?.request_key??null);
+  $('pending-choice').replaceChildren(new Option('Select a pending return',''));
+  for(const row of rows)$('pending-choice').append(new Option(row.message+' · '+row.request_key,row.request_key));
+  $('pending-choice').value=pending?.request_key??'';
+  $('pending-summary').textContent=pending?pending.message+'\nNext: '+pending.next_action+'\nRequest key: '+pending.request_key:'Choose the exact return to inspect, check or download.';
+  $('retry').hidden=$('release').hidden=true;
 }
-function controls(){ $('fields').disabled=busy||!!pending||!state?.can_submit||accessLost;$('recovery').hidden=!pending; }
-async function run(fn){if(busy)return;busy=true;controls();try{await fn();}catch(e){status(e.message.replaceAll('_',' ')+'. Your pending return is retained.');}finally{busy=false;controls();}}
+function controls(){ $('fields').disabled=busy||pendingChoices.length>0||!state?.can_submit||accessLost;$('recovery').hidden=!pendingChoices.length;$('pending-choice').disabled=busy;for(const id of ['check','retry','recover','release'])$(id).disabled=busy||!pending; }
+async function run(fn){if(busy)return;busy=true;controls();try{await fn();}catch(e){status(e.message.replaceAll('_',' ')+(pending?'. Your pending return is retained.':'. Unsent fields remain in this tab; keep a copy before leaving.'));}finally{busy=false;controls();}}
 function loseAccess(){accessLost=true;state=null;edit=null;cursor=null;for(const id of ['files','returned','feedback','brief','conditions','identity'])$(id).replaceChildren();}
 async function request(path,body){
   const response=await fetch(root+path,{method:body===undefined?'GET':'POST',redirect:'manual',cache:'no-store',credentials:'same-origin',
@@ -45,7 +47,7 @@ function drawFile(parent,file,original){
       next=page.next;read.disabled=next===null;read.textContent='Continue reading '+file.name;
     });
     if(original&&file.bytes<=32768&&/\.(txt|md|markdown)$/i.test(file.name))button(section,'Edit '+file.name,async()=>{
-      if(pending||!state.can_submit)throw Error('Check the pending or answered request first');
+      if(pendingChoices.length||!state.can_submit)throw Error('Check the pending or answered request first');
       const m=await import(root+'/exchange-text.mjs'),data=await bytes(file);
       edit={file,source:m.decodeExchangeText(data,file.name),replace:m.replaceExchangePassage};
       $('edit').hidden=false;$('edit-name').textContent=file.name;$('upload').disabled=$('review').disabled=true;$('find').focus();
@@ -69,17 +71,19 @@ async function refresh(){
   await feedback();status(state.can_submit?'Read the selected originals and send your return.':'The request is answered or its save basis changed. The disclosed originals remain the same.');
 }
 async function send(resolve){
-  const result=await json(resolve?'/resolve':'/save',pending);
+  const body=pending;if(!body)return;
+  if(!resolve)await journal('put',body);
+  const result=await json(resolve?'/resolve':'/save',body);
   $('retry').hidden=true;$('release').hidden=true;
   if(result.outcome==='saved'){
-    await journal('delete');pending=null;$('return').reset();edit=null;$('edit').hidden=true;await refresh();status('Return saved. The owner can now inspect and decide.');
+    choosePending(await journal('delete',body),null);$('return').reset();edit=null;$('edit').hidden=true;await refresh();status('Return saved. The owner can now inspect and decide.');
   }else{
     $('retry').hidden=!result.retry_allowed;$('release').hidden=result.retry_allowed;
     status(result.retry_allowed?'No matching save observed. Only retry this exact pending return; a request may still be in flight.':'This return was not recorded and its save basis is no longer eligible. Keep its recovery copy before starting again.');
   }
 }
 $('return').onsubmit=event=>{event.preventDefault();run(async()=>{
-  if(pending||!state.can_submit)return;
+  if(pendingChoices.length||!state.can_submit)return;
   let selected=Array.from($('upload').files);
   if(edit){
     let find=$('find').value,replacement=$('replacement').value;
@@ -89,15 +93,16 @@ $('return').onsubmit=event=>{event.preventDefault();run(async()=>{
   if(!selected.length||selected.length>8||selected.some(f=>f.size>6291456)||selected.reduce((n,f)=>n+f.size,0)>7340032)throw Error('Choose files within the stated limits');
   const files=[];for(const f of selected){const data=new Uint8Array(await f.arrayBuffer()),chunks=[];for(let i=0;i<data.length;i+=24576)chunks.push(btoa(String.fromCharCode(...data.subarray(i,i+24576))));files.push({name:f.name,bytes:data.length,digest:await digest(data),media_type:f.type||null,data:chunks.join('')});}
   const body={expected:state.head,request_key:crypto.randomUUID(),kind:'return',basis:state.items[0].ref,message:$('message').value,next_action:$('next').value,files};
-  await journal('put',body);pending=body;await send(false);
+  choosePending(await journal('put',body),body.request_key);await send(false);
 });};
 $('cancel-edit').onclick=()=>{if(!busy&&!pending){edit=null;$('edit').hidden=true;$('upload').disabled=$('review').disabled=false;}};
 $('check').onclick=()=>run(()=>send(true));$('retry').onclick=()=>run(()=>send(false));
 function recoveryCopy(){download(JSON.stringify({format:'augnes_participant_pending.v1',grant_id:grant,origin:location.origin,body:pending},null,2),'augnes-pending-return.json');}
 $('recover').onclick=()=>{if(pending)recoveryCopy();};
-$('release').onclick=()=>run(async()=>{const result=await json('/resolve',pending);if(result.outcome==='saved')return send(true);if(result.retry_allowed)throw Error('The same save is still eligible');recoveryCopy();await journal('delete');pending=null;await refresh();});
+$('release').onclick=()=>run(async()=>{const body=pending;if(!body)return;const result=await json('/resolve',body);if(result.outcome==='saved')return send(true);if(result.retry_allowed)throw Error('The same save is still eligible');recoveryCopy();choosePending(await journal('delete',body),null);await refresh();});
+$('pending-choice').onchange=()=>run(async()=>{choosePending(await journal('get'),$('pending-choice').value);status('Selected the local recovery copy. Check its outcome before retrying or releasing it.');});
 $('refresh').onclick=()=>run(refresh);$('more').onclick=()=>run(()=>feedback(true));
-run(async()=>{pending=await journal('get')??null;await refresh();if(pending)await send(true);});
+run(async()=>{const rows=await journal('get');choosePending(rows,participantPreferred(grant)??rows[0]?.request_key);await refresh();if(pending)await send(true);});
 
 $('signout').addEventListener('click',loseAccess);
 addEventListener('pagehide',loseAccess);

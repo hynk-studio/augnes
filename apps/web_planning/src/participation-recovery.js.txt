@@ -1,17 +1,18 @@
 "use strict";
 const grant=document.querySelector('meta[name="participation"]').content;
-const status=document.getElementById('recovery-status'),button=document.getElementById('recover');
+const status=document.getElementById('recovery-status'),button=document.getElementById('recover'),choice=document.getElementById('pending-choice');
 (async()=>{
-  let db;
   try{
-    db=await new Promise((ok,no)=>{const q=indexedDB.open('augnes-participant-drafts',1);q.onupgradeneeded=()=>q.result.createObjectStore('drafts');q.onsuccess=()=>ok(q.result);q.onerror=()=>no(q.error);});
-    const pending=await new Promise((ok,no)=>{const q=db.transaction('drafts','readonly').objectStore('drafts').get(grant);q.onsuccess=()=>ok(q.result);q.onerror=()=>no(q.error);});
-    status.textContent=pending?'Your pending return is available locally. Its saved status is unknown.':'No pending return was found in this browser. Try the original browser profile or local client journal.';
-    if(!pending)return;
+    const rows=await participantJournal(grant,'get');
+    status.textContent=rows.length?'Your pending returns are available locally. Their saved status is unknown.':'No pending return was found in this browser. Try the original browser profile or local client journal.';
+    if(!rows.length)return;
+    for(const row of rows)choice.append(new Option(row.message+' · '+row.request_key,row.request_key));
+    choice.value=rows.some(row=>row.request_key===participantPreferred(grant))?participantPreferred(grant):rows[0].request_key;
+    function selected(){const body=rows.find(row=>row.request_key===choice.value);participantPreferred(grant,body.request_key);document.getElementById('pending-summary').textContent=body.message+'\nNext: '+body.next_action+'\nRequest key: '+body.request_key;return body;}
+    choice.parentElement.hidden=false;choice.onchange=selected;selected();
     button.hidden=false;button.onclick=()=>{
-      const value={format:'augnes_participant_pending.v1',grant_id:grant,origin:location.origin,body:pending};
+      const value={format:'augnes_participant_pending.v1',grant_id:grant,origin:location.origin,body:selected()};
       const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='augnes-pending-return.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
     };
   }catch{status.textContent='Local recovery storage is unavailable. Use a previously downloaded recovery copy or local client journal.';}
-  finally{db?.close();}
 })();

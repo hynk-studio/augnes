@@ -3,6 +3,7 @@ import { PARTICIPATION_EXPORT } from "./participation-contract";
 import { activeGrant, knownRecipient, createGrant, listGrants, participantContext, participantFeedbackView, participantFile, participantView, participantWrite, revokeGrant } from "./participation";
 import { participantPage, participantRecoveryPage } from "./participation-page";
 import participantRecoveryClient from "./participation-recovery.js.txt?raw";
+import participantJournal from "./participation-journal.js.txt?raw";
 import participantClient from "./participation-client.js.txt?raw";
 import { applyReturn, inspectReturn } from "./return-continuation";
 import { USE_EXPORT } from "./return-use";
@@ -75,7 +76,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
       // request, file, feedback or acknowledgement is exposed through this shell.
       if(participant[1]==='api/participation'&&suffix==='/recovery.js'&&!url.search&&request.method==='GET'){
         await knownRecipient(access,id);
-        return new Response(participantRecoveryClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
+        return new Response(participantJournal+"\n"+participantRecoveryClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
       }
       let c;
       try{c=await participantContext(access,id);}catch(e){
@@ -91,7 +92,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
         const csrf=csrfToken(access,request);
         result=html(participantPage(csrf,id,access),{'Set-Cookie':csrfCookie(access,csrf)});
       }else if(participant[1]!=='api/participation')fail('scope_denied',403);
-      else if(request.method==='GET' && !url.search && suffix==='/client.js')result=new Response(participantClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
+      else if(request.method==='GET' && !url.search && suffix==='/client.js')result=new Response(participantJournal+"\n"+participantClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
       else if(request.method==='GET' && !url.search && suffix==='/exchange-text.mjs')result=new Response(exchangeTextModule,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
       else if(request.method==='GET' && !url.search && suffix==='/style.css')result=new Response(style,{headers:{...headers,'Content-Type':'text/css; charset=utf-8'}});
       else if(request.method==='GET' && !url.search && suffix==='')result=json(participantView(access,c));
