@@ -1331,6 +1331,44 @@ or retains ordinary composition where sufficient. No fixture or consumer was
 executed by writing this example, and no fee, publication, customer contact or
 runtime work is authorized by it.
 
+#### Controlled native contribution and cross-project method use (#1595)
+
+The [durable case](../../examples/native-method-use/README.md) applies the worked
+private-service chain to task-owned package manifests. A's baseline declares
+fit for Node 22.23.4/Darwin/arm64; its candidate requires Node 24 and yields a
+checked negative result. The complete manual return retains an unsupported
+installation suggestion; A saves `partly_used`, a useful hold recommendation,
+and outstanding hypothetical compensation separately. This checks declarations,
+not an actual installation or live runtime. No customer incident is inferred.
+
+Through existing `put_material`/`publish`/selected-source owners, only the selected
+report and derived conditional method reach another normally registered project.
+Fresh C processes receive ordinary saved entry and new task inputs, recheck the
+binding and their own authored authority, and save a checked version-2.1 artifact
+plus an `adapt` judgment. A label-only change preserves exact output bytes; a
+request for live-runtime evidence produces `non_use`. Parent-only expectations
+check these outcomes independently of the checker. Consumers receive no evaluator
+oracle or previous conversation answer. This is deterministic controlled use
+inside one workspace, not independent cross-owner participation or model reasoning.
+
+Actual production owners refuse withheld/undeclared material, transplanted
+task-local source bindings, stale corpus binding, withdrawn shares, missing
+authentication and obsolete runtime generation. Fresh inspection exposes a
+correction. Withdrawal preserves earlier copies and consumer artifacts. Ordinary
+preview/save and the existing store validator preserve current task identity,
+source history and recovery semantics. Profile execution remains false; natural
+language policy, compensation and applicability choices remain authored. The
+test's `Wait`/`Commission` contrasts do not prove a runtime policy evaluator.
+
+Retain the existing composition. Automatic commissioning, paid settlement and
+independent undertaking operation remain unsupported relations; ordinary bounded
+notes are sufficient for this case, with no new protocol fields. Evidence exports
+retain original/derived/C outputs, exact calls, durations/bytes, failures and
+owned-resource settlement. Human authoring time, development model usage and
+comparative benefit remain unmeasured/unknown. Focused mechanism evidence does
+not substitute for the unchanged planner's exact-candidate qualification or
+independent result review, recorded separately with the PR/private report.
+
 #### Conditional capability and organization choice
 
 For [01's capability-expansion hypothesis](./01_AUGNES_VNEXT_MASTERPLAN.md#economic-undertakings-and-cumulative-capability),

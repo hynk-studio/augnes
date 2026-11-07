@@ -1046,6 +1046,17 @@ the original under the existing history owner and is reported on read. Profile
 notes cannot count as downstream result material. Direct/asset/non-use and
 non-profile manual/configured-review workflows remain available unchanged.
 
+For a different registered project in the same workspace, the existing external
+`put_material`/`publish` and selected-source corpus owners provide a distinct
+explicit route. Share selected complete bytes to a configured target and recheck
+current access/binding before use; native task-local source bindings are not
+portable input to that project's writer. The consumer creates its own source
+notes and current judgment. [The #1595 example](../../examples/native-method-use/README.md)
+exercises this composition without adding semantics: restriction scope,
+commissioning, compensation and method applicability remain source-bound authored
+terms, not enforced policy or settlement. Withdrawal stops new shared reads,
+without recalling earlier copies or transferring authority.
+
 The #1532 same-project continuation composes these owners without a new contract.
 An eligible origin explicitly resolves and reselects the linked choice, complete
 profile, request, return, decision and selected feedback before the existing

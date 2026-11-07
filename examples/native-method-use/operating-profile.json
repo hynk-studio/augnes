@@ -1,0 +1,18 @@
+{
+  "version": "OperatingProfile.v0.1",
+  "name": "Package declaration investigation",
+  "mode": "observe_recommend",
+  "work": { "goal": "Check declared platform fit", "success_criteria": ["Preserve negative findings"], "non_goals": ["No install or runtime claim"] },
+  "scope": { "environment": "Disposable case", "targets": ["Selected package pair"], "conditions": ["A may commission; its executor is read-only"] },
+  "accountability": { "owner_role": "a", "sponsor_role": null },
+  "roles": [{ "id": "a", "responsibility": "Request, check and use", "executor": "Case author", "principal": null, "counterpart_assumptions": ["B is a controlled local process"] }],
+  "inputs": [{ "id": "pair", "purpose": "Compare versions", "required": true, "availability": "observed", "source": { "identity": "task-owned manifests", "revision": "1", "observed_at": null, "event_time": null }, "content": "Read exact request material", "limitations": "Declarations only" }],
+  "explanations": [],
+  "steps": [{ "id": "check", "kind": "observe", "purpose": "Obtain declaration report", "role": "a", "requires_inputs": ["pair"], "depends_on": [], "returns": "Checks and limits", "check_role": "a", "use_role": "a" }],
+  "arrangements": [{ "id": "manual", "kind": "delegated", "description": "Bounded manual request", "roles": ["a"], "assumptions": ["No independent participation"] }],
+  "separation": [],
+  "requested_permissions": [{ "id": "read", "description": "Selected public-shaped bytes only; declaration, not a grant", "for_steps": ["check"] }],
+  "budget": { "max_steps": 1, "max_observations": 1, "max_rounds": 1, "max_minutes": 5 },
+  "reconsider_when": ["Authority, input or purpose changes"],
+  "revision_basis": { "previous_fingerprint": null, "reason": "First selection" }
+}

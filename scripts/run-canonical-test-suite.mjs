@@ -1079,6 +1079,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "native-method-use",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "scoped native contribution and fresh cross-project permitted method use",
+      ...rootNode("scripts/test-native-method-use.ts"),
+      timeoutMs: 150_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "profile-task-continuation",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
