@@ -56,13 +56,15 @@ tool('return_text_edit', 'Return an edited file against a listed original. Repla
       const prefix=basename(setup)+'.review-pending.';
       const names=(await readdir(dirname(setup))).filter(name=>name===basename(legacy) ||
         (name.startsWith(prefix) && /^[a-f0-9]{64}\.json$/.test(name.slice(prefix.length))));
+      let conflict;
       for(const name of names){
         const path=join(dirname(setup),name);let prior;
         try{prior=JSON.parse(await readFile(path,'utf8'));}catch(e){if(e.code==='ENOENT')continue;throw e;}
-        if(prior.setup_digest!==setupDigest || JSON.stringify(prior.body)!==JSON.stringify(exactBody))
-          throw Error('Resolve the original arguments first. The complete pending return is retained at '+path);
-        owned.push(path);
+        if(prior.setup_digest!==setupDigest)throw Error('Pending return belongs to a different task setup. Keep '+path);
+        if(JSON.stringify(prior.body)===JSON.stringify(exactBody))owned.push(path);
+        else conflict=path;
       }
+      if(!owned.length && conflict)throw Error('Resolve the original arguments first. The complete pending return is retained at '+conflict);
       if(!owned.length && !args.check_only){
         // Publish complete, immutable bytes at an operation-owned name. Concurrent
         // processes may retain different returns; one acknowledgement cannot clear another.

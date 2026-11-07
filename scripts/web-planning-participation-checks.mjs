@@ -228,6 +228,23 @@ if(String(args[0]).endsWith('/resolve')){
     assert.equal((await req(route(s.base,'exchanges'))).items.filter(item=>item.kind==='return').length,1);
     assert((await host.callTool({name:'return_text_edit',arguments:{...edit,replacement:'south ramp'}})).isError);
     assert.deepEqual(await journals(),[pending]);
+    // Concurrent submissions can leave both complete records after lost/refused
+    // replies. Seed the captured exact A in the legacy format alongside real B.
+    const {workspace_id,project_id,...oldBody}=JSON.parse(await readFile(path.join(dir,'held-body'),'utf8'));
+    await writeFile(setup+'.review-pending.json',JSON.stringify({...pending.record,body:oldBody}));
+    await unlink(path.join(dir,'release'));await unlink(path.join(dir,'held'));await writeFile(path.join(dir,'arm'),'');
+    let checkA;const resolvingA=host.callTool({name:'return_text_edit',arguments:{...edit,check_only:true}}).then(r=>(checkA=r));
+    const bothDeadline=Date.now()+10000;
+    while(!(await readdir(dir)).includes('held')){
+      assert(!checkA?.isError,checkA?.content[0]?.text);assert(Date.now()<bothDeadline,'retained A did not reach resolve');await delay(10);
+    }
+    const checkB=await peer.client.callTool({name:'return_text_edit',arguments:{...edit,replacement:'west ramp',check_only:true}});
+    assert(!checkB.isError,checkB.content[0].text);assert.equal(JSON.parse(checkB.content[0].text).outcome,'unknown');
+    const retryB=await peer.client.callTool({name:'return_text_edit',arguments:{...edit,replacement:'west ramp'}});
+    assert(retryB.isError);assert.match(retryB.content[0].text,/refresh_required/);
+    assert.equal((await journals()).length,2,'both unresolved records stay intact before A acknowledgement');
+    await writeFile(path.join(dir,'release'),'');await resolvingA;assert(!checkA.isError,checkA.content[0].text);
+    assert.equal(JSON.parse(checkA.content[0].text).outcome,'saved');assert.deepEqual(await journals(),[pending]);
     // A fresh process must still inspect/reconcile an unresolved legacy record.
     await rename(pending.path,setup+'.review-pending.json');await peer.client.close();await peer.transport.close();
     peer=await connect('fresh-participant-client');
@@ -236,13 +253,6 @@ if(String(args[0]).endsWith('/resolve')){
     assert.deepEqual((await journals())[0].record,pending.record);
     assert((await peer.client.callTool({name:'return_text_edit',arguments:edit})).isError);
     assert.deepEqual((await journals())[0].record,pending.record);
-    // Seed the earlier format for the already committed A, then reconcile it.
-    await unlink(setup+'.review-pending.json');
-    const {workspace_id,project_id,...oldBody}=JSON.parse(await readFile(path.join(dir,'held-body'),'utf8'));
-    await writeFile(setup+'.review-pending.json',JSON.stringify({...pending.record,body:oldBody}));
-    const acknowledged=await peer.client.callTool({name:'return_text_edit',arguments:{...edit,check_only:true}});
-    assert(!acknowledged.isError,acknowledged.content[0].text);assert.equal(JSON.parse(acknowledged.content[0].text).outcome,'saved');
-    assert.equal((await journals()).length,0);
   }finally{await writeFile(path.join(dir,'release'),'');if(peer){await peer.client.close();await peer.transport.close();}await host.close();await transport.close();}
-  passed('participant MCP: real concurrent SDK processes, delayed saved A reconciliation preserves refused B bytes, fresh legacy recovery, exact acknowledgement and shared feedback; one server return, no model or owner credentials');
+  passed('participant MCP: real concurrent SDK processes, delayed saved A preserves refused B, two retained operations reconcile independently, fresh legacy recovery and shared feedback; one server return, no model or owner credentials');
 }
