@@ -1,3 +1,4 @@
+import { PARTICIPATION_FORMAT, PARTICIPATION_COMPATIBILITY } from "./participation-contract";
 import { USE_FORMAT, USE_COMPATIBILITY, returnUse, type ReturnUse } from "./return-use";
 import { EXCHANGE_COMPATIBILITY, EXCHANGE_FORMAT, LARGE_FORMAT, LARGE_COMPATIBILITY, largeExchange, validateExchange, type Exchange } from "./exchange";
 import { FILE_FORMAT, FILE_COMPATIBILITY, FILE_RELATION_FORMAT, FILE_RELATION_COMPATIBILITY, fileManifest, historyFiles, type FileEntry } from "./files";
@@ -46,7 +47,7 @@ export interface Relations {
 }
 export interface Payload { definition: ProjectWorkDefinitionV01; sources: TaskContextPacketSelectedEntryV01[]; relations?: Relations; files?: FileEntry[]; exchange?: Exchange; return_use?: ReturnUse }
 export interface Revision extends Scope, Payload {
-  format: typeof USE_FORMAT | typeof LARGE_FORMAT | typeof EXCHANGE_FORMAT | typeof FORMAT | typeof RELATION_FORMAT | typeof FILE_FORMAT | typeof FILE_RELATION_FORMAT; schema: 1; compatibility: typeof USE_COMPATIBILITY | typeof LARGE_COMPATIBILITY | typeof EXCHANGE_COMPATIBILITY | typeof COMPATIBILITY | typeof RELATION_COMPATIBILITY | typeof FILE_COMPATIBILITY | typeof FILE_RELATION_COMPATIBILITY;
+  format: typeof PARTICIPATION_FORMAT | typeof USE_FORMAT | typeof LARGE_FORMAT | typeof EXCHANGE_FORMAT | typeof FORMAT | typeof RELATION_FORMAT | typeof FILE_FORMAT | typeof FILE_RELATION_FORMAT; schema: 1; compatibility: typeof PARTICIPATION_COMPATIBILITY | typeof USE_COMPATIBILITY | typeof LARGE_COMPATIBILITY | typeof EXCHANGE_COMPATIBILITY | typeof COMPATIBILITY | typeof RELATION_COMPATIBILITY | typeof FILE_COMPATIBILITY | typeof FILE_RELATION_COMPATIBILITY;
   work_id: string; revision: number; predecessor: string | null;
   recorded_at: string; request_key: string; request_fingerprint: string; fingerprint: string;
 }
@@ -232,8 +233,9 @@ export function makeRevision(scope: Scope, work_id: string, expected: Binding, r
   const related=payload.relations?.file_materials!==undefined;
   if(related&&payload.files===undefined)fail("explicit_file_selection_required");
   if(payload.return_use){if(payload.exchange||payload.files===undefined)fail("incompatible_format",409);returnUse(payload.return_use,payload,work_id);}
+  const participation=!!(payload.exchange?.contributor || payload.return_use?.participant_feedback || payload.return_use?.contributor);
   const large=payload.exchange && largeExchange(payload.exchange);
-  const material = { ...scopeMaterial(scope), format: payload.return_use ? USE_FORMAT : large ? LARGE_FORMAT : payload.exchange ? EXCHANGE_FORMAT : related ? FILE_RELATION_FORMAT : payload.files!==undefined ? FILE_FORMAT : payload.relations ? RELATION_FORMAT : FORMAT, schema: 1, compatibility: payload.return_use ? USE_COMPATIBILITY : large ? LARGE_COMPATIBILITY : payload.exchange ? EXCHANGE_COMPATIBILITY : related ? FILE_RELATION_COMPATIBILITY : payload.files!==undefined ? FILE_COMPATIBILITY : payload.relations ? RELATION_COMPATIBILITY : COMPATIBILITY,
+  const material = { ...scopeMaterial(scope), format: participation ? PARTICIPATION_FORMAT : payload.return_use ? USE_FORMAT : large ? LARGE_FORMAT : payload.exchange ? EXCHANGE_FORMAT : related ? FILE_RELATION_FORMAT : payload.files!==undefined ? FILE_FORMAT : payload.relations ? RELATION_FORMAT : FORMAT, schema: 1, compatibility: participation ? PARTICIPATION_COMPATIBILITY : payload.return_use ? USE_COMPATIBILITY : large ? LARGE_COMPATIBILITY : payload.exchange ? EXCHANGE_COMPATIBILITY : related ? FILE_RELATION_COMPATIBILITY : payload.files!==undefined ? FILE_COMPATIBILITY : payload.relations ? RELATION_COMPATIBILITY : COMPATIBILITY,
     work_id, revision: expected.revision + 1, predecessor: expected.fingerprint, ...payload,
     recorded_at, request_key, request_fingerprint: requestFingerprint(scope, work_id, expected, request_key, payload) };
   return { ...material, fingerprint: hash(canonical(material)) } as Revision;
@@ -247,15 +249,16 @@ export function validateChain(scope: Scope, work_id: string, values: unknown[]):
   assertHistoryBudget(values);
   const revisions: Revision[] = []; const keys = new Set();
   for (const value of values) {
-    const used=(value as Revision)?.format===USE_FORMAT;
+    const participation=(value as Revision)?.format===PARTICIPATION_FORMAT;
+    const used=(value as Revision)?.format===USE_FORMAT || (participation && !!(value as Revision)?.return_use);
     const large=(value as Revision)?.format===LARGE_FORMAT;
-    const exchanged=large || (value as Revision)?.format===EXCHANGE_FORMAT;
+    const exchanged=(participation && !!(value as Revision)?.exchange) || large || (value as Revision)?.format===EXCHANGE_FORMAT;
     const fileRelated=(value as Revision)?.format===FILE_RELATION_FORMAT || ((exchanged||used) && (value as Revision).relations?.file_materials!==undefined);
     const filed=used||(value as Revision)?.format===FILE_FORMAT||fileRelated||exchanged;
     const relational=(value as Revision)?.format===RELATION_FORMAT || (filed && "relations" in (value as Revision));
     if ((value as Revision)?.format!==FORMAT && !relational && !filed) fail("incompatible_format",409);
     exact(value, "workspace_id,project_id,author_ref,format,schema,compatibility,work_id,revision,predecessor,definition,sources,recorded_at,request_key,request_fingerprint,fingerprint"+(relational?",relations":"")+(filed?",files":"")+(exchanged?",exchange":"")+(used?",return_use":""));
-    if (value.schema !== 1 || value.compatibility !== (used?USE_COMPATIBILITY:large?LARGE_COMPATIBILITY:exchanged?EXCHANGE_COMPATIBILITY:fileRelated?FILE_RELATION_COMPATIBILITY:filed?FILE_COMPATIBILITY:relational?RELATION_COMPATIBILITY:COMPATIBILITY) || fileRelated!==(value.relations?.file_materials!==undefined)) fail("incompatible_format", 409);
+    if (value.schema !== 1 || value.compatibility !== (participation?PARTICIPATION_COMPATIBILITY:used?USE_COMPATIBILITY:large?LARGE_COMPATIBILITY:exchanged?EXCHANGE_COMPATIBILITY:fileRelated?FILE_RELATION_COMPATIBILITY:filed?FILE_COMPATIBILITY:relational?RELATION_COMPATIBILITY:COMPATIBILITY) || fileRelated!==(value.relations?.file_materials!==undefined)) fail("incompatible_format", 409);
     if (value.workspace_id !== scope.workspace_id || value.project_id !== scope.project_id || value.author_ref !== scope.author_ref || value.work_id !== work_id ||
       !UUID.test(value.request_key) || keys.has(value.request_key) || parseStrictIsoTimestampV01(value.recorded_at) === null ||
       new Date(value.recorded_at).toISOString() !== value.recorded_at || !Array.isArray(value.sources)) fail("invalid_history", 503);

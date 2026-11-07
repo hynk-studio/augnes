@@ -251,6 +251,28 @@ withheld baseline evidence cannot establish an Augnes advantage. Capability,
 semantic use, comparative benefit, installed adoption and operational security
 remain separate claims; appropriate non-use or simplification remains valid.
 
+### Request-scoped Web participation evidence (#1589)
+
+The controlled example reads the exact workshop notice, corrects arrival and
+step-free access instructions under a separate participant principal, then saves
+the owner's room-specific adaptation in another private work. A fresh participant
+reads only the deliberately shared committed disposition/explanation/next action.
+Record the actual original, return, saved output and feedback bytes with the
+candidate's source and environment; a schema assertion or upload count is not
+this outcome.
+
+The focused D1 and browser/client regressions exercise production scope and
+persistence owners, selected-file integrity, owner-only refusals, stale/concurrent
+state, duplicate/unknown acknowledgements, expiry/revocation, cross-work feedback
+privacy and export/reconstruction. Local cookies and simulated platform identity
+are explicitly fixture authentication. They establish controlled mechanism
+behavior, not an independently operated outsider, actual hosted ingress admission,
+comparative benefit or continuing demand. Contributor credentials establish the
+recorded email control only; owner-reported checks are not independent acceptance.
+Exact final qualification, immutable failures and cleanup belong to the PR and
+private evidence record. Existing native and #1587 observations are preserved,
+not repeated or promoted into evidence for this new permission boundary.
+
 ## Economic activity and participation evidence
 
 Apply these criteria to the claims made by the

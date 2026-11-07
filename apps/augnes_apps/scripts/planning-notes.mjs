@@ -6,6 +6,7 @@ export function returnDraft(selection, judgment, destination) {
   const draft=base?planningDraft(base):{definition:{goal:destination.goal,success_criteria:[judgment.next_action],non_goals:[]},notes:[],files:[]};
   const return_choice={selection,decision:judgment.decision,rationale:judgment.rationale,limits:judgment.limits??'',
     reported_check:judgment.reported_check??'',next_action:judgment.next_action,name:judgment.name??null,text:judgment.text??null};
+  if(judgment.participant_feedback!==undefined)return_choice.participant_feedback=structuredClone(judgment.participant_feedback);
   return {...draft,return_choice};
 }
 export async function prepareReturnDraft(api,selection,judgment,destination){

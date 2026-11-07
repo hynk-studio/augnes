@@ -1,3 +1,4 @@
+import { checkParticipation } from './web-planning-participation-checks.mjs';
 import { checkLargeExchanges } from './web-planning-large-exchange-checks.mjs';
 import { checkWorkSearch } from './web-planning-search-checks.mjs';
 import { checkReturnContinuation } from './web-planning-return-checks.mjs';
@@ -56,6 +57,7 @@ async function edit(c,saved,goal){const t=await c.request('/api/work/'+saved.wor
 async function start(name,options={}){const dir=path.join(root,name);await mkdir(dir,{recursive:true});const s=await startLocal({root:dir,...options});open.push(s);return s;}
 try {
  new Script(await readFile(path.join(webRoot,'src/client.js.txt'),'utf8'));
+ new Script(await readFile(path.join(webRoot,'src/participation-client.js.txt'),'utf8'));
  const artifact=path.join(root,'artifact');
  process.env.OWNER_EMAIL='web-planning-artifact-secret-sentinel';
  process.env.REQUEST_SECRET='web-planning-artifact-secret-sentinel';
@@ -197,6 +199,7 @@ try {
  await checkFiles({start,client,newWork,save,passed,root,open});
  await checkFileExchanges({start,client,newWork,save,root,passed});
  await checkReturnContinuation({start,client,newWork,save,passed});
+ await checkParticipation({start,client,newWork,save,passed});
  await checkLargeExchanges({start,client,newWork,save,passed});
  await checkOrdinaryFiles({start,client,newWork,save,passed,open});
  await checkStoryWriting({start,client,newWork,save,passed});

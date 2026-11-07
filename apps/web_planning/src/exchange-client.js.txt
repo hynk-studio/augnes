@@ -181,6 +181,7 @@ function drawExchanges(state) {
       const button = document.createElement('button'); button.type = 'button';
       button.textContent = 'Return edited files'; button.onclick = () => beginExchange(item); article.append(button);
     }
+    if(document.querySelector('meta[name="participation-enabled"]')?.content==='true')addGrantControls(article,item);
     list.append(article);
   }
   for(const decision of state.decisions??[])drawReturnDecision(list,decision,true);
@@ -392,7 +393,8 @@ function resetReturnPanel(){
   returnView=returnPrepared=returnMarker=null;returnTargetCursor=null;returnEdited=false;if(!$('return-inspector'))return;
   $('return-retry').hidden=$('return-reenter-field').hidden=true;$('return-reenter').value='';
   $('return-inspector').hidden=$('return-recovery').hidden=$('return-commit').hidden=$('return-abandon').hidden=true;
-  $('return-status').textContent=$('return-preview').textContent='';$('return-fields').disabled=false;
+  $('return-status').textContent=$('return-preview').textContent='';
+  $('return-feedback').hidden=true;$('return-share').checked=false;$('return-public-reason').value=$('return-public-next').value='';$('return-fields').disabled=false;
   for(const id of ['return-basis','return-decisions','return-destination'])$(id).replaceChildren();
   for(const id of ['return-name','return-text','return-reason','return-limits','return-checks','return-next','return-goal'])$(id).value='';
 }
@@ -435,6 +437,7 @@ async function inspectReturned(ref,index){
     message.textContent='Recorded source unavailable: '+returnRef(ref)+' · file '+(index+1)+'. The saved destination bytes and their recorded attribution remain here.';
     message.focus();return;}throw e;}
   if(returnInputsChanged(edits))return;resetReturnPanel();returnView=view;
+  $('return-feedback').hidden=!view.returned.contributor;
   const box=$('return-basis'),file=view.returned.files[index];
   returnText(box,'Request: '+view.request.message+' · '+returnRef(view.request.ref));
   for(const file of view.request.files){returnText(box,'Requested file: '+file.name+' · '+file.digest);box.append(returnButton('Download requested '+file.name,()=>downloadExchangeFile(file)));addTextReader(box,file,null);}
@@ -478,6 +481,7 @@ $('return-prepare').onclick=()=>run(async()=>{
   const dest=$('return-destination'),mode=$('return-mode').value,used=mode==='unchanged'||mode==='adapted';
   const judgment={decision:mode,name:used?$('return-name').value:null,text:mode==='adapted'?$('return-text').value:null,
     rationale:$('return-reason').value,limits:$('return-limits').value,reported_check:$('return-checks').value,next_action:$('return-next').value};
+  if($('return-share').checked)judgment.participant_feedback={explanation:$('return-public-reason').value,next_action:$('return-public-next').value};
   const id=dest.value==='current'?returnView.current.ref.work_id:dest.value;
   if(id===work&&returnDraftBusy()){status('Finish the destination draft first. Its edits and save base are unchanged.');return;}
   const edits=inputEpoch,selection=returnView.selection,goal=$('return-goal').value;
@@ -492,7 +496,8 @@ $('return-prepare').onclick=()=>run(async()=>{
   if(returnInputsChanged(edits))return;returnPrepared=p;$('return-commit').hidden=false;
   $('return-preview').textContent='Prepared, not saved: '+p.body.definition.goal+' · '+p.work_id+' · base '+p.expected.revision+' / '+(p.expected.fingerprint??'new work')+'\n'+
     [...p.body.definition.success_criteria,...p.body.notes.map(n=>n.text),...p.body.files.map(f=>f.name)].join('\n')+'\n'+
-    mode+': '+(judgment.name??'no material selected')+' · '+judgment.rationale+' · Next: '+judgment.next_action;
+    mode+': '+(judgment.name??'no material selected')+' · '+judgment.rationale+' · Next: '+judgment.next_action+
+    (judgment.participant_feedback?'\nShared with participant: '+mode+' · '+judgment.participant_feedback.explanation+' · Next: '+judgment.participant_feedback.next_action:'\nNo participant feedback shared.');
 });
 async function finishReturn(response){
   if(response.outcome!=='saved'||!response.saved?.return_use){
@@ -542,3 +547,41 @@ $('editor').addEventListener('click', event => {
     event.preventDefault(); event.stopImmediatePropagation(); status('Finish or cancel your file request first.');
   }
 }, true);
+
+// Request disclosure is immutable; editing work later never changes this grant.
+function addGrantControls(article,item){
+  const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Participant access for this request';details.append(summary);
+  const panel=document.createElement('div');details.append(panel);article.append(details);
+  let loaded=false,pendingGrant=null;
+  details.ontoggle=()=>{if(!details.open||loaded)return;loaded=true;
+    returnText(panel,'Choose exact originals and the brief to disclose. The recipient uses their own verified login. Access grants do not invite or contact anyone.');
+    const fields=document.createElement('fieldset'),legend=document.createElement('legend');legend.textContent='Grant access';fields.append(legend);
+    const field=(label,type,value='')=>{const l=document.createElement('label'),el=document.createElement(type==='textarea'?'textarea':'input');if(type!=='textarea')el.type=type;el.value=value;l.append(document.createTextNode(label),el);fields.append(l);return el;};
+    const recipient=field('Recipient email','email'),brief=field('Brief to disclose','textarea',item.message),next=field('Return conditions to disclose','textarea',item.next_action);
+    brief.maxLength=next.maxLength=500;
+    const days=field('Access duration in days (1–90)','number','7');days.min='1';days.max='90';
+    const selections=item.files.map((f,index)=>{const l=document.createElement('label'),el=document.createElement('input');el.type='checkbox';el.checked=true;l.append(el,document.createTextNode(f.name+' · '+f.digest));fields.append(l);return {el,index};});
+    panel.append(fields);const records=document.createElement('div');panel.append(records);
+    async function show(cursor=null){const {grants,next:more}=await api('/api/work/'+item.ref.work_id+'/participation'+(cursor?'?cursor='+cursor:''));if(!cursor)records.replaceChildren();
+      for(const g of grants.filter(g=>g.disclosure.request.fingerprint===item.ref.fingerprint)){
+        const row=document.createElement('article');returnText(row,g.recipient+' · '+(g.revoked_at?'Access ended':new Date(g.expires).toLocaleString()));
+        const link=document.createElement('a');link.href=g.link;link.textContent=g.link;row.append(link);
+        returnText(row,'Disclosed brief: '+g.disclosure.brief+' · Return conditions: '+g.disclosure.next_action);
+        for(const f of g.disclosure.files)returnText(row,f.original.file.name+' · '+f.original.file.digest);
+        if(!g.revoked_at)row.append(returnButton('End access',async()=>{await api('/api/work/'+item.ref.work_id+'/participation/revoke',{grant_id:g.id});await show();}));
+        records.append(row);
+      }
+      if(more){const button=returnButton('More access records',async()=>{button.remove();await show(more);});records.append(button);}
+    }
+    fields.append(returnButton('Create participant link',async()=>{
+      if(!pendingGrant){if(!recipient.checkValidity()||!recipient.value||!days.value||!days.checkValidity()||!brief.value.trim()||!selections.some(v=>v.el.checked))throw Error('Choose a recipient, expiry, brief and at least one original');
+        pendingGrant={grant_id:crypto.randomUUID(),request:item.ref,expected:exchangeState.head,recipient:recipient.value,brief:brief.value,next_action:next.value,
+          indices:selections.filter(v=>v.el.checked).map(v=>v.index),expires:Date.now()+Number(days.value)*86400000};}
+      fields.disabled=true;
+      try{await api('/api/work/'+item.ref.work_id+'/participation/create',pendingGrant);pendingGrant=null;await show();status('Participant link saved. No invitation was sent.');}
+      catch(e){if(e.status===422||['refresh_required','exchange_already_answered'].includes(e.message))pendingGrant=null;throw e;}
+      finally{fields.disabled=false;}
+    }));
+    panel.append(returnButton('Refresh access records',show));run(show);
+  };
+}

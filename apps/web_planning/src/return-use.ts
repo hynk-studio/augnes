@@ -1,3 +1,4 @@
+import { contributor, participantFeedback, type Contributor, type ParticipantFeedback } from "./participation-contract";
 import { boundedText, canonical, exact, fail, reference, workRef, type Payload, type Revision, type WorkRef } from "./contract";
 import { fileManifest, type FileEntry } from "./files";
 import { mediaType, type ExchangeFile } from "./exchange";
@@ -6,6 +7,7 @@ export const USE_FORMAT="web_planning_revision.v0.7";
 export const USE_EXPORT="web_planning_export.v0.7";
 export const USE_COMPATIBILITY="web-planning/7";
 export interface ReturnUse {
+  participant_feedback?:ParticipantFeedback; contributor?:Contributor;
   request:WorkRef; request_basis:WorkRef; returned:WorkRef; source_head:WorkRef;
   index:number; original:ExchangeFile; decision:"unchanged"|"adapted"|"deferred"|"declined";
   rationale:string; limits:string; reported_check:string; next_action:string; output:FileEntry|null;
@@ -21,7 +23,9 @@ export function exactReturn(chain:Revision[],ref:WorkRef,index:number) {
 // A destination export attests to its own saved bytes. A foreign source isn't
 // reconstructed from the destination and never becomes a grant to read it.
 export function returnUse(value:unknown,payload:Payload,id:string,prior?:Revision[]) {
-  exact(value,"request,request_basis,returned,source_head,index,original,decision,rationale,limits,reported_check,next_action,output");
+  exact(value,"request,request_basis,returned,source_head,index,original,decision,rationale,limits,reported_check,next_action,output"+(value && typeof value === "object" && "participant_feedback" in value?",participant_feedback":"")+(value && typeof value === "object" && "contributor" in value?",contributor":""));
+  if("contributor" in value)contributor(value.contributor);
+  if("participant_feedback" in value){if(!value.contributor)fail("participant_return_required");participantFeedback(value.participant_feedback);}
   const ret=workRef(value.returned), req=workRef(value.request), basis=workRef(value.request_basis), head=workRef(value.source_head);
   if([req,basis,head].some(r=>r.work_id!==ret.work_id)||basis.revision+1!==req.revision||req.revision>=ret.revision||ret.revision>head.revision ||
      (ret.revision===head.revision && ret.fingerprint!==head.fingerprint)||!Number.isSafeInteger(value.index)||value.index<0||value.index>7)fail("invalid_return_origin");
@@ -43,6 +47,7 @@ export function returnUse(value:unknown,payload:Payload,id:string,prior?:Revisio
      canonical(payload.definition)!==canonical(previous.definition)||canonical(payload.sources)!==canonical(previous.sources)))fail("return_preserve_saved_work",409);
   if(prior && id===ret.work_id){
     const origin=exactReturn(prior,ret,value.index);
+    if(canonical(value.contributor??null)!==canonical(origin.returned.exchange?.contributor??null))fail("invalid_contributor");
     if(canonical(reference(prior.at(-1)!))!==canonical(head)||canonical(reference(origin.request))!==canonical(req)||
        canonical(reference(origin.basis))!==canonical(basis)||canonical(origin.original)!==canonical(value.original))fail("invalid_return_origin");
   }

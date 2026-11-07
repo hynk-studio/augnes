@@ -1,4 +1,10 @@
 /// <reference path="./assets.d.ts" />
+import { PARTICIPATION_EXPORT } from "./participation-contract";
+import { activeGrant, knownRecipient, createGrant, listGrants, participantContext, participantFeedbackView, participantFile, participantView, participantWrite, revokeGrant } from "./participation";
+import { participantPage, participantRecoveryPage } from "./participation-page";
+import participantRecoveryClient from "./participation-recovery.js.txt?raw";
+import participantJournal from "./participation-journal.js.txt?raw";
+import participantClient from "./participation-client.js.txt?raw";
 import { applyReturn, inspectReturn } from "./return-continuation";
 import { USE_EXPORT } from "./return-use";
 import { readExchangePage } from "./exchange-reading";
@@ -61,8 +67,62 @@ function checkReplayedOccurrences(saved: Revision,edits: any[]) {
 }
 export async function handle(request:Request,env:Environment,principal:Principal):Promise<Response> {
   try {
-    const access=await authorize(request,env,principal);
     const url=new URL(request.url), path=url.pathname;
+    const participant=path.match(/^\/(participate|api\/participation)\/([a-f0-9-]{36})(.*)$/);
+    if(participant && UUID.test(participant[2])){
+      const access=await authorize(request,env,principal,true),id=participant[2],suffix=participant[3];
+      // Ended/erased grants can recover only a draft already in this browser.
+      // Reauthentication still binds the exact original recipient; no server
+      // request, file, feedback or acknowledgement is exposed through this shell.
+      if(participant[1]==='api/participation'&&suffix==='/recovery.js'&&!url.search&&request.method==='GET'){
+        await knownRecipient(access,id);
+        return new Response(participantJournal+"\n"+participantRecoveryClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
+      }
+      let c;
+      try{c=await participantContext(access,id);}catch(e){
+        if(e instanceof Refusal&&['participation_unavailable','work_erased','exchange_request_unavailable'].includes(e.code)&&
+          participant[1]==='participate'&&!suffix&&!url.search&&request.method==='GET'){
+          await knownRecipient(access,id);
+          return new Response(participantRecoveryPage(id),{status:403,headers:{...headers,'Content-Type':'text/html; charset=utf-8'}});
+        }
+        throw e;
+      }
+      let result:Response;
+      if(participant[1]==='participate' && !suffix && !url.search && request.method==='GET'){
+        const csrf=csrfToken(access,request);
+        result=html(participantPage(csrf,id,access),{'Set-Cookie':csrfCookie(access,csrf)});
+      }else if(participant[1]!=='api/participation')fail('scope_denied',403);
+      else if(request.method==='GET' && !url.search && suffix==='/client.js')result=new Response(participantJournal+"\n"+participantClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
+      else if(request.method==='GET' && !url.search && suffix==='/exchange-text.mjs')result=new Response(exchangeTextModule,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
+      else if(request.method==='GET' && !url.search && suffix==='/style.css')result=new Response(style,{headers:{...headers,'Content-Type':'text/css; charset=utf-8'}});
+      else if(request.method==='GET' && !url.search && suffix==='')result=json(participantView(access,c));
+      else if(request.method==='GET' && suffix==='/feedback'){
+        if([...url.searchParams.keys()].some(k=>k!=='cursor')||url.searchParams.getAll('cursor').length>1)fail('scope_denied',403);
+        result=json(await participantFeedbackView(access,c,url.searchParams.get('cursor')));
+      }else if(request.method==='GET' && !url.search && suffix==='/setup'){
+        result=new Response(JSON.stringify({format:'augnes_web_participation.v1',origin:env.APP_ORIGIN,workspace_id:access.workspace_id,project_id:access.project_id,work_id:c.g.work_id,grant_id:id,request:c.d.request}),
+          {headers:{...headers,'Content-Type':'application/json','Content-Disposition':'attachment; filename=participant-setup.json'}});
+      }else{
+        if(url.search)fail('scope_denied',403);
+        const file=suffix.match(/^\/files\/([1-9][0-9]{0,15})\/([a-f0-9]{64})\/([0-7])(\/text)?$/);
+        if(file){
+          const r=participantFile(c,Number(file[1]),'sha256:'+file[2],Number(file[3]));
+          if(request.method==='GET'&&!file[4]){
+            const {file:meta,bytes}=await downloadFile(access,r,Number(file[3]),true);
+            result=new Response(bytes,{headers:{...headers,'Content-Type':'application/octet-stream','Content-Disposition':`attachment; filename="artifact.bin"; filename*=UTF-8''${encodeURIComponent(meta.name).replace(/['()*]/g,x=>'%'+x.charCodeAt(0).toString(16))}`,'X-Content-SHA256':meta.digest,'Content-Length':String(meta.bytes)}});
+          }else if(request.method==='POST'&&file[4]){
+            requireCsrf(access,request);const input=await body(request);requireScope(access,input);
+            result=json(await readExchangePage(access,r,Number(file[3]),input));
+          }else fail('scope_denied',403);
+        }else if(request.method==='POST' && ['/save','/resolve'].includes(suffix)){
+          requireCsrf(access,request);const input=await body(request,EXCHANGE_REQUEST_BYTES);requireScope(access,input);
+          result=json(await participantWrite(access,c,input,suffix==='/resolve'));
+        }else fail('scope_denied',403);
+      }
+      await activeGrant(access,id); // Readback/authorization loss never becomes an empty result.
+      return result;
+    }
+    const access=await authorize(request,env,principal);
     if(request.method==="GET") {
       if(path==="/favicon.ico" && !url.search)return new Response(null,{status:204,headers});
       if(path==="/" && !url.search) {
@@ -89,6 +149,11 @@ export async function handle(request:Request,env:Environment,principal:Principal
         const cursor=url.searchParams.get("cursor")??"";
         if(cursor && !UUID.test(cursor))fail("invalid_cursor");
         return json(await listWork(access,cursor));
+      }
+      const grants=path.match(/^\/api\/work\/([a-f0-9-]+)\/participation$/);
+      if(grants && UUID.test(grants[1])){
+        if([...url.searchParams.keys()].some(k=>k!=='cursor')||url.searchParams.getAll('cursor').length>1)fail('scope_denied',403);
+        return json(await listGrants(access,grants[1],url.searchParams.get('cursor')??''));
       }
       const exchanges=path.match(/^\/api\/work\/([a-f0-9-]+)\/exchanges$/);
       if(exchanges && UUID.test(exchanges[1]) && !url.search) return json(exchangeList(await readWork(access,exchanges[1])));
@@ -126,6 +191,8 @@ export async function handle(request:Request,env:Environment,principal:Principal
       path==="/api/reconstruct-directions"?LARGE_PAIR_REQUEST_BYTES:path==="/api/reconstruct-files"?FILE_EXPORT_REQUEST_BYTES:REQUEST_BYTES;
     const input=await body(request,limit); if(!input || typeof input!=="object")fail("invalid_body");
     requireScope(access,input);
+    const grant=path.match(/^\/api\/work\/([a-f0-9-]+)\/participation\/(create|revoke)$/);
+    if(grant&&UUID.test(grant[1]))return json(await (grant[2]==='create'?createGrant(access,grant[1],input):revokeGrant(access,grant[1],input)));
     const text=path.match(/^\/api\/work\/([a-f0-9-]+)\/exchange-files\/([1-9][0-9]{0,15})\/([a-f0-9]{64})\/([0-7])\/text$/);
     if(text && UUID.test(text[1])){
       const chain=await readWork(access,text[1]),r=chain[Number(text[2])-1];
@@ -157,7 +224,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
     if(path==="/api/reconstruct" || path==="/api/reconstruct-files" || extendedRestore) {
       exact(input,"workspace_id,project_id,export,confirm");
       if(env.RECONSTRUCTION_MODE!=="quiesced-empty-store" || input.confirm!=="reconstruct-empty-store")fail("reconstruction_disabled",403);
-      if(path==="/api/reconstruct-exchange" && ![LARGE_EXPORT,USE_EXPORT].includes(input.export?.format) ||
+      if(path==="/api/reconstruct-exchange" && ![LARGE_EXPORT,USE_EXPORT,PARTICIPATION_EXPORT].includes(input.export?.format) ||
          path==="/api/reconstruct-directions" && input.export?.format!==DIRECTION_EXPORT)fail("incompatible_format",409);
       if((path==="/api/reconstruct-files" || path==="/api/reconstruct-directions") && input.export?.format===DIRECTION_EXPORT){
         const works=validateDirectionExport(access,input.export);await reconstructWorks(access,works);

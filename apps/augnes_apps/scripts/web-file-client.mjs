@@ -10,7 +10,8 @@ const fingerprint = /^sha256:[a-f0-9]{64}$/;
 const accessToken = promisify(execFile);
 const fail = message => { throw new Error(message); };
 
-export async function openFileProject(origin = process.env.AUGNES_WEB_ORIGIN) {
+export async function openFileProject(origin = process.env.AUGNES_WEB_ORIGIN) { return openFileConnection(origin); }
+async function openFileConnection(origin,entryPath='/',selectedScope) {
   const url = new URL(origin);
   const local = url.protocol === 'http:' && url.hostname === '127.0.0.1';
   if (url.origin !== origin || origin !== process.env.AUGNES_WEB_ORIGIN || (!local && url.protocol !== 'https:'))
@@ -26,10 +27,10 @@ export async function openFileProject(origin = process.env.AUGNES_WEB_ORIGIN) {
     cookie = 'CF_Authorization=' + token;
   }
   if (!cookie || /[\r\n]/.test(cookie)) fail('Private project session unavailable.');
-  let csrf, project;
+  let csrf, project=selectedScope;
   async function request(path, body) {
     if (body !== undefined && !csrf) {
-      const entry = await request('/');
+      const entry = await request(entryPath);
       const html = await entry.text();
       csrf = html.match(/<meta name="csrf-token" content="([^"]+)"/)?.[1];
       const part = entry.headers.getSetCookie()[0]?.split(';')[0];
@@ -47,7 +48,7 @@ export async function openFileProject(origin = process.env.AUGNES_WEB_ORIGIN) {
     }
     return response;
   }
-  project = await (await request('/api/project')).json();
+  project ??= await (await request('/api/project')).json();
   if (![project.workspace_id,project.project_id].every(id => typeof id === 'string' && uuid.test(id))) fail('Private project identity unavailable.');
   async function tasks(cursor) {
     if (cursor && !uuid.test(cursor)) fail('Invalid task cursor.');
@@ -78,11 +79,13 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
   const selected = await readFile(setupPath);
   if (expectedSetupDigest && digest(selected) !== expectedSetupDigest) fail('Task setup changed. Reopen the intended connection.');
   const setup = JSON.parse(selected.toString('utf8'));
-  if (setup.format !== 'augnes_web_file_task.v1' || typeof setup.work_id !== 'string' || !uuid.test(setup.work_id))
+  const participant=setup.format==='augnes_web_participation.v1';
+  if ((!participant && setup.format !== 'augnes_web_file_task.v1') || typeof setup.work_id !== 'string' || !uuid.test(setup.work_id))
     fail('Choose the private Web task setup.');
-  const { project, request, tasks, search, inspectMatch } = await openFileProject(setup.origin);
+  if(participant && (!uuid.test(setup.grant_id)||setup.request?.work_id!==setup.work_id||!fingerprint.test(setup.request?.fingerprint)))fail('Invalid participant setup.');
+  const { project, request, tasks, search, inspectMatch } = participant?await openFileConnection(setup.origin,'/participate/'+setup.grant_id,{workspace_id:setup.workspace_id,project_id:setup.project_id,name:'Permitted file request'}):await openFileProject(setup.origin);
   if (project.workspace_id !== setup.workspace_id || project.project_id !== setup.project_id) fail('Project selection changed.');
-  const work_id = setup.work_id, root = '/api/work/'+work_id;
+  const work_id = setup.work_id, root = participant?'/api/participation/'+setup.grant_id:'/api/work/'+work_id;
   const json = async (path, body) => (await request(root+path, body)).json();
   const planning = {
     async current() { return (await json('')).saved; },
@@ -103,7 +106,9 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
     resolve(pending) { return json('/resolve',pending); },
   };
   async function list() {
-    return (await request(root + '/exchanges')).json();
+    const state=await (await request(root + (participant?'':'/exchanges'))).json();
+    if(participant && (state.work_id!==work_id||state.workspace_id!==setup.workspace_id||state.project_id!==setup.project_id||['work_id','revision','fingerprint'].some(k=>state.items?.[0]?.ref?.[k]!==setup.request[k])))fail('Participant request selection changed.');
+    return state;
   }
   async function locate(version, name) {
     const { items } = await list();
@@ -111,7 +116,8 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
     const index = item?.files.findIndex(f => f.name === name) ?? -1;
     if (index < 0 || index > 7 || !fingerprint.test(item.ref.fingerprint)) fail('Select a listed file and version.');
     const file = item.files[index];
-    const path = root + '/exchange-files/' + version + '/' + item.ref.fingerprint.slice(7) + '/' + index;
+    const path = participant?file.download:root + '/exchange-files/' + version + '/' + item.ref.fingerprint.slice(7) + '/' + index;
+    if(participant && !new RegExp('^'+root+'/files/'+version+'/'+item.ref.fingerprint.slice(7)+'/[0-7]$').test(path))fail('Participant file selection changed.');
     return {path,item,file};
   }
   async function inspectReturn(version,name,after=null) {
@@ -176,7 +182,8 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
     return { item, file, bytes };
   }
   async function write(body, resolve = false) {
-    return (await request(root + '/exchanges/' + (resolve ? 'resolve' : 'save'), body)).json();
+    return (await request(root + (participant?'/':'/exchanges/') + (resolve ? 'resolve' : 'save'), body)).json();
   }
-  return { project: project.name, work_id, setupDigest: digest(selected), planning, list, get, readPage, write, inspectReturn, prepareReturn, sendReturn, savedFile, recordedOrigin, readOrigin };
+  async function feedback(cursor){if(!participant)fail('Choose a participant setup.');return (await request(root+'/feedback'+(cursor?'?cursor='+encodeURIComponent(cursor):''))).json();}
+  return { participant, feedback, project: project.name, work_id, setupDigest: digest(selected), planning, list, get, readPage, write, inspectReturn, prepareReturn, sendReturn, savedFile, recordedOrigin, readOrigin };
 }

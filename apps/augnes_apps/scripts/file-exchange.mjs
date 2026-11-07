@@ -137,6 +137,7 @@ async function run() {
     if(args.length!==1 || !match)throw Error('Choose a listed revision of this task.');
     return match;
   }
+  if (action === 'feedback') return client.feedback(args[0]);
   if (action === 'list') return { project: client.project, ...await client.list() };
   if (action === 'read' && args.length>=2 && args.length<=4)
     return client.readPage(Number(args[0]),args[1],Number(args[2]??0),args[3]??'');
@@ -210,7 +211,7 @@ async function run() {
     return result;
   }
   // The private journal stays available after refusal or ambiguous transmission.
-  const superseded = result.outcome === 'unknown' && result.head.revision > operation.body.expected.revision;
+  const superseded = result.outcome === 'unknown' && (result.head.revision > operation.body.expected.revision || result.retry_allowed === false);
   if (superseded) {
     result.draft = draftSummary(operation.body);
     result.next_action = 'This save was not recorded. Review the current task, then use recover NEW_DIRECTORY to keep its request and exact files before a new submission.';

@@ -264,7 +264,7 @@ On a fresh destination setup, `list` shows the committed destination revision;
 `read-saved REV NAME` returns verified output bytes and text when decodable.
 `inspect-origin REV` and `read-origin REV` follow that recorded occurrence.
 Use `more-decisions VERSION NAME 'CURSOR_JSON'` with a returned `next` cursor.
-The three task-bound reviewer tools are unchanged.
+The owner task-bound reviewer tools remain unchanged; a participant setup adds the scoped feedback reader described below.
 
 The v0.7 revision stores `return_use` only on the committing revision. Its
 request basis, request, return, file position/manifest, reviewed source head,
@@ -277,6 +277,139 @@ their existing bytes and compatibility; a history containing a judgment exports
 as v0.7 and uses the existing exchange reconstruction route. The migration adds
 only an index to schema 4. Apply it through the established migration owner
 before activating this version; neither migration nor activation happens here.
+
+## Request-scoped participants and shared feedback (#1589)
+
+The optional participant path gives a separately authenticated recipient one
+exact request, selected original files and an owner-written brief. The normal
+workspace remains owner-only. This is a client of the Web store, not native
+workspace access or Web/native synchronization.
+
+After operational activation, open an existing file request and expand
+**Participant access for this request**. Enter the recipient's email, select
+which original files to disclose, edit the brief and return conditions, and
+choose a finite duration (1–90 days). **Create participant link** saves the exact
+selection; it does not contact anyone. The link is not a bearer credential.
+The recipient signs in through the configured verified ingress using their own
+identity. The owner can revisit these records and choose **End access**.
+
+The participant page shows only that brief and those files. **Read** uses the
+existing exact byte-position reader; downloads verify the recorded size and
+SHA-256. Small Markdown/text files support the existing unique-passage edit,
+including BOM and line-ending preservation. Alternatively upload returned files
+or write `review.md`. Sending retains a private local recovery copy in IndexedDB
+until the response is confirmed. Each pending operation keeps its own exact body;
+another tab cannot overwrite it or clear it with a different acknowledgement or
+release. The pending-return selector also exposes other retained operations for
+this request. Existing grant-keyed recovery copies remain readable. A reload
+resolves the selected submission before offering an exact retry. Keep a recovery
+download when access may end. When access expires, is revoked,
+or the source is erased, the same authenticated recipient can reopen a recovery-only
+page to download an existing local pending draft. It reveals no server material or
+save outcome and does not restore access. Disabling participation altogether also
+disables this route; preserve recovery copies before an operational shutdown. A stale
+unrecorded draft can be exported before releasing it; a failed read or unknown
+acknowledgement is never permission to submit a replacement.
+
+The original work receives the return through its ordinary request list. Use
+**Inspect return and decide** to compare actual returned bytes with current
+conditions, then use unchanged bytes, author an adaptation, defer or decline
+through the existing workflow. For a participant return, the decision editor
+also offers **Share this saved disposition and the following feedback**. Write
+the explanation and next action intended for the participant there. Preview
+shows exactly what will be shared; the ordinary save commits the output,
+decision and disclosure together. Private rationale, checks, limits, destination
+identity/title, selected notes and output files are not copied into feedback.
+No separate approval step or second feedback write is needed.
+
+A fresh participant session can reopen the same permitted request and read its
+own return and explicitly shared committed decisions, including decisions saved
+in another private work. The feedback cursor conceals destination identifiers.
+No feedback means no shared committed decision is available, not rejection.
+Feedback reading changes no use, readback, acceptance or execution state.
+
+### Participant CLI and agent connection
+
+Download **participant setup** from the participant page. Pin its origin using
+`AUGNES_WEB_ORIGIN` and use the recipient's own existing `cloudflared access`
+login. The setup contains scope and request identifiers, never credentials.
+The CLI does not start login or borrow an owner's session. Sites email ingress
+supports browser entry; this first local-client transport requires Cloudflare
+Access. A headless agent needs an independently provisioned supported recipient
+login; this task adds no service-token identity mapping.
+
+```sh
+export AUGNES_WEB_ORIGIN=https://your-approved-origin.example
+node apps/augnes_apps/scripts/file-exchange.mjs ./participant.json list
+node apps/augnes_apps/scripts/file-exchange.mjs ./participant.json read 2 notice.md
+node apps/augnes_apps/scripts/file-exchange.mjs ./participant.json get 2 notice.md ./original.md
+node apps/augnes_apps/scripts/file-exchange.mjs ./participant.json return 2 "Corrected arrival details" "Confirm the room" ./notice.md
+node apps/augnes_apps/scripts/file-exchange.mjs ./participant.json check
+node apps/augnes_apps/scripts/file-exchange.mjs ./participant.json feedback
+```
+
+The normal CLI journal preserves exact pending files after a refusal or unknown
+response. Use `check`, then `retry` for the same submission, or
+`recover NEW_DIRECTORY` after a confirmed stale noncommit. Access loss leaves
+the journal intact; it cannot prove noncommit or authorize a new answer.
+A permitted owner can reconcile the original request key in committed history.
+The opt-in `file-review-stdio.mjs` accepts this same setup, retains its three
+file tools and adds `read_participant_feedback`. Participant text returns also
+retain private `.review-pending.<body-hash>.json` files alongside the setup.
+Each immutable file belongs to one exact operation, so a delayed acknowledgement
+from another SDK call or process cannot clear its bytes. Existing single
+`.review-pending.json` records remain readable and clear only when their original
+arguments reconcile as saved. Reuse those arguments with `check_only: true`;
+changed arguments cannot replace an unknown submission. Preserve the recovery file when a stale/refused return needs human
+reconciliation. The public App catalog and the owner task setup remain unchanged.
+
+### Authorization, data and activation
+
+`PARTICIPATION_MODE=verified-recipient-v1` is required and absent by default.
+The owner explicitly authorizes a normalized verified email for one grant.
+The production Cloudflare adapter still requires matching `ctx.access.aud`
+and `getIdentity().email`; the Sites adapter still requires its verified-private
+header overwrite/no-bypass contract. An arbitrary email header is not identity.
+The ingress audience must separately admit the intended recipient before use.
+Identifiers, setup editing and hidden tool menus grant no server access.
+Origin/fetch-metadata checks, same-origin CSRF and private/no-store responses
+remain enforced. Participant CSRF seals bind the authenticated recipient too.
+
+Migration `0006_request_participation.sql` adds an operational grant table and
+index without changing schema 4 or previous migration bytes. The grant freezes
+request identity, observed save base, selected file occurrences, brief, recipient
+and expiry. Later work revisions do not retarget disclosure: original reads
+remain historical; a new return against a changed save base refuses. The
+existing one-answer, exact replay, file quotas, digest validation and atomic
+revision/file writer remain authoritative. Its INSERT additionally checks the
+grant, recipient, disclosure fingerprint, expiry and revocation in SQL.
+
+Storage `author_ref` still denotes the Web owner. A participant return separately
+records grant ID, a hashed normalized email reference and whether its identity
+came from verified ingress or the explicitly local fixture. That credential
+establishes control of an admitted email identity, not a named human, model,
+agent operator or independent reviewer. Return use retains this contributor
+attestation even in another work. Only these new attributed records and their
+shared-feedback decisions use revision/export v0.8. Existing v0.1–v0.7 bytes and
+seals are unchanged. Imported attribution remains an attestation.
+
+Expiry/revocation stops server reads, writes and feedback without deleting
+committed history. Erasing the source makes its participant material unavailable;
+a separate saved destination retains its own bytes and contributor/source
+attribution. Erasing a destination removes its available feedback; absence is
+not rewritten as a rejection. Work exports contain no grant table, recipient
+login, token, cookie or server secret. Supported empty-store reconstruction
+atomically revokes any retained grants and never imports new ones. Restoring an
+entire infrastructure/database backup is a separate operational procedure: keep
+participation disabled and retire restored grants before enabling it.
+
+Activation requires the additive migration through the existing migration owner,
+a version supporting v0.8, a verified ingress/audience for the intended recipient,
+and explicit deployment/audience authority. No live audience, sharing policy,
+invitation or deployment is changed by this implementation. Disabling the mode
+stops participant entry immediately. Before v0.8 data exists, the additive table
+is compatible with the earlier owner-only binary; afterwards retain a v0.8
+reader for rollback/recovery rather than rewriting or dropping history.
 
 ## Ask for work on files and collect the return
 
@@ -1550,8 +1683,9 @@ list read; it does not resubmit the saved request. Access denial still clears
 private material. Change summaries compare trimmed, deduplicated/sorted definition
 meaning, including empty lists; raw input remains subject to server validation.
 
-All private HTML/assets/list/work/history/export and mutation paths authorize
-owner and configured scope. Writes and exact-context reads also require same
+The ordinary workspace HTML/assets/list/work/history/export and mutation paths
+authorize the owner and configured scope. The separate participant routes above
+authorize only the exact recipient/request/material/action grant. Writes and exact-context reads also require same
 origin and a signed, owner-bound CSRF cookie/header. No wildcard CORS, private
 cache, raw-error logging, remote source fetch, inference or active note HTML.
 Source locators are inert text. Saved context performs a new primary read against
