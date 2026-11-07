@@ -14,6 +14,7 @@ import { POST as writer } from "../app/api/augnes/repository-work-revision/route
 import { POST as retained } from "../app/api/augnes/read/codex-repository-retained-sources/route";
 import { EXECUTION_CHOICE_TOOL } from "../plugins/augnes-operator/mcp/execution-choice.mjs";
 import { POST as review } from "../app/api/augnes/review/route";
+import { POST as external } from "../app/api/augnes/external-response/route";
 import { handleMessageV01 } from "../plugins/augnes-operator/mcp/companion-proxy.mjs";
 import { createRequestBoundReviewAdapter } from "../plugins/augnes-operator/mcp/request-bound-review.mjs";
 assert(!process.argv.includes("--reproduce"), "historical_reproduction_retired");
@@ -31,6 +32,7 @@ const routes: Record<string, (r: Request) => Promise<Response>> = {
     "/api/augnes/read/codex-repository-continuity": resume, "/api/augnes/read/codex-repository-work-sources": sources,
     "/api/augnes/read/codex-repository-retained-sources": retained,
     "/api/augnes/repository-work-revision": writer, "/api/augnes/review": review,
+    "/api/augnes/external-response": external,
 };
 const originalPrepare = Database.prototype.prepare;
 const server = trackServerConnections(createServer(async (req, res) => {
