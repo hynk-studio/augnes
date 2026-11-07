@@ -1179,6 +1179,41 @@ comparative benefit or a replacement for the prior PARTIAL and
 NO_OBSERVED_ADVANTAGE observations. Setup and repeated-use steps are reported
 separately, without claiming measured burden reduction.
 
+### Bounded original receipt observation (#1597)
+
+The existing external-response integration now exercises explicit finite
+observation authority with the production configuration, journal, transport,
+ordinary MCP and recovery owners. Its owned processor executes and stores a real
+aggregate receipt, flushes its task-owned receipt file before reply, then its
+actual response is lost. Separate open cases exhaust
+send calls or let send expiry elapse. Fresh ordinary consumer processes recover
+the original receipt, read and independently check its bytes, record deliberate
+late-result reconsideration where required, produce a real dependent report and
+read that saved output again. Processor POST/query/effect counts and Native
+reservations are inspected separately; client transport success alone does not
+establish absence of duplicate processing. Closed confirmation preserves closure
+and check/use refusal.
+
+Affected controls retain the legacy refusal and cover wrong/never-issued work,
+missing/expired/exhausted/withdrawn permission, relevant binding/credential/project
+changes, prohibited retransmission/amendment, unchanged unrelated configuration,
+exact replay/concurrent admission, query timeout/lost reply/failed commit,
+unknown/absent results and revocation/expiry at effect boundaries. Real staged
+restore retains the same original records and consumption while suspending
+observation. Malformed denied fixtures do not manufacture successful history.
+The regression remains inside its existing integration resource/cleanup owner
+and deadline. Exact-candidate qualification and any development failures are
+reported separately in the private handoff.
+
+This establishes the controlled loopback expiry/exhaustion path only. A fresh
+process is Native reconstruction evidence; counterpart restart still creates a
+new incarnation, and the receipt evidence file does not authorize restoring the
+old one. The independent integer oracle is an
+arithmetic check, not independent agent judgment. Live provider compatibility,
+human/model usefulness, installed adoption, general post-withdrawal cleanup,
+cancellation, payment and settlement remain NOT_RUN or unsupported. The existing
+#1453/#1527/#1537/#1538 allocations and #1595 RETAIN conclusion are unchanged.
+
 ### Non-model harness qualification evidence
 
 For [non-model harness readiness](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#non-model-harness-capability-readiness--2026-10-31),
@@ -1358,7 +1393,7 @@ hypothetical arrangement is implemented or authorize the described actions.
 | Private know-how service with agreed benefit | A participant returns checkable work while retaining its private method and receives the agreed benefit through the named recipient. Keep deliverable, compensation and actual fulfillment separate; a service return does not imply method publication, project ownership or free labor. | Selected terms/material and contribution decisions; no payment or general rights-enforcement engine is implied. |
 | Permitted redelegation | A scoped downstream contribution preserves commissioning responsibility, disclosed material limits and aggregate outstanding commitments. Changing executor or adding a child must not duplicate budget, transfer project direction or silently authorize further delegation. | Current grants, choice and external-effect journals; unsupported multi-party allocation/redelegation stays an explicit gap. |
 | Paid negative experiment | An agreed, properly performed experiment can return a useful negative or inconclusive result and satisfy its stated compensation condition. Preserve the scientific/task outcome, deliverable acceptance and compensation evidence separately; do not relabel the hypothesis successful or simulated payment real. | Authored terms, original evidence and result-linked assessment. |
-| Timeout, expired task authority and cleanup | A timeout preserves unknown effects and outstanding obligations. Reconcile or clean up only through still-valid authority or a separately authorized limited cleanup path; expiry neither authorizes retry nor erases cleanup responsibility. Missing cleanup authority leaves the obligation unresolved, not an implicitly renewed grant. Silence or local closure is not remote cancellation. | External-response sent-reservation/query/closure and native lifecycle owners; the current envelope-bound query does not itself supply a post-expiry cleanup path. |
+| Timeout, expired task authority and cleanup | A timeout preserves unknown effects and outstanding obligations. Reconcile or clean up only through still-valid authority or a separately authorized limited cleanup path; expiry neither authorizes retry nor erases cleanup responsibility. Missing cleanup authority leaves the obligation unresolved, not an implicitly renewed grant. Silence or local closure is not remote cancellation. | External-response sent-reservation/query/closure and native lifecycle owners; #1597 supplies only explicitly bounded original-receipt observation after send expiry/exhaustion with unchanged bindings, not general cleanup after withdrawal. |
 | Partial adoption of a return | Check and use a valid part for the current purpose while declining another part and retaining the complete original and limitations. A returned artifact, passing component or accepted payment must not become wholesale semantic acceptance. | Manual contribution assessment and external-response check/use/material dependency. |
 | Conditional method reuse in another task | Pin the prior method and basis, reconsider changed conditions, select permitted material and validate authority for the new task. Valid non-use is allowed; an earlier success, source link or executor grant is not universal applicability, causal proof or a transferable permission. | Task-bound contribution/profile notes, source selection, material/correction and current grants. |
 | Visibility without willingness | A visible example or asset can be readable while its author declines work or keeps its method private. Change willingness or access independently: no automatic request acceptance, private indexing or competence failure follows from nonresponse. | Access-filtered discovery, explicit shares and per-request response; no global participant directory is assumed. |
