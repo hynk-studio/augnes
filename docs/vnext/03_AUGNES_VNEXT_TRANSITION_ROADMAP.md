@@ -634,6 +634,21 @@ neither reassigns current work nor requires all hypothetical cases before any
 approved capability proceeds. Concrete fields, tests and files remain a
 source-first implementation choice, not a speculative schema prescribed here.
 
+The first scenario/consumer package is implemented for review in
+[#1595](https://github.com/hynk-studio/augnes/issues/1595), with the
+[runnable case and owner map](../../examples/native-method-use/README.md).
+It composes existing Native profile/choice/manual request-return-check-use and
+explicit selected-source sharing in two disposable registered projects. The
+negative declaration report and fresh C artifact/judgment are concrete outputs;
+authored commissioning/compensation and method judgments remain separate from
+runtime access/binding enforcement. The disposition is **RETAIN existing
+composition**; no dispatcher, payment ledger, new Core relation or runtime
+repair is introduced. Focused execution evidence and limits belong to
+[04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#controlled-native-contribution-and-cross-project-method-use-1595).
+Exact candidate qualification and independent review remain separate PR/report
+statuses. #1593/#1594 retains its Web reassessment, format/export and client owners;
+this increment does not repeat #1532 or complete the broader harness program.
+
 #### Whole non-model coverage and replacement readiness
 
 Retain the whole responsibility map while selecting small increments. The routes
