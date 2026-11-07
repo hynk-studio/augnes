@@ -308,6 +308,20 @@ replaces that output cannot leave it labelled current. Historical outputs remain
 explicitly historical. Continue from the chosen saved result using ordinary work
 editing; no successor or extra handoff record is required.
 
+An untouched reconsideration panel is temporarily read-only while an ordinary
+work change replaces the editor. If that save is unknown, use **Check save outcome** to
+reconcile it before authoring a consumer decision. A failed check retains the
+pending operation and the input lock. Edited or previewed consumer decisions
+participate in the browser's existing reload/close warning; cancel navigation to
+keep the draft. This warning is not durable tab-session recovery.
+
+Ordinary **Import** recognizes complete v0.9 standalone exports and direction
+bundles containing them, through the existing exchange/direction reconstruction
+routes and bounded file limit (25,000,000 bytes). Older formats retain their
+existing routes and limits. Restore requires the existing quiesced empty store;
+complete historical bytes and direction lineage are retained without reviving
+participation grants.
+
 The supported authenticated owner client uses the same enforcing writer. Select
 consumer and evidence task setups through the existing `tasks`/`select` or
 search path, with the approved origin and your existing supported login. A

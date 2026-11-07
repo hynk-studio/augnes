@@ -282,6 +282,26 @@ Exact commands, before/after files, exports, failures, source identities, final
 planner results and cleanup are retained with the candidate's private handoff/PR;
 these development observations are not a transferable final-head receipt.
 
+The browser repair regression uses `node scripts/run-web-planning.mjs
+reassessment-browser` with the same driver on the settled predecessor and repaired
+production source. The predecessor accepts and then erases input during ordinary
+Save, loses edited/prepared judgments on real Chrome reload without a dialog,
+and sends genuine v0.9 exports through legacy dispatch/budgets. The corrected
+source locks authoring through delayed acknowledgement and unknown-save resolution
+(including a failed resolution read), preserves drafts when the actual unload
+dialog is cancelled, and reconstructs complete standalone/direction histories via
+the file picker and enforcing server. Valid JSON whitespace exercises browser
+file-size thresholds without fabricating history; the legacy v0.3 control remains
+unchanged. Existing focused D1 coverage separately verifies restored grant
+revocation, v0.8 history, unavailable origins, concurrent saves and privacy.
+
+The original 9 PASS / 1 FAIL / 6 NOT_RUN, false stock and originals remain intact.
+Migration +12.547 seconds and common CLI +0.414 seconds are measured partial
+arithmetic, not a complete cause of the historical 180-second timeout. No aggregate
+or Full rerun, deadline increase, skipped migration/assertion, or speculative
+optimization is part of this repair. Focused RED-to-GREEN evidence is independent
+of deciding qualification and does not establish a timeout remedy.
+
 All authentication is controlled local/platform simulation. Hosted ingress,
 outsider adoption, organic demand, comparative benefit and operational activation
 remain unobserved; there is no new paid-provider allocation or required live-model

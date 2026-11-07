@@ -10,6 +10,7 @@ import { browserStoryJourney } from './browser-web-planning-story.mjs';
 import { browserFileJourney } from './browser-web-planning-files.mjs';
 import { browserFileExchanges } from './browser-web-planning-exchanges.mjs';
 import { browserConsumerReassessment } from './browser-web-planning-reassessment.mjs';
+import { browserReassessmentSafety } from './browser-web-planning-reassessment-safety.mjs';
 import { browserReturnedFiles } from './browser-web-planning-returns.mjs';
 import { browserWorkSearch } from './browser-web-planning-search.mjs';
 import { browserOrdinaryFileJourney } from './browser-web-planning-ordinary-files.mjs';
@@ -235,7 +236,8 @@ try {
    await browserParticipationRecovery({owner,participant:c=>page(debug,local.origin,c?.browserContextId??true),local,root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
  }else if(reassessmentOnly){
    const fresh=await page(debug,origin);
-   await browserConsumerReassessment({c:a,fresh,origin,env:{...process.env,AUGNES_WEB_ORIGIN:origin,AUGNES_WEB_FIXTURE_COOKIE:'web_planning_local='+local.env.LOCAL_SESSION},root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
+   const result=await browserConsumerReassessment({c:a,fresh,origin,env:{...process.env,AUGNES_WEB_ORIGIN:origin,AUGNES_WEB_FIXTURE_COOKIE:'web_planning_local='+local.env.LOCAL_SESSION},root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
+   await browserReassessmentSafety({c:a,seed:result.seed,root,newPage:origin=>page(debug,origin),login,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks,requests});
  }else{
  await browserNavigationCapacity({c:a,click,set,wait,navigate,origin,checks});
  await a.send('Page.bringToFront');await a.eval("document.getElementById('new-work').focus()");await a.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,text:'\r'});await a.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
@@ -412,7 +414,8 @@ try {
  await browserReturnedFiles({c:receiver,fresh:reader,origin:local.origin,env:{...process.env,AUGNES_WEB_ORIGIN:local.origin,AUGNES_WEB_FIXTURE_COOKIE:'web_planning_local='+local.env.LOCAL_SESSION},root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks,requests});
  for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=await startLocal({root:path.join(root,'consumer-reassessment')});
  const consumer=await page(debug,local.origin),freshConsumer=await page(debug,local.origin);await login(consumer,local.origin);
- await browserConsumerReassessment({c:consumer,fresh:freshConsumer,origin:local.origin,env:{...process.env,AUGNES_WEB_ORIGIN:local.origin,AUGNES_WEB_FIXTURE_COOKIE:'web_planning_local='+local.env.LOCAL_SESSION},root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
+ const consumerResult=await browserConsumerReassessment({c:consumer,fresh:freshConsumer,origin:local.origin,env:{...process.env,AUGNES_WEB_ORIGIN:local.origin,AUGNES_WEB_FIXTURE_COOKIE:'web_planning_local='+local.env.LOCAL_SESSION},root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
+ await browserReassessmentSafety({c:consumer,seed:consumerResult.seed,root,newPage:origin=>page(debug,origin),login,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks,requests});
  }
  assert.deepEqual(interceptionErrors,[]);
  assert.equal(exceptions,0);assert.equal(external,0);assert.equal(unexpectedFailures,0);assert.equal(expectedFailures.size,0);

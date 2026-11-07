@@ -4056,7 +4056,11 @@ judgment, exact evidence/observed source head and resulting output selection.
 Browser and authenticated owner client share the existing scoped, CAS/atomic
 revision/file writer. Reads/previews are read-only; exact operation reconciliation
 precedes replacement after unknown saves, and late results cannot clear another
-operation's recovery body. Earlier formats/exports, attribution, one-answer and
+operation's recovery body. Ordinary editor replacement locks consumer authoring
+through acknowledgement or exact unknown-save settlement, including failed
+resolution reads. Unsaved edited/prepared consumer decisions participate in the
+existing browser unload warning; this is not durable tab-session recovery.
+Earlier formats/exports, attribution, one-answer and
 restricted participant scope remain intact. Reconstruction preserves destination
 history without reactivating grants. These are Web consumer semantics, not global
 rejection, a dependency graph, native acceptance or execution authority. The

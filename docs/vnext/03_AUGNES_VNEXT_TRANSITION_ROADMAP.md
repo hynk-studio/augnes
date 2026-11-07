@@ -2949,6 +2949,16 @@ produce the next handoff/readiness files. This is constructed work and controlle
 authentication, with newly authored judgments, not hosted outsider adoption,
 organic demand, separate-task method reuse or completion of either parent issue.
 
+The receiving review found three browser gaps on predecessor `95b5c55580bb`:
+v0.9 import dispatch/budgets, authoring during ordinary editor replacement, and
+consumer draft unload warnings. The repair candidate corrects these paths and
+adds a durable real-browser regression to both the focused consumer entry and
+the ordinary browser suite. The predecessor's 9 PASS / 1 FAIL / 6 NOT_RUN and
+separate false stock remain historical; these fixes do not establish a remedy
+for its 180-second browser timeout. A positive independent source review and a
+separate authenticated prospective execution commission remain required before
+any deciding reservation or run under the first v7 reviewed_revision route.
+
 Focused production-owner evidence is recorded in 04. Final exact-source planner
 qualification and independent result audit belong to this candidate's PR/evidence.
 The next operational decision remains separately authorized deployment/migration

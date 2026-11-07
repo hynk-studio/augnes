@@ -378,13 +378,20 @@ function returnDecisionBlocksWork() {
 }
 // These operations can reopen the editor on acknowledgement. Keep an untouched
 // inspector from becoming an authored draft while that response is in flight.
+let workChangeActive = false;
 function runWorkChange(action) {
   return run(async () => {
     if (returnDecisionBlocksWork()) return;
     const fields = $('return-fields');
     fields.disabled = true;
+    workChangeActive = true;
+    lockReassessmentFields();
     try { await action(); }
-    finally { if (!accessLost) fields.disabled = false; }
+    finally {
+      workChangeActive = false;
+      lockReassessmentFields();
+      if (!accessLost) fields.disabled = false;
+    }
   });
 }
 const returnKey=id=>exchangeStoragePrefix+'return-use.'+id;

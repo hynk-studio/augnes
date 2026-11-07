@@ -5,6 +5,11 @@ let reassessmentEpoch=0;
 const reassessmentKey=id=>'consumer:'+scope.workspace_id+':'+scope.project_id+':'+id;
 const reassessmentJournal=(id,action,value)=>participantJournal(reassessmentKey(id),action,value);
 function reassessmentBlocks(){return reassessmentRows.length>0||reassessmentEdited||!!reassessmentPrepared;}
+// Editor replacement and unknown ordinary saves cannot accept a new consumer
+// draft. Reset/journal readback must preserve this lock until exact settlement.
+function lockReassessmentFields(){
+  $('reassessment-fields').disabled=!!(accessLost||workChangeActive||pending||relationPending||sceneReviewPending||exchangePending||reassessmentRows.length);
+}
 function resetReassessment(){
   reassessmentEpoch++;reassessmentView=reassessmentPrepared=reassessmentPending=null;reassessmentRows=[];reassessmentEdited=false;reassessmentCursor=null;
   if(!$('reassessment-panel'))return;
@@ -12,14 +17,14 @@ function resetReassessment(){
   $('reassessment-basis').replaceChildren();$('reassessment-selected').replaceChildren();$('reassessment-preview').textContent=$('reassessment-status').textContent='';
   $('reassessment-work').replaceChildren(new Option('Choose saved work',''));$('reassessment-evidence').replaceChildren(new Option('Choose a saved file',''));
   for(const id of ['context','reason','limits','checks','next','name','text'])$('reassessment-'+id).value='';
-  $('reassessment-fields').disabled=false;$('reassessment-list').hidden=false;
+  lockReassessmentFields();$('reassessment-list').hidden=false;
 }
 function chooseReassessment(rows,key){
   reassessmentRows=rows;reassessmentPending=rows.find(r=>r.request_key===key)??null;
   const box=$('reassessment-pending');box.replaceChildren(new Option('Choose pending decision',''));
   for(const p of rows)box.add(new Option(p.intent.decision+' · '+p.request_key,p.request_key));
   box.value=reassessmentPending?.request_key??'';
-  $('reassessment-recovery').hidden=!rows.length;$('reassessment-fields').disabled=!!rows.length;
+  $('reassessment-recovery').hidden=!rows.length;lockReassessmentFields();
   $('reassessment-retry').hidden=$('reassessment-release').hidden=true;
 }
 async function restoreReassessments(id){
