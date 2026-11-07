@@ -154,14 +154,36 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
     if(page.ref?.fingerprint!==ref.fingerprint||page.file?.digest!==f.digest||page.total!==f.bytes)fail('Original content mismatch.');return page;
   }
   async function savedFile(version,name){
-    const decision=(await list()).decisions?.find(d=>d.destination.revision===version&&d.output?.name===name);
-    if(!decision)fail('Choose a listed destination revision and output name.');
-    const ref=decision.destination;
-    if(ref.work_id!==work_id||!fingerprint.test(ref.fingerprint)||!decision.download?.startsWith(root+'/files/'+version+'/'+ref.fingerprint.slice(7)+'/'))fail('Saved output identity mismatch.');
-    const bytes=Buffer.from(await (await request(decision.download)).arrayBuffer());
-    if(bytes.length!==decision.output.bytes||digest(bytes)!==decision.output.digest)fail('Saved output digest mismatch.');
+    const history=await (await request(root+'/history')).json(),r=history.revisions.find(r=>r.revision===version),index=r?.files?.findIndex(f=>f.name===name)??-1;
+    if(!r||index<0||r.work_id!==work_id||!fingerprint.test(r.fingerprint))fail('Choose a listed saved revision and file name.');
+    const file=r.files[index],bytes=Buffer.from(await (await request(root+'/files/'+version+'/'+r.fingerprint.slice(7)+'/'+index)).arrayBuffer());
+    if(bytes.length!==file.bytes||digest(bytes)!==file.digest)fail('Saved output digest mismatch.');
     let text=null;try{text=new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(bytes);}catch{};
-    return {decision,data:bytes.toString('base64'),text};
+    const decision=(await list()).decisions?.find(d=>d.destination.revision===version&&d.output?.name===name)??null;
+    return {decision,revision:{work_id,revision:version,fingerprint:r.fingerprint},file,data:bytes.toString('base64'),text};
+  }
+  async function evidenceFile(version,name,kind='file'){
+    if(participant)fail('Owner task setup required.');
+    const history=await projectJson(root+'/history'),r=history.revisions.find(r=>r.revision===version);
+    const files=kind==='return'&&r?.exchange?.kind==='return'?r.exchange.artifacts.map(a=>a.file):kind==='file'?r?.files:[];
+    const index=files?.findIndex(f=>f.name===name)??-1;
+    if(!r||index<0)fail('Choose an exact saved file from history or list.');
+    return {ref:{work_id,revision:r.revision,fingerprint:r.fingerprint},kind,index};
+  }
+  async function inspectUse(version,evidence=null){
+    if(participant)fail('Owner task setup required.');
+    const d=(await list()).decisions?.find(d=>d.destination.revision===version&&d.output);
+    if(!d)fail('Choose a listed existing use revision.');
+    return json('/inspect-use',{use:d.destination,evidence});
+  }
+  async function prepareReassessment(selection,judgment){
+    if(participant||selection?.use?.work_id!==work_id)fail('Choose this consuming work.');
+    return json('/reassessment-preview',{intent:{selection,decision:judgment.decision,rationale:judgment.rationale,limits:judgment.limits??'',
+      reported_check:judgment.reported_check??'',context:judgment.context,next_action:judgment.next_action,name:judgment.name??null,text:judgment.text??null}});
+  }
+  async function sendReassessment(pending,resolve=false){
+    if(participant||pending?.work_id!==work_id||pending.intent?.selection?.use?.work_id!==work_id)fail('Pending reassessment belongs to a different task.');
+    return json(resolve?'/reassessment-resolve':'/reassessment-save',resolve?{ticket:pending.ticket}:{ticket:pending.ticket,intent:pending.intent});
   }
   async function readPage(version,name,offset=0,find=''){
     const {path,item,file}=await locate(version,name);
@@ -185,5 +207,5 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
     return (await request(root + (participant?'/':'/exchanges/') + (resolve ? 'resolve' : 'save'), body)).json();
   }
   async function feedback(cursor){if(!participant)fail('Choose a participant setup.');return (await request(root+'/feedback'+(cursor?'?cursor='+encodeURIComponent(cursor):''))).json();}
-  return { participant, feedback, project: project.name, work_id, setupDigest: digest(selected), planning, list, get, readPage, write, inspectReturn, prepareReturn, sendReturn, savedFile, recordedOrigin, readOrigin };
+  return { participant, feedback, project: project.name, work_id, setupDigest: digest(selected), planning, list, get, readPage, write, inspectReturn, prepareReturn, sendReturn, savedFile, recordedOrigin, readOrigin, evidenceFile, inspectUse, prepareReassessment, sendReassessment };
 }

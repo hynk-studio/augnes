@@ -2946,6 +2946,40 @@ developer-exposed disposable evidence, not ordinary-use usefulness, Autohunt,
 hosted adoption, independent transfer or installed-plugin rollout. Final exact-head
 verification and Draft review remain recorded with the candidate PR.
 
+### Current P2/P5 candidate — Consumer-current return reassessment (#1593)
+
+The [existing returned-file use](../../apps/web_planning/README.md#reconsider-an-existing-returned-file-use-1593)
+now connects to a current decision in each consuming work. Exact old basis/output,
+explicit new saved evidence, retention/update/deferral/end-use, actual saved output
+or context, and ordinary current entry share the existing Web owners. Original
+request dispositions and restricted participant feedback stay separate. The
+candidate adds a compatible v0.9 record/export, no new migration or access grant.
+
+The task-owned internal preparation uses pinned public README bytes before and
+after merged #1591. #1447 changes its next permitted handoff route to the documented
+participant browser and supported Cloudflare Access client; #1443 retains an
+operational hold on deployment, migration 0006, v0.8 compatibility, participation
+mode and verified-ingress audience. Fresh clients read saved current decisions and
+produce the next handoff/readiness files. This is constructed work and controlled
+authentication, with newly authored judgments, not hosted outsider adoption,
+organic demand, separate-task method reuse or completion of either parent issue.
+
+The receiving review found three browser gaps on predecessor `95b5c55580bb`:
+v0.9 import dispatch/budgets, authoring during ordinary editor replacement, and
+consumer draft unload warnings. The repair candidate corrects these paths and
+adds a durable real-browser regression to both the focused consumer entry and
+the ordinary browser suite. The predecessor's 9 PASS / 1 FAIL / 6 NOT_RUN and
+separate false stock remain historical; these fixes do not establish a remedy
+for its 180-second browser timeout. A positive independent source review and a
+separate authenticated prospective execution commission remain required before
+any deciding reservation or run under the first v7 reviewed_revision route.
+
+Focused production-owner evidence is recorded in 04. Final exact-source planner
+qualification and independent result audit belong to this candidate's PR/evidence.
+The next operational decision remains separately authorized deployment/migration
+and intended-recipient access; none is executed or made a gate for implementation.
+Earlier failures, accepted scopes, unknown usage and unrelated owners are preserved.
+
 ### Current P2/P5 candidate — Request-scoped Web participation (#1589)
 
 The [request-scoped flow](../../apps/web_planning/README.md#request-scoped-participants-and-shared-feedback-1589)

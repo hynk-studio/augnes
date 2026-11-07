@@ -108,6 +108,23 @@ async function run() {
   }
   if (!setup) throw new Error('List tasks or choose a private task setup.');
   const client = await openFileTask(setup);
+  if(action==='inspect-use' && (args.length===1||args.length===6)){
+    const [version,evidenceSetup,evidenceVersion,name,kind,observation]=args;
+    const pick=evidenceSetup?await (await openFileTask(evidenceSetup)).evidenceFile(Number(evidenceVersion),name,kind):null;
+    const view=await client.inspectUse(Number(version),pick);
+    if(observation)await newJson(observation,{setup_digest:client.setupDigest,selection:view.selection});
+    return view;
+  }
+  if(action==='prepare-reassessment'&&args.length===3){
+    const observed=JSON.parse(await readFile(args[0],'utf8'));if(observed.setup_digest!==client.setupDigest||!observed.selection)throw Error('Choose an available observation from this consuming work.');
+    const pending=await client.prepareReassessment(observed.selection,JSON.parse(await readFile(args[1],'utf8')));
+    await newJson(args[2],{setup_digest:client.setupDigest,pending});
+    return {status:'prepared, not saved',...pending};
+  }
+  if(['commit-reassessment','check-reassessment'].includes(action)&&args.length===1){
+    const {setup_digest,pending}=JSON.parse(await readFile(args[0],'utf8'));if(setup_digest!==client.setupDigest)throw Error('Choose this task setup and its exact pending file.');
+    return client.sendReassessment(pending,action==='check-reassessment');
+  }
   if(action==='inspect-return' && (args.length===2||args.length===3)){
     const view=await client.inspectReturn(Number(args[0]),args[1]);
     if(args[2])await newJson(args[2],{setup_digest:client.setupDigest,selection:view.selection});return view;

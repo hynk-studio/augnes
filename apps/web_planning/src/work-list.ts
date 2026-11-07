@@ -1,4 +1,5 @@
 import { PARTICIPATION_FORMAT, PARTICIPATION_COMPATIBILITY } from "./participation-contract";
+import { REASSESSMENT_FORMAT, REASSESSMENT_COMPATIBILITY, reassessmentRecord } from "./return-reassessment";
 import { USE_FORMAT, USE_COMPATIBILITY, returnUse } from "./return-use";
 import { canonical, COMPATIBILITY, fail, FINGERPRINT, FORMAT, hash, headBinding, RELATION_COMPATIBILITY, RELATION_FORMAT,
   UUID, type Revision, type Scope } from "./contract";
@@ -10,8 +11,8 @@ import { fileManifest, FILE_COMPATIBILITY, FILE_FORMAT, FILE_RELATION_COMPATIBIL
 // lineage and file membership, not notes, definitions, scenes or comparisons.
 export const listEnvelope = `CASE WHEN revision=(SELECT n FROM summary)
   OR json_type(envelope,'$.exchange') IS NOT NULL OR json_extract(envelope,'$.format')='${EXCHANGE_FORMAT}'
-  THEN envelope ELSE json_remove(envelope,'$.sources','$.definition','$.relations','$.return_use') END`;
-export const revisionCompatibility = new Map<string,string>([[PARTICIPATION_FORMAT,PARTICIPATION_COMPATIBILITY],[USE_FORMAT,USE_COMPATIBILITY],[FORMAT,COMPATIBILITY],[RELATION_FORMAT,RELATION_COMPATIBILITY],
+  THEN envelope ELSE json_remove(envelope,'$.sources','$.definition','$.relations','$.return_use','$.return_reassessment') END`;
+export const revisionCompatibility = new Map<string,string>([[REASSESSMENT_FORMAT,REASSESSMENT_COMPATIBILITY],[PARTICIPATION_FORMAT,PARTICIPATION_COMPATIBILITY],[USE_FORMAT,USE_COMPATIBILITY],[FORMAT,COMPATIBILITY],[RELATION_FORMAT,RELATION_COMPATIBILITY],
   [FILE_FORMAT,FILE_COMPATIBILITY],[FILE_RELATION_FORMAT,FILE_RELATION_COMPATIBILITY],[EXCHANGE_FORMAT,EXCHANGE_COMPATIBILITY],[LARGE_FORMAT,LARGE_COMPATIBILITY]]);
 const previewLimit = 2;
 
@@ -42,6 +43,8 @@ export function projectWorkListItem(scope:Scope,id:string,rows:Revision[]) {
     if(row===head){
       if((row.format===USE_FORMAT || (row.format===PARTICIPATION_FORMAT && !!(row.return_use?.participant_feedback||row.return_use?.contributor)))!==("return_use" in row))fail("incompatible_format",409);
       if(row.return_use)returnUse(row.return_use,row,id);
+      if((row.format===REASSESSMENT_FORMAT)!==("return_reassessment" in row))fail("incompatible_format",409);
+      if(row.return_reassessment)reassessmentRecord(row.return_reassessment,row,id);
     }
     if (!row.exchange) continue;
     const event=exchangeRecord(row.exchange);

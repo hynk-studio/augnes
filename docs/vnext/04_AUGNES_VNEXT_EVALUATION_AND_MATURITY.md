@@ -251,6 +251,63 @@ withheld baseline evidence cannot establish an Augnes advantage. Capability,
 semantic use, comparative benefit, installed adoption and operational security
 remain separate claims; appropriate non-use or simplification remains valid.
 
+### Consumer-current reassessment evidence (#1593)
+
+The 2026-11-07 controlled internal case selects complete public
+`apps/web_planning/README.md` files at `702f2b2f6db406440c2ab008f75ef0f18d21bd09`
+(119,889 bytes) and merged `1f77dfb7ac08e5726777ce27e59e06d7b6665b2a`
+(128,957 bytes). Newly authored task-owned consumer works preserve the earlier
+returned occurrence and independent useful files. No judgment is backdated.
+
+Consumer A, for #1447 preparation, replaces its 495-byte owner-route selection
+with a 2,121-byte selection of the supported request-scoped browser/client route,
+pinned README version, login conditions and remaining prerequisites. Consumer B,
+for #1443, retains its exact 823-byte operational HOLD: accepted source cannot
+observe or approve deployment, 0006, v0.8 compatibility, mode or recipient ingress.
+Both decisions and their own reasons/limits/next actions are committed by production
+owners. A fresh browser displays the chosen result separately from historical use;
+fresh authenticated client processes read saved current judgments/output and save
+`next-handoff.md` and `readiness-next.md` without a pasted reconstruction. The
+executor assembles these preparation artifacts deterministically from saved state;
+this is fresh re-entry, not an independent model judgment or separate-task reuse.
+
+Focused D1/Chrome/client observations cover meaningful replacement and context-only
+updates, independent retention/end-use, old bytes/unrelated context, read-only
+inspection, unavailable sources, scoped refusal, concurrent CAS, atomic file-write
+failure, lost acknowledgement/exact replay, per-operation browser recovery and
+unchanged participant feedback. Existing export/reconstruction owners retain old
+format bytes and independent destination history and revoke restored grants. The
+full Web regressions also retain branch/incorporation and participant boundaries.
+Exact commands, before/after files, exports, failures, source identities, final
+planner results and cleanup are retained with the candidate's private handoff/PR;
+these development observations are not a transferable final-head receipt.
+
+The browser repair regression uses `node scripts/run-web-planning.mjs
+reassessment-browser` with the same driver on the settled predecessor and repaired
+production source. The predecessor accepts and then erases input during ordinary
+Save, loses edited/prepared judgments on real Chrome reload without a dialog,
+and sends genuine v0.9 exports through legacy dispatch/budgets. The corrected
+source locks authoring through delayed acknowledgement and unknown-save resolution
+(including a failed resolution read), preserves drafts when the actual unload
+dialog is cancelled, and reconstructs complete standalone/direction histories via
+the file picker and enforcing server. Valid JSON whitespace exercises browser
+file-size thresholds without fabricating history; the legacy v0.3 control remains
+unchanged. Existing focused D1 coverage separately verifies restored grant
+revocation, v0.8 history, unavailable origins, concurrent saves and privacy.
+
+The original 9 PASS / 1 FAIL / 6 NOT_RUN, false stock and originals remain intact.
+Migration +12.547 seconds and common CLI +0.414 seconds are measured partial
+arithmetic, not a complete cause of the historical 180-second timeout. No aggregate
+or Full rerun, deadline increase, skipped migration/assertion, or speculative
+optimization is part of this repair. Focused RED-to-GREEN evidence is independent
+of deciding qualification and does not establish a timeout remedy.
+
+All authentication is controlled local/platform simulation. Hosted ingress,
+outsider adoption, organic demand, comparative benefit and operational activation
+remain unobserved; there is no new paid-provider allocation or required live-model
+campaign. The saved route and hold are preparation results for actual named
+purposes, not completion of #1447/#1443 or authorization to contact a recipient.
+
 ### Request-scoped Web participation evidence (#1589)
 
 The controlled example reads the exact workshop notice, corrects arrival and
