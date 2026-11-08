@@ -5,6 +5,42 @@ Audit baseline: `22c0433d245da7e9357e7f6a50c7e6e0f31902cb` in
 protocol, research-sequencing, or execution-authority owner. Final exact-head
 execution evidence belongs in the accompanying Draft PR and local receipt.
 
+## Documentation accompanying Full Browser ownership (#1602)
+
+This bounded follow-up uses main
+`2d8e82164e4c2357020e64bcaa79024d0c0f9f74` as its intake baseline. The existing
+planner completes documentation responsibility classification, but its Full
+branch then passes every raw changed path to the separate Browser selector.
+A synthetic native-host credential change selects Full with its one Browser
+owner; adding an admitted ordinary document makes the unchanged selector return
+all seven Browser phases. The same new regression test fails against the intake
+planner at that exact comparison. This is observed excess selection, not a
+measured wall-time or throughput improvement.
+
+The correction excludes only final `documentation` and `policy-documentation`
+classifications from that Full Browser input. Existing exact-base/head literal
+and dynamic consumer checks, file modes, registered responsibilities, and
+disposition checks still decide admission. Unknown or unsafe documents and
+executable consumers not covered by an admitted responsibility in either tree
+retain conservative selection. The raw path-only selector gains no documentation
+exemption.
+
+Regression coverage includes ordinary and registered documents, retained static
+checks and review metadata, multiple Browser owners and composition/golden
+coverage, base/head consumers, unknown/shared source, self-change, unproven
+deletion, nested instructions, executable mode, and symlinks. Full still runs
+the same nine non-Browser phases; explicit Full and main push retain all seven
+Browser phases. No phase definition, timeout, capacity slot, receipt, attempt
+allowance, or qualification provenance changes. This verification-machinery
+change itself remains Full with all seven Browser phases. Focused Cloud results
+are development evidence; actual Mac exact-head qualification is reported
+separately in the Draft PR.
+
+Next decision: retain this bounded fix if the regression and independent review
+confirm those boundaries, then obtain the existing exact-head Mac qualification.
+Reverting the planner change restores the former selection; no product state or
+data migration is involved.
+
 ## Audited independent research registration (#1430)
 
 Intake main: `52f8b278bad5ddd8c261af127dca712cdd8da925`, tree
