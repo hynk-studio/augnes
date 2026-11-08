@@ -217,6 +217,18 @@ A high teamwork score neither establishes completion nor offsets authority
 violations. These are evaluation distinctions, not a new universal team score,
 runtime state machine or gate on unrelated approved work.
 
+Where the source-first check leaves an implicit-convention gap,
+[Zero-Shot Coordination among LLM Agents v1](https://arxiv.org/abs/2611.06409)
+motivates a bounded contrast through the existing task/return path. Compare a
+convention mismatch requiring clarification with a clear, authorized case that
+should progress, preserving required checks and aggregate limits. Observe actual
+next actions, including useful work unaffected by the uncertainty, rather than
+agreement declarations. Count unnecessary confirmation, repeated negotiation,
+blanket deferral and deadlock alongside checked progress and misinterpretation.
+Sufficient existing coverage needs no addition; coordination-friendly definitions
+remain optional method candidates, not authority or a required handshake, prompt
+or new study allocation.
+
 ### Strategic operating-profile evidence
 
 For #1518, the supported validation/preview entry and consumer, not a type alone,
