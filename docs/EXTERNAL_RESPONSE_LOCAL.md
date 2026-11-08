@@ -73,8 +73,8 @@ resolve the old incarnation's unknown effects as absent.
 
 The configuration authorizes only enumerated roots and keys, explicit share
 pairs, the `aggregate` operation, one exact local destination/incarnation and
-listed input content hashes. The example uses a ten-minute lifetime. Each HTTP
-attempt, including a query, consumes one call before egress; sends also consume
+listed input content hashes. The example uses a ten-minute lifetime. Each legacy HTTP
+attempt, including an envelope-authorized query, consumes one call before egress; sends also consume
 input bytes. The limits apply across projects using that workspace/envelope.
 The adapter accepts at most 64 calls, three amendments per work, one MiB sent,
 ten seconds per call, 64 KiB per complete material and eight MiB of workspace
@@ -91,6 +91,63 @@ new access; removing or changing an envelope blocks effects. Recovery suspends
 restored envelopes even if an old configuration file remains. Re-enabling an old
 journal grant is unsupported; preserve reconciliation obligations and obtain a
 separate operator decision, never edit counters or deserialize ownership tokens.
+
+### Explicit receipt observation after send expiry or exhaustion (#1597)
+
+Keep the original envelope, credential, endpoint, incarnation, project admission
+and all other send fields unchanged. After an actual send, an operator may add
+this optional property to that envelope in its private configuration:
+
+```text
+receipt_observations: [{
+  work_ref: <original work SHA-256 reference>,
+  attempt_ref: <original issued attempt SHA-256 reference>,
+  expires_at: <finite UTC ISO timestamp>,
+  max_queries: 2
+}]
+```
+
+Read the saved work to obtain the exact references; do not reconstruct or replace
+the request. Each entry authorizes only the supported original-receipt query for
+that work and attempt. Its references bind project, input and terms through the
+immutable original records. It cannot authorize a never-issued attempt. There
+are at most 32 entries per envelope and 1–16 queries per entry, also subject to
+the existing history limits. No permission ID or session label resets usage.
+Adding this property preserves the original send binding and legacy counters.
+
+Ordinary `read` (including each `work_refs` entry) exposes
+`receipt_confirmation`: eligibility, refusal reason, and available lifetime and
+remaining allowance. Reads make no counterpart request and consume nothing.
+Use the existing `act` with `mode:"reconcile"`, original `work_ref`, latest
+`expected_head` and a stable operation key. It appends the permission snapshot
+before contact; timeout, lost reply and failed commit remain consumed queries.
+Exact replay reads that reservation without contacting the processor. A changed
+key cannot recover an allowance. The first snapshot fixes its expiry and ceiling;
+changing either later refuses. Removing permission refuses further observation;
+restoring its identical configuration preserves prior consumption.
+
+Explicit permission takes precedence for its exact attempt. Once reserved it
+cannot fall back to legacy call allowance after withdrawal. Without it, legacy
+reconciliation still requires an unexpired envelope and remaining shared calls.
+Expired or exhausted legacy authority continues to refuse. Relevant envelope,
+credential/project or input changes and restored suspension refuse even with
+an observation entry; unrelated valid configuration edits do not. Local reads
+remain possible when the reader's own project access remains configured.
+
+Observation never renews send/amendment authority or the original deadline.
+Absence does not authorize another POST. Actually read and independently check
+returned bytes; a late result needs deliberate `reconsider` before `check` and
+`use`, and output material must depend on that checked result. Closed work stays
+closed and cannot check/use a recovered return. The owned processor's GET reads
+its original receipt; this is not a claim that arbitrary GET requests are free
+or harmless, nor support for cancellation, settlement or post-withdrawal cleanup.
+
+No database schema migration is needed. New `sent.receipt_observation` payloads
+are additive journal facts, validated on recovery and suspended with their
+original envelope. Older recovery validators refuse these new payloads. Do not
+run an older writer on such a store: retain the complete current backup/evidence
+and use a pre-increment backup if rolling the runtime back. Old configurations,
+record hashes, legacy counters and recovery suspension retain their meaning.
 
 ## Ordinary workflow
 
