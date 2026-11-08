@@ -9,6 +9,7 @@ function forgetPrivateExchanges() {
 }
 function clearExchange() {
   resetReturnPanel();
+  resetReassessment();
   exchangeDraft = exchangePending = exchangeState = null;
   $('exchange-form')?.reset();
   $('exchange-list')?.replaceChildren();
@@ -116,7 +117,7 @@ function addPagedReader(container,file) {
       const result=await api(file.download+'/text',{offset:at,find:needle});
       if(accessLost || !panel.isConnected)return;
       if(result.file.digest!==file.digest || result.file.name!==file.name || result.total!==file.bytes ||
-          !file.download.includes('/'+result.ref.work_id+'/exchange-files/'+result.ref.revision+'/'+result.ref.fingerprint.slice(7)+'/'))throw Error('file_revision_unavailable');
+          !['files','exchange-files'].some(kind=>file.download.startsWith('/api/work/'+result.ref.work_id+'/'+kind+'/'+result.ref.revision+'/'+result.ref.fingerprint.slice(7)+'/')))throw Error('file_revision_unavailable');
       position.value=String(result.start);continuation=result.next;next.disabled=continuation===null;
       const extent='Bytes '+result.start+'–'+result.end+' (end exclusive) of '+result.total+' · version '+result.ref.revision+' · '+file.digest;
       info.textContent=result.found===false?'No match from byte '+at+' to the end. '+extent:
@@ -203,7 +204,7 @@ function openExchanges(revision, view) {
   if (!revision) return;
   restoreReturnMarker(revision.work_id);
   if (!view && revision.revision === 1 && !revision.return_use) view = { head: binding(revision), items: [] };
-  if (!view && previous?.head.fingerprint === revision.predecessor && !revision.exchange && !revision.return_use)
+  if (!view && previous?.head.fingerprint === revision.predecessor && !revision.exchange && !revision.return_use && !revision.return_reassessment && !previous.decisions?.length)
     view = { head: binding(revision), items: previous.items, decisions:previous.decisions };
   $('exchange-new').disabled = !view;
   $('exchange-refresh').hidden = !!view;
@@ -369,20 +370,29 @@ Object.assign(messages,{
 });
 let returnView=null,returnPrepared=null,returnMarker=null,returnTargetCursor=null,returnEdited=false;
 function returnDecisionBlocksWork() {
-  if (returnMarker) status('Check the pending return save before changing this work.');
+  if (reassessmentBlocks()) status('Finish the consumer decision or check its pending save before changing this work.');
+  else if (returnMarker) status('Check the pending return save before changing this work.');
   else if (returnEdited || returnPrepared) status('Finish or close your return decision before changing this work.');
   else return false;
   return true;
 }
 // These operations can reopen the editor on acknowledgement. Keep an untouched
 // inspector from becoming an authored draft while that response is in flight.
+let workChangeActive = false;
 function runWorkChange(action) {
   return run(async () => {
     if (returnDecisionBlocksWork()) return;
     const fields = $('return-fields');
     fields.disabled = true;
+    workChangeActive = true;
+    lockReassessmentFields();
     try { await action(); }
-    finally { if (!accessLost) fields.disabled = false; }
+    finally {
+      workChangeActive = false;
+      // Access loss owns disposal of the private view. Settle the operation
+      // flag without touching that disposed view or replacing its primary error.
+      if (!accessLost) { lockReassessmentFields(); fields.disabled = false; }
+    }
   });
 }
 const returnKey=id=>exchangeStoragePrefix+'return-use.'+id;
@@ -402,9 +412,10 @@ function restoreReturnMarker(id){
   try{returnMarker=JSON.parse(sessionStorage.getItem(returnKey(id)));}catch{}
   $('return-recovery').hidden=!returnMarker;
 }
-function drawReturnDecision(container,d,originLink=false){
+function drawReturnDecision(container,d,originLink=false,reconsider=true){
   const section=document.createElement('article');section.dataset.returnDecision=d.decision;
-  returnText(section,'Saved '+d.decision+' · '+d.goal+' · '+returnRef(d.destination));
+  showCurrentUse(section,d);
+  returnText(section,'Historical use: saved '+d.decision+' · '+d.goal+' · '+returnRef(d.destination));
   returnText(section,'Return: '+returnRef(d.returned)+' · file '+(d.index+1)+': '+d.original.file.name+' · '+d.original.file.digest);
   returnText(section,'Reason: '+d.rationale+' · Limits: '+(d.limits||'none reported')+' · Reported checking: '+(d.reported_check||'none')+' · Next: '+d.next_action);
   if(d.output){const file={...d.output,download:d.download};returnText(section,'Saved output: '+file.name+' · '+file.bytes+' bytes · '+file.digest);
@@ -412,6 +423,7 @@ function drawReturnDecision(container,d,originLink=false){
     if(textFile(file.name)&&file.bytes<=32768)addTextReader(section,file,null);
   }
   if(originLink)section.append(returnButton('Inspect recorded return',()=>inspectReturned(d.returned,d.index)));
+  if(reconsider&&d.output)section.append(returnButton('Reconsider current use',()=>beginReassessment(d.destination)));
   container.append(section);
 }
 function returnOptions(){

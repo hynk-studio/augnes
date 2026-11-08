@@ -9,6 +9,8 @@ import { observeWebPlanningInterceptions } from './web-planning-interception.mjs
 import { browserStoryJourney } from './browser-web-planning-story.mjs';
 import { browserFileJourney } from './browser-web-planning-files.mjs';
 import { browserFileExchanges } from './browser-web-planning-exchanges.mjs';
+import { browserConsumerReassessment } from './browser-web-planning-reassessment.mjs';
+import { browserReassessmentSafety } from './browser-web-planning-reassessment-safety.mjs';
 import { browserReturnedFiles } from './browser-web-planning-returns.mjs';
 import { browserWorkSearch } from './browser-web-planning-search.mjs';
 import { browserOrdinaryFileJourney } from './browser-web-planning-ordinary-files.mjs';
@@ -192,6 +194,10 @@ async function retainedAcknowledgement(c,n,failure){
 }
 async function closeLocalRuntime(){for(const c of clients)c.interceptions.mark('runtime_close_requested',{runtime_origin:local.origin});await local.close();}
 async function navigate(c,url){
+ // Disposal is already complete for an observed blank document. Repeated
+ // runtime transitions must not renavigate every previously disposed tab.
+ // Live views still settle capacity and verify the new document below.
+ if(url==='about:blank'&&await c.eval("location.href==='about:blank'&&document.readyState==='complete'"))return;
  // Navigation destroys the old document's paused Fetch requests. Settle its
  // normal capacity read first; do not cancel, retry or ignore a CDP failure.
  await wait(()=>c.eval(`(async()=>{
@@ -216,8 +222,8 @@ async function login(c,origin){await navigate(c,origin+'/_local/login');await wa
 async function reopen(c){await wait(()=>c.eval("document.querySelectorAll('#work-list button').length>0"),'saved list');await c.eval("document.querySelector('#work-list button').click()");await wait(()=>visible(c,'editor'),'editor');}
 let checks=[], browserUse;
 try {
- const recoveryOnly=process.argv[2]==='--participation-recovery';
- assert(process.argv.length===2||recoveryOnly&&process.argv.length===3);
+ const recoveryOnly=process.argv[2]==='--participation-recovery',reassessmentOnly=process.argv[2]==='--reassessment';
+ assert(process.argv.length===2||(recoveryOnly||reassessmentOnly)&&process.argv.length===3);
  testReadOnlyRequestWindow();
  local=await startLocal({root:path.join(root,'runtime')});const origin=local.origin;
  const debug=await availablePort();const profile=path.join(root,'chrome-profile'),downloads=path.join(root,'downloads');await mkdir(downloads);
@@ -232,6 +238,10 @@ try {
    await closeLocalRuntime();local=await startLocal({root:path.join(root,'participation-recovery'),bindings:participantBindings()});
    const owner=await page(debug,local.origin);await login(owner,local.origin);
    await browserParticipationRecovery({owner,participant:c=>page(debug,local.origin,c?.browserContextId??true),local,root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
+ }else if(reassessmentOnly){
+   const fresh=await page(debug,origin);
+   const result=await browserConsumerReassessment({c:a,fresh,origin,env:{...process.env,AUGNES_WEB_ORIGIN:origin,AUGNES_WEB_FIXTURE_COOKIE:'web_planning_local='+local.env.LOCAL_SESSION},root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
+   await browserReassessmentSafety({c:a,seed:result.seed,root,newPage:origin=>page(debug,origin),login,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks,requests});
  }else{
  await browserNavigationCapacity({c:a,click,set,wait,navigate,origin,checks});
  await a.send('Page.bringToFront');await a.eval("document.getElementById('new-work').focus()");await a.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,text:'\r'});await a.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
@@ -316,18 +326,44 @@ try {
  assert.equal(requests.filter(r=>r.path.endsWith('/resolve')).at(-1).body,lostSave.body);
  for(const [index,route] of ['save','resolve'].entries()){
    await set(a,'goal','Private material before '+route+' acknowledgement loses access');
-   const before=requests.length;
+   const before=requests.length;let original;
+   // Observe the error that actually reaches the ordinary run owner. This does
+   // not substitute a response or classify another error as access loss.
+   await a.eval("window.accessOperationErrors=[];{const original=run;run=fn=>original(async()=>{try{return await fn();}catch(e){accessOperationErrors.push({name:e.name,message:e.message});throw e;}});}");
    if(route==='resolve'){
      await a.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'},{urlPattern:'*/save',requestStage:'Response'}]});
      await click(a,'save');await settled(a);assert.equal(await visible(a,'uncertain'),true);
+     original=await a.eval('JSON.stringify(pending)');assert.notEqual(original,'null');
+     assert.equal(await revisionCount(),4+index,'lost acknowledgement has already committed');
    }
    await failListAfterReply(a,route,'denied');await click(a,route==='save'?'save':'resolve-save');await settled(a);
    assert.equal(privateViewCleared(await a.eval(`({work,saved,pending,saveTicket,body:document.body.innerText})`)),true);
    assert.equal(a.injectedListFailure,'denied');assert.equal(responses.filter(r=>r.path==='/api/works').at(-1).status,403);
    assert.match(await a.eval("$('status').textContent"),/Access denied/);
+   assert.deepEqual(await a.eval('accessOperationErrors'),[{name:'Error',message:'access_denied'}]);
+   assert.equal(await a.eval('!busy&&!workChangeActive&&reassessmentView===null&&reassessmentPrepared===null&&reassessmentPending===null&&reassessmentRows.length===0'),true);
    assert.equal(await revisionCount(),4+index);assert.equal(requests.slice(before).filter(r=>r.path.endsWith('/save')).length,1);
+   if(original)assert.equal(requests.slice(before).find(r=>r.path.endsWith('/resolve')).body,requests.slice(before).find(r=>r.path.endsWith('/save')).body);
+   console.log(JSON.stringify({access_loss_acknowledgement:{route,reply:a.acknowledgedReply,revision:4+index,save_requests:1,resolve_requests:route==='resolve'?1:0,primary_error:'access_denied',lifecycle_settled:true,automatic_resend:false}}));
    await requestsOnly(a);await login(a,origin);await reopen(a);await settled(a);
+   assert.equal(await a.eval('saved.revision'),4+index);
+   assert.equal(await a.eval("$('goal').value"),'Private material before '+route+' acknowledgement loses access');
  }
+ // A denied write differs from a successful acknowledgement followed by a
+ // denied list. Keep its ticket from an authenticated read, then revoke ingress
+ // before the actual save reaches the server.
+ const deniedRevision=await revisionCount(),deniedGoal=await a.eval('saved.definition.goal');
+ await set(a,'goal','This denied draft must not append');
+ await a.eval("(async()=>{saveTicket=(await api('/api/work/'+work+'/ticket',{expected:binding(saved),...draft()})).ticket;})()");
+ await wait(()=>a.eval("!capacityInFlight&&['fits','blocked','unavailable'].includes($('draft-capacity').dataset.state)"),'authenticated capacity settles before save denial');
+ await a.send('Network.clearBrowserCookies');const deniedStart=requests.length;
+ await click(a,'save');await settled(a);
+ assert.match(await a.eval("$('status').textContent"),/Access denied/);
+ assert.equal(responses.filter(r=>r.path.endsWith('/save')).at(-1).status,403);
+ assert.equal(await revisionCount(),deniedRevision);assert.equal(requests.slice(deniedStart).filter(r=>r.path.endsWith('/save')).length,1);
+ assert.equal(await a.eval('accessLost&&!busy&&!workChangeActive&&work===null&&saved===null&&pending===null&&saveTicket===null'),true);
+ await login(a,origin);await reopen(a);await settled(a);assert.equal(await a.eval('saved.definition.goal'),deniedGoal);
+ checks.push('Access loss after acknowledged save and resolved lost acknowledgement preserves primary denial, clears private state and settles flags; exact requests commit once; pre-acceptance real save 403 appends nothing; explicit authenticated re-entry reads stored results');
  await browserBranchJourney({a,debug,origin,page,click,set,settled,saved,wait,visible,navigate,login,requestsOnly,requests,responses,revisionCount,readWindow,contextRequest,overlapCapacity,checks,
    restart:async()=>{const options={root:path.join(root,'runtime'),port:Number(new URL(origin).port),bindings:local.env,code:local.code};await closeLocalRuntime();local=null;local=await startLocal(options);}});
  await click(a,'signout');await wait(()=>a.eval("document.title==='Local synthetic workspace'"),'signout');assert(!await a.eval("document.body.innerText.includes('Evening noise')"));
@@ -406,6 +442,10 @@ try {
  for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=null;
  local=await startLocal({root:path.join(root,'returned-continuation')});const receiver=await page(debug,local.origin),reader=await page(debug,local.origin);await login(receiver,local.origin);
  await browserReturnedFiles({c:receiver,fresh:reader,origin:local.origin,env:{...process.env,AUGNES_WEB_ORIGIN:local.origin,AUGNES_WEB_FIXTURE_COOKIE:'web_planning_local='+local.env.LOCAL_SESSION},root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks,requests});
+ for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=await startLocal({root:path.join(root,'consumer-reassessment')});
+ const consumer=await page(debug,local.origin),freshConsumer=await page(debug,local.origin);await login(consumer,local.origin);
+ const consumerResult=await browserConsumerReassessment({c:consumer,fresh:freshConsumer,origin:local.origin,env:{...process.env,AUGNES_WEB_ORIGIN:local.origin,AUGNES_WEB_FIXTURE_COOKIE:'web_planning_local='+local.env.LOCAL_SESSION},root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
+ await browserReassessmentSafety({c:consumer,seed:consumerResult.seed,root,newPage:origin=>page(debug,origin),login,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks,requests});
  }
  assert.deepEqual(interceptionErrors,[]);
  assert.equal(exceptions,0);assert.equal(external,0);assert.equal(unexpectedFailures,0);assert.equal(expectedFailures.size,0);

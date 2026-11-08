@@ -278,6 +278,111 @@ as v0.7 and uses the existing exchange reconstruction route. The migration adds
 only an index to schema 4. Apply it through the established migration owner
 before activating this version; neither migration nor activation happens here.
 
+## Reconsider an existing returned-file use (#1593)
+
+Open the consuming work and choose **Reconsider current use** beside its saved
+use. The original use, exact request basis/return, historical output and current
+consumer context remain visible together. **List evidence work**, select a saved
+revision/file (or a returned file), then **Read selected basis together**. Read or
+download its exact bytes. A newer timestamp, filename or similarity does not
+establish correction, supersession or applicability. Missing origins are labelled
+unavailable; the consumer's own history and output remain readable. Unavailable
+selected evidence cannot supply a new save observation.
+
+Choose **Retain current use**, **Update output or context**, **Defer judgment** or
+**End current use**. Supply current context, a reason, limits and a next action or
+reconsideration condition. Reported checks are attribution, not verified success.
+An update may replace the output of this exact use with newly authored text, or
+leave both output fields blank and change only current context. A context-only
+update must actually change context. Retention and deferral keep the current
+output; ending removes only this use's currently selected output. Other files,
+notes, definitions, dependencies, original decisions and historical bytes remain.
+The original request owner's defer/decline still belongs to the original work.
+A consumer judgment neither changes other consumers nor publishes new feedback.
+
+**Preview current decision** is read-only. **Save current decision** appends one
+consumer revision and any new bytes atomically. Normal entry, **Saved context**
+and the task client's `list` show the latest judgment with `selected`, `ended`
+or `no_longer_selected` output status. An ordinary later edit that removes or
+replaces that output cannot leave it labelled current. Historical outputs remain
+explicitly historical. Continue from the chosen saved result using ordinary work
+editing; no successor or extra handoff record is required.
+
+An untouched reconsideration panel is temporarily read-only while an ordinary
+work change replaces the editor. If that save is unknown, use **Check save outcome** to
+reconcile it before authoring a consumer decision. A failed check retains the
+pending operation and the input lock. Edited or previewed consumer decisions
+participate in the browser's existing reload/close warning; cancel navigation to
+keep the draft. This warning is not durable tab-session recovery.
+
+Ordinary **Import** recognizes complete v0.9 standalone exports and direction
+bundles containing them, through the existing exchange/direction reconstruction
+routes and bounded file limit (25,000,000 bytes). Older formats retain their
+existing routes and limits. Restore requires the existing quiesced empty store;
+complete historical bytes and direction lineage are retained without reviving
+participation grants.
+
+The supported authenticated owner client uses the same enforcing writer. Select
+consumer and evidence task setups through the existing `tasks`/`select` or
+search path, with the approved origin and your existing supported login. A
+participant setup does not authorize private consumer reassessment.
+
+```sh
+node "$FILE_CLIENT" "$TASK" list
+node "$FILE_CLIENT" "$TASK" inspect-use 4
+node "$FILE_CLIENT" "$TASK" read-saved 4 route.md
+node "$FILE_CLIENT" ./evidence-task.json read-saved 2 README.md
+node "$FILE_CLIENT" "$TASK" inspect-use 4 ./evidence-task.json 2 README.md file ./observed-use.json
+node "$FILE_CLIENT" "$TASK" prepare-reassessment ./observed-use.json ./judgment.json ./pending-use.json
+node "$FILE_CLIENT" "$TASK" commit-reassessment ./pending-use.json
+node "$FILE_CLIENT" "$TASK" check-reassessment ./pending-use.json
+```
+
+Use `return` instead of `file` for an exact returned-file occurrence. A judgment
+such as `{"decision":"updated","context":"Recipient route chosen; activation still pending.","rationale":"The selected README now documents the supported recipient path.","limits":"No deployment authority","next_action":"Confirm the operational prerequisites."}`
+changes context without manufacturing a file. Add `name` and `text` for an actual
+output update. The module exposes `evidenceFile`, `inspectUse`,
+`prepareReassessment` and `sendReassessment` on `openFileTask`; `savedFile` reads
+and verifies any exact selected saved output. `list` is the current-use entry;
+`context` retains its existing exact current-revision response.
+
+After an unknown acknowledgement, **Check decision save** or `check-reassessment`
+reconciles that exact operation. Retry only its unchanged pending body. Browser
+recovery reuses the per-operation IndexedDB journal, scoped to the consuming
+project/work, and retains full private draft bytes until confirmed or explicitly
+released after a proven stale noncommit. Download them before release or loss of
+access. CLI observation/pending files are private, exclusively created files and
+are never overwritten or automatically deleted. Preserve and reconcile them before
+preparing a replacement. A late acknowledgement only clears its own exact browser
+operation. Previews and resolve calls change no work; a changed consumer or selected
+evidence head refuses stale saves. Exact committed replay still works when the
+original/evidence later becomes unavailable.
+
+Only a new reassessment revision uses `web_planning_revision.v0.9` and
+`web-planning/9`; a history containing one exports as `web_planning_export.v0.9`.
+The record seals the original use, preceding consumer judgment, explicitly selected
+evidence occurrence/manifest and observed head, reason/context/limits/next action,
+and output selection. Earlier v0.1–v0.8 revision and export bytes stay unchanged.
+No table, index, migration, grant, authentication adapter or Core record is added.
+Existing bounded history, selected-file quotas, CAS, transactions and reconstruction
+remain authoritative. Restore retains independent destination readability and
+revokes retained operational grants; it never renews source access.
+
+Before v0.9 records exist, the earlier binary can still read existing data.
+Afterwards keep a v0.9-compatible reader/writer for rollback or recover a complete
+quiesced export with compatible source; never strip the record or relabel history
+for an older binary. Direction-pair recovery retains its existing larger budget
+for these exchange-bearing histories. Existing participant activation still needs
+migration 0006, v0.8-or-later support, the participation mode and verified ingress
+under separate operational authority. Deploying this candidate is a separate act.
+
+Access loss clears the private view and reports the original access denial. It
+does not automatically resend a confirmed or uncertain operation. Reauthenticate
+explicitly to read the saved result or reconcile the exact pending operation.
+Reassessment fields stay locked while their durable journal write is pending;
+late completion cannot restore a cleared view or send a save. The journal's exact
+body remains available to the existing authenticated recovery controls.
+
 ## Request-scoped participants and shared feedback (#1589)
 
 The optional participant path gives a separately authenticated recipient one

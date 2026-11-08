@@ -4123,6 +4123,46 @@ different writers and evidence. Local execution and the existing selected-source
 admission remain independently scoped. The [Web contract](../../apps/web_planning/README.md#ask-for-work-on-files-and-collect-the-return)
 owns wire formats, replay, retention, erasure and recovery.
 
+#### Consumer-current return reassessment (#1593)
+
+An existing positive returned-file use can acquire an independent current judgment
+in its consuming work. The author explicitly selects an exact saved evidence
+occurrence and reads it alongside the original use/request basis/output and current
+consumer context. Recency, names and similarity never establish correction or
+supersession. A missing original remains unavailable while the destination owns
+its saved history; unavailable selected evidence cannot authorize a fresh save.
+
+The consumer may retain, update/adapt, defer judgment or end current use, with
+reason, limits, current context and next action. An update changes actual output
+bytes or current context; judgment alone needs no new file. The current projection
+selects this use's latest judgment and distinguishes selected, ended and no-longer-
+selected output. Earlier bytes/decisions, unrelated useful material and other
+consumers remain independent. The original request owner's defer/decline contract
+is unchanged. No private destination context or new disposition enters participant
+feedback through this writer.
+
+A v0.9 record on the committing revision binds the existing use, prior current
+judgment, exact evidence/observed source head and resulting output selection.
+Browser and authenticated owner client share the existing scoped, CAS/atomic
+revision/file writer. Reads/previews are read-only; exact operation reconciliation
+precedes replacement after unknown saves, and late results cannot clear another
+operation's recovery body. Ordinary editor replacement locks consumer authoring
+through acknowledgement or exact unknown-save settlement, including failed
+resolution reads. Unsaved edited/prepared consumer decisions participate in the
+existing browser unload warning; this is not durable tab-session recovery.
+Access loss disposes the private view while non-DOM operation flags still settle;
+cleanup cannot replace the primary access denial or reactivate removed controls.
+Authoring stays locked while the exact reassessment body enters its durable
+journal. A late journal completion checks the current access/work/view lifetime
+before dispatch; its original bytes remain available only through explicit
+authenticated recovery.
+Earlier formats/exports, attribution, one-answer and
+restricted participant scope remain intact. Reconstruction preserves destination
+history without reactivating grants. These are Web consumer semantics, not global
+rejection, a dependency graph, native acceptance or execution authority. The
+[ordinary Web guide](../../apps/web_planning/README.md#reconsider-an-existing-returned-file-use-1593)
+owns bounded API/client use, compatibility and rollback.
+
 #### Request-scoped Web participation (#1589)
 
 An opt-in operational grant binds a separately verified ingress email to one

@@ -960,6 +960,232 @@ accounting. A new commit-anchored contract review on the same PR binds the
 second candidate and its preparation commitment. The same readers check its
 material repair, current inventory, predecessor and exclusive reservation.
 
+#### Prospective acquisition correction after a spent basic-v7 observation race
+
+An inventory-bound v7 proof may explicitly select
+`commission.input_acquisition = coherent-git-file-acquisition-v1`. This is a new
+prospective commission, not recovery or restoration of an invalid historical
+window. Its immediate predecessor must be the latest settled basic v7 ordinal
+two of two, with no inventory successor or settlement route. Its sole fault is
+the Git configuration metadata-consistency observation race; exactly one later
+complete ambient Git observation has equal protected projection, scope and
+permissions but changed raw bytes. The failed sample and writer remain UNKNOWN.
+All recorded events, phase order, cancellation, original false stock, released
+owners and coherent Companion preservation must be accounted for. Only the
+cancelled phase may lack Browser coverage, and only with an explicit empty
+Browser-use list. Invalid observed Browser records, other faults, changed
+protected inputs, incomplete cleanup and ambiguous lineage refuse.
+
+The corrected target must materially change `scripts/local-canonical-inputs.mjs`
+and retain the same substantive final regression driver/arguments in both
+witnesses. The RED witness explicitly uses the final driver over the exact prior
+input owner; the GREEN witness uses the final driver and corrected owner. Bind
+both owner blobs, final driver bytes, real runtime, command, natural exit, output
+and complete cleanup, after the prior completion. This evidence supports the
+acquisition correction; it does not reconstruct or validate the old failed sample.
+Full source deltas, protected inventory and current live admission still apply.
+
+Use the existing non-reserving preparation and authenticated authority readers.
+The new independent acceptance must bind the concrete published target and
+preparation commitment. Both acceptance and the genuinely new subsequent grant
+must state: `Historical window remains UNKNOWN; old false stock and both spent
+ordinals remain unchanged.` The unedited grant starts with `Authorize a NEW
+prospective v7 reviewed_revision commission for a Git acquisition correction.`
+and retains the existing operative task-delegation, target, review, stock,
+independent audit and at-most-two-invocations scope. A generic approval, old spent
+grant, quoted template, preparation or synthetic control creates no authority.
+
+The exclusive edge keeps both old ordinals and grant IDs reconstructible. A new
+ordinal one consumes on reservation, including interruption. Ordinal two requires
+the existing material-correction, independent review, natural-failure and focused
+support conditions; it retains this discriminator and the initial new commission.
+There is no reset, third ordinal, unchanged-target retry, recovery allowance or
+re-entry from this inventory-bound edge, except the separately authorized terminal
+workload correction below. Complete unchanged planner-selected Full,
+fresh-process stock and owned-resource cleanup remain mandatory if later admitted.
+
+#### Terminal reviewed-revision workload correction
+
+An inventory-bound v7 proof may retain `input_acquisition` and additionally select
+`commission.reviewed_workload = spent-acquisition-reviewed-workload-v1`.
+It admits only a new prospective ordinal one with `maximum_invocations = 1`,
+following the latest settled acquisition ordinal two. The predecessor must pass
+the existing complete natural-phase-failure reader: sole failed authority phase,
+no input fault, complete owned cleanup, preserved Companion and fully accounted
+false stock. Its non-truncated original authority log must match the retained
+physical log and contain exactly one settled `reviewed-revision` child terminated
+by SIGTERM at its 15-second aggregate bound. This is a nested timeout; the outer
+natural exit does not turn it into a natural RED behavioral witness.
+
+The correction changes the implicated revision registration and budget owners,
+preserving all substantive assertions and intentional child deadlines. Bind the
+same complete revision command on the actual predecessor and final target,
+their source/runtime identities, natural PASS and all fourteen original control
+groups, output originals and cleanup. The earlier passing focused run and the
+retained Full timeout jointly describe the inadequate aggregate headroom; neither
+establishes the unknown historical last statement or scheduling cause. The actual
+final candidate needs its own natural complete focused execution. A generic
+failure, incomplete witness, observer cancellation, unsafe input, altered stock,
+old source or reduced control set refuses.
+
+This requires a genuinely new, unedited, authenticated terminal task delegation
+after that predecessor's completion, not the prior acquisition delegation. Its
+four operative paragraphs identify this branch/PR, exact predecessor family,
+attempt and receipt; preserve all historical UNKNOWNs and four spent ordinals;
+and delegate faithful publication only after independent exact-source and real
+preparation acceptance. The production reader owns its exact wording. The new
+independent acceptance and subsequent grant both state:
+`Historical windows remain UNKNOWN; both prior commissions, their false stock and all four spent ordinals remain unchanged.`
+The grant starts with `Authorize one NEW prospective v7 reviewed_revision commission for the terminal reviewed-revision workload correction.`
+It binds the new delegation, exact source, preparation commitment and independent
+acceptance, exactly one admitted deciding invocation total, reservation/interruption
+consumption, no ordinal two/recovery/unchanged retry/successor/replacement, complete
+Full, separate fresh-process stock and independent result audit.
+
+Existing preparation, authenticated transport, current-main/exact-source checks,
+full source/input inventory, runtime identity, exclusive ledger, capacity and
+preservation owners remain mandatory. The marker is part of commission identity,
+physical replay and sanitized export. A successor of this marked invocation is
+refused before considering another route, except the explicitly delegated
+post-terminal Git-successor edge below or the separately adopted material-source
+transition below. Marker removal or a generic approval cannot enter either edge.
+All earlier grants, root/family edges, ordinals, receipts and false stock remain
+immutable. Implementation, synthetic admission and read-only preparation provide
+no execution authority. Policy text itself does not issue a delegation or grant.
+
+The later Git-successor fixture correction changes only that serial aggregate
+to the existing 20-second review allowance. The producer stays at 15 seconds,
+fresh readers at 15 seconds, behavioral children at 5 seconds and the outer
+owner at 30 seconds. Complete focused timing and the original timeout support
+bounded headroom; they do not reconstruct the historical last statement or
+guarantee Full completion. Scoped synthetic clocks and pending-child tracking
+preserve native production time and truthful cleanup. The
+[post-terminal proposal](../docs/verification/1593_GIT_SUCCESSOR_QUALIFICATION_PROPOSAL.md)
+was accepted for bounded implementation in receiving audit a11. Implementation
+adoption is distinct from real-lineage activation and execution authority.
+
+#### Exceptional post-terminal Git-successor workload correction
+
+The v7 inventory owner additionally recognizes
+`commission.reviewed_workload = spent-terminal-git-successor-workload-v1`,
+retaining `input_acquisition = coherent-git-file-acquisition-v1`. Its only incoming
+edge is the latest settled `spent-acquisition-reviewed-workload-v1` invocation
+at ordinal one, maximum one, consumed one. It creates a distinct one-slot
+commission at ordinal one/max one. The older two-slot paths still require their
+original consumed-two predecessor. The issued one-slot commission remains terminal: no ordinal two, recovery or
+unchanged-target retry is available under it. Its old routes refuse successors
+before alternatives. A later separately delegated material-source transition
+below does not renew that grant or remove its historical marker.
+
+The intact physical attempt, completion, receipt, untruncated authority log and
+separate false stock must satisfy the complete settled natural-failure reader.
+The sole failed phase is authority, with no observer/safety fault and complete
+ownership/Companion settlement. Its log must contain the earlier completed
+revision and Git-producer groups followed by exactly one Git-successor aggregate
+SIGTERM at the retained 15-second bound. The outer failure remains natural;
+NOT_RUN phases retain their original missing environment fingerprints. Generic
+timeouts, changed originals, incomplete cleanup or altered stock refuse.
+
+The material correction binds the aggregate registration, scoped fixture clock
+and child-lifecycle owners. The same complete Git producer/successor command pair
+must retain the owned shared handoff, both behavioral executions and both fresh
+readers, all substantive positive/refusal controls, runtime and cleanup. The
+original immutable archive and original HEAD argument remain attributed to their
+tested source. Natural PASS-to-PASS support plus the historical Full timeout is
+valid aggregate-headroom evidence, not RED, a speedup or a worst-case guarantee.
+The target witness runs the actual final source, or retains its tested head with
+a fully bound documentation-only delta under `docs/`; every executable and
+dependency entry must then be identical. Changed reader/fixture bytes require
+new focused evidence. Complete changed-source inventory and current protected
+input inventory remain mandatory.
+
+After independent source acceptance, a genuinely new authenticated delegation
+must explicitly adopt this exceptional old-terminal-to-new-terminal edge. Real
+non-reserving preparation precedes independent acceptance of its exact published
+source and actual commitment; the operator may faithfully record that separate
+reviewer's decision and only then publish a distinct execution commission. The
+production reader owns the four-paragraph delegation grammar. All three records
+retain: `Historical windows remain UNKNOWN; commissions 6707156210 and 6717558497 remain spent 2/2, commission 6719208780 remains spent 1/1, and all prior receipts, false stock and five consumed invocations remain unchanged.`
+The commission starts with `Authorize one NEW prospective v7 reviewed_revision commission for the post-terminal Git-successor workload correction.`
+It binds source, predecessor, delegation, preparation commitment and independent
+acceptance, exactly one invocation, reservation/interruption consumption, no
+successor/replacement, separate fresh-process stock and independent result audit.
+Old delegations, synthetic fixtures and source acceptance alone provide no grant.
+
+The existing ledger reconstructs every old consumed ordinal and grant identity.
+Current-main applicability, exact published source, physical Node/header inputs,
+exclusive ownership, capacity and preservation must pass normal live admission.
+Only then may the complete unchanged planner-selected Full/Browser workload run
+once. Failure or interruption consumes that slot; usable failure receipts still
+receive separate fresh-process stock. No receipt or historical UNKNOWN is repaired.
+Reverting this amendment removes prospective admission, not append-only history
+or the preservation requirement for any already reserved invocation. A pre-amendment
+reader does not understand the new marker and may refuse reconstruction/stock;
+retain the exact admitted reader and originals for historical inspection rather
+than claiming that source rollback restores continuation compatibility.
+
+#### Reusable prospective material-source correction
+
+A newly delegated `commission.source_revision = material-source-correction-v1`
+uses the existing inventory-bound v7 proof, authenticated transport, preparation,
+physical ledger, stock and export owners. It admits the latest settled physical
+predecessor only after that predecessor has consumed its own issued maximum and
+has an intact, completely settled natural product failure and separate false
+stock. Existing phase, input, Browser, preservation and cleanup checks remain
+mandatory. Observer cancellations, safety violations, successful receipts,
+interruption and incomplete settlement are not material-source incidents. The
+older dependency/restoration exceptions are not widened.
+
+The new commission has ordinal one and maximum one for one exact accepted target
+and preparation commitment. Reservation or interruption consumes it. A further
+in-scope material correction requires another complete proof, separate independent
+acceptance and genuinely new authenticated delegation and commission. There is no
+unchanged-target retry, recovery or ordinal two under any such grant. Each old
+commission retains its original limits and consumed count. Reconstruction follows
+the physical append-only edges, detects cycles and is bounded by the physical
+family inventory; it does not reset a root or impose a new cross-commission quota.
+A material-source descendant cannot fall back into a legacy route.
+
+`input_acquisition` is preserved exactly when inherited. It describes acquisition
+provenance, not the new product incident. Earlier workload markers remain in their
+immutable proofs; the new proof uses the reusable source-revision discriminator.
+The incoming edge is explicitly checked before historical terminal refusals. It
+is prospective authority under a new task, never unused historical permission.
+
+Material proof uses `verifyGitSourceRepair`: actual implicated executable Git
+bytes, complete source/input inventories, the same bounded behavioral command and
+runtime, natural before-failure/after-pass and owned cleanup. Web `.js.txt` client
+modules count as executable source. A new hash, whitespace change, changed
+assertion or import/setup failure alone proves no product correction. Independent
+source judgment must connect the observation to the correction and unchanged
+substantive assertions. The existing `--import tsx` loader is the only optional
+Node argument pair; arbitrary preloads or assertion-disabling flags refuse.
+Witnesses bind their original tested heads, clean source, environment, implicated
+modules and consumed source files. A later documentation-only target under `docs/`
+may retain the after witness only with the complete exact Git delta and identical
+consumed bytes; executable changes require relevant new evidence. Witness originals
+are never relabeled.
+
+The production reader owns the four-paragraph material-source delegation. It must
+be unedited, genuinely new and later than the physical predecessor's completion.
+Real non-reserving preparation precedes separate independent acceptance of the
+published source and commitment. Only then may the authorized operator faithfully
+record that judgment and publish a separate commission beginning:
+`Authorize one NEW prospective v7 reviewed_revision commission for a material source correction.`
+Acceptance and commission retain:
+`Historical windows remain UNKNOWN; all prior commissions, issued limits, consumed invocations, receipts and false stock remain unchanged.`
+The grant binds source, predecessor, delegation, review, commitment and exactly one
+admitted deciding invocation, with reservation/interruption consumption, zero
+unchanged-target retry/extra recovery, separate fresh-process stock and independent
+result audit. Preparation, source acceptance and synthetic controls grant no
+execution authority. Fresh current-main, published-source, runtime/header,
+complete input, Companion, ownership and capacity admission still precede Full.
+
+Rollback removes prospective admission; it never deletes historical proofs,
+markers, grant identities, consumed reservations or failed receipts. Older readers
+may refuse the new discriminator. Retain each admitted reader and originals for
+historical reconstruction instead of editing receipts or claiming compatible stock.
+
 An inventory-bound ordinal two may also follow a settled ordinal one whose Full
 and Browser phases all passed naturally but whose only fault occurred in the final
 Web dependency observation. The v2 Web record must have the cache-safety error

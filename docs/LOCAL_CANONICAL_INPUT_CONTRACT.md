@@ -161,6 +161,16 @@ source/behavior evidence, not exhaustive syscall tracing of Git, gh or native
 fallbacks; a newly introduced broad or foreign-tracking consumer requires renewed
 classification and must retain whole-file protection.
 
+For the marked Git role, an initial file/path preflight protects ancillary Git
+context discovery. The binding file observation starts after that subprocess
+prework: one fresh lstat/path check, permission observation, descriptor/byte/name
+samples and second permission observation must agree. Both surrounding Git
+contexts must also agree. An atomic foreign-tracking replacement completed before
+this acquisition can yield one coherent ambient observation. Replacement inside
+the acquisition, unsafe aliases/permissions, protected settings and context drift
+still block. This is not a retry of an incomplete observation; no failed sample
+is discarded. Earlier latched failures retain their original meaning.
+
 The existing classification suite exercises real linked worktrees and a bounded
 Git child across an actual tracking append, preparation/common-input binding,
 monitoring and fresh-process reconstruction. Broad configuration/branch readers
