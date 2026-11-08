@@ -3,6 +3,7 @@
 import { useProjectClientFetch } from "./project-client-scope";
 
 import { useRef, useState } from "react";
+import { useWorkPreparationLifetime } from "./work-preparation-departure";
 import type { recallRetainedWorkSources, RetainedWorkSourceHit } from "@/lib/intake/retained-work-source-recall";
 import type { ProjectWorkInitializationV01 } from "@/types/vnext/project-work-initialization";
 import { REVIEWED_OUTCOME_SOURCE_V01 } from "@/types/vnext/project-work-revision";
@@ -20,6 +21,7 @@ export function RetainedWorkSourceLookup({ initialization, disabled, remainingSl
   onRefreshCurrentWork?: () => Promise<void>;
 }) {
   const fetch = useProjectClientFetch();
+  const isCurrent = useWorkPreparationLifetime();
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<Recall | null>(null);
   const [searching, setSearching] = useState(false);
@@ -49,22 +51,23 @@ export function RetainedWorkSourceLookup({ initialization, disabled, remainingSl
           expected_active_selection_revision: initialization.active_selection_revision }),
       });
       const body = await response.json() as { status?: string; recall?: Recall; error_code?: string };
+      if (!isCurrent() || id !== requestId.current) return;
       if (response.status === 401 || response.status === 403) onAccessRefused?.(body.error_code);
       if (response.status === 409) await onRefreshCurrentWork?.();
-      if (id !== requestId.current) return;
+      if (!isCurrent() || id !== requestId.current) return;
       if (body.error_code === "retained_source_scan_bound_exceeded") throw new Error("Retained-note lookup reached its scan capacity. No partial results were returned. Current selected notes remain available; changing the query or reloading will not reduce this history.");
       if (!response.ok || body.status !== "retained_source_recall" || !body.recall) throw new Error("Retained notes are unavailable for this comparison. Your selected notes are retained. Check the query bounds or review current work before searching again.");
       setResult(body.recall);
     } catch (failure) {
-      if (id === requestId.current) setError(failure instanceof Error ? failure.message : "Retained notes unavailable.");
-    } finally { setSearching(false); }
+      if (isCurrent() && id === requestId.current) setError(failure instanceof Error ? failure.message : "Retained notes unavailable.");
+    } finally { if (isCurrent()) setSearching(false); }
   }
 
   return <details className={styles.retainedSources} data-retained-work-sources>
     <summary>Find notes from earlier work revisions</summary>
     <p className={styles.copy}>Search saved note snapshots in this unstarted work’s revision history, including notes excluded from current preparation. Searching selects and saves nothing.</p>
     <label htmlFor="retained-source-query">Words from the question, note or source</label>
-    <input id="retained-source-query" value={query} maxLength={160} placeholder="valve bench cold start" onChange={(event) => {
+    <input id="retained-source-query" disabled={disabled} value={query} maxLength={160} placeholder="valve bench cold start" onChange={(event) => {
       requestId.current += 1; setQuery(event.target.value); setResult(null); setError(null);
     }} />
     <p className={styles.muted}>All words must occur in a note or source label; case is ignored. A saved outcome match also shows its original forecast context and report together for explicit selection. Up to 160 characters and eight words. Other projects, transcripts and external sources are outside this search.</p>

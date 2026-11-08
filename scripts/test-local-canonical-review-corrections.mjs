@@ -248,6 +248,26 @@ try {
     regression: "import assert from 'node:assert/strict'; import {readFileSync} from 'node:fs'; const {initialTarget}=await import('data:text/javascript,'+encodeURIComponent(readFileSync(new URL(process.argv[2]),'utf8'))); assert.equal(initialTarget(true),'summary');\n",
   });
   await exactPathControls({
+    name: "native-pending-selection", sourceModule: "components/workbench/semantic-review/selected-work-source-editor.tsx", defect: "pending_selection_save_overtake",
+    // Disposable admission behavior, not a reproduction of the Native editor.
+    // The production Browser witnesses retain their own source/runtime binding.
+    beforeSource: "export function maySave(selectionPending) { return true; }\n",
+    afterSource: "export function maySave(selectionPending) { return !selectionPending; }\n",
+    regression: "import assert from 'node:assert/strict'; import {readFileSync} from 'node:fs'; const {maySave}=await import('data:text/javascript,'+encodeURIComponent(readFileSync(new URL(process.argv[2]),'utf8'))); assert.equal(maySave(true),false); assert.equal(maySave(false),true);\n",
+    invalidSourceModules: [
+      "components/workbench/semantic-review/first-work-composer.tsx", "components/workbench/semantic-review/other.tsx",
+      "components/workbench/semantic-review/Selected-work-source-editor.tsx", "Components/workbench/semantic-review/selected-work-source-editor.tsx",
+      "components/workbench/semantic-review/selected-work-source-editor.ts", "components/workbench/semantic-review/selected-work-source-editor.TSX",
+      "components/workbench/semantic-review/selected-work-source-editor.tsx.bak", "components/workbench/semantic-review/selected-work-source-editor.tsx~",
+      "./components/workbench/semantic-review/selected-work-source-editor.tsx", "/components/workbench/semantic-review/selected-work-source-editor.tsx",
+      "../components/workbench/semantic-review/selected-work-source-editor.tsx", "components/workbench/semantic-review/../semantic-review/selected-work-source-editor.tsx",
+      "components/workbench/semantic-review/./selected-work-source-editor.tsx", "components//workbench/semantic-review/selected-work-source-editor.tsx",
+      "components\\workbench\\semantic-review\\selected-work-source-editor.tsx", "components/workbench/semantic-review/selected-work-source-editor.tsx/",
+      "components/workbench/semantic-review/selected-work-source-editor.tsx\n",
+    ],
+    verifierCorrectionError: /source_correction_proof_invalid/,
+  });
+  await exactPathControls({
     name: "web-recorded-origin", sourceModule: "apps/web_planning/src/history-client.js.txt", defect: "recorded_source_hidden_pane",
     beforeSource: "function originPane(view) { return 'history'; }\n",
     afterSource: "function originPane(view) { return view; }\n",

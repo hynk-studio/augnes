@@ -1,6 +1,7 @@
 "use client";
 
 import type { WorkComposerDraft } from "../semantic-review/work-composer-draft";
+import { useWorkPreparationDeparture } from "../semantic-review/work-preparation-departure";
 
 import { ProjectClientScopeProvider, useProjectClientFetch, useProjectClientScope } from "../semantic-review/project-client-scope";
 
@@ -51,6 +52,7 @@ function ScopedRunResultReviewLoader({
   // Retain only this mounted review's drafts, scoped to the verified principal
   // and original receipt. Locked views never render this material.
   const workDrafts = useRef(new Map<string, WorkComposerDraft>());
+  useWorkPreparationDeparture(() => workDrafts.current.values());
 
   const loadResult = useCallback(
     async (options: { preserve_result?: boolean } = {}): Promise<boolean> => {

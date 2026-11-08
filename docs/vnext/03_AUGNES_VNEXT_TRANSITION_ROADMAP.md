@@ -52,6 +52,35 @@ and proportionate verification selection remain open under #1430, with current
 planner coverage and fixed timing gates preserved. The separate #1429 research
 implementation and its qualification are not included.
 
+### Native pending preparation and deliberate departure candidate (#1599)
+
+[#1599](https://github.com/hynk-studio/augnes/issues/1599) adds consistent pending
+authoring locks and memory-only departure protection to first work, eligible
+revision, different-task and result-linked preparation. The original race was
+executed: the earlier first-work response closed an editor that had accepted
+later definition input, while persisted work contained only the submitted values.
+The candidate prevents that later authoring, protects meaningful drafts on real
+Native navigation/reload, and retains uncertain-save reconciliation through the
+existing readers. Matching reauthentication and explicit fresh-basis/source
+comparison keep their existing meaning.
+An additional genuine-response race was reproduced after a Full/stock-passing
+snapshot: an in-flight historical source selection could be overtaken by Save.
+The corrected candidate blocks that Save and retains the complete selected pair.
+
+This is implemented for review. The original component-path admission refusal
+is retained. The authorized one-path v2 source-revision amendment now admits
+that causal component without changing the Native product baseline or other
+admission safeguards. The earlier snapshot's PASS cannot qualify this combined
+candidate; its own independently reviewed source and exact-head Full/stock
+results must be recorded before claiming qualification.
+Exact-head admission, qualification and independent acceptance remain separate
+decisions in its Draft PR/report. It does not complete the
+broader P2/P5 work or imply installed adoption, deployment or merge. The
+[02 interaction contract](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#24-project-isolation-invariants)
+and [04 evidence limits](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#native-preparation-response-and-departure-evidence-1599)
+own the bounded behavior and observations. #1594 retains Web reassessment,
+format/export/recovery, Apps Web clients and their qualification ownership.
+
 ## Current: first execution-choice and participation loop (#1443)
 
 The first [#1443](https://github.com/hynk-studio/augnes/issues/1443) increment

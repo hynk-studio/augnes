@@ -120,7 +120,28 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
     return values;
   };
   const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+  // #1599 adds controlled genuine-response/departure checks. Project only
+  // these five exact additions/replacements back to the unchanged prior actions.
+  // The original phase/function digests, negative verdicts and deadlines below
+  // remain byte-identical. Separately bind the new helper and its transport gate.
+  const nativePreparationAdditions = [
+    ["    const preparationBrowser = { cdp, evaluate: evaluateJson, waitForCondition, projectId: projectAlphaId, checkDeparture: true };\n    await checkInitialPreparationResponse(preparationBrowser, { goal,\n      success_criteria: [\"The saved definition reads back in the Browser\"], non_goals: [\"Do not start execution\"] });\n", "    await setFormControlValue('textarea[name=\"first-work-goal\"]', goal);\n    await setFormControlValue('textarea[name=\"first-work-success-criteria\"]', \"The saved definition reads back in the Browser\");\n    await setFormControlValue('textarea[name=\"first-work-non-goals\"]', \"Do not start execution\");\n    await waitForCondition(`document.querySelector('[data-first-work-action=\"save\"]:not(:disabled)') !== null`, \"Companion first-work save enabled\");\n    await clickSelector('[data-first-work-action=\"save\"]');\n"],
+    ["      let unfinishedDepartureChecked = false;\n", ""],
+    ["        if (!unfinishedDepartureChecked) {\n          await checkPreparationStay(preparationBrowser);\n          assert.equal(await evaluateBoolean(\"document.querySelector('[data-work-revision-action=save]').disabled\"), true);\n          unfinishedDepartureChecked = true;\n        }\n", ""],
+    ["      await checkPreparationDepartureControls(preparationBrowser);\n      assert.deepEqual(packets().filter(row => finalPackets.some(prior => prior.record_id === row.record_id)), finalPackets);\n      assert.deepEqual(effects(), effectsBefore);\n", ""],
+    ["      selected_note_save_correction_reopened_readback: true, note_only_work_definition_unchanged: true,\n      pending_departure_revision_readback: true,\n", "      selected_note_save_correction_reopened_readback: true, work_definition_unchanged: true,\n"],
+  ];
+  const nativeSource = readFileSync(new URL('./native-work-preparation-browser-checks.mjs', import.meta.url), 'utf8');
+  assert.equal(hash(tokens(nativeSource)), 'b25eaf66eeb25304e4d97f44e78fbec2d91b74fe7316ca270c7cd9c058f077a8', 'exact Native preparation regression owner');
+  const assertNativeSites = text => { for (const [addition] of nativePreparationAdditions)
+    assert.equal(text.split(addition).length, 2, 'exact required Native preparation call site'); };
+  assertNativeSites(source);
+  for (const [addition] of nativePreparationAdditions) {
+    assert.throws(() => assertNativeSites(source.replace(addition, '')), 'Missing required Native regression refuses');
+    assert.throws(() => assertNativeSites(source + addition), 'Duplicate Native regression refuses');
+  }
   const prospectiveAdditions = [
+    ...nativePreparationAdditions,
     ["    if (unexpectedFailedRequests.length) console.log(JSON.stringify({ project_experience_failed_request_counts:\n      unexpectedFailedRequests.slice(0, 32).map(entry => ({ phase: entry.phase,\n        route: entry.path?.startsWith('/projects/') ? '/projects/:project' : entry.path,\n        error: entry.error_text, ...requestVerdicts.failureDetails(entry),\n        guide: entry.path === '/api/augnes/read/guide-brief' ? requestVerdicts.guideEffectReplayCancellation(entry) : undefined })) }));\n", ''],
     // #1545 records the failing assertion before bulky diagnostics. Strip only
     // these exact observational statements; all prior assertions remain pinned.
@@ -207,6 +228,37 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
   assert(source.includes('const DEFAULT_TIMEOUT_MS = 45_000;'));
   assert(source.includes('const REQUEST_QUIET_MS = 500;'));
   assert(source.includes('const ACCEPTANCE_BOUND_MS = 360_000;'));
+}
+// Controlled transport regression only. The real Browser journeys separately
+// bind actual production writes and readback; no successful product state is
+// manufactured by this unit fixture.
+{
+  const { nativePreparationBrowser } = await import('./native-work-preparation-browser-checks.mjs');
+  for (const outcome of ['return', 'lost', 'malformed']) {
+    let requests = 0, settled = false;
+    const response = Response.json({ fixture_response: true }, { status: 201 });
+    const original = async () => { requests++; return response; };
+    const window = { fetch: original };
+    const ui = nativePreparationBrowser({
+      evaluate: expression => vm.runInNewContext(expression, { window, Response, TypeError }),
+    });
+    await ui.hold('fixture_write', outcome);
+    const pending = window.fetch('/fixture', { body: JSON.stringify({ action: 'fixture_write' }) });
+    void pending.then(() => { settled = true; }, () => { settled = true; });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(requests, 1); assert.equal(settled, false);
+    assert.equal(window.__nativePreparationResponse.reached, true);
+    assert.equal(window.__nativePreparationResponse.status, 201);
+    assert.equal(window.fetch, original, 'Only the matched pending acknowledgement is held');
+    await ui.release();
+    if (outcome === 'lost') await assert.rejects(pending, /Controlled loss/);
+    else if (outcome === 'malformed') await assert.rejects((await pending).json(), SyntaxError);
+    else assert.equal(await pending, response, 'Release returns the original response object');
+    assert.equal(requests, 1, 'The observation gate never resubmits');
+  }
+  console.log(JSON.stringify({ native_preparation_preservation_contract: 'pass',
+    historical_phase_digest_unchanged: true, exact_addition_missing_duplicate_controls: 10,
+    controlled_transport_cases: ['return', 'lost', 'malformed'], production_writer_evidence: false }));
 }
 function read(f, { initial = true, controller = new AbortController() } = {}) {
   f.observer.effectActive(true); f.observer.auth('authenticated');
