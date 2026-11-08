@@ -67,9 +67,12 @@ An additional genuine-response race was reproduced after a Full/stock-passing
 snapshot: an in-flight historical source selection could be overtaken by Save.
 The corrected candidate blocks that Save and retains the complete selected pair.
 
-This is implemented for review. The final component correction remains
-qualification HOLD: its path is outside the unchanged v2 source-revision
-allowlist. The earlier snapshot's PASS cannot qualify this changed candidate.
+This is implemented for review. The original component-path admission refusal
+is retained. The authorized one-path v2 source-revision amendment now admits
+that causal component without changing the Native product baseline or other
+admission safeguards. The earlier snapshot's PASS cannot qualify this combined
+candidate; its own independently reviewed source and exact-head Full/stock
+results must be recorded before claiming qualification.
 Exact-head admission, qualification and independent acceptance remain separate
 decisions in its Draft PR/report. It does not complete the
 broader P2/P5 work or imply installed adoption, deployment or merge. The
