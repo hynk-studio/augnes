@@ -5,20 +5,26 @@ import { createHash } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync,
   readlinkSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import nextConfig from "next/dist/server/config.js";
-import nextConstants from "next/constants.js";
-import nextGenerate from "next/dist/build/generate-build-id.js";
-import nextManifest from "next/dist/shared/lib/turbopack/manifest-loader.js";
-import nanoid from "next/dist/compiled/nanoid/index.cjs";
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
 import { buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
 import { assertSafeDistributablePath as currentValidator } from "./distributable-package-contract.mjs";
 import { MERGED_R8A_COMMIT, MERGED_R8A_TREE, MERGED_R8A_BUILD_ID,
   applyMergedR8AFixtureBuildConfig } from "./merged-r8a-fixture-build-config.mjs";
+import { readPreparedR8ADependencies } from "./merged-r8a-dependency-provision.mjs";
 
 const repositoryRoot = process.cwd();
+// The producer must come from the exact historical provision even when the
+// current application has moved to a different patched Next release.
+const provision = readPreparedR8ADependencies(repositoryRoot);
+const historicalRequire = createRequire(path.join(provision.root, "package.json"));
+const nextConfig = historicalRequire("next/dist/server/config.js");
+const nextConstants = historicalRequire("next/constants.js");
+const nextGenerate = historicalRequire("next/dist/build/generate-build-id.js");
+const nextManifest = historicalRequire("next/dist/shared/lib/turbopack/manifest-loader.js");
+const nanoid = historicalRequire("next/dist/compiled/nanoid/index.cjs");
 const temporaryRoot = mkdtempSync(path.join(tmpdir(), "ag-r8a-config-"));
 const sourceRoot = path.join(temporaryRoot, "source");
 mkdirSync(sourceRoot);
@@ -42,7 +48,7 @@ try {
   const historicalValidator = historical.assertSafeDistributablePath;
   const pinned = JSON.parse(readFileSync(path.join(sourceRoot, "package.json"))).dependencies.next;
   assert.equal(pinned, "16.2.4");
-  assert.equal(JSON.parse(readFileSync("node_modules/next/package.json")).version, pinned);
+  assert.equal(historicalRequire("next/package.json").version, pinned);
 
   // Actual bundled nanoid, with its existing injected byte-source seam; no
   // random/crypto globals are patched and no production build is retried.
@@ -101,6 +107,7 @@ try {
   assert.match(owner, /mergedR8AFixtureBuildConfiguration = applyMergedR8AFixtureBuildConfig\(\{/u);
   assert.match(owner, /the historical Next build must consume the controlled build configuration/u);
   assert.match(owner, /merged_r8a_fixture_build_configuration: mergedR8AFixtureBuildConfiguration/u);
+  assert.equal(readPreparedR8ADependencies(repositoryRoot).fingerprint, provision.fingerprint);
   console.log(JSON.stringify({ test: "merged-r8a-fixture-build-configuration", status: "pass",
     historical_files_verified: Object.keys(before).length, changed_source_files: ["next.config.ts"],
     next_version: pinned, unsafe_controls: 12, actual_config_and_manifest_producers_verified: true,

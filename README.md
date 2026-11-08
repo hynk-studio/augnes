@@ -39,7 +39,7 @@ It packages the unchanged **workflow-cost method 1.0.0** and a local Codex catal
 
 **No plugin required:** [Is optional inspection worth the work?](publications/workflow-cost-v1/README.md) is also a standalone Python 3.9+ method for agents permitted to execute code. Download its manifest and all four listed files, verify their identities, and run in your own harness. A [no-JavaScript HTML entry](publications/workflow-cost-v1/index.html) is available as static source material; that does not establish a separately hosted service. For simple tasks, direct calculation or non-use may be appropriate.
 
-**Using Augnes itself:** The local-first project/work continuity runtime, installed Companion, and repository Operator are separate from this public calculator component. See the [supported local Quickstart](#quickstart) and its platform and authority limits.
+**Using Augnes itself:** The local-first project/work continuity runtime, installed Companion, and repository Operator are separate from this public calculator component. Start with [public setup and first continuation](docs/CODEX_MCP_AUGNES_BRIDGE_USAGE_V0_1.md#public-setup-and-first-continuation), then the [local Quickstart](#quickstart) for the supported platform and operation details.
 
 ## Why Augnes
 
@@ -75,6 +75,16 @@ Unsaved drafts remain in memory only: keep the tab open until saving or copying
 them. Supported running work remains observable and controllable in its project;
 starting work still requires its existing execution authority.
 
+Work-preparation fields pause while a preview or save is pending. Add an unfinished
+source note, or use **Clear unfinished note**, before saving. Pending source
+selection/comparison also pauses preview/save until the selection is compared.
+Supported Native navigation and browser reload/close ask before discarding meaningful unsaved
+preparation. Staying keeps the exact draft; leaving or explicitly discarding does
+not save it or cancel a pending write. Clean editors and confirmed saves need no
+extra prompt. If a response is lost or cannot confirm the save, read current work
+before deciding on another action: the write may already have committed. This is
+tab-local protection, not autosave or recovery after a crash or forced close.
+
 ## Use selected experience with a local service
 
 The Operator tool `augnes_external_repository_work` connects selected experience
@@ -90,6 +100,32 @@ finite operator envelope, every action, the reusable report consumer and the
 controlled two-project example. The supported path is explicit and local. Its
 source/mechanism tests do not establish model use, installed adoption or economic
 benefit; #1433 Events and #1447 public distribution remain separate.
+
+## Preview an operating profile
+
+From a source checkout with the repository's supported Node runtime, supply a
+local `OperatingProfile.v0.1` JSON file to the read-only preview:
+
+```text
+node scripts/operating-profile.mjs examples/operating-profiles/defensive-observe-recommend.json
+node scripts/operating-profile.mjs examples/operating-profiles/defensive-observe-recommend.json --format json
+node scripts/operating-profile.mjs examples/operating-profiles/direct-work.json
+```
+
+The text entry opens with the purpose, next observations, supplied/missing input,
+executor/principal and permission gaps, return/check/use responsibilities and
+arrangement alternatives. Both formats preserve the complete same input and
+review. Copy either example to author a profile; identifiers only connect items
+inside that document. The direct-work example uses one executor without a team.
+
+All observations, bindings and explanations are authored declarations. The entry
+does not inspect source locators, determine current applicability, grant access,
+save application state or start work. The defensive example is synthetic
+Observe/Recommend; Defend and Incident Command are unavailable. Do not supply
+secrets. Use one UTF-8 regular file of at most 64 KiB; symlinks are refused and
+`O_NOFOLLOW` support is required. Linux/macOS is the source target; Windows and
+installed-host adoption are not claimed by this entry. The provisional contract
+and limits are in [02](docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#read-only-operating-profile-input-and-preview-1518).
 
 ## The continuity loop
 
@@ -180,8 +216,9 @@ the actual outcome, reopening protected project review if the session is stale.
 This does not free space for decisions, grants or renewals. See the
 [history and recovery contract](docs/DATABASE_ACCESS_LIFECYCLE.md#accumulated-native-history-refusal-and-preservation-1439).
 
-The source checkout supports maintained even-numbered Node.js 22 and 24 lines
-with npm 10 or 11. Exact Local Canonical verification uses Node.js 24.18.0 and
+The source checkout supports patched Node.js `^22.23.4 || ^24.22.1`
+with npm 10 or 11. Node 22 is a source compatibility line; Companion requires
+Node 24.22.1 or later within Node 24. Exact Local Canonical verification uses Node.js 24.22.1 and
 npm 11.16.0.
 
 On a supported macOS development host, install the exact checkout-bound local
@@ -194,7 +231,7 @@ npm run augnes:service:install
 ```
 
 This explicit action installs a user-session LaunchAgent for this physical
-checkout, selects and pins one Node 24 binary, and starts the existing
+checkout, selects and pins one patched Node 24 binary, and starts the existing
 supervised UI/Core and bridge. It stores no secret in the service definition,
 survives the installing terminal, starts at login, and recovers unexpected
 runtime failure. It grants no repository execution, managed-run Resume,

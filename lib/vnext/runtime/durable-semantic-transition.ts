@@ -1151,6 +1151,59 @@ export function loadValidatedVNextSemanticTransitionRelationV01(
   );
 }
 
+function resolveTransitionReadSessionRegistrationV01(
+  db: Database.Database,
+  scope: { workspace_id: string; project_id: string },
+  readSession: VNextSemanticTransitionRelationReadSessionV01,
+): VNextSemanticTransitionRelationReadSessionRegistrationV01 {
+  const registration =
+    vNextSemanticTransitionRelationReadSessionRegistryV01.get(readSession);
+  if (!registration) {
+    throw new Error("semantic_transition_read_session_invalid");
+  }
+  if (
+    registration.db !== db ||
+    registration.workspace_id !== scope.workspace_id ||
+    registration.project_id !== scope.project_id
+  ) {
+    throw new Error("semantic_transition_read_session_scope_mismatch");
+  }
+  return registration;
+}
+
+/** Authenticates an opaque session without accepting caller-supplied results. */
+export function assertVNextSemanticTransitionRelationReadSessionScopeV01(
+  db: Database.Database,
+  scope: { workspace_id: string; project_id: string },
+  readSession: VNextSemanticTransitionRelationReadSessionV01,
+): void {
+  resolveTransitionReadSessionRegistrationV01(db, scope, readSession);
+}
+
+/**
+ * Reuses immutable sources only within the caller's current synchronous read.
+ * The session must be newly created for that top-level read and must not cross
+ * a mutation, rollback, restore or reopen boundary.
+ */
+export function loadValidatedVNextSemanticTransitionRelationWithReadSessionV01(
+  db: Database.Database,
+  input: LoadValidatedVNextSemanticTransitionInputV01,
+  readSession: VNextSemanticTransitionRelationReadSessionV01,
+): ValidatedVNextSemanticTransitionRelationV01 {
+  const registration = resolveTransitionReadSessionRegistrationV01(
+    db,
+    input,
+    readSession,
+  );
+  return structuredClone(
+    loadValidatedVNextSemanticTransitionRelationWithContextV01(
+      db,
+      input,
+      registration.validation_context,
+    ),
+  );
+}
+
 /**
  * Creates one synchronous, scope-bound loader for immutable Transition source
  * chains. Successful exact receipt validations share the same private context

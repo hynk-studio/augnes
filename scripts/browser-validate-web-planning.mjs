@@ -1,11 +1,20 @@
+import { browserParticipation, browserParticipationRecovery } from './browser-web-planning-participation.mjs';
+import { participantBindings } from './web-planning-participation-checks.mjs';
+import { selectBrowserPath } from "./local-canonical-browser-input.mjs";
+import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { browserSceneJourney } from "./browser-web-planning-scenes.mjs";
 import { browserSceneResponseJourney } from './browser-web-planning-scene-responses.mjs';
 import { CDP } from './web-planning-cdp.mjs';
 import { observeWebPlanningInterceptions } from './web-planning-interception.mjs';
 import { browserStoryJourney } from './browser-web-planning-story.mjs';
 import { browserFileJourney } from './browser-web-planning-files.mjs';
+import { browserFileExchanges } from './browser-web-planning-exchanges.mjs';
+import { browserConsumerReassessment } from './browser-web-planning-reassessment.mjs';
+import { browserReassessmentSafety } from './browser-web-planning-reassessment-safety.mjs';
+import { browserReturnedFiles } from './browser-web-planning-returns.mjs';
+import { browserWorkSearch } from './browser-web-planning-search.mjs';
 import { browserOrdinaryFileJourney } from './browser-web-planning-ordinary-files.mjs';
-import { browserHistoryJourney } from './browser-web-planning-history.mjs';
+import { browserHistoryJourney, browserRetainedNotes, browserIndependentNotes, browserConflictSource } from './browser-web-planning-history.mjs';
 import { advancedClock } from './web-planning-history-checks.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -16,11 +25,11 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { startLocal, availablePort, accessSimulation } from './web-planning-local-runtime.mjs';
 import { buildCloudflarePlanning } from './build-web-planning.mjs';
 import { registerOwnedChild, terminateOwnedProcessTree } from './test-harness-process-lifecycle.mjs';
-import { browserCapacityJourney } from './browser-web-planning-capacity.mjs';
+import { browserCapacityJourney, browserNavigationCapacity, browserNavigateWithCapacity } from './browser-web-planning-capacity.mjs';
 import { browserBranchJourney } from './browser-web-planning-branches.mjs';
 import { assertReadOnlyRequestWindow, testReadOnlyRequestWindow } from './browser-web-planning-requests.mjs';
 const root=process.env.AUGNES_CANONICAL_TEMP_ROOT;if(!root)throw new Error('owned_browser_root_required');
-const chrome=[process.env.AUGNES_BROWSER_EXECUTABLE_PATH,'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome','/usr/bin/chromium','/usr/bin/google-chrome'].find(p=>p&&existsSync(p));
+const chrome=selectBrowserPath([process.env.AUGNES_BROWSER_EXECUTABLE_PATH,'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome','/usr/bin/chromium','/usr/bin/google-chrome']);
 assert(chrome,'real_browser_unavailable');
 const owned=new Set(),clients=[];let processRecord,local;let external=0,exceptions=0,saveRequests=0,lostResponse=false,unexpectedFailures=0;const expectedFailures=new Set();
 const requests=[],responses=[],interceptionErrors=[],acknowledgementChecks=[];
@@ -31,8 +40,16 @@ async function set(c,id,value){await c.eval(`(()=>{const e=document.getElementBy
 async function state(c,expression){return c.eval(expression);}
 async function visible(c,id){return c.eval(`!!document.getElementById(${JSON.stringify(id)})&&!document.getElementById(${JSON.stringify(id)}).hidden`);}
 async function saved(c,n){await wait(()=>c.eval(`document.getElementById('saved-label')?.textContent.startsWith('Saved revision ${n} ')`),'saved '+n);}
-async function page(debug,origin){const target=await (await fetch(`http://127.0.0.1:${debug}/json/new?about:blank`,{method:'PUT'})).json();const c=await new CDP(target.webSocketDebuggerUrl).open();clients.push(c);
- c.targetId=target.id;c.origin=origin;
+async function page(debug,origin,isolated=false){
+ let target,browserContextId;
+ if(isolated){
+   const info=await (await fetch(`http://127.0.0.1:${debug}/json/version`)).json(),browser=await new CDP(info.webSocketDebuggerUrl).open();
+   try{browserContextId=typeof isolated==='string'?isolated:(await browser.send('Target.createBrowserContext')).browserContextId;const {targetId}=await browser.send('Target.createTarget',{url:'about:blank',browserContextId});
+     target=(await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find(t=>t.id===targetId);assert(target,'isolated_browser_target');
+   }finally{await browser.close();}
+ }else target=await (await fetch(`http://127.0.0.1:${debug}/json/new?about:blank`,{method:'PUT'})).json();
+ const c=await new CDP(target.webSocketDebuggerUrl).open();clients.push(c);
+ c.targetId=target.id;c.origin=origin;c.browserContextId=browserContextId;
  c.interceptions=observeWebPlanningInterceptions(c,{targetId:target.id,origin});
  c.direct=origin.startsWith('https://127.0.0.1:');
  if(c.direct)await c.send('Security.setIgnoreCertificateErrors',{ignore:true}); // Owned loopback workerd certificate only; external traffic is refused below.
@@ -48,10 +65,18 @@ async function page(debug,origin){const target=await (await fetch(`http://127.0.
  return c;}
 async function intercept(c,p,origin){
  const u=p.request.url;
+ if(u.startsWith(origin+'/api/works/search?')&&c.searchFailure){
+   const failure=c.searchFailure;c.searchFailure=null;
+   return c.send('Fetch.fulfillRequest',{requestId:p.requestId,responseCode:failure==='http'?503:200,
+     responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'X-Web-Planning-Response',value:'1'}],
+     body:Buffer.from(JSON.stringify(failure==='http'?{error:'storage_unavailable'}:{items:[],status:'exhausted',next:null})).toString('base64')});
+ }
  if(p.responseStatusCode!==undefined&&c.sceneResponseBarrier&&u.endsWith(c.sceneResponseBarrier.suffix)){
    assert.equal(c.sceneResponseBarrier.response,null);c.sceneResponseBarrier.response=p;return;
  }
- if(c.beforeRequest&&u===origin+c.beforeRequest.path&&p.request.method===c.beforeRequest.method){const before=c.beforeRequest;c.beforeRequest=null;await before.run();}
+ if(c.beforeRequest&&u===origin+c.beforeRequest.path&&p.request.method===c.beforeRequest.method){const before=c.beforeRequest;c.beforeRequest=null;
+   if(before.unavailable)return c.send('Fetch.fulfillRequest',{requestId:p.requestId,responseCode:503,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'X-Web-Planning-Response',value:'1'}],body:Buffer.from('{"error":"storage_unavailable"}').toString('base64')});
+   await before.run();}
  if(c.direct&&u===origin+'/cdn-cgi/access/logout'){
    c.logoutObserved=true;
    await local.setOptions({access:undefined});
@@ -89,6 +114,9 @@ async function intercept(c,p,origin){
  }
  if(u===origin+'/api/works'&&c.listFailure){
    const failure=c.listFailure;c.listFailure=null;c.injectedListFailure=failure;
+   if(failure==='partial')return c.send('Fetch.fulfillRequest',{requestId:p.requestId,responseCode:200,responseHeaders:[
+     {name:'Content-Type',value:'application/json'},{name:'X-Web-Planning-Response',value:'1'}],
+     body:Buffer.from(JSON.stringify({items:[{work_id:'incomplete',goal:'Truncated response'}],next:null})).toString('base64')});
    if(failure==='http')return c.send('Fetch.fulfillRequest',{requestId:p.requestId,responseCode:503,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'Cache-Control',value:'no-store'}],body:Buffer.from('{"error":"storage_unavailable"}').toString('base64')});
    if(failure==='transport'){expectedFailures.add(p.networkId);return c.send('Fetch.failRequest',{requestId:p.requestId,errorReason:'ConnectionClosed'});}
    assert.equal(failure,'denied'); // Let the real local ingress reject the missing cookie.
@@ -161,21 +189,61 @@ async function retainedAcknowledgement(c,n,failure){
  const traffic=recovery.assert([{target_id:c.targetId,method:'GET',path:'/api/works',body:undefined}]);
  assert(traffic.capacity>0,'list recovery overlaps the independent capacity scheduler');
  assert.equal(await revisionCount(),stored);assert.equal(await c.eval('saved.revision'),n);
- assert.equal(await visible(c,'refresh-list'),false);assert.match(await c.eval("$('status').textContent"),/Work list refreshed/);
+ assert.equal(await visible(c,'refresh-list'),true,'refresh stays available to discover later replies');assert.match(await c.eval("$('status').textContent"),/Work list refreshed/);
  acknowledgementChecks.push({reply:c.acknowledgedReply.path.endsWith('/resolve')?'resolve':'save',failure,revision:n,list_recovery_requests:1,additional_writes:0,stored_revisions:stored});
 }
 async function closeLocalRuntime(){for(const c of clients)c.interceptions.mark('runtime_close_requested',{runtime_origin:local.origin});await local.close();}
-async function navigate(c,url){await c.send('Page.navigate',{url});await wait(()=>c.eval("document.readyState==='complete'"),'page complete');}
+async function navigate(c,url){
+ // Disposal is already complete for an observed blank document. Repeated
+ // runtime transitions must not renavigate every previously disposed tab.
+ // Live views still settle capacity and verify the new document below.
+ if(url==='about:blank'&&await c.eval("location.href==='about:blank'&&document.readyState==='complete'"))return;
+ // Navigation destroys the old document's paused Fetch requests. Settle its
+ // normal capacity read first; do not cancel, retry or ignore a CDP failure.
+ await wait(()=>c.eval(`(async()=>{
+   if(typeof capacityInFlight==='undefined')return true;
+   if(capacityInFlight)return false;
+   if(pending||accessLost||!$('draft-capacity')||!$('draft-capacity').dataset.state||['fits','blocked','unavailable'].includes($('draft-capacity').dataset.state))return true;
+   if(!$('editor').hidden)return false;
+   // Erasure hides the editor after show schedules the normal 500ms debounce.
+   // A focus read can instead cancel it while hidden. Let any earlier timer
+   // run on the browser's clock, then require an unchanged epoch and no read.
+   const epoch=capacityEpoch;await new Promise(resolve=>setTimeout(resolve,500));
+   return epoch===capacityEpoch&&!capacityInFlight;
+ })()`),'capacity before navigation');
+ const {frameId,loaderId,errorText}=await c.send('Page.navigate',{url});assert.equal(errorText,undefined);
+ // The command response can precede document commit. An old complete document,
+ // including one at the same URL, cannot satisfy the new navigation.
+ await wait(async()=>{const {frame}= (await c.send('Page.getFrameTree')).frameTree;
+   return frame.id===frameId&&(!loaderId||frame.loaderId===loaderId)&&await c.eval(`document.readyState==='complete'&&location.href===${JSON.stringify(frame.url)}`);
+ },'destination document complete');
+}
 async function login(c,origin){await navigate(c,origin+'/_local/login');await wait(()=>c.eval("!!document.querySelector('form button')"),'login');await c.eval("document.querySelector('form button').click()");await wait(()=>c.eval("document.getElementById('list-state')?.textContent!=='Reading saved work…'&&!!document.getElementById('new-work')"),'workspace');}
 async function reopen(c){await wait(()=>c.eval("document.querySelectorAll('#work-list button').length>0"),'saved list');await c.eval("document.querySelector('#work-list button').click()");await wait(()=>visible(c,'editor'),'editor');}
-let checks=[];
+let checks=[], browserUse;
 try {
+ const recoveryOnly=process.argv[2]==='--participation-recovery',reassessmentOnly=process.argv[2]==='--reassessment';
+ assert(process.argv.length===2||(recoveryOnly||reassessmentOnly)&&process.argv.length===3);
  testReadOnlyRequestWindow();
  local=await startLocal({root:path.join(root,'runtime')});const origin=local.origin;
  const debug=await availablePort();const profile=path.join(root,'chrome-profile'),downloads=path.join(root,'downloads');await mkdir(downloads);
+ browserUse=beginBrowserUse(chrome,{consumer:"web-planning"});
  const child=spawn(chrome,['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check','--disable-background-networking','--disable-component-update','--disable-default-apps','--disable-domain-reliability','--disable-extensions','--disable-sync','--metrics-recording-only','--no-pings','--password-store=basic','--use-mock-keychain','--remote-debugging-address=127.0.0.1',`--remote-debugging-port=${debug}`,`--user-data-dir=${profile}`,'about:blank'],{stdio:'ignore',detached:true});processRecord=registerOwnedChild(owned,child,{label:'web-planning-browser'});
  await wait(async()=>{try{return (await fetch(`http://127.0.0.1:${debug}/json/version`)).ok;}catch{return false;}},'chrome');
- const a=await page(debug,origin);await login(a,origin);
+ const a=await page(debug,origin);
+ browserUse.version((await (await fetch(`http://127.0.0.1:${debug}/json/version`)).json()).Browser);
+ browserUse.version((await a.send("Browser.getVersion")).product,"cdp");
+ await login(a,origin);
+ if(recoveryOnly){
+   await closeLocalRuntime();local=await startLocal({root:path.join(root,'participation-recovery'),bindings:participantBindings()});
+   const owner=await page(debug,local.origin);await login(owner,local.origin);
+   await browserParticipationRecovery({owner,participant:c=>page(debug,local.origin,c?.browserContextId??true),local,root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
+ }else if(reassessmentOnly){
+   const fresh=await page(debug,origin);
+   const result=await browserConsumerReassessment({c:a,fresh,origin,env:{...process.env,AUGNES_WEB_ORIGIN:origin,AUGNES_WEB_FIXTURE_COOKIE:'web_planning_local='+local.env.LOCAL_SESSION},root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
+   await browserReassessmentSafety({c:a,seed:result.seed,root,newPage:origin=>page(debug,origin),login,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks,requests});
+ }else{
+ await browserNavigationCapacity({c:a,click,set,wait,navigate,origin,checks});
  await a.send('Page.bringToFront');await a.eval("document.getElementById('new-work').focus()");await a.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,text:'\r'});await a.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
  await wait(()=>a.eval("document.activeElement.id==='goal'"),'keyboard new work');
  await set(a,'goal','Choose a quiet reading room');await set(a,'criteria','Preserve one owner\nReopen the plan');await set(a,'non-goals','No file uploads');
@@ -223,9 +291,14 @@ try {
  assert(await a.eval("[...document.querySelectorAll('input:not([type=hidden]),textarea,select')].every(e=>!!document.querySelector('label[for=\"'+e.id+'\"]'))"));checks.push('responsive widths and labelled keyboard controls');
  await a.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads});await a.eval("document.getElementById('history-tools').open=true");await click(a,'export');await wait(async()=> (await readdir(downloads)).some(p=>p.endsWith('.json')),'export download');
  const exported=JSON.parse(await readFile(path.join(downloads,(await readdir(downloads)).find(p=>p.endsWith('.json'))),'utf8'));assert.equal(exported.revisions.length,4);
- await click(a,'erase');await wait(()=>visible(a,'erase-confirm'),'erase confirmation');await click(a,'cancel-erase');assert(await visible(a,'editor'));await click(a,'erase');await click(a,'confirm-erase');await wait(()=>a.eval("document.getElementById('status').textContent.startsWith('Whole work erased')"),'whole erase');
+ await click(a,'erase');await wait(()=>visible(a,'erase-confirm'),'erase confirmation');await click(a,'cancel-erase');assert(await visible(a,'editor'));await click(a,'erase');
+ await wait(()=>a.eval("!capacityInFlight&&['fits','blocked','unavailable'].includes($('draft-capacity').dataset.state)"),'capacity before erase');a.holdCapacity=true;
+ await click(a,'confirm-erase');await wait(()=>a.eval("document.getElementById('status').textContent.startsWith('Whole work erased')"),'whole erase');
  assert.equal((await local.db.prepare('SELECT count(*) n FROM web_planning_revision').first()).n,0);assert.equal((await local.db.prepare('SELECT count(*) n FROM web_planning_erased').first()).n,1);checks.push('actual export download and exact whole-work erasure');
- await settled(a);await click(a,'new-work');await set(a,'goal','Private acknowledged plan');await set(a,'criteria','Keep one saved revision');
+ await settled(a);await browserNavigateWithCapacity({c:a,wait,navigate,label:'hidden editor after actual erasure'});
+ await navigate(a,origin+'/');await wait(()=>a.eval("$('list-state').textContent==='No saved work yet.'"),'erased fresh entry');
+ checks.push('hidden editor scheduled capacity settles before navigation; actual erasure stays empty');
+ await click(a,'new-work');await set(a,'goal','Private acknowledged plan');await set(a,'criteria','Keep one saved revision');
  for(const [index,failure] of ['http','transport'].entries()){
    if(index)await set(a,'goal','Private acknowledged plan after transport failure');
    await failListAfterReply(a,'save',failure);const before=requests.length;
@@ -253,22 +326,53 @@ try {
  assert.equal(requests.filter(r=>r.path.endsWith('/resolve')).at(-1).body,lostSave.body);
  for(const [index,route] of ['save','resolve'].entries()){
    await set(a,'goal','Private material before '+route+' acknowledgement loses access');
-   const before=requests.length;
+   const before=requests.length;let original;
+   // Observe the error that actually reaches the ordinary run owner. This does
+   // not substitute a response or classify another error as access loss.
+   await a.eval("window.accessOperationErrors=[];{const original=run;run=fn=>original(async()=>{try{return await fn();}catch(e){accessOperationErrors.push({name:e.name,message:e.message});throw e;}});}");
    if(route==='resolve'){
      await a.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'},{urlPattern:'*/save',requestStage:'Response'}]});
      await click(a,'save');await settled(a);assert.equal(await visible(a,'uncertain'),true);
+     original=await a.eval('JSON.stringify(pending)');assert.notEqual(original,'null');
+     assert.equal(await revisionCount(),4+index,'lost acknowledgement has already committed');
    }
    await failListAfterReply(a,route,'denied');await click(a,route==='save'?'save':'resolve-save');await settled(a);
    assert.equal(privateViewCleared(await a.eval(`({work,saved,pending,saveTicket,body:document.body.innerText})`)),true);
    assert.equal(a.injectedListFailure,'denied');assert.equal(responses.filter(r=>r.path==='/api/works').at(-1).status,403);
    assert.match(await a.eval("$('status').textContent"),/Access denied/);
+   assert.deepEqual(await a.eval('accessOperationErrors'),[{name:'Error',message:'access_denied'}]);
+   assert.equal(await a.eval('!busy&&!workChangeActive&&reassessmentView===null&&reassessmentPrepared===null&&reassessmentPending===null&&reassessmentRows.length===0'),true);
    assert.equal(await revisionCount(),4+index);assert.equal(requests.slice(before).filter(r=>r.path.endsWith('/save')).length,1);
+   if(original)assert.equal(requests.slice(before).find(r=>r.path.endsWith('/resolve')).body,requests.slice(before).find(r=>r.path.endsWith('/save')).body);
+   console.log(JSON.stringify({access_loss_acknowledgement:{route,reply:a.acknowledgedReply,revision:4+index,save_requests:1,resolve_requests:route==='resolve'?1:0,primary_error:'access_denied',lifecycle_settled:true,automatic_resend:false}}));
    await requestsOnly(a);await login(a,origin);await reopen(a);await settled(a);
+   assert.equal(await a.eval('saved.revision'),4+index);
+   assert.equal(await a.eval("$('goal').value"),'Private material before '+route+' acknowledgement loses access');
  }
+ // A denied write differs from a successful acknowledgement followed by a
+ // denied list. Keep its ticket from an authenticated read, then revoke ingress
+ // before the actual save reaches the server.
+ const deniedRevision=await revisionCount(),deniedGoal=await a.eval('saved.definition.goal');
+ await set(a,'goal','This denied draft must not append');
+ await a.eval("(async()=>{saveTicket=(await api('/api/work/'+work+'/ticket',{expected:binding(saved),...draft()})).ticket;})()");
+ await wait(()=>a.eval("!capacityInFlight&&['fits','blocked','unavailable'].includes($('draft-capacity').dataset.state)"),'authenticated capacity settles before save denial');
+ await a.send('Network.clearBrowserCookies');const deniedStart=requests.length;
+ await click(a,'save');await settled(a);
+ assert.match(await a.eval("$('status').textContent"),/Access denied/);
+ assert.equal(responses.filter(r=>r.path.endsWith('/save')).at(-1).status,403);
+ assert.equal(await revisionCount(),deniedRevision);assert.equal(requests.slice(deniedStart).filter(r=>r.path.endsWith('/save')).length,1);
+ assert.equal(await a.eval('accessLost&&!busy&&!workChangeActive&&work===null&&saved===null&&pending===null&&saveTicket===null'),true);
+ await login(a,origin);await reopen(a);await settled(a);assert.equal(await a.eval('saved.definition.goal'),deniedGoal);
+ checks.push('Access loss after acknowledged save and resolved lost acknowledgement preserves primary denial, clears private state and settles flags; exact requests commit once; pre-acceptance real save 403 appends nothing; explicit authenticated re-entry reads stored results');
  await browserBranchJourney({a,debug,origin,page,click,set,settled,saved,wait,visible,navigate,login,requestsOnly,requests,responses,revisionCount,readWindow,contextRequest,overlapCapacity,checks,
    restart:async()=>{const options={root:path.join(root,'runtime'),port:Number(new URL(origin).port),bindings:local.env,code:local.code};await closeLocalRuntime();local=null;local=await startLocal(options);}});
- assert.deepEqual(interceptionErrors,[]);
  await click(a,'signout');await wait(()=>a.eval("document.title==='Local synthetic workspace'"),'signout');assert(!await a.eval("document.body.innerText.includes('Evening noise')"));
+ for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=null;
+ local=await startLocal({root:path.join(root,'participation-browser'),bindings:participantBindings()});
+ const participantOwner=await page(debug,local.origin);await login(participantOwner,local.origin);
+ await browserParticipationRecovery({owner:participantOwner,participant:c=>page(debug,local.origin,c?.browserContextId??true),local,root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
+ await browserParticipation({owner:participantOwner,participant:()=>page(debug,local.origin,true),local,root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
+ assert.deepEqual(interceptionErrors,[]);
  // The same complete product journey now enters the compiled direct Worker
  // through workerd's platform Access simulation, without local login cookies.
  for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=null;
@@ -284,11 +388,15 @@ try {
  console.log('web-planning-browser: direct complete branch and comparison-recovery journey');
  await browserCapacityJourney({a:d,click,set,settled,saved,wait,navigate,origin:directOrigin,downloads:path.join(root,'capacity-downloads'),requests,responses,checks});
  await browserFileJourney({a:d,debug,origin:directOrigin,page,click,set,settled,saved,wait,navigate,requestsOnly,root,checks});
+ await browserRetainedNotes({a:d,click,set,settled,saved,wait,checks});
+ const noteTrace=await browserIndependentNotes({a:d,click,set,settled,saved,wait,checks});
+ const competing=await page(debug,directOrigin);await navigate(competing,directOrigin+'/');await wait(()=>competing.eval("typeof openWork==='function'"),'second editor ready');
+ await browserConflictSource({a:d,b:competing,click,set,settled,saved,wait,checks,trace:noteTrace});
  await browserHistoryJourney({a:d,debug,origin:directOrigin,page,click,set,settled,saved,wait,navigate,checks,
    restart:async()=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await closeLocalRuntime();local=null;
      local=await startLocal({...directOptions,port:Number(new URL(directOrigin).port),bindings,code:advancedClock(directOptions.code)});}});
  for(const boundary of ['redirect','challenge']){
-   d.accessBoundary=boundary;await click(d,'saved-context');await settled(d);
+   d.accessBoundary=boundary;await click(d,boundary==='challenge'?'history':'saved-context');await settled(d);
    assert.equal(await d.eval("accessLost&&work===null&&saved===null&&comparison===null&&!document.getElementById('context-view')&&!document.body.innerText.includes('Access login challenge')"),true);
    assert.equal(await d.eval("request('/api/works').then(()=>false,e=>e.message==='access_denied')"),true);
    await accessLogin(d);await reopen(d);await settled(d);
@@ -323,8 +431,24 @@ try {
  await browserOrdinaryFileJourney({a:ordinary,debug,origin:ordinaryOrigin,page,click,set,settled,saved,wait,navigate,root,checks,requests,requestsOnly,barrier:sceneResponseBarrier,
    replaceRuntime:async replacement=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await closeLocalRuntime();local=null;if(replacement)ordinaryDestination++;local=await startLocal({...ordinaryOptions(),bindings});},
    countRows:async()=>({revisions:(await local.db.prepare('SELECT count(*) n FROM web_planning_revision').first()).n,files:(await local.db.prepare('SELECT count(*) n FROM web_planning_file').first()).n})});
+ await browserFileExchanges({c:ordinary,origin:ordinaryOrigin,click,set,saved,settled,wait,navigate,root,checks,requestsOnly,barrier:sceneResponseBarrier,requests});
+ for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=null;
+ local=await startLocal({root:path.join(root,'work-search')});
+ const searchPage=await page(debug,local.origin);
+ await login(searchPage,local.origin);
+ await browserWorkSearch({c:searchPage,origin:local.origin,
+   clientEnvironment:{...process.env,AUGNES_WEB_ORIGIN:local.origin,AUGNES_WEB_FIXTURE_COOKIE:'web_planning_local='+local.env.LOCAL_SESSION},
+   click,set,settled,saved,wait,navigate,checks,requests});
+ for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=null;
+ local=await startLocal({root:path.join(root,'returned-continuation')});const receiver=await page(debug,local.origin),reader=await page(debug,local.origin);await login(receiver,local.origin);
+ await browserReturnedFiles({c:receiver,fresh:reader,origin:local.origin,env:{...process.env,AUGNES_WEB_ORIGIN:local.origin,AUGNES_WEB_FIXTURE_COOKIE:'web_planning_local='+local.env.LOCAL_SESSION},root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks,requests});
+ for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=await startLocal({root:path.join(root,'consumer-reassessment')});
+ const consumer=await page(debug,local.origin),freshConsumer=await page(debug,local.origin);await login(consumer,local.origin);
+ const consumerResult=await browserConsumerReassessment({c:consumer,fresh:freshConsumer,origin:local.origin,env:{...process.env,AUGNES_WEB_ORIGIN:local.origin,AUGNES_WEB_FIXTURE_COOKIE:'web_planning_local='+local.env.LOCAL_SESSION},root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
+ await browserReassessmentSafety({c:consumer,seed:consumerResult.seed,root,newPage:origin=>page(debug,origin),login,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks,requests});
+ }
  assert.deepEqual(interceptionErrors,[]);
  assert.equal(exceptions,0);assert.equal(external,0);assert.equal(unexpectedFailures,0);assert.equal(expectedFailures.size,0);
  console.log(JSON.stringify({web_planning_browser_checks:checks,acknowledgement_checks:acknowledgementChecks,actual_agent_read:false,sites_ingress_verified:false,cloudflare_access_hosted_verified:false,external_requests:external,script_exceptions:exceptions}));
-} finally {for(const c of clients)await c.close();if(processRecord)await terminateOwnedProcessTree(processRecord);if(local)await closeLocalRuntime();assert.equal(owned.size,0);console.log(JSON.stringify({web_planning_interception_diagnostics:clients.map(c=>c.interceptions.summary())}));console.log('web_planning_browser_cleanup_complete');}
+} finally {for(const c of clients)await c.close();if(processRecord)await terminateOwnedProcessTree(processRecord);browserUse?.finish();if(local)await closeLocalRuntime();assert.equal(owned.size,0);console.log(JSON.stringify({web_planning_interception_diagnostics:clients.map(c=>c.interceptions.summary())}));console.log('web_planning_browser_cleanup_complete');}
 function privateViewCleared(s){return s.work===null&&s.saved===null&&s.pending===null&&s.saveTicket===null&&!s.body.includes('Private material')&&!s.body.includes('Saved revision');}

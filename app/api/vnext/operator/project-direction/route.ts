@@ -20,8 +20,14 @@ export function createProjectDirectionHandler(options: { environment?: NodeJS.Pr
       const config = resolveVNextLocalReviewConfigV01({ environment: options.environment ?? process.env, credential, clock: options.clock });
       if ([...url.searchParams.keys()].some(k => k !== "project_id") || url.searchParams.get("project_id") !== config.project_id) throw new ProjectDirectionError("project_direction_session_scope", 403);
       db = openVNextLocalOperatorDatabaseV01(config);
+      if (request.method === "GET") {
+        const database = db;
+        return database.transaction(() => {
+          authenticateVNextLocalOperatorSessionV01(database, { config, credential, clock: options.clock });
+          return NextResponse.json({ ok: true, state: readProjectDirection(database, config, options.clock?.now() ?? new Date().toISOString()) }, { headers });
+        })();
+      }
       authenticateVNextLocalOperatorSessionV01(db, { config, credential, clock: options.clock });
-      if (request.method === "GET") return NextResponse.json({ ok: true, state: readProjectDirection(db, config, options.clock?.now() ?? new Date().toISOString()) }, { headers });
       if (request.method !== "POST") throw new ProjectDirectionError("project_direction_method", 405);
       const body = await readBoundedVNextLocalOperatorBodyV01(request);
       const input = { config, credential, request: body, clock: options.clock };

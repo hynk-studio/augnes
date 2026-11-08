@@ -8,7 +8,7 @@ checked-in qualified-runtime registry and production selection.
 ## Run boundary
 
 Use the canonical clean checkout on a task branch, with local `main` equal to
-the authorized exact base, on macOS arm64 with repository-pinned Node 24.18.0:
+the authorized exact base, on macOS arm64 with repository-pinned Node 24.22.1:
 
 ```sh
 node --import tsx scripts/run-codex-rolling-stable-candidate.ts \
@@ -50,6 +50,23 @@ canary, thread, turn, provider request, production registry mutation, or Strict
 Agent Identity operation is available through the rolling cycle command.
 
 ## Separately authorized ordinary candidate canary binding
+
+Synthetic tests resolve the fixed `scripts/fixtures/fake-codex-app-server.mjs`
+through the source-owned fixture validator. Its exact canonical path, regular
+single-link file, reviewed byte digest, Node executable, explicit test mode and
+single permitted prefix are required. Isolated-auth prefix admission and the
+private broker's spawn boundary use the same identity check. A copied fixture,
+matching basename, alias, changed bytes or extra argument is not eligible.
+The ordinary canary's test-only serialization scan validates the complete fixed
+argument sequence before representing that one proven locator symbolically;
+every other launch field still passes through the unchanged credential-shape
+detector. Embedded synthetic credential rejection and source-home non-leakage
+remain tested. This does not grant execution or broaden production launch input.
+The fixture's own isolated-auth argv observation uses the same fixed identity
+check and a source-owned digest of the exact isolated-auth argument sequence;
+the contract test binds that digest to the existing override constants. Only
+the proven locator is symbolized, with the executable and all other arguments
+still scanned. Extra arguments fail closed.
 
 `prepareCodexCandidateCanaryV01` prepares an opaque single-use adapter binding.
 It requires the persisted Phase 5 receipt, a run-scoped

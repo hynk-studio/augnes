@@ -1,9 +1,16 @@
 #!/usr/bin/env node
+import { hasRetiredQualificationMarker, isReviewedRevision, REVIEWED_REVISION_PHASES, readSourceCorrectionProof as readCorrectionProof } from "./local-canonical-attempts.mjs";
 
+import { isGitObservationRevision, isInventoryBoundRevision } from "./local-canonical-git-observation.mjs";
+import { isBrowserRevision, verifyBrowserRevisionPreservation } from "./local-canonical-browser-revision.mjs";
 import assert from "node:assert/strict";
+import { digest } from "./local-canonical-inputs.mjs";
 import { spawnSync } from "node:child_process";
 import {
   existsSync,
+  lstatSync,
+  chmodSync,
+  linkSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -50,6 +57,10 @@ import {
   removeBoundedGeneratedNextState,
   resolveVerificationPlan,
   runPhasesSequentially,
+  readStockMachineIdentity,
+  assertStockReceiptSupported,
+  assertRuntimeInputSelection,
+  executeLocalCanonicalVerification,
 } from "./run-local-canonical-verification.mjs";
 import {
   acquireCheckoutVerificationOwnership,
@@ -63,6 +74,69 @@ import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { finalizeReceipt, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
 
 import { createIsolatedInvocationResources, isolatedInvocationEnvironment, cleanupIsolatedInvocationResources } from "./local-canonical-isolated-resources.mjs";
+
+assert.doesNotThrow(() => assertRuntimeInputSelection(null, {}));
+for (const key of ["AUGNES_CANONICAL_NODE_HEADERS", "AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT"]) {
+  assert.throws(() => assertRuntimeInputSelection(null, { [key]: "unbound" }), /runtime_input_selection_unbound/);
+  assert.throws(() => assertRuntimeInputSelection({ headers: { observation: {} } }, { [key]: "wrong" }), /runtime_input_selection_unbound/);
+}
+
+// Removed options refuse at the public entry before repository admission,
+// even when callers disguise the option as a null/false default.
+for (const browserReplacementProofPath of [null, false, ".augnes-local-verification/missing.json"])
+  await assert.rejects(() => executeLocalCanonicalVerification({ mode: "full", browserReplacementProofPath }), { code: "qualification_route_retired" });
+
+// Retired stock refuses before input/identity observation; live revision stock
+// cannot create/chmod a missing or retained machine identity.
+{
+  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-revision-stock-")));
+  try {
+    const receipt = { attempt: { source_correction: { schema: "augnes.local-canonical-operating-profile-succession.v1", kind: "operating_profile_efficiency" } } };
+    const receipts = [receipt,
+      { receipt_version: 5 },
+      ...["client.js.txt", "exchange-client.js.txt", "history-client.js.txt", "search-client.js.txt"].map(file => ({
+        attempt: { source_correction: { schema: "augnes.local-canonical-source-correction.v2", kind: "source_revision", source_module: "apps/web_planning/src/" + file } },
+      })),
+      ...["browser_replacement", "browser_authority", "input_replacement_consumed"].flatMap(key =>
+        [false, null, {}].map(value => ({ attempt: { [key]: value } }))),
+      ...["browser_input_path", "browser_input_sha256"].flatMap(key =>
+        [false, null].map(value => ({ attempt: { source_correction: { schema: "augnes.local-canonical-source-correction.v2", kind: "source_revision", [key]: value } } }))),
+      ...["browser_input", "browser_guard"].flatMap(key => [false, null].map(value => ({ [key]: value }))),
+      { inputs: { binding: { browser_input: null } } }, { inputs: { resources: [{ browserBundle: false }] } },
+      { attempt: { source_correction: { schema: "augnes.local-canonical-operating-profile-succession.v1", kind: "wrong" } } },
+      { attempt: { source_correction: { kind: "operating_profile_efficiency" } } },
+      { attempt: { profile_authority: {} } }, { attempt: { operating_profile_consumed: true } },
+      { attempt: { source_correction: { schema: "augnes.local-canonical-successor-budget-succession.v1", kind: "settled_successor_budget" } } },
+      { attempt: { source_correction: { schema: "augnes.local-canonical-successor-budget-succession.v1", kind: "wrong" } } },
+      { attempt: { source_correction: { kind: "settled_successor_budget" } } },
+      { attempt: { budget_authority: {} } }, { attempt: { successor_budget_consumed: true } },
+      { attempt: { source_correction: { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision" } } },
+      { attempt: { source_correction: { schema: "augnes.local-canonical-source-correction.v7", kind: "wrong" } } },
+      { attempt: { source_correction: { kind: "reviewed_revision" } } },
+      { attempt: { revision_authority: {} } }, { attempt: { reviewed_revision_consumed: true } }];
+    for (const value of receipts) {
+      assert.throws(() => readStockMachineIdentity(value, root));
+      if (hasRetiredQualificationMarker(value)) {
+        assert.throws(() => readStockMachineIdentity(value, root), { code: "qualification_route_retired" });
+        for (const receipt_version of value.receipt_version === 5 ? [5] : [3, 4, 5])
+          assert.throws(() => assertStockReceiptSupported({ ...value, receipt_version }), { code: "qualification_route_retired" });
+      }
+      assert.deepEqual(readdirSync(root), []);
+    }
+    const file = path.join(root, "machine-id");
+    writeFileSync(file, "7".repeat(64), { mode: 0o600 });
+    const rootBefore = lstatSync(root, { bigint: true });
+    const before = lstatSync(file, { bigint: true }), bytes = readFileSync(file);
+    for (const value of receipts) {
+      if (hasRetiredQualificationMarker(value)) assert.throws(() => readStockMachineIdentity(value, root), { code: "qualification_route_retired" });
+      else assert.match(readStockMachineIdentity(value, root), /^[0-9a-f]{32}$/u);
+    }
+    const after = lstatSync(file, { bigint: true });
+    assert.equal(lstatSync(root, { bigint: true }).ctimeNs, rootBefore.ctimeNs);
+    for (const key of ["dev", "ino", "mode", "uid", "gid", "nlink", "size", "mtimeNs", "ctimeNs"]) assert.equal(after[key], before[key]);
+    assert(readFileSync(file).equals(bytes));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+}
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -780,10 +854,16 @@ assert.deepEqual(
   ],
 );
 
-assert.equal(CANONICAL_NODE_VERSION, "24.18.0");
-assert.equal(CANONICAL_NODE_COMPATIBILITY, "^22.0.0 || ^24.0.0");
+assert.equal(CANONICAL_NODE_VERSION, "24.22.1");
+assert.equal(CANONICAL_NODE_COMPATIBILITY, "^22.23.4 || ^24.22.1");
 assert.equal(evaluateNodePolicy(CANONICAL_NODE_VERSION).canonical_match, true);
-assert.equal(evaluateNodePolicy("22.23.1").compatibility_match, true);
+for (const version of ["22.23.4", "22.24.0", "24.22.1", "24.23.0"]) {
+  assert.equal(evaluateNodePolicy(version).compatibility_match, true, version);
+  assert.equal(evaluateNodePolicy(version).canonical_match, version === CANONICAL_NODE_VERSION);
+}
+for (const version of ["22.23.3", "24.22.0", "24.18.0", "20.99.0", "23.0.0", "26.0.0", "v24.22.1", "24.22.1-rc.1", "024.22.1", "24.22.1\n"]) {
+  assert.equal(evaluateNodePolicy(version).compatibility_match, false, version);
+}
 assert.equal(evaluateNodePolicy("25.9.0").canonical_match, false);
 assert.equal(evaluateNodePolicy("25.9.0").compatibility_match, false);
 
@@ -875,7 +955,7 @@ const ownedBlockEnd = executorSource.indexOf("\n  const serviceLifecycleRestored
 assert.ok(ownedBlockStart > 0 && ownedBlockEnd > ownedBlockStart);
 const ownedBlock = executorSource.slice(ownedBlockStart, ownedBlockEnd);
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisition_failure", "owned_failure", "unsettled_failure", "success", "absent_success", "stopped_success", "quick_success", "isolated_success", "isolated_unsettled", "isolated_observation_invalid", "pre_lock_state_race", "maintenance_state_race"]) {
+for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"].flatMap(graph => ["missing", "invalid", "ready"].map(state => `${prefix}historical_${graph}_${state}`))), "wrong_npm","checkout_busy","capacity_busy","acquisition_failure","owned_failure","unsettled_failure","success","absent_success","stopped_success","quick_success","isolated_success","isolated_unsettled","isolated_observation_invalid","pre_lock_state_race","maintenance_state_race","revision_authority_refused","revision_changed_after_authority","revision_partial_workload_refused","revision_runtime_success","revision_settlement_success","revision_settlement_unsafe","revision_browser_preservation_refused","revision_dependencies_observation_failure","isolated_observer_settled","isolated_observer_cleanup_failed","isolated_observer_unknown",]) {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-canonical-ownership-")));
   let competingOwner = null;
   let privateResource = null;
@@ -892,10 +972,27 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
     if (!racingState) createSharedState();
     const diagnosticBeforeLock = { next: existsSync(next), windows: existsSync(windows) };
     const calls = { acquire: 0, release: 0, phases: 0, remove: 0, checkoutAcquire: 0, checkoutRelease: 0, logPrepare: 0, prune: 0 };
+    const historical = scenario.includes("historical_");
+    const historicalRefusal = historical && !scenario.endsWith("_ready");
+    const historicalGraph = scenario.includes("_r8a_") ? "r8a" : "durable";
+    const historicalReads = [];
     const quick = scenario === "quick_success";
-    const isolated = scenario.startsWith("isolated_");
-    const unsettled = ["unsettled_failure", "isolated_unsettled"].includes(scenario);
+    const isolated = scenario.startsWith("isolated_") || scenario.startsWith("revision_");
+    const observerFailure = scenario.startsWith("isolated_observer_");
+    const unsettled = ["unsettled_failure", "isolated_unsettled", "isolated_observer_unknown"].includes(scenario);
     const noServiceMaintenance = ["absent_success", "stopped_success"].includes(scenario);
+    let authorityObserved = false, attemptClaims = 0;
+    const revisionLane = scenario.startsWith("revision_");
+    const browserRefusal = scenario === "revision_browser_preservation_refused";
+    const browserService = { status: "live", checkout_relation: "exact", preservation_valid: true,
+      service_identity: "sha256:" + "b".repeat(64), preservation_binding: "a".repeat(64) };
+    let browserSamples = 0;
+    const rejectedAt = new Date(Date.now() - 1000).toISOString();
+    const revisionSettlement = scenario.startsWith("revision_settlement_");
+    const settlementLive = Object.freeze({ synthetic_current_safe_observation: true });
+    const revisionRuntime = ["revision_runtime_success", "revision_settlement_success", "revision_dependencies_observation_failure"].includes(scenario);
+    const revisionRefusal = revisionLane && !revisionRuntime;
+    const preparedPhases = []; let preparedChecks = 0;
     let activeOwner = null;
     let maintenanceSettled = false;
     let serviceState = { status: scenario === "absent_success" ? "not_installed" : scenario === "stopped_success" ? "installed_stopped" : scenario === "pre_lock_state_race" ? "maintenance" : "live" };
@@ -906,22 +1003,61 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
     const preflightIssues = [];
     if (scenario === "wrong_npm") {
       try {
-        assertDecidingEnvironment({ host: { operating_system: "macOS", architecture: "arm64", node_version: "24.18.0", path_node_version: "24.18.0", npm_version: "11.12.1" }, nodePolicy: evaluateNodePolicy("24.18.0"), diskMinimumBytes: 0 });
+        assertDecidingEnvironment({ host: { operating_system: "macOS", architecture: "arm64", node_version: "24.22.1", path_node_version: "24.22.1", npm_version: "11.12.1" }, nodePolicy: evaluateNodePolicy("24.22.1"), diskMinimumBytes: 0 });
       } catch (error) { preflightIssues.push(error.code); }
       assert.deepEqual(preflightIssues, ["canonical_npm_mismatch"]);
     }
+    const historicalRead = (graph, repository) => {
+      assert.equal(repository, root); assertCheckoutVerificationOwnership(activeOwner, root);
+      assert.equal(attemptClaims, 0); assert.equal(calls.phases, 0); assert.equal(calls.acquire, 0);
+      assert.equal(calls.remove, 0); assert.equal(calls.logPrepare, 0);
+      historicalReads.push(graph);
+      if (historicalRefusal) throw Object.assign(new Error("historical provision unavailable or invalid"),
+        { code: scenario.endsWith("_missing") ? "ENOENT" : "ERR_ASSERTION" });
+      return {};
+    };
     const context = {
-      checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: undefined,
+      checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
+      controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, baseSha: "0".repeat(40), headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
+      isReviewedRevision, isBrowserRevision, isGitObservationRevision, isInventoryBoundRevision, digest, REVIEWED_REVISION_PHASES,
+      sourceCorrection: revisionLane ? { schema: browserRefusal ? "augnes.local-canonical-source-correction.v8" : "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", ...(revisionSettlement ? { settlement: { sha256: "c".repeat(64) } } : {}) } : null,
+      authorizeReviewedRevision: async () => { authorityObserved = true; if (scenario === "revision_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
+      observeReviewedRevisionSettlementState: async () => {
+        assert(authorityObserved); assertCheckoutVerificationOwnership(activeOwner, root);
+        assert.equal(attemptClaims, 0); assert.equal(calls.phases, 0);
+        if (scenario === "revision_settlement_unsafe") throw Object.assign(new Error(), { code: "revision_current_settlement_unsafe" });
+        return settlementLive;
+      },
+      runtimeInputs: revisionRuntime ? {} : null,
+      prepareInvocationInputs: () => ({ check: () => null,
+        prepareDependencies: ({ repositoryRoot, phaseId }) => {
+          assert.equal(repositoryRoot, root); assert(calls.phases > preparedPhases.length);
+          assertCheckoutVerificationOwnership(activeOwner, root); preparedPhases.push(phaseId);
+          if (scenario === "revision_dependencies_observation_failure") throw Object.assign(new Error(), { code: "dependency_input_read_race" });
+        },
+        checkPreparedDependencies: () => { assertCheckoutVerificationOwnership(activeOwner, root); preparedChecks++; }, snapshot: () => ({ resources: [], binding: { tree: "c".repeat(40) }, fingerprint: "d".repeat(64) }) }),
+      monitorInputContract: () => ({ check: () => [    "revision_changed_after_authority",    ].includes(scenario) && authorityObserved ? { disposition: "input_invalidation" } : null, stop() {}, fault: () => null }),
+      beginAttempt: options => {
+        if (browserRefusal) verifyBrowserRevisionPreservation(browserService, options.revisionLive);
+        else assert.equal(options.revisionLive, revisionSettlement ? settlementLive : null);
+        attemptClaims++;
+        return {};
+      }, pinVerificationEvidence() {}, assertFrozenSource() {},
       createIsolatedInvocationResources: id => (privateResource = createIsolatedInvocationResources(id)),
+      readPreparedR8ADependencies: repository => historicalRead("r8a", repository),
+      readPreparedDurableDependencies: repository => historicalRead("durable", repository),
+      prepareHistoricalInputs: () => ({}),
+      finishHistoricalInputs: () => ({ completed: true, unchanged: true }),
       cleanupIsolatedInvocationResources: (resource, options) => {
+        if (scenario === "isolated_observer_cleanup_failed") throw Object.assign(new Error("synthetic_cleanup_failed"), { code: "synthetic_cleanup_failed" });
         const result = cleanupIsolatedInvocationResources(resource, options);
         privateResourceCleaned = result.completed; return result;
       },
       assertVerificationContext: () => true, verificationAnchorRoot: () => root,
       invocationId: "a".repeat(32),
       plan: { selected_plan: quick ? "quick-feedback" : "full-canonical" }, OWNER_TARGETED_PLAN: "owner-targeted",
-      preflightIssues, phaseDefinitions: [{ id: "synthetic" }], phaseReceipts: [{ id: "synthetic", status: "not_run" }],
-      repositoryRoot: root, runLogRoot, runId: "synthetic", mode: "changed", hostResult: {},
+      preflightIssues, phaseDefinitions: historical ? [{ id: historicalGraph === "r8a" ? "unit" : "integration" }] : revisionLane && scenario !== "revision_partial_workload_refused" ? REVIEWED_REVISION_PHASES.map(id => ({id})) : observerFailure ? [{ id: "synthetic" }, { id: "must_not_start" }] : [{ id: "synthetic" }], phaseReceipts: (historical ? [historicalGraph === "r8a" ? "unit" : "integration"] : revisionRuntime ? REVIEWED_REVISION_PHASES : observerFailure ? ["synthetic", "must_not_start"] : ["synthetic"]).map(id => ({id,status:"not_run"})),
+      repositoryRoot: root, runLogRoot, runId: "synthetic", mode: revisionLane ? "full" : "changed", hostResult: {},
       process: { platform: scenario === "capacity_busy" ? "darwin" : "win32", arch: "x64" }, generatedWindowsHelperRoot: windows,
       host: {},
       acquireVerificationCapacity: () => {
@@ -960,7 +1096,18 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
       },
       safeErrorCode: error => error.code ?? "synthetic_failure", boundedLifecycleState: value => value,
       inspectCompanionService: async () => structuredClone(serviceState),
-      inspectCompanionPreservation: async () => ({state:{...structuredClone(serviceState),preservation_valid:scenario !== "isolated_observation_invalid",preservation_binding:"a".repeat(64)},diagnostics:{samples:1}}),
+      inspectVerificationCompanionPreservation: async (_ctx, { freshTransport }) => {
+        assert.equal(freshTransport, browserRefusal);
+        if (!browserRefusal) return { state: { ...serviceState, preservation_valid: scenario !== "isolated_observation_invalid",
+          preservation_binding: "a".repeat(64) }, diagnostics: { samples: 1 } };
+        const middle = ++browserSamples === 2;
+        return { state: { ...browserService, ...(middle ? { status: "recovery_required", preservation_valid: false } : {}) },
+          diagnostics: { contract: "augnes.companion-preservation-observation.v2", samples: 1, coherent: true, live_identity_valid: true,
+            before_binding: browserService.preservation_binding, after_binding: browserService.preservation_binding,
+            repository_observation_before: "observed", repository_observation_after: "observed",
+            repository_binding_before: "c".repeat(64), repository_binding_after: "c".repeat(64),
+            finished_at: middle ? rejectedAt : new Date().toISOString(), runtime: { probe_available: { ui_health: !middle } } } };
+      },
       acquireCompanionServiceMaintenance: async () => {
         assertCheckoutVerificationOwnership(activeOwner, root);
         calls.acquire++;
@@ -979,24 +1126,36 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
         if (lease) serviceState = lease.before;
         return { released: true };
       },
-      runPhasesSequentially, executePhase: async ({ isolatedResources }) => {
+      runPhasesSequentially: options => runPhasesSequentially({ ...options,
+        onResult: (...args) => {
+          options.onResult(...args);
+          if (observerFailure) throw Object.assign(new Error("synthetic_post_phase_observation_failure"), { code: "synthetic_post_phase_observation_failure" });
+        },
+      }), executePhase: async ({ isolatedResources }) => {
         if (isolated) {
           assert.equal(isolatedResources, privateResource);
           assert.notEqual(isolatedInvocationEnvironment(isolatedResources).HOME, process.env.HOME);
           assert.equal(calls.acquire, 0);
         }
         assert.throws(() => acquireCheckoutVerificationOwnership({ repositoryRoot: root }), hasCode("checkout_owner_busy"));
-        assert.equal(existsSync(next), quick, "deciding execution starts without pre-existing Next state");
-        assert.equal(existsSync(windows), quick, "deciding execution starts without pre-existing helper state");
+        assert.equal(existsSync(next), quick || calls.phases > 0, "deciding execution starts clean; later phases retain owned generated state");
+        assert.equal(existsSync(windows), quick || calls.phases > 0, "deciding execution starts clean; later phases retain owned helper state");
         calls.phases++; mkdirSync(next, { recursive: true }); writeFileSync(path.join(next, "partial-build"), "owned");
         mkdirSync(windows, { recursive: true }); writeFileSync(path.join(windows, "partial-helper"), "owned");
         return { status: ["owned_failure", "unsettled_failure", "isolated_unsettled"].includes(scenario) ? "fail" : "pass",
           duration_ms: 1, failure_code: "synthetic",
-          cleanup: { completed: !unsettled, remaining_owned_processes: unsettled ? null : 0 } };
+          cleanup: { completed: !unsettled, exit_observed: true, streams_closed: !unsettled, remaining_owned_processes: unsettled ? null : 0 } };
       },
     };
-    const result = await new AsyncFunction(...Object.keys(context), ownedBlock + "\nreturn { nextState, windowsHelperState, sharedGeneratedStateOwned, cleanupComplete, executionFailure, checkoutOwnership, serviceLifecycleBefore, serviceLifecycleAfter, generatedWindowsHelperPresentAfter }; ")(...Object.values(context));
-    if (["wrong_npm", "checkout_busy", "capacity_busy", "acquisition_failure", "isolated_observation_invalid"].includes(scenario)) {
+    const result = await new AsyncFunction(...Object.keys(context), ownedBlock + "\nreturn { nextState, windowsHelperState, sharedGeneratedStateOwned, cleanupComplete, cleanupReason, cleanupErrors, executionReason, executionFailure, checkoutOwnership, serviceLifecycleBefore, serviceLifecycleAfter, generatedWindowsHelperPresentAfter }; ")(...Object.values(context));
+    if (historical) assert.deepEqual(historicalReads, [historicalGraph]);
+    if (historicalRefusal) {
+      assert.equal(attemptClaims, 0, "missing/invalid preparation cannot consume the attempt");
+      assert.equal(result.executionReason, scenario.endsWith("_missing") ? "ENOENT" : "ERR_ASSERTION");
+      assert.equal(result.executionFailure, true); assert.equal(result.cleanupComplete, true);
+      assert.equal(privateResource, null, "refusal precedes isolated resource creation");
+    }
+    if (historicalRefusal || ["wrong_npm", "checkout_busy", "capacity_busy", "acquisition_failure", "isolated_observation_invalid"].includes(scenario)) {
       assert.equal(calls.phases, 0); assert.equal(calls.remove, 0); assert.equal(calls.release, 0);
       assert.equal(result.sharedGeneratedStateOwned, false);
       assert.equal(result.nextState.removed_after_execution, false);
@@ -1020,6 +1179,44 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
         assert.equal(verifyReceiptIntegrity(preserved), true);
         assert.equal(assertCheckoutVerificationOwnership(competingOwner, root), true);
       }
+    } else if (revisionRuntime) {
+      assert(authorityObserved); assert.equal(attemptClaims, 1); assert.equal(preparedChecks, 1);
+      assert.equal(result.cleanupComplete, true, `${scenario}: ${result.cleanupReason}`); assert.equal(privateResourceCleaned, true);
+      const failed = scenario === "revision_dependencies_observation_failure";
+      assert.deepEqual(preparedPhases, failed ? ["dependencies-root"] : ["dependencies-root", "dependencies-nested", "dependencies-web-planning"]);
+      assert.equal(calls.phases, failed ? 1 : REVIEWED_REVISION_PHASES.length);
+      assert.equal(result.executionFailure, failed);
+      if (failed) assert.equal(context.phaseReceipts[0].failure_code, "dependency_input_read_race");
+      assert.equal(calls.release, 0); assert(!existsSync(next)); assert(!existsSync(windows));
+    } else if (revisionRefusal) {
+      assert(authorityObserved); assert.equal(attemptClaims, 0); assert.equal(calls.phases, 0);
+      assert(result.executionFailure); assert.equal(result.cleanupComplete, true, "execution refusal is separate from positively observed settlement");
+      assert.equal(calls.release, isolated ? 0 : 1); assert(!existsSync(next)); assert(!existsSync(windows));
+      if (browserRefusal) {
+        assert.equal(browserSamples, 3);
+        assert.equal(context.serviceObservations.after.runtime.probe_available.ui_health, true);
+        const rejected = context.serviceObservations.rejected_admission;
+        assert.equal(rejected.observed_at, rejectedAt);
+        assert.equal(rejected.probe_available.ui_health, false);
+        assert.deepEqual(rejected.failed_conditions, ["supported_state", "preservation_valid", "same_state"]);
+        assert.equal(result.executionReason, "revision_current_preservation_unsafe");
+      } else assert.equal(result.executionReason, scenario === "revision_settlement_unsafe" ? "revision_current_settlement_unsafe" : scenario === "revision_authority_refused" ? "synthetic_authority_refusal" : scenario === "revision_changed_after_authority" ? "input_admission_refused" : "reviewed_revision_workload_invalid");
+    } else if (observerFailure) {
+      assert.equal(calls.phases, 1, "post-phase refusal prevents the next phase");
+      assert.equal(context.phaseReceipts[0].status, "pass", "original consumer result survives");
+      assert.equal(context.phaseReceipts[1].status, "not_run");
+      assert.equal(result.executionReason, "synthetic_post_phase_observation_failure");
+      assert.equal(result.executionFailure, true);
+      assert.equal(result.cleanupComplete, scenario === "isolated_observer_settled");
+      assert.equal(result.cleanupErrors.length === 0, scenario === "isolated_observer_settled");
+      if (scenario === "isolated_observer_cleanup_failed") assert(result.cleanupErrors.includes("synthetic_cleanup_failed"));
+      if (unsettled) assert(result.cleanupErrors.includes("executor_consumers_unsettled"));
+      const passingStart = executorSource.indexOf("  const allSelectedPhasesPassed =");
+      const passingEnd = executorSource.indexOf("  const deciding =", passingStart);
+      assert(passingStart > 0 && passingEnd > passingStart);
+      const passing = new Function("phaseReceipts", "executionFailure", "preflightIssues", "cleanupComplete",
+        executorSource.slice(passingStart, passingEnd) + "\nreturn passing;")(context.phaseReceipts, result.executionFailure, [], result.cleanupComplete);
+      assert.equal(passing, false, "clean settlement does not erase an execution exception");
     } else {
       assert.equal(calls.phases, 1); assert.equal(calls.release, quick || isolated || unsettled ? 0 : 1);
       if (isolated) assert.equal(privateResourceCleaned, !unsettled);
@@ -1051,7 +1248,7 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
     assert.equal(calls.checkoutRelease, acquired ? 1 : 0);
     assert.equal(calls.prune, acquired ? 1 : 0, "a refused/non-owner invocation never prunes artifacts");
     assert.equal(result.checkoutOwnership.released, acquired && !unsettled);
-    assert.equal(existsSync(path.join(root, ".augnes-local-verification", CHECKOUT_OWNER_FILE)), ["checkout_busy", "unsettled_failure", "isolated_unsettled"].includes(scenario));
+    assert.equal(existsSync(path.join(root, ".augnes-local-verification", CHECKOUT_OWNER_FILE)), ["checkout_busy", "unsettled_failure", "isolated_unsettled", "isolated_observer_unknown"].includes(scenario));
   } finally {
     if (competingOwner) releaseCheckoutVerificationOwnership(competingOwner, root);
     if (privateResource && !privateResourceCleaned) assert.equal(cleanupIsolatedInvocationResources(privateResource, { consumersSettled: true }).completed, true);
@@ -1059,56 +1256,79 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
   }
 }
 
-const retentionRoot = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-log-retention-")));
-const retentionOwner = acquireCheckoutVerificationOwnership({ repositoryRoot: retentionRoot });
+// Exercise the production admission and stock dispatch expressions across the
+// live and retired profiles. A retired or mixed profile cannot select the
+// live authorizer; these controls never reach a real ledger or network.
+const successionProfiles = [
+  { schema: "augnes.local-canonical-source-correction.v3", kind: "observer_repair" },
+  { schema: "augnes.local-canonical-source-correction.v4", kind: "corrected_timeout" },
+  { schema: "augnes.local-canonical-source-correction.v5", kind: "condition_requalification" },
+  { schema: "augnes.local-canonical-source-correction.v6", kind: "guide_cancellation_correction" },
+  { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision" },
+  { schema: "augnes.local-canonical-source-correction.v8", kind: "reviewed_revision" },
+  { schema: "augnes.local-canonical-source-correction.v9", kind: "reviewed_revision" },
+];
+const dispatchStart = executorSource.indexOf("            const revisionAuthorization =");
+const dispatchEnd = executorSource.indexOf("            attempt = beginAttempt(", dispatchStart);
+assert(dispatchStart > 0 && dispatchEnd > dispatchStart);
+const admissionDispatch = executorSource.slice(dispatchStart, dispatchEnd);
+const stockDispatchStart = executorSource.indexOf("  let revisionAuthorization = null, revisionLive = null;", executorSource.indexOf("export async function validateReceiptAgainstCurrentRepository"));
+const stockDispatchEnd = executorSource.indexOf("  return inspectReceiptForDecision(receipt,", stockDispatchStart);
+assert(stockDispatchStart > 0 && stockDispatchEnd > stockDispatchStart);
+const stockDispatch = executorSource.slice(stockDispatchStart, stockDispatchEnd);
+const coexistenceRoot = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-succession-dispatch-")));
 try {
-  const logs = path.join(retentionRoot, ".augnes-local-verification", "logs");
-  const receipts = path.join(retentionRoot, ".augnes-local-verification", "receipts");
-  const active = path.join(logs, "current-run");
-  mkdirSync(active, { recursive: true });
-  writeFileSync(path.join(active, "phase.log"), "current run evidence");
-  utimesSync(active, 1, 1);
-  mkdirSync(receipts);
-  for (let index = 0; index < 8; index++) {
-    const newer = path.join(logs, `newer-${index}`);
-    mkdirSync(newer); utimesSync(newer, index + 2, index + 2);
-    const failedReceipt = path.join(receipts, `failed-${index}.json`);
-    writeFileSync(failedReceipt, JSON.stringify(finalizeReceipt({ final: { result: "failure" } })));
-    utimesSync(failedReceipt, index + 2, index + 2);
+  const relative = ".augnes-local-verification/proofs/synthetic.json", file = path.join(coexistenceRoot, relative);
+  mkdirSync(path.dirname(file), { recursive: true });
+  for (const schemaProfile of successionProfiles) for (const kindProfile of successionProfiles) {
+    const selected = isReviewedRevision({schema:schemaProfile.schema,kind:kindProfile.kind}) ? "revision" : null;
+    const candidate = { schema: schemaProfile.schema, kind: kindProfile.kind, local_relative_path: relative, head: "a".repeat(40) };
+    writeFileSync(file, JSON.stringify(candidate));
+    const original = readFileSync(file);
+    if (selected === null) assert.throws(() => readCorrectionProof(file, coexistenceRoot), undefined,
+      `mixed ${schemaProfile.schema}/${kindProfile.kind} cannot become a source-correction proof`);
+    for (const [mode, body] of [["admission", admissionDispatch], ["stock", stockDispatch]]) {
+      const calls = [], capabilities = Object.fromEntries(["revision"].map(role => [role, Object.freeze({ role })]));
+      let evidenceReads = 0;
+      const frozenInputs = Object.freeze({ synthetic_frozen_declaration: true });
+      const authorize = role => async (proof, options) => { calls.push(role); assert.deepEqual(proof, candidate);
+        return capabilities[role]; };
+      const context = { sourceCorrection: candidate, inputs: { snapshot: () => frozenInputs, check() {} }, receipt: { inputs: frozenInputs, attempt: { source_correction: candidate } }, path, repositoryRoot: coexistenceRoot,
+        isReviewedRevision, isBrowserRevision, isGitObservationRevision, isInventoryBoundRevision,
+        mode: "full", checkoutContext: "isolated-worktree", plan: { selected_plan: "full-canonical" }, observeRevisionInputs: () => ({}), validationHost: {}, verificationContext: {}, inspectVerificationCompanionPreservation: async () => ({}),
+        digest, REVIEWED_REVISION_PHASES, phaseDefinitions: REVIEWED_REVISION_PHASES.map(id => ({ id })),
+        inputMonitor: { check: () => null }, signal: { aborted: false },
+        authorizeReviewedRevision: authorize("revision"),
+        readSourceCorrectionProof: (observed, repository) => {
+          evidenceReads++; assert.equal(observed, file); assert.equal(repository, coexistenceRoot);
+          return JSON.parse(readFileSync(observed, "utf8"));
+        },
+      };
+      const output = await new AsyncFunction(...Object.keys(context), body + "\nreturn { revision: revisionAuthorization };")(...Object.values(context));
+      assert.deepEqual(calls, selected === null ? [] : [selected], `${mode} selects only the exact schema/profile authorizer`);
+      for (const role of Object.keys(capabilities)) assert.equal(output[role], role === selected ? capabilities[role] : null);
+      assert.equal(evidenceReads, 0);
+      assert.deepEqual(readFileSync(file), original);
+      assert.deepEqual(readdirSync(path.dirname(file)), ["synthetic.json"]);
+      assert(!existsSync(path.join(coexistenceRoot, ".augnes-local-verification/families")), "dispatch inspection never reserves an attempt");
+    }
   }
-  const retentionOptions = { root: retentionRoot, currentRunId: "current-run", logMaximum: 5, receiptMaximum: 3 };
-  assert.throws(() => enforceArtifactRetention(retentionOptions), hasCode("checkout_owner_not_owned"));
-  assert.equal(readdirSync(logs).length, 9);
-  assert.throws(() => enforceArtifactRetention({ ...retentionOptions, checkoutOwner: retentionOwner, currentRunId: "../escape" }), hasCode("invalid_artifact_retention_boundary"));
-  enforceArtifactRetention({ ...retentionOptions, checkoutOwner: retentionOwner });
-  assert.equal(readFileSync(path.join(active, "phase.log"), "utf8"), "current run evidence");
-  assert.deepEqual(readdirSync(logs).sort(), ["current-run", "newer-4", "newer-5", "newer-6", "newer-7"]);
-  assert.deepEqual(readdirSync(receipts).sort(), ["failed-5.json", "failed-6.json", "failed-7.json"]);
-  for (const file of readdirSync(receipts)) {
-    const receipt = JSON.parse(readFileSync(path.join(receipts, file), "utf8"));
-    assert.equal(receipt.final.result, "failure");
-    assert.equal(verifyReceiptIntegrity(receipt), true);
+  for (const unavailable of [false, true]) for (const [mode, body] of [["admission", admissionDispatch], ["stock", stockDispatch]]) {
+    const candidate={schema:"augnes.local-canonical-source-correction.v7",kind:"reviewed_revision",settlement:{sha256:"c".repeat(64)}}, calls=[];
+    const live=Object.freeze({synthetic_current_safe_observation:true}),contextToken=Object.freeze({synthetic_context:true});
+    const context={sourceCorrection:candidate,receipt:{attempt:{source_correction:candidate}},verificationContext:contextToken,
+      isReviewedRevision, isBrowserRevision, isGitObservationRevision, isInventoryBoundRevision,
+      mode:"full",checkoutContext:"isolated-worktree",plan:{selected_plan:"full-canonical"},digest,REVIEWED_REVISION_PHASES,phaseDefinitions:REVIEWED_REVISION_PHASES.map(id=>({id})),
+      inputs:{check(){}},inputMonitor:{check:()=>null},signal:{aborted:false},observeRevisionInputs:()=>({}), validationHost:{},
+      authorizeReviewedRevision:async()=>{calls.push("authority");return{};},
+      observeReviewedRevisionSettlementState:async value=>{assert.equal(value,contextToken);calls.push("live");if(unavailable)throw Object.assign(new Error(),{code:"revision_current_settlement_unsafe"});return live;}};
+    const invoke=()=>new AsyncFunction(...Object.keys(context),body+"\nreturn revisionLive;")(...Object.values(context));
+    if(unavailable&&mode==="admission")await assert.rejects(invoke(),hasCode("revision_current_settlement_unsafe"));
+    else assert.equal(await invoke(),unavailable?null:live,"stock preserves unavailable current observation as refusal input");
+    assert.deepEqual(calls,["authority","live"]);
   }
-} finally {
-  releaseCheckoutVerificationOwnership(retentionOwner, retentionRoot);
-  rmSync(retentionRoot, { recursive: true, force: true });
-}
+} finally { rmSync(coexistenceRoot, { recursive: true, force: true }); }
 
-assert.deepEqual(listWorkflowFiles(), []);
-for (const forbiddenPath of [
-  ".gitlab-ci.yml",
-  ".gitlab-ci.yaml",
-  "Jenkinsfile",
-  "azure-pipelines.yml",
-  "azure-pipelines.yaml",
-  ".circleci",
-  ".buildkite",
-  ".woodpecker.yml",
-  ".woodpecker.yaml",
-  ".drone.yml",
-]) {
-  assert.equal(existsSync(path.join(repositoryRoot, forbiddenPath)), false);
-}
 
 console.log(
   JSON.stringify(
@@ -1148,6 +1368,7 @@ console.log(
       browser_lanes_sequential: true,
       maximum_outer_phase_concurrency: maximumActive,
       canonical_node_mismatch_explicit: true,
+      executor_observation_failure_and_cleanup_remain_distinct: true,
       hosted_ci_absent: true,
     },
     null,

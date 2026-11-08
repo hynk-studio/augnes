@@ -3,6 +3,7 @@
 import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 
 import type { WorkComposerDraft } from "./work-composer-draft";
+import { useWorkPreparationDeparture, useWorkPreparationLifetime } from "./work-preparation-departure";
 import { readWorkExpectationDraft, workExpectationScopeKey } from "./work-expectation-draft";
 import { ProjectClientScopeProvider, useProjectClientFetch, useProjectClientScope } from "./project-client-scope";
 
@@ -135,6 +136,12 @@ function ScopedSemanticReviewSurface({
   const [revisionEditorBinding, setRevisionEditorBinding] =
     useState<WorkRevisionEditorBindingV01 | null>(null);
   const [workRevisionBusy, setWorkRevisionBusy] = useState(false);
+  const isMounted = useWorkPreparationLifetime();
+  const currentEditors = useRef({ initialEditor, revisionEditorBinding });
+  currentEditors.current = { initialEditor, revisionEditorBinding };
+  const confirmPreparationDeparture = useWorkPreparationDeparture(() => [
+    initialEditor?.draft, revisionEditorBinding?.draft,
+  ]);
   const revisionButtonRef = useRef<HTMLButtonElement>(null);
   const operatorMutationInFlight = useRef(false);
   const lastGuideSyncKey = useRef<string | null>(null);
@@ -216,7 +223,8 @@ function ScopedSemanticReviewSurface({
     }
   }, [proposalId, updateSessionState, fetch]);
 
-  const checkSession = useCallback(async () => {
+  const checkSession = useCallback(async (isCurrent: () => boolean) => {
+    if (!isCurrent()) return;
     updateSessionState({ status: "checking", session: null, error_code: null });
     setPrivateView(null);
     setPrivateError(null);
@@ -227,6 +235,7 @@ function ScopedSemanticReviewSurface({
         credentials: "same-origin",
       });
       const body = (await response.json()) as SessionCheckResponseV01;
+      if (!isCurrent()) return;
       if (response.status === 404) {
         updateSessionState({
           status: "disabled",
@@ -252,6 +261,7 @@ function ScopedSemanticReviewSurface({
       });
       await loadPrivateView();
     } catch {
+      if (!isCurrent()) return;
       updateSessionState({
         status: "locked",
         session: null,
@@ -261,7 +271,11 @@ function ScopedSemanticReviewSurface({
   }, [loadPrivateView, updateSessionState, fetch]);
 
   useEffect(() => {
-    void checkSession();
+    let active = true;
+    // Let a synchronously disposed/replayed effect retire before issuing its
+    // read. A later disposal also prevents its body/error from adopting state.
+    queueMicrotask(() => { if (active) void checkSession(() => active); });
+    return () => { active = false; };
   }, [checkSession]);
 
   async function recordDecision(request: SemanticReviewDecisionRequestV01) {
@@ -367,6 +381,7 @@ function ScopedSemanticReviewSurface({
           ? "Existing clarified change reused."
           : "A clarified change is ready for separate review. The original suggestion is unchanged.",
       );
+      if (!confirmPreparationDeparture()) return;
       router.push(semanticReviewProposalHref(body.proposal_id) + (projectId ? `?project_id=${encodeURIComponent(projectId)}` : ""));
       router.refresh();
     } catch {
@@ -422,6 +437,7 @@ function ScopedSemanticReviewSurface({
             ? "Existing strategic review reused; no duplicate was created."
             : "Strategic implications are ready as a separate suggested change. The source suggestion is unchanged.",
         );
+        if (!confirmPreparationDeparture()) return;
         router.push(semanticReviewProposalHref(body.proposal_id) + (projectId ? `?project_id=${encodeURIComponent(projectId)}` : ""));
         router.refresh();
         return;
@@ -502,6 +518,7 @@ function ScopedSemanticReviewSurface({
   async function saveFirstWork(
     definition: ProjectWorkDefinitionV01,
   ): Promise<void> {
+    const ownsEditor = () => isMounted() && currentEditors.current.initialEditor === initialEditor;
     const initialization = initialEditor?.initialization ?? null;
     if (
       sessionState.status !== "authenticated" ||
@@ -540,17 +557,21 @@ function ScopedSemanticReviewSurface({
         }),
       });
       const body = (await response.json()) as FirstWorkMutationResponseV01;
+      if (!ownsEditor()) return;
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
           locked(publicErrorCode(body.error_code));
           return;
         }
         await loadPrivateView({ announceLoading: false, preserveFeedback: true });
+        if (!ownsEditor()) return;
         setPrivateError(firstWorkErrorCopyV01(body.error_code) + " Your draft is retained below.");
         return;
       }
-      if (body.status !== "inserted" && body.status !== "exact_replay") {
+      if ((body.status !== "inserted" && body.status !== "exact_replay") ||
+        body.execution_started !== false || body.run_created !== false) {
         await loadPrivateView({ announceLoading: false, preserveFeedback: true });
+        if (!ownsEditor()) return;
         setPrivateError("First work could not be confirmed. Your draft is retained. Review current work before retrying.");
         return;
       }
@@ -564,13 +585,15 @@ function ScopedSemanticReviewSurface({
       await loadPrivateView({ announceLoading: false });
       await guideState.refresh();
       await delegatedState.refresh();
-      router.refresh();
+      if (isMounted()) router.refresh();
     } catch {
+      if (!ownsEditor()) return;
       await loadPrivateView({ announceLoading: false, preserveFeedback: true });
+      if (!ownsEditor()) return;
       setPrivateError("The save response could not be confirmed. Your draft is retained. Review current work before retrying; a save may have committed.");
     } finally {
       operatorMutationInFlight.current = false;
-      setFirstWorkBusy(false);
+      if (isMounted()) setFirstWorkBusy(false);
     }
   }
 
@@ -588,6 +611,7 @@ function ScopedSemanticReviewSurface({
       initialization,
     });
     const submittedBinding = revisionEditorBinding;
+    const ownsEditor = () => isMounted() && currentEditors.current.revisionEditorBinding === submittedBinding;
     if (
       sessionState.status !== "authenticated" ||
       !initialization ||
@@ -628,6 +652,7 @@ function ScopedSemanticReviewSurface({
         }),
       });
       const body = (await response.json()) as FirstWorkMutationResponseV01;
+      if (!ownsEditor()) return;
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
           locked(publicErrorCode(body.error_code));
@@ -639,6 +664,7 @@ function ScopedSemanticReviewSurface({
           await guideState.refresh();
           await delegatedState.refresh();
         }
+        if (!ownsEditor()) return;
         setPrivateError(conflictCopy + " Your draft is retained. Review current work before retrying.");
         return;
       }
@@ -648,6 +674,7 @@ function ScopedSemanticReviewSurface({
         body.run_created !== false
       ) {
         await loadPrivateView({ announceLoading: false, preserveFeedback: true });
+        if (!ownsEditor()) return;
         setPrivateError(
           "The revision response could not prove that execution remained stopped. Your draft is retained. Review current work before continuing.",
         );
@@ -658,15 +685,17 @@ function ScopedSemanticReviewSurface({
       await loadPrivateView({ announceLoading: false });
       await guideState.refresh();
       await delegatedState.refresh();
-      router.refresh();
+      if (isMounted()) router.refresh();
     } catch {
+      if (!ownsEditor()) return;
       await loadPrivateView({ announceLoading: false, preserveFeedback: true });
+      if (!ownsEditor()) return;
       setPrivateError(
         "The save response could not be confirmed. Your draft is retained. Review current work before retrying; a save may have committed.",
       );
     } finally {
       operatorMutationInFlight.current = false;
-      setWorkRevisionBusy(false);
+      if (isMounted()) setWorkRevisionBusy(false);
     }
   }
 
@@ -986,15 +1015,18 @@ function ScopedSemanticReviewSurface({
                 draft={revisionEditorBinding.draft} disabled={!revisionDraftCurrent}
                 initialization={revisionEditorBinding.initialization} onCancel={cancelWorkRevision}
                 onRefused={async (status, errorCode) => {
+                  if (!isMounted() || currentEditors.current.revisionEditorBinding !== revisionEditorBinding) return;
                   if (status === 401 || status === 403) { locked(publicErrorCode(errorCode)); return; }
                   await loadPrivateView({ announceLoading: false, preserveFeedback: true });
                   await guideState.refresh();
                 }}
                 onCommitted={async () => {
+                  if (!isMounted() || currentEditors.current.revisionEditorBinding !== revisionEditorBinding) return;
                   setRevisionEditorBinding(null);
                   setDecisionStatus("Different task prepared. Prior work was not marked complete; nothing has started.");
                   await loadPrivateView({ announceLoading: false });
-                  await guideState.refresh(); await delegatedState.refresh(); router.refresh();
+                  await guideState.refresh(); await delegatedState.refresh();
+                  if (isMounted()) router.refresh();
                 }} /> : <FirstWorkComposer
                 key={workRevisionEditorBindingKeyV01(revisionEditorBinding)}
                 draft={revisionEditorBinding.draft}

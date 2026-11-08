@@ -1,5 +1,7 @@
 # Portable Web export to native selected-source handoff
 
+Web task exchanges retain original and returned files in their own revision history. The [file client](../apps/web_planning/README.md#connect-a-local-or-hosted-assistant) can retrieve either exact version for local work. This native importer selects ordinary files from the current Web revision. Recording a Web return does not apply it to a native project.
+
 This explicit local command connects a downloaded Web complete export to the
 existing native material, experience and selected-corpus owners. It is one-way
 source admission, not Web reconstruction into a native project. It neither

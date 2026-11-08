@@ -15,12 +15,14 @@ import {
   isModelGatewayInvocationErrorV01,
 } from "@/lib/vnext/model-gateway/contracts";
 import {
-  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02,
   invokeOperationalReentryMatchedCohortModelGatewayV02,
-  projectOperationalReentryMatchedCohortProviderRequestV02,
   type ModelGatewayInteractiveAdmissionV01,
   type OperationalReentryMatchedCohortModelGatewayDependenciesV02,
 } from "@/lib/vnext/model-gateway/model-gateway";
+import {
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02,
+  projectOperationalReentryMatchedCohortProviderRequestV02,
+} from "@/lib/vnext/model-gateway/method-routes";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
 import {
   createDeterministicModelClientRequestIdV01,

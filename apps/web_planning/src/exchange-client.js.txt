@@ -1,0 +1,599 @@
+// These controls use the active private Web principal and the selected task.
+let exchangeDraft = null, exchangePending = null, exchangeState = null;
+const exchangeStoragePrefix = 'augnes.pending-file.' + scope.workspace_id + '.' + scope.project_id + '.';
+function forgetExchange(id) {
+  try { sessionStorage.removeItem(exchangeStoragePrefix + id); } catch {}
+}
+function forgetPrivateExchanges() {
+  try { for (const key of Object.keys(sessionStorage)) if (key.startsWith(exchangeStoragePrefix)) sessionStorage.removeItem(key); } catch {}
+}
+function clearExchange() {
+  resetReturnPanel();
+  resetReassessment();
+  exchangeDraft = exchangePending = exchangeState = null;
+  $('exchange-form')?.reset();
+  $('exchange-list')?.replaceChildren();
+}
+function exchangeControls() {
+  $('exchange-form').hidden = !exchangeDraft;
+  const edit = exchangeDraft?.textEdit;
+  $('exchange-file-fields').hidden = !!edit;
+  $('exchange-upload').disabled = !!edit;
+  $('exchange-review-field').hidden=!exchangeDraft?.basis || !!edit;
+  $('exchange-upload').required=!edit && (!exchangeDraft?.basis || !$('exchange-review').value);
+
+  $('exchange-text-fields').hidden = !edit;
+  $('exchange-text-fields').disabled = !edit;
+  $('exchange-edit-name').textContent = edit ? edit.file.name + ' · version ' + exchangeDraft.basis.revision : '';
+  $('exchange-fields').disabled = !!exchangePending;
+  $('exchange-submit').disabled = !!exchangeDraft?.answered;
+  $('exchange-new').hidden = !!exchangeDraft;
+  $('exchange-uncertain').hidden = !exchangePending;
+  $('exchange-retry').hidden = true;
+}
+function beginExchange(source, textEdit = null) {
+  if (returnDecisionBlocksWork()) return;
+  // A reconciled, unrecorded return can be re-entered from the same original
+  // without storing its private text in tab storage or requiring a local file.
+  if (textEdit && exchangeDraft?.basis?.fingerprint === source.ref.fingerprint &&
+      !busy && !exchangePending && !exchangeDraft.answered && !exchangeDraft.textEdit && !$('exchange-upload').files.length) {
+    exchangeDraft.textEdit = textEdit;
+    exchangeControls(); $('exchange-find').focus(); return;
+  }
+  if (busy || pending || dirty || directionDirty || relationPending || sceneReviewPending || exchangeDraft) {
+    status('Finish the current draft before starting a file request or return.'); return;
+  }
+  $('edit-fields').disabled = true;
+  exchangeDraft = { basis: source?.ref ?? null, expected: exchangeState.head, textEdit };
+  $('exchange-form').reset();
+  $('exchange-legend').textContent = source ? 'Return files for request · version ' + source.ref.revision : 'New file request';
+  $('exchange-message-label').textContent = source ? 'What did you change or learn?' : 'What would you like done?';
+  $('exchange-submit').textContent = source ? 'Send returned files' : 'Send request';
+  $('exchange-next').required = !!source;
+  exchangeControls();
+  $(textEdit ? 'exchange-find' : 'exchange-message').focus();
+}
+async function readExchangeBytes(file) {
+  const response = await request(file.download);
+  const bytes = new Uint8Array(await readPrivate(response,'arrayBuffer'));
+  const digest = await exchangeDigest(bytes);
+  if (bytes.length !== file.bytes || digest !== file.digest) {
+    status('Downloaded bytes do not match this version. Reopen the task before trying again.'); return;
+  }
+  if (!accessLost) return bytes;
+}
+async function downloadExchangeFile(file) {
+  const bytes = await readExchangeBytes(file);
+  if (!bytes) return;
+  const url = URL.createObjectURL(new Blob([bytes],{type:'application/octet-stream'}));
+  const link = document.createElement('a'); link.href = url; link.download = file.name; link.click();
+  setTimeout(() => URL.revokeObjectURL(url),1000);
+}
+function addTextReader(container, file, source) {
+  if (!textFile(file.name)) {
+    if (/\.(?:log|json|patch|mjs)$/i.test(file.name)) addPagedReader(container,file);
+    return;
+  }
+  if (file.bytes > 32768) { addPagedReader(container,file); return; }
+  const read = document.createElement('button');
+  read.type = 'button'; read.textContent = 'Read text';
+  read.setAttribute('aria-label', 'Read ' + file.name + ' as text');
+  container.append(read);
+  read.onclick = () => run(async () => {
+    const bytes = await readExchangeBytes(file);
+    if (!bytes) return;
+    const { decodeExchangeText, replaceExchangePassage } = await import('/exchange-text.mjs');
+    if (accessLost || !container.isConnected) return;
+    let sourceText;
+    try { sourceText = decodeExchangeText(bytes, file.name); }
+    catch { status('This file cannot be displayed as UTF-8 text. Use its download link.'); return; }
+    const text = document.createElement('pre');
+    text.textContent = sourceText;
+    read.replaceWith(text);
+    if (source && sourceText.length) {
+      const edit = document.createElement('button');
+      edit.type = 'button'; edit.textContent = 'Edit this text';
+      edit.onclick = () => beginExchange(source, { file, sourceText, replaceExchangePassage });
+      container.append(edit);
+    }
+  });
+}
+// Each page is a fresh authorized read of the exact listed file; no private
+// text is cached in tab storage. Byte positions include BOMs and line endings.
+function addPagedReader(container,file) {
+  const button=(label)=>{const el=document.createElement('button');el.type='button';el.textContent=label;return el;};
+  const open=button('Read text');open.setAttribute('aria-label','Read '+file.name+' as text');container.append(open);
+  open.onclick=()=>{
+    const panel=document.createElement('section'),position=document.createElement('input'),find=document.createElement('input');
+    position.type='number';position.min='0';position.max=String(file.bytes);position.value='0';
+    find.type='search';find.placeholder='Exact text to find';
+    const label=(name,input)=>{const l=document.createElement('label');input.id='read-'+file.download.split('/').slice(-3).join('-')+'-'+input.type;l.htmlFor=input.id;l.textContent=name;l.append(input);return l;};
+    const read=button('Read from position'),search=button('Find from position'),next=button('Continue reading');
+    const info=document.createElement('p'),text=document.createElement('pre');
+    info.setAttribute('aria-live','polite');next.disabled=true;
+    panel.append(label('Start byte',position),label('Find in this version',find),read,search,next,info,text);open.replaceWith(panel);
+    let continuation=null;
+    const page=(at,needle)=>run(async()=>{
+      const result=await api(file.download+'/text',{offset:at,find:needle});
+      if(accessLost || !panel.isConnected)return;
+      if(result.file.digest!==file.digest || result.file.name!==file.name || result.total!==file.bytes ||
+          !['files','exchange-files'].some(kind=>file.download.startsWith('/api/work/'+result.ref.work_id+'/'+kind+'/'+result.ref.revision+'/'+result.ref.fingerprint.slice(7)+'/')))throw Error('file_revision_unavailable');
+      position.value=String(result.start);continuation=result.next;next.disabled=continuation===null;
+      const extent='Bytes '+result.start+'–'+result.end+' (end exclusive) of '+result.total+' · version '+result.ref.revision+' · '+file.digest;
+      info.textContent=result.found===false?'No match from byte '+at+' to the end. '+extent:
+        extent+(result.next!==null?' · Partial view. More text follows.':result.start?' · End of file. This is a partial view.':' · Complete text.');
+      text.textContent=result.text;
+    });
+    read.onclick=()=>page(Number(position.value),'');search.onclick=()=>{if(find.value)page(Number(position.value),find.value);};
+    next.onclick=()=>{if(continuation!==null)page(continuation,'');};page(0,'');
+  };
+}
+function textReturnFile(edit) {
+  let find = $('exchange-find').value, replacement = $('exchange-replacement').value;
+  // A textarea represents every line separator as LF. Preserve a document's
+  // separator, and don't guess when a multiline passage could be ambiguous.
+  if (find.includes('\n') || replacement.includes('\n')) {
+    const separators = new Set(edit.sourceText.match(/\r\n|\r|\n/g));
+    if (separators.size > 1) throw new Error('Choose a single-line edit for a file with mixed line endings.');
+    const [separator = '\n'] = separators;
+    find = find.replaceAll('\n', separator);
+    replacement = replacement.replaceAll('\n', separator);
+  }
+  const bytes = edit.replaceExchangePassage(edit.sourceText, find, replacement);
+  return new File([bytes], edit.file.name);
+}
+async function exchangeDigest(bytes) {
+  const sum = new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
+  return 'sha256:' + [...sum].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function drawExchanges(state) {
+  exchangeState = state;
+  const list = $('exchange-list');
+  list.replaceChildren();
+  for (const item of state.items) {
+    if (item.kind !== 'request') continue;
+    const reply = state.items.find(r => r.basis?.fingerprint === item.ref.fingerprint);
+    const article = document.createElement('article');
+    const heading = document.createElement('h3');
+    heading.textContent = (reply ? 'Answered request' : 'Awaiting a return') + ' · version ' + item.ref.revision;
+    article.append(heading);
+    for (const part of [item, reply].filter(Boolean)) {
+      const message = document.createElement('p');
+      message.textContent = (part.kind === 'request' ? 'Request: ' : 'Return: ') + part.message;
+      message.id = 'exchange-version-' + part.ref.revision;
+      message.tabIndex = -1;
+      article.append(message);
+      const files = document.createElement('ul');
+      for (const file of part.files) {
+        const li = document.createElement('li'), link = document.createElement('a');
+        link.href = file.download; link.download = file.name;
+        link.onclick = event => { event.preventDefault(); run(() => downloadExchangeFile(file)); };
+        link.textContent = file.name + ' · version ' + part.ref.revision + ' · ' + file.bytes + ' bytes';
+        li.append(link); files.append(li);
+        if(part.kind==='return')li.append(returnButton('Inspect return and decide',()=>inspectReturned(part.ref,part.files.indexOf(file))));
+        addTextReader(li, file, !reply && part === item && item.files.length === 1 ? item : null);
+      }
+      article.append(files);
+      if (part.next_action) {
+        const next = document.createElement('p'); next.textContent = 'Next action: ' + part.next_action; article.append(next);
+      }
+    }
+    if (!reply) {
+      const button = document.createElement('button'); button.type = 'button';
+      button.textContent = 'Return edited files'; button.onclick = () => beginExchange(item); article.append(button);
+    }
+    if(document.querySelector('meta[name="participation-enabled"]')?.content==='true')addGrantControls(article,item);
+    list.append(article);
+  }
+  for(const decision of state.decisions??[])drawReturnDecision(list,decision,true);
+  if (!list.children.length) list.textContent = 'No file requests yet.';
+}
+async function readExchanges() {
+  const target = work;
+  const data = await api('/api/work/' + target + '/exchanges');
+  if (target !== work || accessLost) return;
+  drawExchanges(data);
+  $('exchange-new').disabled = false;
+  $('exchange-refresh').hidden = true;
+}
+function openExchanges(revision, view) {
+  const previous = exchangeState;
+  clearExchange();
+  $('exchange-panel').hidden = !revision;
+  exchangeControls();
+  if (!revision) return;
+  restoreReturnMarker(revision.work_id);
+  if (!view && revision.revision === 1 && !revision.return_use) view = { head: binding(revision), items: [] };
+  if (!view && previous?.head.fingerprint === revision.predecessor && !revision.exchange && !revision.return_use && !revision.return_reassessment && !previous.decisions?.length)
+    view = { head: binding(revision), items: previous.items, decisions:previous.decisions };
+  $('exchange-new').disabled = !view;
+  $('exchange-refresh').hidden = !!view;
+  if (view) {
+    drawExchanges(view);
+    let marker;
+    try { marker = JSON.parse(sessionStorage.getItem(exchangeStoragePrefix + revision.work_id)); } catch {}
+    if (marker) {
+      const observed = view.items.find(item => item.request_key === marker.request_key);
+      if (observed && !sameExchangeMarker(observed,marker)) {
+        const conflict=document.createElement('p');conflict.textContent='This request key was used for different material. The earlier draft is retained; review this task before starting another request.';
+        $('exchange-list').prepend(conflict);exchangeDraft={basis:marker.basis,expected:marker.expected,answered:true};
+        $('exchange-message').value=marker.message;$('exchange-next').value=marker.next_action;$('edit-fields').disabled=true;exchangeControls();return;
+      }
+      if (observed) {
+        forgetExchange(revision.work_id);
+        const outcome = document.createElement('p');
+        outcome.textContent = 'Previous file save confirmed at version ' + observed.ref.revision + '.';
+        $('exchange-list').prepend(outcome);
+      } else {
+        exchangeDraft = { basis:marker.basis, expected:marker.expected };
+        const advanced = view.head.fingerprint !== marker.expected.fingerprint;
+        exchangePending = advanced ? null : { id:revision.work_id, marker };
+        $('edit-fields').disabled = true;
+        $('exchange-legend').textContent = marker.basis ? 'Recover file return' : 'Recover file request';
+        $('exchange-message').value = marker.message; $('exchange-next').value = marker.next_action;
+        $('exchange-next').required = !!marker.basis;
+        $('exchange-message-label').textContent = marker.basis ? 'What did you change or learn?' : 'What would you like done?';
+        $('exchange-submit').textContent = marker.basis ? 'Send returned files' : 'Send request';
+        exchangeControls();
+        if (advanced) {
+          $('exchange-refresh').hidden = false;
+          const guidance = document.createElement('p');
+          guidance.textContent = 'Your earlier save was not recorded. Your draft is retained. Read latest file requests, then reselect: ' + marker.files.map(f => f.name).join(', ') + (marker.basis ? '. For an in-page edit, reopen the original text.' : '');
+          $('exchange-list').prepend(guidance);
+        }
+      }
+    }
+  }
+  else $('exchange-list').textContent = 'Read the latest requests and returns for this saved version.';
+}
+function sameExchangeMarker(item,marker) {
+  const sameRef=(a,b)=>a===null || b===null?a===b:a.work_id===b.work_id && a.revision===b.revision && a.fingerprint===b.fingerprint;
+  return item.expected?.revision===marker.expected.revision && item.expected.fingerprint===marker.expected.fingerprint &&
+    sameRef(item.basis,marker.basis) && item.kind===marker.kind && item.message===marker.message.trim() && item.next_action===marker.next_action.trim() &&
+    item.files.length===marker.files.length && item.files.every((f,i)=>['name','bytes','digest','media_type'].every(k=>f[k]===marker.files[i][k]));
+}
+async function sendExchange(resolve) {
+  const retained = exchangePending;
+  try {
+    if (retained.marker) {
+      const view = await api('/api/work/' + retained.id + '/exchanges');
+      const match = view.items.find(item => item.request_key === retained.marker.request_key);
+      if (!match && view.head.revision === retained.marker.expected.revision) {
+        exchangePending = null; exchangeDraft.recover = retained.marker; exchangeControls();
+        status('This request is not saved. Reselect the files: ' + retained.marker.files.map(f=>f.name).join(', ') + (retained.marker.basis ? '. For an in-page edit, reopen the original text.' : '')); return;
+      }
+      const latest = await api('/api/work/' + retained.id);
+      await show(latest.saved,latest.exchanges); return;
+    }
+    const response = await api('/api/work/' + retained.id + '/exchanges/' + (resolve ? 'resolve' : 'save'), retained.body);
+    if (response.outcome !== 'saved') {
+      $('exchange-retry').hidden = false; status('No matching save was found. You may retry the exact retained files.'); return;
+    }
+    forgetExchange(retained.id); clearExchange(); exchangeControls();
+    const latest = await api('/api/work/' + retained.id);
+    await show(latest.saved, latest.exchanges); status('Files saved at version ' + response.item.ref.revision + '.');
+  } catch (error) {
+    if (accessLost) return;
+    if (!exchangePending) {
+      $('edit-fields').disabled = false;
+      $('exchange-refresh').hidden = false;
+      status('Files were saved. Reopen the task to read them.'); return;
+    }
+    if (error.status && error.status < 500 && !resolve) {
+      forgetExchange(retained.id);
+      exchangePending = null; exchangeControls();
+      $('exchange-refresh').hidden = false;
+      status((messages[error.message] || error.message.replaceAll('_', ' ')) + '. Your input is retained. Read latest file requests before sending again.');
+    } else {
+      exchangeControls(); status('Save outcome unknown. Check file save before another write.');
+    }
+  }
+}
+$('exchange-setup').onclick = () => {
+  if (!work || accessLost) return;
+  const setup = { format: 'augnes_web_file_task.v1', origin: location.origin, ...scope, work_id: work };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(setup)], {type:'application/json'}));
+  const link = document.createElement('a'); link.href = url; link.download = 'file-task.json'; link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+$('signout').addEventListener('click',forgetPrivateExchanges);
+$('exchange-review').oninput=exchangeControls;
+$('exchange-new').onclick = () => beginExchange(null);
+$('exchange-cancel').onclick = () => { if (busy) return; forgetExchange(work); $('edit-fields').disabled = false; exchangeDraft = null; $('exchange-form').reset(); exchangeControls(); };
+$('exchange-refresh').onclick = () => run(async () => {
+  await readExchanges();
+  if (exchangeDraft) {
+    exchangeDraft.expected = exchangeState.head;
+    exchangeDraft.answered = !!exchangeDraft.basis && exchangeState.items.some(r => r.basis?.fingerprint === exchangeDraft.basis.fingerprint);
+    exchangeControls();
+    if (exchangeDraft.answered) {
+      status('This request already has a return. Your draft is available to copy; cancel it to select another request.'); return;
+    }
+  }
+  status('Latest requests and returns are shown. Review them before sending the retained draft.');
+});
+$('exchange-form').onsubmit = event => {
+  event.preventDefault();
+  runWorkChange(async () => {
+    if (!exchangeDraft || exchangeDraft.answered || exchangePending || !$('exchange-refresh').hidden) return;
+    let selected;
+    const edit = exchangeDraft.textEdit;
+    if (edit) {
+      try { selected = [textReturnFile(edit)]; }
+      catch (error) { status(error.message); return; }
+    } else {
+      selected = [...$('exchange-upload').files];
+      if(exchangeDraft.basis && $('exchange-review').value){
+        const review=new File([$('exchange-review').value],'review.md',{type:'text/markdown'});
+        if(review.size>32768){status('Keep the written review within 32 KiB, or attach a file.');return;}
+        selected.push(review);
+      }
+    }
+    if (!selected.length || selected.length > 8 || selected.some(f => f.size > 6291456) || selected.reduce((n,f) => n + f.size, 0) > 7340032) {
+      status('Choose 1–8 files within the displayed size limits. Your draft is retained.'); return;
+    }
+    const {basis,expected,recover} = exchangeDraft;
+    const message = $('exchange-message').value, next_action = $('exchange-next').value;
+    const files = [];
+    for (const f of selected) {
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      const pieces=[];
+      for(let i=0;i<bytes.length;i+=24576)pieces.push(btoa(String.fromCharCode(...bytes.subarray(i,i+24576))));
+      const digest = await exchangeDigest(bytes);
+      files.push({ name: f.name, media_type: edit ? edit.file.media_type : f.type || null, bytes: f.size, digest, data: pieces.join('') });
+    }
+    const request_key = recover?.request_key ?? crypto.randomUUID();
+    const body = { basis, expected, kind:basis ? 'return' : 'request', request_key, message, next_action, files };
+    const marker = {...body,files:files.map(({data,...identity})=>identity)};
+    if (recover && JSON.stringify(recover)!==JSON.stringify(marker)) {
+      status('The selected files or message differ from the pending request. Restore the original selection or cancel after reviewing this task.'); return;
+    }
+    try { sessionStorage.setItem(exchangeStoragePrefix + work,JSON.stringify(marker)); } catch {
+      status('The browser could not retain the save for recovery. Enable tab storage or use the local file client. Your draft is retained.'); return;
+    }
+    exchangePending = { id:work, body };
+    exchangeControls();
+    await sendExchange(false);
+  });
+};
+$('exchange-check').onclick = () => runWorkChange(() => sendExchange(true));
+$('exchange-retry').onclick = () => runWorkChange(() => sendExchange(false));
+Object.assign(messages,{
+  return_output_name_in_use:'Choose a free filename; existing files and reserved scene material cannot be replaced here.',
+  return_conditions_changed:'The source work advanced. Inspect the exact return again and compare current conditions.',
+  return_exceeds_selected_file_limit:'Keep the exact download or author a smaller adaptation; an unchanged selected file may be at most 256 KiB.',
+  return_adaptation_unchanged:'The authored bytes are identical. Choose unchanged use or write the adaptation.',
+  return_preserve_saved_work:'The destination selection changed. Review its saved files and notes before preparing again.',
+  invalid_return_adaptation:'Provide nonempty authored UTF-8 text of at most 256 KiB.',
+  record_nonuse_on_original:'Record deferral or non-use on the original work without a new output.',
+  return_selection_unavailable:'The exact returned file is unavailable. No other return has been substituted.'
+});
+let returnView=null,returnPrepared=null,returnMarker=null,returnTargetCursor=null,returnEdited=false;
+function returnDecisionBlocksWork() {
+  if (reassessmentBlocks()) status('Finish the consumer decision or check its pending save before changing this work.');
+  else if (returnMarker) status('Check the pending return save before changing this work.');
+  else if (returnEdited || returnPrepared) status('Finish or close your return decision before changing this work.');
+  else return false;
+  return true;
+}
+// These operations can reopen the editor on acknowledgement. Keep an untouched
+// inspector from becoming an authored draft while that response is in flight.
+let workChangeActive = false;
+function runWorkChange(action) {
+  return run(async () => {
+    if (returnDecisionBlocksWork()) return;
+    const fields = $('return-fields');
+    fields.disabled = true;
+    workChangeActive = true;
+    lockReassessmentFields();
+    try { await action(); }
+    finally {
+      workChangeActive = false;
+      // Access loss owns disposal of the private view. Settle the operation
+      // flag without touching that disposed view or replacing its primary error.
+      if (!accessLost) { lockReassessmentFields(); fields.disabled = false; }
+    }
+  });
+}
+const returnKey=id=>exchangeStoragePrefix+'return-use.'+id;
+const returnRef=r=>r.work_id+' · revision '+r.revision+' · '+r.fingerprint;
+function returnButton(label,fn){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=()=>run(fn);return b;}
+function returnText(parent,text){const p=document.createElement('p');p.textContent=text;parent.append(p);}
+function resetReturnPanel(){
+  returnView=returnPrepared=returnMarker=null;returnTargetCursor=null;returnEdited=false;if(!$('return-inspector'))return;
+  $('return-retry').hidden=$('return-reenter-field').hidden=true;$('return-reenter').value='';
+  $('return-inspector').hidden=$('return-recovery').hidden=$('return-commit').hidden=$('return-abandon').hidden=true;
+  $('return-status').textContent=$('return-preview').textContent='';
+  $('return-feedback').hidden=true;$('return-share').checked=false;$('return-public-reason').value=$('return-public-next').value='';$('return-fields').disabled=false;
+  for(const id of ['return-basis','return-decisions','return-destination'])$(id).replaceChildren();
+  for(const id of ['return-name','return-text','return-reason','return-limits','return-checks','return-next','return-goal'])$(id).value='';
+}
+function restoreReturnMarker(id){
+  try{returnMarker=JSON.parse(sessionStorage.getItem(returnKey(id)));}catch{}
+  $('return-recovery').hidden=!returnMarker;
+}
+function drawReturnDecision(container,d,originLink=false,reconsider=true){
+  const section=document.createElement('article');section.dataset.returnDecision=d.decision;
+  showCurrentUse(section,d);
+  returnText(section,'Historical use: saved '+d.decision+' · '+d.goal+' · '+returnRef(d.destination));
+  returnText(section,'Return: '+returnRef(d.returned)+' · file '+(d.index+1)+': '+d.original.file.name+' · '+d.original.file.digest);
+  returnText(section,'Reason: '+d.rationale+' · Limits: '+(d.limits||'none reported')+' · Reported checking: '+(d.reported_check||'none')+' · Next: '+d.next_action);
+  if(d.output){const file={...d.output,download:d.download};returnText(section,'Saved output: '+file.name+' · '+file.bytes+' bytes · '+file.digest);
+    section.append(returnButton('Download saved output',()=>downloadExchangeFile(file)));
+    if(textFile(file.name)&&file.bytes<=32768)addTextReader(section,file,null);
+  }
+  if(originLink)section.append(returnButton('Inspect recorded return',()=>inspectReturned(d.returned,d.index)));
+  if(reconsider&&d.output)section.append(returnButton('Reconsider current use',()=>beginReassessment(d.destination)));
+  container.append(section);
+}
+function returnOptions(){
+  const mode=$('return-mode').value,used=mode==='unchanged'||mode==='adapted',dest=$('return-destination');
+  if(!used)dest.value='current';dest.disabled=!used;
+  $('return-targets').hidden=!used||returnTargetCursor===false;
+  $('return-name-field').hidden=!used;$('return-text-field').hidden=mode!=='adapted';
+  $('return-goal-field').hidden=dest.value!=='new';returnPrepared=null;$('return-commit').hidden=true;$('return-preview').textContent='';
+}
+function returnInputsChanged(epoch) {
+  if (accessLost) return true;
+  if (inputEpoch === epoch) return false;
+  status('Your edits changed during this request. They were retained. Inspect or preview again when ready.');
+  return true;
+}
+async function inspectReturned(ref,index){
+  if(returnMarker){$('return-recovery').hidden=false;status('Check the pending return save first.');return;}
+  if((returnEdited||returnPrepared)&&!confirm('Discard this unsaved return decision?'))return;
+  const edits=inputEpoch;
+  let view;try{view=await api('/api/work/'+ref.work_id+'/inspect-return',{returned:ref,index,after:null});}
+  catch(e){if(returnInputsChanged(edits))return;if(ref.work_id!==work&&['work_not_found','work_erased','return_selection_unavailable'].includes(e.message)){
+    resetReturnPanel();const message=$('return-status');
+    message.textContent='Recorded source unavailable: '+returnRef(ref)+' · file '+(index+1)+'. The saved destination bytes and their recorded attribution remain here.';
+    message.focus();return;}throw e;}
+  if(returnInputsChanged(edits))return;resetReturnPanel();returnView=view;
+  $('return-feedback').hidden=!view.returned.contributor;
+  const box=$('return-basis'),file=view.returned.files[index];
+  returnText(box,'Request: '+view.request.message+' · '+returnRef(view.request.ref));
+  for(const file of view.request.files){returnText(box,'Requested file: '+file.name+' · '+file.digest);box.append(returnButton('Download requested '+file.name,()=>downloadExchangeFile(file)));addTextReader(box,file,null);}
+  returnText(box,'Request based on: '+view.request_basis.definition.goal+' · '+returnRef(view.request_basis.ref)+' · '+[...view.request_basis.definition.success_criteria,...view.request_basis.definition.non_goals,...view.request_basis.notes].join(' / '));
+  returnText(box,'Return: '+view.returned.message+' · '+returnRef(view.returned.ref)+' · Sender’s next action: '+view.returned.next_action);
+  returnText(box,'Current conditions: '+view.current.definition.goal+' · '+returnRef(view.current.ref)+' · '+[...view.current.definition.success_criteria,...view.current.definition.non_goals,...view.current.notes].join(' / '));
+  returnText(box,'Selected return file '+(index+1)+': '+file.name+' · '+file.bytes+' bytes · '+file.digest);
+  box.append(returnButton('Download original return',()=>downloadExchangeFile(file)));addTextReader(box,file,null);
+  returnText(box,'Selections allow 8 files, 256 KiB per file and 512 KiB together. Exact original reads and downloads stay available.');
+  const large=file.bytes>262144;$('return-mode').options[0].disabled=large;
+  if(large)returnText(box,'This original exceeds the 256 KiB selected-file limit. Read or download it in full; you can author a smaller adaptation.');
+  $('return-mode').value=large?'adapted':'unchanged';$('return-name').value=file.name;$('return-targets').textContent='List other saved work';
+  const dest=$('return-destination');dest.add(new Option('Original work: '+view.current.definition.goal,'current'));dest.add(new Option('Create a follow-on','new'));
+  $('return-inspector').hidden=false;returnOptions();showReturnDecisions(view);$('return-heading').focus();$('return-heading').scrollIntoView({block:'nearest'});
+}
+function showReturnDecisions(view){
+  const box=$('return-decisions');for(const d of view.decisions)drawReturnDecision(box,d);
+  $('return-more').hidden=!view.next;
+  if(!box.children.length&&!view.next)returnText(box,'No committed decision for this returned file.');
+}
+$('return-more').onclick=()=>run(async()=>{
+  if(!returnView?.next)return;
+  const {returned,index}=returnView.selection;
+  const v=await api('/api/work/'+returned.work_id+'/inspect-return',{returned,index,after:returnView.next});
+  returnView.next=v.next;showReturnDecisions(v);
+});
+$('return-targets').onclick=()=>run(async()=>{
+  const list=await api('/api/works'+(returnTargetCursor?'?cursor='+returnTargetCursor:''));
+  for(const target of list.items)if(target.work_id!==returnView.current.ref.work_id){
+    const opt=new Option(target.goal+' · revision '+target.revision+' · '+target.work_id,target.work_id);
+    opt.dataset.fingerprint=target.fingerprint;$('return-destination').add(opt);
+  }
+  returnTargetCursor=list.next??false;$('return-targets').hidden=!list.next;$('return-targets').textContent='List more saved work';
+});
+$('return-fields').addEventListener('input',()=>{returnEdited=true;returnOptions();});
+$('return-cancel').onclick=()=>{if(!busy&&!returnMarker&&(!returnEdited||confirm('Discard this unsaved return decision?')))resetReturnPanel();};
+$('return-mode').onchange=$('return-destination').onchange=returnOptions;
+const returnDraftBusy=()=>dirty||directionDirty||pending||relationPending||sceneReviewPending||exchangePending||exchangeDraft||sceneModified;
+$('return-prepare').onclick=()=>run(async()=>{
+  if(returnMarker||!returnView)return;
+  const dest=$('return-destination'),mode=$('return-mode').value,used=mode==='unchanged'||mode==='adapted';
+  const judgment={decision:mode,name:used?$('return-name').value:null,text:mode==='adapted'?$('return-text').value:null,
+    rationale:$('return-reason').value,limits:$('return-limits').value,reported_check:$('return-checks').value,next_action:$('return-next').value};
+  if($('return-share').checked)judgment.participant_feedback={explanation:$('return-public-reason').value,next_action:$('return-public-next').value};
+  const id=dest.value==='current'?returnView.current.ref.work_id:dest.value;
+  if(id===work&&returnDraftBusy()){status('Finish the destination draft first. Its edits and save base are unchanged.');return;}
+  const edits=inputEpoch,selection=returnView.selection,goal=$('return-goal').value;
+  const observed=dest.value==='current'?returnView.current.ref.fingerprint:dest.selectedOptions[0].dataset.fingerprint;
+  const savedTarget=id==='new'?null:(await api('/api/work/'+id)).saved;
+  if(returnInputsChanged(edits))return;
+  if(savedTarget&&(savedTarget.fingerprint!==observed||(work===id&&saved?.fingerprint!==savedTarget.fingerprint))){status('The selected destination changed. Inspect its current conditions and choose it again.');return;}
+  const {prepareReturnDraft}=await import('/planning-notes.mjs');
+  if(returnInputsChanged(edits))return;
+  let p;try{p=await prepareReturnDraft(api,selection,judgment,savedTarget?{saved:savedTarget}:{goal});}
+  catch(e){if(returnInputsChanged(edits))return;const why=messages[e.message]??e.message.replaceAll('_',' ');$('return-status').textContent='Preview unavailable: '+why+' Nothing was saved.';return;}
+  if(returnInputsChanged(edits))return;returnPrepared=p;$('return-commit').hidden=false;
+  $('return-preview').textContent='Prepared, not saved: '+p.body.definition.goal+' · '+p.work_id+' · base '+p.expected.revision+' / '+(p.expected.fingerprint??'new work')+'\n'+
+    [...p.body.definition.success_criteria,...p.body.notes.map(n=>n.text),...p.body.files.map(f=>f.name)].join('\n')+'\n'+
+    mode+': '+(judgment.name??'no material selected')+' · '+judgment.rationale+' · Next: '+judgment.next_action+
+    (judgment.participant_feedback?'\nShared with participant: '+mode+' · '+judgment.participant_feedback.explanation+' · Next: '+judgment.participant_feedback.next_action:'\nNo participant feedback shared.');
+});
+async function finishReturn(response){
+  if(response.outcome!=='saved'||!response.saved?.return_use){
+    const m=returnMarker;if(!m)return;
+    let source=null;try{source=(await api('/api/work/'+m.choice.selection.source_head.work_id)).saved;}
+    catch(e){if(e.message!=='work_erased'&&e.message!=='work_not_found')throw e;}
+    const stale=source?.fingerprint!==m.choice.selection.source_head.fingerprint||response.head.fingerprint!==m.expected.fingerprint;
+    if(stale){const last=await api('/api/work/'+m.work_id+'/resolve',{ticket:m.ticket});if(last.outcome==='saved')return finishReturn(last);}
+    $('return-abandon').hidden=!stale;$('return-retry').hidden=stale;
+    $('return-reenter-field').hidden=stale||!!returnPrepared||m.choice.decision!=='adapted';
+    $('return-status').textContent=stale?'The original save was not recorded and its basis has changed. Release it before reassessing.':'No matching save observed. Only an explicit retry of this same ticket can save this draft.';return;
+  }
+  const d=response.saved;returnEdited=false;sessionStorage.removeItem(returnKey(work));returnPrepared=returnMarker=null;
+  $('return-recovery').hidden=$('return-commit').hidden=true;$('return-fields').disabled=false;
+  const notice='Saved '+d.return_use.decision+' in '+d.definition.goal+' · '+returnRef(d)+'. Next: '+d.return_use.next_action;
+  $('return-status').textContent=notice;
+  if(work===d.work_id&&!returnDraftBusy()){
+    const edits=inputEpoch,latest=await api('/api/work/'+work);
+    if(!returnInputsChanged(edits)&&!returnDraftBusy())await show(latest.saved,latest.exchanges);
+  }
+  else if(returnView){const s=returnView.selection;await inspectReturned(s.returned,s.index);}
+  $('return-status').textContent=notice;
+}
+$('return-commit').onclick=()=>run(async()=>{
+  const p=returnPrepared;if(!p||returnMarker)return;
+  if(p.work_id===work&&returnDraftBusy()){status('Finish the destination draft before saving.');return;}
+  const {text,...choice}=p.body.return_choice;
+  const marker={work_id:p.work_id,ticket:p.body.ticket,expected:p.expected,choice,goal:p.expected.revision===0?p.body.definition.goal:null};
+  sessionStorage.setItem(returnKey(work),JSON.stringify(marker));returnMarker=marker;$('return-fields').disabled=true;$('return-commit').hidden=true;$('return-recovery').hidden=false;
+  try{await finishReturn(await api('/api/work/'+p.work_id+'/save',p.body));}
+  catch(err){if(!accessLost)$('return-status').textContent='Return save not confirmed. Check this exact save before preparing another.';throw err;}
+});
+$('return-resolve').onclick=()=>run(async()=>{if(returnMarker)await finishReturn(await api('/api/work/'+returnMarker.work_id+'/resolve',{ticket:returnMarker.ticket}));});
+$('return-retry').onclick=()=>run(async()=>{
+  const m=returnMarker;if(!m||$('return-retry').hidden)return;
+  let body=returnPrepared?.body;if(!body){const saved=m.expected.revision?(await api('/api/work/'+m.work_id)).saved:null;
+    if(saved&&saved.fingerprint!==m.expected.fingerprint){status('The destination changed. Check this save again.');return;}
+    const {returnDraft}=await import('/planning-notes.mjs');body={...returnDraft(m.choice.selection,{...m.choice,text:m.choice.decision==='adapted'?$('return-reenter').value:null},saved?{saved}:{goal:m.goal}),ticket:m.ticket};}
+  await finishReturn(await api('/api/work/'+m.work_id+'/save',body));
+});
+$('return-abandon').onclick=()=>{if(busy||!returnMarker||$('return-abandon').hidden)return;sessionStorage.removeItem(returnKey(work));returnMarker=returnPrepared=null;
+  $('return-recovery').hidden=$('return-commit').hidden=true;$('return-fields').disabled=false;$('return-status').textContent='Unrecorded draft released. Inspect current conditions before preparing again.';};
+
+// Keep ordinary editing and exchange forms from discarding each other's unsaved inputs.
+$('editor').addEventListener('click', event => {
+  if (exchangeDraft && !event.target.closest('#exchange-panel')) {
+    event.preventDefault(); event.stopImmediatePropagation(); status('Finish or cancel your file request first.');
+  }
+}, true);
+
+// Request disclosure is immutable; editing work later never changes this grant.
+function addGrantControls(article,item){
+  const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Participant access for this request';details.append(summary);
+  const panel=document.createElement('div');details.append(panel);article.append(details);
+  let loaded=false,pendingGrant=null;
+  details.ontoggle=()=>{if(!details.open||loaded)return;loaded=true;
+    returnText(panel,'Choose exact originals and the brief to disclose. The recipient uses their own verified login. Access grants do not invite or contact anyone.');
+    const fields=document.createElement('fieldset'),legend=document.createElement('legend');legend.textContent='Grant access';fields.append(legend);
+    const field=(label,type,value='')=>{const l=document.createElement('label'),el=document.createElement(type==='textarea'?'textarea':'input');if(type!=='textarea')el.type=type;el.value=value;l.append(document.createTextNode(label),el);fields.append(l);return el;};
+    const recipient=field('Recipient email','email'),brief=field('Brief to disclose','textarea',item.message),next=field('Return conditions to disclose','textarea',item.next_action);
+    brief.maxLength=next.maxLength=500;
+    const days=field('Access duration in days (1–90)','number','7');days.min='1';days.max='90';
+    const selections=item.files.map((f,index)=>{const l=document.createElement('label'),el=document.createElement('input');el.type='checkbox';el.checked=true;l.append(el,document.createTextNode(f.name+' · '+f.digest));fields.append(l);return {el,index};});
+    panel.append(fields);const records=document.createElement('div');panel.append(records);
+    async function show(cursor=null){const {grants,next:more}=await api('/api/work/'+item.ref.work_id+'/participation'+(cursor?'?cursor='+cursor:''));if(!cursor)records.replaceChildren();
+      for(const g of grants.filter(g=>g.disclosure.request.fingerprint===item.ref.fingerprint)){
+        const row=document.createElement('article');returnText(row,g.recipient+' · '+(g.revoked_at?'Access ended':new Date(g.expires).toLocaleString()));
+        const link=document.createElement('a');link.href=g.link;link.textContent=g.link;row.append(link);
+        returnText(row,'Disclosed brief: '+g.disclosure.brief+' · Return conditions: '+g.disclosure.next_action);
+        for(const f of g.disclosure.files)returnText(row,f.original.file.name+' · '+f.original.file.digest);
+        if(!g.revoked_at)row.append(returnButton('End access',async()=>{await api('/api/work/'+item.ref.work_id+'/participation/revoke',{grant_id:g.id});await show();}));
+        records.append(row);
+      }
+      if(more){const button=returnButton('More access records',async()=>{button.remove();await show(more);});records.append(button);}
+    }
+    fields.append(returnButton('Create participant link',async()=>{
+      if(!pendingGrant){if(!recipient.checkValidity()||!recipient.value||!days.value||!days.checkValidity()||!brief.value.trim()||!selections.some(v=>v.el.checked))throw Error('Choose a recipient, expiry, brief and at least one original');
+        pendingGrant={grant_id:crypto.randomUUID(),request:item.ref,expected:exchangeState.head,recipient:recipient.value,brief:brief.value,next_action:next.value,
+          indices:selections.filter(v=>v.el.checked).map(v=>v.index),expires:Date.now()+Number(days.value)*86400000};}
+      fields.disabled=true;
+      try{await api('/api/work/'+item.ref.work_id+'/participation/create',pendingGrant);pendingGrant=null;await show();status('Participant link saved. No invitation was sent.');}
+      catch(e){if(e.status===422||['refresh_required','exchange_already_answered'].includes(e.message))pendingGrant=null;throw e;}
+      finally{fields.disabled=false;}
+    }));
+    panel.append(returnButton('Refresh access records',show));run(show);
+  };
+}

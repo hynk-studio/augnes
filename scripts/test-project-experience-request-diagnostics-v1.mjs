@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import './test-project-experience-pinned-diagnostics-v1.mjs';
 import { createProjectExperienceRequestDiagnosticsV1 } from './project-experience-request-diagnostics-v1.mjs';
+import { createInspectorLifecycleV1 } from './project-experience-inspector-lifecycle-v1.mjs';
 import { createProjectExperienceRequestVerdictV1, UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1 } from './project-experience-request-verdict-v1.mjs';
 
 const route = '/api/vnext/operator/host-round-trip';
@@ -229,6 +230,8 @@ function ownerObserver(diagnostic) {
   let listener;
   const state = {
     requestDiagnostics: diagnostic,
+    guideLifecycle: { connection: () => null, observe() {}, bindFailure() {} },
+    inspectorLifecycle: createInspectorLifecycleV1(),
     requestVerdicts: createProjectExperienceRequestVerdictV1(),
     cdp: { on: callback => { listener = callback; }, send: (...args) => { state.sent.push(args); return Promise.resolve({}); } },
     sent: [], requests: [], responses: [], failedRequests: [], externalRequests: [],

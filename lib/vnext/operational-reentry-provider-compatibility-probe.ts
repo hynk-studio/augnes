@@ -11,11 +11,13 @@ import {
 } from "@/lib/vnext/model-gateway/contracts";
 import {
   invokeOperationalReentryMatchedCohortModelGatewayV01,
-  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01,
-  projectOperationalReentryMatchedCohortProviderRequestV01,
   type ModelGatewayInteractiveAdmissionV01,
   type OperationalReentryMatchedCohortModelGatewayDependenciesV01,
 } from "@/lib/vnext/model-gateway/model-gateway";
+import {
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01,
+  projectOperationalReentryMatchedCohortProviderRequestV01,
+} from "@/lib/vnext/model-gateway/method-routes";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
 import {
   createDeterministicModelClientRequestIdV01,

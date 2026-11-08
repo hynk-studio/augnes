@@ -1,7 +1,8 @@
+import { projectWorkListItem, listEnvelope } from "./work-list";
 import { SCENE_FILE, validateSceneHistory } from "./scene-contract";
 import { Buffer } from "node:buffer";
-import { decodeFile, digestBytes, exportFiles, historyFiles, verifiedBodies, type FileBody, type FileEntry } from "./files";
-import { assertHistoryBudget, canonical, canonicalBytes, fail, headBinding, HISTORY_READ_BYTES, HISTORY_READ_ROWS, type Binding, type Revision, type Scope, type WorkRef, validateChain } from "./contract";
+import { FILE_LIMIT, decodeFile, digestBytes, exportFiles, historyFiles, verifiedBodies, type FileBody, type FileEntry } from "./files";
+import { assertHistoryBudget, canonical, canonicalBytes, fail, headBinding, HISTORY_READ_BYTES, HISTORY_READ_ROWS, type Binding, type Revision, type Scope, type WorkRef, UUID, validateChain, validateRetainedContext, validateRetainedIncorporations } from "./contract";
 // The subset of the D1 binding used here. No SQLite adapter or in-memory fallback.
 export interface Statement {
   bind(...values: (string | number | null | ArrayBuffer)[]): Statement;
@@ -10,7 +11,7 @@ export interface Statement {
   run(): Promise<{ meta: { changes: number } }>;
 }
 export interface Database { prepare(sql: string): Statement; batch(statements: Statement[]): Promise<unknown[]> }
-export type Store = Scope & { DB: Database; historyRead?: { rows:number; bytes:number } };
+export type Store = Scope & { DB: Database; historyRead?: { rows:number; bytes:number }; participantGrant?: { id:string; recipient_hash:string; disclosure_fingerprint:string } };
 // Includes authentication and batch statements; leave ten queries below D1's
 // Free invocation ceiling. No retry or replica/session substitution is used.
 export function boundedDatabase(db:Database):Database {
@@ -29,7 +30,7 @@ const args = (s: Scope, id: string) => [s.workspace_id, s.project_id, id];
 export async function erased(s: Store, id: string): Promise<boolean> {
   return !!await s.DB.prepare(`SELECT work_id FROM web_planning_erased WHERE ${where}`).bind(...args(s,id)).first();
 }
-export async function readWork(s: Store, id: string): Promise<Revision[]> {
+async function observeWork(s: Store, id: string, forList = false) {
   // Keep the existing atomic primary observation. A bounded ordered scan plus
   // a mandatory summary proves completeness without separate-page snapshots.
   // Oversized histories return only the summary, never an apparently valid
@@ -39,14 +40,14 @@ export async function readWork(s: Store, id: string): Promise<Revision[]> {
     WHERE ${where} ORDER BY revision LIMIT ${HISTORY_READ_ROWS+1}
   ), summary AS (SELECT COUNT(*) AS n, COALESCE(SUM(length(CAST(envelope AS BLOB))),0)+MAX(COUNT(*),1)+1 AS bytes FROM bounded),
   files AS MATERIALIZED (SELECT digest,bytes FROM web_planning_file WHERE ${where} ORDER BY digest LIMIT 17)
-  SELECT 0 AS kind,NULL AS envelope,NULL AS revision,NULL AS fingerprint,NULL AS request_key,NULL AS request_fingerprint,
+  SELECT 0 AS kind,NULL AS envelope,NULL AS envelope_bytes,NULL AS revision,NULL AS fingerprint,NULL AS request_key,NULL AS request_fingerprint,
     n,bytes,EXISTS(SELECT 1 FROM web_planning_erased WHERE ${where}) AS erased,
     (SELECT COUNT(*) FROM files) AS file_count,NULL AS digest,NULL AS file_bytes FROM summary
-  UNION ALL SELECT 1,envelope,revision,fingerprint,request_key,request_fingerprint,NULL,NULL,NULL,NULL,NULL,NULL FROM bounded
+  UNION ALL SELECT 1,${forList ? listEnvelope : "envelope"},length(CAST(envelope AS BLOB)),revision,fingerprint,request_key,request_fingerprint,NULL,NULL,NULL,NULL,NULL,NULL FROM bounded
     WHERE (SELECT n<=${HISTORY_READ_ROWS} AND bytes<=${HISTORY_READ_BYTES} FROM summary)
-  UNION ALL SELECT 2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,digest,bytes FROM files
+  UNION ALL SELECT 2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,digest,bytes FROM files
   ORDER BY kind,revision,digest`).bind(...args(s,id),...args(s,id),...args(s,id)).all<{
-    kind:number;envelope:string;revision:number;fingerprint:string;request_key:string;request_fingerprint:string;
+    kind:number;envelope:string;envelope_bytes:number;revision:number;fingerprint:string;request_key:string;request_fingerprint:string;
     n:number;bytes:number;erased:number;file_count:number;digest:string;file_bytes:number;
   }>();
   const summary=results[0];
@@ -58,23 +59,44 @@ export async function readWork(s: Store, id: string): Promise<Revision[]> {
   if(summary.n>HISTORY_READ_ROWS || summary.bytes>HISTORY_READ_BYTES)fail("history_read_budget_exceeded",422);
   const rows=results.filter(r=>r.kind===1),files=results.filter(r=>r.kind===2);
   if(rows.length!==summary.n || files.length!==summary.file_count ||
-    rows.reduce((bytes,r)=>bytes+Buffer.byteLength(r.envelope),Math.max(rows.length,1)+1)!==summary.bytes)fail("history_observation_incomplete",503);
+    rows.some(r=>!Number.isSafeInteger(r.envelope_bytes)||r.envelope_bytes<1||(!forList && Buffer.byteLength(r.envelope)!==r.envelope_bytes)) ||
+    rows.reduce((bytes,r)=>bytes+r.envelope_bytes,Math.max(rows.length,1)+1)!==summary.bytes)fail("history_observation_incomplete",503);
   if(s.historyRead){
     s.historyRead.rows+=rows.length;s.historyRead.bytes+=summary.bytes;
     // A ten-item page can validate ten maximal histories; repeated reads within
     // mutations and the two direct context references share this same budget.
     if(s.historyRead.rows>10*HISTORY_READ_ROWS || s.historyRead.bytes>10*HISTORY_READ_BYTES)fail("operation_read_budget_exceeded",503);
   }
-  if(!rows.length){if(files.length)fail("file_content_unavailable",503);return [];}
+  if(!rows.length && files.length)fail("file_content_unavailable",503);
   const values = rows.map(row => {
     const value=JSON.parse(row.envelope);
     for(const key of ["revision","fingerprint","request_key","request_fingerprint"] as const)
       if(value[key]!==row[key])fail("history_index_integrity",503);
     return value;
   });
-  const chain=validateChain(s,id,values);
-  const expected=historyFiles(chain);
+  return { values, files };
+}
+function checkStoredFiles(expected:Map<string,number>,files:{digest:string;file_bytes:number}[]) {
   if(files.length!==expected.size || new Set(files.map(f=>f.digest)).size!==files.length || files.some(f=>expected.get(f.digest)!==f.file_bytes))fail("file_content_unavailable",503);
+}
+export async function readEnvelopes(s: Store, id: string): Promise<Revision[]> {
+  const {values,files}=await observeWork(s,id);
+  if(!values.length)return [];
+  const chain=validateChain(s,id,values);
+  checkStoredFiles(historyFiles(chain),files);
+  return chain;
+}
+// Note inspection attests to the sealed planning selection, not file bytes or
+// the validity of a scene notebook. Full work, save and export keep those checks.
+export async function readNoteHistory(s: Store, id: string) {
+  const chain=await readEnvelopes(s,id);
+  if(!chain.length)fail("work_not_found",404);
+  return chain.map(r=>({...headBinding(r),work_id:id,workspace_id:r.workspace_id,project_id:r.project_id,
+    author_ref:r.author_ref,recorded_at:r.recorded_at,definition:r.definition,sources:r.sources,
+    ...(r.relations?{relations:{materials:r.relations.materials}}:{})}));
+}
+export async function readWork(s: Store, id: string): Promise<Revision[]> {
+  const chain=await readEnvelopes(s,id);
   if(chain.some(r=>r.files?.some(f=>f.name===SCENE_FILE)))validateSceneHistory(chain,await readFileBodies(s,chain));
   return chain;
 }
@@ -85,16 +107,28 @@ const sourceArgs = (s:Scope, ref:WorkRef) => [...args(s,ref.work_id),...args(s,r
 export async function headsCurrent(s:Store,target:WorkRef,source:WorkRef):Promise<boolean> {
   return !!await s.DB.prepare(`SELECT 1 AS current WHERE ${sourceGate} AND ${sourceGate}`).bind(...sourceArgs(s,target),...sourceArgs(s,source)).first();
 }
-export async function append(s: Store, r: Revision, source?: WorkRef, bodies:FileBody[]=[]): Promise<void> {
+export async function append(s: Store, chain: Revision[], r: Revision, source?: WorkRef, bodies:FileBody[]=[], selections:WorkRef[]=[]): Promise<void> {
+  validateRetainedContext(chain,r.work_id,r,s);
+  validateRetainedIncorporations(chain.at(-1),r);
+  assertHistoryBudget([...chain,r]);
   // The predecessor test is inside the INSERT. A JS read is never the concurrency gate.
   const statement=s.DB.prepare(`INSERT INTO web_planning_revision
     (workspace_id,project_id,work_id,revision,fingerprint,request_key,request_fingerprint,envelope)
     SELECT ?,?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM web_planning_erased WHERE ${where})
     AND COALESCE((SELECT MAX(revision) FROM web_planning_revision WHERE ${where}),0) = ?
     AND (? = 0 OR EXISTS (SELECT 1 FROM web_planning_revision WHERE ${where} AND revision = ? AND fingerprint = ?))
+    ${s.participantGrant ? `AND EXISTS (SELECT 1 FROM web_planning_participation WHERE workspace_id=? AND project_id=? AND grant_id=? AND work_id=?
+      AND recipient_hash=? AND disclosure_fingerprint=? AND revoked_at IS NULL AND expires > (julianday('now')-2440587.5)*86400000)` : ""}
     ${source ? `AND ${sourceGate}` : ""}
+    ${selections.length ? `AND NOT EXISTS (SELECT 1 FROM json_each(?) pick WHERE NOT EXISTS
+      (SELECT 1 FROM web_planning_revision src WHERE src.workspace_id=? AND src.project_id=?
+       AND src.work_id=json_extract(pick.value,'$.work_id') AND src.revision=json_extract(pick.value,'$.revision')
+       AND src.fingerprint=json_extract(pick.value,'$.fingerprint') AND NOT EXISTS
+       (SELECT 1 FROM web_planning_erased e WHERE e.workspace_id=src.workspace_id AND e.project_id=src.project_id AND e.work_id=src.work_id)))` : ""}
     ON CONFLICT DO NOTHING`).bind(s.workspace_id,s.project_id,r.work_id,r.revision,r.fingerprint,r.request_key,r.request_fingerprint,canonical(r),
-      ...args(s,r.work_id),...args(s,r.work_id),r.revision-1,r.revision-1,...args(s,r.work_id),r.revision-1,r.predecessor,...(source?sourceArgs(s,source):[]));
+      ...args(s,r.work_id),...args(s,r.work_id),r.revision-1,r.revision-1,...args(s,r.work_id),r.revision-1,r.predecessor,
+      ...(s.participantGrant?[s.workspace_id,s.project_id,s.participantGrant.id,r.work_id,s.participantGrant.recipient_hash,s.participantGrant.disclosure_fingerprint]:[]),...(source?sourceArgs(s,source):[]),
+      ...(selections.length?[canonical(selections),s.workspace_id,s.project_id]:[]));
   if(r.files===undefined)await statement.run();
   else {
     try {await s.DB.batch([statement,...fileInsert(s,r,bodies)]);}
@@ -137,7 +171,9 @@ export async function reconstructWorks(s:Store,works:{chain:Revision[];bodies:Fi
   if(chunks.length>16)fail("reconstruction_budget_exceeded",422);
   // A CHECK-constrained assertion is the first statement in the same transaction.
   // Emptiness includes erased IDs: reconstruction cannot resurrect erased work.
+  const grants=await s.DB.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='web_planning_participation'").first();
   await s.DB.batch([
+    ...(grants?[s.DB.prepare("UPDATE web_planning_participation SET revoked_at=COALESCE(revoked_at,?)").bind(new Date().toISOString())]:[]),
     s.DB.prepare(`UPDATE web_planning_workspace SET singleton = CASE WHEN
       EXISTS(SELECT 1 FROM web_planning_revision) OR EXISTS(SELECT 1 FROM web_planning_erased) OR EXISTS(SELECT 1 FROM web_planning_file)
       THEN 0 ELSE 1 END WHERE singleton=1`),
@@ -150,55 +186,107 @@ export async function reconstructWorks(s:Store,works:{chain:Revision[];bodies:Fi
   ]);
   for(const w of works){
     if(canonical(await readWork(s,w.chain[0].work_id))!==canonical(w.chain))fail("reconstruction_readback_unavailable",503);
-    if(w.chain.some(r=>r.files!==undefined))verifiedBodies(w.chain,await readFileBodies(s,w.chain));
+    if(w.chain.some(r=>r.files!==undefined))await readFileBodies(s,w.chain);
   }
 }
-export async function listWork(s: Store, cursor: string): Promise<{ items: Revision[]; next: string | null }> {
-  const rows = await s.DB.prepare(`SELECT DISTINCT work_id FROM web_planning_revision
-    WHERE workspace_id=? AND project_id=? AND work_id > ? ORDER BY work_id LIMIT 11`)
-    .bind(s.workspace_id,s.project_id,cursor).all<{ work_id: string }>();
-  const items: Revision[] = [];
-  for (const row of rows.results.slice(0,10)) {
-    try { const chain=await readWork(s,row.work_id); if(chain.length) items.push(chain.at(-1)!); }
-    catch(error) { if((error as {code?:string}).code!=="work_erased") throw error; }
+export async function listWorkIds(s: Store, cursor: string) {
+  // Seek past each work on the existing (scope, work_id, revision) index.
+  // Even a very long history cannot make discovery walk its duplicate IDs.
+  const rows = await s.DB.prepare(`WITH RECURSIVE page(n,id) AS (
+    SELECT 0,? UNION ALL
+    SELECT n+1,(SELECT MIN(work_id) FROM web_planning_revision
+      WHERE workspace_id=? AND project_id=? AND work_id>page.id)
+    FROM page WHERE n<11 AND id IS NOT NULL)
+    SELECT id AS work_id,n,(SELECT COUNT(id) FROM page WHERE n>0) AS count FROM page
+    WHERE id IS NOT NULL ORDER BY n`)
+    .bind(cursor,s.workspace_id,s.project_id).all<{ work_id: string; n:number; count:number }>();
+  // The seed row is also the completeness witness, including on an empty page.
+  const [seed,...ids]=rows.results;
+  if(!seed || seed.n!==0 || seed.work_id!==cursor || seed.count!==ids.length || ids.length>11 ||
+    ids.some((row,i)=>row.n!==i+1 || !UUID.test(row.work_id) || row.work_id<=(i?ids[i-1].work_id:cursor)))
+    fail("history_observation_incomplete",503);
+  return ids;
+}
+export async function listWork(s: Store, cursor: string) {
+  const ids=await listWorkIds(s,cursor);
+  const items: ReturnType<typeof projectWorkListItem>[] = [];
+  for (const row of ids.slice(0,10)) {
+    try {
+      const {values,files}=await observeWork(s,row.work_id,true);
+      if(!values.length)fail("history_observation_incomplete",503);
+      const item=projectWorkListItem(s,row.work_id,values);
+      checkStoredFiles(historyFiles(values),files);
+      items.push(item);
+    }
+    catch(error) { if((error as {code?:string}).code==="work_erased")fail("refresh_required",409);throw error; }
   }
-  return { items, next: rows.results.length>10 ? rows.results[9].work_id : null };
+  return { items, next: ids.length>10 ? ids[9].work_id : null };
 }
 export { headBinding };
 
-// One bounded statement (at most 16 bodies / 59 parameters), gated by the newly
-// committed revision inside the same batch. A lost head race cannot leave uploads.
+// 192 KiB raw per slice: aligned on base64 quanta; no single D1 value or
+// result row approaches 2 MB. No staged objects survive an interrupted write.
+const PART_CHARS=262_144;
 function fileInsert(s:Store,r:Revision,bodies:FileBody[]):Statement[] {
   if(!bodies.length)return [];
-  return [s.DB.prepare(`WITH incoming(digest,bytes,body) AS (VALUES ${bodies.map(()=>"(?,?,?)").join(",")})
+  const gate=`EXISTS (SELECT 1 FROM web_planning_revision WHERE ${where} AND revision=? AND fingerprint=?)
+    AND NOT EXISTS (SELECT 1 FROM web_planning_erased WHERE ${where})`;
+  const scope=args(s,r.work_id),bound=[...scope,...scope,r.revision,r.fingerprint,...scope];
+  const headers=s.DB.prepare(`WITH incoming(digest,bytes,body) AS (VALUES ${bodies.map(()=>"(?,?,?)").join(",")})
     INSERT INTO web_planning_file(workspace_id,project_id,work_id,digest,bytes,body)
-    SELECT ?,?,?,digest,bytes,body FROM incoming WHERE EXISTS
-      (SELECT 1 FROM web_planning_revision WHERE ${where} AND revision=? AND fingerprint=?)
-    AND NOT EXISTS (SELECT 1 FROM web_planning_erased WHERE ${where}) ON CONFLICT DO NOTHING`)
-    .bind(...bodies.flatMap(f=>[f.digest,f.bytes,Uint8Array.from(decodeFile(f.data)).buffer]),...args(s,r.work_id),...args(s,r.work_id),r.revision,r.fingerprint,...args(s,r.work_id))];
+    SELECT ?,?,?,digest,bytes,body FROM incoming WHERE ${gate} ON CONFLICT DO NOTHING`)
+    .bind(...bodies.flatMap(f=>[f.digest,f.bytes,f.bytes>FILE_LIMIT?null:Uint8Array.from(decodeFile(f.data)).buffer]),...bound);
+  const parts:(string|number)[][]=[];
+  for(const f of bodies)if(f.bytes>FILE_LIMIT){
+    for(let offset=0;offset<f.data.length;offset+=PART_CHARS)parts.push([f.digest,offset/PART_CHARS,f.data.slice(offset,offset+PART_CHARS)]);
+  }
+  const statements=[headers];
+  // At most 59 bindings per statement. All statements use the exact saved
+  // revision/erasure guard, including on a CAS that inserted zero rows.
+  for(let i=0;i<parts.length;i+=16){
+    const group=parts.slice(i,i+16);
+    statements.push(s.DB.prepare(`WITH incoming(digest,ordinal,data) AS (VALUES ${group.map(()=>"(?,?,?)").join(",")})
+      INSERT INTO web_planning_file_part(workspace_id,project_id,work_id,digest,ordinal,data)
+      SELECT ?,?,?,digest,ordinal,data FROM incoming WHERE ${gate} ON CONFLICT DO NOTHING`).bind(...group.flat(),...bound));
+  }
+  return statements;
+}
+async function storedBodies(s:Store,r:Revision,digest?:string):Promise<FileBody[]> {
+  const scope=args(s,r.work_id),pred=`${where} ${digest?"AND digest=?":""}
+    AND NOT EXISTS (SELECT 1 FROM web_planning_erased WHERE ${where})
+    AND EXISTS (SELECT 1 FROM web_planning_revision WHERE ${where} AND revision=? AND fingerprint=?)`;
+  const params=[...scope,...(digest?[digest]:[]),...scope,...scope,r.revision,r.fingerprint];
+  // One scoped snapshot of headers and parts. A large file adds rows, not
+  // queries, to the existing per-operation budget (including scene reads).
+  const {results}=await s.DB.prepare(`WITH headers AS (SELECT * FROM web_planning_file WHERE ${pred})
+    SELECT h.digest,h.bytes,p.ordinal,CASE WHEN h.body IS NULL THEN p.data ELSE hex(h.body) END AS data
+    FROM headers h LEFT JOIN web_planning_file_part p USING(workspace_id,project_id,work_id,digest)
+    ORDER BY h.digest,p.ordinal`).bind(...params).all<{digest:string;bytes:number;ordinal:number|null;data:string|null}>();
+  const groups=new Map<string,typeof results>();
+  for(const row of results){const group=groups.get(row.digest);if(group)group.push(row);else groups.set(row.digest,[row]);}
+  return [...groups.values()].map(group=>{
+    const f=group[0];
+    if(f.bytes<=FILE_LIMIT){
+      if(group.length!==1 || f.ordinal!==null || f.data===null || f.data.length!==2*f.bytes)fail("file_content_integrity",409);
+      return {digest:f.digest,bytes:f.bytes,data:Buffer.from(f.data,"hex").toString("base64")};
+    }
+    const chars=4*Math.ceil(f.bytes/3);
+    if(group.length!==Math.ceil(chars/PART_CHARS) ||
+      group.some((p,i)=>p.ordinal!==i || p.data?.length!==Math.min(PART_CHARS,chars-i*PART_CHARS)))fail("file_content_integrity",409);
+    return {digest:f.digest,bytes:f.bytes,data:group.map(p=>p.data).join("")};
+  });
 }
 export async function readFileBodies(s:Store,chain:Revision[]):Promise<FileBody[]> {
-  const id=chain[0].work_id,head=chain.at(-1)!;
-  // Match the exact read revision and erasure guard; refuse missing/extra bodies
-  // rather than describing a manifest without its bytes as complete.
-  const rows=await s.DB.prepare(`SELECT digest,bytes,body FROM web_planning_file WHERE ${where}
-    AND NOT EXISTS (SELECT 1 FROM web_planning_erased WHERE ${where})
-    AND EXISTS (SELECT 1 FROM web_planning_revision WHERE ${where} AND revision=? AND fingerprint=?)`)
-    .bind(...args(s,id),...args(s,id),...args(s,id),head.revision,head.fingerprint).all<{digest:string;bytes:number;body:number[]}>();
-  const bodies=rows.results.map(f=>({digest:f.digest,bytes:f.bytes,data:Buffer.from(f.body).toString("base64")}));
-  return verifiedBodies(chain,bodies);
+  return verifiedBodies(chain,await storedBodies(s,chain.at(-1)!));
 }
 export async function completeExport(s:Store,chain:Revision[]) {
-  return exportFiles(chain,await readFileBodies(s,chain));
+  return exportFiles(chain,await storedBodies(s,chain.at(-1)!));
 }
-export async function downloadFile(s:Store,r:Revision,index:number):Promise<{file:FileEntry;bytes:Uint8Array<ArrayBuffer>}> {
-  const file=r.files?.[index];if(!file)fail("file_not_found",404);
-  const row=await s.DB.prepare(`SELECT body FROM web_planning_file WHERE ${where} AND digest=?
-    AND NOT EXISTS (SELECT 1 FROM web_planning_erased WHERE ${where})
-    AND EXISTS (SELECT 1 FROM web_planning_revision WHERE ${where} AND revision=? AND fingerprint=?)`)
-    .bind(...args(s,r.work_id),file.digest,...args(s,r.work_id),...args(s,r.work_id),r.revision,r.fingerprint).first<{body:number[]}>();
+export async function downloadFile(s:Store,r:Revision,index:number,exchange=false):Promise<{file:FileEntry;bytes:Uint8Array<ArrayBuffer>}> {
+  const file=exchange ? r.exchange?.artifacts[index]?.file : r.files?.[index];if(!file)fail("file_not_found",404);
+  const [row]=await storedBodies(s,r,file.digest);
   if(!row)fail("file_content_unavailable",409);
-  const bytes=Uint8Array.from(row.body);
-  if(bytes.length!==file.bytes||digestBytes(bytes)!==file.digest)fail("file_content_integrity",409);
-  return {file,bytes};
+  const bytes=decodeFile(row.data,file.bytes);
+  if(row.bytes!==file.bytes||bytes.length!==file.bytes||digestBytes(bytes)!==file.digest)fail("file_content_integrity",409);
+  return {file,bytes:bytes as Uint8Array<ArrayBuffer>};
 }

@@ -16,6 +16,7 @@ import {
   buildReviewDecisionV01,
   canonicalizeReviewDecisionValueV01,
   createEpisodeDeltaCandidateFingerprintV01,
+  createReviewDecisionProposalRelationValidatorV01,
   createReviewDecisionFingerprintV01,
   deriveReviewDecisionIdV01,
   REVIEW_DECISION_REQUIRED_CORE_FIELDS_V01,
@@ -65,6 +66,10 @@ export interface ReviewDecisionConformanceSummaryV01 {
   resigned_malformed_decision_rejected: true;
   resigned_transition_claim_rejected: true;
   no_real_authorization_fabricated: true;
+  prepared_relation_differential_case_count: number;
+  prepared_proposal_snapshot_isolation_checked: true;
+  prepared_decisions_revalidated_on_every_call: true;
+  caller_validation_overrides_refused: true;
 }
 
 export function runReviewDecisionConformanceV01(): ReviewDecisionConformanceSummaryV01 {
@@ -311,6 +316,25 @@ export function runReviewDecisionConformanceV01(): ReviewDecisionConformanceSumm
   );
   assertIntegrityChecksPassed(resignedTransitionValidation);
 
+  const preparedRelationCaseCount = assertPreparedProposalRelations(accept, [
+    { name: "accept", decision: accept, proposal: reviewDecisionGenericSourceProposal },
+    { name: "reject", decision: reject, proposal: reviewDecisionGenericSourceProposal },
+    { name: "defer", decision: defer, proposal: reviewDecisionGenericSourceProposal },
+    { name: "supersede", decision: supersede, proposal: reviewDecisionMultiCandidateSourceProposal },
+    { name: "retract", decision: retract, proposal: reviewDecisionGenericSourceProposal },
+    { name: "imported_basis", decision: importedBasisDecision, proposal: reviewDecisionImportedBasisSourceProposal },
+    { name: "normalized_warnings", decision: normalized, proposal: reviewDecisionGenericSourceProposal },
+    { name: "maximum_bounded_rationale", decision: maxBounded, proposal: reviewDecisionGenericSourceProposal },
+    ...relationCases,
+    ...invalidReviewDecisionFixtureCases.map((item) => ({
+      name: `invalid_decision:${item.name}`, decision: item.mutate(accept), proposal: reviewDecisionGenericSourceProposal,
+    })),
+    { name: "resigned_malformed", decision: resignedMalformed, proposal: reviewDecisionGenericSourceProposal },
+    { name: "resigned_transition_claim", decision: resignedTransitionClaim, proposal: reviewDecisionGenericSourceProposal },
+    ...[null, undefined, [], "not-a-proposal", {}].map((proposal, index) => ({ name: `malformed_proposal:${index}`, decision: accept, proposal })),
+    ...[null, undefined, [], "not-a-decision", {}].map((decision, index) => ({ name: `malformed_decision:${index}`, decision, proposal: reviewDecisionGenericSourceProposal })),
+  ]);
+
   const requiredOpenAiSpecificFields =
     REVIEW_DECISION_REQUIRED_CORE_FIELDS_V01.filter((field) =>
       /openai/i.test(field),
@@ -366,7 +390,91 @@ export function runReviewDecisionConformanceV01(): ReviewDecisionConformanceSumm
     resigned_malformed_decision_rejected: true,
     resigned_transition_claim_rejected: true,
     no_real_authorization_fabricated: true,
+    prepared_relation_differential_case_count: preparedRelationCaseCount,
+    prepared_proposal_snapshot_isolation_checked: true,
+    prepared_decisions_revalidated_on_every_call: true,
+    caller_validation_overrides_refused: true,
   };
+}
+
+function assertPreparedProposalRelations(
+  accept: ReviewDecisionV01,
+  cases: Array<{ name: string; decision: unknown; proposal: unknown }>,
+): number {
+  const preparedByProposal = new Map<unknown, ReturnType<typeof createReviewDecisionProposalRelationValidatorV01>>();
+  const statuses = new Set<string>();
+  for (const test of cases) {
+    let prepared = preparedByProposal.get(test.proposal);
+    if (!prepared) {
+      prepared = createReviewDecisionProposalRelationValidatorV01(test.proposal);
+      preparedByProposal.set(test.proposal, prepared);
+    }
+    const decisionBefore = structuredClone(test.decision), proposalBefore = structuredClone(test.proposal);
+    const expected = validateReviewDecisionAgainstEpisodeDeltaProposalV01(test.decision, test.proposal);
+    statuses.add(expected.status);
+    assert.deepEqual(prepared(test.decision), expected, `${test.name}: complete standalone/prepared result parity`);
+    assert.deepEqual(prepared(test.decision), expected, `${test.name}: warm batch must preserve errors, warnings and status`);
+    assert.deepEqual(test.decision, decisionBefore, `${test.name}: decision input unchanged`);
+    assert.deepEqual(test.proposal, proposalBefore, `${test.name}: proposal input unchanged`);
+  }
+  assert.deepEqual([...statuses].sort(), ["blocked", "invalid", "valid"]);
+
+  const source = clone(reviewDecisionGenericSourceProposal);
+  const original = clone(source);
+  const baseline = validateReviewDecisionAgainstEpisodeDeltaProposalV01(accept, original);
+  const preparedBeforeMutation = createReviewDecisionProposalRelationValidatorV01(source);
+  // The proposal snapshot is captured at preparation, before lazy validation.
+  source.authority_summary.proposal_is_canonical_project_state = true as false;
+  assert.deepEqual(preparedBeforeMutation(accept), baseline, "caller mutation before first use cannot change the snapshot");
+  const freshBlocked = validateReviewDecisionAgainstEpisodeDeltaProposalV01(accept, source);
+  assert.equal(freshBlocked.status, "blocked");
+  assert(freshBlocked.errors.some((error) => error.code === "source_proposal_invalid"));
+  const blockedSnapshot = createReviewDecisionProposalRelationValidatorV01(source);
+  assert.deepEqual(blockedSnapshot(accept), freshBlocked, "fresh snapshot observes the changed source");
+  const returned = blockedSnapshot(accept);
+  returned.status = "valid";
+  returned.errors.splice(0);
+  returned.warnings.splice(0);
+  assert.deepEqual(blockedSnapshot(accept), freshBlocked, "caller edits to a returned result cannot alter cached proposal validation");
+  source.authority_summary.proposal_is_canonical_project_state = false;
+  assert.deepEqual(blockedSnapshot(accept), freshBlocked, "repairing the caller cannot mutate an existing blocked snapshot");
+  assert.deepEqual(createReviewDecisionProposalRelationValidatorV01(source)(accept), baseline, "a new snapshot revalidates repaired source");
+
+  const currentDecision = clone(accept);
+  assert.deepEqual(preparedBeforeMutation(currentDecision), baseline);
+  currentDecision.project_id = "project:changed-after-prepared-validation";
+  resign(currentDecision);
+  const changedDecision = validateReviewDecisionAgainstEpisodeDeltaProposalV01(currentDecision, original);
+  assert.equal(changedDecision.status, "blocked");
+  assert(changedDecision.errors.some((error) => error.code === "project_mismatch"));
+  assert.deepEqual(preparedBeforeMutation(currentDecision), changedDecision, "decision identity and relation are checked afresh");
+  Object.assign(currentDecision, clone(accept));
+  assert.deepEqual(preparedBeforeMutation(currentDecision), baseline, "restored decision is freshly evaluated");
+
+  const bypass = { status: "valid", errors: [], warnings: [], proposalValidated: true, skipProposalValidation: true };
+  const invalidSource = clone(original);
+  invalidSource.authority_summary.proposal_is_canonical_project_state = true as false;
+  const expectedRefusal = validateReviewDecisionAgainstEpisodeDeltaProposalV01(accept, invalidSource);
+  assert.deepEqual(Reflect.apply(validateReviewDecisionAgainstEpisodeDeltaProposalV01, undefined, [accept, invalidSource, bypass]), expectedRefusal,
+    "standalone public API cannot accept a caller-supplied validation result");
+  const attemptedOverride = Reflect.apply(createReviewDecisionProposalRelationValidatorV01, undefined, [invalidSource, bypass]) as ReturnType<typeof createReviewDecisionProposalRelationValidatorV01>;
+  assert.deepEqual(Reflect.apply(attemptedOverride, undefined, [accept, bypass]), expectedRefusal,
+    "prepared public API has no validation override or skip flag");
+  const flaggedSource = { ...clone(original), skipProposalValidation: true, proposal_validation: bypass };
+  const flaggedResult = validateReviewDecisionAgainstEpisodeDeltaProposalV01(accept, flaggedSource);
+  assert.notEqual(flaggedResult.status, "valid");
+  assert.deepEqual(createReviewDecisionProposalRelationValidatorV01(flaggedSource)(accept), flaggedResult);
+
+  // Snapshot construction deliberately rejects non-cloneable values. The old
+  // unknown-input validator keeps its result contract for those same values.
+  for (const uncloneable of [() => undefined, Symbol("not-a-protocol-proposal")]) {
+    assert.throws(() => createReviewDecisionProposalRelationValidatorV01(uncloneable),
+      (error: unknown) => error instanceof Error && error.name === "DataCloneError");
+    const standalone = validateReviewDecisionAgainstEpisodeDeltaProposalV01(accept, uncloneable);
+    assert.notEqual(standalone.status, "valid");
+    assert(standalone.errors.some((error) => error.code === "source_proposal_invalid"));
+  }
+  return cases.length;
 }
 
 function buildAndValidate(

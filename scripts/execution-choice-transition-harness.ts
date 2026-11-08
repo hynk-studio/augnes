@@ -14,8 +14,10 @@ import { POST as writer } from "../app/api/augnes/repository-work-revision/route
 import { POST as retained } from "../app/api/augnes/read/codex-repository-retained-sources/route";
 import { EXECUTION_CHOICE_TOOL } from "../plugins/augnes-operator/mcp/execution-choice.mjs";
 import { POST as review } from "../app/api/augnes/review/route";
+import { POST as external } from "../app/api/augnes/external-response/route";
 import { handleMessageV01 } from "../plugins/augnes-operator/mcp/companion-proxy.mjs";
 import { createRequestBoundReviewAdapter } from "../plugins/augnes-operator/mcp/request-bound-review.mjs";
+assert(!process.argv.includes("--reproduce"), "historical_reproduction_retired");
 const [mode, directory] = process.argv.slice(2), dbPath = path.join(directory, "fixture.db"), root = path.join(directory, "project");
 const artifactDirectory = path.join(directory, "artifacts");
 const save = (name: string, value: unknown) => writeFileSync(path.join(artifactDirectory, name + ".json"), JSON.stringify(value, null, 2) + "\n");
@@ -30,6 +32,7 @@ const routes: Record<string, (r: Request) => Promise<Response>> = {
     "/api/augnes/read/codex-repository-continuity": resume, "/api/augnes/read/codex-repository-work-sources": sources,
     "/api/augnes/read/codex-repository-retained-sources": retained,
     "/api/augnes/repository-work-revision": writer, "/api/augnes/review": review,
+    "/api/augnes/external-response": external,
 };
 const originalPrepare = Database.prototype.prepare;
 const server = trackServerConnections(createServer(async (req, res) => {
@@ -71,9 +74,13 @@ async function reviewer(c: any, name: string, args: object) {
     const result = r.result?.structuredContent ?? r.error;
     trace.push({ reviewer: c.reviewer_label, name, arguments: args, result }); return result;
 }
-async function readCurrent() {
+async function readSnapshot() {
     const r = await call("augnes_resume_repository", { repositoryRoot: root });
-    return { snapshot: r.continuity.snapshot.binding, ...(await call("augnes_read_repository_work_sources", { repositoryRoot: root, expectedSnapshotBinding: r.continuity.snapshot.binding })) };
+    return r.continuity.snapshot.binding;
+}
+async function readCurrent() {
+    const snapshot = await readSnapshot();
+    return { snapshot, ...(await call("augnes_read_repository_work_sources", { repositoryRoot: root, expectedSnapshotBinding: snapshot })) };
 }
 async function saveChanges(changes: object, initial = false, repositoryRoot = root) {
     const r = await call("augnes_resume_repository", { repositoryRoot });
@@ -111,16 +118,17 @@ async function setupServer() {
 }
 
 async function choice(action: string, values: object = {}, allowRefusal = false) {
-    const c = await readCurrent();
-    const args = { action, repositoryRoot: root, expectedSnapshotBinding: c.snapshot, ...values };
+    // The tool reads and fences its own sources; preparation only needs a fresh binding.
+    const snapshot = await readSnapshot();
+    const args = { action, repositoryRoot: root, expectedSnapshotBinding: snapshot, ...values };
     const before = db.serialize(); const r = await raw(EXECUTION_CHOICE_TOOL, args);
     assert(before.equals(db.serialize()), "execution-choice read/preparation must not write");
     if (!allowRefusal) assert(!r.error && !r.result?.isError, JSON.stringify(r));
     return r.result?.structuredContent ?? r.error;
 }
 async function lookup(query: string) {
-    const c = await readCurrent();
-    return call("augnes_lookup_repository_retained_sources", {repositoryRoot: root, expectedSnapshotBinding: c.snapshot, query});
+    const snapshot = await readSnapshot();
+    return call("augnes_lookup_repository_retained_sources", {repositoryRoot: root, expectedSnapshotBinding: snapshot, query});
 }
 const find = (c: any, locator: string) => c.sources.find((s: any) => s.source_locator === locator);
 const jsonNote = (c: any, locator: string) => JSON.parse(find(c, locator).excerpt_text);

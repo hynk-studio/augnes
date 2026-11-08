@@ -1,5 +1,7 @@
 import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { readProjectDirection } from "../persistence/project-direction-store";
+import { iterateVNextCoreRecordsV01 } from "@/lib/vnext/persistence/durable-semantic-store";
+import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 import Database from "better-sqlite3";
 import { existsSync, statSync } from "node:fs";
 
@@ -29,6 +31,7 @@ import {
 } from "@/lib/vnext/runtime/live-native-host-run-service";
 import {
   readVNextLocalOperatorPilotConfigV01,
+  readVNextLocalReviewProfileV01,
   type VNextLocalOperatorPilotConfigV01,
 } from "@/lib/vnext/runtime/local-operator-session";
 import { projectVNextOperatorPilotContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
@@ -304,7 +307,14 @@ export async function readCodexCurrentContinuitySnapshotV01(
     work.snapshot_state.start_eligible = false;
     work.snapshot_state.start_blocker_code = "managed_start_unavailable";
   }
-  const review = readReviewContinuityV01(db, configuredOperator, resultDetail, result.currentness);
+  // The supervisor's normal Companion profile has no legacy pilot env config.
+  // Its unchanged local-review owner issues operator:local-review history.
+  // Resolve that expected provenance identity only for these read-only review
+  // calls (authenticated_session_id remains null); it is not a session, and
+  // does not alter the separate live/start/operator-availability gates above.
+  const reviewConfig = configuredOperator ?? (readVNextLocalReviewProfileV01(process.env) === "companion_first_work_v1"
+    ? { ...lineageConfig, operator_id: "operator:local-review" } : null);
+  const review = readReviewContinuityV01(db, reviewConfig, resultDetail, result.currentness, configuredOperator === null && reviewConfig !== null);
 
   const gaps = boundedStringsV01([
     ...work.gaps,
@@ -1001,6 +1011,7 @@ function readReviewContinuityV01(
   config: VNextLocalOperatorPilotConfigV01 | null,
   detail: ProjectRunResultDetailV01 | null,
   resultCurrentness: "current" | "stale" | "unavailable_or_ambiguous" | "not_available",
+  companionReviewIdentity = false,
 ) {
   const resultProposal = detail?.proposal ?? null;
   let proposalBinding = resultProposal?.status === "available"
@@ -1063,6 +1074,22 @@ function readReviewContinuityV01(
     );
   }
   try {
+    if (companionReviewIdentity) {
+      // The canonical review owner filters decision eligibility by issuer. A
+      // bounded display window cannot prove that older history has no foreign
+      // issuer. Inspect this exact proposal's scoped envelopes without a limit,
+      // then leave all provenance validation to that same canonical owner.
+      // A normal local-review profile never reinterprets legacy-issuer history
+      // as pending/no effective decision.
+      for (const record of iterateVNextCoreRecordsV01(db, { ...config, record_kind: "review_decision",
+        source_proposal_id: proposalBinding.proposal_id })) {
+        const decision = record.payload as Partial<ReviewDecisionV01> | null;
+        if (decision?.source_proposal?.proposal_id === proposalBinding.proposal_id &&
+          decision.actor_ref?.external_id !== config.operator_id) {
+          throw new Error("codex_current_continuity_review_issuer_unavailable");
+        }
+      }
+    }
     const review = readVNextOperatorPilotSemanticReviewV01(db, {
       config,
       proposal_id: proposalBinding.proposal_id,

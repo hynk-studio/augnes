@@ -148,12 +148,16 @@ export function planCanonicalChange({
       : targeted && uniqueReasons.length === 0
         ? OWNER_TARGETED_PLAN
         : "full-canonical";
+  // Only completed responsibility classification can exclude documentation;
+  // raw path-only Browser selection must remain conservative.
+  const browserChanges = changes.filter((_, index) =>
+    !["documentation", "policy-documentation"].includes(classifications[index].kind));
   const browserPhaseIds =
     operatingPolicyOnly || documentationOnly
       ? []
       : selectedPlan === OWNER_TARGETED_PLAN
         ? targetedBrowserPhaseIds
-        : selectCanonicalBrowserPhasesForChanges(changes);
+        : selectCanonicalBrowserPhasesForChanges(browserChanges);
 
   return boundedSummary({
     schema_version: 2,

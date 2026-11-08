@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { runCodexRollingStableCandidateV01 } from "../lib/vnext/native-host/codex-rolling-stable-candidate";
+import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 
 function git(...args: string[]): string {
   const result = spawnSync("git", args, { encoding: "utf8", timeout: 10_000, maxBuffer: 1024 * 1024 });
@@ -12,7 +13,7 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (args.length !== 3 || args[0] !== "--follow-stable" || args[1] !== "--base")
     throw new Error("usage: --follow-stable --base <exact-main-commit>");
-  if (process.version !== "v24.18.0" || process.platform !== "darwin" || process.arch !== "arm64")
+  if (process.versions.node !== CANONICAL_NODE_VERSION || process.platform !== "darwin" || process.arch !== "arm64")
     throw new Error("codex_rolling_pinned_node_platform_required");
   const root = realpathSync.native(process.cwd());
   const base = args[2]!;

@@ -9,7 +9,8 @@ import { SELECTED_CORPUS_VERSION, retrieveSelectedSources } from './selected-sou
 
 export const WEB_ADMISSION_VERSION = 'augnes.web-export-admission.v1';
 export function selectWebExport(value: any, expected: any, selection: unknown) {
-  // This is the existing Web request ceiling, not a larger native body limit.
+  // Native admission remains bounded to the previously supported Web formats.
+  if (value?.format === 'web_planning_export.v0.6') fail('incompatible_format', 422);
   if (Buffer.byteLength(canonical(value)) > FILE_EXPORT_REQUEST_BYTES) fail('web_export_request_bound', 413);
   const first = value?.revisions?.[0];
   const scope = { workspace_id: first?.workspace_id, project_id: first?.project_id, author_ref: first?.author_ref };

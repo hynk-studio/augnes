@@ -14,16 +14,16 @@
 - Authority impact:
 - Non-goals and actions not taken:
 
-Call out any semantic, execution, external-effect, publication, or merge
-authority change explicitly. A shorter PR description must not hide a
-meaningful authority, safety, data, or compatibility effect.
+Call out semantic, execution, external-effect, publication and merge authority changes.
+A shorter description must preserve meaningful authority, safety, data and compatibility effects.
 
 ## Verification
 
 - Focused checks and results:
 - Local Canonical planner result, when applicable:
 - Deciding exact-head command and result, when applicable:
-- Receipt path and fingerprint, when applicable:
+- Receipt path/fingerprint; execution/coverage, validity, safety and current-main applicability:
+- Attempt family and any substantiated infrastructure repair/recovery:
 
 Use the [verification policy](https://github.com/hynk-studio/augnes/blob/main/.github/LOCAL_CANONICAL_VERIFICATION.md) for applicability.
 Ordinary prose may state “not applicable”; no invented planner result or receipt.

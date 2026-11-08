@@ -53,6 +53,7 @@ import {
 } from "./runtime-database-bootstrap.mjs";
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator";
 import { createRecoveryBackup } from "./recovery-backup.mjs";
+import { verifyReceiptObservation } from "./external-response-observation-checks";
 
 const started = Date.now(),
   root = process.cwd(),
@@ -74,7 +75,9 @@ const instance = "external-fixture",
   repository = "d".repeat(64),
   token = randomBytes(32).toString("base64url"),
   secret = randomBytes(32).toString("base64url");
-const processor = createLocalProcessor({ secret });
+const receiptDirectory = path.join(temporary, "counterpart-receipts");
+mkdirSync(receiptDirectory, { mode: 0o700 });
+const processor = createLocalProcessor({ secret, receiptDirectory });
 trackServerConnections(processor.server);
 let origin = "",
   id = 0,
@@ -84,6 +87,7 @@ let origin = "",
   failSql: RegExp | null = null,
   dropRoute = false,
   failResponseCommit = false,
+  afterReservation: (() => void) | null = null,
   wireTransform: ((v: any) => any) | null = null,
   heldReply: ((release: () => void) => void) | null = null;
 const trace: any[] = [],
@@ -128,7 +132,7 @@ const server = trackServerConnections(
       const chunks = [];
       for await (const c of req) chunks.push(Buffer.from(c));
       const body = Buffer.concat(chunks).toString();
-      if (failSql || failResponseCommit)
+      if (failSql || failResponseCommit || afterReservation)
         Database.prototype.prepare = function (
           this: Database.Database,
           sql: string,
@@ -136,16 +140,22 @@ const server = trackServerConnections(
           if (failSql?.test(sql)) throw new Error("owned_storage_fault");
           const statement = prepare.call(this, sql);
           if (
-            failResponseCommit &&
+            (failResponseCommit || afterReservation) &&
             sql.startsWith("INSERT INTO vnext_external_records")
           )
             return new Proxy(statement, {
               get(target, key) {
                 if (key === "run")
                   return (...args: any[]) => {
-                    if (args[3] === "response")
+                    if (failResponseCommit && args[3] === "response")
                       throw new Error("owned_before_response_commit_fault");
-                    return Reflect.apply(target.run, target, args);
+                    const result = Reflect.apply(target.run, target, args);
+                    if (args[3] === "sent" && afterReservation) {
+                      const hook = afterReservation;
+                      afterReservation = null;
+                      hook();
+                    }
+                    return result;
                   };
                 return Reflect.get(target, key, target);
               },
@@ -387,6 +397,8 @@ async function main() {
     "private",
     "fault",
     "changed",
+    "observation",
+    "expired-observation",
   ].map((label) => {
     const dir = path.join(temporary, label);
     mkdirSync(dir);
@@ -476,7 +488,7 @@ async function main() {
     envelopes: [
       {
         id: "controlled-report-envelope",
-        project_keys: projects.map((p) => scopeKey(p.scope)),
+        project_keys: projects.filter(p => !p.label.includes("observation")).map((p) => scopeKey(p.scope)),
         endpoint,
         instance: processor.instance,
         secret,
@@ -1793,6 +1805,24 @@ async function main() {
   phase(
     "experience_kind_admission_atomic_privacy_replay_and_fresh_recovery_parity",
   );
+  const observationEvidence = await verifyReceiptObservation({
+    db, projects, config, configure, op, ok, consumer, preserves,
+    processor, exhausted, fault, phase,
+    persistedReceipt: (attemptRef: string) => {
+      const file = `${attemptRef.slice(7)}.json`, bytes = readFileSync(path.join(receiptDirectory, file));
+      const name = `counterpart-${file}`;
+      originalFiles.push({ name, bytes });
+      return { name, sha256: hashBytes(bytes), size: bytes.length, record: JSON.parse(bytes.toString()) };
+    },
+    hooks: {
+      dropReturned: () => { dropReturned = true; },
+      dropBeforeRequest: () => { dropBeforeRequest = true; },
+      afterReservation: (f: () => void) => { afterReservation = f; },
+      hold: (f: (release: () => void) => void) => { heldReply = f; },
+      transform: (f: (v: any) => any) => { wireTransform = f; },
+      failCommit: (enabled: boolean) => { failResponseCommit = enabled; },
+    },
+  });
   // Unsupported readers refuse an additive new schema; the old nonempty store
   // remains byte-preserved until the explicit staged lifecycle prepares it.
   await db.backup(path.join(temporary, "migration-source.db"));
@@ -1908,6 +1938,14 @@ async function main() {
     "external_recovery_suspended",
     "reconcile",
   );
+  const restoredObservation = ok(await op(fault, "read", { work_ref: observationEvidence.unresolved_work_ref })).work;
+  assert(restoredObservation.state.unresolved);
+  assert.equal(restoredObservation.receipt_confirmation.reason, "external_recovery_suspended");
+  await preserves(fault, "act", {
+    key: "observation-after-restore", work_ref: restoredObservation.work_ref,
+    expected_head: restoredObservation.state.head, mode: "reconcile",
+  }, "external_recovery_suspended");
+  assert.deepEqual(restoredObservation.events, observationEvidence.unresolved_events);
   assert.deepEqual(errors, []);
   assert.equal(guard.attempts.length, 0);
   phase("nonempty_older_store_recovery_and_suspension");
@@ -1923,6 +1961,7 @@ async function main() {
           phases,
           children,
           trace,
+          receipt_observation: observationEvidence,
           original_journal_rows: retained,
           positive_service_receipts: positiveService,
           final_service_receipts: processor.snapshot(),

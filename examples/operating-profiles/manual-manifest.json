@@ -1,0 +1,140 @@
+{
+  "version": "OperatingProfile.v0.1",
+  "name": "Manifest check",
+  "mode": "observe_recommend",
+  "work": {
+    "goal": "Recommend a next check",
+    "success_criteria": [
+      "Keep both explanations"
+    ],
+    "non_goals": [
+      "No remediation"
+    ]
+  },
+  "scope": {
+    "environment": "Synthetic",
+    "targets": [
+      "job-7"
+    ],
+    "conditions": [
+      "Selected material only"
+    ]
+  },
+  "accountability": {
+    "owner_role": "w",
+    "sponsor_role": null
+  },
+  "roles": [
+    {
+      "id": "w",
+      "responsibility": "Return, check and use",
+      "executor": "fixture",
+      "principal": "unverified",
+      "counterpart_assumptions": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "alert",
+      "purpose": "Grounds",
+      "required": true,
+      "availability": "observed",
+      "source": {
+        "identity": "alert-v1",
+        "revision": "1",
+        "observed_at": null,
+        "event_time": null
+      },
+      "content": "job-7 used svc-a",
+      "limitations": "Identity unverified"
+    },
+    {
+      "id": "manifest",
+      "purpose": "Discriminate",
+      "required": true,
+      "availability": "not_supplied",
+      "source": {
+        "identity": null,
+        "revision": null,
+        "observed_at": null,
+        "event_time": null
+      },
+      "content": null,
+      "limitations": "Missing"
+    }
+  ],
+  "explanations": [
+    {
+      "id": "automation",
+      "description": "Legitimate automation",
+      "basis_inputs": [
+        "alert"
+      ],
+      "uncertainties": [
+        "Manifest missing"
+      ]
+    },
+    {
+      "id": "misuse",
+      "description": "Credential misuse",
+      "basis_inputs": [
+        "alert"
+      ],
+      "uncertainties": [
+        "Actor unknown"
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "id": "inspect",
+      "kind": "observe",
+      "purpose": "Obtain selected manifest",
+      "role": "w",
+      "requires_inputs": [
+        "alert",
+        "manifest"
+      ],
+      "depends_on": [],
+      "returns": "Job, owner, command and limits",
+      "check_role": "w",
+      "use_role": "w"
+    }
+  ],
+  "arrangements": [
+    {
+      "id": "manual",
+      "kind": "delegated",
+      "description": "Manual relay",
+      "roles": [
+        "w"
+      ],
+      "assumptions": [
+        "No independent participant"
+      ]
+    }
+  ],
+  "separation": [],
+  "requested_permissions": [
+    {
+      "id": "read",
+      "description": "Selected material only",
+      "for_steps": [
+        "inspect"
+      ]
+    }
+  ],
+  "budget": {
+    "max_steps": 1,
+    "max_observations": 1,
+    "max_rounds": 1,
+    "max_minutes": 5
+  },
+  "reconsider_when": [
+    "Task or manifest changes"
+  ],
+  "revision_basis": {
+    "previous_fingerprint": null,
+    "reason": "First selection"
+  }
+}

@@ -1,3 +1,5 @@
+import { selectBrowserPath } from "./local-canonical-browser-input.mjs";
+import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import {
@@ -17,14 +19,19 @@ import {
 } from "../lib/vnext/runtime/local-operator-session.ts";
 import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
 import { createOperatorBrowserFailureSnapshotV1 } from "./operator-browser-failure-snapshot-v1.mjs";
+import { createOperatorProjectHomeReadinessObservationV1 } from "./operator-project-home-readiness-observation-v1.mjs";
 import { chooseBrowserPorts, readBrowserPortAllocationDiagnostic } from "./browser-preferred-ports.mjs";
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
-import { createOperatorRequestFailureEvidenceV1 } from "./operator-execution-result-contract-v1.mjs";
+import { createOperatorRequestFailureEvidenceV1, operatorRequestInitiatorConsumersV1, OPERATOR_REQUEST_LIFECYCLE_PHASES_V1, classifyOperatorLifecycleRequestFailureV1 } from "./operator-execution-result-contract-v1.mjs";
 import {
   registerOwnedChild,
   settleOwnedProcessAfterExit,
   terminateOwnedProcessTree,
 } from "./test-harness-process-lifecycle.mjs";
+
+import { createGuideLifecycleV1, GUIDE_LIFECYCLE_BINDING_V1 } from "./project-experience-guide-lifecycle-v1.mjs";
+import { createInspectorLifecycleV1, INSPECTOR_LIFECYCLE_BINDING_V1 } from "./project-experience-inspector-lifecycle-v1.mjs";
+import { createProjectExperienceRequestVerdictV1, RSC_CONSUMPTION_BINDING_V1 } from "./project-experience-request-verdict-v1.mjs";
 
 const DEFAULT_TIMEOUT_MS = 45_000;
 const DOCUMENT_RESPONSE_TIMEOUT_MS = 5_000;
@@ -66,6 +73,17 @@ export async function createOperatorExecutionBrowserLifecycleV1({
   const { app: appPort, bridge: bridgePort, debug: debugPort } = allocation;
   const appOrigin = `http://127.0.0.1:${appPort}`;
   const timing = createBrowserE2ETimingRecorder({ scope: child_id });
+  // Reuse the existing exact consumer/effect/request observations. These are
+  // passive and private to this disposable Browser; route/error text alone
+  // cannot establish disposal or successful replacement adoption.
+  const phases = OPERATOR_REQUEST_LIFECYCLE_PHASES_V1;
+  const guideLifecycle = createGuideLifecycleV1({ phases });
+  const inspectorLifecycle = createInspectorLifecycleV1({ phases });
+  const requestVerdicts = createProjectExperienceRequestVerdictV1({
+    guideEvidence: guideLifecycle.evidence, inspectorEvidence: inspectorLifecycle.evidence,
+    guideReplayPhases: phases, inspectorReplayPhases: phases, rscReplayPhases: phases,
+    operatorNavigationFlight: true,
+  });
   const requests = [];
   const responses = [];
   const consoleErrors = [];
@@ -100,6 +118,9 @@ export async function createOperatorExecutionBrowserLifecycleV1({
   let retainedFailureEvidence = null;
   let activeRuntimeProjectId = project_id;
   const failureSnapshot = createOperatorBrowserFailureSnapshotV1({ repository_root: appRepo });
+  const projectHomeReadiness = child_id === "operator-work-expectation"
+    ? createOperatorProjectHomeReadinessObservationV1({ project_id: manifest.expectation_project_id })
+    : null;
   const isRuntimeOrigin = (url) => {
     try { return new URL(url).origin === appOrigin; } catch { return false; }
   };
@@ -195,6 +216,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     runtimeProcess.once("spawn", finish);
   };
 
+  let browserUse = null;
   const startChrome = () => {
     const candidates = [
       process.env.AUGNES_BROWSER_EXECUTABLE_PATH,
@@ -206,9 +228,10 @@ export async function createOperatorExecutionBrowserLifecycleV1({
       "/usr/bin/chromium",
       "/usr/bin/chromium-browser",
     ].filter(Boolean);
-    const executable = candidates.find((candidate) => existsSync(candidate));
+    const executable = selectBrowserPath(candidates);
     assert(executable, "operator_browser_chrome_missing");
     const finish = timing.start("chrome_startup", "Chrome and CDP startup");
+    browserUse = beginBrowserUse(executable, { consumer: child_id });
     chromeProcess = spawn(
       executable,
       [
@@ -249,7 +272,9 @@ export async function createOperatorExecutionBrowserLifecycleV1({
           `http://127.0.0.1:${debugPort}/json/version`,
         );
         if (response.ok) {
-          webSocketUrl = (await response.json()).webSocketDebuggerUrl;
+          const versionResponse = await response.json();
+          browserUse.version(versionResponse.Browser);
+          webSocketUrl = versionResponse.webSocketDebuggerUrl;
           if (webSocketUrl) break;
         }
       } catch {
@@ -260,6 +285,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     assert(webSocketUrl, "operator_browser_cdp_endpoint_missing");
     const browserClient = new CdpClient(webSocketUrl);
     await browserClient.open();
+    browserUse.version((await browserClient.send("Browser.getVersion")).product, "cdp");
     const targets = await browserClient.send("Target.getTargets");
     const page = targets.targetInfos.find((entry) => entry.type === "page");
     assert(page, "operator_browser_page_target_missing");
@@ -284,10 +310,31 @@ export async function createOperatorExecutionBrowserLifecycleV1({
         ],
       }),
     ]);
+    for (const [observer, name] of [
+      [guideLifecycle, GUIDE_LIFECYCLE_BINDING_V1],
+      [inspectorLifecycle, INSPECTOR_LIFECYCLE_BINDING_V1],
+    ]) {
+      try {
+        await cdp.send("Runtime.addBinding", { name });
+        await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: observer.browserSource() });
+      } catch { observer.installationFailed(); }
+    }
+    try {
+      await cdp.send("Runtime.addBinding", { name: RSC_CONSUMPTION_BINDING_V1 });
+      await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: requestVerdicts.rscBrowserSource() });
+    } catch { requestVerdicts.rscInstallationFailed(); }
   };
 
   const attachObservers = () => {
+    const identity = Object.freeze({});
+    const guideConnection = guideLifecycle.connection(identity);
+    const inspectorConnection = inspectorLifecycle.connection(identity);
+    const verdictConnection = requestVerdicts.connection(identity);
     cdp.on((payload) => {
+      projectHomeReadiness?.observe(payload);
+      requestVerdicts.observeRscLifecycle(verdictConnection, payload, currentPhase);
+      guideLifecycle.observe(guideConnection, payload, currentPhase);
+      inspectorLifecycle.observe(inspectorConnection, payload, currentPhase);
       const params = payload.params ?? {};
       if (payload.method === "Network.requestWillBeSent") {
         lastObserverActivityAt = Date.now();
@@ -306,15 +353,17 @@ export async function createOperatorExecutionBrowserLifecycleV1({
           external: classified.external,
           method: params.request?.method ?? null,
           post_data: params.request?.postData ?? null,
+          initiator_consumers: operatorRequestInitiatorConsumersV1(params.initiator),
           type: params.type ?? null,
         };
+        requestVerdicts.observe(verdictConnection, payload, entry);
         requests.push(entry);
         if (classified.external) externalRequests.push(entry);
       } else if (payload.method === "Network.responseReceived") {
         lastObserverActivityAt = Date.now();
         const classified = classifyUrl(params.response?.url);
         const request = requestForId(params.requestId);
-        responses.push({
+        const responseEntry = {
           request_id: params.requestId,
           frame_id: params.frameId ?? request?.frame_id ?? null,
           loader_id: params.loaderId ?? request?.loader_id ?? null,
@@ -326,9 +375,12 @@ export async function createOperatorExecutionBrowserLifecycleV1({
           status: params.response?.status ?? null,
           type: params.type ?? null,
           body_classification: null,
-        });
+        };
+        requestVerdicts.observe(verdictConnection, payload, responseEntry);
+        responses.push(responseEntry);
       } else if (payload.method === "Network.loadingFinished") {
         inFlightDocumentRequestIds.delete(params.requestId);
+        requestVerdicts.observe(verdictConnection, payload, { phase: requestForId(params.requestId)?.phase ?? currentPhase });
         const response = responseForId(params.requestId);
         if (response?.path === "/api/vnext/operator/inspector") {
           void cdp
@@ -410,8 +462,12 @@ export async function createOperatorExecutionBrowserLifecycleV1({
           delivery_sequence: failedRequestDeliverySequence,
           delivery_cardinality: deliveryCardinality,
           request_type: request?.type ?? response?.type ?? null,
+          initiator_consumers: request?.initiator_consumers ?? [],
           private_roots: [temp_root, process_temp_root, appRepo],
         });
+        requestVerdicts.observe(verdictConnection, payload, failure);
+        guideLifecycle.bindFailure(guideConnection, payload, failure);
+        inspectorLifecycle.bindFailure(inspectorConnection, payload, failure);
         deliveries.push(failure);
         failedRequestDeliveriesById.set(requestId, deliveries);
         failedRequests.push(failure);
@@ -500,7 +556,9 @@ export async function createOperatorExecutionBrowserLifecycleV1({
       epoch: navigationEpoch, phase: navigationPhase, route,
       runtime_origin: isRuntimeOrigin(url),
     });
+    projectHomeReadiness?.navigationStarted({ epoch: navigationEpoch, url });
     const navigation = await cdp.send("Page.navigate", { url });
+    projectHomeReadiness?.navigationExpected(navigation);
     failureSnapshot.document({ frame_id: navigation.frameId, loader_id: navigation.loaderId });
     if (typeof navigation.errorText === "string") {
       setBrowserFailureDiagnostic({
@@ -543,6 +601,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
         throwDocumentResponseMissing(route);
       }
       const status = documentResponse?.status;
+      projectHomeReadiness?.documentResponse(documentResponse);
       failureSnapshot.document({
         frame_id: navigation.frameId, loader_id: newDocumentLoaderId,
         response: documentResponse,
@@ -586,12 +645,15 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     );
   };
 
-  const evaluate = async (expression) => {
-    const response = await cdp.send("Runtime.evaluate", {
+  const evaluate = async (expression, observation = null) => {
+    const params = {
       expression,
       awaitPromise: true,
       returnByValue: true,
-    });
+    };
+    const response = observation
+      ? await observation.evaluate(cdp.send.bind(cdp), params)
+      : await cdp.send("Runtime.evaluate", params);
     if (response.exceptionDetails) {
       throw new Error(
         `operator_browser_evaluation_failed:${
@@ -608,28 +670,38 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     expression,
     label,
     timeoutMs = DEFAULT_TIMEOUT_MS,
+    options = {},
   ) => {
     const started = Date.now();
-    while (Date.now() - started < timeoutMs) {
-      if (await evaluate(expression).catch(() => false)) {
-        recordWait("wait_for_condition", label, started);
-        return;
+    const observation = options.observe_project_home_readiness === true
+      ? projectHomeReadiness?.begin({ expression, timeout_ms: timeoutMs })
+      : null;
+    let satisfied = false;
+    try {
+      while (Date.now() - started < timeoutMs) {
+        if (await evaluate(expression, observation).catch(() => false)) {
+          satisfied = true;
+          recordWait("wait_for_condition", label, started);
+          return;
+        }
+        await delay(100);
       }
-      await delay(100);
+      if (
+        publicToken(label) === "operator_bootstrap_input" &&
+        lastNavigationDocument?.http_status >= 200 &&
+        lastNavigationDocument.http_status < 400
+      ) {
+        setBrowserFailureDiagnostic({
+          category: "expected_selector_missing_on_successful_document",
+          route: lastNavigationDocument.route,
+          http_status: lastNavigationDocument.http_status,
+          detail: "operator_bootstrap_input",
+        });
+      }
+      throw new Error(`operator_condition_timeout:${publicToken(label)}`);
+    } finally {
+      observation?.finish(satisfied ? "passed" : "not_satisfied");
     }
-    if (
-      publicToken(label) === "operator_bootstrap_input" &&
-      lastNavigationDocument?.http_status >= 200 &&
-      lastNavigationDocument.http_status < 400
-    ) {
-      setBrowserFailureDiagnostic({
-        category: "expected_selector_missing_on_successful_document",
-        route: lastNavigationDocument.route,
-        http_status: lastNavigationDocument.http_status,
-        detail: "operator_bootstrap_input",
-      });
-    }
-    throw new Error(`operator_condition_timeout:${publicToken(label)}`);
   };
 
   const throwDocumentResponseMissing = (route) => {
@@ -709,7 +781,8 @@ export async function createOperatorExecutionBrowserLifecycleV1({
       browser_failure_diagnostic: browserFailureDiagnostic,
       supervisor_exit_diagnostic: supervisor,
     });
-    return { ...retainedFailureEvidence, browser_failure_snapshot: snapshot };
+    return { ...retainedFailureEvidence, browser_failure_snapshot: snapshot,
+      project_home_readiness_observation: projectHomeReadiness?.snapshot() ?? null };
   };
 
   const waitForHostCondition = async (
@@ -991,6 +1064,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     );
     chromeProcess = null;
     chromeRecord = null;
+    browserUse?.finish();
     timing.duration(
       "chrome_cdp_shutdown",
       "Chrome and CDP shutdown",
@@ -1013,6 +1087,8 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     console_warnings: consoleWarnings,
     page_errors: pageErrors,
     failed_requests: failedRequests,
+    request_lifecycle: { guide: guideLifecycle.snapshot(), inspector: inspectorLifecycle.snapshot(), flight: requestVerdicts.rscConsumptionSnapshot() },
+    project_home_readiness_observation: projectHomeReadiness?.snapshot() ?? null,
     external_requests: externalRequests,
     timing_summary: timing.summary(),
     owned_process_residue_count: ownedProcesses.size,
@@ -1103,6 +1179,9 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     terminateRuntime,
     cleanup,
     evidence,
+    requestFailureVerdict(entry) {
+      return classifyOperatorLifecycleRequestFailureV1(entry, requestVerdicts);
+    },
     recordFixtureConstruction,
     recordGlobalCleanup,
     runtimeEnvironment,
