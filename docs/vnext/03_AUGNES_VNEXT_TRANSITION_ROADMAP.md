@@ -2974,6 +2974,16 @@ for its 180-second browser timeout. A positive independent source review and a
 separate authenticated prospective execution commission remain required before
 any deciding reservation or run under the first v7 reviewed_revision route.
 
+The second commissioned Full on `4b1f304cc58c` settled at 7 PASS / 1 FAIL /
+8 NOT_RUN with false stock. A Git configuration acquisition race latched during
+integration before the accepted HTTP correction's child ran. Both commission
+ordinals are spent. The r6 input-owner correction narrows its coherent acquisition
+window and adds boundary regressions; it cannot repair that historical UNKNOWN.
+The [prospective continuation proposal](../verification/1593_GIT_ACQUISITION_PROPOSAL.md)
+is an unapplied patch, not an active reader route or execution authority. Current
+qualification remains HOLD pending a separately accepted amendment, concrete
+published target and genuinely new authenticated prospective authority.
+
 Focused production-owner evidence is recorded in 04. Final exact-source planner
 qualification and independent result audit belong to this candidate's PR/evidence.
 The next operational decision remains separately authorized deployment/migration

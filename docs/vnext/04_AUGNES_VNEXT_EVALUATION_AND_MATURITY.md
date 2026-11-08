@@ -253,6 +253,25 @@ remain separate claims; appropriate non-use or simplification remains valid.
 
 ### Consumer-current reassessment evidence (#1593)
 
+The second commissioned Full on `4b1f304cc58c` retained 7 PASS / 1 FAIL /
+8 NOT_RUN and false stock. Its first fault was a Git `metadata_consistency`
+observation race at 2026-11-08T01:30:53.628Z; a complete ambient observation
+2.660 seconds later cannot establish the missing earlier sample or its writer.
+It cancelled integration before the corrected cumulative child. This is neither
+the previous HTTP failure nor the historical Web timeout.
+
+The r6 focused comparison uses the same final Git-input fixture with the exact
+prior input owner and corrected owner on Node 24.22.1. An owned atomic replacement
+completed during ancillary Git prework fails naturally on the prior owner and
+passes after moving that prework before the binding file acquisition. Nine
+boundary controls retain protected-setting, permission, alias, in-window
+replacement and Git-context refusal; the broader Git controls retain legacy
+projection, origin/include and fresh-process behavior. This establishes a
+specific over-wide acquisition defect, not the unrecoverable historical writer
+or failed sample. Synthetic prospective-reader controls and a read-only check of
+the preserved r5 incident shape are proposal evidence only. No deciding invocation
+or real reservation accompanies r6; the old commission remains spent.
+
 The first commissioned Full invocation on integrated head `662cb74e86b7` retained
 7 PASS / 1 FAIL / 8 NOT_RUN and separate false stock. Its cumulative-surface child
 failed naturally with `ECONNRESET`; the retained stderr does not identify the HTTP
