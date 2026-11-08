@@ -323,6 +323,16 @@ required static policy contract; run it separately for mixed changes. A runtime
 receipt does not replace that focused check. Full plans retain the same focused
 documentation obligations in addition to runtime qualification.
 
+For changed-mode Full plans, Browser selection uses the remaining changes after
+the exact-tree responsibility classifier has admitted documentation. An admitted
+document does not add unrelated Browser owners; its static checks and semantic
+review obligations remain. A path or Markdown extension alone grants no
+exclusion: unknown or unsafe documents and documents whose executable consumers
+are not covered by an admitted responsibility retain conservative selection.
+All nine non-Browser Full phases remain required. Explicit
+`verify:local:full` and main-push verification still select every permanent
+Browser phase.
+
 The exact project-experience verification family has a separate targeted owner:
 its Browser executable, private fixture builder, keyed result contract,
 hydration boundary, and their focused tests. It retains typecheck, unit,
