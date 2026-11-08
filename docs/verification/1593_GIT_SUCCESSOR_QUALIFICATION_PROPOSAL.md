@@ -1,10 +1,14 @@
 # Prospective qualification after the terminal Git-successor aggregate failure
 
-Status: **proposal for independent review; not an adopted authorization route**.
-The r11 fixture correction is implemented separately. No production edge,
-authority reader, marker, ledger or receipt is changed by this document. A new
-grant alone cannot admit this candidate. The current terminal-first refusal in
-`validGitRevisionEdge` remains active.
+Status: **a11 accepted the bounded implementation scope; r12 implements the
+production controls. Real-lineage activation remains conditional on independent
+acceptance, actual preparation and genuinely new authenticated authority.**
+The original r11 proposal remains immutable at
+[`3f8f761a`](https://github.com/hynk-studio/augnes/blob/3f8f761ac85e901b2af2bb4cfc665c37470a18da/docs/verification/1593_GIT_SUCCESSOR_QUALIFICATION_PROPOSAL.md).
+The r11 fixture correction is retained. This document is neither a preparation
+commitment nor an issued grant. The new marker is terminal before every alternate
+route; the old terminal marker has only the exceptional incoming edge described
+below. The active policy and production readers enforce the implementation.
 
 ## Retained predecessor and demonstrated change
 
@@ -47,19 +51,21 @@ Tracked behavior/probe/fresh children prevent false cleanup after an unsettled
 or throwing runner. Clock isolation and cleanup correctness are separate from
 the aggregate-budget remedy.
 
-## Smallest prospective contract to consider
+## Accepted bounded implementation contract
 
-An explicit future policy decision would be needed to create **one exceptional
-edge after the already terminal invocation**. It would not reinterpret the old
-grant's no-successor text as permission. Keep source-correction schema v7, the
+The new a11/r12 task delegation accepts implementation of **one exceptional
+edge after the already terminal invocation**. It does not reinterpret the old
+grant's no-successor text as permission or itself supply the separate production
+execution commission. Keep source-correction schema v7, the
 existing material/authority readers, source/input inventory, preparation,
 exclusive ledger, receipt/export, stock and cleanup machinery. Do not introduce
 a parallel proof or a general retry facility.
 
-Use the existing `commission.reviewed_workload` field with a distinct proposed
+Use the existing `commission.reviewed_workload` field with the distinct
 value, `spent-terminal-git-successor-workload-v1`, retaining
-`input_acquisition=coherent-git-file-acquisition-v1`. That value is currently
-unsupported. A proposed proof would have ordinal 1 and maximum_invocations 1.
+`input_acquisition=coherent-git-file-acquisition-v1`. The implemented proof has
+ordinal 1 and maximum_invocations 1. Preparation and failure validation explicitly
+handle this consumed-one predecessor without broadening older consumed-two paths.
 The complete implementation obligations are:
 
 1. **Exact edge and exhaustion.** Extend the existing edge owner only for a
@@ -126,8 +132,8 @@ boundary: **Historical windows remain UNKNOWN; commissions 6707156210 and
 prior receipts, false stock and five consumed invocations remain unchanged.**
 The proposed grant opening is deliberately different from the spent grant:
 `Authorize one NEW prospective v7 reviewed_revision commission for the post-terminal Git-successor workload correction.`
-This sentence is proposal text, not a published commission or an operative
-instruction in any authenticated record.
+This required opening describes the future record; its presence in this document
+is not a published commission or authenticated execution authority.
 
 ## Existing owners and required review controls
 
@@ -139,7 +145,7 @@ instruction in any authenticated record.
 | `scripts/local-canonical-review-export.mjs` | Retain validated marker/accounting without private locators; reuse the existing field projection |
 | Existing reviewed workload/Git fixtures | Disposable complete positive and negative owner controls, never the real lineage |
 
-Before adoption, synthetic owner controls must demonstrate: exactly one eligible
+Before real-lineage activation, synthetic owner controls must demonstrate: exactly one eligible
 edge; ordinal-two/replacement/marker-removal/alternate-route refusal; stale or
 changed physical originals; missing/edited/wrong-scope authority; incomplete
 source/input inventory; missing or reduced producer/successor assertions;
@@ -147,21 +153,25 @@ wrong runtime or witness attribution; generic observer/safety failures;
 interrupted reservation consumption; exact replay/late contender exclusion;
 terminal export/stock and cleanup preservation. They must use the production
 readers in a disposable proposal overlay. A standalone Boolean simulation or
-changed proof label is insufficient. These proposed-route controls have **not**
-been implemented or executed in r11; the currently adopted terminal refusal
-remains exercised by the ordinary existing workload controls.
+changed proof label is insufficient. These controls were not implemented in r11.
+The r12 production fixtures now exercise the implemented route; their actual
+results and exact source attribution belong to the evidence record, not this
+checklist. No synthetic authority is usable on the real lineage.
 
 ## Decision and rollback
 
-The remaining decision is whether to adopt this narrowly bounded exception at
-all. Approval of the development correction or a generic new grant cannot cure
-the current reader's terminal predicate. If rejected, retain the corrected
-development source and HOLD without another deciding run. If accepted for
-implementation, the exact amendment, refusal controls and independent review
-must precede any new authority/preparation/commission sequence above.
+The implementation decision was supplied in a11/r12. The remaining activation
+sequence is independent acceptance of actual source, genuinely new authenticated
+task delegation, real non-reserving preparation, independent commitment review
+and a distinct one-slot commission through the production reader. Any substantive
+source, authority, preservation or admission failure keeps qualification HOLD.
+No prior receipt or spent commission is repaired, renewed or reset.
 
 The r11 fixture correction is reversible through ordinary Git review; reverting
 it restores the old aggregate/clock/lifecycle behavior without rewriting history
-or reopening an execution slot. This proposal has no applied authorization
-surface to roll back. No production deployment, migration, access change,
+or reopening an execution slot. Reverting the new reader amendment removes
+prospective admission while preserving all existing append-only ledger records;
+it cannot erase an already consumed new reservation. Older readers may refuse
+the unfamiliar marker during reconstruction or stock, so retain the admitted
+reader and originals; rollback is not historical-reader compatibility. No production deployment, migration, access change,
 installed adoption, Ready, merge or provider allocation is included.

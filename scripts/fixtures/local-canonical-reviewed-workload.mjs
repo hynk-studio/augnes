@@ -21,7 +21,7 @@ export const workloadFixtureInput=c=>({...c.gitDeclaration,binding:{head:c.head,
   environment_keys:["AUGNES_CANONICAL_NODE_HEADERS","AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT","npm_config_nodedir","AUGNES_BROWSER_EXECUTABLE_PATH"],
   phase_environment_fingerprints:REVIEWED_REVISION_PHASES.map(id=>({id,fingerprint:digest(id)}))}});
 
-export async function runReviewedWorkloadControls(c,h,initial,firstAttempt,initialAuthority) {
+export async function runReviewedWorkloadControls(c,h,initial,firstAttempt,initialAuthority,retainTerminal = false) {
   const originalAuthority=clone(c.authority), required=[], files=[];
   const measuredBehavior=()=>behavior(c,false,h.run);
   const completeHooks={...h,behavior:measuredBehavior,begin:()=>firstAttempt,fresh:packet=>h.fresh(packet)};
@@ -136,7 +136,7 @@ export async function runReviewedWorkloadControls(c,h,initial,firstAttempt,initi
   const delegated=delegation.body;delegation.body=originalAuthority.linked["repos/hynk-studio/augnes/issues/comments/30"].body;
   p.commission.delegation.sha256=digest(reviewedRevisionAuthorityObservation(delegation,"task_delegation"));bind();await assert.rejects(h.auth(c,h.proof(c)));delegation.body=delegated;p.commission.delegation.sha256=digest(reviewedRevisionAuthorityObservation(delegation,"task_delegation"));bind();
   required.push("missing markers, max-two, wrong tip/source, incomplete witness, generic grant and prior delegation refuse");
-  const parsed=h.proof(c),cap=await h.auth(c,parsed),attempt=h.begin(c,parsed,cap,{runId:"terminal-workload"});
+  const parsed=h.proof(c),cap=await h.auth(c,parsed),attempt=h.begin(c,parsed,cap,{runId:"terminal-workload",...(retainTerminal?{contractFingerprint:digest(workloadFixtureInput(c))}:{})});
   assert.throws(()=>h.begin(c,parsed,cap));
   const interrupted=finalizeReceipt({...clone(baseReceipt),...h.receipt(c,attempt),final:{result:"failure",exit_status:1,reason_codes:["interrupted"]}});
   const exported=createPrivateReviewExport(interrupted);assert(inspectPrivateReviewExport(exported).structurally_valid);assert.equal(exported.attempt.source_correction.commission.reviewed_workload,REVIEWED_WORKLOAD_CONTINUATION);assert.equal(exported.attempt.source_correction.commission.maximum_invocations,1);
@@ -144,8 +144,22 @@ export async function runReviewedWorkloadControls(c,h,initial,firstAttempt,initi
   const packet=path.join(c.artifacts,"terminal-stock.json");
   h.write(packet,{anchor:c.anchor,checkout:c.checkout,branch:c.branch,file:c.file,inputs:c.inputs,live:c.live,authority:c.authority,receipt:interrupted});
   const fresh=await h.freshInterrupted(packet);assert.equal(fresh.exit_code,0);assert(fresh.cleanup_completed&&fresh.remaining_owned_processes===0);
-  h.storeReceipt(c,interrupted);finishAttempt(attempt,{receiptFingerprint:interrupted.integrity.content_fingerprint,disposition:"product_failure",cleanupComplete:true});
-  c.prior=interrupted;c.grantId=43;h.prepare(c);assert.throws(()=>h.proof(c),/revision_git_lineage_invalid/);
+  let terminal = interrupted;
+  if (retainTerminal) {
+    c.behaviorPath="scripts/workload-other-failure.mjs";
+    const completed=await executeFixture(c,{...h,begin:()=>attempt,behavior:measuredBehavior},parsed,cap,null,dependencies);
+    const natural={...child,exit_code:0,signal:null,timed_out:false,termination_reason:"natural_exit",duration_ms:1};
+    const output='[canonical:authority] child_start label="reviewed revision controls: git-successor" timeout_ms=30000\n'+[{...natural,control_id:"reviewed-revision"},{...natural,control_id:"reviewed-revision-git"},
+      {...child,control_id:"reviewed-revision-git-successor",duration_ms:15130}].map(v=>"AUGNES_REVIEW_CHILD_RESULT "+JSON.stringify(v)).join("\n")+'\n[canonical:authority] child_result label="reviewed revision controls: git-successor" duration_ms=16050 exit_code=1 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit\n';
+    terminal=clone(completed.receipt);const authority=terminal.phases.find(v=>v.id==="authority");
+    authority.log={bytes:Buffer.byteLength(output),relative_path:".augnes-local-verification/logs/"+terminal.run.id+"/authority.log",truncated:false};
+    terminal=finalizeReceipt(terminal);h.storeReceipt(c,terminal);h.write(path.join(c.checkout,authority.log.relative_path),output);
+    const completionFile=path.join(c.anchor,".augnes-local-verification/families",attempt.family_id,"completion-1.json");
+    h.write(completionFile,{...h.read(completionFile),receipt_fingerprint:terminal.integrity.content_fingerprint,finished_at:time()});
+    c.terminalStock={...completed.stock,content_fingerprint:terminal.integrity.content_fingerprint};
+    c.terminalLog=output;c.terminalAuthority=clone(c.authority);
+  } else {h.storeReceipt(c,interrupted);finishAttempt(attempt,{receiptFingerprint:interrupted.integrity.content_fingerprint,disposition:"product_failure",cleanupComplete:true});}
+  c.prior=terminal;c.grantId=43;h.prepare(c);assert.throws(()=>h.proof(c),/revision_git_lineage_invalid/);
   const next=c.proof;Object.assign(next.commission,{input_acquisition:p.commission.input_acquisition,reviewed_workload:REVIEWED_WORKLOAD_CONTINUATION,maximum_invocations:1,delegation:p.commission.delegation});next.inputs.inventory_sha256=p.inputs.inventory_sha256;h.write(c.file,next);
   assert.throws(()=>h.proof(c),/revision_git_lineage_invalid/);
   next.commission.ordinal=2;h.write(c.file,next);assert.throws(()=>h.proof(c));

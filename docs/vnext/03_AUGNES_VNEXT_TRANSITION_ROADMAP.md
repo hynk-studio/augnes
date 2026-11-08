@@ -3017,9 +3017,13 @@ The r11 development correction scopes the synthetic clock, retains pending
 child ownership through failure and gives only the complete Git-successor
 aggregate the existing 20-second allowance. Accepted product behavior is unchanged.
 The [concrete post-terminal proposal](../verification/1593_GIT_SUCCESSOR_QUALIFICATION_PROPOSAL.md)
-is review material, not an adopted reader route. The actual terminal-first edge
-still refuses continuation. Qualification remains HOLD; no new Full, reservation,
-stock refresh, delegation or commission is performed in r11. Earlier snapshots
+was proposal-only in r11; a11 accepted its bounded implementation scope. The r12
+candidate adds the exceptional old terminal consumed-one to new terminal
+one-slot edge in the existing v7 owners. The new marker refuses every successor.
+Actual activation requires independent source acceptance, real preparation and
+new authenticated delegation/acceptance/commission records. Qualification remains
+HOLD until actual admitted execution and independent receiving audit. No new Full,
+reservation, stock refresh, delegation or commission was performed in r11. Earlier snapshots
 below retain their original source and authority scope.
 
 The [existing returned-file use](../../apps/web_planning/README.md#reconsider-an-existing-returned-file-use-1593)

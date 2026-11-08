@@ -17,11 +17,12 @@ import {finalizeReceipt,inspectReceiptForDecision} from "../local-canonical-rece
 import {createPrivateReviewExport,inspectPrivateReviewExport} from "../local-canonical-review-export.mjs";
 import {runBrowserRevisionControls, browserFixtureReceipt} from "./local-canonical-browser-revision.mjs";
 import {checkSpentCommission,completeGitRevisionControls,checkFinalDependency,checkPostPass,gitFixtureDeclaration,gitFixtureReceipt,runGitRevisionControls} from "./local-canonical-git-observation.mjs";
-import {GIT_ACQUISITION_REPAIR,gitAcquisitionIncident,gitRevisionInventory} from "../local-canonical-git-observation.mjs";
+import {GIT_SUCCESSOR_WORKLOAD_SOURCES,GIT_ACQUISITION_REPAIR,gitAcquisitionIncident,gitRevisionInventory} from "../local-canonical-git-observation.mjs";
 import {CANONICAL_NODE_VERSION} from "../local-canonical-environment.mjs";
 import {inspectGitRevisionPreparation} from "../local-canonical-attempts.mjs";
 import {runReviewedWorkloadControls,workloadFixtureInput} from "./local-canonical-reviewed-workload.mjs";
 import {baseReceipt} from "./local-canonical-receipt-v3.mjs";
+import {runPostTerminalControls} from "./local-canonical-post-terminal.mjs";
 
 const self=fileURLToPath(import.meta.url), quiet={write(){}}, clone=v=>structuredClone(v);
 const write=(f,v)=>{mkdirSync(path.dirname(f),{recursive:true,mode:0o700});writeFileSync(f,typeof v==="string"||Buffer.isBuffer(v)?v:JSON.stringify(v),{mode:0o600});};
@@ -172,7 +173,7 @@ async function prepareSettlement(c) {
 
 // Proposed edge controls are synthetic, use the existing fixture/ledger/transport,
 // and never touch the actual commission or retained receipt.
-async function acquisitionProposalControls(parentRoot, lifecycle, workload = false) {
+async function acquisitionProposalControls(parentRoot, lifecycle, workload = false, retainTerminal = false) {
   return withAdjacentAuthorityClock(async () => {
   const runOwned = createTrackedReviewChildRunner(lifecycle, runCanonicalChild);
   const root=path.join(parentRoot,"acquisition-proposal");mkdirSync(root);
@@ -189,6 +190,7 @@ async function acquisitionProposalControls(parentRoot, lifecycle, workload = fal
   };
   try {
     if(workload) {
+      for(const name of GIT_SUCCESSOR_WORKLOAD_SOURCES) write(path.join(c.checkout,name),"// Synthetic workload dependency.\n");
       write(path.join(c.checkout,"scripts/workload-other-failure.mjs"),'import assert from "node:assert/strict"; assert.fail("synthetic next failure");\n');
       write(path.join(c.checkout,"scripts/workload-behavior.mjs"),'import assert from "node:assert/strict"; assert.fail("synthetic prior defect");\n');
       write(path.join(c.checkout,"scripts/test-local-canonical-review-corrections.mjs"),'// Prior aggregate registration.\n');
@@ -308,7 +310,11 @@ async function acquisitionProposalControls(parentRoot, lifecycle, workload = fal
     for(const [file,hash] of originalHashes)assert.equal(digest(readFileSync(file)),hash);
     findings.push("synthetic exclusive new edge retains old two spent ordinals and grant IDs; interrupted reservation consumes and exact replay cannot reserve again");
     console.log(JSON.stringify({git_acquisition_proposal_controls:findings,synthetic_only:true,real_authority:false}));
-    if(workload) await runReviewedWorkloadControls(c,{prepare,proof,auth,begin,receipt,artifact,write,read,storeReceipt,run:runOwned,fresh:packet=>freshReader(c,packet,runOwned),freshInterrupted:packet=>runOwned({command:process.execPath,args:[self,"--cold-workload",packet],cwd:c.checkout,env:c.env,suite:"reviewed-revision",label:"fresh terminal stock",timeoutMs:10000,stdout:quiet,stderr:process.stderr})},admitted,attempt,capability);
+    if(workload) await runReviewedWorkloadControls(c,{prepare,proof,auth,begin,receipt,artifact,write,read,storeReceipt,run:runOwned,fresh:packet=>freshReader(c,packet,runOwned),freshInterrupted:packet=>runOwned({command:process.execPath,args:[self,"--cold-workload",packet],cwd:c.checkout,env:c.env,suite:"reviewed-revision",label:"fresh terminal stock",timeoutMs:10000,stdout:quiet,stderr:process.stderr})},admitted,attempt,capability,retainTerminal);
+    if (retainTerminal) {
+      const {env,owner,git,commit,...state}=c;
+      write(path.join(root,"context.json"),{...state,proofPath:path.relative(c.checkout,c.file)});
+    }
     return findings;
   } finally {if(lifecycle.pendingChildren===0)releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
   });
@@ -337,14 +343,14 @@ if(process.argv[2]==="--cold"){
   try{const p=proof(c),a=await auth(c,p);write(c.ready,"ready");while(!existsSync(c.go))await new Promise(r=>setTimeout(r,5));
     try{begin(c,p,a);console.log("admitted");}catch(e){assert(["EEXIST","ENOENT","attempt_latest_tip_required"].includes(e.code),e.message);console.log("refused");}
   }finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
-}else if (["git","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
+}else if (["git","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor","post-terminal","post-terminal-controls","post-terminal-successor"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
   const group = process.argv[2].slice(6,-9), handoff = JSON.parse(process.argv[3]);
   const outer = process.env.AUGNES_CANONICAL_TEMP_ROOT, physical = lstatSync(handoff.root);
   assert(handoff.root === outer || path.dirname(handoff.root) === path.dirname(path.dirname(outer)) &&
     /^ag-suite-[A-Za-z0-9]{6}$/u.test(path.basename(handoff.root)));
   assert(physical.isDirectory() && realpathSync(handoff.root) === handoff.root && physical.uid === process.getuid() &&
     (physical.mode & 0o777) === 0o700 && String(physical.dev) === handoff.device && String(physical.ino) === handoff.inode);
-  const dir = path.join(handoff.root,group.startsWith("git") ? "git-case" : group.startsWith("final") ? "final-case" : group.startsWith("post-pass") ? "post-pass-case" : "prospective-fixture");
+  const dir = path.join(handoff.root,group.startsWith("post-terminal") ? "acquisition-proposal" : group.startsWith("git") ? "git-case" : group.startsWith("final") ? "final-case" : group.startsWith("post-pass") ? "post-pass-case" : "prospective-fixture");
   const owner=createCanonicalTestResourceRoot("ag-resource-test-"), lifecycle={pendingChildren:0};beginCanonicalTestResourceUse(owner);
   const runOwned=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);
   let c;
@@ -360,14 +366,17 @@ if(process.argv[2]==="--cold"){
       c.live=observeFixtureLive(c);
     }
     const helpers={prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,finish:finishAttempt,
+      releaseOwner:()=>releaseCheckoutVerificationOwnership(c.owner,c.checkout), acquireOwner:()=>c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout}),
       run:runOwned,behavior:(subject,syntaxOnly=false)=>behavior(subject,syntaxOnly,runOwned),fresh:packet=>freshReader(c,packet,runOwned),
+      freshInterrupted:packet=>runOwned({command:process.execPath,args:[self,"--cold-workload",packet],cwd:c.checkout,env:c.env,suite:"reviewed-revision",label:"fresh post-terminal stock",timeoutMs:10000,stdout:quiet,stderr:process.stderr}),
       snapshot:path.join(handoff.root,"prospective-fixture"),fork:path.join(handoff.root,"final-case"),positive:path.join(handoff.root,"post-pass-case")};
     if (group==="git") await runGitRevisionControls(c,helpers);
     else if (group==="git-successor") await completeGitRevisionControls(c,helpers);
+    else if (group.startsWith("post-terminal")) await runPostTerminalControls(c,helpers,group);
     else if (group.startsWith("final")) await checkFinalDependency(c,helpers,group);
     else if (group.startsWith("post-pass")) await checkPostPass(c,helpers,group);
     else await checkSpentCommission(c,helpers,group);
-    if (["git","commission","final-input","post-pass","post-pass-controls"].includes(group)) {
+    if (["git","commission","final-input","post-pass","post-pass-controls","post-terminal","post-terminal-controls"].includes(group)) {
       const {env,owner,git,commit,...state}=c;
       write(path.join(dir,"context.json"),{...state,proofPath:path.relative(c.checkout,c.file)});
     }
@@ -447,11 +456,24 @@ if(process.argv[2]==="--cold"){
 }else if(["--cold-acquisition","--cold-workload"].includes(process.argv[2])){
   const c=read(process.argv[3]),p=proof(c),a=await auth(c,p);
   assert.equal(stock(c,c.receipt,a),false);
+  if(c.lateContender) {
+    c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});
+    try {assert.throws(()=>begin(c,p,a,{runId:"late-post-terminal-contender"}),/attempt_latest_tip_required/);}
+    finally {releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
+  }
   assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}).reviewed_revision_consumed,1);
   console.log("fresh interrupted marked stock remains false");
 }else if(["--run-acquisition-fixtures","--run-workload-fixtures"].includes(process.argv[2])){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-"), lifecycle={pendingChildren:0};beginCanonicalTestResourceUse(owner);
-  try {await acquisitionProposalControls(owner.root,lifecycle,process.argv[2]==="--run-workload-fixtures");} finally {
+  try {
+    const shared=process.argv[2]==="--run-workload-fixtures" && process.argv[3] ? JSON.parse(process.argv[3]) : null;
+    if(shared) {
+      const st=lstatSync(shared.root);assert.equal(realpathSync(shared.root),shared.root);
+      assert(st.isDirectory() && st.uid===process.getuid() && (st.mode&0o777)===0o700 && String(st.dev)===shared.device && String(st.ino)===shared.inode);
+      assert(shared.root===process.env.AUGNES_CANONICAL_TEMP_ROOT || path.dirname(shared.root)===path.dirname(path.dirname(process.env.AUGNES_CANONICAL_TEMP_ROOT)) && /^ag-suite-[A-Za-z0-9]{6}$/u.test(path.basename(shared.root)));
+    }
+    await acquisitionProposalControls(shared?.root??owner.root,lifecycle,process.argv[2]==="--run-workload-fixtures",!!shared);
+  } finally {
     if(lifecycle.pendingChildren===0)settleCanonicalTestResourceUse(owner,{exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0});
     assert(cleanupCanonicalTestResources([owner])[0].completed);
   }

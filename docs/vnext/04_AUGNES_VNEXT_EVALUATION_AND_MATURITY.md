@@ -306,7 +306,11 @@ separately correct an unconditional cleanup declaration; thrown/unsettled
 children retain ownership while naturally settled exit 1 does not create a leak.
 Focused completion is development evidence and cannot replace the nine missing
 Full phases. The [post-terminal proposal](../verification/1593_GIT_SUCCESSOR_QUALIFICATION_PROPOSAL.md)
-has no applied authorization route, and all five old reservations remain consumed.
+had no applied authorization route in r11. The r12 implementation adds only its
+accepted exceptional one-slot edge; all five old reservations remain consumed.
+New production-reader controls must cover consumed-one preparation, exact incident
+and source/input binding, independent fresh-reader stock, exclusive consumption
+and refusal of every successor. Synthetic acceptance supplies no real authority.
 
 The corrected working-source blobs completed all thirteen existing registrations
 with `node scripts/run-canonical-test-suite.mjs authority --reviewed-revision-only`

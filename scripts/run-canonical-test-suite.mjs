@@ -164,10 +164,10 @@ const goldenStep = {
   requireNaturalExit: true,
 };
 
-const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "workload"].map(group => ({
+const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "workload", "post-terminal", "post-terminal-controls", "post-terminal-successor"].map(group => ({
   id: "local-canonical-reviewed-revision-" + group,
   label: "reviewed revision controls: " + group,
-  sharedFixture: !["revision", "settlement", "browser", "workload"].includes(group),
+  sharedFixture: !["revision", "settlement", "browser"].includes(group),
   ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--reviewed-revision-controls", group),
   timeoutMs: 30_000,
   requireNaturalExit: true,
