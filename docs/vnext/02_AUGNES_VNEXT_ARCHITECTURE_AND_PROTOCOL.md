@@ -839,10 +839,61 @@ and deadline, and is not accepted until the counterpart acknowledges exact terms
 A sent reservation commits before egress. A crash, timeout, lost response or
 failed response commit leaves an unresolved obligation. Query the same request
 receipt before repetition; only explicit absence from the same receipt owner
-permits retransmission. No local transaction claims exactly-once external
+removes that reconciliation prerequisite; retransmission still needs independent
+current send authority and every existing send condition. No local transaction claims exactly-once external
 execution. Late material retains original identity and requires deliberate
 current applicability review. Local closure retains unfinished reconciliation
 and neither confirms external cancellation nor revokes a credential.
+
+For the expiry/exhaustion increment (#1597), an operator may add
+`receipt_observations` to the **unchanged original envelope**. Each entry has
+exact `work_ref`, `attempt_ref`, finite `expires_at` and `max_queries` (1–16).
+The content-addressed work and attempt bind the original workspace/project,
+input, immutable terms and envelope binding; the latter still binds the exact
+endpoint, counterpart incarnation, credential and project admission. Only a
+previously sent attempt is eligible. A prepared attempt, tool argument, copied
+history, local closure or missing receipt cannot supply authority. Configuration
+must remain present and relevant bindings unchanged; only send expiry or its
+consumed allowance is bypassed for this specific receipt GET. Removal/rebinding,
+project/authentication loss, recovery suspension, expired/exhausted/withdrawn
+observation permission and changed original material refuse. Unrelated valid
+configuration edits do not revoke this exact binding. An otherwise authorized
+local reader retains the obligation and current confirmation eligibility/reason
+without egress or consumption.
+
+Each query atomically appends an ordinary `sent` reservation with its exact
+`receipt_observation` snapshot before egress. That append is its consumption,
+including timeout, lost reply, invalid response or failed response commit. The
+allowance is counted across all reservations for that original attempt, never by
+session, operation-key or authorization label. After its first reservation the
+permission's expiry and ceiling cannot be replaced to reset or enlarge usage.
+Withdrawal remains effective; re-presenting the identical permission retains
+all consumption. Exact operation replay makes no query, concurrent admission
+uses the existing stream CAS, and current project, envelope, suspension, input
+and observation bindings are checked again before egress and response commit.
+Expiry during a query leaves the reservation unresolved. These are bounded
+observations at the enforcing boundaries, not detection of transient changes
+between them or exactly-once remote execution.
+
+Legacy sends and envelope-authorized queries retain their original aggregate
+`calls`/`input_bytes` accounting. Separate observation reservations do not change
+those counters; their retained journal snapshots reconstruct their own usage.
+No schema migration or rewriting of old record identities is introduced. Offline
+recovery validates both forms and their original issued-attempt lineage, then
+suspends the same envelope owner, including observation. Historical snapshots
+never become live permission. A reader predating this increment rejects the new
+reservation payload during recovery; live downgrade of a store containing it
+is unsupported. Preserve the full backup and newer journal when rolling source
+back, and use a pre-increment backup for an older runtime.
+
+Observation cannot send, amend, replace work, change input/terms, renew the
+original deadline, reopen work or reset an allowance. An absent receipt is
+evidence only. Returned material retains its original identity/basis and existing
+late-result reconsideration/check/use requirements. Confirmation after local
+closure preserves closure and check/use refusal. The positive GET claim applies
+only to the supported owned receipt-query contract; GET is not generally free
+or effectless. Post-withdrawal cleanup, cancellation and settlement remain
+unsupported, separately authorized responsibilities.
 
 Checks and use are attributed consumer statements. The consumer must actually
 read bytes and independently verify identity, scope, correctness and limitations;
