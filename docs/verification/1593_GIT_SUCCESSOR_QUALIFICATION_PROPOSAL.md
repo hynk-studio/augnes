@@ -10,6 +10,13 @@ commitment nor an issued grant. The new marker is terminal before every alternat
 route; the old terminal marker has only the exceptional incoming edge described
 below. The active policy and production readers enforce the implementation.
 
+Later disposition: r12 consumed its one-slot commission and naturally failed in
+the Web Browser child. The r13 task separately adopts the reusable material-source
+transition in the [active policy](../../.github/LOCAL_CANONICAL_VERIFICATION.md#reusable-prospective-material-source-correction).
+That prospective amendment does not renew this historical proposal's grant,
+remove its stored marker or rewrite its failure. The scope below remains the
+original bounded post-terminal workload edge.
+
 ## Retained predecessor and demonstrated change
 
 The immediate physical predecessor is the terminal reviewed-workload invocation:

@@ -4150,6 +4150,12 @@ operation's recovery body. Ordinary editor replacement locks consumer authoring
 through acknowledgement or exact unknown-save settlement, including failed
 resolution reads. Unsaved edited/prepared consumer decisions participate in the
 existing browser unload warning; this is not durable tab-session recovery.
+Access loss disposes the private view while non-DOM operation flags still settle;
+cleanup cannot replace the primary access denial or reactivate removed controls.
+Authoring stays locked while the exact reassessment body enters its durable
+journal. A late journal completion checks the current access/work/view lifetime
+before dispatch; its original bytes remain available only through explicit
+authenticated recovery.
 Earlier formats/exports, attribution, one-answer and
 restricted participant scope remain intact. Reconstruction preserves destination
 history without reactivating grants. These are Web consumer semantics, not global

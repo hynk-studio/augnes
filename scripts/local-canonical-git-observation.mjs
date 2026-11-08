@@ -20,6 +20,12 @@ export const POST_TERMINAL_GIT_SUCCESSOR = "spent-terminal-git-successor-workloa
 export const isPostTerminalGitSuccessorRevision = p => isGitAcquisitionRevision(p) &&
   p.commission?.reviewed_workload === POST_TERMINAL_GIT_SUCCESSOR;
 export const isTerminalWorkloadRevision = p => isReviewedWorkloadRevision(p) || isPostTerminalGitSuccessorRevision(p);
+// A new exact-target commission for a materially corrected natural product
+// failure. Acquisition remains provenance, not the current incident kind.
+export const MATERIAL_SOURCE_CORRECTION = "material-source-correction-v1";
+export const isMaterialSourceRevision = p => isInventoryBoundRevision(p) &&
+  p.commission?.source_revision === MATERIAL_SOURCE_CORRECTION;
+export const MATERIAL_HISTORY_BOUNDARY = "Historical windows remain UNKNOWN; all prior commissions, issued limits, consumed invocations, receipts and false stock remain unchanged.";
 export const POST_TERMINAL_HISTORY_BOUNDARY = "Historical windows remain UNKNOWN; commissions 6707156210 and 6717558497 remain spent 2/2, commission 6719208780 remains spent 1/1, and all prior receipts, false stock and five consumed invocations remain unchanged.";
 export const WORKLOAD_HISTORY_BOUNDARY = "Historical windows remain UNKNOWN; both prior commissions, their false stock and all four spent ordinals remain unchanged.";
 export const usesGitInventory = p => isGitObservationRevision(p) || isInventoryBoundRevision(p);
@@ -443,6 +449,7 @@ export function verifyGitRevisionSuccess(r, stock, inputs, phases) {
 // a stable test driver and explicit script arguments for the implicated code.
 export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt, retainedBefore, postPass = false, acquisition = false }) {
   const regression = focused.regression;
+  const material = isMaterialSourceRevision(p);
   if (acquisition && (regression?.attribution !== "final-driver-prior-input-owner" ||
       !equal(focused.implicated_paths,["scripts/local-canonical-inputs.mjs"]))) fail("revision_git_regression_invalid");
   const file = regression?.path;
@@ -458,10 +465,16 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
       !git(["diff", "--no-ext-diff", "--no-textconv", "--ignore-all-space", "--ignore-blank-lines", oldBlob, newBlob]).length))
     fail("revision_material_remedy_required");
   const before = parse(regression.before), after = parse(regression.after);
+  const testedAfter = material ? materialWitnessSource(p,after,regression.after_equivalence,git) : p.head;
   const args = prospective ? regression.args : [];
   if (!Array.isArray(args) || args.length > 16 || args.some(arg => typeof arg !== "string" ||
       !/^(?:--?)?[a-zA-Z0-9][\w.=-]{0,127}$/u.test(arg))) fail("revision_git_regression_invalid");
-  const command = retainedBefore ? finalDependencyCommand : ["node", file, ...args].join(" ");
+  // The Canonical Web owner uses this exact existing TS loader. No arbitrary
+  // Node flags, preload scripts or assertion-disabling options are accepted.
+  const nodeArgs = Object.hasOwn(regression,"node_args") ? regression.node_args : [];
+  if (!Array.isArray(nodeArgs)) fail("revision_git_regression_invalid");
+  if (nodeArgs.length && (!material || !equal(nodeArgs,["--import","tsx"]))) fail("revision_git_regression_invalid");
+  const command = retainedBefore ? finalDependencyCommand : ["node", ...nodeArgs, file, ...args].join(" ");
   if (retainedBefore) {
     const refusal = JSON.parse(bytes(before.stdout)), observed = JSON.parse(bytes(after.stdout));
     const child = observed.generated_directories?.[1];
@@ -473,13 +486,21 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
         !/^@@ /mu.test(git(["diff","--no-ext-diff","--no-textconv","--ignore-all-space","--ignore-blank-lines",oldBlob,newBlob]).toString()))
       fail("revision_final_dependency_remedy_invalid");
   }
-  if (!focused.commands?.some(c => c.command === command && c.tested_source_head === p.head &&
+  if (!focused.commands?.some(c => c.command === command && c.tested_source_head === testedAfter &&
       equal(c.record, regression.after) && equal(c.stdout, after.stdout)) ||
       before.stdout?.sha256 === after.stdout?.sha256 ||
       !(Date.parse(completedAt) < Date.parse(before.finished_at) && Date.parse(before.finished_at) < Date.parse(after.finished_at) &&
         Date.parse(after.finished_at) <= Date.parse(focused.finished_at))) fail("revision_git_regression_invalid");
-  for (const [witness, head, exit] of [[before, prior.head, 1], [after, p.head, 0]]) {
+  for (const [witness, head, exit] of [[before, prior.head, 1], [after, testedAfter, 0]]) {
     const r = witness.result;
+    if (material && (!sha(witness.environment) || witness.environment !== before.environment || witness.dirty !== "" ||
+        !equal(witness.modules,focused.implicated_paths.map(name=>({path:name,sha256:digest(git(["show",head+":"+name]))}))) ||
+        !Array.isArray(witness.source_files) || !witness.source_files.length || witness.source_files.length > 256 ||
+        new Set(witness.source_files.map(v=>v.path)).size !== witness.source_files.length ||
+        [file,...focused.implicated_paths].some(name=>!witness.source_files.some(v=>v.path===name)) ||
+        witness.source_files.some(v=>{if(typeof v.path!=="string" || !/^[A-Za-z0-9_./-]+$/u.test(v.path) || v.path.split("/").includes(".."))return true;
+          const content=git(["show",head+":"+v.path]);return content.length!==v.byte_size || digest(content)!==v.sha256;})))
+      fail("revision_git_regression_invalid");
     if ((postPass || acquisition) && (!sha(witness.environment) || witness.environment !== before.environment ||
         witness.fixture_sha256 !== digest(git(["show",p.head+":"+file])) ||
         !equal(witness.modules,focused.implicated_paths.map(name=>({path:name,sha256:digest(git(["show",head+":"+name]))})))))
@@ -488,9 +509,25 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
         witness.command !== command || witness.runtime_inputs_sha256 !== p.inputs.identity_sha256 ||
         witness.node_version !== CANONICAL_NODE_VERSION || r?.exit_code !== exit || r.timed_out !== false ||
         r.cancelled !== false || r.cleanup_completed !== true || r.remaining_owned_processes !== 0 ||
-        r.termination_reason !== "natural_exit" || r.exit_observed !== true || r.streams_closed !== true || !bytes(witness.stdout).length)
+        r.termination_reason !== "natural_exit" || r.exit_observed !== true || r.streams_closed !== true ||
+        !bytes(witness.stdout,material ? 2*1024*1024 : undefined).length)
       fail("revision_git_regression_invalid");
   }
+  return testedAfter;
+}
+
+function materialWitnessSource(p,witness,equivalence,git) {
+  const tested=witness.tested_source_head;
+  if (tested===p.head) {if(equivalence!==undefined)fail("revision_material_equivalence_invalid");return tested;}
+  if (!/^[a-f0-9]{40}$/u.test(tested ?? "")) fail("revision_material_equivalence_invalid");
+  git(["merge-base","--is-ancestor",tested,p.head]);
+  const patch=git(["diff","--binary","--full-index","--no-ext-diff","--no-textconv",tested,p.head,"--"]);
+  const paths=git(["diff","--name-only",tested,p.head,"--"]).toString().trim().split("\n").filter(Boolean).sort();
+  if (!paths.length || paths.some(name=>!/^docs\/[A-Za-z0-9_./-]+\.md$/u.test(name)) ||
+      !equal(equivalence,{target:p.head,classification:"documentation-only",delta:{bytes:patch.length,sha256:digest(patch),paths}}) ||
+      !Array.isArray(witness.source_files) || witness.source_files.some(v=>digest(git(["show",p.head+":"+v.path]))!==v.sha256))
+    fail("revision_material_equivalence_invalid");
+  return tested;
 }
 
 // Read the two operative paragraphs of the maintainer's bounded delegation.
@@ -501,6 +538,14 @@ function visibleDelegationParagraphs(body) {
   // which can hide normative paragraphs in a comment, collapsed block or example.
   if (/[<>\u202a-\u202e\u2066-\u2069]/u.test(body) || /^(?: {4}|\t| {0,3}(?:`{3,}|~{3,}|\$\$))/mu.test(body)) return [];
   return body.replaceAll("\r\n", "\n").trim().split(/\n[ \t]*\n/u);
+}
+
+export function delegatesMaterialSourceCommission(body,p) {
+  const paragraphs=visibleDelegationParagraphs(body);
+  return paragraphs.length===4 && paragraphs[0] === "Authorize one materially corrected-source qualification assignment on " + p.branch + " in Draft PR #" + p.pull_request + ". Adopt the reusable material-source-correction-v1 transition within the existing inventory-bound v7 owners for the observed in-scope product defect." &&
+    paragraphs[1] === "Predecessor: " + p.prior_family_id + " / " + p.prior_attempt_id + " / " + p.prior_receipt_fingerprint + "." &&
+    paragraphs[2] === MATERIAL_HISTORY_BOUNDARY &&
+    paragraphs[3] === "After separate independent acceptance of the actual correction, policy controls, exact published source and real preparation commitment, authorize the operator to record that decision faithfully and publish a separate new prospective commission through the authenticated maintainer identity. Each commission permits exactly one deciding invocation total; reservation or interruption consumes it. No ordinal two, recovery or unchanged-target retry under that commission. A further in-scope material correction requires fresh evidence, independent acceptance and new authenticated authority. Complete planner-selected qualification, separate fresh-process stock, owned cleanup and independent result audit remain required.";
 }
 
 function operativeAuthoritySections(body) {

@@ -10,6 +10,7 @@ import { BROWSER_RUNTIME_INPUTS, validCanonicalRuntimeInputs } from "./local-can
 import { isBrowserRevision, isBrowserSuccessor, browserPredecessorEvidence, browserReviewTarget, verifyBrowserRemedy, verifyBrowserRevisionPreservation, verifyReviewedBrowserFailure } from "./local-canonical-browser-revision.mjs";
 import { REVIEWED_WORKLOAD_CONTINUATION, WORKLOAD_HISTORY_BOUNDARY, POST_TERMINAL_HISTORY_BOUNDARY, isReviewedWorkloadRevision, isPostTerminalGitSuccessorRevision, isTerminalWorkloadRevision, verifyReviewedWorkloadRepair, verifyPostTerminalGitSuccessorRepair, delegatesReviewedWorkloadCommission, delegatesPostTerminalGitSuccessorCommission, GIT_ACQUISITION_REPAIR, isGitAcquisitionRevision, gitAcquisitionIncident, isGitObservationRevision, isGitObservationSuccessor, isInventoryBoundRevision, usesGitInventory, gitObservationIncident, gitReviewTarget, permitsFinalDependencySuccessor, delegatesGitRevisionGrant, delegatesProspectiveCommission, verifyGitRevisionFailure, verifyGitRevisionSuccess, readPostPassDecision, permitsPostPassReview, verifyGitSourceRepair } from "./local-canonical-git-observation.mjs";
 import { createGitHubObserverAuthorizationTransport } from "./github-main-branch-transport.mjs";
+import {MATERIAL_SOURCE_CORRECTION, MATERIAL_HISTORY_BOUNDARY, isMaterialSourceRevision, delegatesMaterialSourceCommission} from "./local-canonical-git-observation.mjs";
 
 export const ATTEMPT_CONTRACT = "augnes.local-canonical-attempt-family.v1";
 const fail = code => Object.assign(new Error(code), { code });
@@ -102,7 +103,8 @@ export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch
     const proof = sourceCorrection;
     const revision = isReviewedRevision(sourceCorrection);
     if (tip.family_id !== proof.prior_family_id || tip.number !== proof.prior_number || tip.attempt_id !== proof.prior_attempt_id ||
-          (revision ? !revisionFollows(proof, tip.reviewed_revision_consumed ?? 0, tip.revision_commission, tip.revision_grants ?? []) :
+          (revision ? !revisionFollows(proof, tip.reviewed_revision_consumed ?? 0, tip.revision_commission, tip.revision_grants ?? [],
+            read(path.join(anchorRoot,".augnes-local-verification/families",tip.family_id,`attempt-${tip.number}.json`)).source_correction?.commission?.maximum_invocations) :
           tip.reviewed_revision_consumed)) throw fail("attempt_latest_tip_required");
   }
   if (sourceCorrection) admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof: sourceCorrection, acceptedMain, revisionAuthorization, revisionInputs, revisionLive, reserve: true });
@@ -225,9 +227,12 @@ export function reconstructAttemptTip(context) {
 }
 
 function readAttemptLineage({ anchorRoot, repositoryRoot = null, branch }, throughAttempt = null) {
-  let familyId = candidateFamilyId(branch), revisionCount = 0, revisionCommission = null;
+  let familyId = candidateFamilyId(branch), revisionCount = 0, revisionCommission = null, revisionMaximum = 0;
   const seen = new Set(), revisionGrants = [];
-  for (let depth = 0; depth < 128; depth++) {
+  // Bound reads by the physical inventory, with cycle detection. This is not a
+  // hidden total allowance across separately authorized exact-target grants.
+  const familyCount = readdirSync(path.join(anchorRoot,".augnes-local-verification/families")).filter(name=>/^[a-f0-9]{64}$/u.test(name)).length;
+  for (let depth = 0; depth < familyCount; depth++) {
     if (seen.has(familyId)) throw fail("attempt_lineage_cycle");
     seen.add(familyId);
     const root = path.join(anchorRoot, ".augnes-local-verification", "families", familyId);
@@ -244,10 +249,11 @@ function readAttemptLineage({ anchorRoot, repositoryRoot = null, branch }, throu
     const revision = isReviewedRevision(attempt.source_correction);
     if (revisionCount && !revision) throw fail("attempt_revision_commission_terminal");
     if (revision) {
-      if (!validReviewedRevisionAttempt(attempt) || !revisionFollows(attempt.source_correction, revisionCount, revisionCommission, revisionGrants)) throw fail("attempt_revision_commission_invalid");
+      if (!validReviewedRevisionAttempt(attempt) || !revisionFollows(attempt.source_correction, revisionCount, revisionCommission, revisionGrants, revisionMaximum)) throw fail("attempt_revision_commission_invalid");
       if (attempt.source_correction.commission.ordinal === 1 || usesFreshRevisionGrant(attempt.source_correction))
         revisionGrants.push(attempt.source_correction.authorization.grant_comment_id);
       revisionCount = attempt.source_correction.commission.ordinal; revisionCommission = revisionCommissionIdentity(attempt.source_correction);
+      revisionMaximum = attempt.source_correction.commission.maximum_invocations;
     }
     const edgeFile = path.join(root, "correction-successor.json");
     if (reachedReceipt || !entries.includes("correction-successor.json")) return { family_id: familyId, number, attempt_id: attempt.attempt_id, ...(revisionCount ? { reviewed_revision_consumed: revisionCount, revision_commission: revisionCommission, revision_grants: [...revisionGrants] } : {}) };
@@ -286,7 +292,7 @@ function readAttemptLineage({ anchorRoot, repositoryRoot = null, branch }, throu
         digest(proof) !== edge.proof_fingerprint || next.head !== edge.head || next.tree !== edge.tree ||
         candidateFamilyId(branch, next.source_correction) !== edge.family_id ||
         revisionEdge !== isReviewedRevision(next.source_correction) ||
-        (revisionEdge && (!validReviewedRevisionAttempt(next) || !revisionFollows(proof, revisionCount, revisionCommission, revisionGrants) ||
+        (revisionEdge && (!validReviewedRevisionAttempt(next) || !revisionFollows(proof, revisionCount, revisionCommission, revisionGrants, revisionMaximum) ||
           (!["product_failure", "input_invalidation"].includes(completion.disposition) &&
             !(completion.disposition === "unknown_relevance" && (gitEdge || isGitAcquisitionRevision(proof) && proof.commission.ordinal === 1)) &&
             !(completion.disposition === "completed_success" && isInventoryBoundRevision(proof) && revisionCount === 1 && proof.commission.ordinal === 2 && proof.commission.forward_decision) &&
@@ -551,6 +557,11 @@ const usesFreshRevisionGrant = p => isBrowserSuccessor(p) || isGitObservationSuc
 
 // Once this boundary is crossed the optional v7 inventory cannot be dropped.
 function validGitRevisionEdge(previous, next) {
+  if (isMaterialSourceRevision(next)) return usesGitInventory(previous) &&
+    previous.commission.ordinal === previous.commission.maximum_invocations &&
+    next.commission.ordinal === 1 && next.commission.maximum_invocations === 1 &&
+    previous.commission.input_acquisition === next.commission.input_acquisition;
+  if (isMaterialSourceRevision(previous)) return false;
   if (isPostTerminalGitSuccessorRevision(previous)) return false;
   if (isPostTerminalGitSuccessorRevision(next)) return isReviewedWorkloadRevision(previous) &&
     previous.commission.ordinal === 1 && previous.commission.maximum_invocations === 1;
@@ -582,14 +593,18 @@ function revisionCommissionIdentity(proof) {
     root_receipt_fingerprint: proof.commission.root_receipt_fingerprint,
     maximum_invocations: proof.commission.maximum_invocations,
     ...(isGitAcquisitionRevision(proof) ? {input_acquisition: proof.commission.input_acquisition} : {}),
-    ...(isTerminalWorkloadRevision(proof) ? {reviewed_workload: proof.commission.reviewed_workload} : {}) });
+    ...(isTerminalWorkloadRevision(proof) ? {reviewed_workload: proof.commission.reviewed_workload} : {}),
+    ...(isMaterialSourceRevision(proof) ? {source_revision: proof.commission.source_revision} : {}) });
 }
 
 // A different authenticated grant can follow a spent commission only at its
 // settled latest edge. Grant IDs, including all earlier commissions, are read
 // from the append-only chain; changing a head, root or body cannot reset one.
-function revisionFollows(proof, count, commission, grants) {
+function revisionFollows(proof, count, commission, grants, previousMaximum) {
   if (!revisionShape(proof)) return false;
+  if (isMaterialSourceRevision(proof)) return count > 0 && count === previousMaximum &&
+    proof.commission.ordinal === 1 && revisionCommissionIdentity(proof) !== commission &&
+    !grants.includes(proof.authorization.grant_comment_id);
   if (isPostTerminalGitSuccessorRevision(proof)) return count === 1 && proof.commission.ordinal === 1 &&
     revisionCommissionIdentity(proof) !== commission && !grants.includes(proof.authorization.grant_comment_id);
   if (usesFreshRevisionGrant(proof)) return count === 1 && revisionCommissionIdentity(proof) === commission &&
@@ -612,9 +627,11 @@ function revisionMaterialShape(p, preparing = false) {
     [p.head, p.tree, p.base, p.accepted?.head, p.accepted?.tree, p.accepted?.base].every(revisionCommit) &&
     revisionId(p.pull_request) && sha(p.prior_family_id) && [1, 2].includes(p.prior_number) && typeof p.prior_attempt_id === "string" &&
     sha(p.prior_receipt_fingerprint) && revisionKeys(c, ["root_family_id", "root_number", "root_attempt_id", "root_receipt_fingerprint", "ordinal", "maximum_invocations",
-      ...(successor || gitSuccessor ? ["initial_authorization"] : []), ...(gitSuccessor ? ["initial_accepted", "delegation"] : isInventoryBoundRevision(p) ? ["delegation", ...(c.forward_decision ? ["forward_decision"] : []), ...(c.input_acquisition !== undefined ? ["input_acquisition"] : []), ...(c.reviewed_workload !== undefined ? ["reviewed_workload"] : [])] : [])]) &&
+      ...(successor || gitSuccessor ? ["initial_authorization"] : []), ...(gitSuccessor ? ["initial_accepted", "delegation"] : isInventoryBoundRevision(p) ? ["delegation", ...(c.forward_decision ? ["forward_decision"] : []), ...(c.input_acquisition !== undefined ? ["input_acquisition"] : []), ...(c.reviewed_workload !== undefined ? ["reviewed_workload"] : []), ...(c.source_revision !== undefined ? ["source_revision"] : [])] : [])]) &&
     (c.input_acquisition === undefined || isGitAcquisitionRevision(p) && c.input_acquisition === GIT_ACQUISITION_REPAIR && !c.forward_decision) &&
     (c.reviewed_workload === undefined || isTerminalWorkloadRevision(p) && !c.forward_decision) &&
+    (c.source_revision === undefined || isMaterialSourceRevision(p) && c.source_revision === MATERIAL_SOURCE_CORRECTION &&
+      !c.forward_decision && c.reviewed_workload === undefined) &&
     (!isBrowserRevision(p) || c.ordinal === (successor ? 2 : 1) && p.settlement === undefined) &&
     (!isGitObservationRevision(p) || !p.settlement && p.accepted.head === p.head && p.accepted.tree === p.tree && p.accepted.base === p.base && sha(p.inputs?.inventory_sha256)) &&
     (!isInventoryBoundRevision(p) || !p.settlement && validReviewRef(c.delegation) && (!c.forward_decision || c.ordinal === 2 && validReviewRef(c.forward_decision) && c.forward_decision.id !== c.delegation.id) && sha(p.inputs.inventory_sha256) &&
@@ -627,7 +644,7 @@ function revisionMaterialShape(p, preparing = false) {
       c.delegation.id !== c.initial_authorization.grant_comment_id && c.initial_accepted.head !== p.head) &&
     (!successor || browserAuthorizationShape(c.initial_authorization) && c.initial_authorization.contract_review.head !== p.head) &&
     sha(c.root_family_id) && [1, 2].includes(c.root_number) && typeof c.root_attempt_id === "string" && sha(c.root_receipt_fingerprint) &&
-    (isTerminalWorkloadRevision(p) ? c.ordinal === 1 && c.maximum_invocations === 1 : [1, 2].includes(c.ordinal) && c.maximum_invocations === 2) &&
+    ((isTerminalWorkloadRevision(p) || isMaterialSourceRevision(p)) ? c.ordinal === 1 && c.maximum_invocations === 1 : [1, 2].includes(c.ordinal) && c.maximum_invocations === 2) &&
     (c.ordinal === 1 ? c.root_family_id === p.prior_family_id && c.root_number === p.prior_number && c.root_attempt_id === p.prior_attempt_id && c.root_receipt_fingerprint === p.prior_receipt_fingerprint :
       c.root_family_id !== p.prior_family_id && c.root_attempt_id !== p.prior_attempt_id) && (preparing && (isGitObservationRevision(p) || isInventoryBoundRevision(p) && c.ordinal === 1) ? !Object.hasOwn(p.accepted, "review") : revisionId(p.accepted.review?.id) && revisionRef(p.accepted.review)) &&
     ["receipt", "attempt", "completion", "stock"].every(k => revisionRef(p.originals?.[k])) &&
@@ -705,7 +722,7 @@ export function validateReviewedRevisionAuthorityRecords(p, review, grant, permi
     /materially corrected/iu.test(grantText) && /focused checks/iu.test(grantText) && /no additional recovery allowance/iu.test(grantText) && /Interrupted reservations consume/iu.test(grantText);
   const prospectiveScope = [p.branch, String(p.accepted.review.id), p.commission.root_receipt_fingerprint].every(s => grant.body.includes(s)) &&
     /NEW.*commission/iu.test(grantText) && /v7 reviewed_revision/iu.test(grantText) && /old commission remains spent/iu.test(grantText) &&
-    (isTerminalWorkloadRevision(p) ? /exactly one admitted deciding invocation total/iu.test(grantText) : /at most two admitted deciding invocations total/iu.test(grantText)) && /demonstrated material.*correction.*focused support/iu.test(grantText) &&
+    ((isTerminalWorkloadRevision(p) || isMaterialSourceRevision(p)) ? /exactly one admitted deciding invocation total/iu.test(grantText) : /at most two admitted deciding invocations total/iu.test(grantText)) && /demonstrated material.*correction.*focused support/iu.test(grantText) &&
     /zero extra recovery/iu.test(grantText) && /Reservation\/interruption consumes/iu.test(grantText);
   const settlementScope = !!p.authorization.settlement_review &&
     [p.branch, String(p.authorization.settlement_review.id), p.authorization.settlement_review.head, p.commission.root_receipt_fingerprint].every(s => grant.body.includes(s)) &&
@@ -766,19 +783,22 @@ export function validateReviewedRevisionAuthorityRecords(p, review, grant, permi
       (permitsFinalDependencySuccessor(forward.body,p,revisionCommissionIdentity(p)) ||
         readPostPassDecision(forward.body,p,revisionCommissionIdentity(p)) && permitsPostPassReview(currentReview.body,p,revisionCommissionIdentity(p)))) && prospectiveScope && firstLine(review.body) === decision && firstLine(currentReview.body) === decision &&
       [p.base, p.head, p.tree, target, p.prior_receipt_fingerprint].every(s => currentReview.body.includes(s)) &&
-      firstLine(grant.body) === (isPostTerminalGitSuccessorRevision(p) ?
+      firstLine(grant.body) === (isMaterialSourceRevision(p) ?
+        "Authorize one NEW prospective v7 reviewed_revision commission for a material source correction." : isPostTerminalGitSuccessorRevision(p) ?
         "Authorize one NEW prospective v7 reviewed_revision commission for the post-terminal Git-successor workload correction." : isReviewedWorkloadRevision(p) ?
         "Authorize one NEW prospective v7 reviewed_revision commission for the terminal reviewed-revision workload correction." : isGitAcquisitionRevision(p) ?
         "Authorize a NEW prospective v7 reviewed_revision commission for a Git acquisition correction." :
         "Authorize a NEW prospective v7 reviewed_revision commission.") &&
       (!isTerminalWorkloadRevision(p) || [grant.body,review.body].every(body => body.includes(isPostTerminalGitSuccessorRevision(p) ? POST_TERMINAL_HISTORY_BOUNDARY : WORKLOAD_HISTORY_BOUNDARY)) &&
         /No ordinal two, recovery, successor or replacement commission\./u.test(grantText)) &&
-      (!isGitAcquisitionRevision(p) || isTerminalWorkloadRevision(p) || [grant.body,review.body].every(body => body.includes(
+      (!isGitAcquisitionRevision(p) || isTerminalWorkloadRevision(p) || isMaterialSourceRevision(p) || [grant.body,review.body].every(body => body.includes(
         "Historical window remains UNKNOWN; old false stock and both spent ordinals remain unchanged."))) &&
+      (!isMaterialSourceRevision(p) || [grant.body,review.body].every(body=>body.includes(MATERIAL_HISTORY_BOUNDARY)) &&
+        /No ordinal two, recovery or unchanged-target retry under this commission\./u.test(grantText)) &&
       [p.accepted.head, p.accepted.tree, p.accepted.base, p.schema].every(s => grant.body.includes(s)) &&
       (!first || grant.body.includes(target)) && /zero unchanged-target retry/iu.test(grantText) &&
       grant.created_at === grant.updated_at && delegation.created_at === delegation.updated_at &&
-      (isPostTerminalGitSuccessorRevision(p) ? delegatesPostTerminalGitSuccessorCommission(delegation.body,p) : isReviewedWorkloadRevision(p) ? delegatesReviewedWorkloadCommission(delegation.body,p) : delegatesProspectiveCommission(delegation.body, p.branch, p.pull_request)) &&
+      (isMaterialSourceRevision(p) ? delegatesMaterialSourceCommission(delegation.body,p) : isPostTerminalGitSuccessorRevision(p) ? delegatesPostTerminalGitSuccessorCommission(delegation.body,p) : isReviewedWorkloadRevision(p) ? delegatesReviewedWorkloadCommission(delegation.body,p) : delegatesProspectiveCommission(delegation.body, p.branch, p.pull_request)) &&
       [recordUrl("issuecomment", p.commission.delegation.id), recordUrl("pullrequestreview", p.accepted.review.id)].every(url => recordUrls.includes(url)) &&
       Date.parse(delegation.created_at) < Date.parse(review.submitted_at) &&
       (first || Date.parse(currentReview.submitted_at) > Date.parse(grant.created_at));
@@ -818,10 +838,11 @@ export async function authorizeReviewedRevision(p, { transport = createGitHubObs
   const forward = p.commission.forward_decision ? await transport.grant(p.commission.forward_decision.id) : null;
   if (forward) permissions.forward_decision = await transport.permission(forward.user?.login);
   const observations = validateReviewedRevisionAuthorityRecords(p, review, grant, permissions, await transport.pullRequest(), settlementReview, contractReview, delegation, forward);
-  if (isTerminalWorkloadRevision(p)) {
+  if (isTerminalWorkloadRevision(p) || isMaterialSourceRevision(p)) {
     const evidence = readReviewedRevisionEvidence(path.join(repositoryRoot,p.local_relative_path),p,repositoryRoot);
     if (Date.parse(delegation.created_at) <= Date.parse(evidence.completion.finished_at) ||
-        delegation.id === evidence.prior.source_correction.commission.delegation.id) throw fail("revision_workload_fresh_authority_required");
+        delegation.id === evidence.prior.source_correction.commission.delegation.id)
+      throw fail(isMaterialSourceRevision(p) ? "revision_material_fresh_authority_required" : "revision_workload_fresh_authority_required");
   }
   const postPass = forward && readPostPassDecision(forward.body,p,revisionCommissionIdentity(p));
   if (postPass) {
@@ -992,7 +1013,7 @@ function inspectRevisionPreparation({ file, repositoryRoot, predecessorRoot, anc
   if (evidence.retainedObservation) verifyRetainedWebInput(repositoryRoot,evidence.retainedObservation);
   const tip = reconstructAttemptTip({ anchorRoot, repositoryRoot: predecessorRoot, branch: p.branch });
   if (tip.family_id !== p.prior_family_id || tip.number !== p.prior_number || tip.attempt_id !== p.prior_attempt_id ||
-      (tip.reviewed_revision_consumed ?? 0) !== (isPostTerminalGitSuccessorRevision(p) ? 1 : isInventoryBoundRevision(p) && p.commission.ordinal === 1 ? 2 : p.commission.ordinal - 1) ||
+      (tip.reviewed_revision_consumed ?? 0) !== (isMaterialSourceRevision(p) ? evidence.prior.source_correction.commission.maximum_invocations : isPostTerminalGitSuccessorRevision(p) ? 1 : isInventoryBoundRevision(p) && p.commission.ordinal === 1 ? 2 : p.commission.ordinal - 1) ||
       (usesFreshRevisionGrant(p) && tip.revision_commission !== revisionCommissionIdentity(p)) ||
       !revisionEqual(runtimeInputs, evidence.inputs)) throw fail("revision_preparation_target_changed");
   if (isBrowserSuccessor(p) || usesGitInventory(p)) {
@@ -1024,7 +1045,7 @@ function readRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
   if (!revisionKeys(stored, ["schema", "kind", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "pull_request", "commission", "accepted", ...(authorizedShape ? ["authorization"] : []), "originals", "inputs", "source", "focused", ...(p.settlement ? ["settlement"] : [])]) ||
       !revisionKeys(p.accepted, ["head", "tree", "base", ...(reviewPending ? [] : ["review"])]) || (!reviewPending && !revisionKeys(p.accepted.review, ["id", "sha256"])) ||
       !revisionKeys(p.originals, ["receipt", "attempt", "completion", "stock"]) || !revisionKeys(p.inputs, ["predecessor_sha256", "identity_sha256", "current", ...(usesGitInventory(p) ? ["inventory_sha256"] : [])])) throw fail("revision_proof_invalid");
-  const bytes = ref => revisionArtifact(path.dirname(file), ref), parse = ref => JSON.parse(bytes(ref));
+  const bytes = (ref, maximum) => revisionArtifact(path.dirname(file), ref, maximum), parse = ref => JSON.parse(bytes(ref));
   const original = parse(p.originals.receipt), prior = parse(p.originals.attempt), completion = parse(p.originals.completion), inputs = parse(p.inputs.current);
   const stockLines = bytes(p.originals.stock).toString("utf8").split("\n").filter(line => line.startsWith("{"));
   if (stockLines.length !== 1) throw fail("revision_predecessor_stock_invalid");
@@ -1034,8 +1055,10 @@ function readRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
   if (isBrowserRevision(prior.source_correction) !== successor) throw fail("revision_browser_lineage_invalid");
   if (!validGitRevisionEdge(prior.source_correction, p)) throw fail("revision_git_lineage_invalid");
   const gitIncident = isGitObservationRevision(p) && !gitSuccessor ? gitObservationIncident(original, prior, completion, stock, REVIEWED_REVISION_PHASES) : null;
-  const acquisitionIncident = isGitAcquisitionRevision(p) && !isTerminalWorkloadRevision(p) && p.commission.ordinal === 1 ?
+  const acquisitionIncident = isGitAcquisitionRevision(p) && !isTerminalWorkloadRevision(p) && !isMaterialSourceRevision(p) && p.commission.ordinal === 1 ?
     gitAcquisitionIncident(original, prior, completion, stock, REVIEWED_REVISION_PHASES) : null;
+  if (isMaterialSourceRevision(p) && (completion.disposition !== "product_failure" || original.final?.reason_codes?.includes("interrupted")))
+    throw fail("revision_material_predecessor_invalid");
   const browserIncident = browser && !successor ? browserPredecessorEvidence(original, prior, completion, stock) : null;
   let retainedBefore = null;
   const postPass=boundedV7 && p.commission.ordinal===2 && !!p.commission.forward_decision && original.outcome?.disposition==="completed_success";
@@ -1044,7 +1067,7 @@ function readRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
     if (postPass) {
       verifyGitRevisionSuccess(original,stock,inputs,REVIEWED_REVISION_PHASES);
       if (p.accepted.head!==prior.head || p.accepted.tree!==prior.tree || p.accepted.base!==original.repository.base_sha) throw fail("revision_positive_predecessor_invalid");
-    } else if (!acquisitionIncident) retainedBefore = verifyGitRevisionFailure(original, stock, inputs, REVIEWED_REVISION_PHASES, isPostTerminalGitSuccessorRevision(p) ? 1 : boundedV7 && p.commission.ordinal === 1 ? 2 : 1, !!p.commission.forward_decision);
+    } else if (!acquisitionIncident) retainedBefore = verifyGitRevisionFailure(original, stock, inputs, REVIEWED_REVISION_PHASES, isMaterialSourceRevision(p) ? prior.source_correction.commission.ordinal : isPostTerminalGitSuccessorRevision(p) ? 1 : boundedV7 && p.commission.ordinal === 1 ? 2 : 1, !!p.commission.forward_decision);
     if (completion.infrastructure_code !== null || !(Date.parse(completion.finished_at) >= Date.parse(original.run.finished_at)) ||
         (gitSuccessor && (!revisionEqual(p.commission.initial_accepted, prior.source_correction.accepted) ||
           !revisionEqual(p.commission.initial_authorization, prior.source_correction.authorization))) ||
@@ -1062,7 +1085,7 @@ function readRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
     throw fail("revision_browser_accepted_source_invalid");
   const content = { ...original }; delete content.integrity;
   const inputInvalidation = knownInputInvalidation(original), previousRevision = isReviewedRevision(prior.source_correction);
-  const newCommission = previousRevision && prior.source_correction.commission.ordinal === 2 && p.commission.ordinal === 1 &&
+  const newCommission = !isMaterialSourceRevision(p) && previousRevision && prior.source_correction.commission.ordinal === 2 && p.commission.ordinal === 1 &&
     p.authorization?.grant_comment_id !== prior.source_correction.authorization.grant_comment_id;
   const dependencySafety = newCommission && knownInputInvalidation(original, true);
   const externalSettlement = newCommission && p.settlement && settledServiceIncident(original) &&
@@ -1091,7 +1114,7 @@ function readRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
         (c.ordinal === 2 && !["root_family_id", "root_number", "root_attempt_id", "root_receipt_fingerprint"].every(k => c[k] === prior.source_correction.commission[k])) :
         usesFreshRevisionGrant(p) ? revisionCommissionIdentity(p) !== revisionCommissionIdentity(prior.source_correction) :
         !revisionFollows(p, prior.source_correction.commission.ordinal, revisionCommissionIdentity(prior.source_correction),
-          [prior.source_correction.authorization.grant_comment_id])) :
+          [prior.source_correction.authorization.grant_comment_id], prior.source_correction.commission.maximum_invocations)) :
       c.ordinal !== 1 || c.root_family_id !== p.prior_family_id || c.root_number !== p.prior_number || c.root_attempt_id !== p.prior_attempt_id || c.root_receipt_fingerprint !== p.prior_receipt_fingerprint ||
       prior.source_correction && p.authorization?.grant_comment_id === prior.source_correction.authorization?.grant_comment_id) throw fail("revision_commission_lineage_invalid");
   if (digest(inputs) !== p.inputs.identity_sha256 || (browser ? inputs?.contract !== BROWSER_RUNTIME_INPUTS || !validCanonicalRuntimeInputs(inputs) : inputs?.contract !== "augnes.local-canonical-runtime-inputs.v1") || !sha(inputs.node?.location_fingerprint) ||
@@ -1106,7 +1129,7 @@ function readRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
   if (source.schema !== "augnes.local-canonical-reviewed-revision-source.v1" || source.basis !== "implementation_owner_not_independent_review" ||
       !revisionEqual(source.accepted_to_final, delta(initial.head, p.head)) || !revisionEqual(source.predecessor_to_final, delta(prior.head, p.head)) ||
       !revisionEqual(source.main_to_final, delta(p.base, p.head)) || !revisionTime(source.reviewed_at) || Date.parse(source.reviewed_at) <= Date.parse(completion.finished_at)) throw fail("revision_source_delta_invalid");
-  const changedCode = source.predecessor_to_final.paths.filter(name => /\.(?:[cm]?[jt]sx?)$/u.test(name) || gitIncident && WEB_PLANNING_CLIENT_MODULES.has(name));
+  const changedCode = source.predecessor_to_final.paths.filter(name => /\.(?:[cm]?[jt]sx?)$/u.test(name) || gitIncident && WEB_PLANNING_CLIENT_MODULES.has(name) || isMaterialSourceRevision(p) && /^apps\/web_planning\/src\/(?:client|[a-z-]+-client)\.js\.txt$/u.test(name));
   // Metadata-only replacement/touching and proof reformatting cannot buy a
   // second invocation. Full identities still bind admission and stock; material
   // input repair requires an actual consumed path or content change.
@@ -1196,13 +1219,15 @@ function readRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
         c.result.cancelled !== false || c.result.cleanup_completed !== true || c.result.remaining_owned_processes !== 0 ||
         c.result.exit_observed !== true || c.result.streams_closed !== true || c.result.termination_reason !== "natural_exit")) throw fail("revision_focused_remedy_invalid");
   const workloadSource = isPostTerminalGitSuccessorRevision(p) ? verifyPostTerminalGitSuccessorRepair(p,prior,original,focused,{git,parse,bytes,completedAt:completion.finished_at}) : null;
+  const materialSource = isMaterialSourceRevision(p) ? verifyGitSourceRepair(p,prior,focused,{git,parse,bytes,completedAt:completion.finished_at}) : null;
   let testedFinalSource = false;
   for (const command of focused.commands) {
     const record = parse(command.record);
     if (!revisionEqual(record.result ?? record, command.result) || !revisionRef(command.stdout)) throw fail("revision_focused_original_invalid");
     revisionArtifact(path.dirname(file), command.stdout, 2 * 1024 * 1024);
     if ((successor || gitIncident || gitSuccessor || boundedV7) && (command.tested_source_head === p.head ||
-        workloadSource && revisionEqual(command.record,focused.workload.after) && command.tested_source_head === workloadSource)) {
+        workloadSource && revisionEqual(command.record,focused.workload.after) && command.tested_source_head === workloadSource ||
+        materialSource && revisionEqual(command.record,focused.regression.after) && command.tested_source_head === materialSource)) {
       if (record.tested_source_head !== command.tested_source_head || record.command !== command.command || !revisionTime(record.finished_at) ||
           Date.parse(record.finished_at) <= Date.parse(completion.finished_at) || Date.parse(record.finished_at) > Date.parse(focused.finished_at))
         throw fail("revision_focused_remedy_invalid");
@@ -1215,7 +1240,7 @@ function readRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
         "--ignore-blank-lines", prior.head, p.head, "--", name]).toString()))))
     throw fail("revision_material_remedy_required");
   if (isReviewedWorkloadRevision(p)) verifyReviewedWorkloadRepair(p,prior,original,focused,{git,parse,bytes,completedAt:completion.finished_at});
-  else if (boundedV7 && !workloadSource) verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt: completion.finished_at, retainedBefore, postPass, acquisition: !!acquisitionIncident });
+  else if (boundedV7 && !workloadSource && !materialSource) verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt: completion.finished_at, retainedBefore, postPass, acquisition: !!acquisitionIncident });
   if (successor && (!testedFinalSource || !revisionEqual(focused.input_remedy_resources, []) ||
       !git(["diff", "--ignore-all-space", "--ignore-blank-lines", "--no-ext-diff", "--no-textconv", prior.head, p.head, "--", ...focused.implicated_paths]).length))
     throw fail("revision_focused_remedy_invalid");

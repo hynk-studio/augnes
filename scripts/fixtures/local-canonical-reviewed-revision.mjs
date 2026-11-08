@@ -22,6 +22,7 @@ import {CANONICAL_NODE_VERSION} from "../local-canonical-environment.mjs";
 import {inspectGitRevisionPreparation} from "../local-canonical-attempts.mjs";
 import {runReviewedWorkloadControls,workloadFixtureInput} from "./local-canonical-reviewed-workload.mjs";
 import {baseReceipt} from "./local-canonical-receipt-v3.mjs";
+import {runMaterialSourceControls} from "./local-canonical-material-source.mjs";
 import {runPostTerminalControls} from "./local-canonical-post-terminal.mjs";
 
 const self=fileURLToPath(import.meta.url), quiet={write(){}}, clone=v=>structuredClone(v);
@@ -179,7 +180,7 @@ async function acquisitionProposalControls(parentRoot, lifecycle, workload = fal
   const root=path.join(parentRoot,"acquisition-proposal");mkdirSync(root);
   const c=setup(root), findings=[];
   const input="scripts/local-canonical-inputs.mjs", driver="scripts/acquisition-driver.mjs";
-  const commit=()=>{c.git(["add","scripts"]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","synthetic acquisition correction"]);};
+  const commit=()=>{c.git(["add","scripts","apps"]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","synthetic acquisition correction"]);};
   const declaration=()=>({...gitFixtureDeclaration(c),binding:{head:c.head,tree:c.tree,runtime_inputs:c.inputs}});
   const complete=(a,r)=>{storeReceipt(c,r);finishAttempt(a,{receiptFingerprint:r.integrity.content_fingerprint,disposition:r.outcome.disposition,cleanupComplete:true});
     const file=path.join(c.anchor,".augnes-local-verification/families",a.family_id,"completion-1.json");write(file,{...read(file),finished_at:time(-60000)});return file;};
@@ -191,7 +192,8 @@ async function acquisitionProposalControls(parentRoot, lifecycle, workload = fal
   try {
     if(workload) {
       for(const name of GIT_SUCCESSOR_WORKLOAD_SOURCES) write(path.join(c.checkout,name),"// Synthetic workload dependency.\n");
-      write(path.join(c.checkout,"scripts/workload-other-failure.mjs"),'import assert from "node:assert/strict"; assert.fail("synthetic next failure");\n');
+      write(path.join(c.checkout,"apps/web_planning/src/exchange-client.js.txt"),JSON.stringify({primary:false,journal:false})+"\n");
+      write(path.join(c.checkout,"scripts/workload-other-failure.mjs"),'import assert from "node:assert/strict"; import {readFileSync} from "node:fs"; const state=JSON.parse(readFileSync(new URL("../apps/web_planning/src/exchange-client.js.txt",import.meta.url))); assert.equal(state[process.argv[2]??"primary"],true); console.log("corrected "+(process.argv[2]??"primary"));\n');
       write(path.join(c.checkout,"scripts/workload-behavior.mjs"),'import assert from "node:assert/strict"; assert.fail("synthetic prior defect");\n');
       write(path.join(c.checkout,"scripts/test-local-canonical-review-corrections.mjs"),'// Prior aggregate registration.\n');
       write(path.join(c.checkout,"scripts/local-canonical-closeout-budgets.mjs"),'export const revised = false;\n');
@@ -337,20 +339,24 @@ if(process.argv[2]==="--cold"){
     write(c.stockOutput,result);
     assert.equal(result.valid_deciding_evidence,c.expectedPass,JSON.stringify(result.issues));
   } else assert(stock(c,c.receipt,a));
+  if(c.lateContender){c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});
+    try{assert.throws(()=>begin(c,p,a,{runId:"late-material-contender"}),/attempt_latest_tip_required/);}
+    finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);}}
   console.log("fresh reader PASS");
 }else if(process.argv[2]==="--race"){
   const c=read(process.argv[3]);c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});
   try{const p=proof(c),a=await auth(c,p);write(c.ready,"ready");while(!existsSync(c.go))await new Promise(r=>setTimeout(r,5));
     try{begin(c,p,a);console.log("admitted");}catch(e){assert(["EEXIST","ENOENT","attempt_latest_tip_required"].includes(e.code),e.message);console.log("refused");}
   }finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
-}else if (["git","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor","post-terminal","post-terminal-controls","post-terminal-successor"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
+}else if (["git","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor","post-terminal","post-terminal-controls","post-terminal-successor","material-source","material-controls","material-successor","material-final","material-reservation"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
   const group = process.argv[2].slice(6,-9), handoff = JSON.parse(process.argv[3]);
   const outer = process.env.AUGNES_CANONICAL_TEMP_ROOT, physical = lstatSync(handoff.root);
   assert(handoff.root === outer || path.dirname(handoff.root) === path.dirname(path.dirname(outer)) &&
     /^ag-suite-[A-Za-z0-9]{6}$/u.test(path.basename(handoff.root)));
   assert(physical.isDirectory() && realpathSync(handoff.root) === handoff.root && physical.uid === process.getuid() &&
     (physical.mode & 0o777) === 0o700 && String(physical.dev) === handoff.device && String(physical.ino) === handoff.inode);
-  const dir = path.join(handoff.root,group.startsWith("post-terminal") ? "acquisition-proposal" : group.startsWith("git") ? "git-case" : group.startsWith("final") ? "final-case" : group.startsWith("post-pass") ? "post-pass-case" : "prospective-fixture");
+  if(group==="material-source") cpSync(path.join(handoff.root,"acquisition-proposal"),path.join(handoff.root,"material-source-case"),{recursive:true,errorOnExist:true,force:false});
+  const dir = path.join(handoff.root,group.startsWith("material-") ? "material-source-case" : group.startsWith("post-terminal") ? "acquisition-proposal" : group.startsWith("git") ? "git-case" : group.startsWith("final") ? "final-case" : group.startsWith("post-pass") ? "post-pass-case" : "prospective-fixture");
   const owner=createCanonicalTestResourceRoot("ag-resource-test-"), lifecycle={pendingChildren:0};beginCanonicalTestResourceUse(owner);
   const runOwned=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);
   let c;
@@ -372,11 +378,12 @@ if(process.argv[2]==="--cold"){
       snapshot:path.join(handoff.root,"prospective-fixture"),fork:path.join(handoff.root,"final-case"),positive:path.join(handoff.root,"post-pass-case")};
     if (group==="git") await runGitRevisionControls(c,helpers);
     else if (group==="git-successor") await completeGitRevisionControls(c,helpers);
+    else if (group.startsWith("material-")) await runMaterialSourceControls(c,helpers,group);
     else if (group.startsWith("post-terminal")) await runPostTerminalControls(c,helpers,group);
     else if (group.startsWith("final")) await checkFinalDependency(c,helpers,group);
     else if (group.startsWith("post-pass")) await checkPostPass(c,helpers,group);
     else await checkSpentCommission(c,helpers,group);
-    if (["git","commission","final-input","post-pass","post-pass-controls","post-terminal","post-terminal-controls"].includes(group)) {
+    if (["git","commission","final-input","post-pass","post-pass-controls","post-terminal","post-terminal-controls","material-source","material-controls","material-successor","material-final"].includes(group)) {
       const {env,owner,git,commit,...state}=c;
       write(path.join(dir,"context.json"),{...state,proofPath:path.relative(c.checkout,c.file)});
     }

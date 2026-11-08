@@ -277,6 +277,24 @@ remain separate claims; appropriate non-use or simplification remains valid.
 
 ### Consumer-current reassessment evidence (#1593)
 
+The r13 intake reproduced the primary denial-message defect on clean `c954eecf`
+through the complete real-D1 Browser entry: natural exit 1 in 10,113 ms. This is
+a new before observation, not a reconstructed inner TypeError from r12. Corrected
+working bytes passed acknowledged-save/list-403, resolved-lost-ack/list-403,
+pre-acceptance denial and late real IndexedDB completion controls. One complete
+development journey hit the unchanged 180-second limit; a separately instrumented
+journey passed naturally in 178,359 ms. It measured 1,114 already-blank disposal
+navigations consuming 9,031 ms. Avoiding only those redundant replacements is a
+bounded harness improvement, not proof of the original timeout's complete cause
+or a guarantee of Full completion. Final source evidence remains separately bound.
+
+The reusable material-source controls exercise actual production preparation,
+authenticated-reader fixtures, physical reservations, exact evidence, historical
+reconstruction and fresh-process stock. Synthetic authority never authorizes real
+qualification. Old false stock, UNKNOWN windows and every issued limit remain
+historical facts. The reused old80 pair used explicit revision argument
+`80e37e44bb4459fa791c88e07374166729571975`; the ef5e sequence used `HEAD`.
+
 The r10 receipt `f5de3f325a9c1d11abdab550a6620fbc5ca87a61ddf892b82d6476629a2824b8`
 retains 6 PASS / 1 FAIL / 9 NOT_RUN and false stock. The corrected revision group
 passed naturally at 15,197 ms. Git-successor received SIGTERM at 15,130 ms against

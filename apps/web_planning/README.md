@@ -376,6 +376,13 @@ for these exchange-bearing histories. Existing participant activation still need
 migration 0006, v0.8-or-later support, the participation mode and verified ingress
 under separate operational authority. Deploying this candidate is a separate act.
 
+Access loss clears the private view and reports the original access denial. It
+does not automatically resend a confirmed or uncertain operation. Reauthenticate
+explicitly to read the saved result or reconcile the exact pending operation.
+Reassessment fields stay locked while their durable journal write is pending;
+late completion cannot restore a cleared view or send a save. The journal's exact
+body remains available to the existing authenticated recovery controls.
+
 ## Request-scoped participants and shared feedback (#1589)
 
 The optional participant path gives a separately authenticated recipient one

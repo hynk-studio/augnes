@@ -11,8 +11,8 @@ export async function browserReassessmentSafety({c,seed,root,newPage,login,click
     try { const evidence=await fn(); observations.push({name,result:'PASS',...evidence}); }
     catch(e) { failures.push(e);observations.push({name,result:'FAIL',error:e.message}); }
   }
-  async function open() {
-    await c.eval(`openWork(${JSON.stringify(seed.b.work_id)})`);await settled(c);
+  async function open(id=seed.b.work_id) {
+    await c.eval(`openWork(${JSON.stringify(id)})`);await settled(c);
     await c.eval("[...$('exchange-list').querySelectorAll('button')].find(b=>b.textContent==='Reconsider current use').click()");await settled(c);
     assert.equal(await c.eval('reassessmentEdited'),false);
   }
@@ -88,6 +88,62 @@ export async function browserReassessmentSafety({c,seed,root,newPage,login,click
     return {dialog:dialog.type,state};
   });
 
+  await check('access loss during real journal transaction',async()=>{
+    await open(seed.recovery.work_id);
+    await click(c,'reassessment-list');await settled(c);await set(c,'reassessment-work',seed.e.work_id);
+    await click(c,'reassessment-files');await settled(c);
+    const pick=await c.eval("[...$('reassessment-evidence').options].find(o=>o.textContent.includes('README.md')).value");
+    await set(c,'reassessment-evidence',pick);await click(c,'reassessment-inspect');await settled(c);
+    for(const [id,value] of Object.entries({'reassessment-decision':'retained','reassessment-reason':'Keep the operational hold after explicit recovery.','reassessment-limits':'No activation.','reassessment-context':'The durable operation survives loss of this view.','reassessment-next':'Obtain authorized operational observations.'}))await set(c,id,value);
+    await click(c,'reassessment-preview-button');await settled(c);
+    const prepared=await c.eval('reassessmentPrepared'),revision=await c.eval('saved.revision'),origin=await c.eval('location.origin'),start=requests.length;
+    // An owned, read-only keepalive in a real readwrite transaction blocks the
+    // journal's later transaction. No journal method or stored body is mocked.
+    await c.eval(`(async()=>{
+      const db=await new Promise((ok,no)=>{const q=indexedDB.open('augnes-participant-drafts',1);q.onsuccess=()=>ok(q.result);q.onerror=()=>no(q.error);});
+      const original=IDBDatabase.prototype.transaction,tx=db.transaction('drafts','readwrite'),store=tx.objectStore('drafts');
+      window.journalGate={release:false,queued:0,completed:0,closed:false,error:null};
+      const close=()=>{if(journalGate.closed)return;db.close();IDBDatabase.prototype.transaction=original;journalGate.closed=true;};
+      tx.addEventListener('complete',close);tx.addEventListener('abort',()=>{journalGate.error=tx.error?.name??'aborted';close();});
+      tx.addEventListener('error',()=>{journalGate.error=tx.error?.name??'transaction_error';close();});
+      IDBDatabase.prototype.transaction=function(...args){const t=original.apply(this,args);if(this.name==='augnes-participant-drafts'&&args[1]==='readwrite'){journalGate.queued++;t.addEventListener('complete',()=>journalGate.completed++);}return t;};
+      function keep(){const q=store.get('__owned_readonly_barrier__');q.onsuccess=()=>{if(!journalGate.release)keep();};}keep();
+    })()`);
+    let journalPrimary;
+    try {
+      await click(c,'reassessment-save');await wait(()=>c.eval('journalGate.queued===1&&busy'),'real journal put queued');
+      assert.equal(await c.eval('journalGate.completed'),0);
+      const reason=await c.eval("$('reassessment-reason').value");await type('Must not replace the journaled operation');
+      assert.equal(await c.eval("$('reassessment-reason').matches(':disabled')&&reassessmentJournalActive"),true);
+      assert.equal(await c.eval("$('reassessment-reason').value"),reason);
+      assert.equal(await c.eval('JSON.stringify(reassessmentPrepared)'),JSON.stringify(prepared));
+      await c.send('Network.clearBrowserCookies');
+      assert.equal(await c.eval("request('/api/works').then(()=>null,e=>e.message)"),'access_denied');
+      assert.equal(await c.eval('accessLost&&work===null&&reassessmentPrepared===null&&reassessmentPending===null&&reassessmentRows.length===0'),true);
+    } catch(e){journalPrimary=e;throw e;} finally {
+      // Release even when an assertion fails; wait for the actual transaction's
+      // finalizer before check() proceeds to another case.
+      try{await c.eval('journalGate.release=true');await wait(()=>c.eval('journalGate.closed'),'owned journal barrier closes');}
+      catch(cleanup){if(journalPrimary)throw new AggregateError([journalPrimary,cleanup],'journal case and owned barrier cleanup failed');throw cleanup;}
+    }
+    assert.equal(await c.eval('journalGate.error'),null);
+    await settled(c);await wait(()=>c.eval('journalGate.closed&&journalGate.completed===1'),'journal completion and owned barrier close');
+    assert.equal(await c.eval('!busy&&!workChangeActive&&!reassessmentJournalActive&&accessLost&&work===null&&reassessmentView===null&&reassessmentPrepared===null&&reassessmentPending===null&&reassessmentRows.length===0&&!$("reassessment-fields")'),true);
+    assert.match(await c.eval("$('status').textContent"),/Access is unavailable/);
+    assert.equal(requests.slice(start).filter(r=>r.path.endsWith('/reassessment-save')).length,0,'late journal completion cannot dispatch a save');
+    await login(c,origin);await c.eval(`openWork(${JSON.stringify(prepared.work_id)})`);await settled(c);
+    assert.equal(await c.eval('saved.revision'),revision,'no append before authenticated recovery');
+    assert.equal(await c.eval('JSON.stringify(reassessmentPending)'),JSON.stringify(prepared),'the exact durable journal body survives view disposal');
+    await click(c,'reassessment-check');await settled(c);assert.equal(await c.eval("$('reassessment-retry').hidden"),false);
+    assert.equal(requests.slice(start).filter(r=>r.path.endsWith('/reassessment-save')).length,0,'recovery read is not an automatic resend');
+    await click(c,'reassessment-retry');await settled(c);
+    assert.equal(await c.eval('saved.revision'),revision+1);assert.equal(await c.eval('reassessmentRows.length'),0);
+    const saves=requests.slice(start).filter(r=>r.path.endsWith('/reassessment-save'));assert.equal(saves.length,1);
+    const body=JSON.parse(saves[0].body);assert.equal(body.ticket,prepared.ticket);assert.deepEqual(body.intent,prepared.intent);
+    const observed={before_revision:revision,after_revision:revision+1,real_transaction_completed:true,late_save_requests:0,explicit_recovery_save_requests:1,exact_journal_retained:true,active_state_cleared:true};
+    console.log(JSON.stringify({reassessment_journal_access_loss:observed}));return observed;
+  });
+
   // Produce both complete exports through their production owners. The branch
   // carries actual direction lineage; exports retain all historical file bodies.
   await c.eval(`openWork(${JSON.stringify(seed.a.work_id)})`);await settled(c);
@@ -125,5 +181,5 @@ export async function browserReassessmentSafety({c,seed,root,newPage,login,click
   });
   console.log(JSON.stringify({reassessment_browser_safety:observations}));
   if(failures.length)throw new AggregateError(failures,'consumer browser safety regressions: '+failures.length);
-  checks.push('Consumer browser safety: genuine v0.9 and old-format file-picker imports, direction history and bounded sizes; delayed ordinary Save/unknown resolution input lock; real edited/prepared unload dialogs');
+  checks.push('Consumer browser safety: genuine v0.9 and old-format file-picker imports, direction history and bounded sizes; delayed ordinary Save/unknown resolution input lock; real edited/prepared unload dialogs; late real journal completion after access loss preserves exact authenticated recovery');
 }

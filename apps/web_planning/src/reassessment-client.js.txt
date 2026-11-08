@@ -1,14 +1,14 @@
 // Reuse the operation-specific browser journal. The scope prefix keeps owner
 // reassessments separate from participant drafts without changing their bytes.
 let reassessmentView=null,reassessmentPrepared=null,reassessmentEdited=false,reassessmentRows=[],reassessmentPending=null,reassessmentCursor=null;
-let reassessmentEpoch=0;
+let reassessmentEpoch=0,reassessmentJournalActive=false;
 const reassessmentKey=id=>'consumer:'+scope.workspace_id+':'+scope.project_id+':'+id;
 const reassessmentJournal=(id,action,value)=>participantJournal(reassessmentKey(id),action,value);
 function reassessmentBlocks(){return reassessmentRows.length>0||reassessmentEdited||!!reassessmentPrepared;}
 // Editor replacement and unknown ordinary saves cannot accept a new consumer
 // draft. Reset/journal readback must preserve this lock until exact settlement.
 function lockReassessmentFields(){
-  $('reassessment-fields').disabled=!!(accessLost||workChangeActive||pending||relationPending||sceneReviewPending||exchangePending||reassessmentRows.length);
+  $('reassessment-fields').disabled=!!(accessLost||workChangeActive||reassessmentJournalActive||pending||relationPending||sceneReviewPending||exchangePending||reassessmentRows.length);
 }
 function resetReassessment(){
   reassessmentEpoch++;reassessmentView=reassessmentPrepared=reassessmentPending=null;reassessmentRows=[];reassessmentEdited=false;reassessmentCursor=null;
@@ -112,10 +112,18 @@ async function finishReassessment(p,result){
   }
 }
 $('reassessment-save').onclick=()=>run(async()=>{
-  const p=reassessmentPrepared;if(!p||reassessmentRows.length||returnDraftBusy())return;
-  chooseReassessment(await reassessmentJournal(p.work_id,'put',p),p.request_key);$('reassessment-save').hidden=true;
-  try{await finishReassessment(p,await api('/api/work/'+p.work_id+'/reassessment-save',{ticket:p.ticket,intent:p.intent}));}
-  catch(e){if(!accessLost)$('reassessment-status').textContent='Decision save not confirmed. Exact pending bytes are retained; check before replacing.';throw e;}
+  const p=reassessmentPrepared,epoch=reassessmentEpoch;if(!p||reassessmentRows.length||returnDraftBusy())return;
+  reassessmentJournalActive=true;lockReassessmentFields();
+  try{
+    const rows=await reassessmentJournal(p.work_id,'put',p);
+    // The durable exact body remains available to authenticated recovery even
+    // when this view was disposed while its journal transaction was pending.
+    if(accessLost||work!==p.work_id||epoch!==reassessmentEpoch)return;
+    chooseReassessment(rows,p.request_key);$('reassessment-save').hidden=true;
+    if(reassessmentPrepared!==p){$('reassessment-status').textContent='Prepared decision changed. Check the exact pending operation before replacing it.';return;}
+    try{await finishReassessment(p,await api('/api/work/'+p.work_id+'/reassessment-save',{ticket:p.ticket,intent:p.intent}));}
+    catch(e){if(!accessLost)$('reassessment-status').textContent='Decision save not confirmed. Exact pending bytes are retained; check before replacing.';throw e;}
+  }finally{reassessmentJournalActive=false;if(!accessLost)lockReassessmentFields();}
 });
 $('reassessment-pending').onchange=()=>chooseReassessment(reassessmentRows,$('reassessment-pending').value);
 $('reassessment-check').onclick=()=>run(async()=>{const p=reassessmentPending;if(p)await finishReassessment(p,await api('/api/work/'+p.work_id+'/reassessment-resolve',{ticket:p.ticket}));});

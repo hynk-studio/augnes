@@ -3008,6 +3008,18 @@ verification and Draft review remain recorded with the candidate PR.
 
 ### Current P2/P5 candidate — Consumer-current return reassessment (#1593)
 
+The r12 Full at `c954eecf` retained 9 PASS / 1 FAIL / 6 NOT_RUN (dedicated
+Browser 0/1/6), false stock and receipt `d1c9d33de3a6fc223e2a4a7e58f41e634e15af6eb81f4e7738125f5c63426e4c`.
+The previously deferred P3 is now an observed blocking access-loss defect. The r13
+candidate preserves the primary denial after private-view disposal, guards late
+journal completion and locks its exact operation through persistence. It also
+implements the newly delegated reusable material-source v7 transition. Four old
+commissions remain spent 2/2, 2/2, 1/1 and 1/1: six consumed invocations, plus the
+separate ordinary Web root. New source/commitment acceptance, actual authority and
+live admission are required before another deciding run. Qualification remains
+HOLD pending actual execution and independent receiving audit. The following
+r10–r12 paragraphs are historical snapshots, not unused current authority.
+
 The r10 terminal Full on `80e37e44bb44` ended at 6 PASS / 1 FAIL / 9 NOT_RUN,
 with separate false stock. Integration, operability and every dedicated Browser
 phase remain unexecuted. Commission 6719208780 is spent 1/1; the previous two

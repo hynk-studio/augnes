@@ -389,8 +389,9 @@ function runWorkChange(action) {
     try { await action(); }
     finally {
       workChangeActive = false;
-      lockReassessmentFields();
-      if (!accessLost) fields.disabled = false;
+      // Access loss owns disposal of the private view. Settle the operation
+      // flag without touching that disposed view or replacing its primary error.
+      if (!accessLost) { lockReassessmentFields(); fields.disabled = false; }
     }
   });
 }
