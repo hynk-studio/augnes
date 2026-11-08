@@ -139,6 +139,7 @@ export async function checkPreparationPreviewResponse(browser, kind) {
     '#selected-note-time', '#selected-note-text', '#selected-note-provenance', '#selected-note-kind', 'input[maxlength="500"]'];
   const original = await evaluate("document.querySelector('#new-work-goal').value");
   await ui.hold(kind === "result" ? "preview_result_work" : "preview_new_project_work");
+  await waitForCondition("!!document.querySelector('[data-augnes-primary-action=preview-new-work]:not(:disabled)')", "preparation preview enabled after source comparison");
   await ui.click('[data-augnes-primary-action="preview-new-work"]');
   await ui.held();
   for (const selector of fields) {

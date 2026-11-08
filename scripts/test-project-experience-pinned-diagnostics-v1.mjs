@@ -132,7 +132,7 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
     ["      selected_note_save_correction_reopened_readback: true, note_only_work_definition_unchanged: true,\n      pending_departure_revision_readback: true,\n", "      selected_note_save_correction_reopened_readback: true, work_definition_unchanged: true,\n"],
   ];
   const nativeSource = readFileSync(new URL('./native-work-preparation-browser-checks.mjs', import.meta.url), 'utf8');
-  assert.equal(hash(tokens(nativeSource)), '45554d27690f0e98d007f3c793d0ea62e4e8a9a1a6f03422e9e40647598870e0', 'exact Native preparation regression owner');
+  assert.equal(hash(tokens(nativeSource)), 'b25eaf66eeb25304e4d97f44e78fbec2d91b74fe7316ca270c7cd9c058f077a8', 'exact Native preparation regression owner');
   const assertNativeSites = text => { for (const [addition] of nativePreparationAdditions)
     assert.equal(text.split(addition).length, 2, 'exact required Native preparation call site'); };
   assertNativeSites(source);

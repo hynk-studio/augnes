@@ -295,8 +295,37 @@ async function main(semanticOnly = false) {
       await set(tabB, "#new-work-goal", "B different new work"); await set(tabB, "#new-work-success-criteria", "A history remains separate");
       await tabB.eval("document.querySelector('[data-selected-work-sources]').open=true");
       await set(tabB, 'input[maxlength="500"]', 'B prior note does not support the different task');
+      // Keep the genuine comparison response pending. A real user cannot
+      // preview until this owner enables the action; a disabled click is lost.
+      await nativeB.hold('compare_selected_work_sources');
       await click(tabB, '[data-selected-source-action="compare"]');
-      await checkPreparationPreviewResponse(browser(tabB, b), 'different');
+      await nativeB.held();
+      assert.equal(await tabB.eval("document.querySelector('[data-augnes-primary-action=preview-new-work]').disabled"), true);
+      await tabB.eval("void (window.__heldSourceComparison = window.__nativePreparationResponse)");
+      const previewBrowser = browser(tabB, b);
+      let comparisonPending = true, disabledPreviewClicks = 0, releasePoint: string | null = null;
+      const previewCheck = checkPreparationPreviewResponse({ ...previewBrowser,
+        waitForCondition: (expression: string, label: string) => {
+          if (expression.includes('preview-new-work') && expression.includes(':not(:disabled)')) releasePoint = 'wait_for_ready';
+          return previewBrowser.waitForCondition(expression, label);
+        },
+        cdp: { send: async (method: string, params: Record<string, unknown>) => {
+          if (comparisonPending && method === 'Input.dispatchMouseEvent' && params.type === 'mousePressed' &&
+            await tabB.eval("document.querySelector('[data-augnes-primary-action=preview-new-work]').disabled")) disabledPreviewClicks++;
+          const result = await tabB.send(method, params);
+          if (comparisonPending && method === 'Input.dispatchMouseEvent' && params.type === 'mouseReleased') releasePoint ??= 'disabled_click';
+          return result;
+        } },
+      }, 'different');
+      void previewCheck.catch(() => {}); // Preserve the original failure below without an unhandled rejection.
+      await until(async () => releasePoint !== null, 'preview driver observes pending source comparison');
+      console.log(JSON.stringify({ native_preparation_action_readiness: { genuine_comparison_held: true,
+        comparison_status: await tabB.eval('window.__heldSourceComparison.status'), release_point: releasePoint,
+        disabled_preview_clicks: disabledPreviewClicks, manufactured_response: false } }));
+      await tabB.eval("window.__heldSourceComparison.release(); delete window.__heldSourceComparison");
+      comparisonPending = false;
+      await previewCheck;
+      assert.equal(disabledPreviewClicks, 0, 'The driver waits for the ordinary preview action instead of losing a disabled click');
       await until(() => tabB.eval("!!document.querySelector('[data-new-work-preview]')"), "B_new_work_preview");
       const newWorkConflict = await tabB.eval(`(async()=>{const h={'Augnes-Project-Id':${JSON.stringify(b.project_id)},'content-type':'application/json'};const r=await fetch('/api/vnext/operator/project-continuity',{headers:h});const w=(await r.json()).work_initialization;return(await fetch('/api/vnext/operator/project-continuity',{method:'POST',headers:h,body:JSON.stringify({action:'revise_pre_execution_project_work',workspace_id:w.workspace_id,project_id:w.project_id,expected_active_project_id:w.project_id,expected_active_selection_revision:w.active_selection_revision,expected_project_work_binding:w.project_work_binding,expected_current_packet_id:w.current_packet.packet_id,expected_current_packet_fingerprint:w.current_packet.packet_fingerprint,expected_current_lineage_kind:w.current_packet.lineage_kind,...w.current_work,goal:'B competing preparation'})})).status})()`);
       assert.equal(newWorkConflict, 201); await click(tabB, '[data-new-work-action="save"]');
