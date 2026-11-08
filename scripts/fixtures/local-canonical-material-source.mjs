@@ -169,8 +169,13 @@ export async function runMaterialSourceControls(c,h,group) {
   }
   assert.throws(()=>inspect(p,{...c.live,inventory:digest('different live input')}));
   for(const original of Object.values(p.originals)) {const file=path.join(c.artifacts,original.artifact),bytes=readFileSync(file);h.write(file,Buffer.concat([bytes,Buffer.from('\n')]));try{assert.throws(()=>inspect(p));}finally{h.write(file,bytes);}}
+  // Prove the ordinal-two acquisition predecessor is accepted before mutating
+  // it, so an unrelated ordinal refusal cannot mask these negative controls.
+  assert.equal(c.prior.attempt.source_correction.commission.ordinal,2);
+  const verifyPredecessor=r=>verifyGitRevisionFailure(r,c.materialStock,c.inputs,REVIEWED_REVISION_PHASES,2,false);
+  assert.doesNotThrow(()=>verifyPredecessor(c.prior));
   for(const mutate of [r=>r.outcome.disposition='completed_success',r=>r.outcome.disposition='unknown_relevance',r=>r.outcome.safety='blocked',r=>r.cleanup.completed=false,r=>r.phases.find(v=>v.status==='failure').cleanup.termination_reason='cancelled']) {
-   const r=clone(c.prior);mutate(r);assert.throws(()=>verifyGitRevisionFailure(r,c.materialStock,c.inputs,REVIEWED_REVISION_PHASES,1,false));
+   const r=clone(c.prior);mutate(r);assert.throws(()=>verifyPredecessor(r),/revision_browser_failure_invalid/);
   }
   for(const role of ['review','grant','delegation']) {
    const rec=role==='delegation'?Object.values(c.authority.linked)[0]:c.authority[role],original=clone(rec);

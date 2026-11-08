@@ -1519,8 +1519,11 @@ edges byte-for-byte; source rollback does not reopen any consumed allowance.
 
 Current admission, preparation, receipt/stock/export and physical reconstruction
 refuse the `commission.reviewed_workload` field, including false/null markers,
-schema downgrades and mixed chains with a later otherwise supported tip. There
-is no current-code fallback or copied controller archive. The merged #1594 r13
+and schema downgrades. Preparation, admission and physical stock reconstruction
+also refuse mixed chains with a later otherwise supported tip. A structural
+private export does not traverse physical ancestry and cannot establish that a
+retired predecessor is absent. There is no current-code fallback or copied
+controller archive. The merged #1594 r13
 Full/Browser PASS and separate valid stock retain their original attribution;
 this cleanup does not revalidate or rewrite them. Normal v7, Browser v8/v9,
 Git v10, acquisition and reusable material-source controls remain current. The
