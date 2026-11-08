@@ -16,6 +16,13 @@ export const AUXILIARY_EXECUTION_BUDGETS = Object.freeze({
   // Revision now includes the acquisition controls (~4.35s observed) before
   // the original serial workload. Keep its former 15s plus 5s for that work;
   // the suite's 30s bound and intentional inner deadlines are unchanged.
+  // Git-successor also serializes two behavior/stock executions and substantive
+  // proof/refusal checks (~10.15s focused, ~6.99s parent synchronous work plus
+  // ~2.22s inside cold readers). Its retained Full exhausted 15s at reader two;
+  // the measured reader-two start still preceded ~3.47s of reader/parent work.
+  // A 5s aggregate reserve covers that observed tail with ~1.53s headroom, not
+  // a claim about the old unknown delay. Keep each reader's 15s bound, behavior's
+  // 5s bound, the 30s outer owner and every other group unchanged.
   reviewRevisionFixtureMs: 20_000,
   reviewAdverseFixtureMs: 12_000,
   reviewChildResultHarnessMs: 60_000,

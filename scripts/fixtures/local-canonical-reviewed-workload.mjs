@@ -1,5 +1,6 @@
 // Disposable synthetic lineage only. Never consumes a real commission.
 import assert from "node:assert/strict";
+import { fixtureNow } from "./local-canonical-authority-clock.mjs";
 import {readFileSync,existsSync,writeFileSync} from "node:fs";
 import path from "node:path";
 import {digest} from "../local-canonical-inputs.mjs";
@@ -12,7 +13,7 @@ import {baseReceipt} from "./local-canonical-receipt-v3.mjs";
 import {executeFixture,dependencyRecords,behavior} from "./local-canonical-browser-successor.mjs";
 
 let previous=0;
-const clone=structuredClone, time=()=>new Date(previous=Math.max(Date.now(),previous+1)).toISOString();
+const clone=structuredClone, time=()=>new Date(previous=Math.max(fixtureNow(),previous+1)).toISOString();
 const registration="scripts/test-local-canonical-review-corrections.mjs",budgets="scripts/local-canonical-closeout-budgets.mjs";
 const command="node "+registration+" --reviewed-revision-controls revision";
 const decisions=Array.from({length:14},(_,i)=>"synthetic required control "+i);

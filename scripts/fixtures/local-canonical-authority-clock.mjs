@@ -1,15 +1,12 @@
-// Exercise adjacent millisecond reads while constructing acquisition fixture
-// records. Only the synthetic fixture's time() helper advances; production
-// reader clocks, child deadlines and real GitHub records keep the native clock.
-const nativeNow = Date.now;
-let previous = nativeNow();
-Date.now = () => {
-  const stack = new Error().stack;
-  if (stack.includes("at time (") &&
-      stack.includes("fixtures/local-canonical-reviewed-revision.mjs") &&
-      stack.includes("acquisitionProposalControls")) {
-    previous = Math.max(nativeNow(), previous + 1);
-    return previous;
-  }
-  return nativeNow();
-};
+// Only synthetic record authors use this clock. Shared receipt helpers inherit
+// the acquisition callback's adjacent ticks across awaits; production clocks,
+// deadlines, unrelated groups and fresh processes keep native Date.now.
+import { AsyncLocalStorage } from "node:async_hooks";
+
+const acquisitionClock = new AsyncLocalStorage();
+export const fixtureNow = () => acquisitionClock.getStore()?.() ?? Date.now();
+
+export function withAdjacentAuthorityClock(callback, nativeNow = Date.now) {
+  let previous = nativeNow();
+  return acquisitionClock.run(() => previous = Math.max(nativeNow(), previous + 1), callback);
+}

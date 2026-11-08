@@ -2948,6 +2948,20 @@ verification and Draft review remain recorded with the candidate PR.
 
 ### Current P2/P5 candidate — Consumer-current return reassessment (#1593)
 
+The r10 terminal Full on `80e37e44bb44` ended at 6 PASS / 1 FAIL / 9 NOT_RUN,
+with separate false stock. Integration, operability and every dedicated Browser
+phase remain unexecuted. Commission 6719208780 is spent 1/1; the previous two
+commissions remain separately spent 2/2. The revised revision aggregate passed;
+the different Git-successor aggregate exhausted its unchanged 15-second bound.
+The r11 development correction scopes the synthetic clock, retains pending
+child ownership through failure and gives only the complete Git-successor
+aggregate the existing 20-second allowance. Accepted product behavior is unchanged.
+The [concrete post-terminal proposal](../verification/1593_GIT_SUCCESSOR_QUALIFICATION_PROPOSAL.md)
+is review material, not an adopted reader route. The actual terminal-first edge
+still refuses continuation. Qualification remains HOLD; no new Full, reservation,
+stock refresh, delegation or commission is performed in r11. Earlier snapshots
+below retain their original source and authority scope.
+
 The [existing returned-file use](../../apps/web_planning/README.md#reconsider-an-existing-returned-file-use-1593)
 now connects to a current decision in each consuming work. Exact old basis/output,
 explicit new saved evidence, retention/update/deferral/end-use, actual saved output

@@ -1029,6 +1029,17 @@ All earlier grants, root/family edges, ordinals, receipts and false stock remain
 immutable. Implementation, synthetic admission and read-only preparation provide
 no execution authority. This candidate does not publish a new delegation or grant.
 
+The later Git-successor fixture correction changes only that serial aggregate
+to the existing 20-second review allowance. The producer stays at 15 seconds,
+fresh readers at 15 seconds, behavioral children at 5 seconds and the outer
+owner at 30 seconds. Complete focused timing and the original timeout support
+bounded headroom; they do not reconstruct the historical last statement or
+guarantee Full completion. Scoped synthetic clocks and pending-child tracking
+preserve native production time and truthful cleanup. The
+[post-terminal proposal](../docs/verification/1593_GIT_SUCCESSOR_QUALIFICATION_PROPOSAL.md)
+is not adopted: this paragraph grants no successor, preparation commitment,
+commission or deciding invocation after the marked terminal attempt.
+
 An inventory-bound ordinal two may also follow a settled ordinal one whose Full
 and Browser phases all passed naturally but whose only fault occurred in the final
 Web dependency observation. The v2 Web record must have the cache-safety error

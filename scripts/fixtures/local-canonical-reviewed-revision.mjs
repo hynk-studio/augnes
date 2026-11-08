@@ -1,5 +1,7 @@
 // Synthetic fixture only: production proof, authority, edge and fresh reader.
-import "./local-canonical-authority-clock.mjs";
+import { fixtureNow, withAdjacentAuthorityClock } from "./local-canonical-authority-clock.mjs";
+import { createTrackedReviewChildRunner } from "./local-canonical-review-child-result.mjs";
+import { behavior } from "./local-canonical-browser-successor.mjs";
 import assert from "node:assert/strict";
 import {chmodSync,cpSync,existsSync,lstatSync,realpathSync,mkdirSync,readFileSync,renameSync,rmSync,statSync,writeFileSync} from "node:fs";
 import path from "node:path";
@@ -23,7 +25,7 @@ import {baseReceipt} from "./local-canonical-receipt-v3.mjs";
 
 const self=fileURLToPath(import.meta.url), quiet={write(){}}, clone=v=>structuredClone(v);
 const write=(f,v)=>{mkdirSync(path.dirname(f),{recursive:true,mode:0o700});writeFileSync(f,typeof v==="string"||Buffer.isBuffer(v)?v:JSON.stringify(v),{mode:0o600});};
-const read=f=>JSON.parse(readFileSync(f,"utf8")), time=n=>new Date(Date.now()+n).toISOString();
+const read=f=>JSON.parse(readFileSync(f,"utf8")), time=n=>new Date(fixtureNow()+n).toISOString();
 // A handoff retains synthetic service identity, not a reusable current observation.
 // Model a new read at each consumer boundary; historical receipt bytes stay frozen.
 const observeFixtureLive=c=>{
@@ -171,13 +173,8 @@ async function prepareSettlement(c) {
 // Proposed edge controls are synthetic, use the existing fixture/ledger/transport,
 // and never touch the actual commission or retained receipt.
 async function acquisitionProposalControls(parentRoot, lifecycle, workload = false) {
-  const runOwned = async options => {
-    lifecycle.pendingChildren++;
-    const result = await runCanonicalChild(options);
-    if (result.exit_observed && result.streams_closed && result.cleanup_completed && result.remaining_owned_processes === 0)
-      lifecycle.pendingChildren--;
-    return result;
-  };
+  return withAdjacentAuthorityClock(async () => {
+  const runOwned = createTrackedReviewChildRunner(lifecycle, runCanonicalChild);
   const root=path.join(parentRoot,"acquisition-proposal");mkdirSync(root);
   const c=setup(root), findings=[];
   const input="scripts/local-canonical-inputs.mjs", driver="scripts/acquisition-driver.mjs";
@@ -314,6 +311,7 @@ async function acquisitionProposalControls(parentRoot, lifecycle, workload = fal
     if(workload) await runReviewedWorkloadControls(c,{prepare,proof,auth,begin,receipt,artifact,write,read,storeReceipt,run:runOwned,fresh:packet=>freshReader(c,packet,runOwned),freshInterrupted:packet=>runOwned({command:process.execPath,args:[self,"--cold-workload",packet],cwd:c.checkout,env:c.env,suite:"reviewed-revision",label:"fresh terminal stock",timeoutMs:10000,stdout:quiet,stderr:process.stderr})},admitted,attempt,capability);
     return findings;
   } finally {if(lifecycle.pendingChildren===0)releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
+  });
 }
 
 if(process.argv[2]==="--cold"){
@@ -347,7 +345,8 @@ if(process.argv[2]==="--cold"){
   assert(physical.isDirectory() && realpathSync(handoff.root) === handoff.root && physical.uid === process.getuid() &&
     (physical.mode & 0o777) === 0o700 && String(physical.dev) === handoff.device && String(physical.ino) === handoff.inode);
   const dir = path.join(handoff.root,group.startsWith("git") ? "git-case" : group.startsWith("final") ? "final-case" : group.startsWith("post-pass") ? "post-pass-case" : "prospective-fixture");
-  const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
+  const owner=createCanonicalTestResourceRoot("ag-resource-test-"), lifecycle={pendingChildren:0};beginCanonicalTestResourceUse(owner);
+  const runOwned=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);
   let c;
   try {
     if (group === "git") {mkdirSync(dir,{mode:0o700}); c=setup(dir,"git");}
@@ -360,7 +359,8 @@ if(process.argv[2]==="--cold"){
       c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});
       c.live=observeFixtureLive(c);
     }
-    const helpers={prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,finish:finishAttempt,fresh:packet=>freshReader(c,packet),
+    const helpers={prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,finish:finishAttempt,
+      run:runOwned,behavior:(subject,syntaxOnly=false)=>behavior(subject,syntaxOnly,runOwned),fresh:packet=>freshReader(c,packet,runOwned),
       snapshot:path.join(handoff.root,"prospective-fixture"),fork:path.join(handoff.root,"final-case"),positive:path.join(handoff.root,"post-pass-case")};
     if (group==="git") await runGitRevisionControls(c,helpers);
     else if (group==="git-successor") await completeGitRevisionControls(c,helpers);
@@ -372,8 +372,9 @@ if(process.argv[2]==="--cold"){
       write(path.join(dir,"context.json"),{...state,proofPath:path.relative(c.checkout,c.file)});
     }
   } finally {
-    if (c?.owner) releaseCheckoutVerificationOwnership(c.owner,c.checkout);
-    settleCanonicalTestResourceUse(owner,{exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0});
+    if (lifecycle.pendingChildren===0 && c?.owner) releaseCheckoutVerificationOwnership(c.owner,c.checkout);
+    settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,
+      cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});
     assert(cleanupCanonicalTestResources([owner])[0].completed);
   }
 }else if(process.argv[2]==="--run-browser-fixtures"){

@@ -24,6 +24,18 @@ const projectProgress = progress => progress && progressStages.has(progress.stag
   integer(progress.completed_controls, 0, 59) !== null
   ? { stage: progress.stage, completed_controls: progress.completed_controls } : null;
 
+// Retain pending ownership on a thrown or incompletely settled child. A clean
+// exit 1 is still settled; the behavioral caller owns its expected-code check.
+export function createTrackedReviewChildRunner(lifecycle, run) {
+  return async options => {
+    lifecycle.pendingChildren++;
+    const result = await run(options);
+    if (result.exit_observed && result.streams_closed && result.cleanup_started && result.cleanup_completed && result.remaining_owned_processes === 0)
+      lifecycle.pendingChildren--;
+    return result;
+  };
+}
+
 export function projectReviewChildResult(result, { controlId, progress = null }) {
   return {
     control_id: identifier(controlId, /^[a-z][a-z0-9-]{0,63}$/u) ?? "unclassified-control",

@@ -126,7 +126,7 @@ try {
       }
       const result = await child([fixture, "--run-" + name + "-fixtures", ...(groups.indexOf(name) >= 3 ? [JSON.stringify(handoff)] : [])], {
         controlId: name === "revision" ? "reviewed-revision" : "reviewed-revision-" + name,
-        timeoutMs: ["revision", "workload"].includes(name) ? AUXILIARY_EXECUTION_BUDGETS.reviewRevisionFixtureMs : 15000,
+        timeoutMs: ["revision", "workload", "git-successor"].includes(name) ? AUXILIARY_EXECUTION_BUDGETS.reviewRevisionFixtureMs : 15000,
         stdout: process.stdout, stderr: process.stderr,
       });
       assert.equal(result.exit_code, 0, lastChildDiagnostic);

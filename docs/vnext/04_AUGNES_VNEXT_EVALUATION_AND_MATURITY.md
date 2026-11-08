@@ -253,6 +253,48 @@ remain separate claims; appropriate non-use or simplification remains valid.
 
 ### Consumer-current reassessment evidence (#1593)
 
+The r10 receipt `f5de3f325a9c1d11abdab550a6620fbc5ca87a61ddf892b82d6476629a2824b8`
+retains 6 PASS / 1 FAIL / 9 NOT_RUN and false stock. The corrected revision group
+passed naturally at 15,197 ms. Git-successor received SIGTERM at 15,130 ms against
+its separate 15-second aggregate; the outer 30-second owner exited naturally.
+The last event is reader two starting, not proof that its own limit expired or
+that 130 ms more would suffice. Its last statement and total delay remain UNKNOWN.
+
+One r11 development observation used an immutable `80e37e44bb44` archive with
+explicit stage/cost instrumentation and the unchanged producer/successor bounds.
+Both groups passed naturally; the successor fixture took 10,147 ms. Its parent
+made 1,167 synchronous subprocess calls taking 6,989 ms, including 1,066 protected
+Git calls taking 6,442 ms. Reader one and two took 984 ms and 1,339 ms internally,
+with 942 ms and 1,276 ms synchronous work. Preparation/refusal checks took
+1,774 ms and authority/refusal checks 2,016 ms. Reader two began at 6,678 ms;
+after it settled at 8,132 ms, about 2,014 ms of parent checks remained. Parent
+cleanup and the outer resource cleanup are separate measured costs. These new
+observations do not reconstruct the missing historical stage timing.
+
+The stack-clock wrapper cost about 29 ms across the successor and two readers;
+it is not a demonstrated latency cause. No substantive repeated check was
+shown unnecessary. Only the Git-successor aggregate receives 5 seconds of
+additional headroom, using the existing 20-second allowance within its 30-second
+outer owner. The clock correction removes global `Date.now` replacement and
+uses an acquisition-scoped fixture clock across shared async helpers. Single
+captured record timestamps and edited-record refusals remain. Tracked children
+separately correct an unconditional cleanup declaration; thrown/unsettled
+children retain ownership while naturally settled exit 1 does not create a leak.
+Focused completion is development evidence and cannot replace the nine missing
+Full phases. The [post-terminal proposal](../verification/1593_GIT_SUCCESSOR_QUALIFICATION_PROPOSAL.md)
+has no applied authorization route, and all five old reservations remain consumed.
+
+The corrected working-source blobs completed all thirteen existing registrations
+with `node scripts/run-canonical-test-suite.mjs authority --reviewed-revision-only`
+in 103,969 ms, naturally, with owned cleanup. Git producer/successor took
+2,705/10,262 ms; revision/workload took 13,395/14,410 ms. The existing child-result
+regression passed in 3,310 ms, including native clock identity, nested/async scope,
+success/throw restoration, real settled exit 1 and refusal to settle an unresolved
+child. These are focused fixture controls, not product Browser or deciding Full
+coverage. The complete runtime is pinned Node 24.22.1 with its retained headers;
+private originals bind the tested working bytes rather than relabeling the old
+80e37e44 commit as this candidate.
+
 The r8 second receipt `4d92dda28a2ffd28c5cbe4beb0c341af821a6e68f453ff1ca4994df424603a81`
 retains 6 PASS / 1 FAIL / 9 NOT_RUN and separate false stock. The inner
 reviewed-revision aggregate was terminated at 15,071 ms against 15,000 ms;
