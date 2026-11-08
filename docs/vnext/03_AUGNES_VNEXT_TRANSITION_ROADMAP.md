@@ -1600,6 +1600,17 @@ workflow-cost release, prior RETAIN observations and their limits. The existing
 package's multi-file dependency is incompatible with Agensi's documented
 single-temporary-script delivery. [Channel preparation and disposition](../PUBLIC_ASSET_SKILL_USAGE.md#additional-distribution-channels)
 record this mismatch and the next check.
+
+The 2026-11-09 selected implementation prepares `verify-software-change` as
+**Augnes Software Change Check 0.1.0**, one free four-file Skill under #1447.
+[Packaging and listing material](../SOFTWARE_CHANGE_SKILL_DISTRIBUTION.md)
+reuse the unchanged standalone observer and add explicit delivery guidance,
+a developer-supplied example, a create-only ZIP builder and focused delivery
+checks. This is a source candidate for review, not a new release or live Agensi
+listing. Account access, marketplace submission/review and actual MCP consumption
+retain their own operational status; the immutable workflow-cost release is
+unchanged. No separate marketplace framework or new ownership issue is created.
+
 Actual marketplace submission, installed Mac setup/Resume and comparative
 benefit remain separate observations. A connection/service blocker does not
 prevent independent source work; source work does not qualify an installed host.

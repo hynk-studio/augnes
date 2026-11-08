@@ -5,9 +5,12 @@ description: Verify a concrete installation, package-delivery, dependency or ver
 
 # Verify a software change
 
+Augnes Software Change Check · version 0.1.0 · free component preview.
+
 Verify one actual change, environment and user path. Use existing project tests
-and verifiers; preserve their acceptance rules. This source preview needs no
-Augnes, account or MCP service. It does not install dependencies or choose a
+and verifiers; preserve their acceptance rules. No Augnes runtime, account or
+service is needed. Agensi delivery requires the consumer's Agensi connection;
+the same files also work directly. Do not install dependencies or choose a
 version change merely to create a demonstration.
 
 1. Identify the requested behavior, exact baseline/candidate or installation
@@ -46,6 +49,28 @@ receipt authority or general deployment framework. A correct refusal or a useful
 failure report can complete this investigation without declaring the software
 compatible. A local hash establishes identity relative to supplied bytes, not
 publisher authenticity or permission to distribute private inputs.
+
+## Receive the material
+
+Read the handoff reference when preparing the result. Fetch the snapshot helper
+only when selected-file identity or drift matters. Keep the subject's existing
+checks central; a matching snapshot does not establish working behavior.
+
+- **Directory delivery:** use the files from the received Skill directory.
+  Run the commands below from that directory, or use its actual absolute path.
+- **Agensi / individual-file delivery:** read referenced text through the host's
+  file loader. Fetch `scripts/snapshot_inputs.py`, write its exact received bytes
+  to one task-owned temporary `.py` file, and replace `scripts/snapshot_inputs.py`
+  in the commands below with that actual path. Do not recreate a package folder,
+  import a checkout copy, or rewrite the script. Remove that temporary script
+  after use. Snapshot JSON and the report are work outputs, not installed Skill
+  files; retain them only where the task permits.
+- **Reading-only host:** inspect the available sources and explain the concrete
+  execution requirement. Mark commands not run; do not invent an executed result.
+
+The [request and result example](examples/request-and-result.md) shows a bounded
+delivery investigation, including a useful failure. Use it to understand the
+report, not as evidence about a different package or today's environment.
 
 ## Input snapshots
 
