@@ -103,7 +103,11 @@ export async function runMaterialSourceControls(c,h,group) {
   }
   for(const [key,mutate]of [['after',q=>q.runtime_inputs_sha256=digest('other runtime')],['after',q=>q.environment=digest('other environment')],['before',q=>q.file_sha256=digest('reduced assertions')],
    ['after',q=>q.source_files.pop()],['after',q=>q.modules[0].sha256=digest('wrong owner')],['after',q=>q.result.cleanup_completed=false],['after',q=>q.tested_source_head=c.prior.repository.head_sha]]){
-   const f=clone(focused),w=clone(read(f.regression[key]));mutate(w);f.regression[key]=ref('bad-witness-'+(++n)+'.json',w);
+   const f=clone(focused),original=f.regression[key],w=clone(read(original));mutate(w);f.regression[key]=ref('bad-witness-'+(++n)+'.json',w);
+   // Keep the command bound to the altered witness so the named predicate,
+   // rather than an earlier stale-reference check, is what refuses it.
+   if(key==='after')f.commands=f.commands.map(command=>command.record.artifact===original.artifact&&command.record.sha256===original.sha256
+    ? {...command,record:f.regression.after,stdout:w.stdout,result:w.result,tested_source_head:w.tested_source_head}:command);
    assert.throws(()=>inspect({...p,focused:ref('bad-focus-'+n+'.json',f)}));
   }
   // The complete Browser stdout uses the already supported 2 MiB focused-log
