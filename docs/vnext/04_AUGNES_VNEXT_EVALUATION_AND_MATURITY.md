@@ -312,6 +312,29 @@ New production-reader controls must cover consumed-one preparation, exact incide
 and source/input binding, independent fresh-reader stock, exclusive consumption
 and refusal of every successor. Synthetic acceptance supplies no real authority.
 
+At r12 commit `04a5dc25a98ed8af37209b25ce851d0b006cb07a`, the complete retained
+Git producer/successor driver ran an immutable archive naturally in 14,625 ms
+(2,953/11,119 ms for the two outer children), with complete owned cleanup.
+The unchanged r11 predecessor execution remains the PASS comparison; it was not
+rerun or relabeled. The new terminal fixture chain passed naturally in 36,338 ms:
+workload 17,970 ms, preparation 2,176 ms, refusals 6,563 ms and terminal consumption
+9,562 ms. It exercises production readers, five preserved historical invocations,
+the consumed-one edge, physical-log tampering, ordinary acquisition-one refusal,
+documentation-only witness reuse, incomplete evidence/inventory and edited-scope
+refusals, a separately owned late contender, fresh false stock and terminal export.
+
+The complete sixteen-registration reviewed-revision chain passed earlier in
+126,241 ms on the recorded r12 working-source hashes over `3f8f761a`; later changes
+added only the focused physical-log/acquisition-one refusal controls and explanatory
+documentation. That earlier result retains its working-source attribution.
+Two development failures remain recorded: a constructed terminal attempt initially
+lacked its complete input fingerprint, then a marker-removal test found incident
+parsing before the terminal edge check. The fixture binding and production ordering
+were corrected. The bounded registration contract required its expected group
+list to include the three new groups; assertions and child deadlines were retained.
+These focused passes provide no deciding receipt or execution authority. The
+future admitted Full, separate stock and independent receiving audit remain distinct.
+
 The corrected working-source blobs completed all thirteen existing registrations
 with `node scripts/run-canonical-test-suite.mjs authority --reviewed-revision-only`
 in 103,969 ms, naturally, with owned cleanup. Git producer/successor took
