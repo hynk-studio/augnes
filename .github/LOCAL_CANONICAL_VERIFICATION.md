@@ -978,8 +978,56 @@ ordinal one consumes on reservation, including interruption. Ordinal two require
 the existing material-correction, independent review, natural-failure and focused
 support conditions; it retains this discriminator and the initial new commission.
 There is no reset, third ordinal, unchanged-target retry, recovery allowance or
-re-entry from this inventory-bound edge. Complete unchanged planner-selected Full,
+re-entry from this inventory-bound edge, except the separately authorized terminal
+workload correction below. Complete unchanged planner-selected Full,
 fresh-process stock and owned-resource cleanup remain mandatory if later admitted.
+
+#### Terminal reviewed-revision workload correction
+
+An inventory-bound v7 proof may retain `input_acquisition` and additionally select
+`commission.reviewed_workload = spent-acquisition-reviewed-workload-v1`.
+It admits only a new prospective ordinal one with `maximum_invocations = 1`,
+following the latest settled acquisition ordinal two. The predecessor must pass
+the existing complete natural-phase-failure reader: sole failed authority phase,
+no input fault, complete owned cleanup, preserved Companion and fully accounted
+false stock. Its non-truncated original authority log must match the retained
+physical log and contain exactly one settled `reviewed-revision` child terminated
+by SIGTERM at its 15-second aggregate bound. This is a nested timeout; the outer
+natural exit does not turn it into a natural RED behavioral witness.
+
+The correction changes the implicated revision registration and budget owners,
+preserving all substantive assertions and intentional child deadlines. Bind the
+same complete revision command on the actual predecessor and final target,
+their source/runtime identities, natural PASS and all fourteen original control
+groups, output originals and cleanup. The earlier passing focused run and the
+retained Full timeout jointly describe the inadequate aggregate headroom; neither
+establishes the unknown historical last statement or scheduling cause. The actual
+final candidate needs its own natural complete focused execution. A generic
+failure, incomplete witness, observer cancellation, unsafe input, altered stock,
+old source or reduced control set refuses.
+
+This requires a genuinely new, unedited, authenticated terminal task delegation
+after that predecessor's completion, not the prior acquisition delegation. Its
+four operative paragraphs identify this branch/PR, exact predecessor family,
+attempt and receipt; preserve all historical UNKNOWNs and four spent ordinals;
+and delegate faithful publication only after independent exact-source and real
+preparation acceptance. The production reader owns its exact wording. The new
+independent acceptance and subsequent grant both state:
+`Historical windows remain UNKNOWN; both prior commissions, their false stock and all four spent ordinals remain unchanged.`
+The grant starts with `Authorize one NEW prospective v7 reviewed_revision commission for the terminal reviewed-revision workload correction.`
+It binds the new delegation, exact source, preparation commitment and independent
+acceptance, exactly one admitted deciding invocation total, reservation/interruption
+consumption, no ordinal two/recovery/unchanged retry/successor/replacement, complete
+Full, separate fresh-process stock and independent result audit.
+
+Existing preparation, authenticated transport, current-main/exact-source checks,
+full source/input inventory, runtime identity, exclusive ledger, capacity and
+preservation owners remain mandatory. The marker is part of commission identity,
+physical replay and sanitized export. Any successor of this marked invocation is
+refused before considering another route, including marker removal or a new grant.
+All earlier grants, root/family edges, ordinals, receipts and false stock remain
+immutable. Implementation, synthetic admission and read-only preparation provide
+no execution authority. This candidate does not publish a new delegation or grant.
 
 An inventory-bound ordinal two may also follow a settled ordinal one whose Full
 and Browser phases all passed naturally but whose only fault occurred in the final

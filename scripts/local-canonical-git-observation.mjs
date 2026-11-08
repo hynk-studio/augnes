@@ -13,6 +13,10 @@ export const isInventoryBoundRevision = p => p?.schema === "augnes.local-canonic
 export const GIT_ACQUISITION_REPAIR = "coherent-git-file-acquisition-v1";
 export const isGitAcquisitionRevision = p => isInventoryBoundRevision(p) &&
   p.commission?.input_acquisition === GIT_ACQUISITION_REPAIR;
+export const REVIEWED_WORKLOAD_CONTINUATION = "spent-acquisition-reviewed-workload-v1";
+export const isReviewedWorkloadRevision = p => isGitAcquisitionRevision(p) &&
+  p.commission?.reviewed_workload === REVIEWED_WORKLOAD_CONTINUATION;
+export const WORKLOAD_HISTORY_BOUNDARY = "Historical windows remain UNKNOWN; both prior commissions, their false stock and all four spent ordinals remain unchanged.";
 export const usesGitInventory = p => isGitObservationRevision(p) || isInventoryBoundRevision(p);
 
 const equal = (a,b) => a !== undefined && b !== undefined && digest(a) === digest(b);
@@ -208,6 +212,59 @@ export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expecte
     fail("revision_git_predecessor_invalid");
   if (forward) return verifyFinalDependencyFailure(receipt, stock, inputs, phases);
   verifySettledPhaseFailure(receipt, stock, inputs, phases, resources.find(r => r.id === "browser-executable"), false, expectedOrdinal);
+}
+
+// One prospective workload correction, not a repaired historical timeout or an
+// additional slot in either spent commission. The ordinary complete failure
+// reader above still checks every phase, input, Browser record and stock issue.
+export function verifyReviewedWorkloadRepair(p, prior, original, focused, {git, parse, bytes, completedAt}) {
+  const registration = "scripts/test-local-canonical-review-corrections.mjs";
+  const budgets = "scripts/local-canonical-closeout-budgets.mjs";
+  const command = "node " + registration + " --reviewed-revision-controls revision";
+  const phase = original.phases.find(v => v.status === "failure");
+  const w = focused.workload;
+  if (!isGitAcquisitionRevision(prior.source_correction) || isReviewedWorkloadRevision(prior.source_correction) ||
+      prior.source_correction.commission.ordinal !== 2 || phase?.id !== "authority" ||
+      phase.log?.truncated !== false || phase.log.relative_path !== ".augnes-local-verification/logs/"+prior.attempt_id+"/authority.log" ||
+      !w || !equal(Object.keys(w).sort(),["after","before","historical_log"]) ||
+      !equal(focused.implicated_paths,[budgets,registration]) || !equal(focused.input_remedy_resources,[]))
+    fail("revision_workload_predecessor_invalid");
+  const log = bytes(w.historical_log);
+  if (log.length !== phase.log.bytes) fail("revision_workload_log_invalid");
+  const prefix = "AUGNES_REVIEW_CHILD_RESULT ";
+  const children = log.toString("utf8").split(/\r?\n/u).filter(l=>l.startsWith(prefix)).map(l=>JSON.parse(l.slice(prefix.length)));
+  const failed = children.filter(v=>v.control_id === "reviewed-revision");
+  if (failed.length !== 1 || children.filter(v=>v.timed_out===true).length!==1 || failed[0].exit_code !== null || failed[0].signal !== "SIGTERM" ||
+      failed[0].timed_out !== true || failed[0].cancelled !== false || failed[0].spawn_error_code !== null ||
+      failed[0].termination_reason !== "bounded_timeout" || !Number.isSafeInteger(failed[0].duration_ms) || failed[0].duration_ms < 15000 ||
+      !["exit_observed","streams_closed","cleanup_started","cleanup_completed"].every(k=>failed[0][k]===true) || failed[0].remaining_owned_processes !== 0)
+    fail("revision_workload_log_invalid");
+  const before=parse(w.before), after=parse(w.after), controls=[];
+  for (const [witness,head] of [[before,prior.head],[after,p.head]]) {
+    const r=witness.result;
+    if(witness.tested_source_head!==head || witness.command!==command || witness.runtime_inputs_sha256!==p.inputs.identity_sha256 ||
+       !sha(witness.environment) || witness.environment!==before.environment ||
+       witness.fixture_sha256!==digest(git(["show",head+":scripts/fixtures/local-canonical-reviewed-revision.mjs"])) ||
+       witness.node_version!==CANONICAL_NODE_VERSION || witness.registration_sha256!==digest(git(["show",head+":"+registration])) ||
+       witness.budgets_sha256!==digest(git(["show",head+":"+budgets])) || r?.exit_code!==0 || r.signal!==null ||
+       r.timed_out!==false || r.cancelled!==false || r.spawn_error_code!==null || r.termination_reason!=="natural_exit" ||
+       !["exit_observed","streams_closed","cleanup_started","cleanup_completed"].every(k=>r[k]===true) || r.remaining_owned_processes!==0 ||
+       !(Date.parse(witness.finished_at)>Date.parse(completedAt))) fail("revision_workload_focused_invalid");
+    const summaries=bytes(witness.stdout).toString("utf8").split(/\r?\n/u).filter(l=>l.startsWith('{"reviewed_revision_controls":')).map(JSON.parse);
+    if(summaries.length!==1 || summaries[0].synthetic_only!==true || summaries[0].reviewed_revision_controls?.length!==14)
+      fail("revision_workload_focused_invalid");
+    controls.push(summaries[0].reviewed_revision_controls);
+  }
+  if(!equal(controls[0],controls[1]) || !(Date.parse(before.finished_at)<Date.parse(after.finished_at) && Date.parse(after.finished_at)<=Date.parse(focused.finished_at)) ||
+     !focused.commands.some(c=>c.command===command && equal(c.record,w.after) && equal(c.stdout,after.stdout))) fail("revision_workload_focused_invalid");
+}
+
+export function delegatesReviewedWorkloadCommission(body,p) {
+  const paragraphs=visibleDelegationParagraphs(body);
+  return paragraphs.length===4 && paragraphs[0]==="Authorize one terminal reviewed-revision workload correction assignment on "+p.branch+" in Draft PR #"+p.pull_request+"." &&
+    paragraphs[1]==="Predecessor: "+p.prior_family_id+" / "+p.prior_attempt_id+" / "+p.prior_receipt_fingerprint+"." &&
+    paragraphs[2]===WORKLOAD_HISTORY_BOUNDARY &&
+    paragraphs[3]==="After independent acceptance of the exact published source and real preparation commitment, authorize the operator to record that decision faithfully and publish one separate new prospective workload commission through the authenticated maintainer identity. Exactly one deciding invocation total; reservation or interruption consumes it. No ordinal two, recovery, unchanged-target retry, successor or replacement commission. Complete planner-selected Full, separate fresh-process stock, owned cleanup and independent result audit remain required.";
 }
 
 // A later audit does not turn this complete successful invocation into a failed

@@ -253,6 +253,35 @@ remain separate claims; appropriate non-use or simplification remains valid.
 
 ### Consumer-current reassessment evidence (#1593)
 
+The r8 second receipt `4d92dda28a2ffd28c5cbe4beb0c341af821a6e68f453ff1ca4994df424603a81`
+retains 6 PASS / 1 FAIL / 9 NOT_RUN and separate false stock. The inner
+reviewed-revision aggregate was terminated at 15,071 ms against 15,000 ms;
+the exact last statement and historical delay cause remain UNKNOWN. Its earlier
+same-head focused run passed naturally at 13,730 ms. The r9 bounded diagnostic
+on that source again completed all fourteen controls naturally (13,453 ms).
+A separately attributed buffered cost observation measured 13,185 ms in the
+fixture: acquisition controls ended at 4,350 ms; 1,579 synchronous subprocesses
+cost 10,168 ms; 1,000 intercepted clock calls cost 39 ms. The latter observation
+uses a private measurement preload, not an unchanged qualification invocation.
+It does not identify the historical scheduler or blame another owner.
+
+No repeated safety check was demonstrated unnecessary. The correction retains
+the original 15-second aggregate allowance plus 5 seconds for the measured
+additional acquisition work. Only the revision group changes to 20 seconds;
+other groups, fresh readers, races, outer 30 seconds and phase deadlines stay
+unchanged. This is measured aggregate budgeting, not proof that every worst-case
+cleanup fits the outer bound or that the original timeout is retrospectively
+repaired. Complete focused natural completion and cleanup on the final source
+remain separate from deciding Full execution.
+
+The terminal continuation's controls use disposable Git history, synthetic
+authority/receipts and the actual production preparation, proof, authority,
+reservation, reconstruction and export owners. These controls cannot supply
+real delegation or execution authority. The explicit one-invocation edge retains
+the acquisition marker, both spent commissions and all UNKNOWN observations,
+and closes every successor route after consumption. The current actual lineage
+is still HOLD until separately authenticated prospective authority is present.
+
 The new prospective commission's first Full on `06a246c942de` stopped naturally
 in the acquisition fixture's authority check: 6 PASS / 1 FAIL / 9 NOT_RUN,
 separate false stock, no input first fault, complete cleanup. Its receipt is

@@ -3002,6 +3002,17 @@ records' precise timestamps were not retained and remain UNKNOWN. A supported
 second candidate still needs exact focused evidence, independent acceptance and
 normal admission under the same new commission; no additional grant is created.
 
+The acquisition commission's second Full on `909355f8a3d` also settled at
+6 PASS / 1 FAIL / 9 NOT_RUN with false stock. Its authority phase exited naturally
+after the nested reviewed-revision aggregate hit its 15-second bound. Both old
+and acquisition commissions are spent 2/2. The r9 candidate gives only this
+expanded aggregate 20 seconds, retaining its 30-second outer bound and all
+intentional inner deadlines. A separately marked, one-invocation terminal
+continuation is implemented for review in the existing v7 owners. It requires
+genuinely new authenticated delegation, commitment-bound independent acceptance
+and a subsequent grant. The prior delegation cannot authorize it. No additional
+Full, reservation, recovery or replacement commission is performed by r9.
+
 Focused production-owner evidence is recorded in 04. Final exact-source planner
 qualification and independent result audit belong to this candidate's PR/evidence.
 The next operational decision remains separately authorized deployment/migration

@@ -90,7 +90,7 @@ export function inspectPrivateReviewExport(value) {
 
 function revisionProofExport(p) {
   return { ...pick(p, ["schema", "kind", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "pull_request"]),
-    commission: pick(p.commission, ["root_family_id", "root_number", "root_attempt_id", "root_receipt_fingerprint", "ordinal", "maximum_invocations", "initial_authorization", "delegation", "input_acquisition"]),
+    commission: pick(p.commission, ["root_family_id", "root_number", "root_attempt_id", "root_receipt_fingerprint", "ordinal", "maximum_invocations", "initial_authorization", "delegation", "input_acquisition", "reviewed_workload"]),
     accepted: { ...pick(p.accepted, ["head", "tree", "base"]), review: pick(p.accepted?.review, ["id", "sha256"]) },
     authorization: { ...pick(p.authorization, ["grant_comment_id", "grant_sha256"]),
       ...(p.authorization?.contract_review ? { contract_review: pick(p.authorization.contract_review, ["pull_request", "id", "sha256", "head"]) } : {}),

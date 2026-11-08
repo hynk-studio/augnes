@@ -18,6 +18,7 @@ import {checkSpentCommission,completeGitRevisionControls,checkFinalDependency,ch
 import {GIT_ACQUISITION_REPAIR,gitAcquisitionIncident,gitRevisionInventory} from "../local-canonical-git-observation.mjs";
 import {CANONICAL_NODE_VERSION} from "../local-canonical-environment.mjs";
 import {inspectGitRevisionPreparation} from "../local-canonical-attempts.mjs";
+import {runReviewedWorkloadControls,workloadFixtureInput} from "./local-canonical-reviewed-workload.mjs";
 import {baseReceipt} from "./local-canonical-receipt-v3.mjs";
 
 const self=fileURLToPath(import.meta.url), quiet={write(){}}, clone=v=>structuredClone(v);
@@ -169,7 +170,7 @@ async function prepareSettlement(c) {
 
 // Proposed edge controls are synthetic, use the existing fixture/ledger/transport,
 // and never touch the actual commission or retained receipt.
-async function acquisitionProposalControls(parentRoot, lifecycle) {
+async function acquisitionProposalControls(parentRoot, lifecycle, workload = false) {
   const runOwned = async options => {
     lifecycle.pendingChildren++;
     const result = await runCanonicalChild(options);
@@ -190,6 +191,13 @@ async function acquisitionProposalControls(parentRoot, lifecycle) {
     return {command:"node "+driver,tested_source_head:c.git(["rev-parse","HEAD"]).toString().trim(),finished_at:time(0),result,environment:digest("synthetic controlled runtime")};
   };
   try {
+    if(workload) {
+      write(path.join(c.checkout,"scripts/workload-other-failure.mjs"),'import assert from "node:assert/strict"; assert.fail("synthetic next failure");\n');
+      write(path.join(c.checkout,"scripts/workload-behavior.mjs"),'import assert from "node:assert/strict"; assert.fail("synthetic prior defect");\n');
+      write(path.join(c.checkout,"scripts/test-local-canonical-review-corrections.mjs"),'// Prior aggregate registration.\n');
+      write(path.join(c.checkout,"scripts/local-canonical-closeout-budgets.mjs"),'export const revised = false;\n');
+      write(path.join(c.checkout,"scripts/fixtures/local-canonical-reviewed-revision.mjs"),'// Synthetic complete-control fixture identity.\n');
+    }
     write(path.join(c.checkout,input),"export const coherent = false;\n");
     write(path.join(c.checkout,driver),'import assert from "node:assert/strict"; import {coherent} from "./local-canonical-inputs.mjs"; console.log({coherent}); assert.equal(coherent,true);\n');commit();
     write(path.join(c.checkout,".git/info/exclude"),".augnes-local-verification/\n");c.git(["update-ref","refs/remotes/origin/main",c.base]);
@@ -282,7 +290,7 @@ async function acquisitionProposalControls(parentRoot, lifecycle) {
       const q=clone(p);mutate(q);assert.throws(()=>inspect(q));assert(!existsSync(edge));
     }
     findings.push("read-only preparation never reserves; missing marker, altered scope/input/tip, wrong ordinal and absent or generic authority refuse");
-    bind();const admitted=proof(c),capability=await auth(c,admitted),attempt=begin(c,admitted,capability);
+    bind();const admitted=proof(c),capability=await auth(c,admitted),attempt=begin(c,admitted,capability,workload?{contractFingerprint:digest(workloadFixtureInput(c)),runId:"acquisition-workload-first"}:{});
     assert.equal(attempt.source_correction.commission.ordinal,1);
     const current=reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch});
     assert.equal(current.reviewed_revision_consumed,1);assert.equal(current.revision_grants.length,2);assert(current.revision_grants.includes(11));assert(current.revision_grants.includes(32));
@@ -303,6 +311,7 @@ async function acquisitionProposalControls(parentRoot, lifecycle) {
     for(const [file,hash] of originalHashes)assert.equal(digest(readFileSync(file)),hash);
     findings.push("synthetic exclusive new edge retains old two spent ordinals and grant IDs; interrupted reservation consumes and exact replay cannot reserve again");
     console.log(JSON.stringify({git_acquisition_proposal_controls:findings,synthetic_only:true,real_authority:false}));
+    if(workload) await runReviewedWorkloadControls(c,{prepare,proof,auth,begin,receipt,artifact,write,read,storeReceipt,fresh:packet=>freshReader(c,packet),freshInterrupted:packet=>runOwned({command:process.execPath,args:[self,"--cold-workload",packet],cwd:c.checkout,env:c.env,suite:"reviewed-revision",label:"fresh terminal stock",timeoutMs:10000,stdout:quiet,stderr:process.stderr})},admitted,attempt,capability);
     return findings;
   } finally {if(lifecycle.pendingChildren===0)releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
 }
@@ -434,14 +443,14 @@ if(process.argv[2]==="--cold"){
     assert.throws(()=>begin(c,p,a),{code:"ENOENT"});assert(existsSync(c.edge));
     console.log(JSON.stringify({settlement_controls:["fully settled external event admitted through production v7","missing/tampered/wrong authority-source-input-predecessor refused","unknown fault, unfinished cleanup and unsafe/foreign current state refused","immutable blocked predecessor, bounded export and fresh-process stock","concurrent exclusive admission, replay and interrupted reservation remain consumed"],synthetic_only:true}));
   } finally {releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:children===0,streams_closed:children===0,cleanup_completed:children===0,remaining_owned_processes:children});assert(cleanupCanonicalTestResources([owner])[0].completed);}
-}else if(process.argv[2]==="--cold-acquisition"){
+}else if(["--cold-acquisition","--cold-workload"].includes(process.argv[2])){
   const c=read(process.argv[3]),p=proof(c),a=await auth(c,p);
   assert.equal(stock(c,c.receipt,a),false);
   assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}).reviewed_revision_consumed,1);
-  console.log("fresh interrupted acquisition stock remains false");
-}else if(process.argv[2]==="--run-acquisition-fixtures"){
+  console.log("fresh interrupted marked stock remains false");
+}else if(["--run-acquisition-fixtures","--run-workload-fixtures"].includes(process.argv[2])){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-"), lifecycle={pendingChildren:0};beginCanonicalTestResourceUse(owner);
-  try {await acquisitionProposalControls(owner.root,lifecycle);} finally {
+  try {await acquisitionProposalControls(owner.root,lifecycle,process.argv[2]==="--run-workload-fixtures");} finally {
     if(lifecycle.pendingChildren===0)settleCanonicalTestResourceUse(owner,{exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0});
     assert(cleanupCanonicalTestResources([owner])[0].completed);
   }

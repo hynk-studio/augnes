@@ -13,6 +13,10 @@ export const AUXILIARY_EXECUTION_BUDGETS = Object.freeze({
   reviewHarnessMs: 300_000,
   observerControlsMs: 20_000,
   reviewAcceptanceFixtureMs: 30_000,
+  // Revision now includes the acquisition controls (~4.35s observed) before
+  // the original serial workload. Keep its former 15s plus 5s for that work;
+  // the suite's 30s bound and intentional inner deadlines are unchanged.
+  reviewRevisionFixtureMs: 20_000,
   reviewAdverseFixtureMs: 12_000,
   reviewChildResultHarnessMs: 60_000,
 });

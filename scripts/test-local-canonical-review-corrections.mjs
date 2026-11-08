@@ -76,7 +76,7 @@ if (process.argv[2] === "--phase-probe") {
   process.exit(0);
 }
 
-const groups = ["revision", "settlement", "browser", "git", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor"];
+const groups = ["revision", "settlement", "browser", "git", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "workload"];
 const [selector, group, ...extra] = process.argv.slice(2);
 if (selector !== undefined && (selector !== "--reviewed-revision-controls" ||
     (group !== undefined && !groups.includes(group)) || extra.length > 1 || extra.length && groups.indexOf(group) < 3))
@@ -126,7 +126,8 @@ try {
       }
       const result = await child([fixture, "--run-" + name + "-fixtures", ...(groups.indexOf(name) >= 3 ? [JSON.stringify(handoff)] : [])], {
         controlId: name === "revision" ? "reviewed-revision" : "reviewed-revision-" + name,
-        timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr,
+        timeoutMs: ["revision", "workload"].includes(name) ? AUXILIARY_EXECUTION_BUDGETS.reviewRevisionFixtureMs : 15000,
+        stdout: process.stdout, stderr: process.stderr,
       });
       assert.equal(result.exit_code, 0, lastChildDiagnostic);
       findings.push("reviewed revision controls: " + name);

@@ -760,7 +760,7 @@ for (const fragment of ['timeoutMs: 30_000', 'requireNaturalExit: true', '"scrip
   requireText(isolatedChild, fragment, "isolated verification has a bounded authority child and complete cleanup");
 
 const revisionSteps = canonicalSuite.slice(canonicalSuite.indexOf("const reviewedRevisionSteps ="), canonicalSuite.indexOf("const suites ="));
-for (const fragment of ['["revision", "settlement", "browser", "git", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor"].map(group', '"--reviewed-revision-controls", group',
+for (const fragment of ['["revision", "settlement", "browser", "git", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "workload"].map(group', '"--reviewed-revision-controls", group',
   'timeoutMs: 30_000', 'requireNaturalExit: true'])
   requireText(revisionSteps, fragment, "each reviewed fixture group has its own bounded natural-exit registration");
 assert.equal(countOccurrences(canonicalSuite, "...reviewedRevisionSteps,"), 1);
