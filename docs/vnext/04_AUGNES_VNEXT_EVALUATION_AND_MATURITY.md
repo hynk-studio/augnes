@@ -253,6 +253,28 @@ remain separate claims; appropriate non-use or simplification remains valid.
 
 ### Consumer-current reassessment evidence (#1593)
 
+The first commissioned Full invocation on integrated head `662cb74e86b7` retained
+7 PASS / 1 FAIL / 8 NOT_RUN and separate false stock. Its cumulative-surface child
+failed naturally with `ECONNRESET`; the retained stderr does not identify the HTTP
+call or establish whether the revision committed. This is separate from the
+earlier Web timeout. A later buffered observation completed one workflow with
+eight fresh subprocesses; it is not eight independent reproductions.
+
+A focused lifecycle experiment on the same real fixture and Node 24.22.1 added
+one recovery validation in the ordinary-successor readback. The revision POST
+completed with status 201 and a consumed JSON body, then the final GET failed
+with `ECONNRESET` as the reused socket's six-second idle lifetime expired. The
+requested goal remained committed, and primary failure, successful session
+cleanup and owned-resource disposal were separately observed. This demonstrates
+an implicated fixture lifecycle defect; the historical request remains unknown.
+The fixture's Node HTTP helper now requests connection closure per operation,
+without replaying writes or changing production routes. One durable cumulative
+readback crosses the unchanged server idle lifetime through real synchronous
+recovery validation before reading the saved revision. Existing history,
+authority, source and cleanup assertions remain in place. A cleanup HTTP failure
+also retains any primary error. These source changes and focused observations
+do not by themselves establish qualification or diagnose the old Web timeout.
+
 The 2026-11-07 controlled internal case selects complete public
 `apps/web_planning/README.md` files at `702f2b2f6db406440c2ab008f75ef0f18d21bd09`
 (119,889 bytes) and merged `1f77dfb7ac08e5726777ce27e59e06d7b6665b2a`

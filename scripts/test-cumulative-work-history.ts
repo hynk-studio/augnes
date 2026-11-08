@@ -243,6 +243,7 @@ async function cumulativeSurfaces(f: any, root: string, ordinary: boolean, at: s
     for (const stage of [mode, "readback"]) {
       const input = path.join(directory, `${stage}.json`);
       writeFileSync(input, JSON.stringify({ config: { ...f.config, database_path }, projectRoot: f.root, mode: stage, cumulative: true,
+        exerciseHttpIdleBoundary: ordinary && mode === "human" && stage === "readback",
         at: new Date(Date.parse(at) + (stage === "readback" ? 4 * 24 * 3600_000 : 0)).toISOString() }));
       const owned = new Set();
       const child = registerOwnedChild(owned, spawn(process.execPath, ["--import", "tsx", "scripts/test-durable-work-surfaces.ts", input],

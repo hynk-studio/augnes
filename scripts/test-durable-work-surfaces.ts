@@ -43,7 +43,7 @@ class CDP {
 async function until(fn: () => Promise<unknown>, label: string) { const end = performance.now() + 10000; while (performance.now() < end) { if (await fn()) return; await delay(50); } throw new Error(`browser_wait:${label}`); }
 
 async function main() {
-  const { config, projectRoot, at, mode, cumulative = false } = JSON.parse(readFileSync(process.argv[2]!, "utf8"));
+  const { config, projectRoot, at, mode, cumulative = false, exerciseHttpIdleBoundary = false } = JSON.parse(readFileSync(process.argv[2]!, "utf8"));
   assert.ok(config.database_path.includes("durable-surface-"));
   const db = new Database(config.database_path), root = path.join(path.dirname(config.database_path), `owned-${mode}`); mkdirSync(root);
   const owned = new Set(), guard = installZeroNetworkGuard({ allowLoopback: true });
@@ -82,10 +82,15 @@ async function main() {
     } catch { errors++; res.statusCode = 500; res.end('{"error":"fixture_http_failed"}'); }
   }));
   async function http(endpoint: string, body?: unknown, status = 200) {
-    const response = await fetch(origin + endpoint, { signal: AbortSignal.timeout(10000), method: body ? "POST" : "GET", headers: { origin, cookie: cookieHeader(), "Augnes-Project-Id": config.project_id, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    // This fixture's server and synchronous database assertions share an event
+    // loop. Do not reuse a pooled socket whose idle timeout could expire while
+    // validation prevents either endpoint from processing its timers. Each
+    // operation still uses real HTTP exactly once, including mutating POSTs.
+    const response = await fetch(origin + endpoint, { signal: AbortSignal.timeout(10000), method: body ? "POST" : "GET", headers: { connection: "close", origin, cookie: cookieHeader(), "Augnes-Project-Id": config.project_id, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
     rememberCookies(response.headers.getSetCookie());
     const data = await response.json(); assert.equal(response.status, status, canonical(data)); return data;
   }
+  let primaryError: unknown;
   try {
     await new Promise<void>(ok => server.listen(0, "127.0.0.1", ok)); origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
     const issued = issueVNextLocalOperatorBootstrapV01(db, { config, clock });
@@ -207,20 +212,34 @@ async function main() {
       }
       assert.equal(saves, 1);
     }
+    const validationStarted = performance.now();
     assert.equal(current().expires_at, null); assert.equal(current().capability_grant, null); assert.deepEqual(current().task, { ...old.task, goal: nextGoal });
     assert.deepEqual(readSelectedWorkSources(current()), readSelectedWorkSources(old));
     assert.deepEqual(db.prepare("SELECT * FROM vnext_core_records ORDER BY rowid").all().slice(0, rows.length), rows);
     assert.equal(authority(), beforeAuthority); assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
     assert.equal(external, 0); assert.equal(errors, 0); assert.equal(guard.attempts.length, 0);
+    if (exerciseHttpIdleBoundary) {
+      assert.equal(cumulative, true); assert.equal(mode, "readback");
+      // Exercise the observed lifecycle boundary using the actual recovery
+      // validator, not a forced reset, sleep, deadline change or request retry.
+      // Only one ordinary-successor readback receives this regression input.
+      const idleLifetime = server.keepAliveTimeout + server.keepAliveTimeoutBuffer;
+      do { assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid"); }
+      while (performance.now() - validationStarted <= idleLifetime);
+      console.log(JSON.stringify({ cumulative_http_idle_boundary: true, validation_ms: performance.now() - validationStarted, idle_lifetime_ms: idleLifetime }));
+    }
     if (cumulative) {
       const result = await http("/api/vnext/operator/project-continuity");
       assert.equal(result.work_initialization.revision_eligibility.revision_count, mode === "readback" ? 34 : 33);
       console.log(JSON.stringify({ cumulative_surface: mode, revision_count: result.work_initialization.revision_eligibility.revision_count, fresh_process: true, authority_unchanged: true, external_requests: external }));
     }
     if (!cumulative) console.log(JSON.stringify({ durable_surface: mode, fresh_process: process.pid, days_elapsed: mode === "readback" ? 8 : 4, unchanged_task: true, authority_unchanged: true, historical_rows_unchanged: true, provider_calls: 0 }));
+  } catch (error) {
+    primaryError = error; throw error;
   } finally {
     globalThis.Date = NativeDate;
     try { if (cookieJar.size) { await http("/api/vnext/operator/session", { action: "logout" }); await http("/api/vnext/operator/session", undefined, 401); } }
+    catch (cleanupError) { throw primaryError ? new AggregateError([primaryError, cleanupError], "Surface operation and session cleanup both failed") : cleanupError; }
     finally { c?.close(); if (chrome) await terminateOwnedProcessTree(chrome); browserUse?.finish(); await closeTrackedServer(server); db.close(); guard.restore(); rmSync(root, { recursive: true, force: true });
       for (const key of Object.keys(process.env)) if (!(key in envBefore)) delete process.env[key]; Object.assign(process.env, envBefore); assert.equal(owned.size, 0); }
   }
