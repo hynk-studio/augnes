@@ -190,6 +190,51 @@ class PackageChecks(unittest.TestCase):
                          hashlib.sha256(b"1.0\n").hexdigest())
         self.assertEqual(list(alone.iterdir()), [helper])
 
+    def test_published_installation_example_exposes_wrong_destination(self):
+        # Replay the public fixture, not a separately maintained look-alike.
+        data, _ = builder.package(self.skill)
+        alone = self.root / "received"
+        alone.mkdir()
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            helper = alone / "received.py"
+            helper.write_bytes(archive.read("scripts/snapshot_inputs.py"))
+            example = archive.read("examples/request-and-result.md").decode("utf-8")
+        fixture = self.root / "make_fixture.py"
+        fixture.write_text(example.split("```python\n", 1)[1].split("\n```", 1)[0],
+                           encoding="utf-8")
+
+        def run(script, *args, expected=0):
+            result = subprocess.run([sys.executable, "-E", "-s", "-S", "-B",
+                                     str(script), *map(str, args)], cwd=self.root,
+                                    capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, expected, result.stderr)
+            self.assertEqual(result.stderr, "")
+            return result.stdout
+
+        run(fixture)
+        subject = self.root / "subject"
+        files = ["install.py", "candidate/status.py",
+                 "selected_profile/status.py", "default_profile/status.py"]
+        before = self.root / "before.json"
+        before.write_text(run(helper, "snapshot", subject, *files), encoding="utf-8")
+        for name, version in [("selected_profile", "0.1"),
+                              ("default_profile", "0.1"), ("candidate", "0.2")]:
+            self.assertEqual(json.loads(run(subject / name / "status.py")),
+                             {"version": version, "ready": True})
+        self.assertEqual(run(subject / "install.py", "--profile",
+                             "subject/selected_profile"), "Install complete\n")
+        self.assertEqual(json.loads(run(subject / "selected_profile/status.py")),
+                         {"version": "0.1", "ready": True})
+        self.assertEqual(json.loads(run(subject / "default_profile/status.py")),
+                         {"version": "0.2", "ready": True})
+        after = self.root / "after.json"
+        after.write_text(run(helper, "snapshot", subject, *files), encoding="utf-8")
+        self.assertEqual(json.loads(run(helper, "compare", before, after, expected=1)),
+                         {"added": [], "changed": ["default_profile/status.py"],
+                          "equal": False, "removed": [], "scope": "selected-files-only"})
+        self.assertEqual(helper.read_bytes(), SCRIPT.read_bytes())
+        self.assertEqual(list(alone.iterdir()), [helper])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -8,8 +8,8 @@ component and the installed Augnes Operator.
 
 ## Current disposition
 
-Source, four-file packaging, isolated delivery checks, a real development example
-and the listing text below are prepared for review. This is not a live listing
+Source, four-file packaging, isolated delivery checks, reproducible development
+examples and the listing text below are prepared for review. This is not a live listing
 or a new GitHub release. Local development checks do not establish Mac Local
 Canonical qualification or actual Agensi consumption. Keep the PR Draft until
 the repository's required verification and review are complete.
@@ -87,12 +87,16 @@ does not require a new framework, server, Augnes project or migration.
 
 ### See it in action
 
-Use the request, actual procedure, output and handoff in
-[the included example](../skills/verify-software-change/examples/request-and-result.md).
-Retain its developer-supplied origin, environment and single-script simulation
-label. Do not relabel that report as a live Agensi execution or an independent
-customer result. Copy the full example into the listing's demonstration field
-rather than having the form generate a successful run that did not happen.
+Use the complete first case in
+[the included examples](../skills/verify-software-change/examples/request-and-result.md#installation-says-complete-but-updates-the-wrong-profile)
+for the listing: an installer reports completion but updates the wrong profile.
+It includes the request, full disposable fixture, commands, observed output and
+handoff. The existing test command replays that published fixture with the
+ZIP-delivered helper. The second case retains the calculator delivery finding.
+Keep the developer-supplied origin, environment and simulated delivery labels.
+These are not live Agensi executions, independent customer results or measured
+improvements over ordinary tools. Copy the actual first case into the form;
+do not generate a successful outcome that did not happen.
 
 ### Limitations and FAQ
 
