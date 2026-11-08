@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {readFileSync,existsSync,rmSync,readdirSync} from 'node:fs';
 import path from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
+import {fixtureNow} from './local-canonical-authority-clock.mjs';
 import {digest} from '../local-canonical-inputs.mjs';
 import {CANONICAL_NODE_VERSION} from '../local-canonical-environment.mjs';
 import {inspectGitRevisionPreparation,reconstructAttemptTip,reviewedRevisionAuthorityObservation} from '../local-canonical-attempts.mjs';
@@ -11,9 +12,53 @@ import {MATERIAL_SOURCE_CORRECTION,MATERIAL_HISTORY_BOUNDARY,gitReviewTarget,ver
 import {REVIEWED_REVISION_PHASES} from '../local-canonical-attempts.mjs';
 import {executeFixture,dependencyRecords} from './local-canonical-browser-successor.mjs';
 import {createPrivateReviewExport,inspectPrivateReviewExport} from '../local-canonical-review-export.mjs';
-const clone=structuredClone,now=()=>new Date().toISOString();
-const driver='scripts/workload-other-failure.mjs',product='apps/web_planning/src/exchange-client.js.txt';
+const clone=structuredClone,now=()=>new Date(fixtureNow()).toISOString();
+const driver='scripts/material-source-behavior.mjs',product='apps/web_planning/src/exchange-client.js.txt';
+const predecessorDriver='scripts/material-predecessor.mjs';
 const decision='Source review decision: ACCEPT / RETAIN for prospective qualification.';
+
+export function seedMaterialSourceFiles(c,write) {
+ write(path.join(c.checkout,product),JSON.stringify({primary:false,journal:false})+'\n');
+ write(path.join(c.checkout,driver),'import assert from "node:assert/strict"; import {readFileSync} from "node:fs"; const state=JSON.parse(readFileSync(new URL("../apps/web_planning/src/exchange-client.js.txt",import.meta.url))); assert.equal(state[process.argv[2]??"primary"],true); console.log("corrected "+(process.argv[2]??"primary"));\n');
+ write(path.join(c.checkout,predecessorDriver),'import assert from "node:assert/strict"; assert.fail("synthetic prior defect");\n');
+}
+
+// Spend the supported acquisition commission through its ordinary two-slot
+// path. Reusable material-source controls need no retired workload controller.
+export async function prepareMaterialSourcePredecessor(c,h,initial,firstAttempt,initialAuthority) {
+ const authority=clone(c.authority),dependencies=dependencyRecords(c);
+ c.behaviorPath=predecessorDriver;
+ const first=await executeFixture(c,{...h,begin:()=>firstAttempt},initial,initialAuthority,null,dependencies);
+ assert.equal(first.stock.valid_deciding_evidence,false);assert.equal(first.child.result.exit_code,1);
+ const priorHead=c.head,red=await h.behavior(c);
+ h.write(path.join(c.checkout,predecessorDriver),'console.log("corrected synthetic predecessor");\n');
+ c.git(['add',predecessorDriver]);c.git(['-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','--quiet','-m','correct synthetic predecessor']);
+ c.prior=first.receipt;h.prepare(c,2);const p=c.proof;
+ p.commission=clone({...initial.commission,ordinal:2});p.accepted=clone(initial.accepted);
+ p.inputs.inventory_sha256=initial.inputs.inventory_sha256;
+ p.originals.stock=h.artifact(c,'prior-stock.log',JSON.stringify(first.stock));
+ const green=await h.behavior(c);assert.equal(red.result.exit_code,1);assert.equal(green.result.exit_code,0);
+ const source=c.git(['show',p.head+':'+predecessorDriver]);
+ const witness=(label,run,head)=>h.artifact(c,label+'.json',{...run,node_version:CANONICAL_NODE_VERSION,runtime_inputs_sha256:p.inputs.identity_sha256,
+  file_sha256:digest(c.git(['show',head+':'+predecessorDriver])),stdout:h.artifact(c,label+'.log',run.output)});
+ const before=witness('red',red,priorHead),after=witness('green',green,p.head);
+ const focused=h.read(path.join(c.artifacts,p.focused.artifact));
+ Object.assign(focused,{finished_at:now(),failed_phase:'authority',diagnosis:'Natural predecessor failure followed by its directly implicated behavioral correction.',
+  implicated_paths:[predecessorDriver],source_files:[{path:predecessorDriver,byte_size:source.length,sha256:digest(source)}],input_remedy_resources:[],
+  regression:{path:predecessorDriver,args:[],before,after},commands:[{command:green.command,tested_source_head:p.head,result:green.result,record:after,stdout:h.read(path.join(c.artifacts,after.artifact)).stdout}]});
+ p.focused=h.artifact(c,'focused.json',focused);p.source=h.artifact(c,'source.json',{...h.read(path.join(c.artifacts,p.source.artifact)),reviewed_at:now()});
+ c.authority=authority;c.authority.pr.head.sha=p.head;
+ const review={...authority.review,id:33,commit_id:p.head,submitted_at:now(),body:[decision,p.base,p.head,p.tree,p.prior_receipt_fingerprint,gitReviewTarget(p)].join('\n')};
+ c.authority.contractReview=review;c.authority.contractPr=999;
+ p.authorization={...clone(initial.authorization),contract_review:{pull_request:999,id:33,head:p.head,sha256:digest(reviewedRevisionAuthorityObservation(review,'contract_review'))}};
+ h.write(c.file,p);const parsed=h.proof(c),cap=await h.auth(c,parsed);
+ c.behaviorPath=driver;
+ const second=await executeFixture(c,{...h,begin:(subject,proof,auth,extra)=>h.begin(subject,proof,auth,{...extra,runId:'acquisition-second'})},parsed,cap,null,dependencies);
+ assert.equal(second.stock.valid_deciding_evidence,false);assert.equal(second.child.result.exit_code,1);
+ c.prior=second.receipt;c.materialStock=second.stock;
+ const tip=reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch});
+ assert.equal(tip.reviewed_revision_consumed,2);assert.deepEqual(tip.revision_grants,[11,32]);
+}
 
 export async function runMaterialSourceControls(c,h,group) {
  const ref=(name,value)=>h.artifact(c,name,value),read=r=>h.read(path.join(c.artifacts,r.artifact));
@@ -86,13 +131,10 @@ export async function runMaterialSourceControls(c,h,group) {
  }
  if(group==='material-source') {
   c.behaviorPath=driver;c.behaviorArgs=['primary'];
-  const p=h.proof(c),cap=await h.auth(c,p);
-  const completed=await execute(p,cap);
-  assert.equal(completed.stock.valid_deciding_evidence,false);assert.equal(completed.child.result.exit_code,1);
-  c.prior=completed.receipt;c.materialStock=completed.stock;c.materialPreserved=preserve();
-  assert.equal(tip().revision_grants.length,4);
+  c.materialPreserved=preserve();
+  assert.equal(tip().reviewed_revision_consumed,2);assert.deepEqual(tip().revision_grants,[11,32]);
   await correct('primary',60);unchanged();
-  console.log(JSON.stringify({material_source_controls:['terminal spent predecessor remains immutable','real natural before failure and corrected after pass through production readers','non-reserving preparation binds complete inventory and a distinct one-slot grant'],synthetic_only:true}));return;
+  console.log(JSON.stringify({material_source_controls:['spent acquisition predecessor remains immutable','real natural before failure and corrected after pass through production readers','non-reserving preparation binds complete inventory and a distinct one-slot grant'],synthetic_only:true}));return;
  }
  const p=c.proof,focused=read(p.focused);let n=0;
  if(group==='material-controls') {
@@ -169,20 +211,20 @@ export async function runMaterialSourceControls(c,h,group) {
  }
  const final=h.proof(c),finalCap=await h.auth(c,final);
  if(group==='material-final'){
- assert.deepEqual(tip().revision_grants,[11,32,42,52,62]);
+ assert.deepEqual(tip().revision_grants,[11,32,62]);
  const exe=c.gitDeclaration.resources.find(v=>v.id==='browser-executable');
  const browser={contract:'augnes.local-canonical-browser-use.v2',executable_name:'Fixture',location_fingerprint:exe.location_fingerprint,
   before:exe.before,after:exe.before,actual_version:'Chrome/1',runtime_versions:{http:'Chrome/1',cdp:'Chrome/1'},disposition:'unchanged',unchanged:true};
  const complete=await execute(final,finalCap,browser);
  assert.equal(complete.stock.valid_deciding_evidence,true);assert.equal(tip().reviewed_revision_consumed,1);
- assert.deepEqual(tip().revision_grants,[11,32,42,52,62,72]);unchanged();
+ assert.deepEqual(tip().revision_grants,[11,32,62,72]);unchanged();
  const exported=createPrivateReviewExport(complete.receipt);assert(inspectPrivateReviewExport(exported).structurally_valid);
  assert.equal(exported.attempt.source_correction.commission.source_revision,MATERIAL_SOURCE_CORRECTION);
  assert.throws(()=>h.begin(c,final,finalCap),/attempt_latest_tip_required/);
  c.materialFinalReceipt=complete.receipt;
  let consumed=0,r=complete.receipt.attempt;while(r){if(r.source_correction?.kind==='reviewed_revision')consumed++;const prior=r.source_correction;r=prior?h.read(path.join(c.anchor,'.augnes-local-verification/families',prior.prior_family_id,'attempt-'+prior.prior_number+'.json')):null;}
- assert.equal(consumed,8);
- console.log(JSON.stringify({material_successor:{distinct_grants:[62,72],historical_grants:[11,32,42,52],historical_consumed:6,total_reviewed_consumed:consumed,commission_allowance:1,first_stock:false,second_stock:true,unchanged_retry:false},synthetic_only:true}));return;
+ assert.equal(consumed,6);
+ console.log(JSON.stringify({material_successor:{distinct_grants:[62,72],historical_grants:[11,32],historical_consumed:4,total_reviewed_consumed:consumed,commission_allowance:1,first_stock:false,second_stock:true,unchanged_retry:false},synthetic_only:true}));return;
  }
  // A genuinely separate process reobserves stock, then tries the late exact
  // reservation while holding its own checkout lease. The parent's lease is

@@ -760,7 +760,7 @@ for (const fragment of ['timeoutMs: 30_000', 'requireNaturalExit: true', '"scrip
   requireText(isolatedChild, fragment, "isolated verification has a bounded authority child and complete cleanup");
 
 const revisionSteps = canonicalSuite.slice(canonicalSuite.indexOf("const reviewedRevisionSteps ="), canonicalSuite.indexOf("const suites ="));
-for (const fragment of ['["revision", "settlement", "browser", "git", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "workload", "post-terminal", "post-terminal-controls", "material-source", "material-controls", "material-successor", "material-final", "material-reservation", "post-terminal-successor"].map(group', '"--reviewed-revision-controls", group',
+for (const fragment of ['["revision", "settlement", "browser", "git", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation"].map(group', '"--reviewed-revision-controls", group',
   'timeoutMs: 30_000', 'requireNaturalExit: true'])
   requireText(revisionSteps, fragment, "each reviewed fixture group has its own bounded natural-exit registration");
 assert.equal(countOccurrences(canonicalSuite, "...reviewedRevisionSteps,"), 1);
@@ -774,6 +774,10 @@ for (const route of ["operating-profile-succession", "successor-budget-successio
 }
 requireText(localPolicy, "df920cd3f5c35774ad2743500a6f3657e4ecb95e", "retired mixed history has a pinned Git reading path");
 requireText(localPolicy, "qualification_route_retired", "current mixed-chain refusal is explicit");
+requireText(localPolicy, "d72c0f3dc5b224c02a44033d9ed83eb3eb5af3fb", "completed workload history has a pinned reader");
+for (const name of ["authority-scope", "reviewed-workload", "post-terminal"])
+  assert.equal(existsSync(path.join(repositoryRoot, `scripts/fixtures/local-canonical-${name}.mjs`)), false,
+    "completed workload controllers and the unregistered scope probe remain in Git history");
 
 for (const retiredPath of [
   ".github/LOCAL_CANONICAL_PR_EVIDENCE.md",

@@ -829,6 +829,9 @@ const completedSourceKinds = ["browser_input_replacement", "observer_repair", "c
 const completedSourceMarkers = ["browser_replacement", "browser_authority", "input_replacement_consumed", "browser_input_path", "browser_input_sha256", "observer_authority", "observer_repair_consumed", "timeout_authority", "corrected_timeout_consumed",
   "condition_authority", "condition_requalification_consumed", "guide_authority", "guide_correction_consumed"];
 const retiredProofs = [
+  ...["spent-acquisition-reviewed-workload-v1", "spent-terminal-git-successor-workload-v1", false, null].flatMap(reviewed_workload =>
+    [undefined, "augnes.local-canonical-source-correction.v1", "augnes.local-canonical-source-correction.v2", "augnes.local-canonical-source-correction.v7"].map(schema =>
+      ({ schema, kind: "reviewed_revision", commission: { reviewed_workload } }))),
   ...["augnes.local-canonical-browser-replacement.v1", "augnes.local-canonical-browser-authorization.v1"].map(contract =>
     ({ schema: "augnes.local-canonical-source-correction.v2", kind: "source_revision", contract })),
   ...[3, 4, 5, 6].flatMap(version => [undefined, "wrong", "source_revision", "reviewed_revision"].map(kind =>

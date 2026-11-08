@@ -1,6 +1,16 @@
 # Git acquisition correction and prospective continuation proposal
 
-Status: **accepted amendment applied; qualification HOLD**. The
+Status: **adopted and merged in [#1594](https://github.com/hynk-studio/augnes/pull/1594)**.
+The final r13 head `b4c619b45f02a79eaf168a773eadcdc2bacfdb69` recorded
+Full 16/16 and Browser 7/7 PASS with separate valid stock before merge.
+The acquisition correction remains reusable. The two later task-specific workload
+routes are now [retired](../../.github/LOCAL_CANONICAL_VERIFICATION.md#retired-qualification-routes);
+their mixed history retains the pinned reader and immutable originals. None of
+these dispositions creates fresh authority or qualifies this cleanup.
+
+## Historical adoption record
+
+The
 [receiving review](https://github.com/hynk-studio/augnes/pull/1594#pullrequestreview-5816374875)
 accepted the exact 44,798-byte patch (SHA-256
 `935defc8302c0dce033d2717663f44b3a6b6064b93f7a526ec135e44677e8254`)
