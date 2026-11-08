@@ -288,6 +288,20 @@ navigations consuming 9,031 ms. Avoiding only those redundant replacements is a
 bounded harness improvement, not proof of the original timeout's complete cause
 or a guarantee of Full completion. Final source evidence remains separately bound.
 
+On clean `5ac7d2493fcdcd6e52ece2ad136dc7700f26d92d`, the complete uninstrumented
+real-D1 journey passed naturally in 170,011 ms, including all ten reassessment
+safety cases and the later branch, participation, returned-file and consumer
+sections. Save/list-403 and resolved-lost-ack/list-403 retained the primary denial,
+one save request and the expected revisions; denial before acceptance appended
+nothing. A real pending IndexedDB transaction survived access loss without a save
+or active-view resurrection, then recovered its exact body after authentication.
+The 21-group reviewed-revision controls passed naturally in 176,469 ms on that
+same clean source, including consistently rebound refusal witnesses, fresh-reader
+reservation refusal and cross-commission accounting. Both owners completed cleanup.
+Contract, documentation, whole-diff and planner checks passed. A later
+documentation-only evidence commit preserves these tested-head attributions;
+focused results do not supply a Full receipt or real execution authority.
+
 The reusable material-source controls exercise actual production preparation,
 authenticated-reader fixtures, physical reservations, exact evidence, historical
 reconstruction and fresh-process stock. Synthetic authority never authorizes real
