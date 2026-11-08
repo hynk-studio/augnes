@@ -1,6 +1,7 @@
 import { checkParticipation } from './web-planning-participation-checks.mjs';
 import { checkLargeExchanges } from './web-planning-large-exchange-checks.mjs';
 import { checkWorkSearch } from './web-planning-search-checks.mjs';
+import { checkReturnReassessment } from './web-planning-reassessment-checks.mjs';
 import { checkReturnContinuation } from './web-planning-return-checks.mjs';
 import { checkFileExchanges } from './web-planning-exchange-checks.mjs';
 import { checkDirections } from "./web-planning-direction-checks.mjs";
@@ -199,6 +200,7 @@ try {
  await checkFiles({start,client,newWork,save,passed,root,open});
  await checkFileExchanges({start,client,newWork,save,root,passed});
  await checkReturnContinuation({start,client,newWork,save,passed});
+ await checkReturnReassessment({start,client,newWork,save,passed});
  await checkParticipation({start,client,newWork,save,passed});
  await checkLargeExchanges({start,client,newWork,save,passed});
  await checkOrdinaryFiles({start,client,newWork,save,passed,open});

@@ -6,17 +6,43 @@ import { pathToFileURL } from "node:url";
 const scripts = path.resolve(process.argv[2]);
 const { runCanonicalChild } = await import(pathToFileURL(path.join(scripts, "canonical-child-runner.mjs")).href);
 const resources = await import(pathToFileURL(path.join(scripts, "canonical-test-environment.mjs")).href);
-const { REVIEW_CHILD_RESULT_PREFIX, projectReviewChildResult, assertReviewChildLifecycle, createObserverFixtureProgressReader } = await import(pathToFileURL(path.join(scripts, "fixtures/local-canonical-review-child-result.mjs")).href);
+const { REVIEW_CHILD_RESULT_PREFIX, projectReviewChildResult, assertReviewChildLifecycle, createObserverFixtureProgressReader, createTrackedReviewChildRunner } = await import(pathToFileURL(path.join(scripts, "fixtures/local-canonical-review-child-result.mjs")).href);
+const nativeNow = Date.now;
+const { fixtureNow, withAdjacentAuthorityClock } = await import(pathToFileURL(path.join(scripts, "fixtures/local-canonical-authority-clock.mjs")).href);
+assert.equal(Date.now, nativeNow, "import must not replace the production clock");
+const assertNativeClock = () => {
+  assert.equal(Date.now, nativeNow);
+  const before = nativeNow(), observed = fixtureNow();
+  assert(observed >= before && observed <= nativeNow());
+};
+assertNativeClock();
+let resumeClock;
+const pausedClock = new Promise(resolve => { resumeClock = resolve; });
+const scopedClock = withAdjacentAuthorityClock(async () => {
+  assert.equal(Date.now, nativeNow);
+  assert.equal(fixtureNow(), 1001);
+  await pausedClock;
+  assert.equal(fixtureNow(), 1002);
+  assert.equal(withAdjacentAuthorityClock(() => fixtureNow(), () => 2000), 2001);
+  assert.equal(fixtureNow(), 1003, "shared async helpers retain their outer clock");
+}, () => 1000);
+assertNativeClock(); resumeClock(); await scopedClock; assertNativeClock();
+await assert.rejects(withAdjacentAuthorityClock(async () => {
+  assert.equal(fixtureNow(), 3001); await Promise.resolve(); throw new Error("controlled clock failure");
+}, () => 3000), /controlled clock failure/);
+assertNativeClock();
 const owner = resources.createCanonicalTestResourceRoot("ag-resource-test-");
 resources.beginCanonicalTestResourceUse(owner);
 const env = resources.buildCanonicalChildEnvironment({ temporaryRoot: owner.root });
 const rows = [];
 let complete = true;
+const lifecycle = { pendingChildren: 0 }, trackedRun = createTrackedReviewChildRunner(lifecycle, runCanonicalChild);
 async function child(controlId, code, { command = process.execPath, signal, stdout = { write() {} } } = {}) {
-  const result = await runCanonicalChild({ suite: "review-result-adverse", label: controlId, command, args: ["-e", code],
+  const result = await trackedRun({ suite: "review-result-adverse", label: controlId, command, args: ["-e", code],
     cwd: owner.root, env, signal, timeoutMs: 1000, stdout, stderr: { write() {} }, log() {} });
   complete &&= result.exit_observed && result.streams_closed && result.cleanup_completed && result.remaining_owned_processes === 0;
   assert(complete, "actual child must settle");
+  assert.equal(lifecycle.pendingChildren, 0, "settled failures do not retain phantom children");
   rows.push(projectReviewChildResult(result, { controlId }));
   return result;
 }
@@ -44,7 +70,16 @@ try {
   assert.throws(() => assertReviewChildLifecycle(spawn, { controlId: "missing-command" }));
   for (const [field, value] of [["cleanup_started", false], ["cleanup_completed", false], ["exit_observed", false], ["streams_closed", false], ["remaining_owned_processes", 1]]) {
     assert.throws(() => assertReviewChildLifecycle({ ...natural, [field]: value }, { controlId: "malformed-settlement" }), field);
+    const pending = { pendingChildren: 0 };
+    await createTrackedReviewChildRunner(pending, async () => ({ ...natural, [field]: value }))({});
+    assert.equal(pending.pendingChildren, 1, field);
+    assert.throws(() => resources.settleCanonicalTestResourceUse(owner, {
+      exit_observed: false, streams_closed: false, cleanup_completed: false, remaining_owned_processes: pending.pendingChildren,
+    }), /resource_consumers_unsettled/);
   }
+  const thrown = { pendingChildren: 0 };
+  await assert.rejects(createTrackedReviewChildRunner(thrown, async () => { throw new Error("controlled runner failure"); })({}), /controlled runner failure/);
+  assert.equal(thrown.pendingChildren, 1, "a thrown runner cannot manufacture settlement");
   const projection = projectReviewChildResult({ ...natural, signal: "private-sentinel", spawn_error_code: "private-sentinel", termination_reason: "private-sentinel", stdout: "private-sentinel", stderr: "private-sentinel" }, { controlId: "private-sentinel/invalid", progress: { stage: "private-sentinel", completed_controls: 59 } });
   assert(!JSON.stringify(projection).includes("private-sentinel")); assert(JSON.stringify(projection).length < 2048);
   const reader = createObserverFixtureProgressReader();
@@ -88,6 +123,7 @@ try {
   nested[0].timed_out = "private-sentinel";
   assert(!JSON.stringify(reader.childResults()).includes("private-sentinel"));
   console.log(JSON.stringify({ schema: "augnes.review-child-adverse.v0.1", status: "pass", actual_lifecycle_cases: rows, settlement_corruption_controls: 5,
+    pending_children_retained_on_throw_or_unsettled_result: true, fixture_clock_scope_restored: true, native_production_clock_preserved: true,
     bounded_projection: true, progress_chunking_and_allowlist: true, nested_lifecycle_allowlist_and_bound: true, nested_actual_timeout_preserved: true,
     synthetic_browser_output_ignored: true, intentional_cancellation_preserved: true }));
 } finally {

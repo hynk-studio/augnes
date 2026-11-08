@@ -1655,6 +1655,36 @@ added revision benefit in its one three-task sequence. Preserve those findings,
 exposure limits and frozen dispositions; do not restart it or inherit unused
 budgets.
 
+**Prospective research refinement (2026-10-23): condition discovery and retention.**
+[Are Self-Evolving Agents Continual Learners? (v1)](https://arxiv.org/html/2610.25858v1)
+studies changes to harnesses around a fixed model. It motivates checking adaptation
+and retention together; it establishes neither an inevitable trade-off nor an
+Augnes defect. P4.6 local revision, [#1459's induced guards](#completed-first-research-application--executable-reuse-applicability-1459),
+[#1464's acquired conditions](#current-contained-research--chosen-observations-and-productive-actions-1464)
+and P5.2 correction uptake already provide bounded parts of this path.
+
+Within #1373/P4/P5, the next eligible comparison should ask whether experience
+reveals the conditions that change the appropriate action when superficially
+similar situations recur, while still-valid methods remain usable:
+
+1. Inspect existing producers, consumers and evidence; select a small later task
+   or scoped capability opportunity that distinguishes an unresolved discovery,
+   retention or transfer question. Declare constructed cases and prior exposure.
+2. Start with existing ordinary memo/code and retained sources. Where warranted,
+   try the smallest change connecting contrasting outcomes to a candidate
+   applicability condition, a discriminating observation and a local method
+   revision or justified retention. An unknown condition may warrant a bounded
+   check or non-use; it is not evidence that the condition fails.
+3. Observe actual successor actions and outputs under changed and returning
+   conditions, adding a genuinely separate transfer task only for a transfer
+   claim. Use [04's distinctions](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#learning-and-retention-across-recurring-conditions-p4p5)
+   to decide retain, simplify, revise or stop.
+
+This refinement is **Research / unexecuted**. It preserves P4.6/#1459/#1464's
+scoped findings and current priorities; renaming those studies does not justify
+repeating them. It adds no implementation, provider allocation, Core schema,
+memory engine or product default, and transfers no historical study budget.
+
 The v0.2 [method lifecycle connection](#development-and-operation-sequence--2026-10-25)
 belongs to these existing L2/P4.6 responsibilities. Link a useful original case
 and its executable method, conditions/exclusions, exact version, selected later
@@ -3016,6 +3046,109 @@ the saved work and notes without copied context. This is scripted,
 developer-exposed disposable evidence, not ordinary-use usefulness, Autohunt,
 hosted adoption, independent transfer or installed-plugin rollout. Final exact-head
 verification and Draft review remain recorded with the candidate PR.
+
+### Current P2/P5 candidate — Consumer-current return reassessment (#1593)
+
+The r12 Full at `c954eecf` retained 9 PASS / 1 FAIL / 6 NOT_RUN (dedicated
+Browser 0/1/6), false stock and receipt `d1c9d33de3a6fc223e2a4a7e58f41e634e15af6eb81f4e7738125f5c63426e4c`.
+The previously deferred P3 is now an observed blocking access-loss defect. The r13
+candidate preserves the primary denial after private-view disposal, guards late
+journal completion and locks its exact operation through persistence. It also
+implements the newly delegated reusable material-source v7 transition. Four old
+commissions remain spent 2/2, 2/2, 1/1 and 1/1: six consumed invocations, plus the
+separate ordinary Web root. New source/commitment acceptance, actual authority and
+live admission are required before another deciding run. Qualification remains
+HOLD pending actual execution and independent receiving audit. The following
+r10–r12 paragraphs are historical snapshots, not unused current authority.
+
+The r10 terminal Full on `80e37e44bb44` ended at 6 PASS / 1 FAIL / 9 NOT_RUN,
+with separate false stock. Integration, operability and every dedicated Browser
+phase remain unexecuted. Commission 6719208780 is spent 1/1; the previous two
+commissions remain separately spent 2/2. The revised revision aggregate passed;
+the different Git-successor aggregate exhausted its unchanged 15-second bound.
+The r11 development correction scopes the synthetic clock, retains pending
+child ownership through failure and gives only the complete Git-successor
+aggregate the existing 20-second allowance. Accepted product behavior is unchanged.
+The [concrete post-terminal proposal](../verification/1593_GIT_SUCCESSOR_QUALIFICATION_PROPOSAL.md)
+was proposal-only in r11; a11 accepted its bounded implementation scope. The r12
+candidate adds the exceptional old terminal consumed-one to new terminal
+one-slot edge in the existing v7 owners. The new marker refuses every successor.
+Actual activation requires independent source acceptance, real preparation and
+new authenticated delegation/acceptance/commission records. Qualification remains
+HOLD until actual admitted execution and independent receiving audit. No new Full,
+reservation, stock refresh, delegation or commission was performed in r11. Earlier snapshots
+below retain their original source and authority scope.
+
+The [existing returned-file use](../../apps/web_planning/README.md#reconsider-an-existing-returned-file-use-1593)
+now connects to a current decision in each consuming work. Exact old basis/output,
+explicit new saved evidence, retention/update/deferral/end-use, actual saved output
+or context, and ordinary current entry share the existing Web owners. Original
+request dispositions and restricted participant feedback stay separate. The
+candidate adds a compatible v0.9 record/export, no new migration or access grant.
+
+The task-owned internal preparation uses pinned public README bytes before and
+after merged #1591. #1447 changes its next permitted handoff route to the documented
+participant browser and supported Cloudflare Access client; #1443 retains an
+operational hold on deployment, migration 0006, v0.8 compatibility, participation
+mode and verified-ingress audience. Fresh clients read saved current decisions and
+produce the next handoff/readiness files. This is constructed work and controlled
+authentication, with newly authored judgments, not hosted outsider adoption,
+organic demand, separate-task method reuse or completion of either parent issue.
+
+The receiving review found three browser gaps on predecessor `95b5c55580bb`:
+v0.9 import dispatch/budgets, authoring during ordinary editor replacement, and
+consumer draft unload warnings. The repair candidate corrects these paths and
+adds a durable real-browser regression to both the focused consumer entry and
+the ordinary browser suite. The predecessor's 9 PASS / 1 FAIL / 6 NOT_RUN and
+separate false stock remain historical; these fixes do not establish a remedy
+for its 180-second browser timeout. A positive independent source review and a
+separate authenticated prospective execution commission remain required before
+any deciding reservation or run under the first v7 reviewed_revision route.
+
+The second commissioned Full on `4b1f304cc58c` settled at 7 PASS / 1 FAIL /
+8 NOT_RUN with false stock. A Git configuration acquisition race latched during
+integration before the accepted HTTP correction's child ran. Both commission
+ordinals are spent. The r6 input-owner correction narrows its coherent acquisition
+window and adds boundary regressions; it cannot repair that historical UNKNOWN.
+The [accepted continuation amendment](../verification/1593_GIT_ACQUISITION_PROPOSAL.md)
+is now applied to the existing policy and reviewed-revision owners. Its original
+proposal and patch remain historical review material. The acquisition marker
+permits only the specified UNKNOWN Git incident at a spent basic-v7 ordinal-two
+tip; it preserves the old false stock and both consumed ordinals. A new commission
+must bind its own final source, current inventory, independent acceptance and
+genuinely new authenticated authority. Its second ordinal requires its own
+supported natural product failure and material correction; another observer
+cancellation is ineligible. Qualification remains HOLD. Implementation and
+non-reserving preparation do not authorize a commission, reservation or Full.
+
+The subsequent delegated prospective commission's first Full on `06a246c942de`
+settled at 6 PASS / 1 FAIL / 9 NOT_RUN with separate false stock. Authority's
+acquisition fixture failed naturally at its production authority reader before
+integration or Browser phases. The implicated synthetic record construction read
+creation and update times separately; an adjacent-millisecond control reproduces
+the unedited-record refusal. Each synthetic delegation/grant now captures one
+timestamp, with a durable clock-boundary control and explicit edited-record
+refusals. Production authority semantics are unchanged. The original failed
+records' precise timestamps were not retained and remain UNKNOWN. A supported
+second candidate still needs exact focused evidence, independent acceptance and
+normal admission under the same new commission; no additional grant is created.
+
+The acquisition commission's second Full on `909355f8a3d` also settled at
+6 PASS / 1 FAIL / 9 NOT_RUN with false stock. Its authority phase exited naturally
+after the nested reviewed-revision aggregate hit its 15-second bound. Both old
+and acquisition commissions are spent 2/2. The r9 candidate gives only this
+expanded aggregate 20 seconds, retaining its 30-second outer bound and all
+intentional inner deadlines. A separately marked, one-invocation terminal
+continuation is implemented for review in the existing v7 owners. It requires
+genuinely new authenticated delegation, commitment-bound independent acceptance
+and a subsequent grant. The prior delegation cannot authorize it. No additional
+Full, reservation, recovery or replacement commission is performed by r9.
+
+Focused production-owner evidence is recorded in 04. Final exact-source planner
+qualification and independent result audit belong to this candidate's PR/evidence.
+The next operational decision remains separately authorized deployment/migration
+and intended-recipient access; none is executed or made a gate for implementation.
+Earlier failures, accepted scopes, unknown usage and unrelated owners are preserved.
 
 ### Current P2/P5 candidate — Request-scoped Web participation (#1589)
 

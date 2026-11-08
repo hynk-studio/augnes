@@ -275,6 +275,280 @@ withheld baseline evidence cannot establish an Augnes advantage. Capability,
 semantic use, comparative benefit, installed adoption and operational security
 remain separate claims; appropriate non-use or simplification remains valid.
 
+### Consumer-current reassessment evidence (#1593)
+
+The r13 intake reproduced the primary denial-message defect on clean `c954eecf`
+through the complete real-D1 Browser entry: natural exit 1 in 10,113 ms. This is
+a new before observation, not a reconstructed inner TypeError from r12. Corrected
+working bytes passed acknowledged-save/list-403, resolved-lost-ack/list-403,
+pre-acceptance denial and late real IndexedDB completion controls. One complete
+development journey hit the unchanged 180-second limit; a separately instrumented
+journey passed naturally in 178,359 ms. It measured 1,114 already-blank disposal
+navigations consuming 9,031 ms. Avoiding only those redundant replacements is a
+bounded harness improvement, not proof of the original timeout's complete cause
+or a guarantee of Full completion. Final source evidence remains separately bound.
+
+On clean `5ac7d2493fcdcd6e52ece2ad136dc7700f26d92d`, the complete uninstrumented
+real-D1 journey passed naturally in 170,011 ms, including all ten reassessment
+safety cases and the later branch, participation, returned-file and consumer
+sections. Save/list-403 and resolved-lost-ack/list-403 retained the primary denial,
+one save request and the expected revisions; denial before acceptance appended
+nothing. A real pending IndexedDB transaction survived access loss without a save
+or active-view resurrection, then recovered its exact body after authentication.
+The 21-group reviewed-revision controls passed naturally in 176,469 ms on that
+same clean source, including consistently rebound refusal witnesses, fresh-reader
+reservation refusal and cross-commission accounting. Both owners completed cleanup.
+Contract, documentation, whole-diff and planner checks passed. A later
+documentation-only evidence commit preserves these tested-head attributions;
+focused results do not supply a Full receipt or real execution authority.
+
+During independent commitment reproduction, main advanced to `52ebce39` through
+#1603. The former preparation remains an earlier non-reserving snapshot; the
+current-main reader refused its stale base. Ordinary merge `5dd13a35c28055efdb56be981e56be5bda83a3ea`
+preserved both histories. Its complete D1 Browser journey passed in 172,762 ms,
+planner controls in 30,623 ms and all 21 reviewed-revision groups in 176,949 ms,
+each naturally with completed cleanup. These are actual integrated-source runs;
+the preceding `5ac7d249` observations keep their original attribution. New current
+inventory, preparation and commitment review are required before reservation.
+
+The reusable material-source controls exercise actual production preparation,
+authenticated-reader fixtures, physical reservations, exact evidence, historical
+reconstruction and fresh-process stock. Synthetic authority never authorizes real
+qualification. Old false stock, UNKNOWN windows and every issued limit remain
+historical facts. The reused old80 pair used explicit revision argument
+`80e37e44bb4459fa791c88e07374166729571975`; the ef5e sequence used `HEAD`.
+
+The r10 receipt `f5de3f325a9c1d11abdab550a6620fbc5ca87a61ddf892b82d6476629a2824b8`
+retains 6 PASS / 1 FAIL / 9 NOT_RUN and false stock. The corrected revision group
+passed naturally at 15,197 ms. Git-successor received SIGTERM at 15,130 ms against
+its separate 15-second aggregate; the outer 30-second owner exited naturally.
+The last event is reader two starting, not proof that its own limit expired or
+that 130 ms more would suffice. Its last statement and total delay remain UNKNOWN.
+
+One r11 development observation used an immutable `80e37e44bb44` archive with
+explicit stage/cost instrumentation and the unchanged producer/successor bounds.
+Both groups passed naturally; the successor fixture took 10,147 ms. Its parent
+made 1,167 synchronous subprocess calls taking 6,989 ms, including 1,066 protected
+Git calls taking 6,442 ms. Reader one and two took 984 ms and 1,339 ms internally,
+with 942 ms and 1,276 ms synchronous work. Preparation/refusal checks took
+1,774 ms and authority/refusal checks 2,016 ms. Reader two began at 6,678 ms;
+after it settled at 8,132 ms, about 2,014 ms of parent checks remained. Parent
+cleanup and the outer resource cleanup are separate measured costs. These new
+observations do not reconstruct the missing historical stage timing.
+
+The stack-clock wrapper cost about 29 ms across the successor and two readers;
+it is not a demonstrated latency cause. No substantive repeated check was
+shown unnecessary. Only the Git-successor aggregate receives 5 seconds of
+additional headroom, using the existing 20-second allowance within its 30-second
+outer owner. The clock correction removes global `Date.now` replacement and
+uses an acquisition-scoped fixture clock across shared async helpers. Single
+captured record timestamps and edited-record refusals remain. Tracked children
+separately correct an unconditional cleanup declaration; thrown/unsettled
+children retain ownership while naturally settled exit 1 does not create a leak.
+Focused completion is development evidence and cannot replace the nine missing
+Full phases. The [post-terminal proposal](../verification/1593_GIT_SUCCESSOR_QUALIFICATION_PROPOSAL.md)
+had no applied authorization route in r11. The r12 implementation adds only its
+accepted exceptional one-slot edge; all five old reservations remain consumed.
+New production-reader controls must cover consumed-one preparation, exact incident
+and source/input binding, independent fresh-reader stock, exclusive consumption
+and refusal of every successor. Synthetic acceptance supplies no real authority.
+
+At r12 commit `04a5dc25a98ed8af37209b25ce851d0b006cb07a`, the complete retained
+Git producer/successor driver ran an immutable archive naturally in 14,625 ms
+(2,953/11,119 ms for the two outer children), with complete owned cleanup.
+The unchanged r11 predecessor execution remains the PASS comparison; it was not
+rerun or relabeled. The new terminal fixture chain passed naturally in 36,338 ms:
+workload 17,970 ms, preparation 2,176 ms, refusals 6,563 ms and terminal consumption
+9,562 ms. It exercises production readers, five preserved historical invocations,
+the consumed-one edge, physical-log tampering, ordinary acquisition-one refusal,
+documentation-only witness reuse, incomplete evidence/inventory and edited-scope
+refusals, a separately owned late contender, fresh false stock and terminal export.
+
+The complete sixteen-registration reviewed-revision chain passed earlier in
+126,241 ms on the recorded r12 working-source hashes over `3f8f761a`; later changes
+added only the focused physical-log/acquisition-one refusal controls and explanatory
+documentation. That earlier result retains its working-source attribution.
+Two development failures remain recorded: a constructed terminal attempt initially
+lacked its complete input fingerprint, then a marker-removal test found incident
+parsing before the terminal edge check. The fixture binding and production ordering
+were corrected. The bounded registration contract required its expected group
+list to include the three new groups; assertions and child deadlines were retained.
+These focused passes provide no deciding receipt or execution authority. The
+future admitted Full, separate stock and independent receiving audit remain distinct.
+
+The corrected working-source blobs completed all thirteen existing registrations
+with `node scripts/run-canonical-test-suite.mjs authority --reviewed-revision-only`
+in 103,969 ms, naturally, with owned cleanup. Git producer/successor took
+2,705/10,262 ms; revision/workload took 13,395/14,410 ms. The existing child-result
+regression passed in 3,310 ms, including native clock identity, nested/async scope,
+success/throw restoration, real settled exit 1 and refusal to settle an unresolved
+child. These are focused fixture controls, not product Browser or deciding Full
+coverage. The complete runtime is pinned Node 24.22.1 with its retained headers;
+private originals bind the tested working bytes rather than relabeling the old
+80e37e44 commit as this candidate.
+
+The r8 second receipt `4d92dda28a2ffd28c5cbe4beb0c341af821a6e68f453ff1ca4994df424603a81`
+retains 6 PASS / 1 FAIL / 9 NOT_RUN and separate false stock. The inner
+reviewed-revision aggregate was terminated at 15,071 ms against 15,000 ms;
+the exact last statement and historical delay cause remain UNKNOWN. Its earlier
+same-head focused run passed naturally at 13,730 ms. The r9 bounded diagnostic
+on that source again completed all fourteen controls naturally (13,453 ms).
+A separately attributed buffered cost observation measured 13,185 ms in the
+fixture: acquisition controls ended at 4,350 ms; 1,579 synchronous subprocesses
+cost 10,168 ms; 1,000 intercepted clock calls cost 39 ms. The latter observation
+uses a private measurement preload, not an unchanged qualification invocation.
+It does not identify the historical scheduler or blame another owner.
+
+No repeated safety check was demonstrated unnecessary. The correction retains
+the original 15-second aggregate allowance plus 5 seconds for the measured
+additional acquisition work. Only the revision group changes to 20 seconds;
+other groups, fresh readers, races, outer 30 seconds and phase deadlines stay
+unchanged. This is measured aggregate budgeting, not proof that every worst-case
+cleanup fits the outer bound or that the original timeout is retrospectively
+repaired. Complete focused natural completion and cleanup on the final source
+remain separate from deciding Full execution.
+
+The terminal continuation's controls use disposable Git history, synthetic
+authority/receipts and the actual production preparation, proof, authority,
+reservation, reconstruction and export owners. These controls cannot supply
+real delegation or execution authority. The explicit one-invocation edge retains
+the acquisition marker, both spent commissions and all UNKNOWN observations,
+and closes every successor route after consumption. The current actual lineage
+is still HOLD until separately authenticated prospective authority is present.
+
+The new prospective commission's first Full on `06a246c942de` stopped naturally
+in the acquisition fixture's authority check: 6 PASS / 1 FAIL / 9 NOT_RUN,
+separate false stock, no input first fault, complete cleanup. Its receipt is
+`af992dfc6d59cbb367a7f4c220f0dd468a890120ac2acf4576d091d776f465bc`.
+The original fixture's two clock reads can give an unedited synthetic record
+different creation/update timestamps. Controlled adjacent millisecond reads
+reproduce the same `revision_authority_scope_invalid` at the enforcing owner.
+The correction captures each record's timestamp once, exercises that boundary
+in the existing fixture and retains rejection of genuinely edited records.
+This identifies a directly implicated fixture defect; the actual failed pair of
+timestamps was not retained, so the precise historical pair remains UNKNOWN.
+The controlled clock input is explicitly attributed and does not alter real
+authority clocks, records, deadlines, workload or production admission.
+
+The same first receipt exposed a review-export omission: its sanitized derivative
+lost the acquisition marker, delegation and inventory hash, so the existing
+structural reader refused it. The export owner now retains those validated
+optional bindings without exposing configuration or artifact paths. The original
+receipt, false stock and refused derivative remain immutable; a corrected
+derivative is separate. A fixture checks real export/readback plus preservation
+of interrupted false stock. Legacy records without these fields retain their
+existing export representation. This artifact correction grants no invocation.
+
+The second commissioned Full on `4b1f304cc58c` retained 7 PASS / 1 FAIL /
+8 NOT_RUN and false stock. Its first fault was a Git `metadata_consistency`
+observation race at 2026-11-08T01:30:53.628Z; a complete ambient observation
+2.660 seconds later cannot establish the missing earlier sample or its writer.
+It cancelled integration before the corrected cumulative child. This is neither
+the previous HTTP failure nor the historical Web timeout.
+
+The r6 focused comparison uses the same final Git-input fixture with the exact
+prior input owner and corrected owner on Node 24.22.1. An owned atomic replacement
+completed during ancillary Git prework fails naturally on the prior owner and
+passes after moving that prework before the binding file acquisition. Nine
+boundary controls retain protected-setting, permission, alias, in-window
+replacement and Git-context refusal; the broader Git controls retain legacy
+projection, origin/include and fresh-process behavior. This establishes a
+specific over-wide acquisition defect, not the unrecoverable historical writer
+or failed sample. The final r6 support comprises 56 Git controls (including those
+nine), 14 synthetic reviewed-revision groups using the corrected input dependency,
+and strict two-key v2 artifact references. Their exact source/runtime attribution
+and the final dependency addendum remain necessary when reusing this evidence.
+The read-only check of the preserved r5 incident shape is not full preparation.
+No deciding invocation or real reservation accompanies r6; the old commission
+remains spent.
+
+The exact prospective patch was subsequently accepted for implementation and
+applied in the existing owners. This adoption requires a new acquisition GREEN
+on the actual final committed head and a separate review of the applied source
+and evidence; the ffad GREEN cannot be relabeled. Unchanged development support
+does not become execution on that new head. Complete real source/input inventory,
+physical-tip accounting and any available non-reserving preparation remain
+separate from genuinely new authenticated execution authority. Missing operative
+authority is a refusal, not a synthetic placeholder. Full, deciding stock,
+reservation and recovery remain unrun in this implementation assignment.
+
+The first commissioned Full invocation on integrated head `662cb74e86b7` retained
+7 PASS / 1 FAIL / 8 NOT_RUN and separate false stock. Its cumulative-surface child
+failed naturally with `ECONNRESET`; the retained stderr does not identify the HTTP
+call or establish whether the revision committed. This is separate from the
+earlier Web timeout. A later buffered observation completed one workflow with
+eight fresh subprocesses; it is not eight independent reproductions.
+
+A focused lifecycle experiment on the same real fixture and Node 24.22.1 added
+one recovery validation in the ordinary-successor readback. The revision POST
+completed with status 201 and a consumed JSON body, then the final GET failed
+with `ECONNRESET` as the reused socket's six-second idle lifetime expired. The
+requested goal remained committed, and primary failure, successful session
+cleanup and owned-resource disposal were separately observed. This demonstrates
+an implicated fixture lifecycle defect; the historical request remains unknown.
+The fixture's Node HTTP helper now requests connection closure per operation,
+without replaying writes or changing production routes. One durable cumulative
+readback crosses the unchanged server idle lifetime through real synchronous
+recovery validation before reading the saved revision. Existing history,
+authority, source and cleanup assertions remain in place. A cleanup HTTP failure
+also retains any primary error. These source changes and focused observations
+do not by themselves establish qualification or diagnose the old Web timeout.
+
+The 2026-11-07 controlled internal case selects complete public
+`apps/web_planning/README.md` files at `702f2b2f6db406440c2ab008f75ef0f18d21bd09`
+(119,889 bytes) and merged `1f77dfb7ac08e5726777ce27e59e06d7b6665b2a`
+(128,957 bytes). Newly authored task-owned consumer works preserve the earlier
+returned occurrence and independent useful files. No judgment is backdated.
+
+Consumer A, for #1447 preparation, replaces its 495-byte owner-route selection
+with a 2,121-byte selection of the supported request-scoped browser/client route,
+pinned README version, login conditions and remaining prerequisites. Consumer B,
+for #1443, retains its exact 823-byte operational HOLD: accepted source cannot
+observe or approve deployment, 0006, v0.8 compatibility, mode or recipient ingress.
+Both decisions and their own reasons/limits/next actions are committed by production
+owners. A fresh browser displays the chosen result separately from historical use;
+fresh authenticated client processes read saved current judgments/output and save
+`next-handoff.md` and `readiness-next.md` without a pasted reconstruction. The
+executor assembles these preparation artifacts deterministically from saved state;
+this is fresh re-entry, not an independent model judgment or separate-task reuse.
+
+Focused D1/Chrome/client observations cover meaningful replacement and context-only
+updates, independent retention/end-use, old bytes/unrelated context, read-only
+inspection, unavailable sources, scoped refusal, concurrent CAS, atomic file-write
+failure, lost acknowledgement/exact replay, per-operation browser recovery and
+unchanged participant feedback. Existing export/reconstruction owners retain old
+format bytes and independent destination history and revoke restored grants. The
+full Web regressions also retain branch/incorporation and participant boundaries.
+Exact commands, before/after files, exports, failures, source identities, final
+planner results and cleanup are retained with the candidate's private handoff/PR;
+these development observations are not a transferable final-head receipt.
+
+The browser repair regression uses `node scripts/run-web-planning.mjs
+reassessment-browser` with the same driver on the settled predecessor and repaired
+production source. The predecessor accepts and then erases input during ordinary
+Save, loses edited/prepared judgments on real Chrome reload without a dialog,
+and sends genuine v0.9 exports through legacy dispatch/budgets. The corrected
+source locks authoring through delayed acknowledgement and unknown-save resolution
+(including a failed resolution read), preserves drafts when the actual unload
+dialog is cancelled, and reconstructs complete standalone/direction histories via
+the file picker and enforcing server. Valid JSON whitespace exercises browser
+file-size thresholds without fabricating history; the legacy v0.3 control remains
+unchanged. Existing focused D1 coverage separately verifies restored grant
+revocation, v0.8 history, unavailable origins, concurrent saves and privacy.
+
+The original 9 PASS / 1 FAIL / 6 NOT_RUN, false stock and originals remain intact.
+Migration +12.547 seconds and common CLI +0.414 seconds are measured partial
+arithmetic, not a complete cause of the historical 180-second timeout. No aggregate
+or Full rerun, deadline increase, skipped migration/assertion, or speculative
+optimization is part of this repair. Focused RED-to-GREEN evidence is independent
+of deciding qualification and does not establish a timeout remedy.
+
+All authentication is controlled local/platform simulation. Hosted ingress,
+outsider adoption, organic demand, comparative benefit and operational activation
+remain unobserved; there is no new paid-provider allocation or required live-model
+campaign. The saved route and hold are preparation results for actual named
+purposes, not completion of #1447/#1443 or authorization to contact a recipient.
+
 ### Request-scoped Web participation evidence (#1589)
 
 The controlled example reads the exact workshop notice, corrects arrival and
@@ -2453,6 +2727,42 @@ optional proposal-projection failures remain distinct from normal result reads.
 No composite score, independent-blind evaluation, general transfer, production
 activation or broader maturity promotion follows. Sequence status remains
 owned by the roadmap.
+
+### Learning and retention across recurring conditions (P4/P5)
+
+For the [#1373 research refinement](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#next-p4p5--executable-capability-reuse-from-experience-1373),
+distinguish discovering an applicability condition, using it and revising it from
+correct storage/delivery. Induction within a supplied feature language can be
+learning; identify that scaffolding separately. Supplying the correct guard or
+task-group label and observing its use does not demonstrate condition discovery.
+
+One discriminating sequence is A → B → A′, with C added when testing transfer:
+learn from A; adapt to a superficially similar B with a different material
+condition; evaluate a held-out A′ under the still-valid A conditions **before
+answer feedback or relearning**; use C for a genuinely separate task with the
+same relevant structure and different surface details. These are contrasts,
+not a fixed task count or mandatory campaign. Include ordinary valid reuse,
+irrelevant-change and unavailable-condition cases as needed; neither blanket
+deferral nor frozen methods should win by construction.
+
+Separate correction of an earlier error, changed environment and changed goal.
+A frozen-regime retention check must not reward obsolete answers after a real
+change. Report adaptation, retained competence and transfer through actual
+actions/outputs, including wrong initial reuse, unnecessary refusal/rechecking
+and common-checker rescue separately. Shared-endpoint gain/loss correlations
+alone do not establish a causal or unavoidable trade-off.
+
+Use the [strong-comparison rules](#strong-comparisons-and-independence): capable
+ordinary memo/code may invent the same representations and methods with equal
+evidence, tools and relevant total budget. Compare a proposed change with current
+Augnes when attributing its incremental contribution; choose only the comparisons
+needed for the claim. Hold history equal for an update-mechanism comparison;
+for [active observation](#active-observation-and-productive-action-selection-1464),
+match initial opportunities while allowing chosen histories to differ. Count
+acquisition, revision, validation and human repair under [total burden](#cost-and-user-burden).
+Better capability or equal quality at lower burden can justify use. Preserve
+historical ties/SIMPLIFY and exposure limits; this adds no execution allocation
+or completion gate to existing work.
 
 ### Goal-directed recombination and candidate paths (P4/P5)
 

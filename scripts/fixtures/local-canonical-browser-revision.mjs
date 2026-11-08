@@ -9,8 +9,9 @@ import { reviewedRevisionAuthorityObservation, hasRetiredQualificationMarker, in
 import { finalizeReceipt } from "../local-canonical-receipt.mjs";
 import { checkBrowserSourceSuccessor } from "./local-canonical-browser-successor.mjs";
 import { BROWSER_IDENTITY_PREFIX } from "../local-canonical-browser-identity.mjs";
+import { fixtureNow } from "./local-canonical-authority-clock.mjs";
 
-const time = offset => new Date(Date.now() + offset).toISOString();
+const time = offset => new Date(fixtureNow() + offset).toISOString();
 const stockOf = r => ({ content_fingerprint:r.integrity.content_fingerprint, status:"non_deciding_or_stale", valid_deciding_evidence:false,
   dimensions:{historical_integrity:"intact",execution:"incomplete_or_failed",evidence_validity:"invalid_or_incomplete",safety:"blocked",current_merge_applicability:"blocked"},
   issues:["receipt_input_observation_blocked","phase_not_passing:integration","phase_not_passing:operability"] });

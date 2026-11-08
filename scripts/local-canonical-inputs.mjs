@@ -507,8 +507,20 @@ export function observeInputFile(file, { metadataOnly = false, preferences = fal
   });
   checkFile(stat);
   atStage("path_resolution", () => { if (realpathSync(file) !== file) throw fail("input_unsafe_file"); });
-  const securityBefore = readOnlyExecutable || protectedConfiguration ? executablePermissions(file) : null;
   const gitBefore = gitTracking ? gitTrackingContext(file, gitRoots) : null;
+  if (gitTracking) {
+    // The first stat/path check protects Git's ancillary context reads. Start
+    // the one binding file acquisition only after that subprocess prework;
+    // an atomic replacement completed there is not an incoherent byte read.
+    // This is not a retry: no binding observation of this configuration's
+    // descriptor/bytes/permission image was acquired.
+    // Every sample from here through readWindow must still agree, including
+    // both permission observations. The context is independently checked again.
+    stat = atStage("initial_stat", () => lstatSync(file, { bigint: true }));
+    checkFile(stat);
+    atStage("path_resolution", () => { if (realpathSync(file) !== file) throw fail("input_unsafe_file"); });
+  }
+  const securityBefore = readOnlyExecutable || protectedConfiguration ? executablePermissions(file) : null;
   const metadata = s => ({ mode: String(s.mode), uid: String(s.uid), gid: String(s.gid), links: String(s.nlink),
     device: String(s.dev), inode: String(s.ino), bytes: String(s.size), mtime_ns: String(s.mtimeNs), ctime_ns: String(s.ctimeNs) });
   if (metadataOnly) return { present: true, metadata: metadata(stat), ...(readOnlyExecutable ? { permission_identity: securityBefore, executable_identity_policy: sharedPosix ? "shared-posix-v1" : "strict-metadata-v1" } : {}), observation: "metadata_only" };

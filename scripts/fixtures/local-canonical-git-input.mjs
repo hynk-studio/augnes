@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import childProcess from "node:child_process";
+import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -342,15 +345,102 @@ async function controls(api, f, modulePath) {
   return findings;
 }
 
-export async function runGitInputControls(api, { witnessOnly = false, modulePath = fileURLToPath(new URL("../local-canonical-inputs.mjs", import.meta.url)) } = {}) {
+// Replace only an owned fixture file, at a real production acquisition call.
+// The original native operation still runs. No reader injection, retry, sleep,
+// shared Git edit, or synthetic successful observation is involved.
+function acquisitionControls(api, f) {
+  const findings = [], r = resource(api, f);
+  const native = { execFileSync: childProcess.execFileSync, openSync: fs.openSync, readFileSync: fs.readFileSync };
+  const replace = text => { const next = path.join(f.root, "next-config"); write(next, text); renameSync(next, f.config); };
+  const run = (name, boundary, mutate, expected) => {
+    write(f.config, f.initial); chmodSync(f.config, 0o600);
+    const frozen = api.freezeInputContract({ resources: [r], pathKind: "isolated-model-free-v1", binding: { fixture: "git-acquisition" } });
+    const before = frozen.snapshot();
+    let fired = false, opened = false, descriptor;
+    const at = point => {
+      if (!fired && point === boundary) { fired = true; mutate(); }
+    };
+    childProcess.execFileSync = (command, args, ...rest) => {
+      const result = native.execFileSync(command, args, ...rest);
+      if (command === "git" && args.includes(f.checkout)) at(opened ? "post-context" : "context-prework");
+      if (command === "/bin/ls" && args.includes(f.config)) at("permissions");
+      return result;
+    };
+    fs.openSync = (...args) => {
+      const fd = native.openSync(...args);
+      if (args[0] === f.config) { opened = true; descriptor = fd; at("descriptor-open"); }
+      return fd;
+    };
+    fs.readFileSync = (...args) => {
+      const bytes = native.readFileSync(...args);
+      if (typeof args[0] === "number" && args[0] === descriptor) at("body-read");
+      return bytes;
+    };
+    syncBuiltinESMExports();
+    let fault;
+    try { fault = frozen.check({ force: true }); }
+    finally {
+      Object.assign(childProcess, { execFileSync: native.execFileSync });
+      Object.assign(fs, { openSync: native.openSync, readFileSync: native.readFileSync });
+      syncBuiltinESMExports();
+    }
+    assert(fired, `${name}: concrete acquisition boundary reached`);
+    const observed = frozen.snapshot();
+    console.log(JSON.stringify({ git_acquisition_case: name, boundary, disposition: fault?.disposition ?? null,
+      diagnostic: fault?.diagnostic ?? null, raw_changed: sha(readFileSync(f.config)) !== before.resources[0].before.sha256 }));
+    assert.equal(fault?.disposition ?? null, expected, name);
+    assert.equal(JSON.stringify(observed).includes(f.root), false, "private fixture paths must not persist");
+    if (expected === null) {
+      assert.equal(observed.events.length, 1);
+      assert.equal(observed.events[0].disposition, "ambient_observation");
+      assert.equal(observed.events[0].after.sha256, sha(readFileSync(f.config)), "one complete acquired byte image, not a prior sample");
+      assert.equal(observed.events[0].after.git_projection.effective_sha256, before.resources[0].before.git_projection.effective_sha256);
+    } else {
+      const controller = new AbortController();
+      const monitor = api.monitorInputContract(frozen, controller, { intervalMs: 1000 });
+      try { assert(controller.signal.aborted, "first fault remains latched"); }
+      finally { monitor.stop(); }
+      assert.deepEqual(frozen.snapshot().first_fault, observed.first_fault);
+    }
+    findings.push(name);
+  };
+  run("completed foreign tracking replacement during context prework has one coherent acquisition", "context-prework",
+    () => replace(f.initial + foreignSection), null);
+  run("protected remote replacement before acquisition still invalidates", "context-prework",
+    () => replace(f.initial.replace("https://example.invalid/fixture.git", "https://example.invalid/changed.git")), "input_invalidation");
+  run("permission change before acquisition remains safety relevant", "context-prework",
+    () => chmodSync(f.config, 0o644), "safety_violation");
+  const alias = path.join(f.root, "prework-alias");
+  try {
+    run("hardlink introduced during prework remains blocking", "context-prework",
+      () => linkSync(f.config, alias), "observer_failure");
+  } finally { rmSync(alias, { force: true }); }
+  try {
+    run("symlink introduced during prework remains blocking", "context-prework",
+      () => { renameSync(f.config, alias); symlinkSync(alias, f.config); }, "observer_failure");
+  } finally { if (existsSync(alias)) { rmSync(f.config); renameSync(alias, f.config); } }
+  for (const boundary of ["permissions", "descriptor-open", "body-read"]) {
+    run(`atomic replacement inside ${boundary} acquisition remains blocking`, boundary,
+      () => replace(f.initial + foreignSection), "observer_failure");
+  }
+  try {
+    run("branch context changes after the byte window remain blocking", "post-context",
+      () => f.git(f.checkout, ["checkout", "--quiet", "--detach"]), "observer_failure");
+  } finally { f.git(f.checkout, ["checkout", "--quiet", "fixture/current"]); }
+  return findings;
+}
+
+export async function runGitInputControls(api, { witnessOnly = false, acquisitionOnly = false, modulePath = fileURLToPath(new URL("../local-canonical-inputs.mjs", import.meta.url)) } = {}) {
   const f = fixture(), findings = [];
   beginCanonicalTestResourceUse(f.owner);
   try {
+    if (acquisitionOnly) return acquisitionControls(api, f);
     await witness(api, f, modulePath);
     findings.push("real linked-worktree fixed consumer survives foreign tracking append; raw observations retained");
     if (!witnessOnly) {
       assert.equal(typeof api.createGitTrackingResource, "function");
       findings.push(...await controls(api, f, modulePath));
+      findings.push(...acquisitionControls(api, f));
     }
   } finally {
     if (!f.childInFlight) settleCanonicalTestResourceUse(f.owner, { exit_observed: true, streams_closed: true, cleanup_completed: true, remaining_owned_processes: 0 });
@@ -362,8 +452,10 @@ export async function runGitInputControls(api, { witnessOnly = false, modulePath
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  assert.equal(process.argv[2], "--witness"); assert.equal(process.argv.length, 4);
-  const api = await import(pathToFileURL(path.resolve(process.argv[3])).href);
-  const findings = await runGitInputControls(api, { witnessOnly: true, modulePath: path.resolve(process.argv[3]) });
+  assert(["--witness", "--acquisition"].includes(process.argv[2]));
+  assert(process.argv.length === 4 || process.argv[2] === "--acquisition" && process.argv.length === 3);
+  const modulePath = process.argv[3] ? path.resolve(process.argv[3]) : fileURLToPath(new URL("../local-canonical-inputs.mjs", import.meta.url));
+  const api = await import(pathToFileURL(modulePath).href);
+  const findings = await runGitInputControls(api, { witnessOnly: process.argv[2] === "--witness", acquisitionOnly: process.argv[2] === "--acquisition", modulePath });
   console.log(JSON.stringify({ status: "pass", checks: findings, cleanup_complete: true }));
 }

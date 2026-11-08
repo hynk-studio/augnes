@@ -10,8 +10,9 @@ import { gitObservationIncident, gitRevisionInventory, gitReviewTarget, finalDep
 
 import { runCanonicalChild } from "../canonical-child-runner.mjs";
 import { behavior, dependencyRecords, executeFixture } from "./local-canonical-browser-successor.mjs";
+import { fixtureNow } from "./local-canonical-authority-clock.mjs";
 
-const time = offset => new Date(Date.now() + offset).toISOString();
+const time = offset => new Date(fixtureNow() + offset).toISOString();
 const product = "apps/web_planning/src/client.js.txt", fixture = "scripts/fixture.mjs";
 const phaseIds = REVIEWED_REVISION_PHASES;
 
@@ -57,7 +58,7 @@ async function checkGitSourceSuccessor(c, h, initial, initialCapability) {
   const consumed = tip();
   assert.equal(consumed.reviewed_revision_consumed,1);
   const priorFolder = c.artifacts, previous = c.head;
-  const red = await behavior(c);
+  const red = await behavior(c,false,h.run);
   const oldBlob = digest(c.git(["show",previous+":"+fixture]));
   const url = type => "https://github.com/hynk-studio/augnes/pull/999#"+type+"-";
   const comment = url("issuecomment"), reviewUrl = url("pullrequestreview");
@@ -78,7 +79,7 @@ async function checkGitSourceSuccessor(c, h, initial, initialCapability) {
   const artifact=(name,value)=>h.artifact(c,name,value);
   const get=ref=>h.read(path.join(c.artifacts,ref.artifact));
   p.source=artifact("source.json",{...get(p.source),reviewed_at:time(0)});
-  const green=await behavior(c);
+  const green=await behavior(c,false,h.run);
   assert.equal(red.result.exit_code,1);assert.equal(green.result.exit_code,0);
   const witness=(run,hash,label)=>artifact(label+".json",{...run,node_version:CANONICAL_NODE_VERSION,file_sha256:hash,
     runtime_inputs_sha256:p.inputs.identity_sha256,stdout:artifact(label+".log",run.output)});
@@ -233,9 +234,9 @@ export async function checkSpentCommission(c, h, stage) {
       c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","synthetic registration repair"]);
     };
     const was = readFileSync(path.join(c.checkout,file),"utf8");
-    const red = await behavior(c);
+    const red = await behavior(c,false,h.run);
     assert.equal(red.result.exit_code, 1);
-    const syntaxBefore = ordinal === 1 ? await behavior(c, true) : null;
+    const syntaxBefore = ordinal === 1 ? await behavior(c, true,h.run) : null;
     commit(was.replace("false, true", "true, true"));
     if (ordinal === 1) {
       c.acceptedHead=c.git(["rev-parse","HEAD"]).toString().trim();
@@ -247,7 +248,7 @@ export async function checkSpentCommission(c, h, stage) {
     p.commission.delegation={id:delegation.id,sha256:digest(reviewedRevisionAuthorityObservation(delegation,"task_delegation"))};
     p.inputs.inventory_sha256=c.live.inventory; p.inputs.predecessor_sha256=p2.inputs.identity_sha256;
     p.originals.stock=artifact("prior-stock.log",JSON.stringify(prior.stock));
-    const green=await behavior(c);
+    const green=await behavior(c,false,h.run);
     assert.equal(green.result.exit_code,0);
     const raw=readFileSync(path.join(c.checkout,file));
     const witness=(label,run,content)=>artifact(label+".json",{...run,node_version:CANONICAL_NODE_VERSION,
@@ -307,7 +308,7 @@ export async function checkSpentCommission(c, h, stage) {
         if (content !== was) c.git(["update-index","--chmod=+x",file]);
         const tree=c.git(["write-tree"]).toString().trim();
         const head=c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit-tree",tree,"-p",parent,"-m","cosmetic"]).toString().trim();
-        const syntaxAfter=await behavior({...c,head},true);
+        const syntaxAfter=await behavior({...c,head},true,h.run);
         assert.equal(syntaxBefore.result.exit_code,0);assert.equal(syntaxAfter.result.exit_code,0);
         c.git(["restore","--source=HEAD","--staged","--worktree","--",file]);
         const source={...readItem(p.source),accepted_to_final:diff(head,head),predecessor_to_final:diff(parent,head),main_to_final:diff(p.base,head)};
@@ -385,7 +386,7 @@ export async function checkFinalDependency(c,h,stage) {
   const root = path.join(c.checkout,"apps/web_planning/node_modules"), file="scripts/local-canonical-inputs.mjs";
   const probe = async () => {
     let output=""; const sink={write(b){output+=b;}};
-    const result=await runCanonicalChild({suite:"reviewed-revision",label:"retained Web dependency observation",command:process.execPath,
+    const result=await (h.run??runCanonicalChild)({suite:"reviewed-revision",label:"retained Web dependency observation",command:process.execPath,
       args:["--input-type=module","-e",finalDependencyProbe],cwd:c.checkout,env:{...c.env,AUGNES_RETAINED_PROJECT:c.checkout},
       timeoutMs:5000,stdout:sink,stderr:sink});
     assert(result.cleanup_completed && !result.remaining_owned_processes && result.termination_reason==="natural_exit");
@@ -599,14 +600,14 @@ export async function checkPostPass(c,h,stage) {
   }
   assert.throws(()=>verifyGitRevisionSuccess(success.receipt,{...success.stock,valid_deciding_evidence:false},c.inputs,phaseIds));
   const subject="scripts/audit-subject.mjs",driver="scripts/audit-driver.mjs",beforeHead=c.head;
-  c.behaviorPath=driver;const red=await behavior(c);assert.equal(red.result.exit_code,1);
+  c.behaviorPath=driver;const red=await behavior(c,false,h.run);assert.equal(red.result.exit_code,1);
   h.write(path.join(c.checkout,subject),"export const permitted = false;\n");
   c.git(["add",subject]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","Repair independently found material defect"]);
   c.prior=success.receipt;h.prepare(c,2);const p=c.proof,pr=c.authority.pr;c.authority={...authority,pr};
   p.accepted=first.accepted;p.authorization={...first.authorization};p.inputs.inventory_sha256=c.live.inventory;
   const ref=(name,value)=>h.artifact(c,name,value),get=ref=>h.read(path.join(c.artifacts,ref.artifact));
   p.originals.stock=ref("prior-stock.log",JSON.stringify(success.stock));
-  const green=await behavior(c);assert.equal(green.result.exit_code,0);
+  const green=await behavior(c,false,h.run);assert.equal(green.result.exit_code,0);
   const raw=c.git(["show",p.head+":"+driver]),environment=digest({controlled:c.inputs,command:red.command});
   const witness=(label,run,head)=>ref(label+".json",{...run,node_version:CANONICAL_NODE_VERSION,
     file_sha256:digest(raw),fixture_sha256:digest(raw),environment,runtime_inputs_sha256:p.inputs.identity_sha256,
@@ -671,7 +672,7 @@ export async function checkPostPass(c,h,stage) {
     assert.throws(()=>prepare({...p,focused:ref("bad-focused.json",{...focused,regression:{...focused.regression,before:bad}})}));
   }
   // Both sides of a syntax-only or comment-only probe pass: that is not a RED.
-  const syntax=await behavior(c,true);assert.equal(syntax.result.exit_code,0);
+  const syntax=await behavior(c,true,h.run);assert.equal(syntax.result.exit_code,0);
   assert.throws(()=>prepare({...p,focused:ref("nondiscriminating.json",{...focused,regression:{...focused.regression,before:after}})}));
   // A fully rebound comment-only candidate still has the defective behavior.
   // Keep its natural result; do not manufacture a GREEN or change the driver.
@@ -679,7 +680,7 @@ export async function checkPostPass(c,h,stage) {
   h.write(path.join(c.checkout,subject),cosmeticText);c.git(["add",subject]);
   const cosmeticTree=c.git(["write-tree"]).toString().trim();
   const cosmeticHead=c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit-tree",cosmeticTree,"-p",beforeHead,"-m","Comment only"]).toString().trim();
-  const cosmeticRun=await behavior({...c,head:cosmeticHead});assert.equal(cosmeticRun.result.exit_code,1);
+  const cosmeticRun=await behavior({...c,head:cosmeticHead},false,h.run);assert.equal(cosmeticRun.result.exit_code,1);
   const cosmeticAfter=witness("cosmetic",cosmeticRun,cosmeticHead);
   c.git(["restore","--source=HEAD","--staged","--worktree","--",subject]);
   const delta=from=>{const raw=c.git(["diff","--binary","--full-index","--no-ext-diff","--no-textconv",from,cosmeticHead,"--"]);
