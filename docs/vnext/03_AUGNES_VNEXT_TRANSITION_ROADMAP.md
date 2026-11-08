@@ -1626,6 +1626,23 @@ satisfy the consumer, and #1526's accepted bounded use does not by itself establ
 normal product integration or added comparative usefulness. These are prospective
 connections, not a new learner, mandatory asset registry or study allocation.
 
+When an assigned executable-reuse task reveals material setup or result-interpretation
+friction, retain with the selected method the smallest permitted reconstruction
+support: accessible exact code/data/dependencies, relevant setup and entry commands
+and resource needs, expected outputs, extraction rules, units/statistics and
+task-validity checks. Link consequential fixes and unresolved choices to their
+evidence. Inspect the [workflow-cost release](../../publications/workflow-cost-v1/README.md)
+and [fixed report verifier](../WORKFLOW_COST_FIXED_VERIFICATION_V1.md) before adding
+another mechanism. Check through an authorized fresh-consumer use only when needed,
+retaining missing prerequisites and actual repair/explanation burden; reuse
+sufficient existing evidence without repeating qualification.
+
+[ReproBridge v1](https://arxiv.org/html/2611.08452v1) motivates this conditional
+delivery question, not an observed Augnes benefit or a universal package schema,
+container requirement or new auditor. Existing
+[comparison and cost rules](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#method-improvement-evidence),
+priorities and historical allocations remain unchanged.
+
 [#1366's computation artifacts](https://github.com/hynk-studio/augnes/issues/1366)
 are one grounded source-inspection/reuse candidate, not a required module or an
 established transfer result. That completed numerical case is not rerun by this
