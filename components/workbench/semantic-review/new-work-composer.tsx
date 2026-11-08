@@ -4,6 +4,7 @@ import { useProjectClientFetch } from "./project-client-scope";
 
 import { useWorkDraftState, type WorkComposerDraft } from "./work-composer-draft";
 import { useState } from "react";
+import { useWorkPreparationLifetime } from "./work-preparation-departure";
 import { FirstWorkComposer } from "./first-work-composer";
 import type { ProjectWorkInitializationV01 } from "@/types/vnext/project-work-initialization";
 import type { previewNewProjectWorkV01 } from "@/lib/vnext/runtime/project-work-revision";
@@ -18,6 +19,7 @@ export function NewWorkComposer({ initialization, onCancel, onCommitted, onRefus
   onRefused: (status: number, errorCode?: string) => Promise<void>;
 }) {
   const fetch = useProjectClientFetch();
+  const isCurrent = useWorkPreparationLifetime();
   const [preview, setPreview] = useWorkDraftState<Preview | null>(draft, "newWorkPreview", null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,9 +34,10 @@ export function NewWorkComposer({ initialization, onCancel, onCommitted, onRefus
         headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       result = await response.json();
     } catch {
-      await onRefused(0);
+      if (isCurrent()) await onRefused(0);
       throw new Error(uncertain);
     }
+    if (!isCurrent()) throw new Error("The preparation editor has closed.");
     if (!response.ok) await onRefused(response.status, result?.error_code);
     if (response.status >= 500) throw new Error(uncertain);
     if (!response.ok) throw new Error(`Preparation refused (${response.status}). Your draft is retained. Review refreshed current work before preparing again.`);
@@ -58,8 +61,8 @@ export function NewWorkComposer({ initialization, onCancel, onCommitted, onRefus
             expected_current_lineage_kind: packet.lineage_kind, ...definition, ...selection, omitted_sources });
           if (result.status !== "new_work_preview") throw new Error("Preview unavailable.");
           setPreview(result);
-        } catch (failure) { setError(failure instanceof Error ? failure.message : "Preview unavailable."); }
-        finally { setBusy(false); }
+        } catch (failure) { if (isCurrent()) setError(failure instanceof Error ? failure.message : "Preview unavailable."); }
+        finally { if (isCurrent()) setBusy(false); }
       }} /></div>
     {preview ? <div className={styles.panel} data-new-work-preview>
       <h2>Review different task</h2>
@@ -87,8 +90,8 @@ export function NewWorkComposer({ initialization, onCancel, onCommitted, onRefus
             throw new Error("Save outcome could not be confirmed. Your draft is retained. Review current work before taking another action.");
           }
           await onCommitted();
-        } catch (failure) { setError(failure instanceof Error ? failure.message : "Save outcome unknown; reload current work."); }
-        finally { setBusy(false); }
+        } catch (failure) { if (isCurrent()) setError(failure instanceof Error ? failure.message : "Save outcome unknown; reload current work."); }
+        finally { if (isCurrent()) setBusy(false); }
       }}>{busy ? "Preparing…" : "Prepare this different task"}</button>
       <button type="button" className={styles.secondaryButton} disabled={busy || disabled} onClick={() => setPreview(null)}>Edit preparation</button>
       <button type="button" className={styles.secondaryButton} disabled={busy || disabled} onClick={onCancel}>Cancel</button>

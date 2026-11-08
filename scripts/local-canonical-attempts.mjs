@@ -329,9 +329,11 @@ export function readSourceCorrectionProof(file, repositoryRoot) {
   const review = version2 ? readCandidateReview(file, proof) : null;
   if (version2 && proof.kind === "accepted_main_integration") return { ...proof, local_relative_path: relative };
   const sourceModule = proof.source_module ?? "";
+  const nativePreparationRevision = version2 && proof.kind === "source_revision" &&
+    sourceModule === "components/workbench/semantic-review/selected-work-source-editor.tsx";
   const modulePattern = version2 ? /^(?:next\.config\.ts|components\/blank-state\/blank-state-client\.tsx|(?:scripts|app|lib|plugins|apps|src)\/[a-zA-Z0-9_./-]+\.(?:mjs|cjs|js|ts|tsx))$/u : /^scripts\/[a-z0-9_/-]+\.mjs$/u;
   if ((!version2 && proof.schema !== "augnes.local-canonical-source-correction.v1") ||
-      (!modulePattern.test(sourceModule) && !isWebPlanningClientRevision(proof)) || sourceModule.split("/").includes("..") ||
+      (!modulePattern.test(sourceModule) && !nativePreparationRevision && !isWebPlanningClientRevision(proof)) || sourceModule.split("/").includes("..") ||
       !/^[a-z][a-z0-9_-]{0,79}$/u.test(proof.defect ?? "") || !sha(proof.fixture_sha256) ||
       !sha(proof.prior_family_id) || ![1, 2].includes(proof.prior_number) || !sha(proof.prior_receipt_fingerprint)) throw fail("source_correction_proof_invalid");
   if (!/^[a-z0-9_-]+\.mjs$/u.test(proof.fixture_artifact ?? "") || !sha(proof.environment_fingerprint)) throw fail("source_correction_fixture_missing");
