@@ -6,7 +6,15 @@ accepted the exact 44,798-byte patch (SHA-256
 `935defc8302c0dce033d2717663f44b3a6b6064b93f7a526ec135e44677e8254`)
 for implementation. Its four outputs are now adopted in the existing policy,
 attempts owner, Git-observation owner and reviewed-revision fixture. The
-[original patch](1593_GIT_ACQUISITION_PROSPECTIVE.patch) remains unchanged.
+[original patch](https://github.com/hynk-studio/augnes/blob/ffad52603b869ecb6db75b38908f2be3b72593b4/docs/verification/1593_GIT_ACQUISITION_PROSPECTIVE.patch)
+remains byte-for-byte in Git history. Under the
+[ongoing task delegation](https://github.com/hynk-studio/augnes/pull/1594#issuecomment-6717169563),
+the already-applied duplicate is retired from the active tree after checking its
+sole documentation reference and absence of execution consumers. Its eight
+single-space context lines remain in the immutable original; validators are
+unchanged. This archival disposition supplies no material-remedy or invocation
+allowance. The original can be restored from the pinned Git object without
+changing any ledger, grant, product data or recovery contract.
 The active contract is the [Local Canonical policy](../../.github/LOCAL_CANONICAL_VERIFICATION.md#reviewed-source-and-execution-input-revision-source-correction-v7).
 
 Adoption supplies no execution authority. The final committed candidate requires
@@ -15,8 +23,11 @@ source/input inventory and supported non-reserving preparation. Existing RED and
 synthetic support retain their original source/runtime attribution. Missing real
 delegation, final-source acceptance or prospective grant must be reported; they
 cannot be replaced by this implementation decision or synthetic records.
-Commission `6707156210` remains spent 2/2. No new commission, reservation, Full,
-deciding stock or recovery is authorized by this implementation assignment.
+Commission `6707156210` remains spent 2/2. The r7 implementation assignment did
+not authorize a new commission, reservation, Full, deciding stock or recovery.
+The subsequent delegation above permits conditional faithful recording only
+after complete real preparation and independent acceptance; actual new
+authenticated commission records and normal live admission remain required.
 
 Rollback of the adopted amendment restores the previous conservative admission
 behavior. Any physical edge consumed under it must retain its records and reader
