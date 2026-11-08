@@ -180,7 +180,7 @@ async function acquisitionProposalControls(parentRoot, lifecycle, workload = fal
   const root=path.join(parentRoot,"acquisition-proposal");mkdirSync(root);
   const c=setup(root), findings=[];
   const input="scripts/local-canonical-inputs.mjs", driver="scripts/acquisition-driver.mjs";
-  const commit=()=>{c.git(["add","scripts","apps"]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","synthetic acquisition correction"]);};
+  const commit=()=>{c.git(["add","scripts",...(workload?["apps"]:[])]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","synthetic acquisition correction"]);};
   const declaration=()=>({...gitFixtureDeclaration(c),binding:{head:c.head,tree:c.tree,runtime_inputs:c.inputs}});
   const complete=(a,r)=>{storeReceipt(c,r);finishAttempt(a,{receiptFingerprint:r.integrity.content_fingerprint,disposition:r.outcome.disposition,cleanupComplete:true});
     const file=path.join(c.anchor,".augnes-local-verification/families",a.family_id,"completion-1.json");write(file,{...read(file),finished_at:time(-60000)});return file;};
