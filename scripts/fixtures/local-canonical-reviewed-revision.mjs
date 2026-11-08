@@ -292,6 +292,13 @@ async function acquisitionProposalControls(parentRoot, lifecycle) {
     const cold=await runOwned({command:process.execPath,args:[self,"--cold-acquisition",coldPacket],cwd:c.checkout,env:c.env,
       suite:"reviewed-revision",label:"fresh interrupted acquisition stock",timeoutMs:15000,stdout:quiet,stderr:process.stderr,log(){}});
     assert(cold.exit_code===0&&cold.exit_observed&&cold.streams_closed&&cold.cleanup_completed&&cold.remaining_owned_processes===0);
+    const exportable=finalizeReceipt({...clone(baseReceipt),...receipt(c,attempt),final:{result:"failure",exit_status:1,reason_codes:["interrupted"]}});
+    const exported=createPrivateReviewExport(exportable);
+    assert(inspectPrivateReviewExport(exported).structurally_valid);
+    assert.equal(exported.attempt.source_correction.commission.input_acquisition,GIT_ACQUISITION_REPAIR);
+    assert.deepEqual(exported.attempt.source_correction.commission.delegation,p.commission.delegation);
+    assert.equal(exported.attempt.source_correction.inputs.inventory_sha256,p.inputs.inventory_sha256);
+    assert.equal(exported.attempt.source_correction.inputs.current.artifact,undefined);
     findings.push("fresh-process stock remains false for the interrupted new reservation; reconstructed consumption is one and old grants remain spent");
     for(const [file,hash] of originalHashes)assert.equal(digest(readFileSync(file)),hash);
     findings.push("synthetic exclusive new edge retains old two spent ordinals and grant IDs; interrupted reservation consumes and exact replay cannot reserve again");

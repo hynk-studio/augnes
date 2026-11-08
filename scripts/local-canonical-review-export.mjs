@@ -90,13 +90,13 @@ export function inspectPrivateReviewExport(value) {
 
 function revisionProofExport(p) {
   return { ...pick(p, ["schema", "kind", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "pull_request"]),
-    commission: pick(p.commission, ["root_family_id", "root_number", "root_attempt_id", "root_receipt_fingerprint", "ordinal", "maximum_invocations", "initial_authorization"]),
+    commission: pick(p.commission, ["root_family_id", "root_number", "root_attempt_id", "root_receipt_fingerprint", "ordinal", "maximum_invocations", "initial_authorization", "delegation", "input_acquisition"]),
     accepted: { ...pick(p.accepted, ["head", "tree", "base"]), review: pick(p.accepted?.review, ["id", "sha256"]) },
     authorization: { ...pick(p.authorization, ["grant_comment_id", "grant_sha256"]),
       ...(p.authorization?.contract_review ? { contract_review: pick(p.authorization.contract_review, ["pull_request", "id", "sha256", "head"]) } : {}),
       ...(p.authorization?.settlement_review ? { settlement_review: pick(p.authorization.settlement_review, ["id", "sha256", "head"]) } : {}) },
     originals: Object.fromEntries(["receipt", "attempt", "completion", "stock"].map(k => [k, pick(p.originals?.[k], ["sha256"])])),
-    inputs: { ...pick(p.inputs, ["identity_sha256", "predecessor_sha256"]), current: pick(p.inputs?.current, ["sha256"]) },
+    inputs: { ...pick(p.inputs, ["identity_sha256", "predecessor_sha256", "inventory_sha256"]), current: pick(p.inputs?.current, ["sha256"]) },
     source: pick(p.source, ["sha256"]), focused: pick(p.focused, ["sha256"]),
     ...(p.settlement ? { settlement: pick(p.settlement, ["sha256"]) } : {}) };
 }

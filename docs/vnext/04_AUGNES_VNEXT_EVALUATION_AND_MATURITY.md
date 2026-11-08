@@ -267,6 +267,15 @@ timestamps was not retained, so the precise historical pair remains UNKNOWN.
 The controlled clock input is explicitly attributed and does not alter real
 authority clocks, records, deadlines, workload or production admission.
 
+The same first receipt exposed a review-export omission: its sanitized derivative
+lost the acquisition marker, delegation and inventory hash, so the existing
+structural reader refused it. The export owner now retains those validated
+optional bindings without exposing configuration or artifact paths. The original
+receipt, false stock and refused derivative remain immutable; a corrected
+derivative is separate. A fixture checks real export/readback plus preservation
+of interrupted false stock. Legacy records without these fields retain their
+existing export representation. This artifact correction grants no invocation.
+
 The second commissioned Full on `4b1f304cc58c` retained 7 PASS / 1 FAIL /
 8 NOT_RUN and false stock. Its first fault was a Git `metadata_consistency`
 observation race at 2026-11-08T01:30:53.628Z; a complete ambient observation
