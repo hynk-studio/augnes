@@ -3,6 +3,7 @@
 import { selectBrowserPath } from "./local-canonical-browser-input.mjs";
 import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import assert from "node:assert/strict";
+import { checkInitialPreparationResponse, checkPreparationStay, checkPreparationDepartureControls } from "./native-work-preparation-browser-checks.mjs";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
@@ -1723,11 +1724,9 @@ async function main() {
     } }));
     await waitForCondition(`document.querySelector('[data-first-work-state="not_defined"]') !== null`, "Companion first-work form");
     const goal = "Keep a small unexecuted first work available for review";
-    await setFormControlValue('textarea[name="first-work-goal"]', goal);
-    await setFormControlValue('textarea[name="first-work-success-criteria"]', "The saved definition reads back in the Browser");
-    await setFormControlValue('textarea[name="first-work-non-goals"]', "Do not start execution");
-    await waitForCondition(`document.querySelector('[data-first-work-action="save"]:not(:disabled)') !== null`, "Companion first-work save enabled");
-    await clickSelector('[data-first-work-action="save"]');
+    const preparationBrowser = { cdp, evaluate: evaluateJson, waitForCondition, projectId: projectAlphaId, checkDeparture: true };
+    await checkInitialPreparationResponse(preparationBrowser, { goal,
+      success_criteria: ["The saved definition reads back in the Browser"], non_goals: ["Do not start execution"] });
     await waitForCondition(`document.querySelector('[data-current-work-definition="read-only"]')?.textContent.includes(${JSON.stringify(goal)}) === true`, "Companion first-work saved readback");
     await navigate(`${appOrigin}/workbench/semantic-review#first-work`);
     await waitForCondition(`document.querySelector('[data-current-work-definition="read-only"]')?.textContent.includes(${JSON.stringify(goal)}) === true`, "Companion first-work readback after refresh");
@@ -1759,12 +1758,18 @@ async function main() {
         await waitForCondition(`document.querySelector('[data-work-revision-composer]') !== null`, "Companion note editor");
         await clickSelector('[data-selected-work-sources] > summary');
       }
+      let unfinishedDepartureChecked = false;
       async function addNote(source, text, provenance = "imported_unverified", label = "Unclassified / needs review", sourceTime = "") {
         await setFormControlValue('#selected-note-source', source);
         await setFormControlValue('#selected-note-text', text);
         await setFormControlValue('#selected-note-provenance', provenance);
         await setFormControlValue('#selected-note-kind', label);
         if (sourceTime) await setFormControlValue('#selected-note-time', sourceTime);
+        if (!unfinishedDepartureChecked) {
+          await checkPreparationStay(preparationBrowser);
+          assert.equal(await evaluateBoolean("document.querySelector('[data-work-revision-action=save]').disabled"), true);
+          unfinishedDepartureChecked = true;
+        }
         await waitForCondition(`document.querySelector('[data-selected-source-action="add"]:not(:disabled)') !== null`, "selected note ready");
         await clickSelector('[data-selected-source-action="add"]');
         await waitForCondition(`document.querySelector('[data-work-revision-action="save"]')?.disabled === true`, "comparison required before note save");
@@ -2029,13 +2034,17 @@ async function main() {
       assert.equal(packets().length, finalPackets.length + 1);
       assert.deepEqual(packets().filter(row => finalPackets.some(prior => prior.record_id === row.record_id)), finalPackets);
       assert.deepEqual(effects(), effectsBefore);
+      await checkPreparationDepartureControls(preparationBrowser);
+      assert.deepEqual(packets().filter(row => finalPackets.some(prior => prior.record_id === row.record_id)), finalPackets);
+      assert.deepEqual(effects(), effectsBefore);
     } finally { noteDatabase.close(); }
     const healthAfter = await (await fetch(`${appOrigin}/api/healthz`)).json();
     assert.equal(healthAfter.runtime_generation_id, healthBefore.runtime_generation_id);
     assert.equal(runtimeStartCount, startsBeforeAccess);
     assert.deepEqual(semanticAuthorityCounts(accessDatabasePath), semanticAuthorityBaseline);
     console.log(JSON.stringify({ companion_first_work_browser: "passed", normal_form_save_refresh_readback: true,
-      selected_note_save_correction_reopened_readback: true, work_definition_unchanged: true,
+      selected_note_save_correction_reopened_readback: true, note_only_work_definition_unchanged: true,
+      pending_departure_revision_readback: true,
       current_selected_notes_read_without_editor: true, current_note_disclosure_zero_write: true,
       current_note_scope_and_unavailable_boundaries: true, current_note_read_without_revision_permission: true,
       previous_source_bytes_preserved: true, retained_lookup_select_compare_cancel: true,

@@ -22,6 +22,7 @@ export async function checkResultWorkDraftRecovery(tab: { eval(expression: strin
       if(body.action==='read_result_work_preparation')return Response.json(preparation());
       if(body.action==='compare_result_work_sources')return Response.json({status:'selected_source_comparison',comparison:{entries:body.notes.map(n=>entry(n.source,n.text)),fingerprint:'comparison:'+state.version,rows:[],unselected_previous:[previous],retained_source_refs:[]}});
       if(body.action==='preview_result_work'){
+        if(state.holdPreview){state.holdPreview=false;state.previewHeld=true;await new Promise(resolve=>{state.releasePreview=resolve});state.previewReturned=true;return Response.json({ok:false,error_code:'operator_session_revoked'},{status:403});}
         if(state.failPreview){state.failPreview=false;return Response.json({ok:false,error_code:'successor_task_preparation_changed'},{status:409});}
         return Response.json({ok:true,before:preparation().initialization.current_work,after:body.definition,sources_before:[previous],sources_after:body.selected_sources.selected_source_context,omitted_sources:body.selected_sources.omitted_sources,request:body});
       }
@@ -98,7 +99,25 @@ export async function checkResultWorkDraftRecovery(tab: { eval(expression: strin
     assert.equal(evidence.locks, 1); assert.equal(evidence.saves, 2);
     assert.equal(evidence.last.request.binding.expected_project_work_binding, "root:2");
     assert.equal(evidence.last.request.definition.goal, "Retained result draft A");
+    // A disposed editor's delayed refusal must not lock the replacement owner.
+    // This is a refusal-only component control, not successful writer evidence.
+    await evaluate(`resultFixture.drafts.delete('operator:A');resultFixture.holdPreview=true;resultFixture.authenticate('operator:A')`);
+    await click('[data-result-work-action="open"]');
+    await set('#new-work-goal', 'A preview disposed before refusal');
+    await set('#new-work-success-criteria', 'B stays private and usable');
+    await set('input[maxlength="500"]', 'Do not carry the prior note');
+    await click('[data-selected-source-action="compare"]');
+    await click('button[type="submit"]');
+    await until('resultFixture.previewHeld === true', 'old_preview_held');
+    await evaluate(`resultFixture.authenticate('operator:B')`);
+    await until(`document.querySelector('#new-work-goal')?.value === ''`, 'replacement_owner');
+    await evaluate('resultFixture.releasePreview()');
+    await until('resultFixture.previewReturned === true', 'old_refusal_returned');
+    await evaluate('new Promise(resolve => setTimeout(resolve, 0))');
+    assert.equal(await evaluate('resultFixture.locks'), 1, 'Old refusal cannot lock another editor');
+    assert.equal(await evaluate(`!!document.querySelector('[data-fixture-locked]')`), false);
+    assert.equal(await evaluate(`resultFixture.drafts.get('operator:A').get('goal')`), 'A preview disposed before refusal');
     return { component_fixture_conflict_refresh_recompare: true, component_fixture_auth_hides_and_same_owner_recovers: true,
-      component_fixture_other_principal_has_no_draft: true, live_result_routes: false };
+      component_fixture_other_principal_has_no_draft: true, component_fixture_disposed_refusal_ignored: true, live_result_routes: false };
   } finally { await tab.eval(`document.querySelector('[data-result-draft-fixture]')?.remove()`); }
 }

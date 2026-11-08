@@ -846,6 +846,18 @@ path supports the demonstrated Current project return correction; it does not
 extend the verifier-correction module allowlist or change any regression,
 source-review, predecessor or successor requirement.
 
+For v2 `source_revision` only, also admit exactly
+`components/workbench/semantic-review/selected-work-source-editor.tsx` for the
+demonstrated Native pending-selection correction (#1599). This is a one-path
+admission-scope expansion, not a generic component rule. Compare the literal
+repository-relative path without normalization; siblings, case/extension changes,
+backup suffixes, aliases, traversal and alternate separators remain excluded.
+The v1 interpretation and verifier-correction allowlist remain unchanged. The
+same retained chronological RED/GREEN, complete delta/path review, latest settled
+predecessor, exclusive successor, ownership, cleanup and stock checks still apply.
+Disposable exact-path fixtures test admission; actual Native Browser observations
+support product behavior and retain their original source/driver/runtime binding.
+
 For v2 `source_revision`, the four raw JavaScript modules that the Web planning
 handler serves together as `/client.js` also qualify: `apps/web_planning/src/client.js.txt`,
 `apps/web_planning/src/exchange-client.js.txt`, `apps/web_planning/src/history-client.js.txt`

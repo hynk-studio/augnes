@@ -683,6 +683,42 @@ deterministic adapters establish bounded mechanics; they do not establish live
 provider behavior, measured productivity, installed adoption or parallel deciding
 verification. The PR records the final exact source and planner-selected result.
 
+### Native preparation response and departure evidence (#1599)
+
+The source hypothesis was reproduced against the prior production composer with
+Chrome input and a held genuine `define_initial_project_work` response: all three
+definition fields accepted later edits, then the older success closed the editor;
+fresh normal readback contained only the original submission. The corrected
+composer rejects those inputs while pending and saves the exact submitted work.
+Keep the RED result, driver/preparation failures and corrections as separate
+development evidence; none is a deciding receipt or an independent review.
+
+A later genuine historical-selection comparison exposed a second race: Save
+remained enabled, two selected notes appeared before the held save acknowledgement,
+then fresh normal readback contained none. The same Browser probe after correction
+blocks Save until selection and explicit comparison finish, then saves and reads
+the exact historical pair and definition without starting execution. Its focused
+RED/GREEN is separate from the earlier snapshot's Full/stock PASS; that PASS
+cannot qualify the changed candidate. Retain any policy admission refusal and
+unrun final-head qualification instead of relabeling or bypassing the boundary.
+
+Durable Browser regressions exercise pending revision, different-task and
+result-linked preview/save, including source selections and omission reasons.
+Real Native navigation and actual browser dialogs/reload verify exact stay,
+deliberate discard, pending acknowledgement departure and fresh committed readback.
+Clean editors, harmless anchors, confirmed saves and explicit discard avoid
+redundant warnings. The same-profile production-handler regression independently
+checks another project's draft/saved state, source/basis conflicts, access loss,
+matching reauthentication and a genuinely committed response lost before delivery;
+one appended revision is read without automatically resubmitting it.
+
+Component refusal fixtures support conflict/authorization regression but stubbed
+Next navigation is not navigation evidence. Local controlled Chrome observation
+does not establish all browsers' close/termination behavior, durable autosave,
+crash recovery, hosted compatibility, recipient adoption or improved productivity.
+No provider/model call is required. Final exact-head planner-selected qualification,
+separate stock validity, cleanup and independent acceptance remain distinct records.
+
 ## Isolated verification acceptance
 
 For #1430's environment slice, separate contract fixtures, focused development
