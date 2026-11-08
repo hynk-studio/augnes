@@ -1,4 +1,5 @@
 // Synthetic fixture only: production proof, authority, edge and fresh reader.
+import "./local-canonical-authority-clock.mjs";
 import assert from "node:assert/strict";
 import {chmodSync,cpSync,existsSync,lstatSync,realpathSync,mkdirSync,readFileSync,renameSync,rmSync,statSync,writeFileSync} from "node:fs";
 import path from "node:path";
@@ -227,7 +228,9 @@ async function acquisitionProposalControls(parentRoot, lifecycle) {
     c.acceptedHead=c.git(["rev-parse","HEAD"]).toString().trim();c.acceptedTree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();
     c.newCommission=true;c.grantId=32;prepare(c);p=c.proof;
     p.commission.input_acquisition=GIT_ACQUISITION_REPAIR;
-    const delegation={...c.authority.grant,id:30,created_at:time(-10000),updated_at:time(-10000),body:[
+    // A single unedited record has one timestamp even across a clock tick.
+    const delegationTime=time(-10000);
+    const delegation={...c.authority.grant,id:30,created_at:delegationTime,updated_at:delegationTime,body:[
       "## Ongoing task delegation",
       "This authorizes one cohesive correction and qualification assignment on "+c.branch+" in Draft PR #999, following the receiving audit.",
       "### 4. Delegated public recording after independent source review",
@@ -255,7 +258,8 @@ async function acquisitionProposalControls(parentRoot, lifecycle) {
     const prepared=inspect(p);assert.equal(prepared.reserved,false);assert.equal(prepared.consumed,2);
     const decision="Historical window remains UNKNOWN; old false stock and both spent ordinals remain unchanged.";
     const review={...c.authority.review,id:31,commit_id:p.head,submitted_at:time(1),body:["Source review decision: ACCEPT / RETAIN for prospective qualification.",p.base,p.head,p.tree,p.prior_receipt_fingerprint,prepared.target,decision].join("\n")};
-    const grant={...c.authority.grant,id:32,created_at:time(2),updated_at:time(2),body:[
+    const grantTime=time(2);
+    const grant={...c.authority.grant,id:32,created_at:grantTime,updated_at:grantTime,body:[
       "Authorize a NEW prospective v7 reviewed_revision commission for a Git acquisition correction.",
       p.schema,p.base,p.head,p.tree,p.branch,p.prior_receipt_fingerprint,prepared.target,
       "https://github.com/hynk-studio/augnes/pull/999#pullrequestreview-31 https://github.com/hynk-studio/augnes/pull/999#issuecomment-30",
@@ -268,6 +272,12 @@ async function acquisitionProposalControls(parentRoot, lifecycle) {
     assert.throws(()=>begin(c,parsed,{observations:{}}),/revision_authenticated_authority_required/);assert(!existsSync(edge));
     const originalGrant=grant.body;grant.body=grant.body.replace(decision,"");p.authorization.grant_sha256=digest(reviewedRevisionAuthorityObservation(grant,"execution_commission"));bind();
     await assert.rejects(auth(c,proof(c)),/revision_authority_scope_invalid/);grant.body=originalGrant;p.authorization.grant_sha256=digest(reviewedRevisionAuthorityObservation(grant,"execution_commission"));bind();
+    for(const record of [grant,delegation]) {
+      const created=record.created_at;
+      record.created_at=new Date(Date.parse(created)-1).toISOString();
+      try {await assert.rejects(auth(c,proof(c)),/revision_authority_scope_invalid/);}
+      finally {record.created_at=created;}
+    }
     for(const mutate of [q=>delete q.commission.input_acquisition,q=>q.commission.input_acquisition="unknown",q=>q.commission.ordinal=2,q=>q.prior_attempt_id="older",q=>q.inputs.inventory_sha256=digest("other")]) {
       const q=clone(p);mutate(q);assert.throws(()=>inspect(q));assert(!existsSync(edge));
     }

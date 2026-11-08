@@ -2990,6 +2990,18 @@ supported natural product failure and material correction; another observer
 cancellation is ineligible. Qualification remains HOLD. Implementation and
 non-reserving preparation do not authorize a commission, reservation or Full.
 
+The subsequent delegated prospective commission's first Full on `06a246c942de`
+settled at 6 PASS / 1 FAIL / 9 NOT_RUN with separate false stock. Authority's
+acquisition fixture failed naturally at its production authority reader before
+integration or Browser phases. The implicated synthetic record construction read
+creation and update times separately; an adjacent-millisecond control reproduces
+the unedited-record refusal. Each synthetic delegation/grant now captures one
+timestamp, with a durable clock-boundary control and explicit edited-record
+refusals. Production authority semantics are unchanged. The original failed
+records' precise timestamps were not retained and remain UNKNOWN. A supported
+second candidate still needs exact focused evidence, independent acceptance and
+normal admission under the same new commission; no additional grant is created.
+
 Focused production-owner evidence is recorded in 04. Final exact-source planner
 qualification and independent result audit belong to this candidate's PR/evidence.
 The next operational decision remains separately authorized deployment/migration

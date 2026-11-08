@@ -253,6 +253,20 @@ remain separate claims; appropriate non-use or simplification remains valid.
 
 ### Consumer-current reassessment evidence (#1593)
 
+The new prospective commission's first Full on `06a246c942de` stopped naturally
+in the acquisition fixture's authority check: 6 PASS / 1 FAIL / 9 NOT_RUN,
+separate false stock, no input first fault, complete cleanup. Its receipt is
+`af992dfc6d59cbb367a7f4c220f0dd468a890120ac2acf4576d091d776f465bc`.
+The original fixture's two clock reads can give an unedited synthetic record
+different creation/update timestamps. Controlled adjacent millisecond reads
+reproduce the same `revision_authority_scope_invalid` at the enforcing owner.
+The correction captures each record's timestamp once, exercises that boundary
+in the existing fixture and retains rejection of genuinely edited records.
+This identifies a directly implicated fixture defect; the actual failed pair of
+timestamps was not retained, so the precise historical pair remains UNKNOWN.
+The controlled clock input is explicitly attributed and does not alter real
+authority clocks, records, deadlines, workload or production admission.
+
 The second commissioned Full on `4b1f304cc58c` retained 7 PASS / 1 FAIL /
 8 NOT_RUN and false stock. Its first fault was a Git `metadata_consistency`
 observation race at 2026-11-08T01:30:53.628Z; a complete ambient observation
