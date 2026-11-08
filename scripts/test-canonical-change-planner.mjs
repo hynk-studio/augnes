@@ -35,7 +35,7 @@ import {
   validateCanonicalOperatingPolicyChange,
   validateCanonicalOwnerTargetedChange,
 } from "./validate-canonical-docs-change.mjs";
-import { buildPhasePlan } from "./run-local-canonical-verification.mjs";
+import { buildPhasePlan, resolveVerificationPlan } from "./run-local-canonical-verification.mjs";
 import { createCanonicalRevisionReader, parseCanonicalBlobBatch } from "./canonical-revision-reader.mjs";
 
 const temporaryRoot = mkdtempSync(path.join(tmpdir(), "ag-planner-"));
@@ -422,8 +422,83 @@ try {
       fullReasons: [
         "security_authority_or_process_isolation:lib/vnext/native-host/credential-broker.ts",
       ],
+      browserPhaseIds: ["e2e-operator-native-host-execution"],
     },
   );
+  const changeNativeHost = ({ write }) => write(
+    "lib/vnext/native-host/credential-broker.ts", "export const broker = true;\n",
+  );
+  for (const [name, documentPath, content, checks] of [
+    ["ordinary", "docs/guide.md", "# Guide\n", []],
+    ["registered-readme", "README.md", "# Fixture\n\nUpdated guidance.\n", ["references", "verification-policy"]],
+    ["registered-roadmap", "docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md", "# Roadmap\n", ["references"]],
+    ["registered-policy", ".github/LOCAL_CANONICAL_VERIFICATION.md", "# Fixture policy\n\nClarified guidance.\n", ["references", "verification-policy"]],
+  ]) {
+    runPlanCase(`full-owner-with-${name}-documentation`, "full-canonical", (repository) => {
+      changeNativeHost(repository);
+      repository.write(documentPath, content);
+    }, {
+      browserPhaseIds: ["e2e-operator-native-host-execution"],
+      documentationChecks: checks,
+      documentationPaths: [documentPath],
+      preserveFullPhases: true,
+    });
+  }
+  runPlanCase("full-composition-with-documentation", "full-canonical", ({ write }) => {
+    write("lib/vnext/project-work-initialization.ts", "export const initialize = true;\n");
+    write("docs/guide.md", "# Guide\n");
+  }, {
+    browserPhaseIds: ["e2e-project-experience", "e2e-operator-native-host-execution", "e2e-operator-work-expectation", "e2e-golden"],
+  });
+  runPlanCase("full-multiple-owners-with-documentation", "full-canonical", (repository) => {
+    changeNativeHost(repository);
+    repository.write("components/project-home/project-home.tsx", "export const home = true;\n");
+    repository.write("docs/guide.md", "# Guide\n");
+  }, {
+    browserPhaseIds: ["e2e-project-experience", "e2e-operator-native-host-execution", "e2e-golden"],
+  });
+  for (const [name, consumer] of [
+    ["literal", 'readFileSync("docs/guide.md");\n'],
+    ["dynamic", 'readFileSync("docs/" + name);\n'],
+  ]) {
+    for (const revision of ["base", "head"]) {
+      runPlanCase(`full-owner-with-${revision}-${name}-document-consumer`, "full-canonical", (repository) => {
+        if (revision === "base") {
+          repository.write("lib/vnext/native-host/credential-broker.ts", consumer);
+          repository.write("docs/guide.md", "# Guide\n");
+          commitAll(repository.cwd, "existing document consumer");
+          repository.baseSha = git(repository.cwd, ["rev-parse", "HEAD"]).trim();
+        }
+        repository.write("lib/vnext/native-host/credential-broker.ts", revision === "head" ? consumer : "export const broker = true;\n");
+        repository.write("docs/guide.md", "# Guide\n\nChanged.\n");
+      }, { browserPhaseIds: [...PERMANENT_BROWSER_PHASE_IDS] });
+    }
+  }
+  for (const [name, mutate] of [
+    ["unknown-source", ({ write }) => write("lib/unknown.ts", "export {};\n")],
+    ["shared-source", ({ write }) => write("package.json", '{"private":true,"version":"2"}\n')],
+    ["planner-self-change", ({ write }) => write("scripts/canonical-change-planner.mjs", "export {};\n")],
+    ["unproven-document-deletion", ({ remove }) => remove("docs/existing.md")],
+    ["nested-instructions", ({ write }) => write("docs/AGENTS.md", "# Instructions\n")],
+  ]) {
+    runPlanCase(`full-owner-documentation-preserves-${name}`, "full-canonical", (repository) => {
+      changeNativeHost(repository);
+      repository.write("docs/guide.md", "# Guide\n");
+      mutate(repository);
+    }, { browserPhaseIds: [...PERMANENT_BROWSER_PHASE_IDS] });
+  }
+  if (process.platform !== "win32") {
+    for (const [name, mutate] of [
+      ["executable", ({ chmod }) => chmod("docs/guide.md", 0o755)],
+      ["symlink", ({ remove, symlink }) => { remove("docs/guide.md"); symlink("../README.md", "docs/guide.md"); }],
+    ]) {
+      runPlanCase(`full-owner-with-unsafe-${name}-documentation`, "full-canonical", (repository) => {
+        changeNativeHost(repository);
+        repository.write("docs/guide.md", "# Guide\n");
+        mutate(repository);
+      }, { browserPhaseIds: [...PERMANENT_BROWSER_PHASE_IDS] });
+    }
+  }
   runPlanCase(
     "migration",
     "full-canonical",
@@ -559,6 +634,10 @@ try {
   assert.equal(pushPlan.reason, "main_push_always_full");
   results.push("main-push-always-full");
   assert.deepEqual(selectCanonicalBrowserPhasesForChanges([{ oldPath: null, newPath: "scripts/browser-validate-operator-work-expectation-v1.mjs" }]), ["e2e-operator-work-expectation"]);
+  assert.deepEqual(selectCanonicalBrowserPhasesForChanges([
+    { oldPath: null, newPath: "lib/vnext/native-host/credential-broker.ts" },
+    { oldPath: "README.md", newPath: "README.md" },
+  ]), PERMANENT_BROWSER_PHASE_IDS, "raw Browser selection cannot admit documentation without exact-tree classification");
   for (const changedPath of ["scripts/operator-work-expectation-browser-actions-v1.mjs", "scripts/operator-execution-browser-fixture-v1.ts", "unclassified/expectation-source.ts"]) {
     assert.deepEqual(selectCanonicalBrowserPhasesForChanges([{ oldPath: null, newPath: changedPath }]), PERMANENT_BROWSER_PHASE_IDS, changedPath);
   }
@@ -766,6 +845,23 @@ function runPlanCase(name, expectedPlan, mutate, expected = {}) {
       expected.browserPhaseIds,
       `${name}:browser-phases`,
     );
+  }
+  if (expected.documentationChecks) assert.deepEqual(plan.documentation_checks, expected.documentationChecks, `${name}:documentation-checks`);
+  if (expected.documentationPaths) {
+    assert.equal(plan.documentation_review_required, true, `${name}:documentation-review`);
+    assert.deepEqual(plan.documentation_responsibilities.flatMap(item => item.paths), expected.documentationPaths, `${name}:documentation-paths`);
+  }
+  if (expected.preserveFullPhases) {
+    const core = ["dependencies-root", "dependencies-nested", "dependencies-web-planning", "typecheck", "build", "unit", "authority", "integration", "operability"];
+    for (const mode of ["changed", "full"]) {
+      const resolved = resolveVerificationPlan({ mode, baseSha: repository.baseSha, headSha, planner: () => plan });
+      assert.equal(resolved.selected_plan, "full-canonical", `${name}:${mode}:full-core`);
+      const browsers = mode === "full" ? [...PERMANENT_BROWSER_PHASE_IDS] : expected.browserPhaseIds;
+      assert.deepEqual(resolved.planner_browser_phase_ids, browsers, `${name}:${mode}:browsers`);
+      const phases = buildPhasePlan({ mode, selectedPlan: resolved.selected_plan, baseSha: repository.baseSha, headSha,
+        browserPhaseIds: resolved.planner_browser_phase_ids, targetedPhaseIds: resolved.planner_targeted_phase_ids });
+      assert.deepEqual(phases.map(phase => phase.id), [...core, ...browsers], `${name}:${mode}:complete-phases`);
+    }
   }
   if (expectedPlan === "operating-policy-only") {
     assert.equal(plan.reason, "registered_documentation_responsibilities", name);
