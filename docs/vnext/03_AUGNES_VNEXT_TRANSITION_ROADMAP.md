@@ -1655,6 +1655,23 @@ satisfy the consumer, and #1526's accepted bounded use does not by itself establ
 normal product integration or added comparative usefulness. These are prospective
 connections, not a new learner, mandatory asset registry or study allocation.
 
+When an assigned executable-reuse task reveals material setup or result-interpretation
+friction, retain with the selected method the smallest permitted reconstruction
+support: accessible exact code/data/dependencies, relevant setup and entry commands
+and resource needs, expected outputs, extraction rules, units/statistics and
+task-validity checks. Link consequential fixes and unresolved choices to their
+evidence. Inspect the [workflow-cost release](../../publications/workflow-cost-v1/README.md)
+and [fixed report verifier](../WORKFLOW_COST_FIXED_VERIFICATION_V1.md) before adding
+another mechanism. Check through an authorized fresh-consumer use only when needed,
+retaining missing prerequisites and actual repair/explanation burden; reuse
+sufficient existing evidence without repeating qualification.
+
+[ReproBridge v1](https://arxiv.org/html/2611.08452v1) motivates this conditional
+delivery question, not an observed Augnes benefit or a universal package schema,
+container requirement or new auditor. Existing
+[comparison and cost rules](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#method-improvement-evidence),
+priorities and historical allocations remain unchanged.
+
 [#1366's computation artifacts](https://github.com/hynk-studio/augnes/issues/1366)
 are one grounded source-inspection/reuse candidate, not a required module or an
 established transfer result. That completed numerical case is not rerun by this
@@ -1664,6 +1681,20 @@ Assess the reusable asset, goal-conditioned selection/composition and
 outcome-driven updating as separate contributions. All three need not be new
 mechanisms or prerequisites for the first useful increment; no new selector,
 registry or universal module format is presumed.
+
+**Research reference — Harness² (2026-10-19; unexecuted Augnes hypothesis).**
+[Harness²](https://github.com/google-research/harness2/tree/1cfe254e8d25b15f37048c3730134686abe60335)
+motivates a narrow question: does linking exact before/after method assets and
+their observed results to a separate current-use assessment improve actual
+successor work beyond current Augnes and an equally informed adaptive memo/code?
+This is a proposed Augnes comparison, not a benefit established by the external
+result. Inspect the existing material/experience/correction paths and
+selective-report consumer first; current material may already suffice without
+an additional profile. The 04
+[comparison](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#strong-comparisons-and-independence)
+and [burden](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#cost-and-user-burden)
+rules apply. This reference adds no allocation, owner or dependency for current work
+and does not reopen recorded RETAIN/SIMPLIFY outcomes.
 
 Prioritize concrete capability learning/reuse and product defects or delivery
 gaps that obstruct actual work. [#1372](https://github.com/hynk-studio/augnes/issues/1372)

@@ -217,6 +217,30 @@ A high teamwork score neither establishes completion nor offsets authority
 violations. These are evaluation distinctions, not a new universal team score,
 runtime state machine or gate on unrelated approved work.
 
+Where information provision matters, distinguish common-owner cooperation from
+negotiation between independent interests, and permitted raw-source access from
+the information actually delivered to each recipient, its precision and timing.
+Use existing source-linked outcome and conditional-reuse records to retain
+material differences; delivery does not prove reading or understanding. Compare
+relevant disclosure choices under the existing strong-comparison and total-burden
+rules, without giving any recipient otherwise unauthorized material. Hold or
+disclose model/reasoning settings, objectives, roles and interaction rules;
+changing a mediator's objective or protocol is a whole-system comparison, not
+an isolated information effect.
+
+[Who Should Know What?](https://arxiv.org/abs/2611.07667v1) motivates these
+questions from self-interested LLM markets; it does not establish transfer to
+common-owner teams or effects of higher reasoning effort. Use the existing
+candidate, selection, action and checked-outcome distinctions to diagnose where
+information affected progress. Do not import normalized candidate-quality or
+realization-gap scores where feasible utilities and a justified reference optimum
+are unknown, or treat an unexecuted proposal's expected benefit as proven loss.
+Appropriate refusal remains distinct from avoidable disagreement, execution
+failure or clarification delay. Evaluate missing decision-critical information
+and repeated detail requests alongside useful completion and total burden.
+These are conditional evaluation questions, not a new schema, disclosure gate
+or blanket study allocation.
+
 ### Strategic operating-profile evidence
 
 For #1518, the supported validation/preview entry and consumer, not a type alone,
@@ -1776,6 +1800,15 @@ appropriate for repository history, such as a PR description or a bounded
 evaluation note under its existing owner. Do not require private reasoning
 traces, hidden chain-of-thought, secrets, raw provider payloads, or broad
 conversation histories.
+
+For task-level comparisons that report averages or success rates, preserve the
+declared task population and make the denominators explicit: assigned, started,
+required output delivered, scored, and unscored with reasons. Keep quality
+conditional on scored outcomes separate from completion or delivery over assigned
+tasks; selection, execution or grading failures must not silently remove tasks
+from the reported population. Apply the declared outcome rules to known failures
+and keep genuinely unobserved quality unknown, rather than automatically treating
+every unscored item as either success or zero.
 
 ChatGPT interprets that evidence and recommends a concrete next decision with
 its basis: modify, gather one specific missing observation, retain/no-change,
