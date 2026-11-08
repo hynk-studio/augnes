@@ -302,6 +302,15 @@ Contract, documentation, whole-diff and planner checks passed. A later
 documentation-only evidence commit preserves these tested-head attributions;
 focused results do not supply a Full receipt or real execution authority.
 
+During independent commitment reproduction, main advanced to `52ebce39` through
+#1603. The former preparation remains an earlier non-reserving snapshot; the
+current-main reader refused its stale base. Ordinary merge `5dd13a35c28055efdb56be981e56be5bda83a3ea`
+preserved both histories. Its complete D1 Browser journey passed in 172,762 ms,
+planner controls in 30,623 ms and all 21 reviewed-revision groups in 176,949 ms,
+each naturally with completed cleanup. These are actual integrated-source runs;
+the preceding `5ac7d249` observations keep their original attribution. New current
+inventory, preparation and commitment review are required before reservation.
+
 The reusable material-source controls exercise actual production preparation,
 authenticated-reader fixtures, physical reservations, exact evidence, historical
 reconstruction and fresh-process stock. Synthetic authority never authorizes real
