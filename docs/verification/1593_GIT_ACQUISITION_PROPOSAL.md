@@ -1,10 +1,35 @@
 # Git acquisition correction and prospective continuation proposal
 
-Status: **proposal only; qualification HOLD**. The adjacent
-[unapplied owner patch](1593_GIT_ACQUISITION_PROSPECTIVE.patch) is review material.
-It does not change the active authority reader or publish an execution commission.
-Applying it would be a separately accepted semantic change, followed by an exact
-published candidate, independent acceptance and genuinely new prospective authority.
+Status: **accepted amendment applied; qualification HOLD**. The
+[receiving review](https://github.com/hynk-studio/augnes/pull/1594#pullrequestreview-5816374875)
+accepted the exact 44,798-byte patch (SHA-256
+`935defc8302c0dce033d2717663f44b3a6b6064b93f7a526ec135e44677e8254`)
+for implementation. Its four outputs are now adopted in the existing policy,
+attempts owner, Git-observation owner and reviewed-revision fixture. The
+[original patch](1593_GIT_ACQUISITION_PROSPECTIVE.patch) remains unchanged.
+The active contract is the [Local Canonical policy](../../.github/LOCAL_CANONICAL_VERIFICATION.md#reviewed-source-and-execution-input-revision-source-correction-v7).
+
+Adoption supplies no execution authority. The final committed candidate requires
+its own acquisition GREEN, separate read-only source review, complete real
+source/input inventory and supported non-reserving preparation. Existing RED and
+synthetic support retain their original source/runtime attribution. Missing real
+delegation, final-source acceptance or prospective grant must be reported; they
+cannot be replaced by this implementation decision or synthetic records.
+Commission `6707156210` remains spent 2/2. No new commission, reservation, Full,
+deciding stock or recovery is authorized by this implementation assignment.
+
+Rollback of the adopted amendment restores the previous conservative admission
+behavior. Any physical edge consumed under it must retain its records and reader
+provenance; reverting source cannot reset allowance or reactivate grants/access.
+The acquisition correction and accepted Web/HTTP/Native behavior are independent.
+
+## Historical r6 proposal (preserved)
+
+The following sections describe the proposal-only state at
+[`ffad52603b869ecb6db75b38908f2be3b72593b4`](https://github.com/hynk-studio/augnes/blob/ffad52603b869ecb6db75b38908f2be3b72593b4/docs/verification/1593_GIT_ACQUISITION_PROPOSAL.md).
+Their references to an unapplied patch and unavailable active route are historical,
+not the adoption status above. The original proposal and all failure evidence
+remain available at that revision and in the existing Space handoff.
 
 ## Supported correction and limits
 

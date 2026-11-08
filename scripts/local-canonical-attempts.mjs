@@ -8,7 +8,7 @@ import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 
 import { BROWSER_RUNTIME_INPUTS, validCanonicalRuntimeInputs } from "./local-canonical-inputs.mjs";
 import { isBrowserRevision, isBrowserSuccessor, browserPredecessorEvidence, browserReviewTarget, verifyBrowserRemedy, verifyBrowserRevisionPreservation, verifyReviewedBrowserFailure } from "./local-canonical-browser-revision.mjs";
-import { isGitObservationRevision, isGitObservationSuccessor, isInventoryBoundRevision, usesGitInventory, gitObservationIncident, gitReviewTarget, permitsFinalDependencySuccessor, delegatesGitRevisionGrant, delegatesProspectiveCommission, verifyGitRevisionFailure, verifyGitRevisionSuccess, readPostPassDecision, permitsPostPassReview, verifyGitSourceRepair } from "./local-canonical-git-observation.mjs";
+import { GIT_ACQUISITION_REPAIR, isGitAcquisitionRevision, gitAcquisitionIncident, isGitObservationRevision, isGitObservationSuccessor, isInventoryBoundRevision, usesGitInventory, gitObservationIncident, gitReviewTarget, permitsFinalDependencySuccessor, delegatesGitRevisionGrant, delegatesProspectiveCommission, verifyGitRevisionFailure, verifyGitRevisionSuccess, readPostPassDecision, permitsPostPassReview, verifyGitSourceRepair } from "./local-canonical-git-observation.mjs";
 import { createGitHubObserverAuthorizationTransport } from "./github-main-branch-transport.mjs";
 
 export const ATTEMPT_CONTRACT = "augnes.local-canonical-attempt-family.v1";
@@ -288,7 +288,7 @@ function readAttemptLineage({ anchorRoot, repositoryRoot = null, branch }, throu
         revisionEdge !== isReviewedRevision(next.source_correction) ||
         (revisionEdge && (!validReviewedRevisionAttempt(next) || !revisionFollows(proof, revisionCount, revisionCommission, revisionGrants) ||
           (!["product_failure", "input_invalidation"].includes(completion.disposition) &&
-            !(gitEdge && completion.disposition === "unknown_relevance") &&
+            !(completion.disposition === "unknown_relevance" && (gitEdge || isGitAcquisitionRevision(proof) && proof.commission.ordinal === 1)) &&
             !(completion.disposition === "completed_success" && isInventoryBoundRevision(proof) && revisionCount === 1 && proof.commission.ordinal === 2 && proof.commission.forward_decision) &&
             !(completion.disposition === "safety_violation" && (browserEdge && !isBrowserSuccessor(proof) || isInventoryBoundRevision(proof) && revisionCount === 1 && proof.commission.forward_decision || revisionCount === 2 && proof.commission.ordinal === 1))) ||
           (proof.commission.ordinal === 1 && (proof.authorization.grant_comment_id === attempt.source_correction?.authorization?.grant_comment_id ||
@@ -541,6 +541,12 @@ const usesFreshRevisionGrant = p => isBrowserSuccessor(p) || isGitObservationSuc
 
 // Once this boundary is crossed the optional v7 inventory cannot be dropped.
 function validGitRevisionEdge(previous, next) {
+  if (isGitAcquisitionRevision(next)) {
+    if (next.commission.ordinal === 1) return previous?.schema === REVIEWED_REVISION_SCHEMA &&
+      previous.kind === "reviewed_revision" && previous.commission?.ordinal === 2 && !usesGitInventory(previous) && !previous.settlement;
+    return isGitAcquisitionRevision(previous) && previous.commission.ordinal === 1 && next.commission.ordinal === 2;
+  }
+  if (isGitAcquisitionRevision(previous)) return false;
   if (isInventoryBoundRevision(next)) {
     if (previous?.commission?.ordinal === 2 && usesGitInventory(previous)) return next.commission?.ordinal === 1;
     return isInventoryBoundRevision(previous) && previous.commission.ordinal === 1 && next.commission?.ordinal === 2;
@@ -559,7 +565,8 @@ function revisionCommissionIdentity(proof) {
     root_family_id: proof.commission.root_family_id,
     root_number: proof.commission.root_number, root_attempt_id: proof.commission.root_attempt_id,
     root_receipt_fingerprint: proof.commission.root_receipt_fingerprint,
-    maximum_invocations: proof.commission.maximum_invocations });
+    maximum_invocations: proof.commission.maximum_invocations,
+    ...(isGitAcquisitionRevision(proof) ? {input_acquisition: proof.commission.input_acquisition} : {}) });
 }
 
 // A different authenticated grant can follow a spent commission only at its
@@ -587,7 +594,8 @@ function revisionMaterialShape(p, preparing = false) {
     [p.head, p.tree, p.base, p.accepted?.head, p.accepted?.tree, p.accepted?.base].every(revisionCommit) &&
     revisionId(p.pull_request) && sha(p.prior_family_id) && [1, 2].includes(p.prior_number) && typeof p.prior_attempt_id === "string" &&
     sha(p.prior_receipt_fingerprint) && revisionKeys(c, ["root_family_id", "root_number", "root_attempt_id", "root_receipt_fingerprint", "ordinal", "maximum_invocations",
-      ...(successor || gitSuccessor ? ["initial_authorization"] : []), ...(gitSuccessor ? ["initial_accepted", "delegation"] : isInventoryBoundRevision(p) ? ["delegation", ...(c.forward_decision ? ["forward_decision"] : [])] : [])]) &&
+      ...(successor || gitSuccessor ? ["initial_authorization"] : []), ...(gitSuccessor ? ["initial_accepted", "delegation"] : isInventoryBoundRevision(p) ? ["delegation", ...(c.forward_decision ? ["forward_decision"] : []), ...(c.input_acquisition !== undefined ? ["input_acquisition"] : [])] : [])]) &&
+    (c.input_acquisition === undefined || isGitAcquisitionRevision(p) && c.input_acquisition === GIT_ACQUISITION_REPAIR && !c.forward_decision) &&
     (!isBrowserRevision(p) || c.ordinal === (successor ? 2 : 1) && p.settlement === undefined) &&
     (!isGitObservationRevision(p) || !p.settlement && p.accepted.head === p.head && p.accepted.tree === p.tree && p.accepted.base === p.base && sha(p.inputs?.inventory_sha256)) &&
     (!isInventoryBoundRevision(p) || !p.settlement && validReviewRef(c.delegation) && (!c.forward_decision || c.ordinal === 2 && validReviewRef(c.forward_decision) && c.forward_decision.id !== c.delegation.id) && sha(p.inputs.inventory_sha256) &&
@@ -739,7 +747,11 @@ export function validateReviewedRevisionAuthorityRecords(p, review, grant, permi
       (permitsFinalDependencySuccessor(forward.body,p,revisionCommissionIdentity(p)) ||
         readPostPassDecision(forward.body,p,revisionCommissionIdentity(p)) && permitsPostPassReview(currentReview.body,p,revisionCommissionIdentity(p)))) && prospectiveScope && firstLine(review.body) === decision && firstLine(currentReview.body) === decision &&
       [p.base, p.head, p.tree, target, p.prior_receipt_fingerprint].every(s => currentReview.body.includes(s)) &&
-      firstLine(grant.body) === "Authorize a NEW prospective v7 reviewed_revision commission." &&
+      firstLine(grant.body) === (isGitAcquisitionRevision(p) ?
+        "Authorize a NEW prospective v7 reviewed_revision commission for a Git acquisition correction." :
+        "Authorize a NEW prospective v7 reviewed_revision commission.") &&
+      (!isGitAcquisitionRevision(p) || [grant.body,review.body].every(body => body.includes(
+        "Historical window remains UNKNOWN; old false stock and both spent ordinals remain unchanged."))) &&
       [p.accepted.head, p.accepted.tree, p.accepted.base, p.schema].every(s => grant.body.includes(s)) &&
       (!first || grant.body.includes(target)) && /zero unchanged-target retry/iu.test(grantText) &&
       grant.created_at === grant.updated_at && delegation.created_at === delegation.updated_at &&
@@ -992,6 +1004,8 @@ function readRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
   const browser = isBrowserRevision(p), successor = isBrowserSuccessor(p);
   const gitSuccessor = isGitObservationSuccessor(p);
   const gitIncident = isGitObservationRevision(p) && !gitSuccessor ? gitObservationIncident(original, prior, completion, stock, REVIEWED_REVISION_PHASES) : null;
+  const acquisitionIncident = isGitAcquisitionRevision(p) && p.commission.ordinal === 1 ?
+    gitAcquisitionIncident(original, prior, completion, stock, REVIEWED_REVISION_PHASES) : null;
   const browserIncident = browser && !successor ? browserPredecessorEvidence(original, prior, completion, stock) : null;
   if (isBrowserRevision(prior.source_correction) !== successor) throw fail("revision_browser_lineage_invalid");
   if (!validGitRevisionEdge(prior.source_correction, p)) throw fail("revision_git_lineage_invalid");
@@ -1002,7 +1016,7 @@ function readRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
     if (postPass) {
       verifyGitRevisionSuccess(original,stock,inputs,REVIEWED_REVISION_PHASES);
       if (p.accepted.head!==prior.head || p.accepted.tree!==prior.tree || p.accepted.base!==original.repository.base_sha) throw fail("revision_positive_predecessor_invalid");
-    } else retainedBefore = verifyGitRevisionFailure(original, stock, inputs, REVIEWED_REVISION_PHASES, boundedV7 && p.commission.ordinal === 1 ? 2 : 1, !!p.commission.forward_decision);
+    } else if (!acquisitionIncident) retainedBefore = verifyGitRevisionFailure(original, stock, inputs, REVIEWED_REVISION_PHASES, boundedV7 && p.commission.ordinal === 1 ? 2 : 1, !!p.commission.forward_decision);
     if (completion.infrastructure_code !== null || !(Date.parse(completion.finished_at) >= Date.parse(original.run.finished_at)) ||
         (gitSuccessor && (!revisionEqual(p.commission.initial_accepted, prior.source_correction.accepted) ||
           !revisionEqual(p.commission.initial_authorization, prior.source_correction.authorization))) ||
@@ -1034,7 +1048,7 @@ function readRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
       completion.contract !== ATTEMPT_CONTRACT || completion.attempt_id !== prior.attempt_id || completion.receipt_fingerprint !== p.prior_receipt_fingerprint ||
       !revisionTime(completion.finished_at) || completion.cleanup_complete !== (externalSettlement ? false : true) || completion.disposition !== original.outcome?.disposition ||
       (completion.disposition === "input_invalidation" ? !inputInvalidation : completion.disposition === "safety_violation" ? !(dependencySafety || externalSettlement || browserIncident || retainedBefore) :
-        completion.disposition === "unknown_relevance" ? !gitIncident :
+        completion.disposition === "unknown_relevance" ? !(gitIncident || acquisitionIncident) :
         completion.disposition === "completed_success" ? !postPass :
         completion.disposition !== "product_failure" || original.outcome.safety !== "preserved_within_observed_scope") ||
       original.cleanup?.completed !== (externalSettlement ? false : true) || original.cleanup.remaining_owned_processes !== 0 || original.checkout_ownership?.released !== true || original.capacity_ownership?.released !== true ||
@@ -1170,12 +1184,12 @@ function readRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
       !focused.implicated_paths.some(name => /^@@ /mu.test(git(["diff", "--no-ext-diff", "--no-textconv", "--ignore-all-space",
         "--ignore-blank-lines", prior.head, p.head, "--", name]).toString()))))
     throw fail("revision_material_remedy_required");
-  if (boundedV7) verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt: completion.finished_at, retainedBefore, postPass });
+  if (boundedV7) verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt: completion.finished_at, retainedBefore, postPass, acquisition: !!acquisitionIncident });
   if (successor && (!testedFinalSource || !revisionEqual(focused.input_remedy_resources, []) ||
       !git(["diff", "--ignore-all-space", "--ignore-blank-lines", "--no-ext-diff", "--no-textconv", prior.head, p.head, "--", ...focused.implicated_paths]).length))
     throw fail("revision_focused_remedy_invalid");
   if (previousRevision && ((inputInvalidation || externalSettlement || retainedBefore || postPass ? focused.failed_phase !== null : !original.phases?.some(phase => phase.id === focused.failed_phase && phase.status === "failure")) ||
       typeof focused.diagnosis !== "string" || focused.diagnosis.length < 20 || focused.diagnosis.length > 4000)) throw fail("revision_failure_remedy_required");
-  return { original, prior, completion, inputs, source, focused, dependencySafety, externalSettlement, browserIncident, postPass,
+  return { original, prior, completion, inputs, source, focused, dependencySafety, externalSettlement, browserIncident, postPass, acquisitionIncident,
     retainedObservation: retainedBefore && JSON.parse(bytes(parse(focused.regression.after).stdout)) };
 }

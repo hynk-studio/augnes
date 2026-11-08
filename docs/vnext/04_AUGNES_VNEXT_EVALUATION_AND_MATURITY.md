@@ -268,9 +268,23 @@ boundary controls retain protected-setting, permission, alias, in-window
 replacement and Git-context refusal; the broader Git controls retain legacy
 projection, origin/include and fresh-process behavior. This establishes a
 specific over-wide acquisition defect, not the unrecoverable historical writer
-or failed sample. Synthetic prospective-reader controls and a read-only check of
-the preserved r5 incident shape are proposal evidence only. No deciding invocation
-or real reservation accompanies r6; the old commission remains spent.
+or failed sample. The final r6 support comprises 56 Git controls (including those
+nine), 14 synthetic reviewed-revision groups using the corrected input dependency,
+and strict two-key v2 artifact references. Their exact source/runtime attribution
+and the final dependency addendum remain necessary when reusing this evidence.
+The read-only check of the preserved r5 incident shape is not full preparation.
+No deciding invocation or real reservation accompanies r6; the old commission
+remains spent.
+
+The exact prospective patch was subsequently accepted for implementation and
+applied in the existing owners. This adoption requires a new acquisition GREEN
+on the actual final committed head and a separate review of the applied source
+and evidence; the ffad GREEN cannot be relabeled. Unchanged development support
+does not become execution on that new head. Complete real source/input inventory,
+physical-tip accounting and any available non-reserving preparation remain
+separate from genuinely new authenticated execution authority. Missing operative
+authority is a refusal, not a synthetic placeholder. Full, deciding stock,
+reservation and recovery remain unrun in this implementation assignment.
 
 The first commissioned Full invocation on integrated head `662cb74e86b7` retained
 7 PASS / 1 FAIL / 8 NOT_RUN and separate false stock. Its cumulative-surface child

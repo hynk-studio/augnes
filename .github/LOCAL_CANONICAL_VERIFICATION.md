@@ -938,6 +938,49 @@ accounting. A new commit-anchored contract review on the same PR binds the
 second candidate and its preparation commitment. The same readers check its
 material repair, current inventory, predecessor and exclusive reservation.
 
+#### Prospective acquisition correction after a spent basic-v7 observation race
+
+An inventory-bound v7 proof may explicitly select
+`commission.input_acquisition = coherent-git-file-acquisition-v1`. This is a new
+prospective commission, not recovery or restoration of an invalid historical
+window. Its immediate predecessor must be the latest settled basic v7 ordinal
+two of two, with no inventory successor or settlement route. Its sole fault is
+the Git configuration metadata-consistency observation race; exactly one later
+complete ambient Git observation has equal protected projection, scope and
+permissions but changed raw bytes. The failed sample and writer remain UNKNOWN.
+All recorded events, phase order, cancellation, original false stock, released
+owners and coherent Companion preservation must be accounted for. Only the
+cancelled phase may lack Browser coverage, and only with an explicit empty
+Browser-use list. Invalid observed Browser records, other faults, changed
+protected inputs, incomplete cleanup and ambiguous lineage refuse.
+
+The corrected target must materially change `scripts/local-canonical-inputs.mjs`
+and retain the same substantive final regression driver/arguments in both
+witnesses. The RED witness explicitly uses the final driver over the exact prior
+input owner; the GREEN witness uses the final driver and corrected owner. Bind
+both owner blobs, final driver bytes, real runtime, command, natural exit, output
+and complete cleanup, after the prior completion. This evidence supports the
+acquisition correction; it does not reconstruct or validate the old failed sample.
+Full source deltas, protected inventory and current live admission still apply.
+
+Use the existing non-reserving preparation and authenticated authority readers.
+The new independent acceptance must bind the concrete published target and
+preparation commitment. Both acceptance and the genuinely new subsequent grant
+must state: `Historical window remains UNKNOWN; old false stock and both spent
+ordinals remain unchanged.` The unedited grant starts with `Authorize a NEW
+prospective v7 reviewed_revision commission for a Git acquisition correction.`
+and retains the existing operative task-delegation, target, review, stock,
+independent audit and at-most-two-invocations scope. A generic approval, old spent
+grant, quoted template, preparation or synthetic control creates no authority.
+
+The exclusive edge keeps both old ordinals and grant IDs reconstructible. A new
+ordinal one consumes on reservation, including interruption. Ordinal two requires
+the existing material-correction, independent review, natural-failure and focused
+support conditions; it retains this discriminator and the initial new commission.
+There is no reset, third ordinal, unchanged-target retry, recovery allowance or
+re-entry from this inventory-bound edge. Complete unchanged planner-selected Full,
+fresh-process stock and owned-resource cleanup remain mandatory if later admitted.
+
 An inventory-bound ordinal two may also follow a settled ordinal one whose Full
 and Browser phases all passed naturally but whose only fault occurred in the final
 Web dependency observation. The v2 Web record must have the cache-safety error

@@ -2979,10 +2979,16 @@ The second commissioned Full on `4b1f304cc58c` settled at 7 PASS / 1 FAIL /
 integration before the accepted HTTP correction's child ran. Both commission
 ordinals are spent. The r6 input-owner correction narrows its coherent acquisition
 window and adds boundary regressions; it cannot repair that historical UNKNOWN.
-The [prospective continuation proposal](../verification/1593_GIT_ACQUISITION_PROPOSAL.md)
-is an unapplied patch, not an active reader route or execution authority. Current
-qualification remains HOLD pending a separately accepted amendment, concrete
-published target and genuinely new authenticated prospective authority.
+The [accepted continuation amendment](../verification/1593_GIT_ACQUISITION_PROPOSAL.md)
+is now applied to the existing policy and reviewed-revision owners. Its original
+proposal and patch remain historical review material. The acquisition marker
+permits only the specified UNKNOWN Git incident at a spent basic-v7 ordinal-two
+tip; it preserves the old false stock and both consumed ordinals. A new commission
+must bind its own final source, current inventory, independent acceptance and
+genuinely new authenticated authority. Its second ordinal requires its own
+supported natural product failure and material correction; another observer
+cancellation is ineligible. Qualification remains HOLD. Implementation and
+non-reserving preparation do not authorize a commission, reservation or Full.
 
 Focused production-owner evidence is recorded in 04. Final exact-source planner
 qualification and independent result audit belong to this candidate's PR/evidence.

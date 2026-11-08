@@ -14,6 +14,9 @@ import {finalizeReceipt,inspectReceiptForDecision} from "../local-canonical-rece
 import {createPrivateReviewExport,inspectPrivateReviewExport} from "../local-canonical-review-export.mjs";
 import {runBrowserRevisionControls, browserFixtureReceipt} from "./local-canonical-browser-revision.mjs";
 import {checkSpentCommission,completeGitRevisionControls,checkFinalDependency,checkPostPass,gitFixtureDeclaration,gitFixtureReceipt,runGitRevisionControls} from "./local-canonical-git-observation.mjs";
+import {GIT_ACQUISITION_REPAIR,gitAcquisitionIncident,gitRevisionInventory} from "../local-canonical-git-observation.mjs";
+import {CANONICAL_NODE_VERSION} from "../local-canonical-environment.mjs";
+import {inspectGitRevisionPreparation} from "../local-canonical-attempts.mjs";
 import {baseReceipt} from "./local-canonical-receipt-v3.mjs";
 
 const self=fileURLToPath(import.meta.url), quiet={write(){}}, clone=v=>structuredClone(v);
@@ -163,6 +166,130 @@ async function prepareSettlement(c) {
   c.edge=path.join(path.dirname(completionFile(second)),"correction-successor.json");
 }
 
+// Proposed edge controls are synthetic, use the existing fixture/ledger/transport,
+// and never touch the actual commission or retained receipt.
+async function acquisitionProposalControls(parentRoot, lifecycle) {
+  const runOwned = async options => {
+    lifecycle.pendingChildren++;
+    const result = await runCanonicalChild(options);
+    if (result.exit_observed && result.streams_closed && result.cleanup_completed && result.remaining_owned_processes === 0)
+      lifecycle.pendingChildren--;
+    return result;
+  };
+  const root=path.join(parentRoot,"acquisition-proposal");mkdirSync(root);
+  const c=setup(root), findings=[];
+  const input="scripts/local-canonical-inputs.mjs", driver="scripts/acquisition-driver.mjs";
+  const commit=()=>{c.git(["add","scripts"]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","synthetic acquisition correction"]);};
+  const declaration=()=>({...gitFixtureDeclaration(c),binding:{head:c.head,tree:c.tree,runtime_inputs:c.inputs}});
+  const complete=(a,r)=>{storeReceipt(c,r);finishAttempt(a,{receiptFingerprint:r.integrity.content_fingerprint,disposition:r.outcome.disposition,cleanupComplete:true});
+    const file=path.join(c.anchor,".augnes-local-verification/families",a.family_id,"completion-1.json");write(file,{...read(file),finished_at:time(-60000)});return file;};
+  const behavior=async()=>{
+    const result=await runOwned({command:process.execPath,args:[driver],cwd:c.checkout,env:c.env,suite:"git-acquisition-proposal",label:"owned behavioral control",timeoutMs:5000,stdout:quiet,stderr:quiet,log(){}});
+    assert(result.cleanup_completed&&result.remaining_owned_processes===0&&result.exit_observed&&result.streams_closed);
+    return {command:"node "+driver,tested_source_head:c.git(["rev-parse","HEAD"]).toString().trim(),finished_at:time(0),result,environment:digest("synthetic controlled runtime")};
+  };
+  try {
+    write(path.join(c.checkout,input),"export const coherent = false;\n");
+    write(path.join(c.checkout,driver),'import assert from "node:assert/strict"; import {coherent} from "./local-canonical-inputs.mjs"; console.log({coherent}); assert.equal(coherent,true);\n');commit();
+    write(path.join(c.checkout,".git/info/exclude"),".augnes-local-verification/\n");c.git(["update-ref","refs/remotes/origin/main",c.base]);
+    prepare(c);let p=proof(c),authorization=await auth(c,p),a=begin(c,p,authorization);
+    c.prior=receipt(c,a);complete(a,c.prior);
+    c.commit(4);prepare(c,2);p=proof(c);authorization=await auth(c,p);
+    c.gitDeclaration=declaration();a=begin(c,p,authorization,{contractFingerprint:digest(c.gitDeclaration)});
+    let historical=gitFixtureReceipt(c,browserFixtureReceipt(c,a));
+    const passed=historical.phases[0],cancelled=historical.phases[3],notRun=historical.phases[4];
+    historical.phases=historical.phases.map((phase,index)=>({...clone(index<7?passed:index===7?{...cancelled,browser_use:[]}:notRun),id:phase.id}));
+    const later=historical.inputs.events[1];later.disposition="ambient_observation";
+    later.after.git_projection.effective_sha256=historical.inputs.resources[0].before.git_projection.effective_sha256;
+    later.identity=inputEventIdentity(later);historical.inputs.secondary_faults=[];
+    historical=finalizeReceipt(historical);const completionFile=complete(a,historical);c.prior=historical;
+    const historicalStock={content_fingerprint:historical.integrity.content_fingerprint,status:"non_deciding_or_stale",valid_deciding_evidence:false,
+      dimensions:{historical_integrity:"intact",execution:"incomplete_or_failed",evidence_validity:"invalid_or_incomplete",safety:"blocked",current_merge_applicability:"matches_observed_context"},
+      issues:["receipt_classified_outcome_not_passing","receipt_final_result_not_pass","receipt_input_observation_blocked","receipt_non_deciding","receipt_phase_environment_binding_invalid","receipt_browser_identity_invalid:integration",
+        ...historical.phases.filter(v=>v.status!=="pass").map(v=>"phase_not_passing:"+v.id)].sort()};
+    const completion=read(completionFile), phases=historical.phases.map(v=>v.id);
+    const incident=()=>gitAcquisitionIncident(historical,historical.attempt,completion,historicalStock,phases);
+    assert.equal(incident().race.after,null);
+    for(const mutate of [
+      r=>r.attempt.source_correction.commission.ordinal=1,
+      r=>r.inputs.events[1].after.git_projection.effective_sha256=digest("protected change"),
+      r=>r.inputs.events[1].after.permission_identity=digest("unsafe permissions"),
+      r=>r.inputs.events[0].diagnostic.stage="permission_acl",
+      r=>r.inputs.events[0].after={},r=>r.inputs.secondary_faults.push({...r.inputs.first_fault}),
+      r=>r.cleanup.completed=false,r=>r.phases[7].timed_out=true,
+      r=>r.phases[7].browser_use=[{consumer:"cumulative-work-surface",unchanged:false}],
+    ]) {const v=clone(historical);mutate(v);assert.throws(()=>gitAcquisitionIncident(v,v.attempt,completion,historicalStock,phases));}
+    findings.push("unknown historical window requires exact spent basic-v7 lineage, sole diagnostic, later ambient equality and complete cleanup; unsafe/incomplete alternatives refuse");
+    const originalHashes=[completionFile,path.join(c.checkout,".augnes-local-verification/receipts",historical.run.id+".json"),c.file].map(file=>[file,digest(readFileSync(file))]);
+    const red=await behavior();assert.equal(red.result.exit_code,1);
+    const priorHead=c.head;
+    write(path.join(c.checkout,input),"export const coherent = true;\n");commit();
+    c.acceptedHead=c.git(["rev-parse","HEAD"]).toString().trim();c.acceptedTree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();
+    c.newCommission=true;c.grantId=32;prepare(c);p=c.proof;
+    p.commission.input_acquisition=GIT_ACQUISITION_REPAIR;
+    const delegation={...c.authority.grant,id:30,created_at:time(-10000),updated_at:time(-10000),body:[
+      "## Ongoing task delegation",
+      "This authorizes one cohesive correction and qualification assignment on "+c.branch+" in Draft PR #999, following the receiving audit.",
+      "### 4. Delegated public recording after independent source review",
+      "After a separate read-only reviewer accepts the actual final published registration, continuation, policy and control changes, the implementation operator is authorized to publish the independent decision faithfully and the subsequent required prospective commission/execution authority through the existing authenticated maintainer identity under this task delegation.",
+    ].join("\n\n")};
+    p.commission.delegation={id:30,sha256:digest(reviewedRevisionAuthorityObservation(delegation,"task_delegation"))};
+    p.inputs.inventory_sha256=gitRevisionInventory(historical.inputs);
+    p.originals.stock=artifact(c,"prior-stock.log",JSON.stringify(historicalStock));
+    const green=await behavior();assert.equal(green.result.exit_code,0);
+    const source=name=>c.git(["show",p.head+":"+name]);
+    const witness=(name,result,head)=>artifact(c,name+".json",{...result,node_version:CANONICAL_NODE_VERSION,runtime_inputs_sha256:p.inputs.identity_sha256,
+      file_sha256:digest(source(driver)),fixture_sha256:digest(source(driver)),modules:[{path:input,sha256:digest(c.git(["show",head+":"+input]))}],
+      stdout:artifact(c,name+".log",result.result.exit_code?"synthetic acquisition assertion failed\n":"synthetic acquisition assertion passed\n")});
+    const before=witness("red",red,priorHead),after=witness("green",green,p.head),afterRecord=read(path.join(c.artifacts,after.artifact));
+    const focused=read(path.join(c.artifacts,p.focused.artifact));
+    Object.assign(focused,{finished_at:time(0),failed_phase:historical.phases[7].id,diagnosis:"Synthetic acquisition correction with a preserved unknown failed observation; the old receipt is never repaired.",
+      implicated_paths:[input],source_files:[input,driver].map(file=>({path:file,sha256:digest(source(file)),byte_size:source(file).length})),input_remedy_resources:[],
+      regression:{path:driver,args:[],attribution:"final-driver-prior-input-owner",before,after},
+      commands:[{command:green.command,tested_source_head:p.head,result:green.result,record:after,stdout:afterRecord.stdout}]});
+    p.focused=artifact(c,"focused.json",focused);p.source=artifact(c,"source.json",{...read(path.join(c.artifacts,p.source.artifact)),reviewed_at:time(0)});
+    const service=historical.cleanup.companion_service;
+    c.live={inventory:p.inputs.inventory_sha256,service:{state:service.after,diagnostics:{...service.observations.after,finished_at:time(0)}}};
+    const prep=path.join(c.artifacts,"preparation.json");
+    const inspect=q=>{q=clone(q);delete q.authorization;delete q.accepted.review;write(prep,q);return inspectGitRevisionPreparation({file:prep,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live:c.live});};
+    const prepared=inspect(p);assert.equal(prepared.reserved,false);assert.equal(prepared.consumed,2);
+    const decision="Historical window remains UNKNOWN; old false stock and both spent ordinals remain unchanged.";
+    const review={...c.authority.review,id:31,commit_id:p.head,submitted_at:time(1),body:["Source review decision: ACCEPT / RETAIN for prospective qualification.",p.base,p.head,p.tree,p.prior_receipt_fingerprint,prepared.target,decision].join("\n")};
+    const grant={...c.authority.grant,id:32,created_at:time(2),updated_at:time(2),body:[
+      "Authorize a NEW prospective v7 reviewed_revision commission for a Git acquisition correction.",
+      p.schema,p.base,p.head,p.tree,p.branch,p.prior_receipt_fingerprint,prepared.target,
+      "https://github.com/hynk-studio/augnes/pull/999#pullrequestreview-31 https://github.com/hynk-studio/augnes/pull/999#issuecomment-30",
+      "old commission remains spent; at most two admitted deciding invocations total; demonstrated material correction and focused support; zero extra recovery; Reservation/interruption consumes; zero unchanged-target retry; separate fresh-process stock; independent audit.",decision].join("\n")};
+    p.accepted.review={id:31,sha256:digest(reviewedRevisionAuthorityObservation(review,"accepted_revision"))};
+    p.authorization={grant_comment_id:32,grant_sha256:digest(reviewedRevisionAuthorityObservation(grant,"execution_commission"))};
+    c.authority={...c.authority,review,grant,linked:{["repos/hynk-studio/augnes/issues/comments/30"]:delegation}};
+    const bind=()=>write(c.file,p);bind();
+    const parsed=proof(c);const edge=path.join(path.dirname(completionFile),"correction-successor.json");
+    assert.throws(()=>begin(c,parsed,{observations:{}}),/revision_authenticated_authority_required/);assert(!existsSync(edge));
+    const originalGrant=grant.body;grant.body=grant.body.replace(decision,"");p.authorization.grant_sha256=digest(reviewedRevisionAuthorityObservation(grant,"execution_commission"));bind();
+    await assert.rejects(auth(c,proof(c)),/revision_authority_scope_invalid/);grant.body=originalGrant;p.authorization.grant_sha256=digest(reviewedRevisionAuthorityObservation(grant,"execution_commission"));bind();
+    for(const mutate of [q=>delete q.commission.input_acquisition,q=>q.commission.input_acquisition="unknown",q=>q.commission.ordinal=2,q=>q.prior_attempt_id="older",q=>q.inputs.inventory_sha256=digest("other")]) {
+      const q=clone(p);mutate(q);assert.throws(()=>inspect(q));assert(!existsSync(edge));
+    }
+    findings.push("read-only preparation never reserves; missing marker, altered scope/input/tip, wrong ordinal and absent or generic authority refuse");
+    bind();const admitted=proof(c),capability=await auth(c,admitted),attempt=begin(c,admitted,capability);
+    assert.equal(attempt.source_correction.commission.ordinal,1);
+    const current=reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch});
+    assert.equal(current.reviewed_revision_consumed,1);assert.equal(current.revision_grants.length,2);assert(current.revision_grants.includes(11));assert(current.revision_grants.includes(32));
+    assert.throws(()=>begin(c,admitted,capability));
+    const coldPacket=path.join(c.artifacts,"interrupted-stock-packet.json");
+    write(coldPacket,{anchor:c.anchor,checkout:c.checkout,branch:c.branch,file:c.file,inputs:c.inputs,live:c.live,authority:c.authority,receipt:receipt(c,attempt)});
+    const cold=await runOwned({command:process.execPath,args:[self,"--cold-acquisition",coldPacket],cwd:c.checkout,env:c.env,
+      suite:"reviewed-revision",label:"fresh interrupted acquisition stock",timeoutMs:15000,stdout:quiet,stderr:process.stderr,log(){}});
+    assert(cold.exit_code===0&&cold.exit_observed&&cold.streams_closed&&cold.cleanup_completed&&cold.remaining_owned_processes===0);
+    findings.push("fresh-process stock remains false for the interrupted new reservation; reconstructed consumption is one and old grants remain spent");
+    for(const [file,hash] of originalHashes)assert.equal(digest(readFileSync(file)),hash);
+    findings.push("synthetic exclusive new edge retains old two spent ordinals and grant IDs; interrupted reservation consumes and exact replay cannot reserve again");
+    console.log(JSON.stringify({git_acquisition_proposal_controls:findings,synthetic_only:true,real_authority:false}));
+    return findings;
+  } finally {if(lifecycle.pendingChildren===0)releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
+}
+
 if(process.argv[2]==="--cold"){
   const c=read(process.argv[3]),p=proof(c),a=await auth(c,p);
   if (c.stockContext) {
@@ -290,10 +417,22 @@ if(process.argv[2]==="--cold"){
     assert.throws(()=>begin(c,p,a),{code:"ENOENT"});assert(existsSync(c.edge));
     console.log(JSON.stringify({settlement_controls:["fully settled external event admitted through production v7","missing/tampered/wrong authority-source-input-predecessor refused","unknown fault, unfinished cleanup and unsafe/foreign current state refused","immutable blocked predecessor, bounded export and fresh-process stock","concurrent exclusive admission, replay and interrupted reservation remain consumed"],synthetic_only:true}));
   } finally {releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:children===0,streams_closed:children===0,cleanup_completed:children===0,remaining_owned_processes:children});assert(cleanupCanonicalTestResources([owner])[0].completed);}
+}else if(process.argv[2]==="--cold-acquisition"){
+  const c=read(process.argv[3]),p=proof(c),a=await auth(c,p);
+  assert.equal(stock(c,c.receipt,a),false);
+  assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}).reviewed_revision_consumed,1);
+  console.log("fresh interrupted acquisition stock remains false");
+}else if(process.argv[2]==="--run-acquisition-fixtures"){
+  const owner=createCanonicalTestResourceRoot("ag-resource-test-"), lifecycle={pendingChildren:0};beginCanonicalTestResourceUse(owner);
+  try {await acquisitionProposalControls(owner.root,lifecycle);} finally {
+    if(lifecycle.pendingChildren===0)settleCanonicalTestResourceUse(owner,{exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0});
+    assert(cleanupCanonicalTestResources([owner])[0].completed);
+  }
 }else if(process.argv[2]==="--run-revision-fixtures"){
-  const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);const c=setup(owner.root), findings=[];let liveChildren=0;
+  const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);const c=setup(owner.root), findings=[], lifecycle={pendingChildren:0};let liveChildren=0;
   const child=async(args,options={})=>{liveChildren++;const r=await runCanonicalChild({command:process.execPath,args:[self,...args],cwd:c.checkout,env:c.env,suite:"reviewed-revision",label:"fresh synthetic consumer",timeoutMs:10000,stdout:quiet,stderr:process.stderr,...options});assert(r.exit_observed&&r.streams_closed&&r.cleanup_completed&&r.remaining_owned_processes===0);liveChildren--;assert.equal(r.exit_code,0);return r;};
   try{
+    findings.push(...await acquisitionProposalControls(owner.root,lifecycle));
     prepare(c);let p=proof(c),a=await auth(c,p);
     // The shared v7 schema must reach this complete validator. Renaming the
     // retired kind or stripping its markers cannot manufacture a valid proof.
@@ -459,7 +598,7 @@ if(process.argv[2]==="--cold"){
     assert.throws(()=>reconstructAttemptTip({anchorRoot:race.anchor,branch:race.branch}),{code:"ENOENT"});assert(existsSync(path.join(race.legacyRoot,"correction-successor.json")));
     findings.push("actual concurrent exclusive admission; orphaned interrupted edge remains consumed");
     console.log(JSON.stringify({reviewed_revision_controls:findings,synthetic_only:true}));
-  }finally{if(c.owner)releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:liveChildren===0,streams_closed:liveChildren===0,cleanup_completed:liveChildren===0,remaining_owned_processes:liveChildren});assert(cleanupCanonicalTestResources([owner])[0].completed);}
+  }finally{if(c.owner)releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:liveChildren+lifecycle.pendingChildren===0,streams_closed:liveChildren+lifecycle.pendingChildren===0,cleanup_completed:liveChildren+lifecycle.pendingChildren===0,remaining_owned_processes:liveChildren+lifecycle.pendingChildren});assert(cleanupCanonicalTestResources([owner])[0].completed);}
 } else {
   throw new Error("unsupported reviewed revision fixture selector");
 }

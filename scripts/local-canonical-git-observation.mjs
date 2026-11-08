@@ -10,6 +10,9 @@ export const isGitObservationSuccessor = p => isGitObservationRevision(p) && p.c
 // complete input inventory throughout its physical lineage.
 export const isInventoryBoundRevision = p => p?.schema === "augnes.local-canonical-source-correction.v7" &&
   p.kind === "reviewed_revision" && Object.hasOwn(p.inputs ?? {}, "inventory_sha256");
+export const GIT_ACQUISITION_REPAIR = "coherent-git-file-acquisition-v1";
+export const isGitAcquisitionRevision = p => isInventoryBoundRevision(p) &&
+  p.commission?.input_acquisition === GIT_ACQUISITION_REPAIR;
 export const usesGitInventory = p => isGitObservationRevision(p) || isInventoryBoundRevision(p);
 
 const equal = (a,b) => a !== undefined && b !== undefined && digest(a) === digest(b);
@@ -30,8 +33,22 @@ function gitObservation(value) {
 // Retain the unknown first observation. The later measurement establishes a
 // change in the protected input, but supplies no preimage or list of changed keys.
 export function gitObservationIncident(r, prior, completion, stock, phases) {
+  return readGitIncident(r, prior, completion, stock, phases, false);
+}
+
+// Prospective eligibility only. A later complete ambient observation does not
+// complete or retrospectively validate the historical failed acquisition.
+export function gitAcquisitionIncident(r, prior, completion, stock, phases) {
+  return readGitIncident(r, prior, completion, stock, phases, true);
+}
+
+function readGitIncident(r, prior, completion, stock, phases, acquisition) {
   const i = r.inputs, a = r.attempt;
-  if (r.receipt_version !== 4 || !a || a.number !== 1 || a.recovery !== null || a.source_correction !== null ||
+  if (r.receipt_version !== 4 || !a || a.number !== 1 || a.recovery !== null || (acquisition ?
+      a.source_correction?.schema !== "augnes.local-canonical-source-correction.v7" ||
+      a.source_correction.kind !== "reviewed_revision" || a.source_correction.commission?.ordinal !== 2 ||
+      a.source_correction.commission.maximum_invocations !== 2 || usesGitInventory(a.source_correction) ||
+      a.source_correction.settlement !== undefined : a.source_correction !== null) ||
       !equal(a,prior) || r.run.id !== a.attempt_id || r.repository.branch !== a.branch ||
       r.verification_context.kind !== "isolated-worktree" || r.evidence.selected_plan !== "full-canonical" || r.evidence.deciding !== false ||
       r.repository.worktree_before !== "clean" || r.repository.worktree_after !== "clean" ||
@@ -67,22 +84,46 @@ export function gitObservationIncident(r, prior, completion, stock, phases) {
     }
     if (!nonFaultInputChange(event.disposition)) faults.push(event);
   }
-  const [race,change] = faults;
-  if (faults.length !== 2 || race.resource !== git.id || change.resource !== git.id ||
-      race.disposition !== "observer_failure" || change.disposition !== "input_invalidation" || !gitObservation(change.after) ||
-      git.before.sha256 === change.after.sha256 || git.before.git_projection.effective_sha256 === change.after.git_projection.effective_sha256 ||
-      git.before.git_projection.scope_fingerprint !== change.after.git_projection.scope_fingerprint ||
+  const race = faults[0];
+  const later = acquisition ? i.events.filter(e => e.resource === git.id && e.disposition === "ambient_observation" &&
+    race && BigInt(e.monotonic_ns) > BigInt(race.monotonic_ns)) : [];
+  const change = acquisition ? later[0] : faults[1];
+  if (faults.length !== (acquisition ? 1 : 2) || race.resource !== git.id || change?.resource !== git.id ||
+      race.disposition !== "observer_failure" || change.disposition !== (acquisition ? "ambient_observation" : "input_invalidation") ||
+      !gitObservation(change.after) || git.before.sha256 === change.after.sha256 ||
+      (acquisition ? later.length !== 1 || !equal(effectiveInputObservation(git.before,git,i),effectiveInputObservation(change.after,git,i)) ||
+        binding.head !== a.head || binding.tree !== a.tree :
+        git.before.git_projection.effective_sha256 === change.after.git_projection.effective_sha256 ||
+        git.before.git_projection.scope_fingerprint !== change.after.git_projection.scope_fingerprint) ||
       !equal(i.first_fault,faultOf(race)) || !equal(r.outcome.first_fault,i.first_fault) ||
-      !equal(i.secondary_faults,[faultOf(change)])) fail("revision_git_observations_invalid");
+      !equal(i.secondary_faults,acquisition ? [] : [faultOf(change)])) fail("revision_git_observations_invalid");
   const phase = cancelledPhase(r.phases,race.observed_at);
   if (!phase || r.phases.some(p => p.status === "not_run" && (p.started_at != null || p.finished_at != null || p.browser_use?.length)))
     fail("revision_git_predecessor_invalid");
-  const expected = ["receipt_classified_outcome_not_passing","receipt_current_inputs_unverified","receipt_final_result_not_pass",
+  const browserIssues = [];
+  if (acquisition) {
+    const browser = resources.find(v => v.id === "browser-executable"); let version = null;
+    for (const phase of r.phases) {
+      if (phase.status === "not_run") continue;
+      if (!validPhaseBrowserUse(phase,phase.browser_use ?? [],browser ? {...browser,actual_version:version} : null)) {
+        // This prospective edge accepts only an interrupted phase with no
+        // Browser-use records, never invalid observed identity/permission data.
+        if (!Array.isArray(phase.browser_use) || phase.browser_use.length !== 0)
+          fail("revision_git_stock_invalid");
+        browserIssues.push("receipt_browser_identity_invalid:"+phase.id);
+      }
+      version ??= phase.browser_use?.[0]?.actual_version ?? null;
+    }
+    // An interrupted consuming phase can be incomplete; completed phases must
+    // retain their original valid Browser identities.
+    if (browserIssues.some(code => code !== "receipt_browser_identity_invalid:"+phase)) fail("revision_git_stock_invalid");
+  }
+  const expected = ["receipt_classified_outcome_not_passing",...(acquisition ? browserIssues : ["receipt_current_inputs_unverified"]),"receipt_final_result_not_pass",
     "receipt_input_observation_blocked","receipt_non_deciding", ...(r.phases.some(p=>p.status==="not_run") ? ["receipt_phase_environment_binding_invalid"] : []),
     ...r.phases.filter(p=>p.status!=="pass").map(p=>"phase_not_passing:"+p.id)].sort();
   if (stock.status !== "non_deciding_or_stale" || stock.valid_deciding_evidence !== false ||
       stock.content_fingerprint !== r.integrity.content_fingerprint || !equal([...stock.issues].sort(),expected) ||
-      !equal(stock.dimensions,{historical_integrity:"intact",execution:"incomplete_or_failed",evidence_validity:"invalid_or_incomplete",safety:"blocked",current_merge_applicability:"blocked"}))
+      !equal(stock.dimensions,{historical_integrity:"intact",execution:"incomplete_or_failed",evidence_validity:"invalid_or_incomplete",safety:"blocked",current_merge_applicability:acquisition ? "matches_observed_context" : "blocked"}))
     fail("revision_git_stock_invalid");
   return { config:git, race, change, phase };
 }
@@ -217,8 +258,10 @@ export function verifyGitRevisionSuccess(r, stock, inputs, phases) {
 // Observe the same behavioral command on both exact Git sources and runtimes.
 // The v10 repair runs its changed script directly. Prospective v7 also allows
 // a stable test driver and explicit script arguments for the implicated code.
-export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt, retainedBefore, postPass = false }) {
+export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt, retainedBefore, postPass = false, acquisition = false }) {
   const regression = focused.regression;
+  if (acquisition && (regression?.attribution !== "final-driver-prior-input-owner" ||
+      !equal(focused.implicated_paths,["scripts/local-canonical-inputs.mjs"]))) fail("revision_git_regression_invalid");
   const file = regression?.path;
   const prospective = isInventoryBoundRevision(p);
   if (!Array.isArray(focused.implicated_paths) || !(prospective ? focused.source_files?.some(f => f.path === file) : focused.implicated_paths.includes(file)) ||
@@ -226,7 +269,7 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
       file.split("/").some(part => part === "." || part === "..") ||
       !equal(focused.input_remedy_resources, []) || prior.tree === p.tree) fail("revision_material_remedy_required");
   const blob = head => git(["rev-parse", "--verify", head + ":" + file]).toString().trim();
-  const newBlob = blob(p.head), oldBlob = postPass ? newBlob : blob(prior.head);
+  const newBlob = blob(p.head), oldBlob = postPass || acquisition ? newBlob : blob(prior.head);
   // Tree:path arguments also carry mode metadata. Compare the blob objects.
   if (!prospective && (oldBlob === newBlob ||
       !git(["diff", "--no-ext-diff", "--no-textconv", "--ignore-all-space", "--ignore-blank-lines", oldBlob, newBlob]).length))
@@ -254,11 +297,11 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
         Date.parse(after.finished_at) <= Date.parse(focused.finished_at))) fail("revision_git_regression_invalid");
   for (const [witness, head, exit] of [[before, prior.head, 1], [after, p.head, 0]]) {
     const r = witness.result;
-    if (postPass && (!sha(witness.environment) || witness.environment !== before.environment ||
+    if ((postPass || acquisition) && (!sha(witness.environment) || witness.environment !== before.environment ||
         witness.fixture_sha256 !== digest(git(["show",p.head+":"+file])) ||
         !equal(witness.modules,focused.implicated_paths.map(name=>({path:name,sha256:digest(git(["show",head+":"+name]))})))))
       fail("revision_git_regression_invalid");
-    if (witness.tested_source_head !== head || witness.file_sha256 !== digest(git(["show", (postPass ? p.head : head) + ":" + file])) ||
+    if (witness.tested_source_head !== head || witness.file_sha256 !== digest(git(["show", ((postPass || acquisition) ? p.head : head) + ":" + file])) ||
         witness.command !== command || witness.runtime_inputs_sha256 !== p.inputs.identity_sha256 ||
         witness.node_version !== CANONICAL_NODE_VERSION || r?.exit_code !== exit || r.timed_out !== false ||
         r.cancelled !== false || r.cleanup_completed !== true || r.remaining_owned_processes !== 0 ||
