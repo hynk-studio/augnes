@@ -37,8 +37,8 @@ const transport=(c,mutate=v=>v)=>createGitHubObserverAuthorizationTransport(999,
   const linked = c.authority.linked?.[e];
   return mutate(clone(linked ?? (e.includes("/reviews/")?(e.endsWith("/"+c.authority.settlementReview?.id)?c.authority.settlementReview:c.authority.review):e.includes("/comments/")?c.authority.grant:e.endsWith("/pulls/999")?c.authority.pr:{permission:"admin",user:{login:"synthetic-fixture"}})),e);
 }});
-async function freshReader(c, packet) {
-  const result=await runCanonicalChild({command:process.execPath,args:[self,"--cold",packet],cwd:c.checkout,env:c.env,
+async function freshReader(c, packet, run = runCanonicalChild) {
+  const result=await run({command:process.execPath,args:[self,"--cold",packet],cwd:c.checkout,env:c.env,
     suite:"reviewed-revision",label:"fresh receipt reader",timeoutMs:15000,stdout:quiet,stderr:process.stderr});
   assert(result.exit_observed && result.streams_closed && result.cleanup_completed && result.remaining_owned_processes===0);
   assert.equal(result.exit_code,0);
@@ -311,7 +311,7 @@ async function acquisitionProposalControls(parentRoot, lifecycle, workload = fal
     for(const [file,hash] of originalHashes)assert.equal(digest(readFileSync(file)),hash);
     findings.push("synthetic exclusive new edge retains old two spent ordinals and grant IDs; interrupted reservation consumes and exact replay cannot reserve again");
     console.log(JSON.stringify({git_acquisition_proposal_controls:findings,synthetic_only:true,real_authority:false}));
-    if(workload) await runReviewedWorkloadControls(c,{prepare,proof,auth,begin,receipt,artifact,write,read,storeReceipt,fresh:packet=>freshReader(c,packet),freshInterrupted:packet=>runOwned({command:process.execPath,args:[self,"--cold-workload",packet],cwd:c.checkout,env:c.env,suite:"reviewed-revision",label:"fresh terminal stock",timeoutMs:10000,stdout:quiet,stderr:process.stderr})},admitted,attempt,capability);
+    if(workload) await runReviewedWorkloadControls(c,{prepare,proof,auth,begin,receipt,artifact,write,read,storeReceipt,run:runOwned,fresh:packet=>freshReader(c,packet,runOwned),freshInterrupted:packet=>runOwned({command:process.execPath,args:[self,"--cold-workload",packet],cwd:c.checkout,env:c.env,suite:"reviewed-revision",label:"fresh terminal stock",timeoutMs:10000,stdout:quiet,stderr:process.stderr})},admitted,attempt,capability);
     return findings;
   } finally {if(lifecycle.pendingChildren===0)releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
 }

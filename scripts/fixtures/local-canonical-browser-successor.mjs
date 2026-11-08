@@ -21,13 +21,13 @@ const clone = structuredClone;
 const now = () => new Date().toISOString();
 const runtimeKeys = ["AUGNES_CANONICAL_NODE_HEADERS", "AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT", "npm_config_nodedir", "AUGNES_BROWSER_EXECUTABLE_PATH"];
 
-export async function behavior(c, syntaxOnly = false) {
+export async function behavior(c, syntaxOnly = false, run = runCanonicalChild) {
   const script = 'import assert from "node:assert/strict"; import {value} from "./scripts/fixture.mjs"; assert.equal(value,4); console.log("corrected behavior");';
   const source = c.behaviorPath ?? "scripts/fixture.mjs";
   const args = c.gitDeclaration ? (syntaxOnly ? ["--check", source] : [source]) : ["--input-type=module", "-e", script];
   let output = "";
   const sink = { write(bytes) { output += bytes; } };
-  const result = await runCanonicalChild({
+  const result = await run({
     suite: "browser-successor", label: "source behavior", command: process.execPath,
     args, cwd: c.checkout, env: c.env, timeoutMs: 5000, stdout: sink, stderr: sink
   });
@@ -77,7 +77,7 @@ export async function executeFixture(c, h, proof, cap, browserRecord, dependenci
   } } : declaration(c);
   const start = now();
   const attempt = h.begin(c, proof, cap, { contractFingerprint: digest(input) });
-  const child = await behavior(c), passed = child.result.exit_code === 0, finish = now();
+  const child = await (h.behavior ? h.behavior(c) : behavior(c)), passed = child.result.exit_code === 0, finish = now();
   const r = clone(baseReceipt);
   Object.assign(r.repository, { head_sha: c.head, tree_sha: c.tree, base_sha: c.base, branch: c.branch });
   Object.assign(r.integration_base, { requested_base_sha: c.base, tested_head_sha: c.head, checked_at: start });

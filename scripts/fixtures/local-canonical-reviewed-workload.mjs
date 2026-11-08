@@ -22,19 +22,20 @@ export const workloadFixtureInput=c=>({...c.gitDeclaration,binding:{head:c.head,
 
 export async function runReviewedWorkloadControls(c,h,initial,firstAttempt,initialAuthority) {
   const originalAuthority=clone(c.authority), required=[], files=[];
-  const completeHooks={...h,begin:()=>firstAttempt,fresh:packet=>h.fresh(packet)};
+  const measuredBehavior=()=>behavior(c,false,h.run);
+  const completeHooks={...h,behavior:measuredBehavior,begin:()=>firstAttempt,fresh:packet=>h.fresh(packet)};
   c.behaviorPath="scripts/workload-behavior.mjs";
   const dependencies=dependencyRecords(c);
   const first=await executeFixture(c,completeHooks,initial,initialAuthority,null,dependencies);
   assert.equal(first.stock.valid_deciding_evidence,false);
-  const priorHead=c.head, red=await behavior(c);
+  const priorHead=c.head, red=await measuredBehavior();
   h.write(path.join(c.checkout,c.behaviorPath),'console.log("corrected synthetic workload input");\n');
   c.git(["add","scripts"]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","synthetic workload input repair"]);
   c.prior=first.receipt;h.prepare(c,2);let p=c.proof;
   p.commission=clone({...initial.commission,ordinal:2});p.accepted=clone(initial.accepted);
   p.inputs.inventory_sha256=initial.inputs.inventory_sha256;
   p.originals.stock=h.artifact(c,"prior-stock.log",JSON.stringify(first.stock));
-  const green=await behavior(c), source=name=>c.git(["show",p.head+":"+name]);
+  const green=await measuredBehavior(), source=name=>c.git(["show",p.head+":"+name]);
   const witness=(label,run,head)=>h.artifact(c,label+".json",{...run,node_version:CANONICAL_NODE_VERSION,runtime_inputs_sha256:p.inputs.identity_sha256,
     file_sha256:digest(c.git(["show",head+":"+c.behaviorPath])),stdout:h.artifact(c,label+".log",run.output)});
   const before=witness("red",red,priorHead),after=witness("green",green,p.head);
@@ -54,7 +55,7 @@ export async function runReviewedWorkloadControls(c,h,initial,firstAttempt,initi
   // The second attempt is a synthetic natural outer failure carrying a bounded
   // child timeout observation; never pretend this is a real 15-second replay.
   c.behaviorPath="scripts/workload-other-failure.mjs";
-  const second=await executeFixture(c,{...h,begin:(c,p,a,extra)=>h.begin(c,p,a,{...extra,runId:"acquisition-workload-second"}),fresh:h.fresh},p,a,null,dependencies);
+  const second=await executeFixture(c,{...h,behavior:measuredBehavior,begin:(c,p,a,extra)=>h.begin(c,p,a,{...extra,runId:"acquisition-workload-second"}),fresh:h.fresh},p,a,null,dependencies);
   c.behaviorPath="scripts/workload-behavior.mjs";
   reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch});
   const child={control_id:"reviewed-revision",exit_code:null,signal:"SIGTERM",timed_out:true,cancelled:false,spawn_error_code:null,duration_ms:15071,
