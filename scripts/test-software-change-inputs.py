@@ -2,6 +2,7 @@
 
 import hashlib
 import importlib.util
+import io
 import json
 from pathlib import Path
 import shutil
@@ -9,12 +10,17 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 
 SCRIPT = (Path(__file__).resolve().parents[1] / "skills/verify-software-change"
           / "scripts/snapshot_inputs.py")
 spec = importlib.util.spec_from_file_location("software_change_inputs", SCRIPT)
 observer = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(observer)
+BUILDER = SCRIPT.parents[3] / "scripts/build-software-change-skill.py"
+build_spec = importlib.util.spec_from_file_location("software_change_package", BUILDER)
+builder = importlib.util.module_from_spec(build_spec)
+build_spec.loader.exec_module(builder)
 
 
 class InputChecks(unittest.TestCase):
@@ -125,6 +131,109 @@ class InputChecks(unittest.TestCase):
         self.assertEqual(invalid.returncode, 2, invalid.stderr)
         self.assertEqual(invalid.stdout, "")
         self.assertEqual(list(isolated.iterdir()), [standalone])
+
+
+class PackageChecks(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="augnes-change-package-")
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.skill = self.root / "skill"
+        shutil.copytree(SCRIPT.parents[1], self.skill)
+
+    def test_zip_is_reproducible_and_excludes_unlisted_material(self):
+        (self.skill / "private.env").write_text("not public", encoding="utf8")
+        data, identity = builder.package(self.skill)
+        other = self.root / "other"
+        shutil.copytree(self.skill, other)
+        self.assertEqual(builder.package(other)[0], data)
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            self.assertEqual(archive.namelist(), [
+                "SKILL.md", "examples/request-and-result.md",
+                "references/handoff.md", "scripts/snapshot_inputs.py"])
+            for name in archive.namelist():
+                self.assertEqual(archive.read(name), (self.skill / name).read_bytes())
+        self.assertEqual(identity["sha256"], hashlib.sha256(data).hexdigest())
+        self.assertEqual(identity["bytes"], len(data))
+
+    def test_missing_or_linked_member_refuses_before_output(self):
+        target = self.skill / "references/handoff.md"
+        target.unlink()
+        with self.assertRaises(ValueError):
+            builder.package(self.skill)
+        target.symlink_to(SCRIPT)
+        with self.assertRaises(ValueError):
+            builder.package(self.skill)
+
+    def test_existing_destination_is_preserved(self):
+        target = self.root / "existing.zip"
+        target.write_bytes(b"keep this previous file")
+        result = subprocess.run([sys.executable, "-E", "-s", "-S", "-B",
+                                 str(BUILDER), "--output", str(target)],
+                                capture_output=True, text=True, timeout=5)
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(target.read_bytes(), b"keep this previous file")
+
+    def test_zip_delivered_helper_runs_without_package_siblings(self):
+        data, _ = builder.package(self.skill)
+        alone = self.root / "temporary"; alone.mkdir()
+        helper = alone / "received.py"
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            helper.write_bytes(archive.read("scripts/snapshot_inputs.py"))
+        subject = self.root / "subject"; subject.mkdir()
+        (subject / "version.txt").write_bytes(b"1.0\n")
+        result = subprocess.run([sys.executable, "-E", "-s", "-S", "-B",
+                                 str(helper), "snapshot", str(subject), "version.txt"],
+                                cwd=alone, capture_output=True, text=True, timeout=5)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["files"]["version.txt"]["sha256"],
+                         hashlib.sha256(b"1.0\n").hexdigest())
+        self.assertEqual(list(alone.iterdir()), [helper])
+
+    def test_published_installation_example_exposes_wrong_destination(self):
+        # Replay the public fixture, not a separately maintained look-alike.
+        data, _ = builder.package(self.skill)
+        alone = self.root / "received"
+        alone.mkdir()
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            helper = alone / "received.py"
+            helper.write_bytes(archive.read("scripts/snapshot_inputs.py"))
+            example = archive.read("examples/request-and-result.md").decode("utf-8")
+        fixture = self.root / "make_fixture.py"
+        fixture.write_text(example.split("```python\n", 1)[1].split("\n```", 1)[0],
+                           encoding="utf-8")
+
+        def run(script, *args, expected=0):
+            result = subprocess.run([sys.executable, "-E", "-s", "-S", "-B",
+                                     str(script), *map(str, args)], cwd=self.root,
+                                    capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, expected, result.stderr)
+            self.assertEqual(result.stderr, "")
+            return result.stdout
+
+        run(fixture)
+        subject = self.root / "subject"
+        files = ["install.py", "candidate/status.py",
+                 "selected_profile/status.py", "default_profile/status.py"]
+        before = self.root / "before.json"
+        before.write_text(run(helper, "snapshot", subject, *files), encoding="utf-8")
+        for name, version in [("selected_profile", "0.1"),
+                              ("default_profile", "0.1"), ("candidate", "0.2")]:
+            self.assertEqual(json.loads(run(subject / name / "status.py")),
+                             {"version": version, "ready": True})
+        self.assertEqual(run(subject / "install.py", "--profile",
+                             "subject/selected_profile"), "Install complete\n")
+        self.assertEqual(json.loads(run(subject / "selected_profile/status.py")),
+                         {"version": "0.1", "ready": True})
+        self.assertEqual(json.loads(run(subject / "default_profile/status.py")),
+                         {"version": "0.2", "ready": True})
+        after = self.root / "after.json"
+        after.write_text(run(helper, "snapshot", subject, *files), encoding="utf-8")
+        self.assertEqual(json.loads(run(helper, "compare", before, after, expected=1)),
+                         {"added": [], "changed": ["default_profile/status.py"],
+                          "equal": False, "removed": [], "scope": "selected-files-only"})
+        self.assertEqual(helper.read_bytes(), SCRIPT.read_bytes())
+        self.assertEqual(list(alone.iterdir()), [helper])
 
 
 if __name__ == "__main__":

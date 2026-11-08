@@ -104,6 +104,13 @@ account or MCP connection. Read the candidate directly from its pinned source
 revision; it is not in the public workflow-cost ZIP, a registered host catalog,
 an installed user profile or an Agensi listing.
 
+The [first free listing preparation](SOFTWARE_CHANGE_SKILL_DISTRIBUTION.md)
+selects this candidate as **Augnes Software Change Check 0.1.0**, one Skill with
+four delivered files. It includes individual-file execution guidance, a bounded
+request/result example and a deterministic create-only ZIP builder. Source and
+local packaging checks are prepared for review; this does not establish an
+Agensi submission, approval, installed connection or live consumer execution.
+
 Its first development cases are the corrected Augnes setup/root-routing
 instructions and the existing workflow-cost package's compatibility with a
 different delivery contract. Keep source-only routing review and an isolated
