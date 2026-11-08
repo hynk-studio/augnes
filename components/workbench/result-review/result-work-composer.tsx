@@ -3,6 +3,7 @@
 import { useProjectClientFetch, useProjectClientScope } from "../semantic-review/project-client-scope";
 import { useRef, useState } from "react";
 import { useWorkDraftState, type WorkComposerDraft } from "../semantic-review/work-composer-draft";
+import { discardWorkPreparation, useWorkPreparationLifetime } from "../semantic-review/work-preparation-departure";
 import type { OperatorSessionViewV01 } from "../semantic-review/operator-session-panel";
 import { FirstWorkComposer } from "../semantic-review/first-work-composer";
 import type { readResultWorkPreparationV01, previewResultWorkV01 } from "@/lib/vnext/runtime/authored-successor-task";
@@ -34,7 +35,12 @@ export function ResultWorkComposer({ receiptId, context }: { receiptId: string; 
   const fetch = useProjectClientFetch();
   const projectId = useProjectClientScope();
   const { draft, session, onAccessRefused } = context;
-  const post = <T,>(body: unknown) => requestPost<T>(fetch, body);
+  const isCurrent = useWorkPreparationLifetime();
+  const post = async <T,>(body: unknown) => {
+    const value = await requestPost<T>(fetch, body);
+    if (!isCurrent()) throw new Error("The preparation editor has closed.");
+    return value;
+  };
   const [preparation, setPreparation] = useWorkDraftState<Preparation | null>(draft, "resultPreparation", null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [refreshed, setRefreshed] = useState<Preparation | null>(null);
@@ -63,17 +69,21 @@ export function ResultWorkComposer({ receiptId, context }: { receiptId: string; 
       value.binding.expected_latest_receipt_id !== receiptId) throw new PreparationRequestError(403, "operator_session_scope_mismatch");
     return value;
   }
-  async function run(action: () => Promise<void>) {
+  async function run(action: () => Promise<void>, saving = false) {
     if (inFlight.current) return;
     inFlight.current = true; setBusy(true); setError(null);
-    try { await assertOwner(); await action(); }
+    try { await assertOwner(); if (isCurrent()) await action(); }
     catch (failure) {
+      if (!isCurrent()) return;
       if (failure instanceof PreparationRequestError && (failure.status === 401 || failure.status === 403)) accessRefused(failure.code);
-      else { setNeedsRefresh(preparation !== null); setRefreshed(null); setError(failure instanceof Error ? failure.message : "Preparation unavailable. Your draft is retained."); }
-    } finally { inFlight.current = false; setBusy(false); }
+      else { setNeedsRefresh(preparation !== null); setRefreshed(null); setError(saving &&
+        !(failure instanceof PreparationRequestError && failure.status >= 400 && failure.status < 500)
+        ? "The save response could not be confirmed. Your draft is retained; a save may have committed. Read current work before another action."
+        : failure instanceof Error ? failure.message : "Preparation unavailable. Your draft is retained."); }
+    } finally { inFlight.current = false; if (isCurrent()) setBusy(false); }
   }
   function discard() {
-    draft.clear(); setPreparation(null); setPreview(null); setRefreshed(null); setNeedsRefresh(false); setError(null);
+    discardWorkPreparation(draft); setPreparation(null); setPreview(null); setRefreshed(null); setNeedsRefresh(false); setError(null);
   }
   if (!visible || !session.authenticated || (projectId !== null && projectId !== session.project_id)) return <p role="status">Authenticate this project to recover its retained draft.</p>;
   if (saved) return <div role="status" data-result-work-saved>
@@ -127,7 +137,7 @@ export function ResultWorkComposer({ receiptId, context }: { receiptId: string; 
         const result = await post<{ status: string; run_created: boolean; execution_started: boolean }>({ action: "prepare_result_work", request: preview.request });
         if (result.status !== "inserted" || result.run_created !== false || result.execution_started !== false) throw new Error("Save outcome is unknown. Reload current work before another action.");
         setSaved(true);
-      })}>Prepare this next work</button>
+      }, true)}>Prepare this next work</button>
       <button type="button" className={styles.secondaryButton} data-result-work-action="edit" disabled={busy} onClick={() => setPreview(null)}>Edit preparation</button>
       <button type="button" className={styles.secondaryButton} disabled={busy} onClick={discard}>Discard preparation</button>
     </div> : null}

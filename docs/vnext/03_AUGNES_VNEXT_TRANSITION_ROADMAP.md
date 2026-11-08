@@ -52,6 +52,26 @@ and proportionate verification selection remain open under #1430, with current
 planner coverage and fixed timing gates preserved. The separate #1429 research
 implementation and its qualification are not included.
 
+### Native pending preparation and deliberate departure candidate (#1599)
+
+[#1599](https://github.com/hynk-studio/augnes/issues/1599) adds consistent pending
+authoring locks and memory-only departure protection to first work, eligible
+revision, different-task and result-linked preparation. The original race was
+executed: the earlier first-work response closed an editor that had accepted
+later definition input, while persisted work contained only the submitted values.
+The candidate prevents that later authoring, protects meaningful drafts on real
+Native navigation/reload, and retains uncertain-save reconciliation through the
+existing readers. Matching reauthentication and explicit fresh-basis/source
+comparison keep their existing meaning.
+
+This is implemented for review, with exact-head qualification and independent
+acceptance recorded separately in its Draft PR/report. It does not complete the
+broader P2/P5 work or imply installed adoption, deployment or merge. The
+[02 interaction contract](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#24-project-isolation-invariants)
+and [04 evidence limits](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#native-preparation-response-and-departure-evidence-1599)
+own the bounded behavior and observations. #1594 retains Web reassessment,
+format/export/recovery, Apps Web clients and their qualification ownership.
+
 ## Current: first execution-choice and participation loop (#1443)
 
 The first [#1443](https://github.com/hynk-studio/augnes/issues/1443) increment

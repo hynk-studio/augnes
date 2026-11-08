@@ -1,6 +1,7 @@
 "use client";
 
 import { useWorkDraftState, type WorkComposerDraft } from "./work-composer-draft";
+import { trackWorkPreparation } from "./work-preparation-departure";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -10,7 +11,7 @@ import type {
 } from "@/types/vnext/project-work-initialization";
 import { INITIAL_PROJECT_WORK_LIMITS_V01 } from "@/types/vnext/project-work-initialization";
 import { SEMANTIC_VISUAL_PRIORITY } from "@/lib/vnext/semantic-visual/semantic-visual-contract";
-import { SelectedWorkSourceEditor } from "./selected-work-source-editor";
+import { SelectedWorkSourceEditor, unfinishedWorkNote } from "./selected-work-source-editor";
 import type { SelectedWorkSourceSelection } from "@/types/vnext/project-work-revision";
 import type { ResultWorkBindingV01 } from "@/lib/vnext/runtime/authored-successor-task";
 import type { TaskContextPacketSelectedEntryV01 } from "@/types/vnext/task-context-packet";
@@ -45,6 +46,9 @@ export function FirstWorkComposer({
   resultSource?: TaskContextPacketSelectedEntryV01 | null;
   reviewedOutcome?: ReviewedOutcomeReuseV01;
 }) {
+  const localDraft = useRef<WorkComposerDraft>(new Map());
+  draft ??= localDraft.current;
+  trackWorkPreparation(draft);
   const [goal, setGoal] = useWorkDraftState(draft, "goal", initialDefinition?.goal ?? "");
   const [criteriaText, setCriteriaText] = useWorkDraftState(draft, "criteria",
     initialDefinition?.success_criteria.join("\n") ?? "",
@@ -55,6 +59,7 @@ export function FirstWorkComposer({
   const goalRef = useRef<HTMLTextAreaElement>(null);
   const [sourceSelection, setSourceSelection] = useWorkDraftState<SelectedWorkSourceSelection | null>(draft, "sourceSelection", null);
   const [sourcesPending, setSourcesPending] = useWorkDraftState(draft, "sourcesPending", false);
+  const [unfinishedNote, setUnfinishedNote] = useWorkDraftState(draft, "unfinishedNote", false);
   const definition = useMemo(
     () => ({
       goal: goal.trim(),
@@ -66,7 +71,7 @@ export function FirstWorkComposer({
   const [omissionReasons, setOmissionReasons] = useWorkDraftState<Record<string, string>>(draft, "omissions", {});
   const omitted = mode === "new_task" ? (initialization.selected_source_context ?? []).filter(entry =>
     !sourceSelection?.selected_source_context.some(selected => selected.source_ref === entry.source_ref)) : [];
-  const selectionPending = sourcesPending || (mode === "new_task" && (!sourceSelection || omitted.some(entry => !omissionReasons[entry.source_ref!]?.trim())));
+  const selectionPending = unfinishedNote || sourcesPending || (mode === "new_task" && (!sourceSelection || omitted.some(entry => !omissionReasons[entry.source_ref!]?.trim())));
   const issues = validationIssuesV01(definition);
   const unchanged =
     mode === "revision" &&
@@ -115,7 +120,8 @@ export function FirstWorkComposer({
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          if (issues.length > 0 || busy || unchanged || selectionPending) return;
+          if (issues.length > 0 || busy || unchanged || selectionPending ||
+            unfinishedWorkNote(draft.get("noteDraft"), draft.get("noteTime"))) return;
           void onSave(definition, sourceSelection ?? undefined, omitted.map(entry => ({ source_binding: entry.source_ref!, reason: omissionReasons[entry.source_ref!].trim() })));
         }}
       >
@@ -125,6 +131,7 @@ export function FirstWorkComposer({
           id={`${prefix}-goal`}
           name={`${prefix}-goal`}
           value={goal}
+          disabled={busy}
           required
           aria-describedby={`${prefix}-goal-help`}
           aria-invalid={issues.some((issue) => issue.field === "goal")}
@@ -139,6 +146,7 @@ export function FirstWorkComposer({
           id={`${prefix}-success-criteria`}
           name={`${prefix}-success-criteria`}
           value={criteriaText}
+          disabled={busy}
           required
           aria-describedby={`${prefix}-success-help`}
           aria-invalid={issues.some((issue) => issue.field === "criteria")}
@@ -153,6 +161,7 @@ export function FirstWorkComposer({
           id={`${prefix}-non-goals`}
           name={`${prefix}-non-goals`}
           value={nonGoalsText}
+          disabled={busy}
           aria-describedby={`${prefix}-non-goals-help`}
           aria-invalid={issues.some((issue) => issue.field === "non_goals")}
           onChange={(event) => setNonGoalsText(event.target.value)}
@@ -167,13 +176,14 @@ export function FirstWorkComposer({
             {issues[0]!.message}
           </p>
         ) : null}
-        {mode !== "initial" ? <SelectedWorkSourceEditor composerDraft={draft} onAccessRefused={onAccessRefused} onRefreshCurrentWork={onRefreshCurrentWork} initialization={initialization} busy={busy} newTask={mode === "new_task"} resultBinding={resultBinding} resultSource={resultSource} reviewedOutcome={reviewedOutcome}
+        {mode !== "initial" ? <SelectedWorkSourceEditor composerDraft={draft} onUnfinishedNoteChange={setUnfinishedNote} onAccessRefused={onAccessRefused} onRefreshCurrentWork={onRefreshCurrentWork} initialization={initialization} busy={busy} newTask={mode === "new_task"} resultBinding={resultBinding} resultSource={resultSource} reviewedOutcome={reviewedOutcome}
           onChange={(selection, pending) => { setSourceSelection(selection); setSourcesPending(pending); }} /> : null}
         {mode === "new_task" && omitted.map(entry => <label key={entry.entry_id}>
           Why omit this note? {entry.bounded_summary}
-          <input maxLength={500} value={omissionReasons[entry.source_ref!] ?? ""}
+          <input maxLength={500} disabled={busy} value={omissionReasons[entry.source_ref!] ?? ""}
             onChange={event => setOmissionReasons({ ...omissionReasons, [entry.source_ref!]: event.target.value })} />
         </label>)}
+        {unfinishedNote ? <p className={styles.muted}>Add the unfinished note or clear it before saving this preparation.</p> : null}
         <div className={styles.buttonRow}>
           <button
             type="submit"

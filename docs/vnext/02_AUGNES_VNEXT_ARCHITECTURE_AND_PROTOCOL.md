@@ -342,6 +342,31 @@ source comparison. Unavailable authorization hides the draft until the same
 project/operator is authenticated again. Drafts are not persisted across closing
 or reloading a tab. Execution already in progress still forbids ordinary edits.
 
+Native work preparation (#1599) locks accepted definition, source-note and omission
+inputs during its pending preview/save. An acknowledgement applies only to the
+submitted editor and its owner; it cannot clear later accepted authorship, label
+it saved or authorize it with an older preview. Unfinished note fields must be
+added to the selection or explicitly cleared before preview/save. Disposed-editor
+responses cannot mutate or revoke access for a replacement editor/project.
+
+Meaningful unsaved preparation is compared with its initial values in that same
+memory-only editor. Destructive Native document navigation and browser-supported
+reload/close use the browser's stay/leave dialog; client-router departures ask
+before replacing the editor. Staying retains the exact draft, including unfinished
+notes, selections and omission reasons. Clean/unchanged editors, same-document
+navigation, confirmed saves and explicit discard do not add redundant prompts.
+Leaving discards only local authorship: it neither saves nor cancels or rolls back
+a pending writer. Unknown/malformed save responses retain uncertainty and use
+existing current-state readers, with no automatic resubmission, replacement
+revision or execution. Fresh-basis/source comparison remains explicit.
+
+The lifetime remains workspace/project/operator-bound memory in one document.
+No draft browser storage, cookie, file, log, export, record or cross-tab channel is
+introduced. Access loss hides private material while a generic departure guard
+may still protect it. No durable autosave, crash recovery or browser-forced-exit
+guarantee follows; retained text grants no authority and changes no writer,
+project/root, packet, lineage, source, preview or execution-state enforcement.
+
 Existing interactive and policy-run controllers retain project/run targeting,
 physical-root, packet, grant and control-revision checks. Display selection is
 not execution permission and does not cancel another project's run. Opening an

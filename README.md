@@ -75,6 +75,15 @@ Unsaved drafts remain in memory only: keep the tab open until saving or copying
 them. Supported running work remains observable and controllable in its project;
 starting work still requires its existing execution authority.
 
+Work-preparation fields pause while a preview or save is pending. Add an unfinished
+source note, or use **Clear unfinished note**, before saving. Supported Native
+navigation and browser reload/close ask before discarding meaningful unsaved
+preparation. Staying keeps the exact draft; leaving or explicitly discarding does
+not save it or cancel a pending write. Clean editors and confirmed saves need no
+extra prompt. If a response is lost or cannot confirm the save, read current work
+before deciding on another action: the write may already have committed. This is
+tab-local protection, not autosave or recovery after a crash or forced close.
+
 ## Use selected experience with a local service
 
 The Operator tool `augnes_external_repository_work` connects selected experience

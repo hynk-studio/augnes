@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { checkPreparationStay, checkPreparationPreviewResponse, checkPreparationSaveResponse } from "./native-work-preparation-browser-checks.mjs";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { canonicalizeProtocolValueV01 } from "../lib/vnext/protocol-primitives";
@@ -140,12 +141,13 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-sources] [role="status"]')?.textContent.includes('2 selected')`, 'explicit report and original conditions selection');
   await clickSelector(lifecycle, '[data-reviewed-outcome-action="author"]');
   assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('#selected-note-source').value.startsWith('New authored note based on ')`), true, 'Edited reuse is authored material, not an unchanged saved report');
-  await lifecycle.setFormControlValue('#selected-note-source', '');
-  await lifecycle.setFormControlValue('#selected-note-text', '');
-  await clickSelector(lifecycle, '[data-augnes-primary-action="preview-new-work"]');
+  await clickSelector(lifecycle, '[data-selected-source-action="clear-draft"]');
+  const preparationBrowser = { cdp: lifecycle.cdp(), evaluate: lifecycle.evaluate, waitForCondition: lifecycle.waitForCondition, projectId };
+  await checkPreparationStay(preparationBrowser);
+  await checkPreparationPreviewResponse(preparationBrowser, "result");
   await lifecycle.waitForCondition(`document.querySelector('[data-result-work-preview]') !== null`, 'ordinary B preview');
   assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-result-work-preview]').textContent.includes('Historical operator-attested outcome report v2') && document.querySelector('[data-result-work-preview]').textContent.includes('Original applicability conditions:')`), true);
-  await clickSelector(lifecycle, '[data-result-work-action="save"]');
+  await checkPreparationSaveResponse(preparationBrowser, "result");
   await lifecycle.waitForCondition(`document.querySelector('[data-result-work-saved]') !== null`, 'ordinary B saved');
   assert.equal(await lifecycle.evaluateString(`document.querySelector('[data-result-work-saved] a').getAttribute('href')`),
     `/workbench/semantic-review?project_id=${encodeURIComponent(projectId)}`);

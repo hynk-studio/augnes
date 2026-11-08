@@ -2,6 +2,7 @@ import { selectBrowserPath, strictNetworkSandboxLaunch } from "./local-canonical
 // One disposable workspace, one ordinary browser profile, two independently
 // authenticated tabs. Production components and route handlers own all writes.
 import assert from "node:assert/strict";
+import { nativePreparationBrowser, checkPreparationPreviewResponse, checkPreparationSaveResponse } from "./native-work-preparation-browser-checks.mjs";
 import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { checkAncillaryWorkDraftRecovery } from "./ancillary-work-draft-browser-checks";
 import { checkResultWorkDraftRecovery } from "./result-work-draft-browser-checks";
@@ -235,13 +236,22 @@ async function main(semanticOnly = false) {
       console.log(JSON.stringify({ same_profile_semantic_transition: "PASS", actual_UI_HTTP_flow: "preview, explicit review, confirm, explicit review, apply in A/B tabs", delayed_responses: "B preview after A preview; A confirmation after B confirmation", fresh_record_readback: "A/B gates, receipts, later packets and current lineage; fresh UI reentry", automatic_repreview_or_confirmation: 0 }));
       assert.equal(errors, 0, JSON.stringify(responseLog)); assert.equal(external, 0); assert.equal(guard.attempts.length, 0);
     } else {
+      const browser = (tab: CDP, config: VNextLocalOperatorPilotConfigV01) => ({ cdp: tab, evaluate: (expression: string) => tab.eval(expression),
+        waitForCondition: (expression: string, label: string) => until(() => tab.eval(expression), label), projectId: config.project_id });
       const tabA = await newTab(a); await authenticate(tabA, a);
       await until(() => tabA.eval("!!document.querySelector('#first-work-goal')"), "initial_A");
       await set(tabA, "#first-work-goal", "A first unfinished edit"); await set(tabA, "#first-work-success-criteria", "A result must remain A");
       const tabB = await newTab(b); await authenticate(tabB, b); await openSelection(tabB, b);
       await until(() => tabB.eval("!!document.querySelector('#first-work-goal')"), "initial_B");
       await set(tabB, "#first-work-goal", "B initial work"); await set(tabB, "#first-work-success-criteria", "B result must remain B");
-      await click(tabB, '[data-first-work-action="save"]'); await goalIs(tabB, "B initial work");
+      const nativeB = nativePreparationBrowser(browser(tabB, b));
+      await nativeB.hold('define_initial_project_work', 'malformed');
+      await click(tabB, '[data-first-work-action="save"]'); await nativeB.held();
+      assert.equal(current(b)!.task.goal, 'B initial work');
+      await nativeB.release();
+      await until(() => tabB.eval("!!document.querySelector('[data-work-draft-conflict]')"), 'malformed_initial_acknowledgement');
+      assert.equal(await tabB.eval("document.querySelector('#first-work-goal').value"), 'B initial work');
+      await clickText(tabB, 'Discard draft and view saved work'); await goalIs(tabB, "B initial work");
       assert.equal(await tabA.eval("document.querySelector('#first-work-goal').value"), "A first unfinished edit");
       await click(tabA, '[data-first-work-action="save"]'); await goalIs(tabA, "A first unfinished edit");
       assert.equal(current(a)!.task.goal, "A first unfinished edit"); assert.equal(current(b)!.task.goal, "B initial work");
@@ -253,6 +263,12 @@ async function main(semanticOnly = false) {
       await until(() => tabA.eval("!document.querySelector('[data-work-revision-action=save]').disabled"), "A_comparison");
       await openSelection(tabB, b); await clickText(tabB, "Revise work definition"); await set(tabB, "#work-revision-goal", "B independently revised");
       holdA = true; await click(tabA, '[data-work-revision-action="save"]'); await until(async () => reachedHold, "A_save_in_flight");
+      const nativeA = nativePreparationBrowser(browser(tabA, a));
+      for (const selector of ['#work-revision-goal', '#work-revision-success-criteria', '#work-revision-non-goals', '#selected-note-source', '#selected-note-text', '#selected-note-time', '#selected-note-kind', '#selected-note-provenance']) {
+        assert.equal(await tabA.eval(`document.querySelector(${JSON.stringify(selector)}).matches(':disabled')`), true, selector);
+      }
+      await nativeA.input('#work-revision-goal', 'Later text refused during the pending revision');
+      assert.equal(await tabA.eval("document.querySelector('#work-revision-goal').value"), 'A preserved revision');
       await click(tabB, '[data-work-revision-action="save"]'); await goalIs(tabB, "B independently revised");
       await openSelection(tabB, a); assert.ok(held.release); held.release(); delete held.release;
       await goalIs(tabA, "A preserved revision"); assert.equal(readSelectedWorkSources(current(a)!)[0]!.bounded_summary, "Retain A exception exactly; B never receives this selected note.");
@@ -269,12 +285,18 @@ async function main(semanticOnly = false) {
       await click(tabA, '[data-selected-source-action="compare"]');
       await click(tabA, '[data-work-revision-action="save"]'); await goalIs(tabA, "A draft retained across conflict");
       // Different-new-work preparation and save retain B even with A selected.
+      await clickText(tabB, "Revise work definition");
+      await tabB.eval("document.querySelector('[data-selected-work-sources]').open=true");
+      await set(tabB, '#selected-note-source', 'B source'); await set(tabB, '#selected-note-text', 'B own historical note');
+      await click(tabB, '[data-selected-source-action="add"]'); await click(tabB, '[data-selected-source-action="compare"]');
+      await click(tabB, '[data-work-revision-action="save"]'); await goalIs(tabB, 'B independently revised');
       const priorB = current(b)!.packet_id;
       await clickText(tabB, "Prepare a different task");
       await set(tabB, "#new-work-goal", "B different new work"); await set(tabB, "#new-work-success-criteria", "A history remains separate");
       await tabB.eval("document.querySelector('[data-selected-work-sources]').open=true");
+      await set(tabB, 'input[maxlength="500"]', 'B prior note does not support the different task');
       await click(tabB, '[data-selected-source-action="compare"]');
-      await click(tabB, '[data-augnes-primary-action="preview-new-work"]');
+      await checkPreparationPreviewResponse(browser(tabB, b), 'different');
       await until(() => tabB.eval("!!document.querySelector('[data-new-work-preview]')"), "B_new_work_preview");
       const newWorkConflict = await tabB.eval(`(async()=>{const h={'Augnes-Project-Id':${JSON.stringify(b.project_id)},'content-type':'application/json'};const r=await fetch('/api/vnext/operator/project-continuity',{headers:h});const w=(await r.json()).work_initialization;return(await fetch('/api/vnext/operator/project-continuity',{method:'POST',headers:h,body:JSON.stringify({action:'revise_pre_execution_project_work',workspace_id:w.workspace_id,project_id:w.project_id,expected_active_project_id:w.project_id,expected_active_selection_revision:w.active_selection_revision,expected_project_work_binding:w.project_work_binding,expected_current_packet_id:w.current_packet.packet_id,expected_current_packet_fingerprint:w.current_packet.packet_fingerprint,expected_current_lineage_kind:w.current_packet.lineage_kind,...w.current_work,goal:'B competing preparation'})})).status})()`);
       assert.equal(newWorkConflict, 201); await click(tabB, '[data-new-work-action="save"]');
@@ -294,7 +316,7 @@ async function main(semanticOnly = false) {
       await authenticate(tabB, b);
       await until(() => tabB.eval("!!document.querySelector('[data-new-work-preview]')"), "new_work_restored");
       assert.equal(await tabB.eval("document.querySelector('#new-work-goal').value"), "B different new work");
-      await click(tabB, '[data-new-work-action="save"]'); await goalIs(tabB, "B different new work");
+      await checkPreparationSaveResponse(browser(tabB, b), 'different'); await goalIs(tabB, "B different new work");
       assert.notEqual(current(b)!.packet_id, priorB);
       assert.equal((db.prepare("SELECT COUNT(*) AS n FROM vnext_core_records WHERE record_id=?").get(priorB) as { n: number }).n, 1, "The original B work remains in history");
       // Revocation hides the retained A draft; only matching renewed authority
@@ -331,9 +353,21 @@ async function main(semanticOnly = false) {
         await click(tabA, '[data-work-draft-action="rebase"]'); await tabA.eval("document.querySelector('[data-selected-work-sources]').open=true"); await click(tabA, '[data-selected-source-action="compare"]');
       }
       await click(tabA, '[data-work-revision-action="save"]'); await goalIs(tabA, "A retained after reauthentication");
+      // A lost genuine response follows a committed write, never a substitute
+      // successful payload. The retained editor cannot automatically replay it.
+      const beforeUnknown = (db.prepare("SELECT COUNT(*) AS n FROM vnext_core_records WHERE project_id=? AND record_kind='task_context_packet'").get(a.project_id) as { n: number }).n;
+      await clickText(tabA, 'Revise work definition'); await set(tabA, '#work-revision-goal', 'A committed despite response loss');
+      await nativeA.hold('revise_pre_execution_project_work', 'lost');
+      await click(tabA, '[data-work-revision-action="save"]'); await nativeA.held();
+      assert.equal(current(a)!.task.goal, 'A committed despite response loss');
+      await nativeA.release();
+      await until(() => tabA.eval("!!document.querySelector('[data-work-draft-conflict]')"), 'committed_response_loss_reconciled');
+      assert.equal(await tabA.eval("document.querySelector('#work-revision-goal').value"), 'A committed despite response loss');
+      assert.equal((db.prepare("SELECT COUNT(*) AS n FROM vnext_core_records WHERE project_id=? AND record_kind='task_context_packet'").get(a.project_id) as { n: number }).n, beforeUnknown + 1);
+      await clickText(tabA, 'Discard draft and view saved work'); await goalIs(tabA, 'A committed despite response loss');
       await openSelection(tabB, b);
       const freshA = await newTab(a), freshB = await newTab(b);
-      await goalIs(freshA, "A retained after reauthentication"); await goalIs(freshB, "B different new work");
+      await goalIs(freshA, "A committed despite response loss"); await goalIs(freshB, "B different new work");
       for (const width of [390, 768, 1440]) {
         await freshA.send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width === 390 });
         assert.equal(await freshA.eval("document.documentElement.scrollWidth<=window.innerWidth+1"), true, `horizontal_overflow_${width}`);

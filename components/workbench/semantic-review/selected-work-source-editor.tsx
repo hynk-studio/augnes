@@ -4,7 +4,8 @@ import { useProjectClientFetch } from "./project-client-scope";
 
 import { useWorkDraftState, type WorkComposerDraft } from "./work-composer-draft";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useWorkPreparationLifetime } from "./work-preparation-departure";
 import { REVIEWED_OUTCOME_SOURCE_V01, SELECTED_WORK_SOURCE_LABELS, type ReviewedOutcomeSourceRefV01, type SelectedWorkSourceInput, type SelectedWorkSourceSelection, type RetainedWorkSourceRef } from "@/types/vnext/project-work-revision";
 import type { ReviewedOutcomeReuseV01 } from "@/lib/vnext/persistence/reviewed-outcome-source";
 import type { ProjectWorkInitializationV01 } from "@/types/vnext/project-work-initialization";
@@ -17,12 +18,20 @@ import type { RetainedWorkSourceHit } from "@/lib/intake/retained-work-source-re
 
 type Comparison = ReturnType<typeof compareSelectedWorkSources>;
 const emptyNote = (): SelectedWorkSourceInput => ({ source: "", text: "", observed_at: null, provenance: "imported_unverified", label: "Unclassified / needs review" });
+export function unfinishedWorkNote(note: unknown, time: unknown): boolean {
+  if (time) return true;
+  if (!note || typeof note !== "object") return false;
+  const value = note as SelectedWorkSourceInput;
+  return Boolean(value.source || value.text || value.observed_at ||
+    value.provenance !== "imported_unverified" || value.label !== "Unclassified / needs review");
+}
 type EditorNote = SelectedWorkSourceInput & { retainedSource?: RetainedWorkSourceRef; reviewedOutcome?: ReviewedOutcomeSourceRefV01; savedSourceId?: string; snapshotGroup?: string };
 const isSnapshot = (entry: TaskContextPacketSelectedEntryV01) => entry.compatibility_source_ref?.compatibility_namespace === REVIEWED_OUTCOME_SOURCE_V01;
 
-export function SelectedWorkSourceEditor({ composerDraft, onAccessRefused, onRefreshCurrentWork, initialization, busy, onChange, newTask = false, resultBinding, resultSource, reviewedOutcome }: {
+export function SelectedWorkSourceEditor({ composerDraft, onUnfinishedNoteChange, onAccessRefused, onRefreshCurrentWork, initialization, busy, onChange, newTask = false, resultBinding, resultSource, reviewedOutcome }: {
   initialization: ProjectWorkInitializationV01;
   composerDraft?: WorkComposerDraft;
+  onUnfinishedNoteChange?: (pending: boolean) => void;
   onAccessRefused?: (errorCode?: string) => void;
   onRefreshCurrentWork?: () => Promise<void>;
   busy: boolean;
@@ -33,6 +42,7 @@ export function SelectedWorkSourceEditor({ composerDraft, onAccessRefused, onRef
   onChange: (selection: SelectedWorkSourceSelection | null, pending: boolean) => void;
 }) {
   const fetch = useProjectClientFetch();
+  const isCurrent = useWorkPreparationLifetime();
   const [notes, setNotes] = useWorkDraftState<EditorNote[]>(composerDraft, "notes", () => (newTask ? [] : initialization.selected_source_context ?? []).map((entry) => ({
     source: entry.compatibility_source_ref!.external_id, observed_at: entry.external_ref!.observed_at ?? null,
     provenance: entry.trust_class as SelectedWorkSourceInput["provenance"],
@@ -48,6 +58,8 @@ export function SelectedWorkSourceEditor({ composerDraft, onAccessRefused, onRef
   const [error, setError] = useState<string | null>(null);
   const revision = useRef(0);
   const selectedCount = notes.reduce((sum, note) => sum + (note.reviewedOutcome || note.savedSourceId ? 2 : 1), 0);
+  const unfinishedNote = unfinishedWorkNote(draft, draftTime);
+  useEffect(() => { onUnfinishedNoteChange?.(unfinishedNote); }, [onUnfinishedNoteChange, unfinishedNote]);
 
   function changeNotes(next: EditorNote[]) {
     revision.current += 1;
@@ -74,6 +86,7 @@ export function SelectedWorkSourceEditor({ composerDraft, onAccessRefused, onRef
         retained_source_refs: selection.flatMap((note) => note.retainedSource ? [note.retainedSource] : []) }),
     });
     const body = await response.json() as { status?: string; comparison?: Comparison; error_code?: string };
+    if (!isCurrent()) throw new Error("The preparation editor has closed.");
     if (response.status === 401 || response.status === 403) onAccessRefused?.(body.error_code);
     if (response.status === 409) await onRefreshCurrentWork?.();
     if (!response.ok || body.status !== "selected_source_comparison" || !body.comparison) {
@@ -99,10 +112,10 @@ export function SelectedWorkSourceEditor({ composerDraft, onAccessRefused, onRef
     setComparing(true); setError(null);
     try {
       await requestComparison(next);
-      if (submittedRevision === revision.current) changeNotes(next);
+      if (isCurrent() && submittedRevision === revision.current) changeNotes(next);
     } catch (failure) {
-      if (submittedRevision === revision.current) setError(`Historical notes were not added. ${failure instanceof Error ? failure.message : "Selection unavailable."}`);
-    } finally { setComparing(false); }
+      if (isCurrent() && submittedRevision === revision.current) setError(`Historical notes were not added. ${failure instanceof Error ? failure.message : "Selection unavailable."}`);
+    } finally { if (isCurrent()) setComparing(false); }
   }
 
   async function compare() {
@@ -110,13 +123,13 @@ export function SelectedWorkSourceEditor({ composerDraft, onAccessRefused, onRef
     setComparing(true); setError(null);
     try {
       const result = await requestComparison(notes);
-      if (submittedRevision !== revision.current) return;
+      if (!isCurrent() || submittedRevision !== revision.current) return;
       setComparison(result);
       onChange({ selected_source_context: result.entries, expected_source_comparison: result.fingerprint,
         ...(result.retained_source_refs.length ? { retained_source_refs: result.retained_source_refs } : {}) }, false);
     } catch (failure) {
-      if (submittedRevision === revision.current) setError(failure instanceof Error ? failure.message : "Comparison unavailable.");
-    } finally { setComparing(false); }
+      if (isCurrent() && submittedRevision === revision.current) setError(failure instanceof Error ? failure.message : "Comparison unavailable.");
+    } finally { if (isCurrent()) setComparing(false); }
   }
 
   return <details className={`${styles.panel} ${styles.selectedWorkSources}`} data-selected-work-sources>
@@ -154,27 +167,29 @@ export function SelectedWorkSourceEditor({ composerDraft, onAccessRefused, onRef
         : "Saved review reuse is unavailable for this result. You can continue without it or author an attributed note below."}</p>}
     </div> : null}
     <label htmlFor="selected-note-source">Source and revision</label>
-    <input id="selected-note-source" value={draft.source} maxLength={256} onChange={(event) => setDraft({ ...draft, source: event.target.value })} placeholder="Review note, revision 2 — selected paragraphs" />
+    <input id="selected-note-source" disabled={busy || comparing} value={draft.source} maxLength={256} onChange={(event) => setDraft({ ...draft, source: event.target.value })} placeholder="Review note, revision 2 — selected paragraphs" />
     <label htmlFor="selected-note-time">Source time, if known</label>
-    <input id="selected-note-time" type="datetime-local" value={draftTime} onChange={(event) => {
+    <input id="selected-note-time" disabled={busy || comparing} type="datetime-local" value={draftTime} onChange={(event) => {
       setDraftTime(event.target.value);
       setDraft({ ...draft, observed_at: event.target.value ? new Date(event.target.value).toISOString() : null });
     }} />
     <label htmlFor="selected-note-provenance">Whose material is this?</label>
-    <select id="selected-note-provenance" value={draft.provenance} onChange={(event) => setDraft({ ...draft, provenance: event.target.value as SelectedWorkSourceInput["provenance"] })}>
+    <select id="selected-note-provenance" disabled={busy || comparing} value={draft.provenance} onChange={(event) => setDraft({ ...draft, provenance: event.target.value as SelectedWorkSourceInput["provenance"] })}>
       <option value="imported_unverified">Source report / unverified observation</option>
       <option value="user_declaration">User declaration or correction</option>
       <option value="derived_interpretation">Model summary or inference</option>
     </select>
     <label htmlFor="selected-note-kind">How should this material be reviewed?</label>
-    <select id="selected-note-kind" value={draft.label} onChange={(event) => setDraft({ ...draft, label: event.target.value as SelectedWorkSourceInput["label"] })}>
+    <select id="selected-note-kind" disabled={busy || comparing} value={draft.label} onChange={(event) => setDraft({ ...draft, label: event.target.value as SelectedWorkSourceInput["label"] })}>
       {SELECTED_WORK_SOURCE_LABELS.map((label) => <option key={label}>{label}</option>)}
     </select>
     <label htmlFor="selected-note-text">Selected material</label>
-    <textarea id="selected-note-text" value={draft.text} onChange={(event) => setDraft({ ...draft, text: event.target.value })} />
+    <textarea id="selected-note-text" disabled={busy || comparing} value={draft.text} onChange={(event) => setDraft({ ...draft, text: event.target.value })} />
     <p className={styles.muted}>Preserve corrections, rejection conditions, exceptions, deferred items, unanswered questions and next checks in full. Selecting a note does not accept its claims.</p>
     <button type="button" data-selected-source-action="add" className={styles.secondaryButton} disabled={busy || comparing || selectedCount >= 8 || !draft.source.trim() || !draft.text.trim() || [...draft.text].length > 2_000}
       onClick={() => { changeNotes([...notes, draft]); setDraft(emptyNote()); setDraftTime(""); }}>Add selected note</button>
+    {unfinishedNote ? <button type="button" data-selected-source-action="clear-draft" className={styles.secondaryButton} disabled={busy || comparing}
+      onClick={() => { setDraft(emptyNote()); setDraftTime(""); }}>Clear unfinished note</button> : null}
     {notes.map((note, index) => <div key={index} className={styles.panel}>
       <strong>{note.label}</strong><p>{note.source} · {note.provenance.replaceAll("_", " ")}{note.observed_at ? ` · ${note.observed_at}` : ""}</p>
       <p style={{ whiteSpace: "pre-wrap" }}>{note.text}</p>
