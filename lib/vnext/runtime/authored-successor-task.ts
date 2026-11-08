@@ -362,8 +362,11 @@ export async function defineAuthoredSuccessorTaskV01(db: Database.Database, inpu
       evaluated_at: at, require_active_project: true })).root_scope;
   check(root.root_fingerprint === request.expected_root_fingerprint, "root_changed");
   if (request.revalidation) {
-    assertRevalidatedHistoryCurrent(db, input.config, request, at);
+    // Reject a mismatched predecessor or reviewed input before reconstructing
+    // unrelated semantic history. This is preflight only: the transaction
+    // below still revalidates both source and currentness after filesystem I/O.
     source(db, input.config, request);
+    assertRevalidatedHistoryCurrent(db, input.config, request, at);
     check(equal(instructionFiles.map(f => f.sha256), request.definition.approved_instruction_hashes), "instruction_hashes_changed");
     const inventory = (role: "task_data" | "historical_material") => request.definition.materials.filter(m => m.role === role)
       .map(({ relative_path, sha256 }) => ({ relative_path, sha256 }));

@@ -2090,6 +2090,24 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
                 return;
               }
 
+              const sourceRefusal = async (request: unknown, error: RegExp) => {
+                const before = fixture.db.serialize(), prepare = fixture.db.prepare;
+                let historyQueries = 0;
+                fixture.db.prepare = ((sql: string) => {
+                  const statement = prepare.call(fixture.db, sql);
+                  if (/SELECT \* FROM vnext_core_records[\s\S]*ORDER BY/u.test(sql)) {
+                    const all = statement.all;
+                    statement.all = function(...values: any[]) { historyQueries++; return all.apply(this, values); };
+                  }
+                  return statement;
+                }) as typeof prepare;
+                try {
+                  await assert.rejects(author(request), error);
+                  assert(before.equals(fixture.db.serialize()), "Source refusal preserves the database");
+                  assert.equal(historyQueries, 0, "An invalid predecessor/material binding must refuse before enumerating unrelated semantic history");
+                  console.log(JSON.stringify({ source_refusal_history_queries: historyQueries }));
+                } finally { fixture.db.prepare = prepare; }
+              };
               for (const expires_at of [null, expiredAt, "invalid", new Date(Date.parse(expiredAt) + 8 * 3_600_000 + 1).toISOString()])
                 await assert.rejects(author({ ...revalidated, revalidation: { ...revalidated.revalidation, expires_at } }), /revalidation_invalid|lifetime_invalid/);
               const shortBootstrap = issueVNextLocalOperatorBootstrapV01(fixture.db, { config: fixture.config, clock });
@@ -2099,13 +2117,14 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
                 credential: shortSession.credential, request: revalidated, clock, approved_instruction_files: approvedInstructionFiles }), /lifetime_invalid/); }
               finally { revokeVNextLocalOperatorSessionByIdV01(fixture.db, { config: fixture.config, session_id: shortSession.credential.session_id, clock }); }
               await assert.rejects(author({ ...revalidated, revalidation: { ...revalidated.revalidation, profile: "unsupported.v9" } }), /revalidation_invalid/);
-              await assert.rejects(author({ ...revalidated, expected_latest_receipt_id: laterReceipt.receipt_id,
-                expected_latest_receipt_fingerprint: laterReceipt.integrity.fingerprint }), /predecessor_unsettled_or_mismatched/);
+              await sourceRefusal({ ...revalidated, expected_latest_receipt_id: laterReceipt.receipt_id,
+                expected_latest_receipt_fingerprint: laterReceipt.integrity.fingerprint }, /predecessor_unsettled_or_mismatched/);
               await assert.rejects(author({ ...revalidated, expected_active_selection_revision: differentSelectionRevision(revalidated.expected_active_selection_revision) }), /selection_changed/);
               await assert.rejects(author({ ...revalidated, expected_root_fingerprint: `sha256:${"0".repeat(64)}` }), /root_changed/);
-              await assert.rejects(author({ ...revalidated, definition: { ...revalidated.definition,
-                materials: revalidated.definition.materials.map(m => ({ ...m, sha256: "0".repeat(64) })) } }), /reviewed_inputs_changed/);
-              await assert.rejects(author({ ...revalidated, definition: { ...revalidated.definition, approved_instruction_hashes: ["0".repeat(64)] } }), /reviewed_inputs_changed/);
+              const changedMaterials = { ...revalidated, definition: { ...revalidated.definition,
+                materials: revalidated.definition.materials.map(m => ({ ...m, sha256: "0".repeat(64) })) } };
+              await sourceRefusal(changedMaterials, /reviewed_inputs_changed/);
+              await sourceRefusal({ ...revalidated, definition: { ...revalidated.definition, approved_instruction_hashes: ["0".repeat(64)] } }, /reviewed_inputs_changed/);
               await assert.rejects(defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential: freshCredential,
                 request: revalidated, clock, approved_instruction_files: [{ path: file, sha256: files[0]!.sha256 }] }), /instruction_hashes_changed/);
               for (const bad of [{ status: "paused" as const }, { status: "running" as const }, { status: "completed" as const },
@@ -2135,6 +2154,45 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
               try { await assert.rejects(author(), /root|inventory/); } finally { rmSync(fixture.root, { recursive: true }); renameSync(replaced, fixture.root); }
               assert.deepEqual(listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: [...VNEXT_CORE_RECORD_KINDS_V01], limit: 100 }), history, "Refusals do not persist a task or mutate history");
               assert.equal(readFileSync(oldDispositionPath, "utf8"), consumedDisposition);
+              // Preflight work is never cached as write authority. Change the
+              // live predecessor after its second exact read, at the following
+              // filesystem await, and require the transaction to reject it.
+              const prepare = fixture.db.prepare, exec = fixture.db.exec;
+              let receiptReads = 0, changedAfterPreflight = false, transactionRechecked = false;
+              fixture.db.exec = function(sql: string) {
+                if (sql === "BEGIN IMMEDIATE") {
+                  assert(changedAfterPreflight, "The changed predecessor precedes transactional revalidation");
+                  transactionRechecked = true;
+                }
+                return exec.call(this, sql);
+              };
+              fixture.db.prepare = ((sql: string) => {
+                if (/SELECT \* FROM vnext_core_records\s+WHERE record_kind = \? AND record_id = \?/u.test(sql)) {
+                  const statement = prepare.call(fixture.db, sql), get = statement.get;
+                  statement.get = function(...values: any[]) {
+                    const row = get.apply(this, values);
+                    if (values[0] === "run_receipt" && values[1] === next.receipt.receipt_id && ++receiptReads === 2) {
+                      queueMicrotask(() => {
+                        assert.equal(fixture.db.inTransaction, false);
+                        updateAutonomyRunLedgerFields(failedRun.run_id, { finished_at: null }, { db: fixture.db });
+                        changedAfterPreflight = true;
+                      });
+                    }
+                    return row;
+                  };
+                  return statement;
+                }
+                return prepare.call(fixture.db, sql);
+              }) as typeof prepare;
+              try {
+                await assert.rejects(author(), /local_predecessor_binding/);
+                assert(changedAfterPreflight && transactionRechecked);
+              } finally {
+                fixture.db.prepare = prepare;
+                fixture.db.exec = exec;
+                updateAutonomyRunLedgerFields(failedRun.run_id, { finished_at: failedRun.finished_at }, { db: fixture.db });
+              }
+              assert.deepEqual(listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: [...VNEXT_CORE_RECORD_KINDS_V01], limit: 100 }), history);
               // Only after preservation assertions, independently change accepted
               // context through its normal synthetic review/Transition owners.
               assert(laterProposal.status === "available");
@@ -2165,6 +2223,9 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
               const stale = inspectVNextOperatorPilotPacketLineageV01(fixture.db, packetBinding);
               assert(stale.lineage_kind === "authored_successor_task"); assert.equal(stale.inherited_context_current, false);
               await assert.rejects(author(), /historical_context_stale_or_invalid/);
+              // Both invalid conditions still refuse; source binding has
+              // diagnostic precedence over unrelated stale semantic context.
+              await sourceRefusal(changedMaterials, /reviewed_inputs_changed/);
               console.log(JSON.stringify({ settled_expired_refusals: "passed", cases: authorCalls, history_preserved_before_separate_semantic_drift: true, stale_context_refused: true, new_task_worker_launches: 0 }));
               continue;
             }
