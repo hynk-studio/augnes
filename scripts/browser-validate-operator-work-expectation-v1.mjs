@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { checkPreparationStay, checkPreparationPreviewResponse, checkPreparationSaveResponse } from "./native-work-preparation-browser-checks.mjs";
+import { checkPreparationStay, checkPreparationPreviewResponse, checkPreparationSaveResponse, nativePreparationBrowser } from "./native-work-preparation-browser-checks.mjs";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { canonicalizeProtocolValueV01 } from "../lib/vnext/protocol-primitives";
@@ -290,16 +290,66 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
 async function exerciseReviewedOutcomeReselection(lifecycle, retainedExpected) {
   await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-retained-work-sources]').open = true; return true; })()`);
   const observations = [];
+  const ui = nativePreparationBrowser({ cdp: lifecycle.cdp(), evaluate: lifecycle.evaluate, waitForCondition: lifecycle.waitForCondition });
+  const originalGoal = await lifecycle.evaluateString(`document.querySelector('#work-revision-goal').value`);
+  const revisionWrites = () => lifecycle.requests.filter(request => {
+    try { return JSON.parse(request.post_data ?? '{}').action === 'revise_pre_execution_project_work'; } catch { return false; }
+  }).length;
   for (const query of ['R2_REPORT_ONLY_RESELECT', 'P32_FORECAST_ONLY_RESULT']) {
     await lifecycle.setFormControlValue('#retained-source-query', query);
     await clickSelector(lifecycle, '[data-retained-source-action="search"]');
     await lifecycle.waitForCondition(`document.querySelector('[data-retained-source-results]') !== null`, `${query} lookup`);
     const returned = await lifecycle.evaluateJson(`Array.from(document.querySelectorAll('[data-retained-source-hit]')).map(node => node.textContent)`);
-    await clickSelector(lifecycle, '[data-retained-source-action="select"]');
+    const pendingControl = query === 'R2_REPORT_ONLY_RESELECT';
+    const writesBefore = revisionWrites();
+    if (pendingControl) {
+      await ui.input('#work-revision-goal', originalGoal + ' — pending selection control');
+      assert.equal(await lifecycle.evaluateString(`document.querySelector('#work-revision-goal').value`), originalGoal + ' — pending selection control');
+      await ui.hold('compare_selected_work_sources');
+    }
+    await ui.click('[data-retained-source-action="select"]');
+    if (pendingControl) {
+      await ui.held();
+      assert.equal(await lifecycle.evaluate('window.__nativePreparationResponse.status'), 200);
+      assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-work-revision-action="save"]').disabled`), true,
+        'An accepted historical selection blocks enclosing Save before its capacity comparison returns');
+      await ui.click('[data-work-revision-action="save"]');
+      assert.equal(revisionWrites(), writesBefore, 'Pending source selection cannot start a writer');
+      await ui.release();
+    }
     await lifecycle.waitForCondition(`document.querySelector('[data-selected-source-action="exclude"]') !== null`, 'lookup selection added');
-    await clickSelector(lifecycle, '[data-selected-source-action="compare"]');
+    if (pendingControl) {
+      assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-work-revision-action="save"]').disabled`), true,
+        'Accepted notes still require explicit current comparison');
+      await ui.hold('compare_selected_work_sources');
+    }
+    await ui.click('[data-selected-source-action="compare"]');
+    if (pendingControl) {
+      await ui.held();
+      assert.equal(await lifecycle.evaluate('window.__nativePreparationResponse.status'), 200);
+      assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-work-revision-action="save"]').disabled`), true);
+      await ui.click('[data-work-revision-action="save"]');
+      assert.equal(revisionWrites(), writesBefore);
+      await ui.release();
+    }
     await lifecycle.waitForCondition(`Array.from(document.querySelectorAll('[data-selected-work-sources] [role="status"]')).some(node => node.textContent.includes(' selected;')) || document.querySelector('[data-selected-work-sources] [role="alert"]') !== null`, 'lookup selection compared or explicitly refused');
     const compared = await lifecycle.evaluateBoolean(`Array.from(document.querySelectorAll('[data-selected-work-sources] [role="status"]')).some(node => node.textContent.includes('2 selected;'))`);
+    if (pendingControl) {
+      await lifecycle.waitForCondition(`!!document.querySelector('[data-work-revision-action="save"]:not(:disabled)')`, 'completed source comparison allows ordinary Save');
+      await ui.hold('compare_selected_work_sources');
+      await ui.click('[data-selected-source-action="compare"]');
+      await ui.held();
+      assert.equal(await lifecycle.evaluate('window.__nativePreparationResponse.status'), 200);
+      assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-work-revision-action="save"]').disabled`), true,
+        'Recomparison invalidates an already usable selection before awaiting its response');
+      await ui.click('[data-work-revision-action="save"]');
+      assert.equal(revisionWrites(), writesBefore);
+      await ui.release();
+      await lifecycle.waitForCondition(`!!document.querySelector('[data-work-revision-action="save"]:not(:disabled)')`, 'fresh comparison restores ordinary Save');
+      await ui.input('#work-revision-goal', originalGoal);
+      console.log(JSON.stringify({ pending_historical_selection_control: { genuine_response_status: 200, save_blocked_until_compared: true,
+        revision_writes_during_pending: revisionWrites() - writesBefore, source_notes_preserved: 2, actual_input: 'Chrome Input events' } }));
+    }
     observations.push({ query, returned_notes: returned.length, complete_visible_group: returned.some(text => text.includes('R2_REPORT_ONLY_RESELECT')) && returned.some(text => text.includes('P32_FORECAST_ONLY_RESULT')), compared });
     await clickSelector(lifecycle, '[data-selected-source-action="exclude"]');
     assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-selected-source-action="exclude"]') === null`), true, 'Exclusion removes the whole group');

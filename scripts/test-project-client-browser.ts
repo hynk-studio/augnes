@@ -379,8 +379,12 @@ async function main(semanticOnly = false) {
       assert.equal(await tabA.eval("document.querySelector('#work-revision-goal').value"), "A retained after reauthentication");
       assert.equal(await tabA.eval("document.body.textContent.includes('Retain A exception exactly')"), true);
       if (await tabA.eval("!!document.querySelector('[data-work-draft-action=rebase]')")) {
-        await click(tabA, '[data-work-draft-action="rebase"]'); await tabA.eval("document.querySelector('[data-selected-work-sources]').open=true"); await click(tabA, '[data-selected-source-action="compare"]');
+        await click(tabA, '[data-work-draft-action="rebase"]');
       }
+      assert.equal(await tabA.eval("document.querySelector('[data-work-revision-action=save]').disabled"), true,
+        'Matching reauthentication does not authorize the source comparison refused before access was restored');
+      await tabA.eval("document.querySelector('[data-selected-work-sources]').open=true");
+      await click(tabA, '[data-selected-source-action="compare"]');
       await click(tabA, '[data-work-revision-action="save"]'); await goalIs(tabA, "A retained after reauthentication");
       // A lost genuine response follows a committed write, never a substitute
       // successful payload. The retained editor cannot automatically replay it.

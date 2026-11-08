@@ -348,6 +348,9 @@ submitted editor and its owner; it cannot clear later accepted authorship, label
 it saved or authorize it with an older preview. Unfinished note fields must be
 added to the selection or explicitly cleared before preview/save. Disposed-editor
 responses cannot mutate or revoke access for a replacement editor/project.
+Starting a source selection or comparison invalidates the enclosing preparation's
+previous comparison immediately. Preview/save waits for the accepted selection
+and its explicit current comparison; an earlier save cannot overtake that input.
 
 Meaningful unsaved preparation is compared with its initial values in that same
 memory-only editor. Destructive Native document navigation and browser-supported

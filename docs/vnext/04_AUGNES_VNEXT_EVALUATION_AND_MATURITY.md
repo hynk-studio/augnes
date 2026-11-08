@@ -487,6 +487,15 @@ composer rejects those inputs while pending and saves the exact submitted work.
 Keep the RED result, driver/preparation failures and corrections as separate
 development evidence; none is a deciding receipt or an independent review.
 
+A later genuine historical-selection comparison exposed a second race: Save
+remained enabled, two selected notes appeared before the held save acknowledgement,
+then fresh normal readback contained none. The same Browser probe after correction
+blocks Save until selection and explicit comparison finish, then saves and reads
+the exact historical pair and definition without starting execution. Its focused
+RED/GREEN is separate from the earlier snapshot's Full/stock PASS; that PASS
+cannot qualify the changed candidate. Retain any policy admission refusal and
+unrun final-head qualification instead of relabeling or bypassing the boundary.
+
 Durable Browser regressions exercise pending revision, different-task and
 result-linked preview/save, including source selections and omission reasons.
 Real Native navigation and actual browser dialogs/reload verify exact stay,

@@ -110,6 +110,8 @@ export function SelectedWorkSourceEditor({ composerDraft, onUnfinishedNoteChange
     // Do not add a visible partial/oversized group and only refuse at Save.
     const submittedRevision = revision.current;
     setComparing(true); setError(null);
+    // The enclosing save must wait for this accepted source-selection action.
+    onChange(null, true);
     try {
       await requestComparison(next);
       if (isCurrent() && submittedRevision === revision.current) changeNotes(next);
@@ -121,6 +123,7 @@ export function SelectedWorkSourceEditor({ composerDraft, onUnfinishedNoteChange
   async function compare() {
     const submittedRevision = revision.current;
     setComparing(true); setError(null);
+    onChange(null, true);
     try {
       const result = await requestComparison(notes);
       if (!isCurrent() || submittedRevision !== revision.current) return;

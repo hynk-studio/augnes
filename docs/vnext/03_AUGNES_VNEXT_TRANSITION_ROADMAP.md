@@ -63,9 +63,15 @@ The candidate prevents that later authoring, protects meaningful drafts on real
 Native navigation/reload, and retains uncertain-save reconciliation through the
 existing readers. Matching reauthentication and explicit fresh-basis/source
 comparison keep their existing meaning.
+An additional genuine-response race was reproduced after a Full/stock-passing
+snapshot: an in-flight historical source selection could be overtaken by Save.
+The corrected candidate blocks that Save and retains the complete selected pair.
 
-This is implemented for review, with exact-head qualification and independent
-acceptance recorded separately in its Draft PR/report. It does not complete the
+This is implemented for review. The final component correction remains
+qualification HOLD: its path is outside the unchanged v2 source-revision
+allowlist. The earlier snapshot's PASS cannot qualify this changed candidate.
+Exact-head admission, qualification and independent acceptance remain separate
+decisions in its Draft PR/report. It does not complete the
 broader P2/P5 work or imply installed adoption, deployment or merge. The
 [02 interaction contract](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#24-project-isolation-invariants)
 and [04 evidence limits](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#native-preparation-response-and-departure-evidence-1599)
