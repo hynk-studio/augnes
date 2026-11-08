@@ -193,6 +193,16 @@ organization's own track record or independent corroboration. Public description
 shared work expectations and private assessments have different disclosure scopes;
 participants can retain different judgments while agreeing on the current work.
 
+Under coordination uncertainty, prefer useful actions that remain valid across
+plausible counterpart interpretations of shared material and roles; this is not a
+requirement to resolve every interpretation before acting. Clarify only uncertainty
+material to the next action and continue independent useful work supported by
+current information, applicable terms, authority and aggregate resource limits.
+A hold on one dependency must not become a blanket stop on unaffected authorized
+work. Reuse still-applicable agreed conventions rather than renegotiating them
+routinely. This principle supplies no missing permission and does not bypass
+required checks or relax acceptance criteria.
+
 An optional strategic operating profile can package purpose, applicable conditions,
 contribution roles, evidence needs, return/check/use responsibilities, requested
 permissions and reconsideration criteria into a reusable starting configuration.
