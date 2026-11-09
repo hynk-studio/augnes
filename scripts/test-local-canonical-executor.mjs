@@ -180,11 +180,14 @@ const executorSource = readFileSync(
       const file = path.join(owner.root, relative); mkdirSync(path.dirname(file), { recursive: true });
       writeFileSync(file, readFileSync(path.join(repositoryRoot, relative)));
     }
-    const relative = "scripts/local-canonical-pure-contract-witness.mjs", file = path.join(owner.root, relative);
-    writeFileSync(file, readFileSync(path.join(repositoryRoot, relative)));
-    const before = computeExecutorSourceFingerprint(owner.root);
-    writeFileSync(file, "export const changed = true;\n");
-    assert.notEqual(computeExecutorSourceFingerprint(owner.root), before);
+    for (const relative of ["scripts/local-canonical-pure-contract-witness.mjs", "scripts/canonical-revision-reader.mjs"]) {
+      const file = path.join(owner.root, relative), original = readFileSync(path.join(repositoryRoot, relative));
+      writeFileSync(file, original);
+      const before = computeExecutorSourceFingerprint(owner.root);
+      writeFileSync(file, "export const changed = true;\n");
+      assert.notEqual(computeExecutorSourceFingerprint(owner.root), before);
+      writeFileSync(file, original);
+    }
   } finally { assert(cleanupCanonicalTestResources([owner])[0].completed); }
 }
 
