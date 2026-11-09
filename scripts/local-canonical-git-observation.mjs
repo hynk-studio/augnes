@@ -1,3 +1,4 @@
+import { isSerialAggregateRevision } from "./local-canonical-serial-aggregate.mjs";
 import { digest, classifyInputChange, effectiveInputObservation, inputEventIdentity, nonFaultInputChange, INPUT_CONTRACT, PREPARED_DEPENDENCY_CONTRACT, comparePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
 import { settledIsolatedResources, cancelledPhase, verifySettledPhaseFailure } from "./local-canonical-browser-revision.mjs";
 import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
@@ -15,7 +16,7 @@ export const GIT_INPUT_HISTORY_BOUNDARY = "Historical window remains UNKNOWN; or
 // A v7 commission descending from the spent Git-observation chain keeps the
 // complete input inventory throughout its physical lineage.
 export const isInventoryBoundRevision = p => p?.schema === "augnes.local-canonical-source-correction.v7" &&
-  p.kind === "reviewed_revision" && Object.hasOwn(p.inputs ?? {}, "inventory_sha256");
+  p.kind === "reviewed_revision" && !isSerialAggregateRevision(p) && Object.hasOwn(p.inputs ?? {}, "inventory_sha256");
 export const GIT_ACQUISITION_REPAIR = "coherent-git-file-acquisition-v1";
 export const isGitAcquisitionRevision = p => isInventoryBoundRevision(p) &&
   p.commission?.input_acquisition === GIT_ACQUISITION_REPAIR;

@@ -1,10 +1,10 @@
-# QA serial aggregate consumer: integration specification
+# QA serial aggregate consumer: integrated contract
 
 This is the #1609 / Draft PR #1611 consumer specification for the shared
 orchestration and incident-admission work owned by #1608 / Draft PR #1614.
-It records the source inventory and acceptance checks while that dependency is
-unpublished. It changes no executable budget, admission rule, allowance or
-qualification result. The [Local Canonical policy](../../.github/LOCAL_CANONICAL_VERIFICATION.md)
+It records the integrated source inventory, incident binding and focused
+acceptance checks. Preparation grants no execution authority and changes no
+historical qualification result. The [Local Canonical policy](../../.github/LOCAL_CANONICAL_VERIFICATION.md)
 remains the authority owner.
 
 ## Source and dependency boundary
@@ -15,23 +15,24 @@ tree `3532ab83be13a4a4ed34a19a8bbf03788485ed50`, against base
 implementation and its final Browser accounting correction. Qualification
 remains HOLD. A1-A4 and H1-H4/H6-H12 are retained; H5 remains outside scope.
 
-On 2026-11-09, remote inspection still found #1614 at
-`ce6d0d3d6da8ae91680f16b8ccfa347f4c03f6ca`. Its published source does not contain
-the proposed shared serial budget or v2 incident route. Work in its owner's
-dirty worktree is not an integration source. Consume one explicitly reviewed,
-published shared implementation when available, record its exact commit and
-delta, and retain compatible #1613 changes. Do not import unrelated Native
-navigation changes or fork a competing timeout/admission owner.
+The shared implementation is #1614 commit
+`c1294b11346e5f262c33edf25aa46af52b7b16cc`, independently source-reviewed in its
+three-child context. Only that shared commit is consumed; its Native navigation
+ancestry is not imported. This consumer extends the same owner to its fourth
+child and its actual capped-log incident. The earlier unpublished-dependency
+snapshot remains in Git history and the private r2 handoff.
 
-The compatible maintenance candidate to reconcile is #1613 at
-`987e102dd3d8bbae9f0d3e933b01a9a805ee35f7`. Its stable protected Git-input route
-does not itself admit this timeout incident. It is not adopted by this
-specification. #1610/#1612 retains original-receipt reconciliation ownership.
+Compatible #1613 commits `257f028a` and
+`987e102dd3d8bbae9f0d3e933b01a9a805ee35f7` are retained with their provenance.
+Their stable protected Git-input route does not admit this timeout incident.
+Current publication checks stay separate from historical replay. #1610/#1612
+retains original-receipt reconciliation ownership.
 
 ## Committed consumer inventory
 
 The actual owner is
-[`run-canonical-test-suite.mjs`](../../scripts/run-canonical-test-suite.mjs).
+[`project-experience-serial-budget.mjs`](../../scripts/project-experience-serial-budget.mjs),
+consumed by the suite and its parent.
 Each command uses the selected Node executable, repository cwd and
 `--import tsx`; every child requires natural exit. Preserve the existing
 assertions, requirements, isolated resources and this order.
@@ -59,11 +60,10 @@ An AST-derived observation of this exact inventory has SHA-256
 `b080e4d211a31060dcf94217a688b83f2a8ab0760883f2abc09adadcdc12dad3`.
 It binds the accepted source head, phase, ordered children and record counts
 in the retained consumer observation. It is a review artifact, not a shared
-route's preparation commitment or an execution grant. Future integration must
-derive and bind the actual committed shared inventory through that owner's
-supported input machinery.
+route's preparation commitment or an execution grant. The integrated preparation derives and binds the actual committed shared
+inventory through that owner's supported input machinery.
 
-## Disjoint accounting to implement and review
+## Implemented disjoint accounting for review
 
 The child execution-limit sum is **660000 ms**. This is already the proposed
 total for #1614's different three-child consumer; copying that total would
@@ -77,9 +77,9 @@ for four. This arithmetic describes the named bounded waits. Scheduling and
 synchronous overhead still need accounting; it is not a wall-clock guarantee.
 
 With a separately justified and enforced **30000 ms coordinator allowance**,
-the arithmetic candidate is **730000 ms**. This is not an approved or currently
-implemented cap. The current parent still has its 480000 ms execution limit.
-The shared implementation must make each interval exclusive:
+the implemented arithmetic contract is **730000 ms**. It is subject to exact
+source review and separate prospective authorization; it is not a universal
+wall-clock guarantee. The shared implementation makes each interval exclusive:
 
 - Child Node/tsx startup and execution spend that child's own limit.
 - Each child's natural post-exit settlement spends its separate allowance.
@@ -91,18 +91,18 @@ The shared implementation must make each interval exclusive:
   execution envelope. Do not count it twice or claim total observed phase
   duration cannot exceed the envelope.
 
-The current suite calls maintenance acquisition with `joinAncestorLease: true`.
+The suite uses `joinAncestorLease: true` and `allowAcquire: false` for this phase.
 The [service owner](../../plugins/augnes-operator/mcp/companion-service-core.mjs)
-can return no lease, join an existing ancestor lease, or acquire its own lease.
-The last case can require 30000 ms acquisition and 90000 ms restoration, which
+can return no lease or join an existing ancestor lease. It refuses acquisition
+before mutation in this phase. Owning a lease could require 30000 ms acquisition
+and 90000 ms restoration, which
 cannot be hidden inside a 30000 ms coordinator allowance. The original isolated
 Full records outer maintenance acquisition as false and preserves the same
 live Companion identity. It does not supply a completed suite maintenance
 summary for the interrupted phase.
 
-The shared route must enforce the supported no-lease/ancestor-joined path
-before acquiring an obligation, or propose separately justified accounting for
-an owned lease. A joined child must not release its ancestor's lease. A budget
+The shared route enforces the supported no-lease/ancestor-joined path
+before acquiring an obligation. A joined child must not release its ancestor's lease. A budget
 failure must finish required cleanup/restoration and remain a failure. Forced
 descendant termination, child assertion failure, individual timeout, incomplete
 cleanup and inventory disagreement never become accepted natural completion.
@@ -144,8 +144,11 @@ Read-only checks of the actual retained originals establish:
 - Original cleanup completed with zero owned processes and preserved Companion
   identity. This does not turn an interrupted operation into success.
 
-The future incident reader must independently establish this mapping from
-original receipt, source, logs, inputs and physical lineage. Missing Web records
+The incident reader establishes this mapping from original receipt, source,
+logs, inputs and physical lineage. For this capped original it requires both
+physical files, the complete wrapper's unique parent boundaries and receipt
+fingerprint, an exact byte-prefix match, and all eight wrapper Browser records.
+The capped phase flag remains true; a copied excerpt cannot prove completeness. Missing Web records
 and following NOT_RUN fields may explain these specific gaps only. A different
 consumer, binary, version, location, executed environment, unexpected extra
 record or unexplained missing record must refuse. Do not waive all errors
@@ -162,8 +165,8 @@ reset or invented reviewed-v7 predecessor is acceptable.
 
 ## Focused integration acceptance matrix
 
-Extend the shared production orchestration/admission regression owners when
-the reviewed source is available. Do not add a parallel policy harness or
+The shared production orchestration/admission regression owners cover this
+four-child consumer, capped and uncapped originals, and refusal controls. Do not add a parallel policy harness or
 repeat product Browser journeys just to exercise budget mechanics.
 
 | Control | Required result |
@@ -184,18 +187,15 @@ repeat product Browser journeys just to exercise budget mechanics.
 
 ## Preparation status and next boundary
 
-The consumer inventory, original-evidence mapping and integration specification
-are available for independent review. **Shared integration and supported
-non-reserving preparation are BLOCKED_SHARED_SOURCE_UNPUBLISHED.** No supported
-preparation commitment has been produced and no grant or reservation consumed.
-The exact dependency is the reviewed, published #1614 implementation covering
-the shared budget owner, v2 incident transition and all its consumers/readers,
-with a supported four-child integration surface and compatible #1613 changes.
+The shared source and compatible #1613 changes are integrated. The focused
+orchestration and incident controls are development evidence, not Full or
+Browser qualification. Exact-source preparation records belong to the existing
+private QA handoff; they bind this consumer's own predecessor, current source,
+runtime, inventory and incident. No grant, attempt, reservation or successor
+edge is created by preparation.
 
-After that dependency arrives, integrate its exact delta, run the matrix above,
-obtain independent read-only source/result review, run the unchanged planner
-on the exact published candidate and complete supported non-reserving
-preparation. Independent acceptance of those concrete materials must precede
-a separate authenticated prospective execution grant. Only a later authorized
-complete planner-selected Full/Browser and separate fresh-process stock can
-close qualification. Keep #1611 Draft, auto-merge off and qualification HOLD.
+Independent acceptance of the concrete integrated source and preparation must
+precede a separate authenticated prospective execution grant. Only a later
+authorized complete planner-selected Full/Browser and separate fresh-process
+stock can close qualification. Keep #1611 Draft, auto-merge off and
+qualification HOLD. The original interrupted Web result remains UNKNOWN.

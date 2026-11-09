@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { projectExperienceSteps } from "./project-experience-serial-budget.mjs";
 import { RESEARCH_REGISTRATION_PATH, RESEARCH_SOURCE_PATHS, RESEARCH_OWNER_ID,
   loadResearchTestSteps } from "./canonical-research-registration.mjs";
 import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
@@ -760,7 +761,7 @@ for (const fragment of ['timeoutMs: 30_000', 'requireNaturalExit: true', '"scrip
   requireText(isolatedChild, fragment, "isolated verification has a bounded authority child and complete cleanup");
 
 const revisionSteps = canonicalSuite.slice(canonicalSuite.indexOf("const reviewedRevisionSteps ="), canonicalSuite.indexOf("const suites ="));
-for (const fragment of ['["revision", "settlement", "browser", "git", "git-input", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation"].map(group', '"--reviewed-revision-controls", group',
+for (const fragment of ['["revision", "settlement", "browser", "git", "git-input", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation", "serial-aggregate"].map(group', '"--reviewed-revision-controls", group',
   'timeoutMs: 30_000', 'requireNaturalExit: true'])
   requireText(revisionSteps, fragment, "each reviewed fixture group has its own bounded natural-exit registration");
 assert.equal(countOccurrences(canonicalSuite, "...reviewedRevisionSteps,"), 1);
@@ -1319,11 +1320,19 @@ for (const [id, script] of [
   for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', `"${script}"`])
     requireText(child.block, fragment, "project clients retain their bounded disposable acceptance owners");
 }
-for (const fragment of ['id: "project-client-browser"', '"scripts/test-project-client-browser.ts"', 'timeoutMs: 60_000', 'requireNaturalExit: true', '"browser-profile-owning"', '"cdp-session-owning"'])
-  requireText(canonicalSuite.slice(canonicalSuite.indexOf("const projectClientBrowserStep ="), canonicalSuite.indexOf("const webPlanningBrowserStep =")), fragment, "same-profile Browser owns bounded processes, profile and CDP resources");
+const projectClientBrowser = projectExperienceSteps(repositoryRoot).find(step=>step.id === "project-client-browser");
+assert.equal(projectClientBrowser.timeoutMs,60000);
+assert.equal(projectClientBrowser.requireNaturalExit,true);
+assert.deepEqual(projectClientBrowser.args,["--import","tsx","scripts/test-project-client-browser.ts"]);
+for (const requirement of ["process-owning","listener-port-owning","browser-profile-owning","cdp-session-owning"])
+  assert(projectClientBrowser.requirements.includes(requirement),"same-profile Browser owns bounded processes, profile and CDP resources");
+requireText(canonicalSuite,"projectExperienceSteps(repoRoot)","the shared inventory supplies the actual suite");
 requireText(canonicalSuite, '"e2e-project-experience": [{ ...projectExperienceStep }, { ...projectClientBrowserStep }, { ...webPlanningBrowserStep }, { ...webPlanningDraftSafetyStep }]', "new client Browser runs once beside both existing Browser children");
-for (const fragment of ['...webPlanningBrowserStep', 'id: "web-planning-draft-safety"', '"scripts/browser-validate-web-planning.mjs", "--draft-safety"', 'timeoutMs: 60_000'])
-  requireText(canonicalSuite.slice(canonicalSuite.indexOf("const webPlanningDraftSafetyStep ="), canonicalSuite.indexOf("const continuityStep =")), fragment, "additional Web draft Browser controls retain the same bounded resource owner and natural-exit requirement");
+const draftSafetyBrowser = projectExperienceSteps(repositoryRoot).find(step=>step.id === "web-planning-draft-safety");
+assert.equal(draftSafetyBrowser.timeoutMs,60000);
+assert.equal(draftSafetyBrowser.requireNaturalExit,true);
+assert.deepEqual(draftSafetyBrowser.args,["--import","tsx","scripts/browser-validate-web-planning.mjs","--draft-safety"]);
+assert.deepEqual(draftSafetyBrowser.requirements,projectClientBrowser.requirements);
 const experienceUseRegistration = readCanonicalChildRegistration(integrationSource, "companion-experience-use");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-companion-experience-use.ts"'])
   requireText(experienceUseRegistration.block, fragment, "ordinary experience use owns its authenticated disposable state, listener and natural-exit file consumers");
