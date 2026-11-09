@@ -17,6 +17,7 @@ import {
   startCompanionService,
 } from "./companion-service-core.mjs";
 
+const LEGACY_MCP_PROTOCOL_VERSION = "2025-06-18";
 const TOOL_NAME = "augnes_resume_repository";
 const SOURCES_TOOL_NAME = "augnes_read_repository_work_sources";
 const OUTLOOK_TOOL_NAME = "augnes_read_repository_method_outlook";
@@ -1826,10 +1827,16 @@ function reviewWorkToolDescriptionV01() {
   };
 }
 
+function advertisedToolsV01() {
+  return [...lifecycleToolDescriptionsV01(), toolDescriptionV01(), sourceReadToolDescriptionV01(), methodOutlookToolDescriptionV01(), retainedSourceLookupToolDescriptionV01(), ...initialWorkToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(true), ...resultWorkToolDescriptionsV01(), executionChoiceToolDescription(), externalToolDescription(), reviewWorkToolDescriptionV01(), ...repositoryExecutionToolDescriptionsV01()];
+}
+
 export async function handleMessageV01(message) {
+  // JSON-RPC notifications never receive a response, including unknown methods.
+  if (message?.jsonrpc === "2.0" && typeof message.method === "string" && !Object.hasOwn(message, "id")) return null;
   if (message.method === "initialize") {
     return { jsonrpc: "2.0", id: message.id, result: {
-      protocolVersion: message.params?.protocolVersion ?? "2025-06-18",
+      protocolVersion: LEGACY_MCP_PROTOCOL_VERSION,
       capabilities: { tools: { listChanged: false } },
       serverInfo: { name: "augnes-live-companion-proxy", version: "0.2.0" },
     } };
@@ -1837,11 +1844,15 @@ export async function handleMessageV01(message) {
   if (message.method === "notifications/initialized" || message.method === "notifications/cancelled") return null;
   if (message.method === "ping") return { jsonrpc: "2.0", id: message.id, result: {} };
   if (message.method === "tools/list") {
-    return { jsonrpc: "2.0", id: message.id, result: { tools: [...lifecycleToolDescriptionsV01(), toolDescriptionV01(), sourceReadToolDescriptionV01(), methodOutlookToolDescriptionV01(), retainedSourceLookupToolDescriptionV01(), ...initialWorkToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(true), ...resultWorkToolDescriptionsV01(), executionChoiceToolDescription(), externalToolDescription(), reviewWorkToolDescriptionV01(), ...repositoryExecutionToolDescriptionsV01()] } };
+    return { jsonrpc: "2.0", id: message.id, result: { tools: advertisedToolsV01() } };
   }
   if (message.method === "tools/call") {
     const args = message.params?.arguments;
     const toolName = message.params?.name;
+    // Reject an unadvertised name before any Companion discovery or repair guidance.
+    if (!advertisedToolsV01().some(tool => tool.name === toolName)) {
+      return { jsonrpc: "2.0", id: message.id, error: { code: -32602, message: "unknown_tool_name" } };
+    }
     if (!args || typeof args !== "object" || Array.isArray(args)) {
       return { jsonrpc: "2.0", id: message.id, error: { code: -32602, message: "invalid_repository_tool_request" } };
     }
