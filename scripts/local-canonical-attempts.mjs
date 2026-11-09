@@ -14,6 +14,7 @@ import { GIT_ACQUISITION_REPAIR, isGitAcquisitionRevision, gitAcquisitionInciden
 import { createGitHubObserverAuthorizationTransport } from "./github-main-branch-transport.mjs";
 import {MATERIAL_SOURCE_CORRECTION, MATERIAL_HISTORY_BOUNDARY, isMaterialSourceRevision, delegatesMaterialSourceCommission} from "./local-canonical-git-observation.mjs";
 import { REPOSITORY_TYPECHECK, observeTypecheckCompiler, observeGeneratedTypeInputs } from "./local-canonical-typecheck-witness.mjs";
+import { REPOSITORY_PURE_CONTRACT, inspectCurrentPureContractInputs } from "./local-canonical-pure-contract-witness.mjs";
 import {GIT_INPUT_REVISION, GIT_INPUT_HISTORY_BOUNDARY, isGitInputRevision, verifyGitInputRemedy, verifyGitInputPublication} from "./local-canonical-git-observation.mjs";
 
 export const ATTEMPT_CONTRACT = "augnes.local-canonical-attempt-family.v1";
@@ -1074,6 +1075,8 @@ export async function prepareMaterialSourceRevision(args,{transport}={}) {
       throw fail("revision_typecheck_compiler_changed");
     if (!revisionEqual(observeGeneratedTypeInputs(args.repositoryRoot),witness.generated)) throw fail("revision_typecheck_generated_changed");
   }
+  if (evidence.focused.regression?.kind===REPOSITORY_PURE_CONTRACT)
+    inspectCurrentPureContractInputs(args.repositoryRoot,JSON.parse(revisionArtifact(path.dirname(args.file),evidence.focused.regression.after)));
   return {...inspectGitRevisionPreparation(args),published_head_checked:true,delegation:observation,
     ...(p.commission.inherited_serial ? {inherited_serial:p.commission.inherited_serial} : {})};
 }

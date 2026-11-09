@@ -5,6 +5,7 @@ import { settledIsolatedResources, cancelledPhase, verifySettledPhaseFailure } f
 import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { REPOSITORY_TYPECHECK, verifyRepositoryTypecheck } from "./local-canonical-typecheck-witness.mjs";
+import { REPOSITORY_PURE_CONTRACT, verifyRepositoryPureContract } from "./local-canonical-pure-contract-witness.mjs";
 
 export const isGitObservationRevision = p =>
   p?.schema === "augnes.local-canonical-source-correction.v10" && p.kind === "reviewed_revision";
@@ -329,8 +330,10 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
   const regression = focused.regression;
   const material = isMaterialSourceRevision(p);
   if (regression?.kind!==undefined) {
-    if (!material || regression.kind!==REPOSITORY_TYPECHECK) fail("revision_git_regression_invalid");
-    return verifyRepositoryTypecheck(p,prior,focused,{git,parse,bytes,completedAt});
+    if (!material) fail("revision_git_regression_invalid");
+    if (regression.kind===REPOSITORY_TYPECHECK) return verifyRepositoryTypecheck(p,prior,focused,{git,parse,bytes,completedAt});
+    if (regression.kind===REPOSITORY_PURE_CONTRACT) return verifyRepositoryPureContract(p,prior,focused,{git,parse,bytes,completedAt});
+    fail("revision_git_regression_invalid");
   }
   if (acquisition && (regression?.attribution !== "final-driver-prior-input-owner" ||
       !equal(focused.implicated_paths,["scripts/local-canonical-inputs.mjs"]))) fail("revision_git_regression_invalid");

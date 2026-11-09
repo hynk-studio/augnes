@@ -12,6 +12,7 @@ import {serialInheritanceFrom,SERIAL_HISTORY} from "../local-canonical-serial-ag
 import {executeFixture,dependencyRecords} from "./local-canonical-browser-successor.mjs";
 import {inspectClassifiedEvidence,canonicalSerialize} from "../local-canonical-receipt.mjs";
 import {createPrivateReviewExport,inspectPrivateReviewExport} from "../local-canonical-review-export.mjs";
+import {pureContractWitnessControls} from "./local-canonical-pure-contract.mjs";
 const clone=structuredClone,now=()=>new Date().toISOString();
 const runner="scripts/canonical-child-runner.mjs",decision="Source review decision: ACCEPT / RETAIN for prospective qualification.";
 
@@ -26,6 +27,7 @@ export function seedSerialMaterialCompiler(c,h,sourceRoot) {
 }
 
 export async function runSerialMaterialControls(c,h,serialProof,serialAuthority,sourceRoot,browserRecord) {
+  const pureContract = await pureContractWitnessControls(c.root,h,sourceRoot);
   const substituted=path.join(c.root,"substituted-compiler");
   h.write(path.join(substituted,"node_modules/.bin/tsc"),'console.log("not the compiler");\n');
   for(const name of ["typescript","next"])symlinkSync(path.join(sourceRoot,"node_modules",name),path.join(substituted,"node_modules",name),"dir");
@@ -164,7 +166,7 @@ export async function runSerialMaterialControls(c,h,serialProof,serialAuthority,
   try{assert.throws(()=>reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}),/attempt_lineage_edge_invalid/);}
   finally{h.write(currentFile,current);}
   for(const [file,hash] of priorFiles)assert.equal(digest(readFileSync(file)),hash);
-  console.log(JSON.stringify({serial_material_controls:{compiler:[red.result.exit_code,green.result.exit_code],source_before:red.tested_source_head,source_after:green.tested_source_head,
+  console.log(JSON.stringify({pure_contract_witness:pureContract,serial_material_controls:{compiler:[red.result.exit_code,green.result.exit_code],source_before:red.tested_source_head,source_after:green.tested_source_head,
     partial_phases:[3,1,12],stock_issues:failed.stock.issues.length,prior_delegation_absent:true,prepared,negative_controls:count,
     fresh_stock:true,inherited_accounting_enforced:true,originals_unchanged:true},synthetic_only:true,deciding:false}));
 }

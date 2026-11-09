@@ -1204,6 +1204,36 @@ failure, a wrapper substituted for the compiler, sparse or changed bindings,
 altered diagnostics and a merely cosmetic source delta refuse. This alternative
 has no new historical driver and does not weaken existing behavioral witnesses.
 
+For the extracted registration consumer, `repository-pure-contracts-v1` binds
+the existing `node --import tsx scripts/test-vnext-operator-pure-contracts-v0-1.ts`
+command and a natural unit failure. It is not a generic TS-driver admission or
+the compiler alternative. RED exit 1 must identify the original registration
+assertion in the exact prior source; GREEN exit 0 must report every unchanged
+responsibility exactly once. Setup failures and substituted wrappers refuse.
+Independent source review must establish that the corrected assertion retains
+the real inventory and suite/parent connection, not merely a passing string.
+
+This witness commits the complete Git tree, including binary file identities,
+sizes and modes, and compares all physical tracked bytes before and after each
+clean run. It does not enlarge the generic witness's 256-entry declaration cap.
+The fixed command's app/components/lib/scripts/types and Native source/public
+scopes refuse untracked or ignored shadow files, nested modules, links and path
+aliases. Root script/config shadows refuse; generated `next-env.d.ts` is bound
+separately, including absence. Exact package/lock/tsconfig, the real tsx loader,
+complete root prepared dependencies, Node/runtime, environment, raw diagnostics,
+ordering after predecessor completion and natural owned settlement are bound.
+The run uses a closed environment and hashes every effective child variable.
+`NODE_OPTIONS`, `NODE_PATH`, `TSX_TSCONFIG_PATH`, `ESBUILD_BINARY_PATH`,
+`NODE_COMPILE_CACHE` and `NODE_V8_COVERAGE` overrides refuse; tsx and Node compile
+caches are disabled. Other ambient transformer settings are not forwarded.
+The existing Git tree reader supplies complete identities; replacement refs
+refuse, and physical reads are bounded to 10000 entries, 128 MiB total and the
+existing 8 MiB per-blob bound. Current preparation
+rereads the physical source closure, loader and dependency inventory. Historical
+proof replay validates the saved observations against their original Git heads;
+it does not claim a current host observation. No incident eligibility, inherited
+serial obligation, authority role, issued limit or spent-grant rule changes.
+
 The production reader owns the four-paragraph material-source delegation. It must
 be unedited, genuinely new and later than the physical predecessor's completion.
 Real non-reserving preparation precedes separate independent acceptance of the
