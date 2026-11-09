@@ -3,10 +3,10 @@
 import assert from "node:assert/strict";
 import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { digest } from "./local-canonical-inputs.mjs";
+import { digest, observeInputFile } from "./local-canonical-inputs.mjs";
 import { verifyGitSourceRepair } from "./local-canonical-git-observation.mjs";
 import { revisionArtifact } from "./local-canonical-attempts.mjs";
-import { replaceCaptureModule, finalizeFocusedCapture, checkCaptureSource, verifyCaptureDependencyProvenance, TS_REPAIR_DRIVER as driver, TS_REPAIR_MODULE as module } from "./capture-canonical-ts-repair.mjs";
+import { validateCaptureBrowserUses, replaceCaptureModule, finalizeFocusedCapture, checkCaptureSource, verifyCaptureDependencyProvenance, TS_REPAIR_DRIVER as driver, TS_REPAIR_MODULE as module } from "./capture-canonical-ts-repair.mjs";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
 import { finalizeReceipt } from "./local-canonical-receipt.mjs";
 const owner=createCanonicalTestResourceRoot("ag-resource-test-"),root=owner.root;
@@ -55,6 +55,13 @@ try {
  assert.ok(verifyCaptureDependencyProvenance(finalizeReceipt(receipt),dep,root));
  const bad=structuredClone(receipt);bad.phases[0].status="failure";refuse(()=>verifyCaptureDependencyProvenance(finalizeReceipt(bad),dep,root));
  const stale=structuredClone(dep);stale.content_sha256="0".repeat(64);refuse(()=>verifyCaptureDependencyProvenance(finalizeReceipt(receipt),stale,root));
+ const observation=observeInputFile(process.execPath,{readOnlyExecutable:true});
+ const use={contract:"augnes.local-canonical-browser-use.v2",consumer:"project-client",executable_name:"Structural fixture",location_fingerprint:digest(process.execPath),before:observation,after:observation,actual_version:"Chrome/1.0.0.0",runtime_versions:{http:"Chrome/1.0.0.0",cdp:"Chrome/1.0.0.0"},disposition:"unchanged",unchanged:true};
+ const expected={location_fingerprint:use.location_fingerprint,before:observation};
+ expected.actual_version=validateCaptureBrowserUses([use],expected,1);
+ assert.equal(validateCaptureBrowserUses([use,use],expected,2),expected.actual_version);
+ for(const altered of [[],[{}],[{...use,consumer:"other"}],[{...use,actual_version:"Chrome/2.0.0.0",runtime_versions:{http:"Chrome/2.0.0.0",cdp:"Chrome/2.0.0.0"}}]])refuse(()=>validateCaptureBrowserUses(altered,expected,1));
+ refuse(()=>validateCaptureBrowserUses([use,{...use,actual_version:"Chrome/2.0.0.0",runtime_versions:{http:"Chrome/2.0.0.0",cdp:"Chrome/2.0.0.0"}}],{location_fingerprint:use.location_fingerprint,before:observation},2));
  const overlayFile=path.join(root,module),originalBytes=readFileSync(overlayFile),replacement=Buffer.from("replacement");
  linkSync(overlayFile,path.join(root,"hardlink.ts"));refuse(()=>replaceCaptureModule(overlayFile,originalBytes,replacement));assert.deepEqual(readFileSync(path.join(root,"hardlink.ts")),originalBytes);unlinkSync(path.join(root,"hardlink.ts"));
  refuse(()=>replaceCaptureModule(overlayFile,Buffer.from("stale"),replacement));assert.deepEqual(readFileSync(overlayFile),originalBytes);

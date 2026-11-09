@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { closeSync, constants, fstatSync, ftruncateSync, openSync, writeSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
-import { digest, observeCanonicalRuntimeInputs, validCanonicalRuntimeInputs, observePreparedDependencyInputs, preparedDependencyIdentity, comparePreparedDependencyInputs } from "./local-canonical-inputs.mjs";
+import { digest, observeInputFile, classifyInputChange, nonFaultInputChange, observeCanonicalRuntimeInputs, validCanonicalRuntimeInputs, observePreparedDependencyInputs, preparedDependencyIdentity, comparePreparedDependencyInputs } from "./local-canonical-inputs.mjs";
 import { revisionArtifact } from "./local-canonical-attempts.mjs";
 import { verifyGitSourceRepair } from "./local-canonical-git-observation.mjs";
 import { readReceiptFile, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
@@ -13,7 +13,8 @@ import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { createCanonicalTestResourceRoot, beginCanonicalTestResourceUse, settleCanonicalTestResourceUse, cleanupCanonicalTestResources, buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
 import { acquireCheckoutVerificationOwnership, assertCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { admitVerificationContext, inspectVerificationCompanionPreservation } from "./local-canonical-verification-context.mjs";
-import { selectBrowserPath } from "./local-canonical-browser-input.mjs";
+import { selectBrowserPath, assertSelectedBrowser, assertBrowserBundle } from "./local-canonical-browser-input.mjs";
+import { parseBrowserUseLine, validBrowserUse } from "./local-canonical-browser-identity.mjs";
 
 export const TS_REPAIR_DRIVER = "scripts/test-project-client-browser.ts";
 export const TS_REPAIR_MODULE = "scripts/result-work-draft-browser-checks.ts";
@@ -75,6 +76,14 @@ export function verifyCaptureDependencyProvenance(receipt, observation, root) {
 
 // Independent finalizers preserve the primary execution fault and still attempt
 // safe cleanup/release after a restoration or observation refusal.
+export function validateCaptureBrowserUses(records, expected, count) {
+  assert.equal(records.length,count,"capture_browser_coverage");
+  assert.ok(records.every(v=>v.consumer==="project-client"&&validBrowserUse(v,expected)),"capture_browser_identity_invalid");
+  const version=expected.actual_version??records[0].actual_version;
+  assert.ok(records.every(v=>v.actual_version===version),"capture_browser_version_changed");
+  return version;
+}
+
 export function replaceCaptureModule(file, expected, replacement) {
   const before=lstatSync(file);
   const safe=s=>s.isFile()&&!s.isSymbolicLink()&&s.nlink===1&&!(s.mode&0o022);
@@ -141,8 +150,16 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
   const ambient={...process.env,AUGNES_CANONICAL_NODE_HEADERS:headers,AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT:digest(runtime.headers.observation)};
   const env=buildCanonicalChildEnvironment({ambientEnvironment:ambient,temporaryRoot:resource.root});
   const browserExecutable=selectBrowserPath([env.AUGNES_BROWSER_EXECUTABLE_PATH,"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome","/Applications/Chromium.app/Contents/MacOS/Chromium","/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge","/usr/bin/google-chrome","/usr/bin/google-chrome-stable","/usr/bin/chromium","/usr/bin/chromium-browser"],{repositoryRoot:root,env});
-  assert.ok(browserExecutable);const browserRuntime=observeCanonicalRuntimeInputs({browserExecutable});assert.ok(validCanonicalRuntimeInputs(browserRuntime));
-  save("runtime.json",{observed_at:now(),runtime,identity_sha256:digest(runtime),browser_runtime:browserRuntime,environment:env,environment_sha256:digest(env)});
+  assert.ok(browserExecutable);
+  // Preserve the actual selected lane. A v10 runtime-v1 capture must not
+  // silently acquire v8 protected-installation requirements. An explicitly
+  // selected strict Browser input still uses its complete bundle owner.
+  const browserBinding=assertSelectedBrowser(browserExecutable,{repositoryRoot:root,env});
+  const browserBefore=observeInputFile(browserExecutable,{readOnlyExecutable:true});
+  const browserExpected={location_fingerprint:digest(browserExecutable),before:browserBefore,...(browserBinding?{browser_input:browserBinding.publicBinding}:{})};
+  const bundleBefore=browserBinding?assertBrowserBundle(browserBinding).observation:null;
+  assert.ok(browserBefore.present);
+  save("runtime.json",{observed_at:now(),runtime,identity_sha256:digest(runtime),browser_expected:browserExpected,browser_bundle_before:bundleBefore,environment:env,environment_sha256:digest(env)});
 
     const companion=await inspectVerificationCompanionPreservation(context,{freshTransport:true});save("companion-before.json",companion);
     const acquisition={started_at:now()};const initial=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"});acquisition.finished_at=now();
@@ -175,7 +192,11 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
       save(label+"-observations.json",{source_before,dependency_before_acquisition,child:{started_at,finished_at},dependency_after_acquisition,source_after});
       assert.equal(comparePreparedDependencyInputs(initial,dependencyAfter),"unchanged");
       assert.equal(digest(observeCanonicalRuntimeInputs()),digest(runtime),"capture_runtime_changed");
-      assert.equal(digest(observeCanonicalRuntimeInputs({browserExecutable})),digest(browserRuntime),"capture_browser_changed");
+      const browserAfter=observeInputFile(browserExecutable,{readOnlyExecutable:true});
+      const browserUses=Buffer.concat(stdout).toString().split(/\r?\n/u).map(parseBrowserUseLine).filter(Boolean);
+      save(label+"-browser.json",{observed_at:now(),before:browserBefore,after:browserAfter,prior_observed_version:browserExpected.actual_version??null,actual_uses:browserUses});
+      assert.ok(nonFaultInputChange(classifyInputChange(browserBefore,browserAfter,{classification:"execution",readOnlyExecutable:true})),"capture_browser_changed");
+      browserExpected.actual_version=validateCaptureBrowserUses(browserUses,browserExpected,label==="before"?1:2);
       assert.equal(result.exit_code,expectedExit,"capture_causal_hypothesis_failed");
       assert.equal(result.termination_reason,"natural_exit");assert.equal(result.timed_out,false);assert.equal(result.cancelled,false);
     }
