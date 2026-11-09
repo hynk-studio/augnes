@@ -80,6 +80,11 @@ export async function browserFileExchanges({ c, origin, click, set, saved, settl
   await watchSaveResponse(true);
   await click(c,'exchange-submit');await settled(c);assert.equal(await c.eval("$('exchange-uncertain').hidden"),false);
   assert.equal(await c.eval("Object.keys(JSON.parse(sessionStorage.getItem(exchangeStoragePrefix+work)).files[0]).includes('data')"),false);
+  const pendingJournal=await c.eval('sessionStorage.getItem(exchangeStoragePrefix+work)');
+  await click(c,'signout');
+  assert.match(await c.eval("$('status').textContent"),/Sign out cancelled/);
+  assert.equal(await c.eval('sessionStorage.getItem(exchangeStoragePrefix+work)'),pendingJournal,'cancelled logout preserves the real unresolved operation journal');
+  assert.equal(await c.eval('accessLost'),false);
   assert.deepEqual({unsent:unsentWarning, pending:await wouldWarn()}, {unsent:true, pending:true},
     'File exchange alone must protect both the unsent draft and its uncertain save.');
   await watchSaveResponse(false); await reloadWithWarning(true); await selectTask();
@@ -151,7 +156,11 @@ export async function browserFileExchanges({ c, origin, click, set, saved, settl
   await watchSaveResponse(true); await click(c,'exchange-submit'); await settled(c);
   const marker = await c.eval('sessionStorage.getItem(exchangeStoragePrefix+work)');
   assert.ok(marker && !marker.includes('opens at 10.') && !marker.includes('Venue confirmed.'));
-  await watchSaveResponse(false); await click(c,'exchange-check'); await saved(c,5); await settled(c); await reopen();
+  const markerKey=await c.eval('exchangeStoragePrefix+work');
+  await watchSaveResponse(false);c.accessBoundary='challenge';await click(c,'refresh-list');await settled(c);
+  assert.equal(await c.eval("accessLost&&!$('editor')&&exchangePending===null"),true,'access loss immediately clears private memory and display');
+  assert.equal(await c.eval('sessionStorage.getItem('+JSON.stringify(markerKey)+')'),marker,'access loss preserves the exact unresolved operation identity');
+  await navigate(c,origin+'/');await selectTask();await saved(c,5);await settled(c);await reopen();
   const edited = peerBytes.toString().replace('confirmed.','opens at 10.');
   await venueButton('Read text'); await venueButton('Read text');
   assert.deepEqual(await c.eval(`[...${venueArticle}.querySelectorAll('pre')].map(p=>p.textContent)`),[peerBytes.toString(),edited]);

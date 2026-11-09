@@ -196,6 +196,8 @@ export async function prepareExecutionChoice(args, { readSources, review, lookup
       ? "Read back the returned contribution, assess its stated basis, and use, retain, defer or decline it through ordinary work before the next arrangement judgment."
       : "The contribution is pending. Continue permitted independent work, or explicitly reconsider if waiting no longer helps.";
     if (!followup && (basisChanged || expired)) view.next_action = "Original expectation retained. Reconsider the changed basis or elapsed horizon; preserve any returned work and use ordinary revision to prepare the next arrangement.";
+    if (!["available", "not_requested"].includes(contribution.status)) view.next_action =
+      "Recheck the original contribution requests before requesting again or deciding that nothing returned. Preserve the known arrangement and any recorded assessment.";
     if (selected?.manual_contribution) {
       if (followup) fail("execution_choice_manual_selection_ambiguous");
       const manual = await readManualContribution(args, current, choice, lookupRetained);
@@ -321,6 +323,7 @@ export function executionChoiceText(value) {
   const savedDecision = manual?.decision?.value;
   const operating = value.delivery?.operating_profile ?? manual?.operating_profile;
   const preparedStage = { participate: "manual request", receive: "original manual return for explicit saving as imported/unverified", assess: "separate manual check/use decision", feedback: "manual feedback from the saved decision" }[value.prepared_stage];
+  const contributionUnknown = value.contribution && !["available", "not_requested"].includes(value.contribution.status);
   return [value.work ? `Work: ${value.work.goal}` : "Execution choice is unavailable.",
     judgment ? `Arrangement: ${judgment.chosen}. Expected: ${judgment.expectation}` : "No arrangement has been selected.",
     previous ? `Previous assessed arrangement retained in history.\nReason for this arrangement: ${previous.reason}\nEarlier unfinished obligations: ${previous.unfinished}` : null,
@@ -332,8 +335,10 @@ export function executionChoiceText(value) {
       "Preparation, explicit saving, manual relay and observed readback are separate. An authored judgment is not semantic acceptance or execution authority.",
     ].filter(Boolean).join("\n") : null,
     manual ? null : assessment ? `Result: ${assessment.compared_with_expectation}\nNext arrangement: ${assessment.decision === "end_role" ? "end this logical role" : "continue"}. Reconsider when: ${assessment.reconsider_when}`
+      : contributionUnknown ? "Current contribution state could not be checked. It is not verified empty or pending; a return may exist."
       : value.contribution?.requests?.some(r => r.response_ref) ? "A contribution has returned. Its original basis and current applicability are available for review."
       : value.contribution?.requests?.length ? "The requested contribution is pending." : "No contribution outcome is established.",
+    contributionUnknown && assessment ? "Current contribution lookup is incomplete. The recorded assessment above does not establish the current response state." : null,
     value.reason ? `Condition: ${value.reason}` : null,
     `Next: ${value.next_action ?? "Read current work and recheck access."}`,
     value.status === "prepared" ? "This is preparation only; nothing has been saved or dispatched." : null,

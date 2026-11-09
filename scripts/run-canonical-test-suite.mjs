@@ -141,6 +141,15 @@ const webPlanningBrowserStep = {
   timeoutMs: 180_000,
   requireNaturalExit: true,
 };
+// Reuse the Web Browser owner with separate disposable state. Keeping this
+// additional matrix separate preserves the original 180-second journey bound.
+const webPlanningDraftSafetyStep = {
+  ...webPlanningBrowserStep,
+  id: "web-planning-draft-safety",
+  label: "Web draft mutation, provenance and erasure Browser controls",
+  ...rootNode("scripts/browser-validate-web-planning.mjs", "--draft-safety"),
+  timeoutMs: 60_000,
+};
 const continuityStep = {
   id: "continuity",
   group: "continuity",
@@ -1774,6 +1783,7 @@ const suites = {
   e2e: [
     { ...projectExperienceStep },
     { ...webPlanningBrowserStep },
+    { ...webPlanningDraftSafetyStep },
     { ...operatorReviewControlStep },
     { ...operatorBrowserNavigationDiagnosticsStep },
     { ...operatorNativeHostExecutionStep },
@@ -1782,7 +1792,7 @@ const suites = {
     { ...continuityStep },
     { ...goldenStep },
   ],
-  "e2e-project-experience": [{ ...projectExperienceStep }, { ...projectClientBrowserStep }, { ...webPlanningBrowserStep }],
+  "e2e-project-experience": [{ ...projectExperienceStep }, { ...projectClientBrowserStep }, { ...webPlanningBrowserStep }, { ...webPlanningDraftSafetyStep }],
   "e2e-operator-review-control": [
     { ...operatorReviewControlStep },
     { ...operatorBrowserNavigationDiagnosticsStep },

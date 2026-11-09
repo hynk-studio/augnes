@@ -1,3 +1,4 @@
+import { browserDraftSafety } from './browser-web-planning-draft-safety.mjs';
 import { browserParticipation, browserParticipationRecovery } from './browser-web-planning-participation.mjs';
 import { participantBindings } from './web-planning-participation-checks.mjs';
 import { selectBrowserPath } from "./local-canonical-browser-input.mjs";
@@ -75,6 +76,7 @@ async function intercept(c,p,origin){
    assert.equal(c.sceneResponseBarrier.response,null);c.sceneResponseBarrier.response=p;return;
  }
  if(c.beforeRequest&&u===origin+c.beforeRequest.path&&p.request.method===c.beforeRequest.method){const before=c.beforeRequest;c.beforeRequest=null;
+   if(before.response)return c.send('Fetch.fulfillRequest',{requestId:p.requestId,responseCode:before.response.status,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'X-Web-Planning-Response',value:'1'}],body:Buffer.from(JSON.stringify({error:before.response.error})).toString('base64')});
    if(before.unavailable)return c.send('Fetch.fulfillRequest',{requestId:p.requestId,responseCode:503,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'X-Web-Planning-Response',value:'1'}],body:Buffer.from('{"error":"storage_unavailable"}').toString('base64')});
    await before.run();}
  if(c.direct&&u===origin+'/cdn-cgi/access/logout'){
@@ -222,8 +224,8 @@ async function login(c,origin){await navigate(c,origin+'/_local/login');await wa
 async function reopen(c){await wait(()=>c.eval("document.querySelectorAll('#work-list button').length>0"),'saved list');await c.eval("document.querySelector('#work-list button').click()");await wait(()=>visible(c,'editor'),'editor');}
 let checks=[], browserUse;
 try {
- const recoveryOnly=process.argv[2]==='--participation-recovery',reassessmentOnly=process.argv[2]==='--reassessment';
- assert(process.argv.length===2||(recoveryOnly||reassessmentOnly)&&process.argv.length===3);
+ const recoveryOnly=process.argv[2]==='--participation-recovery',reassessmentOnly=process.argv[2]==='--reassessment',draftSafetyOnly=process.argv[2]==='--draft-safety';
+ assert(process.argv.length===2||(recoveryOnly||reassessmentOnly||draftSafetyOnly)&&process.argv.length===3);
  testReadOnlyRequestWindow();
  local=await startLocal({root:path.join(root,'runtime')});const origin=local.origin;
  const debug=await availablePort();const profile=path.join(root,'chrome-profile'),downloads=path.join(root,'downloads');await mkdir(downloads);
@@ -234,7 +236,13 @@ try {
  browserUse.version((await (await fetch(`http://127.0.0.1:${debug}/json/version`)).json()).Browser);
  browserUse.version((await a.send("Browser.getVersion")).product,"cdp");
  await login(a,origin);
- if(recoveryOnly){
+ async function draftSafetyJourney(c){let destination=0;const port=Number(new URL(c.origin).port);const bindings=local.env;
+   await browserDraftSafety({c,root,click,set,saved,settled,wait,barrier:sceneResponseBarrier,requests,checks,
+     replaceRuntime:async()=>{for(const tab of clients)await navigate(tab,'about:blank');await closeLocalRuntime();local=null;
+       local=await startLocal({root:path.join(root,'draft-safety-'+(++destination)),port,bindings});await login(c,local.origin);}});
+ }
+ if(draftSafetyOnly){await draftSafetyJourney(a);
+ }else if(recoveryOnly){
    await closeLocalRuntime();local=await startLocal({root:path.join(root,'participation-recovery'),bindings:participantBindings()});
    const owner=await page(debug,local.origin);await login(owner,local.origin);
    await browserParticipationRecovery({owner,participant:c=>page(debug,local.origin,c?.browserContextId??true),local,root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
@@ -270,7 +278,7 @@ try {
  await click(b,'save');await settled(b);await wait(()=>visible(b,'conflict'),'competing conflict');assert.equal(await b.eval("document.getElementById('goal').value"),'Retained competing draft');
  await click(b,'review-latest');await wait(()=>visible(b,'rebase-draft'),'review latest');assert.match(await b.eval("document.getElementById('conflict-latest').innerText"),/First tab successor/);
  await click(b,'rebase-draft');await click(b,'save');await saved(b,3);checks.push('conflict retains draft; explicit reviewed base and save');
- await a.eval("$('saved-context').focus()");await click(a,'saved-context');await wait(()=>a.eval("document.getElementById('status').textContent.includes('head changed')"),'stale context');assert.equal(await a.eval("document.getElementById('context-view').innerText"),'');assert.equal(await a.eval('document.activeElement.id'),'saved-context','refused read does not focus an empty result');
+ await a.eval("$('saved-context').focus()");await click(a,'saved-context');await wait(()=>a.eval("document.getElementById('status').textContent.includes('head changed')"),'stale context');assert.equal(await a.eval("document.getElementById('context-view').innerText"),'');assert.equal(await a.eval('document.activeElement.id'),'status','refused read reveals its explanatory error instead of focusing an empty result');
  await click(a,'refresh-work');await saved(a,3);await click(a,'saved-context');await wait(()=>a.eval("document.querySelector('#context-view [data-revision]')?.dataset.revision==='3'"),'exact context');
  const context=await a.eval("document.getElementById('context-view').innerText");assert.match(context,/open issue/);assert.match(context,/Evening noise remains unknown/);assert.match(context,/No file uploads/);checks.push('stale binding refuses, explicit fresh Saved context preserves uncertainty');
  await a.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'},{urlPattern:'*/save',requestStage:'Response'}]});

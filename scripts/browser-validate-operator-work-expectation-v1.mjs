@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { checkPreparationStay, checkPreparationPreviewResponse, checkPreparationSaveResponse, nativePreparationBrowser } from "./native-work-preparation-browser-checks.mjs";
+import { checkPreparationStay, checkPreparationPreviewResponse, checkPreparationSaveResponse, nativePreparationBrowser, preparationDialogs } from "./native-work-preparation-browser-checks.mjs";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { canonicalizeProtocolValueV01 } from "../lib/vnext/protocol-primitives";
@@ -141,6 +141,21 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-sources] [role="status"]')?.textContent.includes('2 selected')`, 'explicit report and original conditions selection');
   await clickSelector(lifecycle, '[data-reviewed-outcome-action="author"]');
   assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('#selected-note-source').value.startsWith('New authored note based on ')`), true, 'Edited reuse is authored material, not an unchanged saved report');
+  await clickSelector(lifecycle, '[data-selected-source-action="clear-draft"]');
+  const unfinished = { source: 'Unadded source and revision', time: '2026-11-09T09:30', provenance: 'derived_interpretation', kind: 'Open question', text: 'Complete unfinished note, including its attribution and time.' };
+  for (const [field, value] of Object.entries(unfinished)) await lifecycle.setFormControlValue('#selected-note-' + field, value);
+  const noteFields = `Object.fromEntries(['source','time','provenance','kind','text'].map(field=>[field,document.querySelector('#selected-note-'+field).value]))`;
+  const noteDialogs = preparationDialogs(lifecycle.cdp());
+  try {
+    await noteDialogs.expect(() => clickSelector(lifecycle, '[data-reviewed-outcome-action="author"]'), false, 'confirm');
+    assert.deepEqual(await lifecycle.evaluate(noteFields), unfinished, 'H8 cancellation preserves every unfinished React field');
+    await noteDialogs.expect(() => clickSelector(lifecycle, '[data-reviewed-outcome-action="author"]'), true, 'confirm');
+    const replacement = await lifecycle.evaluate(noteFields);
+    assert.match(replacement.source, /^New authored note based on /);
+    assert.equal(replacement.time, '');assert.equal(replacement.provenance, 'user_declaration');
+    assert.notEqual(replacement.text, unfinished.text);
+    console.log(JSON.stringify({ native_unfinished_note: { cancelled_fields_preserved: Object.keys(unfinished), explicit_replacement: true, empty_draft_use: true, actual_react: true, actual_browser_dialogs: noteDialogs.events.length } }));
+  } finally { noteDialogs.stop(); }
   await clickSelector(lifecycle, '[data-selected-source-action="clear-draft"]');
   const preparationBrowser = { cdp: lifecycle.cdp(), evaluate: lifecycle.evaluate, waitForCondition: lifecycle.waitForCondition, projectId };
   await checkPreparationStay(preparationBrowser);

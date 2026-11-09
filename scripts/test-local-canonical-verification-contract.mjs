@@ -1321,7 +1321,9 @@ for (const [id, script] of [
 }
 for (const fragment of ['id: "project-client-browser"', '"scripts/test-project-client-browser.ts"', 'timeoutMs: 60_000', 'requireNaturalExit: true', '"browser-profile-owning"', '"cdp-session-owning"'])
   requireText(canonicalSuite.slice(canonicalSuite.indexOf("const projectClientBrowserStep ="), canonicalSuite.indexOf("const webPlanningBrowserStep =")), fragment, "same-profile Browser owns bounded processes, profile and CDP resources");
-requireText(canonicalSuite, '"e2e-project-experience": [{ ...projectExperienceStep }, { ...projectClientBrowserStep }, { ...webPlanningBrowserStep }]', "new client Browser runs once beside both existing Browser children");
+requireText(canonicalSuite, '"e2e-project-experience": [{ ...projectExperienceStep }, { ...projectClientBrowserStep }, { ...webPlanningBrowserStep }, { ...webPlanningDraftSafetyStep }]', "new client Browser runs once beside both existing Browser children");
+for (const fragment of ['...webPlanningBrowserStep', 'id: "web-planning-draft-safety"', '"scripts/browser-validate-web-planning.mjs", "--draft-safety"', 'timeoutMs: 60_000'])
+  requireText(canonicalSuite.slice(canonicalSuite.indexOf("const webPlanningDraftSafetyStep ="), canonicalSuite.indexOf("const continuityStep =")), fragment, "additional Web draft Browser controls retain the same bounded resource owner and natural-exit requirement");
 const experienceUseRegistration = readCanonicalChildRegistration(integrationSource, "companion-experience-use");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-companion-experience-use.ts"'])
   requireText(experienceUseRegistration.block, fragment, "ordinary experience use owns its authenticated disposable state, listener and natural-exit file consumers");

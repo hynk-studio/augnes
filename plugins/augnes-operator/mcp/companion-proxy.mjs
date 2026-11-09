@@ -1832,8 +1832,18 @@ function advertisedToolsV01() {
 }
 
 export async function handleMessageV01(message) {
-  // JSON-RPC notifications never receive a response, including unknown methods.
-  if (message?.jsonrpc === "2.0" && typeof message.method === "string" && !Object.hasOwn(message, "id")) return null;
+  const object = message !== null && typeof message === "object" && !Array.isArray(message);
+  const hasId = object && Object.hasOwn(message, "id");
+  const validId = hasId && (typeof message.id === "string" || Number.isSafeInteger(message.id));
+  if (!object || message.jsonrpc !== "2.0" || typeof message.method !== "string" ||
+      (hasId && !validId) || (message.params !== undefined &&
+        (message.params === null || typeof message.params !== "object" || Array.isArray(message.params)))) {
+    return { jsonrpc: "2.0", id: validId ? message.id : null, error: { code: -32600, message: "invalid_request" } };
+  }
+  // This synchronous server has no cancellable request registry. Initialized
+  // and cancellation notifications need no action; no notification dispatches
+  // tools or lifecycle operations, and unknown notifications receive no reply.
+  if (!hasId) return null;
   if (message.method === "initialize") {
     return { jsonrpc: "2.0", id: message.id, result: {
       protocolVersion: LEGACY_MCP_PROTOCOL_VERSION,
@@ -1841,7 +1851,6 @@ export async function handleMessageV01(message) {
       serverInfo: { name: "augnes-live-companion-proxy", version: "0.2.0" },
     } };
   }
-  if (message.method === "notifications/initialized" || message.method === "notifications/cancelled") return null;
   if (message.method === "ping") return { jsonrpc: "2.0", id: message.id, result: {} };
   if (message.method === "tools/list") {
     return { jsonrpc: "2.0", id: message.id, result: { tools: advertisedToolsV01() } };
@@ -2224,11 +2233,16 @@ export async function runStdioV01(handleMessage = handleMessageV01) {
       const line = buffered.slice(0, newline).trim();
       buffered = buffered.slice(newline + 1);
       if (!line) continue;
-      let response;
+      let response, message;
       try {
-        response = await handleMessage(JSON.parse(line));
+        message = JSON.parse(line);
       } catch {
         response = { jsonrpc: "2.0", id: null, error: { code: -32700, message: "parse_error" } };
+      }
+      if (!response) {
+        try { response = await handleMessage(message); }
+        catch { response = { jsonrpc: "2.0", id: typeof message?.id === "string" || Number.isSafeInteger(message?.id) ? message.id : null,
+          error: { code: -32603, message: "internal_error" } }; }
       }
       if (response) process.stdout.write(`${JSON.stringify(response)}\n`);
     }

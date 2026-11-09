@@ -89,7 +89,7 @@ export function preparationDialogs(cdp) {
   });
   return {
     events,
-    async expect(action, accept = false) {
+    async expect(action, accept = false, type = "beforeunload") {
       assert.equal(pending, null);
       let timer;
       const dialog = new Promise((resolve, reject) => {
@@ -98,7 +98,7 @@ export function preparationDialogs(cdp) {
       });
       try {
         const [, event] = await Promise.all([action(), dialog]);
-        assert.equal(event.type, "beforeunload");
+        assert.equal(event.type, type);
         return event;
       } finally { clearTimeout(timer); }
     },
