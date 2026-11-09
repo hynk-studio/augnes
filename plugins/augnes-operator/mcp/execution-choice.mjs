@@ -303,6 +303,13 @@ export async function prepareExecutionChoice(args, { readSources, review, lookup
 
 const string = { type: "string" };
 export function executionChoiceText(value) {
+  if (value.status !== "available" && value.status !== "prepared") {
+    return [
+      `Execution choice could not be checked (${value.reason ?? value.status}).`,
+      "No current arrangement or contribution outcome was verified. Unavailable does not mean none was selected or returned.",
+      `Next: ${value.next_action ?? "Read current work and recheck access."}`,
+    ].join("\n\n");
+  }
   let draft;
   if (value.status === "prepared" && value.revision_arguments) {
     draft = JSON.parse(value.revision_arguments.changes.sources.add[0].text);
