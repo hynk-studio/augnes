@@ -43,7 +43,7 @@ if (process.argv[2] === "--observer-controls") {
 // The outer real child owner quarantines deliberately synthetic Browser records
 // from Canonical's actual-use stream. This probes the production phase executor.
 if (process.argv[2] === "--phase-probe") {
-  const { records, expected, cases } = JSON.parse(readFileSync(process.argv[3], "utf8"));
+  const { records, expected, cases, phaseId = "integration", browser = false } = JSON.parse(readFileSync(process.argv[3], "utf8"));
   const id = `review-probe-${randomUUID()}`, resources = createIsolatedInvocationResources(id);
   const logDirectories = [];
   let complete = true;
@@ -56,11 +56,12 @@ if (process.argv[2] === "--phase-probe") {
       if (c.mutation === "wrong-location") phaseRecords[0].location_fingerprint = "0".repeat(64);
       if (c.mutation === "wrong-version") phaseRecords[0].runtime_versions.cdp = "Fixture/2.0";
       if (c.mutation === "content") phaseRecords[0].after.sha256 = "0".repeat(64);
+      if (c.mutation === "wrong-consumer") phaseRecords.at(-1).consumer = "project-client";
       const output = phaseRecords.map(r => BROWSER_IDENTITY_PREFIX + JSON.stringify(r)).join("\n") + "\n";
       const code = `process.stdout.write(${JSON.stringify(output)});` + (c.mutation === "timeout" ? "process.on('SIGTERM',()=>process.exit(0));setInterval(()=>{},1000);" : "");
       const runLogRoot = path.join(repository, ".augnes-local-verification", "logs", `${id}-${index}`);
       logDirectories.push(runLogRoot);
-      const result = await executePhase({ phase: { id: "integration", browser: false, command: process.execPath, args: ["-e", code],
+      const result = await executePhase({ phase: { id: phaseId, browser, command: process.execPath, args: ["-e", code],
         display: "disposable Browser evidence emitter", label: "disposable evidence", cwdScope: "root", timeoutMs: c.mutation === "timeout" ? 150 : 2000 },
         mode: "regression", runLogRoot, isolatedResources: resources, expectedBrowser: expected });
       complete &&= result.cleanup.completed && result.cleanup.remaining_owned_processes === 0;
@@ -232,6 +233,28 @@ try {
     const copy = structuredClone(receipt); mutate(copy); assert.equal(browserIssues(copy).length, 1);
   }
   findings.push("real phase executor and stock reader require all integration Browser uses, exact executable/version and settled exit; timeout exit0 and invented NOT_RUN records refuse");
+
+  // Four registered children launch one project Browser, two project-client
+  // Browsers, and one Browser in each of the two independent Web journeys.
+  // Keep this observed launch inventory independent of the reader's counts.
+  const projectRecords = ["project-experience", "project-client", "project-client", "web-planning", "web-planning"]
+    .map(consumer => ({ ...structuredClone(record), consumer }));
+  write(probe, { phaseId: "e2e-project-experience", browser: true, records: projectRecords, expected,
+    cases: [{ mutation: "none", pass: true }, ...["missing", "extra", "overflow", "wrong-location", "wrong-version", "content", "wrong-consumer", "timeout"].map(mutation => ({ mutation, pass: false }))] });
+  const projectProbe = await child([self, "--phase-probe", probe], { controlId: "synthetic-project-browser-phase-probe", timeoutMs: 15000 });
+  assert.equal(projectProbe.exit_code, 0, lastChildDiagnostic);
+  const projectReceipt = structuredClone(receipt);
+  Object.assign(projectReceipt.phases[0], { id: "e2e-project-experience", browser: true, browser_use: projectRecords });
+  const projectDeclaration = { ...declaration, binding: { ...declaration.binding,
+    phase_environment_fingerprints: [{ id: "e2e-project-experience", fingerprint: "a".repeat(64) }] } };
+  projectReceipt.inputs = { ...projectDeclaration, fingerprint: digest(projectDeclaration), checks: 1, events: benignSnapshot.events, first_fault: null };
+  assert.deepEqual(browserIssues(projectReceipt), []);
+  for (const mutate of [r => r.phases[0].browser_use.pop(), r => r.phases[0].browser_use.push(structuredClone(projectRecords.at(-1))),
+    r => r.phases[0].browser_use.at(-1).consumer = "project-client", r => r.phases[0].browser_use.at(-1).runtime_versions.cdp = "Fixture/2.0",
+    r => r.phases[0].status = "not_run"]) {
+    const copy = structuredClone(projectReceipt); mutate(copy); assert.equal(browserIssues(copy).length, 1);
+  }
+  findings.push("synthetic production-executor and stock controls require exactly five project-phase uses, including both Web launches; missing, duplicate, misattributed, altered and NOT_RUN evidence refuses; no actual Browser qualification is claimed");
 
   await successionControls();
   await exactPathControls({
