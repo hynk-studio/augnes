@@ -68,6 +68,24 @@ The final adoption/execution decision remains open; #1612 stays SOURCE ACCEPT /
 RETAIN and qualification HOLD. The [verification policy](../../.github/LOCAL_CANONICAL_VERIFICATION.md#proposed-stable-protected-git-input-target-within-v10)
 owns the proposed admission and compatibility boundary.
 
+### Branch-local TS correction compatibility and focused capture (#1612)
+
+The adopted stable-input maintenance (#1613) does not qualify this later
+compatibility amendment. The #1612 branch implements the reviewed v10-only
+partial-failure interpretation and exact TypeScript causal-source predicate,
+including the full literal Git catalogue and four contemporaneous v2 root
+prepared-dependency identities. Existing mjs evidence and all outer authority,
+lineage, stock and accounting owners retain their contracts.
+
+A shared disposable result-draft transport/scheduler exercises entire genuine
+prior and corrected helpers through the existing project-client command. The
+tracked focused collector uses the production child/resource owners, one
+canonical environment, physical source checks and direct bounded artifacts.
+It records development evidence only; it does not prepare, reserve, grant,
+qualify or validate stock. Its implementation and focused evidence require
+independent review. Full responsibility and separate exact-target authority
+remain; #1612 stays Draft and qualification HOLD / DO NOT MERGE.
+
 ### Native pending preparation and deliberate departure candidate (#1599)
 
 [#1599](https://github.com/hynk-studio/augnes/issues/1599) adds consistent pending

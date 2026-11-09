@@ -7,6 +7,7 @@ import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { browserEvaluationDiagnostic } from "./browser-evaluation-diagnostic.mjs";
 import { checkAncillaryWorkDraftRecovery } from "./ancillary-work-draft-browser-checks";
 import { checkResultWorkDraftRecovery } from "./result-work-draft-browser-checks";
+import { withResultDraftCapture } from "./result-draft-capture-scheduler.mjs";
 import { checkWorkExpectationDraftRecovery } from "./work-expectation-draft-browser-checks";
 import { seedProjectTransition } from "./project-transition-fixture";
 import { createServer } from "node:http";
@@ -412,7 +413,7 @@ async function main(semanticOnly = false) {
       }
       assert.equal(readActiveProjectSelectionV01(db, workspace.workspace_id)!.project_id, b.project_id, "Opening an inactive A URL cannot switch the workspace selection");
       assert.equal(await freshB.eval("document.body.textContent.includes('Retain A exception exactly')"), false);
-      const resultDraftComponent = await checkResultWorkDraftRecovery(tabA);
+      const resultDraftComponent = await withResultDraftCapture(tabA, checkResultWorkDraftRecovery);
       const expectationDraftComponent = await checkWorkExpectationDraftRecovery(tabA);
       const ancillaryDraftComponent = await checkAncillaryWorkDraftRecovery(tabA);
       assert.equal(errors, 0, JSON.stringify(responseLog)); assert.equal(external, 0); assert.equal(guard.attempts.length, 0);

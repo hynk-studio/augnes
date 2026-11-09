@@ -269,7 +269,7 @@ export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expecte
       digest({ contract, path_kind, binding, resources }) !== receipt.inputs.fingerprint)
     fail("revision_git_predecessor_invalid");
   if (forward) return verifyFinalDependencyFailure(receipt, stock, inputs, phases);
-  verifySettledPhaseFailure(receipt, stock, inputs, phases, resources.find(r => r.id === "browser-executable"), false, expectedOrdinal);
+  verifySettledPhaseFailure(receipt, stock, inputs, phases, resources.find(r => r.id === "browser-executable"), isGitObservationRevision(previous) && expectedOrdinal === 1, expectedOrdinal);
 }
 
 // A later audit does not turn this complete successful invocation into a failed
@@ -317,11 +317,92 @@ export function verifyGitRevisionSuccess(r, stock, inputs, phases) {
     fail("revision_positive_stock_invalid");
 }
 
+// Proposed v10-only alternative. This is not an execution grant. The caller
+// retains authenticated review/grant, physical lineage, input and stock checks.
+export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, completedAt, repositoryRoot}) {
+  const regression = focused.regression, file = regression.path;
+  const command = "node --import tsx scripts/test-project-client-browser.ts";
+  const paths = focused.implicated_paths, fixture = regression.fixture_paths;
+  if (!isGitObservationSuccessor(p) || file !== "scripts/test-project-client-browser.ts" ||
+      focused.failed_phase !== "e2e-project-experience" ||
+      !equal(regression.node_args,["--import","tsx"]) || !equal(regression.args,[]) ||
+      !equal(focused.input_remedy_resources,[]) || prior.tree === p.tree ||
+      !Array.isArray(paths) || !paths.length || new Set(paths).size !== paths.length || paths.includes(file) ||
+      paths.some(name => !/^scripts\/(?:[\w.-]+\/)*[\w.-]+\.(?:ts|tsx|mjs)$/u.test(name) || name.split("/").includes("..")) ||
+      !Array.isArray(fixture) || !fixture.includes(file) || new Set(fixture).size !== fixture.length ||
+      fixture.some(name => paths.includes(name)) || !focused.source_files?.some(v=>v.path===file))
+    fail("revision_git_regression_invalid");
+  // A full candidate catalogue, with only the named implicated modules replaced
+  // by predecessor bytes for RED. No sparse dependency list or claimed clean
+  // predecessor checkout can conceal a different effective driver/fixture.
+  const catalogue = head => git(["ls-tree","-rz",head]).toString().split("\0").filter(Boolean).map(line => {
+    const match = /^(100644|100755) blob ([a-f0-9]{40})\t(.+)$/u.exec(line);
+    if (!match || !/^[\w./\[\]-]+$/u.test(match[3]) || match[3].split("/").includes("..")) fail("revision_git_regression_invalid");
+    return {path:match[3],mode:match[1]};
+  });
+  const target = catalogue(p.head);
+  if ([...paths,...fixture].some(name=>!target.some(v=>v.path===name))) fail("revision_git_regression_invalid");
+  for (const name of paths) {
+    const oldBlob=git(["rev-parse","--verify",prior.head+":"+name]).toString().trim();
+    const newBlob=git(["rev-parse","--verify",p.head+":"+name]).toString().trim();
+    if (oldBlob===newBlob || !/^@@ /mu.test(git(["diff","--no-ext-diff","--no-textconv","--ignore-all-space","--ignore-blank-lines",oldBlob,newBlob]).toString()))
+      fail("revision_material_remedy_required");
+  }
+  const source = head => target.map(entry=>{
+    const content=git(["show",(paths.includes(entry.path)?head:p.head)+":"+entry.path]);
+    return {...entry,byte_size:content.length,sha256:digest(content)};
+  });
+  const finalSource=source(p.head), fixtureDigest=digest(finalSource.filter(v=>fixture.includes(v.path)));
+  const before=parse(regression.before),after=parse(regression.after);
+  const readSource = witness => {
+    try { return JSON.parse(bytes(witness.source_files,2*1024*1024)); }
+    catch { fail("revision_git_regression_invalid"); }
+  };
+  const dependencyIdentity = observation => {
+    if (typeof repositoryRoot!=="string" || !repositoryRoot.startsWith("/") ||
+        observation?.contract!==PREPARED_DEPENDENCY_CONTRACT || observation.phase_id!=="dependencies-root" ||
+        observation.location_fingerprint!==digest(repositoryRoot+"/node_modules") ||
+        !equal(observation.sources,["package.json","package-lock.json"].map(name=>{
+          const content=git(["show",p.head+":"+name]); return {name,sha256:digest(content),bytes:content.length};
+        }))) fail("revision_git_regression_invalid");
+    const identity=preparedDependencyIdentity(observation);
+    if (!identity) fail("revision_git_regression_invalid");
+    return identity;
+  };
+  const dependencies=before.prepared_dependencies;
+  if (!dependencies || !equal(dependencyIdentity(dependencies.before),dependencyIdentity(dependencies.after)))
+    fail("revision_git_regression_invalid");
+  if (!focused.commands?.some(c=>c.command===command && c.tested_source_head===p.head &&
+      equal(c.record,regression.after) && equal(c.stdout,after.stdout)) ||
+      before.stdout?.sha256===after.stdout?.sha256 ||
+      !(Date.parse(completedAt)<Date.parse(before.finished_at) && Date.parse(before.finished_at)<Date.parse(after.finished_at) &&
+        Date.parse(after.finished_at)<=Date.parse(focused.finished_at))) fail("revision_git_regression_invalid");
+  for (const [witness,head,exit] of [[before,prior.head,1],[after,p.head,0]]) {
+    const result=witness.result;
+    if (witness.attribution!=="candidate-driver-prior-implicated-source" || witness.driver_source_head!==p.head ||
+        witness.tested_source_head!==head || !equal(readSource(witness),head===p.head?finalSource:source(head)) ||
+        !witness.prepared_dependencies ||
+        !equal(dependencyIdentity(witness.prepared_dependencies.before),dependencyIdentity(dependencies.before)) ||
+        !equal(dependencyIdentity(witness.prepared_dependencies.after),dependencyIdentity(dependencies.before)) ||
+        witness.fixture_sha256!==fixtureDigest || !sha(witness.environment) || witness.environment!==before.environment ||
+        witness.file_sha256!==digest(git(["show",p.head+":"+file])) ||
+        !equal(witness.modules,paths.map(name=>({path:name,sha256:digest(git(["show",head+":"+name]))}))) ||
+        witness.command!==command || witness.node_version!==CANONICAL_NODE_VERSION ||
+        witness.runtime_inputs_sha256!==p.inputs.identity_sha256 || result?.exit_code!==exit || result.timed_out!==false ||
+        result.cancelled!==false || result.cleanup_completed!==true || result.remaining_owned_processes!==0 ||
+        result.termination_reason!=="natural_exit" || result.exit_observed!==true || result.streams_closed!==true ||
+        !bytes(witness.stdout,2*1024*1024).length) fail("revision_git_regression_invalid");
+  }
+  return p.head;
+}
+
 // Observe the same behavioral command on both exact Git sources and runtimes.
 // The v10 repair runs its changed script directly. Prospective v7 also allows
 // a stable test driver and explicit script arguments for the implicated code.
-export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt, retainedBefore, postPass = false, acquisition = false }) {
+export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt, retainedBefore, postPass = false, acquisition = false, repositoryRoot }) {
   const regression = focused.regression;
+  if (isGitObservationSuccessor(p) && regression?.attribution === "candidate-driver-prior-implicated-source")
+    return verifyCanonicalTsRepair(p,prior,focused,{git,parse,bytes,completedAt,repositoryRoot});
   const material = isMaterialSourceRevision(p);
   if (acquisition && (regression?.attribution !== "final-driver-prior-input-owner" ||
       !equal(focused.implicated_paths,["scripts/local-canonical-inputs.mjs"]))) fail("revision_git_regression_invalid");

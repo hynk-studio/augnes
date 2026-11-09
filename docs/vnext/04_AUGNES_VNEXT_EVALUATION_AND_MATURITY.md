@@ -35,6 +35,26 @@ use current ordinary authority for its own qualification. Adopting this proposal
 or renewing #1612 requires the final separate review decision; no maturity,
 merge or installed-adoption claim follows from preparing the path.
 
+### Branch-local TS capture evidence
+
+For the #1612 compatibility candidate, distinguish structural reader fixtures
+from actual focused execution. RED uses the entire prior helper; GREEN uses
+the accepted corrected helper, with the same candidate driver, scheduler and
+collector. Check the complete effective Git catalogue on disk before and after
+each naturally settled child, and acquire actual v2 root dependency observations
+on both sides of each execution. The four dependency identities must agree and
+trace to successful clean preparation. Later scans cannot backfill old runs.
+
+The fixture must preserve response semantics and native exceptions. Its one
+shared pending response must produce a genuine prior failure and the corrected
+wait/absence/release plus downstream replacement-owner assertions. Cleanup
+release is not successful boundary release. Test traversal, source substitution,
+wrong runtime/command, unsafe artifacts, dependency drift and incomplete natural
+settlement through the actual reader. Keep the original unknown interval,
+failures, false stocks and consumed ordinals intact. Focused evidence and this
+amended reader cannot qualify their own implementation; Full, fresh stock and
+receiving acceptance remain distinct later decisions under existing authority.
+
 ## Maturity model
 
 | Level | Name | Required evidence |

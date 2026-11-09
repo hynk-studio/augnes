@@ -1378,6 +1378,53 @@ separate fresh-process stock is read-only.
 
 #### Proposed stable protected Git-input target within v10
 
+Proposed v10 TS compatibility (requires separate adoption): a naturally settled
+failed phase may retain partial Browser records only for its declared consumers,
+within their count ceilings and with valid unchanged identities. Passing phases
+still need full coverage, NOT_RUN phases stay empty, and exact false stock must
+account for every missing record. No timeout, input fault or unsettled child is
+made eligible.
+
+An ordinal-two source remedy may use the existing project-client Canonical TS
+command with exactly `node --import tsx scripts/test-project-client-browser.ts`
+and no other arguments. Use the explicit regression attribution
+`candidate-driver-prior-implicated-source`. The candidate driver and controlled
+fixture stay identical in both runs; only named existing, materially changed
+implicated scripts use predecessor bytes for RED. Bind the entire effective
+tracked-file catalogue (path, mode, byte size and SHA-256) through a separate
+existing artifact reference in each witness's `source_files`, read with the
+existing 2 MiB explicit evidence bound. Keep each witness within its existing
+512 KiB bound; never inline the full repository catalogue. Bind exact driver
+source, fixture paths/digest, implicated modules, environment, existing runtime
+identity, natural exit/streams/cleanup, timestamps and stdout. This attribution
+must never be described as an untouched predecessor checkout.
+
+The literal loader name and lockfile are not installed dependency identity.
+Use the existing v2 `observePreparedDependencyInputs` owner for root dependencies
+immediately before and after each focused child, after attributable successful
+clean preparation. All four retained `prepared_dependencies.before/after`
+observations must have the same validated identity, exact current repository
+node_modules location and Git-bound package/lockfile sources. This binds tsx,
+esbuild, React and the complete installed root tree, permissions and links.
+Existing safe generated-directory equivalence remains; missing observations,
+changed loader bytes, moved roots, unsafe layouts or a substituted snapshot
+refuse. Capture these observations at execution time, never reconstruct them
+from a later scan or just from a recorded lockfile. Existing current input and
+preparation/stock checks remain separate. The unchanged canonical environment
+owner must exclude ambient preloads, NODE_OPTIONS and module-path overrides.
+
+Independent exact-target review must inspect the complete driver, fixture and
+implicated delta, response hold/release and original assertions, real dependency
+observations and natural causal failure. Diagnostic changes alone, unrelated
+edits or a wrapper that manufactures RED are insufficient. Structural witness
+validation cannot establish causation on its own. The existing current review/
+grant, immutable history, full inventory, physical successor, settlement and
+finite accounting still apply. Old mjs witnesses keep their original predicates.
+Old readers refuse the new attribution; no proof may be relabelled for rollback.
+Focused correction evidence is not automatically an admissible witness or grant.
+
+
+
 The optional commission discriminator
 `input_revision: "stable-protected-git-input-v1"` proposes an input correction
 alternative for the **first** v10 ordinal. Its development and fixture validation

@@ -848,7 +848,7 @@ export async function authorizeReviewedRevision(p, { transport = createGitHubObs
   return capability;
 }
 
-function revisionArtifact(folder, reference, maximum = 512 * 1024) {
+export function revisionArtifact(folder, reference, maximum = 512 * 1024) {
   if (!revisionKeys(reference, ["artifact", "sha256"]) || !/^[a-z0-9_-]+\.(?:json|log)$/u.test(reference.artifact ?? "") || !sha(reference.sha256)) throw fail("revision_artifact_invalid");
   const file = path.join(folder, reference.artifact), s = lstatSync(file);
   if (realpathSync(file) !== file || !s.isFile() || s.isSymbolicLink() || s.nlink !== 1 || s.size > maximum || (s.mode & 0o022)) throw fail("revision_artifact_unsafe");
@@ -1145,7 +1145,7 @@ function readRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
   const changedInputs = browserIncident || gitInputRemedy ? true : previousRevision ? !revisionEqual(materialInputs(inputs), materialInputs(original.inputs.binding.runtime_inputs)) :
     inputs.node.location_fingerprint !== legacyNode.location_fingerprint || inputs.node.observation.sha256 !== legacyNode.before.sha256;
   if (!changedCode.length && !changedInputs) throw fail("revision_material_remedy_required");
-  if (gitSuccessor) verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt: completion.finished_at });
+  if (gitSuccessor) verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt: completion.finished_at, repositoryRoot });
   if (gitIncident && !gitInputRemedy) {
     if (!revisionEqual(focused.input_remedy_resources, []) || prior.head === p.head || prior.tree === p.tree ||
         !Array.isArray(focused.implicated_paths) || !focused.implicated_paths.some(name =>

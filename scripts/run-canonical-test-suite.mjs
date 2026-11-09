@@ -176,6 +176,22 @@ const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-
 const suites = {
   unit: [
     {
+      id: "result-draft-capture-scheduler",
+      label: "common result-draft fixture scheduling and native exception fidelity",
+      requirements: ["immutable-fixture-input"],
+      ...rootNode("scripts/test-result-draft-capture-scheduler.mjs"),
+      timeoutMs: 10_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "canonical-ts-repair-evidence",
+      label: "complete TS repair catalogue, dependency and capture refusals",
+      requirements: ["filesystem", "immutable-fixture-input"],
+      ...rootNode("scripts/test-canonical-ts-repair-evidence.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "browser-evaluation-diagnostic",
       label: "bounded browser evaluation exception without private payload",
       requirements: ["immutable-fixture-input"],
