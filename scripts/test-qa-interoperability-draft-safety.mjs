@@ -71,12 +71,15 @@ function testSignout() {
   let allowed = false, cleared = 0, message = "";
   const state = { $, mayLeave: () => allowed, deny: () => { cleared++; }, status: text => { message = text; } };
   vm.runInNewContext(sourcePart("$('signout').onclick=", "\nwindow.addEventListener('beforeunload'"), state);
-  $("signout").onclick();
+  let prevented = 0;
+  $("signout").onclick({ preventDefault() { prevented++; } });
   assert.equal(cleared, 0);
+  assert.equal(prevented, 1, "cancelled sign-out must not follow the logout link");
   assert.match(message, /Sign out cancelled/);
   allowed = true;
-  $("signout").onclick();
+  $("signout").onclick({ preventDefault() { prevented++; } });
   assert.equal(cleared, 1);
+  assert.equal(prevented, 1, "approved sign-out must keep the logout link working");
 }
 
 async function testImport(stage) {
