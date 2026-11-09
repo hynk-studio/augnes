@@ -2,6 +2,7 @@ import {readFileSync} from "node:fs";
 import {validProjectExperienceConnection} from "./project-experience-connection.mjs";
 import assert from "node:assert/strict";
 import { PassThrough } from "node:stream";
+import { performance } from "node:perf_hooks";
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources, buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
 import { PROJECT_EXPERIENCE_SERIAL, PROJECT_EXPERIENCE_ENVELOPE_MS, projectExperienceSteps, projectExperienceBudgetEvent as event,
@@ -75,6 +76,56 @@ assert.equal(canonicalChildAcceptanceFailure(parent,{requireNaturalExit:true}),n
 assert.equal(parent.serial_budget.complete,true);assert.equal(parent.serial_budget.failure_code,null);
 assert(parent.serial_budget.parent_post_exit_settlement_ms>=0);
 findings.push("actual Node parent IPC separates execution envelope from post-exit settlement");
+// A naturally exited root can still violate the IPC contract while the real
+// runner drains its descendant. Observe callbacks and the real clock only;
+// never substitute lifecycle results, terminal state or acceptance.
+const terminalIPC=[];
+for (const [kind, lateMessage] of [["malformed", {bad:"late-message"}], ["duplicate_complete", event("complete",3)]]) {
+  const owner=createCanonicalTestResourceRoot("ag-resource-test-");
+  const clockReads=[], callbacks=[]; let readsAtExit, result, cleanup;
+  const descendant=`setTimeout(() => require("node:fs").writeSync(3, ${JSON.stringify(JSON.stringify(lateMessage)+"\n")}), 150);`;
+  const source=`const messages=${JSON.stringify(messages)};
+    function sendNext() {
+      const message=messages.shift();
+      if (message) process.send(message, sendNext);
+      else {
+        require("node:child_process").spawn(process.execPath,["-e",${JSON.stringify(descendant)}],{stdio:["ignore",1,2,3]});
+        process.exit(0);
+      }
+    }
+    sendNext();`;
+  try {
+    result=await runProjectExperienceParent({suite:"serial-parent",label:"late "+kind,command:process.execPath,
+      args:["-e",source],cwd:root,env:buildCanonicalChildEnvironment({temporaryRoot:owner.root}),resourceOwner:owner,
+      timeoutMs:660000,stdout:quiet,stderr:quiet,log(){}}, {
+      clock:{now(){const value=performance.now();clockReads.push(value);return value;}},
+      runChild:options=>runCanonicalChild({...options,
+        onMessage:message=>{const error=options.onMessage(message);callbacks.push({after_exit:readsAtExit!==undefined,code:error?.code??null});return error;},
+        onBoundary:(state,terminal)=>{options.onBoundary(state,terminal);if(state==="settlement") readsAtExit=clockReads.length;},
+      }),
+    });
+  } finally { cleanup=cleanupCanonicalTestResources([owner]); }
+  const witness={kind,callbacks,serial_budget:result.serial_budget,accounting_accepted:validProjectExperienceAccounting(result.serial_budget),
+    canonical_acceptance_failure:canonicalChildAcceptanceFailure(result,{requireNaturalExit:true})?.code??null,
+    exit_code:result.exit_code,cancelled:result.cancelled,timed_out:result.timed_out,termination_reason:result.termination_reason,
+    remaining_owned_processes:result.remaining_owned_processes,cleanup_completed:result.cleanup_completed,
+    resource_cleanup_completed:cleanup.every(c=>c.completed),clock_reads_at_exit:readsAtExit,clock_reads_after_settlement:clockReads.length};
+  terminalIPC.push(witness);
+  assert.deepEqual(callbacks.at(-1),{after_exit:true,code:"serial_event_after_exit"});
+  assert.equal(witness.canonical_acceptance_failure,null);
+  assert.equal(witness.exit_code,0);assert.equal(witness.cancelled,false);assert.equal(witness.timed_out,false);
+  assert.equal(witness.termination_reason,"natural_exit");assert.equal(witness.remaining_owned_processes,0);
+  assert(witness.cleanup_completed && witness.resource_cleanup_completed);
+  assert.equal(clockReads.length,readsAtExit,"post-exit drain must not advance the execution clock");
+  assert.equal(result.serial_budget.envelope_elapsed_ms,clockReads.at(-1)-clockReads[0]);
+}
+// Keep raw witnesses even when the regression fails against historical source.
+console.error(JSON.stringify({terminal_ipc:terminalIPC}));
+for (const witness of terminalIPC) {
+  assert.equal(witness.serial_budget.failure_code,"serial_event_after_exit",witness.kind);
+  assert.equal(witness.accounting_accepted,false,witness.kind);
+}
+findings.push("late malformed and duplicate complete IPC remain budget failures after natural exit and complete cleanup");
 let fractionalAt=0;
 const fractional=createProjectExperienceBudget({now:()=>fractionalAt});fractional.event(event("ready",0));
 for(let i=0;i<3;i++) {
@@ -102,4 +153,4 @@ assert.equal(validProjectExperienceConnection(suiteSource.replace(/const serialB
 console.log(JSON.stringify({contract:"serial-aggregate-budget-controls.v1",synthetic_only:true,findings,
   controls:["child_failure","child_timeout","forced_cleanup","incomplete_cleanup","coordinator_excess","inventory_mismatch","no_child_borrowing","settlement_excess","parent_ipc","caller_connection"],
   old:{result:"interrupted",cleanup_complete:true,completed_children:2,interrupted_child:"web-planning-browser",still_eligible:true},
-  corrected:current.accounting,cleanup_complete:true}));
+  corrected:current.accounting,terminal_ipc:terminalIPC,cleanup_complete:true}));
