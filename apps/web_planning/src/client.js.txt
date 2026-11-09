@@ -298,7 +298,7 @@ $('import').onclick=()=>runWorkChange(async()=>{const file=$('import-file').file
 $('more-work').onclick=()=>run(()=>list(true));
 $('refresh-list').onclick=()=>run(async()=>{if(await list())status('Work list refreshed.');});
 $('check-capacity').onclick=()=>queueCapacity(0);
-$('signout').onclick=()=>{if(!mayLeave()){status('Sign out cancelled. Resolve pending operations or retain unsaved edits before leaving.');return;}deny();};
+$('signout').onclick=event=>{if(!mayLeave()){event.preventDefault();status('Sign out cancelled. Resolve pending operations or retain unsaved edits before leaving.');return;}deny();};
 window.addEventListener('beforeunload',e=>{
   if(dirty||pending||directionDirty||relationPending||sceneReviewPending||exchangeDraft||exchangePending||returnEdited||returnMarker||reassessmentBlocks()){
     e.preventDefault();e.returnValue='';
