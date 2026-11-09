@@ -70,6 +70,7 @@ export async function runSerialAggregateControls(c,h) {
     browser_use:i>9?[]:Object.entries(i===9?{"project-experience":1,"project-client":2}:browserConsumersForPhase(id)).flatMap(([consumer,n])=>Array.from({length:n},()=>({...use,consumer}))),
     ...(i===9?{log:{bytes:capped.length,relative_path:logPath,truncated:true}}:{})}));
   for (const phase of raw.phases.slice(10)) {
+    delete phase.browser_use;
     phase.cleanup={completed:false,remaining_owned_processes:null,termination_reason:null,exit_observed:false,streams_closed:false,listener_residue_count:null};
     phase.log={relative_path:null,bytes:0,truncated:false};
   }

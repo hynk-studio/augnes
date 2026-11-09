@@ -135,7 +135,7 @@ export function serialIncidentLog(incident, original, capped, bytes) {
       lines[phaseResult+3] !== "[local-canonical] cleanup_result completed=true remaining_owned_processes=0 generated_next_present_after_execution_cleanup=false generated_next_present_after_service_restore=false generated_windows_helper_present=false\n" ||
       lines[final] !== `[local-canonical] final result=failure deciding=false duration_ms=${original.run.duration_ms}\n` ||
       lines.some((line,i) => (i<=spawn || i>=end) && line.startsWith("[canonical:e2e-project-experience] ")) ||
-      !equal(text.split("\n").map(parseBrowserUseLine).filter(Boolean),original.phases.flatMap(v=>v.browser_use)))
+      !equal(text.split("\n").map(parseBrowserUseLine).filter(Boolean),original.phases.flatMap(v=>v.browser_use ?? [])))
     refuse("serial_capture_boundary_invalid");
   const phaseLines = [], outer = []; let lastElapsed = 0;
   for (const line of lines.slice(spawn+1,end)) {
