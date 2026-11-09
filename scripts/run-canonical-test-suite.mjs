@@ -176,6 +176,14 @@ const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-
 const suites = {
   unit: [
     {
+      id: "browser-evaluation-diagnostic",
+      label: "bounded browser evaluation exception without private payload",
+      requirements: ["immutable-fixture-input"],
+      ...rootNode("scripts/test-browser-evaluation-diagnostic.mjs"),
+      timeoutMs: 10_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "operating-profile-contribution-input",
       label: "complete bounded profile input, selected step and manual use refusals",
       requirements: ["immutable-fixture-input"],

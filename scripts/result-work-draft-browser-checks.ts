@@ -19,7 +19,10 @@ export async function checkResultWorkDraftRecovery(tab: { eval(expression: strin
       if(new Headers(init?.headers).get('Augnes-Project-Id')!=='project:A')throw Error('wrong_project_selector');
       if(url.endsWith('/session'))return Response.json(state.authorized?{status:'authenticated',session:session()}:{error_code:'operator_session_expired'},{status:state.authorized?200:401});
       const body=JSON.parse(init.body);state.posts.push(body);
-      if(body.action==='read_result_work_preparation')return Response.json(preparation());
+      if(body.action==='read_result_work_preparation'){
+        if(state.holdPreparation){state.holdPreparation=false;state.preparationHeld=true;await new Promise(resolve=>{state.releasePreparation=resolve});state.preparationReleased=true;}
+        return Response.json(preparation());
+      }
       if(body.action==='compare_result_work_sources')return Response.json({status:'selected_source_comparison',comparison:{entries:body.notes.map(n=>entry(n.source,n.text)),fingerprint:'comparison:'+state.version,rows:[],unselected_previous:[previous],retained_source_refs:[]}});
       if(body.action==='preview_result_work'){
         if(state.holdPreview){state.holdPreview=false;state.previewHeld=true;await new Promise(resolve=>{state.releasePreview=resolve});state.previewReturned=true;return Response.json({ok:false,error_code:'operator_session_revoked'},{status:403});}
@@ -48,11 +51,16 @@ export async function checkResultWorkDraftRecovery(tab: { eval(expression: strin
   const until = async (body: string, label: string) => { const end = performance.now() + 10000; while (performance.now() < end) {
     if (await evaluate(body)) return; await delay(25);
   } throw new Error(`result_draft_browser_wait:${label}`); };
+  let stage = "recovery", action = "mount";
   const click = async (selector: string) => {
+    action = "click:" + selector;
     await until(`!!document.querySelector(${JSON.stringify(selector)})&&!document.querySelector(${JSON.stringify(selector)}).disabled`, selector);
     await evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
   };
-  const set = (selector: string, value: string) => evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});Object.getOwnPropertyDescriptor(e.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,'value').set.call(e,${JSON.stringify(value)});e.dispatchEvent(new Event('input',{bubbles:true}))})()`);
+  const set = async (selector: string, value: string) => {
+    action = "set:" + selector;
+    await until(`(()=>{const e=document.querySelector(${JSON.stringify(selector)}),ready=!!e&&!e.disabled&&!e.readOnly;if(!ready&&resultFixture.preparationHeld&&!resultFixture.preparationReleased)resultFixture.editorWaitObserved=true;return ready})()`, "editable:" + selector);
+    return evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});Object.getOwnPropertyDescriptor(e.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,'value').set.call(e,${JSON.stringify(value)});e.dispatchEvent(new Event('input',{bubbles:true}))})()`); };
   const assertDraft = async () => {
     assert.equal(await evaluate(`document.querySelector('#new-work-goal')?.value`), "Retained result draft A");
     assert.equal(await evaluate(`document.querySelector('#new-work-success-criteria')?.value`), "Preserve original context");
@@ -101,9 +109,22 @@ export async function checkResultWorkDraftRecovery(tab: { eval(expression: strin
     assert.equal(evidence.last.request.definition.goal, "Retained result draft A");
     // A disposed editor's delayed refusal must not lock the replacement owner.
     // This is a refusal-only component control, not successful writer evidence.
-    await evaluate(`resultFixture.drafts.delete('operator:A');resultFixture.holdPreview=true;resultFixture.authenticate('operator:A')`);
+    stage = "disposed_refusal_reopen";
+    await evaluate(`resultFixture.drafts.delete('operator:A');resultFixture.holdPreview=true;resultFixture.holdPreparation=true;resultFixture.editorWaitObserved=false;resultFixture.authenticate('operator:A')`);
     await click('[data-result-work-action="open"]');
-    await set('#new-work-goal', 'A preview disposed before refusal');
+    await until('resultFixture.preparationHeld === true', 'reopen_preparation_held');
+    // A real pending preparation keeps the editor absent. Observe the driver's
+    // readiness wait before releasing it, without sleeping or changing its bound.
+    const writing = set('#new-work-goal', 'A preview disposed before refusal');
+    await Promise.race([
+      writing.then(() => { throw new Error('result_draft_write_finished_before_preparation'); }),
+      until('resultFixture.editorWaitObserved === true', 'editor_wait_observed'),
+    ]);
+    assert.equal(await evaluate(`!!document.querySelector('#new-work-goal')`), false);
+    console.log('result_draft_readiness ' + JSON.stringify({ preparation_held: true, editor_present: false, write_waiting: true }));
+    await evaluate('resultFixture.releasePreparation()');
+    await writing;
+    assert.equal(await evaluate('resultFixture.preparationReleased'), true);
     await set('#new-work-success-criteria', 'B stays private and usable');
     await set('input[maxlength="500"]', 'Do not carry the prior note');
     await click('[data-selected-source-action="compare"]');
@@ -111,13 +132,31 @@ export async function checkResultWorkDraftRecovery(tab: { eval(expression: strin
     await until('resultFixture.previewHeld === true', 'old_preview_held');
     await evaluate(`resultFixture.authenticate('operator:B')`);
     await until(`document.querySelector('#new-work-goal')?.value === ''`, 'replacement_owner');
+    // B's earlier preparation is retained and intentionally requires fresh
+    // bindings on remount. Recover it through the ordinary controls first.
+    await click('[data-result-work-action="refresh"]');
+    await click('[data-result-work-action="recompare"]');
     await evaluate('resultFixture.releasePreview()');
     await until('resultFixture.previewReturned === true', 'old_refusal_returned');
     await evaluate('new Promise(resolve => setTimeout(resolve, 0))');
     assert.equal(await evaluate('resultFixture.locks'), 1, 'Old refusal cannot lock another editor');
     assert.equal(await evaluate(`!!document.querySelector('[data-fixture-locked]')`), false);
+    await set('#new-work-goal', 'B remains editable after A refusal');
+    assert.equal(await evaluate(`document.querySelector('#new-work-goal').value`), 'B remains editable after A refusal');
+    assert.equal(await evaluate(`resultFixture.drafts.get('operator:B').get('goal')`), 'B remains editable after A refusal');
     assert.equal(await evaluate(`resultFixture.drafts.get('operator:A').get('goal')`), 'A preview disposed before refusal');
+    console.log('result_draft_readiness ' + JSON.stringify({ preparation_released: true, held_preview_returned: true, locks: 1, replacement_editor_usable: true, original_draft_retained: true }));
     return { component_fixture_conflict_refresh_recompare: true, component_fixture_auth_hides_and_same_owner_recovers: true,
       component_fixture_other_principal_has_no_draft: true, component_fixture_disposed_refusal_ignored: true, live_result_routes: false };
-  } finally { await tab.eval(`document.querySelector('[data-result-draft-fixture]')?.remove()`); }
+  } catch (error) {
+    // Capture only fixture-owned readiness/action state while its iframe exists.
+    // The original exception still escapes; diagnostic failure cannot replace it.
+    try {
+      const state = await evaluate(`(()=>{const e=document.querySelector('#new-work-goal'),s=resultFixture;return {editor_present:!!e,editor_editable:!!e&&!e.disabled&&!e.readOnly,open_disabled:document.querySelector('[data-result-work-action="open"]')?.disabled??null,preparation_held:s.preparationHeld===true,preparation_released:s.preparationReleased===true,editor_wait_observed:s.editorWaitObserved===true,preview_held:s.previewHeld===true,preview_returned:s.previewReturned===true,locks:s.locks}})()`);
+      console.error('result_draft_failure_state ' + JSON.stringify({ stage, action, ...state }));
+    } catch { console.error('result_draft_failure_state unavailable'); }
+    throw error;
+  } finally {
+    await tab.eval(`(()=>{const f=document.querySelector('[data-result-draft-fixture]');const s=f?.contentWindow.resultFixture;s?.releasePreparation?.();s?.releasePreview?.();f?.remove()})()`);
+  }
 }
