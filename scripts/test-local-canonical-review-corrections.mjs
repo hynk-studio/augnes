@@ -13,6 +13,7 @@ import { createCanonicalTestResourceRoot, beginCanonicalTestResourceUse, settleC
 import { createIsolatedInvocationResources, cleanupIsolatedInvocationResources } from "./local-canonical-isolated-resources.mjs";
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { executePhase } from "./run-local-canonical-verification.mjs";
+import { PROJECT_EXPERIENCE_ENVELOPE_MS, projectExperienceBudgetEvent } from "./project-experience-serial-budget.mjs";
 import { finalizeReceipt, inspectReceiptForDecision } from "./local-canonical-receipt.mjs";
 import { baseReceipt, validContext } from "./fixtures/local-canonical-receipt-v3.mjs";
 import { observerControls } from "./fixtures/local-canonical-observer-controls.mjs";
@@ -57,17 +58,32 @@ if (process.argv[2] === "--phase-probe") {
       if (c.mutation === "wrong-version") phaseRecords[0].runtime_versions.cdp = "Fixture/2.0";
       if (c.mutation === "content") phaseRecords[0].after.sha256 = "0".repeat(64);
       const output = phaseRecords.map(r => BROWSER_IDENTITY_PREFIX + JSON.stringify(r)).join("\n") + "\n";
-      const code = `process.stdout.write(${JSON.stringify(output)});` + (c.mutation === "timeout" ? "process.on('SIGTERM',()=>process.exit(0));setInterval(()=>{},1000);" : "");
+      const serial = c.mutation.startsWith("serial-");
+      let code = `process.stdout.write(${JSON.stringify(output)});` + (c.mutation === "timeout" ? "process.on('SIGTERM',()=>process.exit(0));setInterval(()=>{},1000);" : "");
+      if (serial) {
+        const messages=[projectExperienceBudgetEvent("ready",0),...[0,1,2].flatMap(i=>["execution","settlement","coordinator"].map(state=>projectExperienceBudgetEvent(state,i))),projectExperienceBudgetEvent("complete",3)];
+        const late=c.mutation==="serial-malformed" ? {bad:"late-message"} : projectExperienceBudgetEvent("complete",3);
+        const descendant=`setTimeout(()=>require("node:fs").writeSync(3,${JSON.stringify(JSON.stringify(late)+"\n")}),150);`;
+        code+=`const messages=${JSON.stringify(messages)};function next(){const message=messages.shift();if(message)process.send(message,next);else{`+
+          (c.mutation==="serial-complete" ? "" : `require("node:child_process").spawn(process.execPath,["-e",${JSON.stringify(descendant)}],{stdio:["ignore",1,2,3]});`)+
+          `process.exit(0);}}next();`;
+      }
       const runLogRoot = path.join(repository, ".augnes-local-verification", "logs", `${id}-${index}`);
       logDirectories.push(runLogRoot);
-      const result = await executePhase({ phase: { id: "integration", browser: false, command: process.execPath, args: ["-e", code],
-        display: "disposable Browser evidence emitter", label: "disposable evidence", cwdScope: "root", timeoutMs: c.mutation === "timeout" ? 150 : 2000 },
+      const result = await executePhase({ phase: { id: serial ? "e2e-project-experience" : "integration", browser: false, command: process.execPath, args: ["-e", code],
+        display: "disposable Browser evidence emitter", label: "disposable evidence", cwdScope: "root", timeoutMs: serial ? PROJECT_EXPERIENCE_ENVELOPE_MS : c.mutation === "timeout" ? 150 : 2000 },
         mode: "regression", runLogRoot, isolatedResources: resources, expectedBrowser: expected });
       complete &&= result.cleanup.completed && result.cleanup.remaining_owned_processes === 0;
       assert.equal(result.status, c.pass ? "pass" : "failure", c.mutation);
       assert.equal(result.browser_use.length, phaseRecords.length);
       if (c.mutation === "timeout") { assert(result.timed_out); assert.equal(result.exit_status, 0); }
-      else if (!c.pass) assert.equal(result.failure_code, "browser_identity_invalid");
+      else if (!c.pass) assert.equal(result.failure_code, serial ? "serial_event_after_exit" : "browser_identity_invalid");
+      if (serial) {
+        assert.equal(result.exit_status,0);assert.equal(result.timed_out,false);
+        assert.equal(result.cleanup.termination_reason,"natural_exit");
+        assert(result.cleanup.completed);assert.equal(result.cleanup.remaining_owned_processes,0);
+        console.log(JSON.stringify({terminal_ipc_phase:c.mutation,result}));
+      }
     }
   } finally {
     const cleanup = cleanupIsolatedInvocationResources(resources, { consumersSettled: complete });
@@ -76,7 +92,7 @@ if (process.argv[2] === "--phase-probe") {
   process.exit(0);
 }
 
-const groups = ["revision", "settlement", "browser", "git", "git-input", "git-input-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation", "serial-aggregate"];
+const groups = ["revision", "settlement", "browser", "git", "git-input", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation", "serial-aggregate"];
 const [selector, group, ...extra] = process.argv.slice(2);
 if (selector !== undefined && (selector !== "--reviewed-revision-controls" ||
     (group !== undefined && !groups.includes(group)) || extra.length > 1 || extra.length && groups.indexOf(group) < 3))

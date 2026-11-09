@@ -176,6 +176,27 @@ export async function runSerialAggregateControls(c,h) {
   c.gitDeclaration=declared;
   const execution=await executeFixture(c,h,proof,authority,use,dependencyRecords(c));
   assert.equal(execution.stock.valid_deciding_evidence,true);
+  // Reuse actual parent IPC accounting from the source-bound focused driver.
+  // A passing receipt cannot conceal its terminal contract refusal.
+  const terminal=JSON.parse(output).terminal_ipc;
+  assert.deepEqual(terminal.map(v=>v.kind),["malformed","duplicate_complete"]);
+  for (const witness of terminal) {
+    const invalid=clone(execution.receipt);
+    invalid.phases.find(v=>v.id==="e2e-project-experience").serial_budget=witness.serial_budget;
+    const issues=[];inspectClassifiedEvidence(invalid,issues);
+    assert.deepEqual(issues,["receipt_serial_budget_invalid"]);
+  }
+  // The existing quarantined process probe also exercises the real phase
+  // executor; synthetic Browser records establish no actual Browser evidence.
+  const probe=artifact(c,"terminal-phase-probe.json",{
+    records:execution.receipt.phases.find(v=>v.id==="e2e-project-experience").browser_use,
+    expected:declared.resources.find(v=>v.id==="browser-executable"),
+    cases:[{mutation:"serial-complete",pass:true},{mutation:"serial-malformed",pass:false},{mutation:"serial-duplicate",pass:false}],
+  });
+  const phaseResult=await h.run({command:process.execPath,args:[path.join(sourceRoot,"scripts/test-local-canonical-review-corrections.mjs"),"--phase-probe",path.join(c.artifacts,probe.artifact)],
+    cwd:c.checkout,env:c.env,timeoutMs:10000,stdout:process.stdout,stderr:process.stderr,log(){}});
+  assert.equal(phaseResult.exit_code,0);assert(phaseResult.cleanup_completed);assert.equal(phaseResult.remaining_owned_processes,0);
+  findings.push("real phase execution and receipt accounting refuse late IPC while natural exit and complete cleanup remain truthful");
   assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}).reviewed_revision_consumed,1);
   assert.throws(()=>h.begin(c,proof,authority),/attempt_latest_tip_required/u);
   const exported=createPrivateReviewExport(execution.receipt), inspected=inspectPrivateReviewExport(exported);
