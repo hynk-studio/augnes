@@ -59,18 +59,26 @@ if (process.argv[2] === "--phase-probe") {
       if (c.mutation === "content") phaseRecords[0].after.sha256 = "0".repeat(64);
       if (c.mutation === "wrong-consumer") phaseRecords.at(-1).consumer = "project-client";
       const output = phaseRecords.map(r => BROWSER_IDENTITY_PREFIX + JSON.stringify(r)).join("\n") + "\n";
-      const serial = phaseId === "e2e-project-experience";
+      const terminalIPC = c.mutation.startsWith("serial-");
+      const serial = phaseId === "e2e-project-experience" || terminalIPC;
       const messages = serial ? [projectExperienceBudgetEvent("ready",0),
         ...PROJECT_EXPERIENCE_SERIAL.children.flatMap((_,i)=>["execution","settlement","coordinator"].map(state=>projectExperienceBudgetEvent(state,i))),
         ...(["cancelled","incomplete-accounting"].includes(c.mutation) ? [] : [projectExperienceBudgetEvent("complete",PROJECT_EXPERIENCE_SERIAL.children.length)])] : [];
-      const code = `for(const message of ${JSON.stringify(messages)}) process.send(message); process.stdout.write(${JSON.stringify(output)});` +
+      let code = `for(const message of ${JSON.stringify(messages)}) process.send(message); process.stdout.write(${JSON.stringify(output)});` +
         (["timeout","cancelled"].includes(c.mutation) ? "process.on('SIGTERM',()=>process.exit(0));setInterval(()=>{},1000);" : "");
+      if (terminalIPC) {
+        const late = c.mutation === "serial-malformed" ? {bad:"late-message"} : projectExperienceBudgetEvent("complete",PROJECT_EXPERIENCE_SERIAL.children.length);
+        const descendant = `setTimeout(()=>require("node:fs").writeSync(3,${JSON.stringify(JSON.stringify(late)+"\n")}),150);`;
+        code = `process.stdout.write(${JSON.stringify(output)});const messages=${JSON.stringify(messages)};function next(){const message=messages.shift();if(message)process.send(message,next);else{`+
+          (c.mutation === "serial-complete" ? "" : `require("node:child_process").spawn(process.execPath,["-e",${JSON.stringify(descendant)}],{stdio:["ignore",1,2,3]});`)+
+          `process.exit(0);}}next();`;
+      }
       const runLogRoot = path.join(repository, ".augnes-local-verification", "logs", `${id}-${index}`);
       logDirectories.push(runLogRoot);
       const controller = new AbortController();
       const cancellation = c.mutation === "cancelled" ? setTimeout(()=>controller.abort(),150) : null;
       let result;
-      try { result = await executePhase({ phase: { id: phaseId, browser, command: process.execPath, args: ["-e", code],
+      try { result = await executePhase({ phase: { id: serial ? "e2e-project-experience" : phaseId, browser, command: process.execPath, args: ["-e", code],
         display: "disposable Browser evidence emitter", label: "disposable evidence", cwdScope: "root",
         timeoutMs: serial ? PROJECT_EXPERIENCE_ENVELOPE_MS : c.mutation === "timeout" ? 150 : 2000 },
         mode: "regression", runLogRoot, isolatedResources: resources, expectedBrowser: expected, signal:controller.signal }); }
@@ -82,7 +90,13 @@ if (process.argv[2] === "--phase-probe") {
       else if (["cancelled","incomplete-accounting"].includes(c.mutation)) {
         assert.equal(result.failure_code,"serial_execution_incomplete"); assert.equal(result.timed_out,false); assert.equal(result.exit_status,0);
       }
-      else if (!c.pass) assert.equal(result.failure_code, "browser_identity_invalid");
+      else if (!c.pass) assert.equal(result.failure_code, terminalIPC ? "serial_event_after_exit" : "browser_identity_invalid");
+      if (terminalIPC) {
+        assert.equal(result.exit_status,0);assert.equal(result.timed_out,false);
+        assert.equal(result.cleanup.termination_reason,"natural_exit");
+        assert(result.cleanup.completed);assert.equal(result.cleanup.remaining_owned_processes,0);
+        console.log(JSON.stringify({terminal_ipc_phase:c.mutation,result}));
+      }
     }
   } finally {
     const cleanup = cleanupIsolatedInvocationResources(resources, { consumersSettled: complete });

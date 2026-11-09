@@ -17,8 +17,10 @@ remains HOLD. A1-A4 and H1-H4/H6-H12 are retained; H5 remains outside scope.
 
 The shared implementation is #1614 commit
 `c1294b11346e5f262c33edf25aa46af52b7b16cc`, independently source-reviewed in its
-three-child context. Only that shared commit is consumed; its Native navigation
-ancestry is not imported. This consumer extends the same owner to its fourth
+three-child context. Its shared terminal-accounting correction
+`5724bd991735cbe88b48055c271a2ebccfb4e2d4` and downstream controls
+`64db6f97c53ddad9b6ed4fe21f25ce45ac3966cd` are also consumed with their published
+provenance. Native navigation ancestry is not imported. This consumer extends the same owner to its fourth
 child and its actual capped-log incident. The earlier unpublished-dependency
 snapshot remains in Git history and the private r2 handoff.
 
@@ -27,6 +29,13 @@ Compatible #1613 commits `257f028a` and
 Their stable protected Git-input route does not admit this timeout incident.
 Current publication checks stay separate from historical replay. #1610/#1612
 retains original-receipt reconciliation ownership.
+
+The r3 source at `ec220449866aaf38c0cf4ae47d3064a55a074f63` lost late IPC
+failures from its terminal accounting snapshot. Its original preparation stays
+historical and cannot qualify the corrected source. The shared correction stops
+elapsed accounting at the same terminal boundary, then reads the latest latched
+failure after the runner finishes owned settlement. Natural exit and cleanup
+remain truthful; post-exit settlement is not charged to the execution envelope.
 
 ## Committed consumer inventory
 
@@ -175,6 +184,7 @@ repeat product Browser journeys just to exercise budget mechanics.
 | Old aggregate interruption versus corrected controlled completion | Production orchestration demonstrates the contract difference using controlled durations; this does not classify the old incident. |
 | Child assertion failure or individual timeout | Fail and settle resources; later children do not run or borrow unused time. |
 | Forced descendant termination or incomplete cleanup | Fail even when the root exited zero; preserve cleanup/restoration obligations. |
+| Malformed or duplicate valid IPC after root exit | Actual descendant drain retains `serial_event_after_exit`; accounting, phase and passing-receipt validation refuse while natural exit, cleanup and the frozen execution clock remain truthful. |
 | Coordinator exceeds its allowance before/between/after children | Fail independently of unused child time and the outer aggregate timer. |
 | Missing/reordered/extra child, changed command/limit/requirement | Inventory disagreement refuses; no environment/CLI override. |
 | Missing/extra/misattributed Browser record | Exact five-record phase and twenty-record workload contract refuses. |
