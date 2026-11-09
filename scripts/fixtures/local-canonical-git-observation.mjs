@@ -71,6 +71,12 @@ async function checkGitSourceSuccessor(c, h, initial, initialCapability) {
   delegation.updated_at=delegation.created_at;
   c.prior=first.receipt;c.grantId=14;
   c.commit(4);
+  if(initial.commission.input_revision){
+    // Publishing the actual corrected source advances current applicability,
+    // while reconstruction still reads the unchanged first proof and ledger.
+    c.git(["update-ref","refs/remotes/origin/"+c.branch,"HEAD"]);
+    assert.equal(tip().attempt_id,first.receipt.attempt.attempt_id);
+  }
   h.prepare(c,2);
   const p=c.proof;
   p.schema=initial.schema;
@@ -100,6 +106,7 @@ async function checkGitSourceSuccessor(c, h, initial, initialCapability) {
   assert.equal(prepared.consumed,1);assert.equal(prepared.ordinal,2);assert.equal(prepared.target,target);assert.equal(prepared.reserved,false);
   for (const mutate of [q=>q.commission.ordinal=1,q=>q.commission.ordinal=3,q=>q.commission.root_family_id=digest("fork"),
     q=>q.commission.initial_accepted.review.id++,q=>q.commission.initial_authorization.grant_sha256=digest("replacement"),
+    q=>{if(q.commission.input_revision)delete q.commission.input_revision;else q.commission.input_revision=GIT_INPUT_REVISION;},
     q=>q.prior_receipt_fingerprint=initial.prior_receipt_fingerprint,q=>Object.assign(q,{head:previous,tree:initial.tree})]) {
     const bad=structuredClone(p);mutate(bad);assert.throws(()=>prepare(bad));
   }
@@ -133,6 +140,10 @@ async function checkGitSourceSuccessor(c, h, initial, initialCapability) {
   const grant={...firstAuthority.grant,id:14,created_at:time(0),body:["Authorize ordinal two of the original reviewed Git-observation commission.",
     p.schema,p.head,p.tree,p.base,p.branch,p.prior_receipt_fingerprint,finalTarget,p.commission.root_receipt_fingerprint,consumed.revision_commission,
     comment+delegation.id,comment+firstAuthority.grant.id,reviewUrl+review.id,"Separate fresh-process stock and independent audit."].join("\n")};
+  if(initial.commission.input_revision){
+    review.body+="\n"+GIT_INPUT_REVISION+"\n"+GIT_INPUT_HISTORY_BOUNDARY;
+    grant.body+="\n"+GIT_INPUT_REVISION+"\n"+GIT_INPUT_HISTORY_BOUNDARY;
+  }
   grant.updated_at=grant.created_at;
   c.authority={review,grant,pr:{...firstAuthority.pr,head:{...firstAuthority.pr.head,sha:p.head}},linked:{
     ["repos/hynk-studio/augnes/pulls/999/reviews/"+firstAuthority.review.id]:firstAuthority.review,
@@ -851,7 +862,7 @@ export async function completeGitRevisionControls(c,h) {
 // Controlled historical interruption; real disposable Git reads/mutations,
 // natural child settlement, authenticated transport and append-only admission.
 // This is not production qualification or authority for any existing PR.
-export async function runGitInputRevisionControls(c,h) {
+export async function runGitInputRevisionControls(c,h,sourceSuccessor=false) {
   const original=c.prior, ledger=path.join(c.legacyRoot,"completion-1.json"), edge=path.join(c.legacyRoot,"correction-successor.json");
   const historical=[ledger,path.join(c.legacyRoot,"attempt-1.json"),path.join(c.checkout,".augnes-local-verification/receipts",original.run.id+".json")];
   const historicalBytes=historical.map(f=>readFileSync(f));
@@ -893,6 +904,7 @@ export async function runGitInputRevisionControls(c,h) {
     return inspectGitRevisionPreparation({file:prep,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live});
   };
   assert.deepEqual(prepare().target,gitReviewTarget(p));assert(!existsSync(edge));
+  if(!sourceSuccessor){
   // A real Git product delta cannot use the unchanged-product lane.
   h.write(path.join(c.checkout,product),"let decision = changedProduct();\n");c.git(["add",product]);
   const productTree=c.git(["write-tree"]).toString().trim();
@@ -948,6 +960,7 @@ export async function runGitInputRevisionControls(c,h) {
   Object.assign(snapshot,inventory,{fingerprint:digest(inventory)});
   p.inputs.inventory_sha256=gitRevisionInventory(snapshot);c.live.inventory=p.inputs.inventory_sha256;
   focus.input_inventory=artifact("input-inventory.json",snapshot);p.focused=artifact("focused.json",focus);
+  }
   c.gitDeclaration=inventory;
   const {review,grant}=c.authority,target=gitReviewTarget(p);
   review.body=["Source review decision: ACCEPT / RETAIN for prospective qualification.",p.base,p.head,p.tree,p.prior_receipt_fingerprint,target,GIT_INPUT_REVISION,GIT_INPUT_HISTORY_BOUNDARY].join("\n");
@@ -957,17 +970,24 @@ export async function runGitInputRevisionControls(c,h) {
   const bind=()=>{p.accepted.review.sha256=digest(reviewedRevisionAuthorityObservation(review,"accepted_revision"));
     p.authorization.grant_sha256=digest(reviewedRevisionAuthorityObservation(grant,"execution_commission"));h.write(c.file,p);};
   const grantBody=grant.body,reviewBody=review.body;
+  if(!sourceSuccessor){
   for(const object of [review,grant]) {
     const body=object.body;
     for(const bad of [body.replace(GIT_INPUT_HISTORY_BOUNDARY,""),body.replace(GIT_INPUT_REVISION,""),"> "+body,"HOLD\n"+body]){
       object.body=bad;bind();await assert.rejects(h.auth(c,h.proof(c)));
     }object.body=body;
   }
+  }
   assert.equal(review.body,reviewBody);assert.equal(grant.body,grantBody);bind();
   const proof=h.proof(c),cap=await h.auth(c,proof);
   assert.throws(()=>h.begin(c,proof,null));
   assert.throws(()=>h.begin(c,proof,{observations:cap.observations}));
   assert.throws(()=>h.begin(c,proof,cap,{revisionLive:{...c.live,inventory:digest("changed at admission")}}));
+  if(sourceSuccessor){
+    await checkGitSourceSuccessor(c,{...h,snapshot:null},proof,cap);
+    for(const [i,file] of historical.entries())assert.deepEqual(readFileSync(file),historicalBytes[i]);
+    return;
+  }
   // Two ordinary fresh processes race for one existing exclusive successor.
   // The winning reservation is deliberately left incomplete in this isolated
   // fork, so interruption cannot become another allowance.
