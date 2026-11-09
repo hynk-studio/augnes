@@ -62,7 +62,9 @@ import {
   assertStockReceiptSupported,
   assertRuntimeInputSelection,
   executeLocalCanonicalVerification,
+  computeExecutorSourceFingerprint,
 } from "./run-local-canonical-verification.mjs";
+import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
 import {
   acquireCheckoutVerificationOwnership,
   assertCheckoutVerificationOwnership,
@@ -166,6 +168,25 @@ const executorSource = readFileSync(
   path.join(repositoryRoot, "scripts", "run-local-canonical-verification.mjs"),
   "utf8",
 );
+
+// A new production witness must affect the real default executor fingerprint,
+// not only the clean Git identity recorded by its own preparation observer.
+{
+  const owner = createCanonicalTestResourceRoot("ag-resource-test-");
+  try {
+    const declaration = /const EXECUTOR_SOURCE_FILES = Object\.freeze\(\[([\s\S]*?)\]\);/u.exec(executorSource);
+    assert(declaration);
+    for (const [, relative] of declaration[1].matchAll(/"([^"]+)"/gu)) {
+      const file = path.join(owner.root, relative); mkdirSync(path.dirname(file), { recursive: true });
+      writeFileSync(file, readFileSync(path.join(repositoryRoot, relative)));
+    }
+    const relative = "scripts/local-canonical-pure-contract-witness.mjs", file = path.join(owner.root, relative);
+    writeFileSync(file, readFileSync(path.join(repositoryRoot, relative)));
+    const before = computeExecutorSourceFingerprint(owner.root);
+    writeFileSync(file, "export const changed = true;\n");
+    assert.notEqual(computeExecutorSourceFingerprint(owner.root), before);
+  } finally { assert(cleanupCanonicalTestResources([owner])[0].completed); }
+}
 
 const authorizedIdentity = assertAuthorizedRepositoryIdentity({
   resolvedRoot: CANONICAL_DARWIN_REPOSITORY_ROOT,
