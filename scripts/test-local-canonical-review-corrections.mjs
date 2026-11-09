@@ -43,6 +43,7 @@ if (process.argv[2] === "--observer-controls") {
 // The outer real child owner quarantines deliberately synthetic Browser records
 // from Canonical's actual-use stream. This probes the production phase executor.
 if (process.argv[2] === "--phase-probe") {
+  const { PROJECT_EXPERIENCE_SERIAL, PROJECT_EXPERIENCE_ENVELOPE_MS, projectExperienceBudgetEvent } = await import("./project-experience-serial-budget.mjs");
   const { records, expected, cases, phaseId = "integration", browser = false } = JSON.parse(readFileSync(process.argv[3], "utf8"));
   const id = `review-probe-${randomUUID()}`, resources = createIsolatedInvocationResources(id);
   const logDirectories = [];
@@ -58,16 +59,29 @@ if (process.argv[2] === "--phase-probe") {
       if (c.mutation === "content") phaseRecords[0].after.sha256 = "0".repeat(64);
       if (c.mutation === "wrong-consumer") phaseRecords.at(-1).consumer = "project-client";
       const output = phaseRecords.map(r => BROWSER_IDENTITY_PREFIX + JSON.stringify(r)).join("\n") + "\n";
-      const code = `process.stdout.write(${JSON.stringify(output)});` + (c.mutation === "timeout" ? "process.on('SIGTERM',()=>process.exit(0));setInterval(()=>{},1000);" : "");
+      const serial = phaseId === "e2e-project-experience";
+      const messages = serial ? [projectExperienceBudgetEvent("ready",0),
+        ...PROJECT_EXPERIENCE_SERIAL.children.flatMap((_,i)=>["execution","settlement","coordinator"].map(state=>projectExperienceBudgetEvent(state,i))),
+        ...(["cancelled","incomplete-accounting"].includes(c.mutation) ? [] : [projectExperienceBudgetEvent("complete",PROJECT_EXPERIENCE_SERIAL.children.length)])] : [];
+      const code = `for(const message of ${JSON.stringify(messages)}) process.send(message); process.stdout.write(${JSON.stringify(output)});` +
+        (["timeout","cancelled"].includes(c.mutation) ? "process.on('SIGTERM',()=>process.exit(0));setInterval(()=>{},1000);" : "");
       const runLogRoot = path.join(repository, ".augnes-local-verification", "logs", `${id}-${index}`);
       logDirectories.push(runLogRoot);
-      const result = await executePhase({ phase: { id: phaseId, browser, command: process.execPath, args: ["-e", code],
-        display: "disposable Browser evidence emitter", label: "disposable evidence", cwdScope: "root", timeoutMs: c.mutation === "timeout" ? 150 : 2000 },
-        mode: "regression", runLogRoot, isolatedResources: resources, expectedBrowser: expected });
+      const controller = new AbortController();
+      const cancellation = c.mutation === "cancelled" ? setTimeout(()=>controller.abort(),150) : null;
+      let result;
+      try { result = await executePhase({ phase: { id: phaseId, browser, command: process.execPath, args: ["-e", code],
+        display: "disposable Browser evidence emitter", label: "disposable evidence", cwdScope: "root",
+        timeoutMs: serial ? PROJECT_EXPERIENCE_ENVELOPE_MS : c.mutation === "timeout" ? 150 : 2000 },
+        mode: "regression", runLogRoot, isolatedResources: resources, expectedBrowser: expected, signal:controller.signal }); }
+      finally { clearTimeout(cancellation); }
       complete &&= result.cleanup.completed && result.cleanup.remaining_owned_processes === 0;
       assert.equal(result.status, c.pass ? "pass" : "failure", c.mutation);
       assert.equal(result.browser_use.length, phaseRecords.length);
       if (c.mutation === "timeout") { assert(result.timed_out); assert.equal(result.exit_status, 0); }
+      else if (["cancelled","incomplete-accounting"].includes(c.mutation)) {
+        assert.equal(result.failure_code,"serial_execution_incomplete"); assert.equal(result.timed_out,false); assert.equal(result.exit_status,0);
+      }
       else if (!c.pass) assert.equal(result.failure_code, "browser_identity_invalid");
     }
   } finally {
@@ -240,7 +254,7 @@ try {
   const projectRecords = ["project-experience", "project-client", "project-client", "web-planning", "web-planning"]
     .map(consumer => ({ ...structuredClone(record), consumer }));
   write(probe, { phaseId: "e2e-project-experience", browser: true, records: projectRecords, expected,
-    cases: [{ mutation: "none", pass: true }, ...["missing", "extra", "overflow", "wrong-location", "wrong-version", "content", "wrong-consumer", "timeout"].map(mutation => ({ mutation, pass: false }))] });
+    cases: [{ mutation: "none", pass: true }, ...["missing", "extra", "overflow", "wrong-location", "wrong-version", "content", "wrong-consumer", "cancelled", "incomplete-accounting"].map(mutation => ({ mutation, pass: false }))] });
   const projectProbe = await child([self, "--phase-probe", probe], { controlId: "synthetic-project-browser-phase-probe", timeoutMs: 15000 });
   assert.equal(projectProbe.exit_code, 0, lastChildDiagnostic);
   const projectReceipt = structuredClone(receipt);
