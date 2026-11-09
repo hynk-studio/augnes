@@ -3047,7 +3047,28 @@ developer-exposed disposable evidence, not ordinary-use usefulness, Autohunt,
 hosted adoption, independent transfer or installed-plugin rollout. Final exact-head
 verification and Draft review remain recorded with the candidate PR.
 
-### Current P2/P5 candidate — Consumer-current return reassessment (#1593)
+### Completed P2/P5 slice — Consumer-current return reassessment (#1593)
+
+[#1594](https://github.com/hynk-studio/augnes/pull/1594) merged at
+`9e3260d1ff15a0ecc425970eea5f1ebcc512a83b`. Its final r13 head
+`b4c619b45f02a79eaf168a773eadcdc2bacfdb69` recorded Full 16/16 and Browser 7/7
+PASS with separate valid stock. The following candidate/HOLD statements retain
+their historical source and do not describe that merged result.
+
+The authorized verification-residue cleanup is implemented for review on
+`maintenance/retire-completed-verification-20261109`. It retires the two completed
+workload-only routes and their dedicated controls, absorbs the supported
+acquisition predecessor into reusable material-source controls, and removes an
+unregistered scope probe already covered by the Git-observation fixture. The
+[active policy](../../.github/LOCAL_CANONICAL_VERIFICATION.md#retired-qualification-routes)
+pins historical interpretation at `d72c0f3dc5b224c02a44033d9ed83eb3eb5af3fb`;
+original receipts, grants and consumption remain unchanged. Current code refuses
+mixed retired chains rather than resetting or silently skipping their history.
+Product code, general verification owners, installed adoption and other open
+work remain outside this cleanup. Cloud owner checks are development feedback;
+this executable disposition still requires the planner's exact-head Mac evidence.
+
+#### Historical r10–r13 candidate record
 
 The r12 Full at `c954eecf` retained 9 PASS / 1 FAIL / 6 NOT_RUN (dedicated
 Browser 0/1/6), false stock and receipt `d1c9d33de3a6fc223e2a4a7e58f41e634e15af6eb81f4e7738125f5c63426e4c`.

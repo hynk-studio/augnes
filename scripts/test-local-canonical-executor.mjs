@@ -93,6 +93,8 @@ for (const browserReplacementProofPath of [null, false, ".augnes-local-verificat
   try {
     const receipt = { attempt: { source_correction: { schema: "augnes.local-canonical-operating-profile-succession.v1", kind: "operating_profile_efficiency" } } };
     const receipts = [receipt,
+      ...["spent-acquisition-reviewed-workload-v1", "spent-terminal-git-successor-workload-v1", false, null].map(reviewed_workload =>
+        ({ attempt: { source_correction: { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", commission: { reviewed_workload } } } })),
       { receipt_version: 5 },
       ...["client.js.txt", "exchange-client.js.txt", "history-client.js.txt", "search-client.js.txt"].map(file => ({
         attempt: { source_correction: { schema: "augnes.local-canonical-source-correction.v2", kind: "source_revision", source_module: "apps/web_planning/src/" + file } },

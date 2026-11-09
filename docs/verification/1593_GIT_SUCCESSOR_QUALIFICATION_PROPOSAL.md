@@ -1,6 +1,17 @@
 # Prospective qualification after the terminal Git-successor aggregate failure
 
-Status: **a11 accepted the bounded implementation scope; r12 implements the
+Status: **historical, exercised and retired after [#1594](https://github.com/hynk-studio/augnes/pull/1594) merged**.
+The r12 commission remains spent with its original failure; r13 completed through
+the separately adopted reusable material-source transition. Current tooling
+rejects both workload markers, including a mixed chain's later tip. Read the
+unchanged originals through `d72c0f3dc5b224c02a44033d9ed83eb3eb5af3fb`, as specified
+by the [retirement policy](../../.github/LOCAL_CANONICAL_VERIFICATION.md#retired-qualification-routes).
+The proposal below supplies historical interpretation, not active admission or
+new execution authority.
+
+## Historical adoption and r12 disposition
+
+Historical status: **a11 accepted the bounded implementation scope; r12 implements the
 production controls. Real-lineage activation remains conditional on independent
 acceptance, actual preparation and genuinely new authenticated authority.**
 The original r11 proposal remains immutable at
