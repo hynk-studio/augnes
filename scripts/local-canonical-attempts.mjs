@@ -14,6 +14,7 @@ import { GIT_ACQUISITION_REPAIR, isGitAcquisitionRevision, gitAcquisitionInciden
 import { createGitHubObserverAuthorizationTransport } from "./github-main-branch-transport.mjs";
 import {MATERIAL_SOURCE_CORRECTION, MATERIAL_HISTORY_BOUNDARY, isMaterialSourceRevision, delegatesMaterialSourceCommission} from "./local-canonical-git-observation.mjs";
 import { REPOSITORY_TYPECHECK, observeTypecheckCompiler, observeGeneratedTypeInputs } from "./local-canonical-typecheck-witness.mjs";
+import { REGISTERED_FIXTURE_BUDGET, FIXTURE_BUDGET_CLAIM, inspectCurrentFixtureBudgetInputs } from "./local-canonical-fixture-budget-witness.mjs";
 import { REPOSITORY_PURE_CONTRACT, inspectCurrentPureContractInputs } from "./local-canonical-pure-contract-witness.mjs";
 import {GIT_INPUT_REVISION, GIT_INPUT_HISTORY_BOUNDARY, isGitInputRevision, verifyGitInputRemedy, verifyGitInputPublication} from "./local-canonical-git-observation.mjs";
 
@@ -511,6 +512,16 @@ function verifyRevisionOriginals(anchorRoot, repositoryRoot, proof, materialFile
         throw fail("serial_original_capture_changed");
     }
   }
+  if (proof.commission?.evidence_kind===REGISTERED_FIXTURE_BUDGET) {
+    const folder=path.dirname(materialFile??path.join(repositoryRoot,proof.local_relative_path));
+    const focused=JSON.parse(revisionArtifact(folder,proof.focused));
+    const incident=focused.regression?.incident,relative=incident?.log_identity?.relative_path;
+    if(relative!==`.augnes-local-verification/logs/${proof.prior_attempt_id}/authority.log`)throw fail("revision_fixture_budget_original_log_invalid");
+    const file=path.join(repositoryRoot,relative),stat=lstatSync(file);
+    if(realpathSync(file)!==file||!stat.isFile()||stat.isSymbolicLink()||stat.nlink!==1||(stat.mode&0o022)||stat.size>2*1024*1024||
+      stat.size!==incident.log_identity.bytes||digest(readFileSync(file))!==incident.log.sha256||incident.log.sha256!==incident.log_identity.sha256)
+      throw fail("revision_fixture_budget_original_log_changed");
+  }
   return priorRoot;
 }
 
@@ -618,6 +629,7 @@ function revisionCommissionIdentity(proof) {
     ...(isGitInputRevision(proof) ? {input_revision: proof.commission.input_revision} : {}),
     ...(isGitAcquisitionRevision(proof) ? {input_acquisition: proof.commission.input_acquisition} : {}),
     ...(isMaterialSourceRevision(proof) ? {source_revision: proof.commission.source_revision,
+      ...(proof.commission.evidence_kind ? {evidence_kind:proof.commission.evidence_kind} : {}),
       ...(proof.commission.inherited_serial ? {inherited_serial:proof.commission.inherited_serial} : {})} : {}) });
 }
 
@@ -651,7 +663,8 @@ function revisionMaterialShape(p, preparing = false) {
     revisionId(p.pull_request) && sha(p.prior_family_id) && [1, 2].includes(p.prior_number) && typeof p.prior_attempt_id === "string" &&
     sha(p.prior_receipt_fingerprint) && revisionKeys(c, ["root_family_id", "root_number", "root_attempt_id", "root_receipt_fingerprint", "ordinal", "maximum_invocations", ...(isSerialAggregateRevision(p) ? ["route", "envelope_sha256"] : []),
       ...(successor || gitSuccessor ? ["initial_authorization"] : []), ...(gitSuccessor ? ["initial_accepted", "delegation"] : isInventoryBoundRevision(p) ? ["delegation", ...(c.forward_decision ? ["forward_decision"] : []), ...(c.input_acquisition !== undefined ? ["input_acquisition"] : []), ...(c.source_revision !== undefined ? ["source_revision"] : [])] : []),
-      ...(Object.hasOwn(c, "input_revision") ? ["input_revision"] : []), ...(Object.hasOwn(c,"inherited_serial") ? ["inherited_serial"] : [])]) &&
+      ...(Object.hasOwn(c, "input_revision") ? ["input_revision"] : []), ...(Object.hasOwn(c,"inherited_serial") ? ["inherited_serial"] : []), ...(Object.hasOwn(c,"evidence_kind") ? ["evidence_kind"] : [])]) &&
+    (!Object.hasOwn(c,"evidence_kind") || isMaterialSourceRevision(p) && c.evidence_kind === REGISTERED_FIXTURE_BUDGET) &&
     (!Object.hasOwn(c,"inherited_serial") || isMaterialSourceRevision(p) && validSerialInheritance(c.inherited_serial)) &&
     (!Object.hasOwn(c, "input_revision") || isGitInputRevision(p) && c.input_revision === GIT_INPUT_REVISION) &&
     (!isSerialAggregateRevision(p) || c.route === SERIAL_AGGREGATE_ROUTE && c.envelope_sha256 === PROJECT_EXPERIENCE_COMMITMENT && revisionRef(p.incident) && !p.settlement && p.accepted.head === p.head && p.accepted.tree === p.tree && p.accepted.base === p.base && sha(p.inputs?.inventory_sha256)) &&
@@ -817,7 +830,8 @@ export function validateReviewedRevisionAuthorityRecords(p, review, grant, permi
         "Authorize a NEW prospective v7 reviewed_revision commission.") &&
       (!isGitAcquisitionRevision(p) || isMaterialSourceRevision(p) || [grant.body,review.body].every(body => body.includes(
         "Historical window remains UNKNOWN; old false stock and both spent ordinals remain unchanged."))) &&
-      (!isMaterialSourceRevision(p) || [grant.body,review.body].every(body=>body.includes(MATERIAL_HISTORY_BOUNDARY) && inheritedSerialAuthorityScope(p,body)) &&
+      (!isMaterialSourceRevision(p) || [grant.body,review.body].every(body=>body.includes(MATERIAL_HISTORY_BOUNDARY) && inheritedSerialAuthorityScope(p,body) &&
+        (!p.commission.evidence_kind || body.includes(REGISTERED_FIXTURE_BUDGET) && body.includes(FIXTURE_BUDGET_CLAIM))) &&
         /No ordinal two, recovery or unchanged-target retry under this commission\./u.test(grantText)) &&
       [p.accepted.head, p.accepted.tree, p.accepted.base, p.schema].every(s => grant.body.includes(s)) &&
       (!first || grant.body.includes(target)) && /zero unchanged-target retry/iu.test(grantText) &&
@@ -1077,6 +1091,9 @@ export async function prepareMaterialSourceRevision(args,{transport}={}) {
   }
   if (evidence.focused.regression?.kind===REPOSITORY_PURE_CONTRACT)
     inspectCurrentPureContractInputs(args.repositoryRoot,JSON.parse(revisionArtifact(path.dirname(args.file),evidence.focused.regression.after)));
+  if (evidence.focused.regression?.kind===REGISTERED_FIXTURE_BUDGET)
+    for (const ref of [evidence.focused.regression.after,evidence.focused.regression.registration])
+      inspectCurrentFixtureBudgetInputs(args.repositoryRoot,JSON.parse(revisionArtifact(path.dirname(args.file),ref)));
   return {...inspectGitRevisionPreparation(args),published_head_checked:true,delegation:observation,
     ...(p.commission.inherited_serial ? {inherited_serial:p.commission.inherited_serial} : {})};
 }
@@ -1302,7 +1319,7 @@ function readRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
         typeof c.command !== "string" || !c.command.length || c.command.length > 2000 || c.result?.exit_code !== 0 || c.result.timed_out !== false ||
         c.result.cancelled !== false || c.result.cleanup_completed !== true || c.result.remaining_owned_processes !== 0 ||
         c.result.exit_observed !== true || c.result.streams_closed !== true || c.result.termination_reason !== "natural_exit")) throw fail("revision_focused_remedy_invalid");
-  const materialSource = isMaterialSourceRevision(p) ? verifyGitSourceRepair(p,prior,focused,{git,parse,bytes,completedAt:completion.finished_at}) : null;
+  const materialSource = isMaterialSourceRevision(p) ? verifyGitSourceRepair(p,prior,focused,{git,parse,bytes,completedAt:completion.finished_at,original,completion,repositoryRoot}) : null;
   let testedFinalSource = false;
   for (const command of focused.commands) {
     const record = parse(command.record);

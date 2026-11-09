@@ -1234,6 +1234,65 @@ proof replay validates the saved observations against their original Git heads;
 it does not claim a current host observation. No incident eligibility, inherited
 serial obligation, authority role, issued limit or spent-grant rule changes.
 
+For a registered development fixture aggregate, the explicit
+`registered-fixture-aggregate-budget-v1` evidence kind represents a measured
+prospective allowance judgment. It is neither a demonstrated cure of an unknown
+historical delay nor qualification PASS. Ordinary natural RED/GREEN, compiler
+and pure-contract evidence retain their own strict discriminators and checks;
+missing legacy bindings never fall through into this kind.
+
+The original receipt, stock and completion must still satisfy the natural
+product-failure and complete-settlement reader. Its untruncated physical
+authority log must identify exactly one registered aggregate overrun, its
+bounded inner termination and natural outer failure, with complete owned
+cleanup. The exact original path, size and bytes are reread at preparation,
+admission and replay. A top-level infrastructure timeout, assertion failure,
+unrelated phase, missing registration or ambiguous interval is ineligible.
+The original classification, cause UNKNOWN and false stock remain unchanged.
+Intermediate exit, signal and settlement observations must agree with the final
+result; a passing summary cannot hide a failed or forced intermediate exit.
+
+The witness parses the existing finite reviewed-fixture registration grammar;
+it never executes historical source. Only the selected aggregate's inner and
+outer allowances may change. Other groups, commands, assertions, child limits,
+the lifecycle owner and product source remain intact. The source partition
+separately commits the exact budget delta and the closed set of evidence-owner
+and control changes for independent review. Version 1 admits newly dedicated
+allowances and freezes existing shared constants. The initial supported owner
+is the `serial-aggregate` reviewed-fixture group, with its substantive completion
+and complete measurement-stage grammar. Both limits remain finite within
+the existing 300-second child-owner bound. The parent leaves the existing
+8-second TERM and 5-second KILL grace plus an explicit remaining allowance.
+This accounting is not a universal wall-clock guarantee or an automatic rule
+that another unexplained timeout deserves another increase.
+
+Clean old-source PASS observations are retained with their actual limitations;
+no new RED is required or sought. The existing diagnostic measurement binds its
+collector, observer, raw output, timing-only patch and original Git preimages.
+Every stage from import start through final cleanup must be present in order;
+overlapping I/O costs are not added to the complete elapsed interval. A separate
+explicit development capture runs
+the final published direct control and actual registered parent. Each retains
+collector bytes, exact command/loader, all Git and physical tracked source,
+JSON/config inputs, prepared dependencies, runtime and complete effective
+environment before/after, raw final-tail output, lifecycle and owned cleanup.
+Both observations also bind the complete current production input inventory.
+The actual parent inventory is derived from source. A changed final source/input
+closure needs a new observation. Neither witness readers nor preparation run
+these commands, collect authority or reserve an invocation. Controlled checker
+fixtures may replay synthetic records; they are not historical incidents,
+product Browser evidence or substitutes for the final real captures.
+
+Material and observations precede successful read-only preparation. That exact
+published source, general evidence semantics, measured allowance, current input
+commitment and physical lineage then require independent acceptance. Both the
+authenticated review and separate prospective grant bind the explicit evidence
+kind and its limited claim. The kind remains committed through commission
+identity, original proof replay, receipt/stock and the sanitized export, whose
+structural status still supplies no independent attestation or deciding stock.
+Inherited serial accounting, exclusive successor and one-shot consumption are
+unchanged. No acceptance/grant is required to produce a non-reserving target.
+
 The production reader owns the four-paragraph material-source delegation. It must
 be unedited, genuinely new and later than the physical predecessor's completion.
 Real non-reserving preparation precedes separate independent acceptance of the

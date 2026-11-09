@@ -22,7 +22,7 @@ const sha = value => /^[a-f0-9]{64}$/u.test(value ?? "");
 const fail = () => { throw Object.assign(new Error("revision_pure_contract_witness_invalid"), { code: "revision_pure_contract_witness_invalid" }); };
 const gitAt = root => args => execFileSync("git", ["--no-replace-objects", ...args], { cwd: root, timeout: 10000, maxBuffer: 8 * 1024 * 1024 });
 
-function gitSource(git, head) {
+export function pureContractGitSource(git, head) {
   // Keep the shared tree reader and the material reader on the same original
   // objects. This bounded witness does not admit local replacement namespaces.
   if (process.env.GIT_REPLACE_REF_BASE || git(["for-each-ref", "--format=%(refname)", "refs/replace/"]).length) fail();
@@ -48,7 +48,7 @@ export function observePureContractSource(root) {
   if (realpathSync(root) !== root) fail();
   const git = gitAt(root), head = git(["rev-parse", "HEAD"]).toString().trim();
   if (git(["status", "--porcelain=v1"]).length) fail();
-  const { entries, files, summary } = gitSource(git, head);
+  const { entries, files, summary } = pureContractGitSource(git, head);
   for (const [relative, entry] of entries) {
     const file = path.join(root, relative), stat = lstatSync(file);
     if (stat.isSymbolicLink() || realpathSync(file) !== file ||
@@ -134,7 +134,7 @@ export function verifyRepositoryPureContract(p, prior, focused, { git, parse, by
       !equal(before.dependencies_before, after.dependencies_before)) fail();
   const expectedResponsibilities = Object.fromEntries(assertions(oldSource).map(value => [value, 1]));
   for (const [w, head, exit] of [[before, prior.head, 1], [after, p.head, 0]]) {
-    const expected = gitSource(git, head).summary, r = w.result;
+    const expected = pureContractGitSource(git, head).summary, r = w.result;
     const { root_generated, ...snapshot } = w.source_before ?? {};
     const dependency = preparedDependencyIdentity(w.dependencies_before);
     if (w.contract !== "augnes.repository-pure-contract-witness.v1" || w.command !== PURE_CONTRACT_COMMAND ||
