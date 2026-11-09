@@ -775,6 +775,23 @@ deterministic adapters establish bounded mechanics; they do not establish live
 provider behavior, measured productivity, installed adoption or parallel deciding
 verification. The PR records the final exact source and planner-selected result.
 
+### Native project navigation evidence (#1608)
+
+The prior production shell sent A's ordinary Continuities navigation to canonical
+home after B became the workspace default. The corrected real Next/Chrome journey
+keeps A's viewed-project entry and authenticated requests, saves eligible A work,
+then reads the same definition and selected sources on fresh entry while B's
+definition, packet and default selection remain independent. Separate saved
+work/result fixtures exercise their actual detail links and exact return targets;
+that read-only journey preserves database bytes. Workspace-home/settings exits
+remain explicit, and existing inactive/archived and Stay/Leave checks retain their
+own assertions. Reuse the existing server-negative and draft evidence rather
+than treating a scoped href as authority or a navigation stub as Browser evidence.
+
+These are disposable functional observations, not installed adoption, independent
+review or measured usefulness. Preserve development failures and the final
+candidate's planner/qualification disposition with their original source binding.
+
 ### Native preparation response and departure evidence (#1599)
 
 The source hypothesis was reproduced against the prior production composer with

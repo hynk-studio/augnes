@@ -67,7 +67,7 @@ assert.match(
 );
 assert.match(
   productShell,
-  /<a className="product-brand" href="\/" aria-label="Augnes home">[\s\S]*<strong>Augnes<\/strong>/u,
+  /<a className="product-brand" href="\/" aria-label="Augnes workspace home">[\s\S]*<strong>Augnes<\/strong>/u,
 );
 assert.doesNotMatch(productShell, /product-brand-mark|<svg/u);
 assert.match(
@@ -149,8 +149,9 @@ assert.match(
 );
 assert.match(
   semanticReviewSurface,
-  /label: "Current project"[\s\S]*managementHref: "\/#project-settings"/u,
+  /href="\/#project-settings" data-workspace-project-management="true">Manage workspace default/u,
 );
+assert.doesNotMatch(semanticReviewSurface, /managementHref:/u);
 assert.match(projectSettingsLink, /Manage current project/u);
 assert.match(
   projectSettingsLink,

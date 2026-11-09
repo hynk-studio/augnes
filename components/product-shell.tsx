@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { ProjectSettingsLink } from "@/components/project-settings-link";
+import { projectClientHref } from "@/lib/vnext/project-client-href";
 
 export type PrimaryProductZone = "blank-state" | "ai-workplane";
 
@@ -39,6 +40,7 @@ export function ProductShell({
   primaryZone,
   utilityContext = null,
   projectContext,
+  projectId,
   secondaryNavigation = null,
   railSupport = null,
   children,
@@ -46,6 +48,7 @@ export function ProductShell({
   primaryZone: PrimaryProductZone | null;
   utilityContext?: ProductUtilityContext | null;
   projectContext?: ProductProjectContext | null;
+  projectId?: string | null;
   secondaryNavigation?: ReactNode;
   railSupport?: ReactNode;
   children: ReactNode;
@@ -55,16 +58,17 @@ export function ProductShell({
       className="product-shell"
       data-primary-product-zone={primaryZone ?? "none"}
       data-product-utility-context={utilityContext ?? "none"}
+      data-project-navigation-id={projectId ?? undefined}
     >
       <a className="product-skip-link" href="#augnes-main-content">
         Skip to content
       </a>
       <header className="product-shell-header">
         <div className="product-shell-bar">
-          <a className="product-brand" href="/" aria-label="Augnes home">
+          <a className="product-brand" href="/" aria-label="Augnes workspace home">
             <span>
               <strong>Augnes</strong>
-              <small>Local project continuity</small>
+              <small>Workspace home</small>
             </span>
           </a>
           {projectContext ? (
@@ -99,7 +103,7 @@ export function ProductShell({
           <nav className="product-navigation" aria-label="Primary navigation">
             {PRIMARY_NAVIGATION.map((item) => (
               <a
-                href={item.href}
+                href={projectClientHref(item.href, projectId)}
                 key={item.zone}
                 aria-current={item.zone === primaryZone ? "page" : undefined}
               >

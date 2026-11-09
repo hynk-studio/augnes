@@ -2,8 +2,9 @@
 
 import { selectBrowserPath } from "./local-canonical-browser-input.mjs";
 import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
+import { projectClientHref } from "../lib/vnext/project-client-href.ts";
 import assert from "node:assert/strict";
-import { checkInitialPreparationResponse, checkPreparationStay, checkPreparationDepartureControls } from "./native-work-preparation-browser-checks.mjs";
+import { checkInitialPreparationResponse, checkPreparationStay, checkPreparationDepartureControls, nativePreparationBrowser, preparationDialogs } from "./native-work-preparation-browser-checks.mjs";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
@@ -29,8 +30,8 @@ import {
 } from "../lib/vnext/runtime/local-operator-session.ts";
 import { issueVNextLocalReviewAccessV01 } from "./issue-vnext-local-review-access.ts";
 import { buildHostedResearchProjectionV02 } from "../lib/vnext/adapters/hosted-research-projection.ts";
-import { readCanonicalProjectIdentityV01 } from "../lib/vnext/persistence/project-identity-registry.ts";
-import { readActiveProjectSelectionV01 } from "../lib/vnext/persistence/project-lifecycle-registry.ts";
+import { readCanonicalProjectIdentityV01, getOrCreateCanonicalProjectForLocalRootV01, normalizeLocalProjectRootRefV01 } from "../lib/vnext/persistence/project-identity-registry.ts";
+import { readActiveProjectSelectionV01, touchRecentProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry.ts";
 import { readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization.ts";
 import { appendDirectionRecord, effectiveDirection, validateProjectDirectionHistory } from "../lib/vnext/persistence/project-direction-store.ts";
 import { inspectVNextOperatorPilotPacketLineageV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity.ts";
@@ -1622,10 +1623,11 @@ async function main() {
       projectContextRequired: true,
     });
     await validateProductShellResponsive("/workbench/semantic-review");
-    await clickSelector('a[data-project-context-label="Current project"]');
+    assert.equal(await evaluateString('document.querySelector("[data-workspace-project-management]").textContent.trim()'), "Manage workspace default");
+    await clickSelector('[data-workspace-project-management]');
     await waitForCondition(
       `location.pathname === '/' && location.hash === '#project-settings' && (() => { const settings = document.querySelector('details[data-blank-state-project-settings-recovery="true"]'); return settings?.open === true && settings.querySelector(':scope > summary') === document.activeElement; })()`,
-      "AI Workplane project settings return",
+      "AI Workplane explicit workspace settings return",
     );
     result.ai_workplane_project_context_opens_settings = true;
     completeDetailedField("ai_workplane_project_context_opens_settings");
@@ -2035,6 +2037,7 @@ async function main() {
       assert.deepEqual(packets().filter(row => finalPackets.some(prior => prior.record_id === row.record_id)), finalPackets);
       assert.deepEqual(effects(), effectsBefore);
       await checkPreparationDepartureControls(preparationBrowser);
+      await checkIndependentProjectNavigation(accessDatabasePath, manifest, projectAlphaId);
       assert.deepEqual(packets().filter(row => finalPackets.some(prior => prior.record_id === row.record_id)), finalPackets);
       assert.deepEqual(effects(), effectsBefore);
     } finally { noteDatabase.close(); }
@@ -2918,6 +2921,7 @@ async function main() {
       projectContextRequired: false,
     });
     await validateProductShellResponsive("/workbench/inspector");
+    await checkProjectDetailNavigation(fixture, projectBetaId);
 
     await navigate(`${appOrigin}/projects`);
     await waitForCondition(
@@ -3683,6 +3687,198 @@ async function validateProjectArchiveV01({fixture,manifest,projectAlphaId,projec
   await waitForCondition(`document.querySelector('dialog[open]') === null && document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`,"reconciled management refresh");
   await archived();await restoreAndOpen();
   console.log(JSON.stringify({native_project_archive_browser:'pass',actual_controls:true,selected_archive:true,working_exclusion:true,archived_discovery:true,fresh_process:true,deliberate_same_work_return:true,retained_identity_root_history_files:true,inactive_A_preserves_B:true,lost_acknowledgement_fresh_read:true,viewports:[390,768,1280],provider_calls:0}));
+}
+
+async function checkProjectDetailNavigation(fixture, projectB) {
+  const manifest = fixture.manifest, projectA = manifest.project_id;
+  const ui = nativePreparationBrowser({ cdp, evaluate: evaluateJson, waitForCondition });
+  const requests = [];
+  let observing = true;
+  cdp.on(event => {
+    if (!observing || event.method !== "Network.requestWillBeSent") return;
+    const request = event.params.request, url = new URL(request.url);
+    if (!url.pathname.startsWith("/api/vnext/operator/")) return;
+    requests.push({ path: url.pathname, method: request.method,
+      project: Object.entries(request.headers ?? {}).find(([key]) => key.toLowerCase() === "augnes-project-id")?.[1] ?? null });
+  });
+  const database = new Database(fixture.writable_database_path, { readonly: true, fileMustExist: true });
+  try {
+    assert.equal((await openProjectInBrowser(projectB)).status, 200);
+    const before = database.serialize();
+    await ui.click('nav[aria-label="Primary navigation"] a:first-child');
+    await waitForCondition(`location.pathname === ${JSON.stringify(`/projects/${encodeURIComponent(projectA)}`)} && document.querySelector('[data-project-context-label]')?.getBoundingClientRect().width > 0`, "detail return to the viewed project");
+    assert.equal(await evaluateString("document.querySelector('[data-project-context-label]').getAttribute('data-project-context-label')"), "Viewed project");
+    await ui.click('nav[aria-label="Primary navigation"] a:last-child');
+    await waitForCondition("!!document.querySelector('[data-vnext-semantic-review-state=authenticated_loaded]')", "same-project Workplane from details");
+    assert.equal(await evaluateString("new URL(location.href).searchParams.get('project_id')"), projectA);
+    await ui.click('a[href^="/workbench/semantic-review/"]');
+    await waitForCondition("!!document.querySelector('[data-vnext-semantic-review-detail]')", "work review reached through its real link");
+    const workUrl = await evaluateString("location.href");
+    assert.equal(new URL(workUrl).searchParams.get("project_id"), projectA);
+    await ui.click('[data-ai-workplane-exact-details]');
+    await waitForCondition("!!document.querySelector('[data-shared-project-inspector=\"v0.1\"]')", "work exact details");
+    assert.equal(await evaluateString("new URL(location.href).searchParams.get('project_id')"), projectA);
+    await ui.click('[data-contextual-inspector-return]');
+    await waitForCondition("!!document.querySelector('[data-vnext-semantic-review-detail]')", "same-work return from exact details");
+    assert.equal(await evaluateString("location.href"), workUrl);
+    // A saved result's ordinary explicit entry is independent of the current
+    // paused work shown by this fixture. Its own details and return stay bound.
+    await navigate(new URL(manifest.rendered_state_inputs.result_ready.review_href, appOrigin).href);
+    await waitForCondition("!!document.querySelector('[data-run-result-review=\"v0.1\"]')", "project-specific saved result");
+    const resultUrl = await evaluateString("location.href");
+    const result = await browserFetchJson(`/api/vnext/operator/run-results?receipt_ref=${encodeURIComponent(manifest.rendered_state_inputs.result_ready.receipt_id)}`);
+    assert.equal(result.status, 200);
+    assert.equal(result.body.result.project_id, projectA);
+    assert.equal(result.body.result.identity.receipt_ref, manifest.rendered_state_inputs.result_ready.receipt_id);
+    await ui.click('[data-ai-workplane-exact-details]');
+    await waitForCondition("!!document.querySelector('[data-shared-project-inspector=\"v0.1\"]')", "saved result exact details");
+    const query = new URL(await evaluateString("location.href")).searchParams;
+    assert.equal(query.get("project_id"), projectA);
+    query.delete("project_id");
+    const detail = await browserFetchJson(`/api/vnext/operator/inspector?${query}`);
+    assert.equal(detail.status, 200);
+    assert.equal(detail.body.inspector.project_id, projectA);
+    await ui.click('[data-contextual-inspector-return]');
+    await waitForCondition("!!document.querySelector('[data-run-result-review=\"v0.1\"]')", "exact result return");
+    assert.equal(await evaluateString("location.href"), resultUrl);
+    await ui.click('nav[aria-label="Primary navigation"] a:first-child');
+    await waitForCondition(`location.pathname === ${JSON.stringify(`/projects/${encodeURIComponent(projectA)}`)} && document.querySelector('[data-project-context-label]')?.getBoundingClientRect().width > 0`, "result return to same-project Continuities");
+    assert.equal((await readRecentProjectsInBrowser()).recent_projects.find(entry => entry.is_active)?.project.project_id, projectB);
+    assert(before.equals(database.serialize()), "Reading A work/result/detail and returning changes no project or selection");
+    assert(requests.length > 0 && requests.every(request => request.project === projectA && request.method === "GET"), JSON.stringify(requests));
+    console.log(JSON.stringify({ native_project_detail_navigation: { passed: true, project_a: projectA, default_project: projectB,
+      exact_work_return: workUrl, exact_result_return: resultUrl, result_ref: result.body.result.identity.receipt_ref,
+      inspector_target: detail.body.inspector.target, authenticated_requests: requests, database_unchanged: true } }));
+  } finally { observing = false; database.close(); }
+  assert.equal((await openProjectInBrowser(projectA)).status, 200);
+}
+
+function registerNavigationProject(databasePath, manifest, root, name) {
+  const database = new Database(databasePath);
+  try {
+    const registration = getOrCreateCanonicalProjectForLocalRootV01(database, {
+      workspace_id: manifest.workspace_id,
+      local_root: normalizeLocalProjectRootRefV01(root, { base_path: tempRoot }),
+      display_name: name,
+    });
+    touchRecentProjectV01(database, {
+      workspace_id: manifest.workspace_id, project_id: registration.project.project_id,
+      now: new Date().toISOString(),
+    });
+    return registration.project.project_id;
+  } finally { database.close(); }
+}
+
+async function checkIndependentProjectNavigation(databasePath, manifest, projectA) {
+  // Reuse this owner's disposable database, roots, Chrome profile and real Next
+  // server. Only fixture registration is direct; navigation and saves use UI.
+  const projectB = registerNavigationProject(databasePath, manifest, onboardingFolderB, "Navigation Beta");
+  const primary = cdp;
+  const target = await (await fetch(`http://127.0.0.1:${debugPort}/json/new?about:blank`, { method: "PUT" })).json();
+  const second = new CdpClient(target.webSocketDebuggerUrl);
+  const targets = [];
+  let observing = true;
+  primary.on(event => {
+    if (!observing || event.method !== "Network.requestWillBeSent") return;
+    const request = event.params.request, url = new URL(request.url);
+    if (!url.pathname.startsWith("/api/vnext/operator/")) return;
+    const project = Object.entries(request.headers ?? {}).find(([key]) => key.toLowerCase() === "augnes-project-id")?.[1] ?? null;
+    targets.push({ path: url.pathname, method: request.method, project });
+  });
+  const read = async project => {
+    const response = await browserFetchJson("/api/vnext/operator/project-continuity", { headers: { "Augnes-Project-Id": project } });
+    assert.equal(response.status, 200, response.body.error_code);
+    assert.equal(response.body.work_initialization.project_id, project);
+    return response.body.work_initialization;
+  };
+  const active = async () => (await readRecentProjectsInBrowser()).recent_projects.find(entry => entry.is_active)?.project.project_id;
+  const ready = () => waitForCondition("!!document.querySelector('[data-current-work-definition]') && !document.querySelector('#work-revision-goal')", "project navigation saved work");
+  const workHref = project => `${appOrigin}/workbench/semantic-review?project_id=${encodeURIComponent(project)}`;
+  try {
+    await second.open();
+    cdp = second;
+    await cdp.send("Page.bringToFront");
+    await Promise.all([cdp.send("Page.enable"), cdp.send("Runtime.enable"), cdp.send("Network.enable")]);
+    await navigate(`${appOrigin}/`);
+    await waitForCondition("!!document.querySelector('[data-blank-state-project-management-hydrated=true]')", "second tab root ready");
+    assert.equal((await openProjectInBrowser(projectB)).status, 200);
+    await navigate(workHref(projectB));
+    await authenticateCurrentPage(databasePath, manifest, projectB);
+    const betaBrowser = { cdp, evaluate: evaluateJson, waitForCondition, projectId: projectB };
+    await checkInitialPreparationResponse(betaBrowser, {
+      goal: "Beta remains independent during Alpha navigation", success_criteria: ["Only Beta owns this definition"], non_goals: ["No execution"],
+    });
+    const beta = await read(projectB);
+    cdp = primary;
+    await cdp.send("Page.bringToFront");
+    await navigate(workHref(projectA));
+    await ready();
+    const alpha = await read(projectA);
+    const ui = nativePreparationBrowser({ cdp, evaluate: evaluateJson, waitForCondition });
+    const dialogs = preparationDialogs(cdp);
+    try {
+      const readStart = targets.length;
+      await ui.click('nav[aria-label="Primary navigation"] a:first-child');
+      await waitForCondition("!!document.querySelector('[data-blank-state]') && document.querySelector('[data-project-context-label]')?.getBoundingClientRect().width > 0", "Continuities after ordinary navigation");
+      const observed = await evaluateJson(`({ path: location.pathname, context: document.querySelector('[data-project-context-label]')?.textContent.trim(), label: document.querySelector('[data-project-context-label]')?.getAttribute('data-project-context-label') })`);
+      console.log(JSON.stringify({ native_project_navigation_observation: { project_a: projectA, project_b: projectB, default_project: await active(), ...observed } }));
+      assert.equal(decodeURIComponent(observed.path), `/projects/${projectA}`, "Ordinary Continuities navigation must retain A while B is default");
+      assert.equal(observed.label, "Viewed project");
+      assert.equal(await evaluateBoolean("!!document.querySelector('a[aria-label^=\"Manage current project\"], #project-settings')"), false, "Inactive viewed A grants no settings mutation");
+      assert.equal(await active(), projectB);
+      await ui.click('nav[aria-label="Primary navigation"] a:last-child');
+      await ready();
+      assert.equal(await evaluateString("new URL(location.href).searchParams.get('project_id')"), projectA);
+      assert.deepEqual((await read(projectA)).current_work, alpha.current_work);
+      assert.equal(dialogs.events.length, 0, "Clean project navigation needs no warning");
+      await ui.click('[data-work-revision-action=open]');
+      const goal = `${alpha.current_work.goal} — saved in Alpha while Beta is default`;
+      await ui.input('#work-revision-goal', goal);
+      await checkPreparationStay({ cdp, evaluate: evaluateJson, waitForCondition });
+      await ui.click('[data-work-revision-action=save]');
+      await ready();
+      const committed = await read(projectA);
+      assert.equal(committed.current_work.goal, goal);
+      assert.deepEqual(committed.selected_source_context, alpha.selected_source_context);
+      await ui.click('nav[aria-label="Primary navigation"] a:first-child');
+      await waitForCondition("!!document.querySelector('[data-blank-state]')", "fresh project Continuities");
+      await cdp.send("Page.reload");
+      await waitForCondition("!!document.querySelector('[data-blank-state-project-management-hydrated=true]')", "fresh project-specific entry");
+      await ui.click('nav[aria-label="Primary navigation"] a:last-child');
+      await ready();
+      const fresh = await read(projectA);
+      assert.deepEqual(fresh.current_work, committed.current_work);
+      assert.deepEqual(fresh.selected_source_context, committed.selected_source_context);
+      assert.equal(await active(), projectB);
+      const ownRequests = targets.slice(readStart);
+      assert(ownRequests.some(entry => entry.method === "POST" && entry.path === "/api/vnext/operator/project-continuity"));
+      assert(ownRequests.every(entry => entry.project === projectA), JSON.stringify(ownRequests));
+      const betaAfter = await read(projectB);
+      assert.deepEqual(betaAfter.current_work, beta.current_work);
+      assert.deepEqual(betaAfter.current_packet, beta.current_packet);
+      await ui.click('[data-workspace-project-management]');
+      await waitForCondition("location.pathname === '/' && !!document.querySelector('input[name=current-project-display-name]')", "explicit default-project management exit");
+      assert.equal(await evaluateString("document.querySelector('input[name=current-project-display-name]').value"), "Navigation Beta");
+      await navigate(workHref(projectA)); await ready();
+      await ui.click('a.product-brand');
+      await waitForCondition("location.pathname === '/' && !!document.querySelector('[data-blank-state-project-management-hydrated=true]')", "deliberate workspace home");
+      assert.equal(await active(), projectB);
+      assert.equal(await evaluateBoolean("document.querySelector('[data-project-context-label]')?.textContent.includes('Navigation Beta')"), true);
+      console.log(JSON.stringify({ native_project_navigation: { passed: true, actual_next_navigation: true, same_profile_tabs: 2,
+        project_a: projectA, project_b: projectB, default_remained_b: true, fresh_definition: fresh.current_work,
+        fresh_selected_sources: fresh.selected_source_context?.length ?? 0, b_packet_unchanged: true,
+        authenticated_a_requests: ownRequests, clean_dialogs: dialogs.events.length,
+        workspace_settings_target: projectB, inactive_view_read_only: true } }));
+    } finally { dialogs.stop(); }
+  } finally {
+    observing = false;
+    cdp = primary;
+    await second.close();
+    await fetch(`http://127.0.0.1:${debugPort}/json/close/${target.id}`);
+  }
+  // Restore this owner's earlier scenario through the deliberate switch API.
+  assert.equal((await openProjectInBrowser(projectA)).status, 200);
+  await navigate(workHref(projectA)); await ready();
 }
 
 async function authenticateCurrentPage(databasePath, manifest, projectId) {
@@ -5504,6 +5700,7 @@ async function validateProductShell({ route, primaryZone, projectContextRequired
       primary_zone: root?.getAttribute('data-primary-product-zone'),
       utility_context: root?.getAttribute('data-product-utility-context'),
       brand_href: root?.querySelector('.product-brand')?.getAttribute('href') ?? null,
+      project_id: root?.getAttribute('data-project-navigation-id') ?? null,
       primary_label: primary?.getAttribute('aria-label') ?? null,
       primary_links: primaryLinks.map((link) => ({
         label: link.querySelector('strong')?.textContent?.trim() ?? '',
@@ -5523,12 +5720,12 @@ async function validateProductShell({ route, primaryZone, projectContextRequired
   assert.deepEqual(shell.primary_links, [
     {
       label: "Continuities",
-      href: "/",
+      href: projectClientHref("/", shell.project_id),
       current: primaryZone === "blank-state" ? "page" : null,
     },
     {
       label: "AI Workplane",
-      href: "/workbench/semantic-review",
+      href: projectClientHref("/workbench/semantic-review", shell.project_id),
       current: primaryZone === "ai-workplane" ? "page" : null,
     },
   ]);

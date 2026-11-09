@@ -1,5 +1,6 @@
 import { BlankStateClient } from "@/components/blank-state/blank-state-client";
 import { ProductShell } from "@/components/product-shell";
+import { ProjectClientScopeProvider } from "@/components/workbench/semantic-review/project-client-scope";
 import {
   ContinuityPinsProvider,
 } from "@/components/continuity-pins/continuity-pins-provider";
@@ -36,35 +37,38 @@ export function BlankStateSurface({
         : "viewed_inactive_project",
   });
   return (
-    <ContinuityPinsProvider initialCollection={source.continuity_pins ?? null}>
-      <ProductShell
-        primaryZone="blank-state"
-        projectContext={view.project_name && view.project_context_label
-          ? {
-            label: view.project_context_label,
-            name: view.project_name,
-            managementHref: presentationMode === "active_continuities"
-              ? "#project-settings"
-              : undefined,
-          }
-          : null}
-        secondaryNavigation={<PinnedContinuitiesNavigation />}
-        railSupport={(
-          <div
-            className="product-shell-rail-support"
-            id="continuities-guide-rail-support"
+    <ProjectClientScopeProvider projectId={guide.identity.project_id}>
+      <ContinuityPinsProvider initialCollection={source.continuity_pins ?? null}>
+        <ProductShell
+          primaryZone="blank-state"
+          projectId={guide.identity.project_id}
+          projectContext={view.project_name && view.project_context_label
+            ? {
+              label: view.project_context_label,
+              name: view.project_name,
+              managementHref: presentationMode === "active_continuities"
+                ? "#project-settings"
+                : undefined,
+            }
+            : null}
+          secondaryNavigation={<PinnedContinuitiesNavigation />}
+          railSupport={(
+            <div
+              className="product-shell-rail-support"
+              id="continuities-guide-rail-support"
+            />
+          )}
+        >
+          {source.projection ? <p><a data-project-bound-work-link href={`/workbench/semantic-review?project_id=${encodeURIComponent(source.projection.project_summary.project.project_id)}`}>Open protected work for this project</a></p> : null}
+          <BlankStateClient
+            source={source}
+            view={view}
+            guide={guide}
+            temporalContext={temporalContext}
+            managementSafety={managementSafety}
           />
-        )}
-      >
-        {source.projection ? <p><a data-project-bound-work-link href={`/workbench/semantic-review?project_id=${encodeURIComponent(source.projection.project_summary.project.project_id)}`}>Open protected work for this project</a></p> : null}
-        <BlankStateClient
-          source={source}
-          view={view}
-          guide={guide}
-          temporalContext={temporalContext}
-          managementSafety={managementSafety}
-        />
-      </ProductShell>
-    </ContinuityPinsProvider>
+        </ProductShell>
+      </ContinuityPinsProvider>
+    </ProjectClientScopeProvider>
   );
 }

@@ -22,7 +22,7 @@ export default async function SharedProjectInspectorPage({ searchParams }: { sea
   const projectId = resolveProjectClientEntryProjectV01(project_id);
   if (project_id === undefined && projectId) redirect(projectClientEntryHref("/workbench/inspector", query, projectId));
   return (
-    <Suspense fallback={<ProductShell primaryZone="ai-workplane"><main className="product-route-state" aria-live="polite">Checking exact details…</main></ProductShell>}>
+    <Suspense fallback={<ProductShell primaryZone="ai-workplane" projectId={projectId}><main className="product-route-state" aria-live="polite">Checking exact details…</main></ProductShell>}>
       <SharedProjectInspectorLoader projectId={projectId} />
     </Suspense>
   );

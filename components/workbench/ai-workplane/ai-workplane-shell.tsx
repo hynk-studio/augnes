@@ -111,7 +111,7 @@ export function AIWorkplaneShell({
           <p className={styles.headerCopy}>{description}</p>
         </div>
         <nav className={styles.nav} aria-label="AI Workplane destinations">
-          <a href={projectHref}>Continuities</a>
+          <a href={scopedHref(projectHref)}>Continuities</a>
           <a href={scopedHref("/workbench/semantic-review")} aria-current="page">
             AI Workplane home
           </a>

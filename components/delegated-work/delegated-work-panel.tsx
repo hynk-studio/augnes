@@ -1,6 +1,7 @@
 "use client";
 
 import type { DelegatedWorkProjectionV01 } from "@/types/vnext/delegated-work";
+import { projectClientHref } from "@/lib/vnext/project-client-href";
 import type { DelegatedWorkActionV01 } from "./use-delegated-codex-work-v0-1";
 import { SEMANTIC_VISUAL_PRIORITY } from "@/lib/vnext/semantic-visual/semantic-visual-contract";
 
@@ -364,7 +365,7 @@ function PrimaryDelegatedAction({
     return (
       <a
         className={styles.button}
-        href="/"
+        href={projectClientHref("/", projection.project_id)}
         data-ai-workplane-primary-action="return-to-blank-state"
         data-augnes-primary-action="return-to-blank-state"
         data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}

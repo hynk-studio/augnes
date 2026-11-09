@@ -47,7 +47,7 @@ export function ProjectGuideBriefRail({
   return (
     <aside
       className={styles.rail}
-      aria-label="Current project guidance"
+      aria-label="Project guidance"
       data-ai-workplane-guide="guide_brief.v0.2"
       data-ai-workplane-guide-status={visibleGuide.status}
       data-ai-workplane-guide-loading={loading ? "true" : "false"}
@@ -61,7 +61,7 @@ export function ProjectGuideBriefRail({
       </div>
       <div className={styles.context}>
         <p>
-          <span>Current project</span>
+          <span>Project</span>
           <strong data-guide-brief-project-name="true">
             {visibleGuide.project_name ?? "No current project"}
           </strong>
