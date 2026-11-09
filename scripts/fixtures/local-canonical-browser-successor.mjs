@@ -1,3 +1,5 @@
+import { isSerialAggregateRevision } from "../local-canonical-serial-aggregate.mjs";
+import { PROJECT_EXPERIENCE_SERIAL, PROJECT_EXPERIENCE_COMMITMENT } from "../project-experience-serial-budget.mjs";
 // Synthetic stock context. Only the failing/corrected behavioral child is executed.
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -142,6 +144,9 @@ export async function executeFixture(c, h, proof, cap, browserRecord, dependenci
         streams_closed: child.result.streams_closed, termination_reason: child.result.termination_reason,
         remaining_owned_processes: child.result.remaining_owned_processes, listener_residue_count: 0
       },
+      ...(isSerialAggregateRevision(proof) && id === "e2e-project-experience" && status === "pass" ? {serial_budget:{
+        contract:PROJECT_EXPERIENCE_SERIAL.contract,commitment:PROJECT_EXPERIENCE_COMMITMENT,complete:true,completed_children:3,failure_code:null,
+        execution_ms:[0,0,0],natural_settlement_ms:[0,0,0],coordinator_ms:0,envelope_elapsed_ms:0,parent_post_exit_settlement_ms:0}} : {}),
       browser_use: i > failure ? [] : Object.entries(browserConsumersForPhase(id)).flatMap(([consumer, count]) =>
         Array.from({ length: count }, () => ({ ...browserRecord, consumer })))
     };

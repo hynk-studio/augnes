@@ -23,6 +23,7 @@ import {createCanonicalTestResourceDirectory,beginCanonicalTestResourceUse,settl
 const temporaryOwner=createCanonicalTestResourceDirectory(${JSON.stringify(path.join(resource.root,"handoff"))});
 const handoffInUse=true;beginCanonicalTestResourceUse(temporaryOwner);
 const result=await runCanonicalChild({suite:'output-control',label:'failing child',command:process.execPath,args:['--eval',${JSON.stringify(inner)}],cwd:${JSON.stringify(root)},env:process.env,timeoutMs:2000,heartbeatMs:0});
+const serialBudget=null;
 const suiteName='output-control',repoRoot=${JSON.stringify(root)},serviceMaintenance=null,serviceMaintenanceRelease=null,ownedResourceRoots=[],lastHandoffChild=result;let summary;const suiteFailure=new Error('child failed with '+result.exit_code);try {}finally {
 ${source.slice(offset)}`);
   let out = "", err = "", limit = false, timedOut = false, closed, cleanup;

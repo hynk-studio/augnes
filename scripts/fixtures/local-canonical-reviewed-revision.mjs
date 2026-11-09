@@ -1,3 +1,4 @@
+import { runSerialAggregateControls } from "./local-canonical-serial-aggregate.mjs";
 // Synthetic fixture only: production proof, authority, edge and fresh reader.
 import { fixtureNow, withAdjacentAuthorityClock } from "./local-canonical-authority-clock.mjs";
 import { createTrackedReviewChildRunner } from "./local-canonical-review-child-result.mjs";
@@ -383,6 +384,13 @@ if(process.argv[2]==="--cold"){
       cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});
     assert(cleanupCanonicalTestResources([owner])[0].completed);
   }
+}else if(process.argv[2]==="--run-serial-aggregate-fixtures"){
+  const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
+  const lifecycle={pendingChildren:0}, run=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);
+  const c=setup(owner.root);
+  try { await runSerialAggregateControls(c,{prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,run,
+    fresh:packet=>freshReader(c,packet,run),behavior:(subject)=>behavior(subject,false,run)}); }
+  finally {releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});assert(cleanupCanonicalTestResources([owner])[0].completed);}
 }else if(process.argv[2]==="--run-browser-fixtures"){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
   const c=setup(owner.root,true);

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { AUXILIARY_EXECUTION_BUDGETS, CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
+import { createProjectExperienceBudget, projectExperienceBudgetEvent, projectExperienceSteps, runProjectExperienceChildren } from "./project-experience-serial-budget.mjs";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -110,37 +111,7 @@ const operatorMultiCandidateStep = {
   timeoutMs: 360_000,
   requireNaturalExit: true,
 };
-const projectExperienceStep = {
-  id: "project-experience",
-  group: "project-experience",
-  requirements: [
-    "database", "migrations", "filesystem", "project-root", "process-owning",
-    "listener-port-owning", "browser-profile-owning", "cdp-session-owning",
-    "immutable-fixture-input",
-  ],
-  label: "independent project experience Browser owner",
-  ...rootNode("scripts/browser-validate-project-experience-v1.mjs"),
-  timeoutMs: 360_000,
-  requireNaturalExit: true,
-};
-const projectClientBrowserStep = {
-  id: "project-client-browser",
-  group: "project-experience",
-  requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "browser-profile-owning", "cdp-session-owning"],
-  label: "same-profile project clients, held saves and recoverable drafts in Browser",
-  ...rootNode("scripts/test-project-client-browser.ts"),
-  timeoutMs: 60_000,
-  requireNaturalExit: true,
-};
-const webPlanningBrowserStep = {
-  id: "web-planning-browser",
-  group: "project-experience",
-  requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "browser-profile-owning", "cdp-session-owning"],
-  label: "durable web planning real D1 Browser producer and consumer",
-  ...rootNode("scripts/browser-validate-web-planning.mjs"),
-  timeoutMs: 180_000,
-  requireNaturalExit: true,
-};
+const [projectExperienceStep, projectClientBrowserStep, webPlanningBrowserStep] = projectExperienceSteps(repoRoot);
 const continuityStep = {
   id: "continuity",
   group: "continuity",
@@ -164,10 +135,10 @@ const goldenStep = {
   requireNaturalExit: true,
 };
 
-const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation"].map(group => ({
+const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation", "serial-aggregate"].map(group => ({
   id: "local-canonical-reviewed-revision-" + group,
   label: "reviewed revision controls: " + group,
-  sharedFixture: !["revision", "settlement", "browser"].includes(group),
+  sharedFixture: !["revision", "settlement", "browser", "serial-aggregate"].includes(group),
   ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--reviewed-revision-controls", group),
   timeoutMs: 30_000,
   requireNaturalExit: true,
@@ -175,6 +146,9 @@ const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-
 
 const suites = {
   unit: [
+    { id:"project-experience-serial-budget", label:"project experience serial budget and cleanup controls",
+      requirements:["filesystem","process-owning"], ...rootNode("scripts/test-project-experience-serial-budget.mjs"),
+      timeoutMs:30000, requireNaturalExit:true },
     {
       id: "operating-profile-contribution-input",
       label: "complete bounded profile input, selected step and manual use refusals",
@@ -1872,6 +1846,24 @@ if (!(suiteName in suites)) {
   process.exit(2);
 }
 
+const serialController = suiteName === "e2e-project-experience" ? new AbortController() : null;
+const serialBudget = serialController ? createProjectExperienceBudget({
+  startedAt: 0, onFailure: () => serialController.abort(),
+}) : null;
+const emitSerial = message => {
+  serialBudget.event(message);
+  if (process.send) process.send(message);
+};
+if (serialBudget) {
+  emitSerial(projectExperienceBudgetEvent("ready", 0));
+  // A parent cancellation still lets this owner settle its private resources.
+  process.on("SIGTERM", () => { serialController.abort(); process.exitCode = 1; });
+  process.once("beforeExit", () => {
+    const accounting = serialBudget.stop();
+    if (accounting.failure_code) process.exitCode = 1;
+    console.log(JSON.stringify({ serial_budget: accounting }));
+  });
+}
 const temporaryOwner = createCanonicalTestResourceRoot("ag-suite-");
 const temporaryRoot = temporaryOwner.root;
 console.log(JSON.stringify({ suite_resource_owned: suiteName, ...temporaryOwner }));
@@ -1975,6 +1967,7 @@ try {
       repositoryRoot: repoRoot,
       operationId: `canonical-suite:${suiteName}:${process.pid}`,
       joinAncestorLease: true,
+      allowAcquire: !serialBudget,
     });
   }
 
@@ -2002,6 +1995,8 @@ try {
         { id: "supporting-serial", children: supporting },
       ],
     });
+  } else if (serialBudget) {
+    completedResults = await runProjectExperienceChildren({ steps: preparedSteps, root: repoRoot, signal: serialController.signal, emit: emitSerial });
   } else {
     completedResults = [];
     for (const step of preparedSteps) {
@@ -2093,6 +2088,7 @@ try {
   suiteFailure = error;
 } finally {
   const failures = suiteFailure ? [suiteFailure] : [];
+  if (serialBudget?.error) failures.push(serialBudget.error);
   if (serviceMaintenance && !serviceMaintenanceRelease) {
     try {
       serviceMaintenanceRelease = await releaseCompanionServiceMaintenance({
@@ -2118,3 +2114,5 @@ try {
   }
 }
 if (summary && !process.exitCode) console.log(JSON.stringify(summary, null, 2));
+
+if (serialBudget && !process.exitCode) emitSerial(projectExperienceBudgetEvent("complete", 3));

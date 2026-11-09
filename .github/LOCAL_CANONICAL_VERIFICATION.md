@@ -1019,6 +1019,98 @@ retired with the earlier workload route. The [original proposal](../docs/verific
 retains its failure and authority history. Use the pinned historical reader;
 neither route can supply a current successor or new execution authority.
 
+#### Prospective serial aggregate budget correction from v2
+
+`commission.route = serial-aggregate-budget-v1` is a narrow v7
+`reviewed_revision` variant. It explicitly follows a latest settled ordinary v2
+`source_revision` with no consumed reviewed-v7 commission. It does not broaden
+the ordinary timeout disposition list. No issue, branch, receipt, or maintainer
+identity is built into the discriminator. A different candidate-family hash
+preserves the existing logical root and the exclusive immediate predecessor
+edge; it does not reset the task or manufacture spent v7 ordinals.
+
+The sole eligible incident is the existing serial project-experience parent
+deadline interrupting the third child while it still had individual execution
+allowance. The first two children must have naturally passed and settled; any
+observed third-child exit, assertion failure, timeout, or settlement refuses.
+The third outcome remains UNKNOWN. The reader checks original receipt integrity,
+physical attempt/completion and original log bytes, recorded source and phase
+inventory, every executed environment binding, every present Browser record,
+and genuine following NOT_RUN placeholders. Only those proven missing records
+may explain false stock. Other input, Browser, stock, cleanup, or preservation
+invalidity refuses. Original results, false stock and earlier lineage stay
+unchanged. Full local incident evaluation needs the original files and physical
+anchor; exported digests do not prove causal history or the latest physical tip.
+
+The shared owner `scripts/project-experience-serial-budget.mjs` retains the
+three children in order with the same commands, requirements, assertions,
+natural-exit requirements, and individual limits: 360000, 60000 and 180000 ms.
+Its initial design cap is 660000 ms: 600000 child execution, 30000 conservative
+natural-child settlement (10000 per child), and 30000 coordinator time. These
+are disjoint intervals. Each child pays its `--import tsx` startup from its own
+execution limit and cannot borrow unused time from another child.
+
+The Full Browser parent invokes Node directly. Suite startup/imports,
+preparation, between-child work, finalization, resource settlement and output
+drain belong to coordinator time. Both the suite and the parent enforce that
+30000 ms allowance independently of the outer 660000 ms guard. Early child
+completion cannot subsidize excessive coordination. Parent post-exit settlement
+is separately reported; forced terminal cleanup is separately identified and
+always fails. Total observed phase duration can exceed the execution envelope.
+Budget failure still settles owned process/resource cleanup and preservation.
+
+This suite may observe a no-lease state or join an existing ancestor lease. It
+cannot acquire a new maintenance lease. The actual Companion owner rejects that
+acquisition before mutation, so the coordinator allowance never silently cuts
+an owned 90000 ms restoration obligation. Other suites retain their maintenance
+ownership, phase limits and concurrency. Commands/inventory disagreement or
+unapproved override refuses. Existing input machinery freezes the shared owner
+and binds the phase inventory and envelope commitment.
+
+A successor must materially connect the changed orchestration owner and retain
+all useful child code and limits. Focused evidence binds the actual reusable
+serial-owner control driver, source blobs, exact command, runtime inputs,
+natural exit, output and cleanup. It demonstrates controlled old aggregate
+interruption, corrected serial completion, and refusal of child failure,
+individual timeout, forced cleanup, incomplete cleanup, excessive coordinator
+time, inventory disagreement, and borrowed child/settlement allowances. An
+unrelated PASS, unused export or cosmetic source change is insufficient.
+Synthetic controls prove their mechanisms, not the old child's unknown result.
+
+`scripts/prepare-local-canonical-serial-aggregate.mjs <material.json>` performs
+read-only preparation from the admitted isolated Mac checkout. It checks the
+current published Draft PR head/base, exact clean source, original physical tip,
+runtime and full input inventory, and fresh Companion preservation. It obtains
+no capacity or maintenance lease, authorization capability or reservation.
+Its commitment binds discriminator, original predecessor, source, focused and
+incident material, inventory/envelope, and the single issued limit. Source and
+preparation must then receive independent exact-target review before a separate
+authenticated prospective grant. The review starts with
+`Source review decision: ACCEPT / RETAIN for prospective qualification.`
+The subsequent unedited grant starts with
+`Authorize one prospective serial-aggregate-budget-v1 invocation.`
+Both bind the exact preparation commitment, source, predecessor, inventory and
+envelope and state:
+`Original timeout, false stock, interrupted child UNKNOWN and all earlier lineage remain unchanged.`
+The grant links the accepted review and explicitly states:
+`Exactly one admitted deciding invocation total; no ordinal two, recovery or unchanged-target retry.`
+`Reservation/interruption consumes the single grant.`
+`Separate fresh-process stock and independent decision remain required.`
+Existing authenticated maintainer permissions, body hashes, target and temporal
+checks remain mandatory. Preparation or an implementation authorization cannot
+substitute for this grant.
+
+The actual exclusive edge reserves only that single invocation. Duplicate or
+interrupted reservations remain consumed; no automatic second ordinal,
+recovery, generic-v7 continuation or route downgrade follows it. Ordinary
+admission, planner-selected complete Full, resource policy and fresh-process
+stock still apply to any separately authorized deciding invocation. Receipt and
+stock additionally validate disjoint serial accounting. Historical physical
+replay uses recorded source/input/authority identities; live published-head
+checks belong to current preparation, admission and applicability. Sanitized
+export retains the variant and incident/proof bindings, but validates structure
+only and always reports `deciding=false` and `independent_attestation=false`.
+
 #### Reusable prospective material-source correction
 
 A newly delegated `commission.source_revision = material-source-correction-v1`
