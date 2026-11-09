@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 // Runs only in the disposable component iframe. Both genuine helpers define an
 // inline fetch but await mounting before Open. Replace that unused definition at
 // this boundary; the full candidate transport and schedule are common to both.
-export function installResultDraftCapture(frame, parent) {
+// A literal browser program survives the TS driver's CommonJS transform.
+// Function.toString() would capture loader-injected helpers such as __name.
+export const resultDraftCaptureSource = String.raw`function installResultDraftCapture(frame, parent) {
   const w = frame?.contentWindow, s = w?.resultFixture;
   if (!s || s.posts.length || s.owner !== "operator:A" || s.locks !== 0 ||
       s.holdPreview || s.captureScheduler || parent.__resultDraftCapture)
@@ -79,16 +81,17 @@ export function installResultDraftCapture(frame, parent) {
   s.captureScheduler = { snapshot, cleanup };
   frame.remove = function (...args) { cleanup(); return Reflect.apply(originalRemove, this, args); };
   return snapshot();
-}
+}`;
+export const installResultDraftCapture = new Function("return (" + resultDraftCaptureSource + ")")();
 
 export async function withResultDraftCapture(tab, check) {
-  let installed = false, primary;
+  let mountAttempted = false, primary;
   const adapter = { async eval(expression) {
+    const mount = !mountAttempted; mountAttempted = true;
     try {
       const value = await tab.eval(expression);
-      if (!installed) {
-        await tab.eval(`(${installResultDraftCapture.toString()})((()=>{const frames=document.querySelectorAll('[data-result-draft-fixture]');if(frames.length!==1)throw Error('result_capture_frame_count_invalid');return frames[0]})(),window)`);
-        installed = true;
+      if (mount) {
+        await tab.eval(`(${resultDraftCaptureSource})((()=>{const frames=document.querySelectorAll('[data-result-draft-fixture]');if(frames.length!==1)throw Error('result_capture_frame_count_invalid');return frames[0]})(),window)`);
       }
       return value;
     } catch (error) {

@@ -178,7 +178,7 @@ const suites = {
     {
       id: "result-draft-capture-scheduler",
       label: "common result-draft fixture scheduling and native exception fidelity",
-      requirements: ["immutable-fixture-input"],
+      requirements: ["filesystem", "process-owning", "immutable-fixture-input"],
       ...rootNode("scripts/test-result-draft-capture-scheduler.mjs"),
       timeoutMs: 10_000,
       requireNaturalExit: true,

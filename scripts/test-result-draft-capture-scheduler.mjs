@@ -70,3 +70,27 @@ const tab={async eval(expression){expressions.push(expression);throw native;}};
 await assert.rejects(withResultDraftCapture(tab,t=>t.eval("original expression")),e=>e===native);
 assert.equal(expressions[0],"original expression");
 console.log("result draft scheduler: transport equivalence, callback fidelity, one-shot hold, release/cleanup and native rejection PASS");
+
+// Exercise the actual TS/CommonJS loader used by the entry driver. The browser
+// program must be the same literal bytes and executable without loader globals.
+const { runCanonicalChild } = await import("./canonical-child-runner.mjs");
+const { createCanonicalTestResourceRoot, cleanupCanonicalTestResources, buildCanonicalChildEnvironment } = await import("./canonical-test-environment.mjs");
+const { runInNewContext } = await import("node:vm");
+const { resultDraftCaptureSource } = await import("./result-draft-capture-scheduler.mjs");
+const resource=createCanonicalTestResourceRoot("ag-resource-test-");let loaded="",child;
+try {
+ child=await runCanonicalChild({suite:"scheduler-loader",label:"actual TS require serialization",command:process.execPath,
+  args:["--import","tsx","-e","process.stdout.write(require('./scripts/result-draft-capture-scheduler.mjs').resultDraftCaptureSource)"],cwd:process.cwd(),
+  env:buildCanonicalChildEnvironment({temporaryRoot:resource.root}),timeoutMs:5000,resourceOwner:resource,
+  stdout:{write(v){loaded+=v;}},stderr:process.stderr,log(){}});
+ assert.equal(child.exit_code,0);assert.equal(child.termination_reason,"natural_exit");assert.equal(loaded,resultDraftCaptureSource);
+ const f=frameFor();runInNewContext("("+loaded+")(frame,parent)",{frame:f.frame,parent:f.parent});assert.equal(f.s.captureScheduler.snapshot().hold_count,0);f.frame.remove();
+} finally {if(child?.cleanup_completed&&child.remaining_owned_processes===0)assert.ok(cleanupCanonicalTestResources([resource]).every(v=>v.completed));}
+for(const mountFails of [false,true]) {
+ const original=new Error("original_install_or_mount"),seen=[];
+ const tab={async eval(expression){seen.push(expression);if(expression==="mount"&&mountFails||expression.startsWith("("+resultDraftCaptureSource))throw original;return null;}};
+ await assert.rejects(withResultDraftCapture(tab,async t=>{try{await t.eval("mount");}finally{await t.eval("helper finally");}}),e=>e===original);
+ assert.equal(seen.filter(e=>e.startsWith("("+resultDraftCaptureSource)).length,mountFails?0:1);
+ assert.ok(seen.includes("helper finally"));
+}
+console.log("actual TS/CommonJS literal transfer and one-attempt installation failure preservation PASS");

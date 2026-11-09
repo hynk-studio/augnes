@@ -76,6 +76,29 @@ export function verifyCaptureDependencyProvenance(receipt, observation, root) {
 
 // Independent finalizers preserve the primary execution fault and still attempt
 // safe cleanup/release after a restoration or observation refusal.
+export function validateResultDraftCaptureOutcome(output, exit) {
+  const rows=prefix=>output.split(/\r?\n/u).filter(line=>line.startsWith(prefix)).map(line=>JSON.parse(line.slice(prefix.length)));
+  const schedules=rows("result_draft_capture_schedule ");
+  assert.equal(schedules.length,1,"capture_schedule_missing");
+  const before=schedules[0]?.before_cleanup,after=schedules[0]?.after_cleanup;
+  assert.ok(before&&after&&before.hold_count===1&&before.cleanup_releases===0&&before.rejected_releases===0&&
+    after.preparation_pending===false&&after.preview_pending===false,"capture_schedule_invalid");
+  if(exit===1){
+    assert.ok(before.preparation_pending===true&&before.editor_present===false&&before.boundary_releases===0&&after.cleanup_releases===1,
+      "capture_red_boundary_invalid");
+    const failures=rows("result_draft_capture_failure ");
+    assert.ok(failures.some(v=>v?.preparation_pending===true&&v.editor_present===false&&v.hold_count===1),"capture_red_state_missing");
+    assert.ok(output.includes('browser_evaluation_failed:{"class":"TypeError","message":"Cannot read properties of null (reading \'tagName\')"'),"capture_native_red_missing");
+  }else{
+    assert.ok(before.preparation_pending===false&&before.preview_pending===false&&before.boundary_releases===1&&after.cleanup_releases===0,
+      "capture_green_boundary_invalid");
+    const readiness=rows("result_draft_readiness ");
+    assert.ok(readiness.length===2&&readiness[0].preparation_held===true&&readiness[0].editor_present===false&&readiness[0].write_waiting===true&&
+      readiness[1].preparation_released===true&&readiness[1].held_preview_returned===true&&readiness[1].locks===1&&readiness[1].replacement_editor_usable===true&&readiness[1].original_draft_retained===true,
+      "capture_green_assertions_missing");
+  }
+}
+
 export function validateCaptureBrowserUses(records, expected, count) {
   assert.equal(records.length,count,"capture_browser_coverage");
   assert.ok(records.every(v=>v.consumer==="project-client"&&validBrowserUse(v,expected)),"capture_browser_identity_invalid");
@@ -198,6 +221,7 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
       assert.ok(nonFaultInputChange(classifyInputChange(browserBefore,browserAfter,{classification:"execution",readOnlyExecutable:true})),"capture_browser_changed");
       browserExpected.actual_version=validateCaptureBrowserUses(browserUses,browserExpected,label==="before"?1:2);
       assert.equal(result.exit_code,expectedExit,"capture_causal_hypothesis_failed");
+      validateResultDraftCaptureOutcome(Buffer.concat(chunks).toString(),expectedExit);
       assert.equal(result.termination_reason,"natural_exit");assert.equal(result.timed_out,false);assert.equal(result.cancelled,false);
     }
     const focused={schema:"augnes.local-canonical-reviewed-revision-focused.v1",basis:"implementation_owner_not_independent_review",
