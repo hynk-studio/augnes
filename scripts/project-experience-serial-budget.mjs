@@ -122,7 +122,7 @@ export async function runProjectExperienceParent(options, { runChild = runCanoni
     throw failure("serial_inventory_disagreement");
   const controller = new AbortController();
   const budget = createProjectExperienceBudget({ ...clock, onFailure: () => controller.abort() });
-  let accounting, terminalAt, naturalExit;
+  let terminalAt, naturalExit;
   try {
     const result = await runChild({ ...options,
       signal: options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal,
@@ -130,11 +130,13 @@ export async function runProjectExperienceParent(options, { runChild = runCanoni
       onBoundary: (state, terminal) => {
         if (state === "settlement") {
           terminalAt = performance.now(); naturalExit = terminal?.exited === true;
-          accounting = budget.stop();
+          budget.stop();
         }
       },
     });
-    accounting ??= budget.stop();
+    // Keep the clock stopped at exit, but include IPC refusals observed while
+    // the runner drains descendants before returning its lifecycle result.
+    const accounting = budget.stop();
     return { ...result, serial_budget: { ...accounting,
       parent_post_exit_settlement_ms: naturalExit ? performance.now() - terminalAt : null,
       parent_forced_terminal_cleanup_ms: !naturalExit && terminalAt !== undefined ? performance.now() - terminalAt : null } };
