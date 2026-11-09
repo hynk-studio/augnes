@@ -6,6 +6,12 @@ import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 export const isGitObservationRevision = p =>
   p?.schema === "augnes.local-canonical-source-correction.v10" && p.kind === "reviewed_revision";
 export const isGitObservationSuccessor = p => isGitObservationRevision(p) && p.commission?.ordinal === 2;
+// Prospective input remedy within the existing v10 commission. Legacy v10
+// records without this discriminator keep their production RED/GREEN rule.
+export const GIT_INPUT_REVISION = "stable-protected-git-input-v1";
+export const isGitInputRevision = p => isGitObservationRevision(p) &&
+  p.commission?.input_revision === GIT_INPUT_REVISION;
+export const GIT_INPUT_HISTORY_BOUNDARY = "Historical window remains UNKNOWN; original false stock and consumed invocation remain unchanged.";
 // A v7 commission descending from the spent Git-observation chain keeps the
 // complete input inventory throughout its physical lineage.
 export const isInventoryBoundRevision = p => p?.schema === "augnes.local-canonical-source-correction.v7" &&
@@ -148,6 +154,56 @@ export function gitRevisionInventory(snapshot) {
     const value = effectiveInputObservation(r.before, r, snapshot);
     return { ...r, before: r.id === "git-config" ? r.before : value };
   }));
+}
+
+// This lane may integrate its verifier and corresponding policy/controls, but
+// cannot disguise a product edit as an unchanged-product input correction.
+const gitInputVerificationPaths = new Set([
+  "scripts/local-canonical-git-observation.mjs", "scripts/local-canonical-attempts.mjs",
+  "scripts/run-local-canonical-verification.mjs", "scripts/local-canonical-receipt.mjs",
+  "scripts/local-canonical-review-export.mjs", "scripts/local-canonical-inputs.mjs",
+  "scripts/fixtures/local-canonical-git-observation.mjs", "scripts/fixtures/local-canonical-reviewed-revision.mjs",
+  "scripts/fixtures/local-canonical-git-input.mjs", "scripts/test-local-canonical-review-corrections.mjs",
+  "scripts/test-local-canonical-verification-contract.mjs", "scripts/run-canonical-test-suite.mjs", ".github/LOCAL_CANONICAL_VERIFICATION.md",
+  "docs/LOCAL_CANONICAL_INPUT_CONTRACT.md", "docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md",
+  "docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md",
+]);
+
+export function verifyGitInputRemedy(p, original, incident, source, focused, { parse }) {
+  const snapshot = parse(focused.input_inventory);
+  const { contract, path_kind, binding, resources } = snapshot;
+  if (gitRevisionInventory(snapshot) !== p.inputs.inventory_sha256 ||
+      digest({contract,path_kind,binding,resources}) !== snapshot.fingerprint ||
+      snapshot.first_fault !== null || !equal(snapshot.secondary_faults, []) || !equal(snapshot.events, []) ||
+      !equal(focused.input_remedy_resources, ["git-config"]) || !equal(focused.implicated_paths, []) ||
+      Object.hasOwn(focused, "regression")) fail("revision_git_input_remedy_invalid");
+  if (source.predecessor_to_final.paths.some(name => !gitInputVerificationPaths.has(name)))
+    fail("revision_product_source_changed");
+  const current = resources.find(r => r.id === "git-config"), before = incident.config;
+  const after = incident.change.after;
+  if (current.location_fingerprint !== before.location_fingerprint || !equal(current.gitTracking, before.gitTracking) ||
+      !equal(current.before.git_projection, after.git_projection) ||
+      current.before.permission_identity !== after.permission_identity ||
+      ["device", "uid", "gid", "mode", "links"].some(k => current.before.metadata[k] !== after.metadata[k]) ||
+      current.before.git_projection.effective_sha256 === before.before.git_projection.effective_sha256)
+    fail("revision_git_input_remedy_invalid");
+  const oldNode = original.inputs.resources.find(r => r.id === "node-executable");
+  const node = resources.find(r => r.id === "node-executable");
+  if (node.location_fingerprint !== oldNode.location_fingerprint || node.before.sha256 !== oldNode.before.sha256)
+    fail("revision_git_input_remedy_invalid");
+  return snapshot;
+}
+
+// Current applicability, never immutable historical lineage interpretation.
+// A later published source correction must not invalidate its retained first edge.
+export function verifyGitInputPublication(p, original, git) {
+  if (!isGitInputRevision(p)) return;
+  const value = args => git(args).toString().trim();
+  if (value(["remote", "get-url", "origin"]) !== original.repository.origin ||
+      value(["config", "--get-all", `branch.${p.branch}.remote`]) !== "origin" ||
+      value(["config", "--get-all", `branch.${p.branch}.merge`]) !== `refs/heads/${p.branch}` ||
+      value(["rev-parse", "--verify", "refs/remotes/origin/"+p.branch]) !== p.head)
+    fail("revision_git_publication_unsettled");
 }
 
 const webPhase = "dependencies-web-planning";
