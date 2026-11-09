@@ -13,7 +13,7 @@ import { SERIAL_AGGREGATE_ROUTE, SERIAL_HISTORY, serialReviewTarget, readSerialA
 import { PROJECT_EXPERIENCE_SERIAL, PROJECT_EXPERIENCE_COMMITMENT } from "../project-experience-serial-budget.mjs";
 import { gitFixtureDeclaration, } from "./local-canonical-git-observation.mjs";
 import { browserFixtureReceipt } from "./local-canonical-browser-revision.mjs";
-import { browserConsumersForPhase } from "../local-canonical-browser-identity.mjs";
+import { browserConsumersForPhase, BROWSER_IDENTITY_PREFIX } from "../local-canonical-browser-identity.mjs";
 import { behavior, dependencyRecords, executeFixture } from "./local-canonical-browser-successor.mjs";
 
 const clone=v=>structuredClone(v), time=n=>new Date(Date.now()+n).toISOString();
@@ -244,9 +244,23 @@ export async function runSerialAggregateControls(c,h) {
     expected:declared.resources.find(v=>v.id==="browser-executable"),
     cases:[{mutation:"serial-complete",pass:true},{mutation:"serial-malformed",pass:false},{mutation:"serial-duplicate",pass:false}],
   });
+  let phaseOutput="", phaseBytes=0;
+  const phaseCapture={write(chunk){phaseBytes+=Buffer.byteLength(chunk);if(phaseBytes<=1048576) phaseOutput+=chunk;}};
   const phaseResult=await h.run({command:process.execPath,args:[path.join(sourceRoot,"scripts/test-local-canonical-review-corrections.mjs"),"--phase-probe",path.join(c.artifacts,probe.artifact)],
-    cwd:c.checkout,env:c.env,timeoutMs:10000,stdout:process.stdout,stderr:process.stderr,log(){}});
+    cwd:c.checkout,env:c.env,timeoutMs:10000,stdout:phaseCapture,stderr:phaseCapture,log(){}});
+  artifact(c,"terminal-phase-output.log",phaseOutput);
+  assert(phaseBytes<=1048576,"terminal phase probe output exceeded its evidence bound");
   assert.equal(phaseResult.exit_code,0);assert(phaseResult.cleanup_completed);assert.equal(phaseResult.remaining_owned_processes,0);
+  const lines=phaseOutput.split("\n"), results=lines.filter(line=>line.startsWith('{"terminal_ipc_phase":')).map(line=>JSON.parse(line));
+  assert.deepEqual(results.map(v=>v.terminal_ipc_phase),["serial-complete","serial-malformed","serial-duplicate"]);
+  const quarantined=lines.filter(line=>line.startsWith(BROWSER_IDENTITY_PREFIX)).length;
+  assert.equal(quarantined,results.length*execution.receipt.phases.find(v=>v.id==="e2e-project-experience").browser_use.length);
+  // Only bounded result projections leave the fixture. Raw synthetic Browser
+  // records cannot become actual-use evidence in the outer authority phase.
+  console.log(JSON.stringify({terminal_ipc_phases:results.map(({terminal_ipc_phase,result})=>({
+    case:terminal_ipc_phase,status:result.status,failure_code:result.failure_code,exit_status:result.exit_status,
+    timed_out:result.timed_out,cleanup:result.cleanup,serial_budget:result.serial_budget,
+  })),quarantined_browser_records:quarantined,capture_bytes:phaseBytes,capture_sha256:digest(phaseOutput)}));
   findings.push("real phase execution and receipt accounting refuse late IPC while natural exit and complete cleanup remain truthful");
   assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}).reviewed_revision_consumed,1);
   assert.throws(()=>h.begin(c,proof,authority),/attempt_latest_tip_required/u);

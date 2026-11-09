@@ -185,6 +185,7 @@ repeat product Browser journeys just to exercise budget mechanics.
 | Child assertion failure or individual timeout | Fail and settle resources; later children do not run or borrow unused time. |
 | Forced descendant termination or incomplete cleanup | Fail even when the root exited zero; preserve cleanup/restoration obligations. |
 | Malformed or duplicate valid IPC after root exit | Actual descendant drain retains `serial_event_after_exit`; accounting, phase and passing-receipt validation refuse while natural exit, cleanup and the frozen execution clock remain truthful. |
+| Synthetic downstream phase probes | Capture raw Browser-use records inside the disposable fixture and forward only bounded result projections; the outer authority stream must contain zero synthetic Browser-use lines. |
 | Coordinator exceeds its allowance before/between/after children | Fail independently of unused child time and the outer aggregate timer. |
 | Missing/reordered/extra child, changed command/limit/requirement | Inventory disagreement refuses; no environment/CLI override. |
 | Missing/extra/misattributed Browser record | Exact five-record phase and twenty-record workload contract refuses. |
