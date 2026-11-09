@@ -712,6 +712,112 @@ web planning or this model. Keep ordinary small-model/abductive inquiry and its
 budgets independent. No historical lab, accepted disposition or trial allocation
 is reopened, and no provider-policy investigation or live call is authorized.
 
+#### Pi reference implementation and second executor candidate
+
+The 2026-11-09 direction selects Pi as the first non-Codex coding-executor
+candidate while retaining Codex as the current default. Pursue two independently
+useful lanes: apply selected Pi design techniques through existing Augnes owners,
+and qualify a bounded Pi execution profile. Neither lane waits for completion of
+the other. This is a development plan, not installed support, measured superiority,
+automatic fallback or permission for provider spending. It stays under P4 #1214,
+execution choice #1443 and succession #1215, without another roadmap phase.
+[Implementation assignment #1615](https://github.com/hynk-studio/augnes/issues/1615)
+owns the first host-neutral evidence increment and records its execution status.
+
+| Reference technique | Application through existing owners | Target behavior |
+|---|---|---|
+| Separate retained evidence, human display and model input; filter intermediate tool results in code | Existing selected-source/material readers, task preparation and bounded output projection | Preserve conditions, corrections, omissions, source references and unknowns while reducing irrelevant reading and repeated tool work. A small prompt alone is not improvement. |
+| Reconstruct context after compaction | Owned packet/summary preparation and supported host hooks | Preserve current goals, criteria, unfinished work, latest instructions and evidence relationships across a new consumer. Do not claim control of opaque host-internal compaction. |
+| Separate steering, follow-up, status and cancellation | Existing work revisions, lifecycle and host control adapters | A short intervention does not replace the original task or lose queued work. Criteria, scope or authority changes use current revision/admission owners rather than silently changing a frozen request. |
+| Carry selected learning from an abandoned branch | Existing conditional experience, source and check/use owners | Retain tested conditions, failed attempts, useful findings and reasons to reconsider; a conversation branch does not restore files or make its summary accepted truth. |
+| Small reusable methods and shared execution meaning across interfaces | Existing skills/scripts, bounded extensions and common work/result projections | Trial a method at the smallest sufficient surface; promote only demonstrated shared needs. Different interfaces preserve the same work, authority and result meaning. |
+
+At source baseline `91fbce943d2ba915c3337bd6ad6d655ed99b01a6`, the
+[selected-source reader](../../lib/vnext/selected-source-retrieval.mjs) already
+returns whole condition/material/correction groups, binding, omitted counts and
+truncation; the [ordinary successor caller](../../scripts/selected-source-use.mjs)
+returns that result and rechecks the binding before use. Existing
+[retrieval checks](../../scripts/test-selected-source-retrieval.ts) include
+whole-group omission and changed-source cases. Retain these paths unless an
+actual consumer loses meaning; their presence does not prove model understanding,
+compaction benefit or lower user burden. The first reference case distinguishes
+an empty match from a matching group omitted by budget, through the affected
+consumer and later task. Source fit may conclude no implementation is needed.
+The initial source/caller screening retained this path: six synthetic in-memory
+cases preserved whole groups/corrections, same-binding recheck and omission meaning,
+and refused changed or unavailable sources. This did not exercise a database,
+application transport, compaction or model usefulness; later consumer evidence
+must be reported separately.
+
+The [execution composition](../../lib/vnext/native-host/native-host-execution-composition.ts)
+has an injected-adapter seam but a Codex-specific scoped path. The
+[receipt builder](../../lib/vnext/runtime/direct-native-host-round-trip.ts)
+also uses the result's `codex_app_server` label to distinguish host-attested
+actions, checks and artifacts from direct observations. Review those assumptions
+before introducing another managed host: trusted execution/observation coverage,
+not a result-supplied host name, must determine evidence meaning. Preserve actual
+orchestrator observations separately from host-reported task performance.
+
+| Bounded development increment | Deliverable and completion | Dependency |
+|---|---|---|
+| A — Context and re-entry | Inspect one concrete selected-source-to-consumer case; repair only a demonstrated loss or return a source-backed retain decision. Preserve omission, currentness and source meaning through re-entry. | Independent of Pi installation and live calls. |
+| B — Host-neutral evidence | Correct the affected trusted-host/result boundary and existing regressions so a second managed host cannot turn self-report into direct observation. Preserve Codex and deterministic behavior. | Required before accepting Pi results. |
+| C — Bounded Pi worker | A pinned subprocess/RPC candidate performs one permitted edit-and-test task and returns actual artifacts, checks, failures and unresolved effects through the existing contract. SDK inside the worker remains an option if source inspection justifies it. | B plus actual containment and resource admission; A is not a mandatory gate. |
+| D — Intervention and succession | Exercise supported steering/follow-up and a fresh Codex-to-Pi successor using checked work, current material and remaining obligations. Reuse existing composition where sufficient. | The affected control path must exist; a Pi case depends on C. |
+
+Codex chooses current files, functions and focused tests from the source. Keep
+each increment reversible and reviewable in Draft PRs; existing satisfied behavior
+does not need replacement code. Current MCP, project-navigation and reconciliation
+owners retain their work; coordinate only actual overlapping changes. These
+increments do not reopen historical STOP/HOLD trials or their budgets.
+
+The first worker profile has one owned execution at a time, one pinned
+model/provider configuration, explicit tool/extension/configuration loading,
+prepared dependencies and a bounded task workspace. It may perform the authorized
+edits and checks without repeated approval inside the grant. Its return is a
+patch/material and checked account; external repository publication, merge and
+deployment stay with their existing separately authorized workflows. Reuse a
+maintained whole-process isolation mechanism where sufficient; a worktree,
+project-trust choice or built-in-tool wrapper alone does not establish full
+file/process/network/credential coverage. Unknown coverage remains explicit.
+
+Map RPC acceptance, `agent_end`, `agent_settled`, owned-child settlement and
+result acceptance separately. Account for a handled prompt that starts no run.
+Stopping must fence new input, recover pending messages, cancel current work and
+confirm owned-child cleanup; `abort` alone may leave queued work eligible to run.
+Use correlation, continuous bounded event consumption and explicit deadlines.
+Unknown effects require reconciliation before another overlapping attempt;
+independently permitted work may continue. Host replacement does not renew scope,
+expiry, retry allowance or aggregate time/call/spend limits. Expose observed,
+estimated and unavailable usage separately; a declared monetary limit is not
+proof of enforcement.
+
+Preserve selected artifacts, references and bounded summaries under existing
+retention and disclosure rules, not raw prompts, hidden reasoning, broad Pi
+transcripts or provider payloads by default. A first fresh-run handoff does not
+claim same-session resume. A source pin does not freeze a remote model, and a
+second harness on the same provider/node does not prove provider/node independence.
+
+[Pi-specific evidence and adoption](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#pi-reference-and-worker-evidence)
+separates reference-method benefit, executor usefulness and Augnes succession.
+Promote only an exercised version/model/environment/task profile with useful
+checked output, preserved invariants and supportable total burden. Pi-native
+Augnes entry can then reuse the same request/return owners. Pi Durable remains a
+later option if observed long-lived recovery needs justify it; public packages,
+automatic host selection and multi-worker scheduling follow demonstrated need,
+not this first profile.
+
+Reference implementation inspected at Pi
+[`7d073328e44337d3292a7db9b0f0308f679c5e97`](https://github.com/earendil-works/pi/tree/7d073328e44337d3292a7db9b0f0308f679c5e97):
+[agent core](https://github.com/earendil-works/pi/blob/7d073328e44337d3292a7db9b0f0308f679c5e97/packages/agent/README.md),
+[context and compaction](https://pi.dev/docs/latest/compaction),
+[codemode](https://pi.dev/docs/latest/codemode),
+[RPC](https://pi.dev/docs/latest/rpc),
+[queue and abort commands](https://pi.dev/docs/latest/rpc-commands),
+[isolation boundaries](https://pi.dev/docs/latest/security), and
+[experimental Durable](https://github.com/earendil-works/pi/blob/7d073328e44337d3292a7db9b0f0308f679c5e97/packages/durable/README.md).
+Recheck the installed version's contracts before implementation or upgrades.
+
 ### Current application priorities — 2026-10-19
 
 The user-approved research application strengthens continuous work, cumulative
