@@ -1413,6 +1413,10 @@ commitment must agree with the actual executor inventory. The existing
 inventory twice around the fresh Companion read. Preparation, authenticated
 admission, in-flight monitoring, commit/settlement and separate stock keep their
 existing checks. No old phase pass contributes to a new deciding PASS.
+Current publication checks belong to preparation, admission and current stock.
+Historical lineage replay checks retained proofs and original physical records;
+publishing a later legitimate source correction must not invalidate an earlier
+edge merely because the tracking ref now names the successor.
 
 The predecessor-to-candidate Git delta must leave product sources unchanged.
 Only the existing verification admission, input, receipt/export, executor,

@@ -169,7 +169,7 @@ const gitInputVerificationPaths = new Set([
   "docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md",
 ]);
 
-export function verifyGitInputRemedy(p, original, incident, source, focused, { parse, git }) {
+export function verifyGitInputRemedy(p, original, incident, source, focused, { parse }) {
   const snapshot = parse(focused.input_inventory);
   const { contract, path_kind, binding, resources } = snapshot;
   if (gitRevisionInventory(snapshot) !== p.inputs.inventory_sha256 ||
@@ -187,19 +187,23 @@ export function verifyGitInputRemedy(p, original, incident, source, focused, { p
       ["device", "uid", "gid", "mode", "links"].some(k => current.before.metadata[k] !== after.metadata[k]) ||
       current.before.git_projection.effective_sha256 === before.before.git_projection.effective_sha256)
     fail("revision_git_input_remedy_invalid");
-  // Publishing is complete before this inventory. No config writer is exposed.
-  // Full-file and complete inventory commitments remain checked at every gate.
+  const oldNode = original.inputs.resources.find(r => r.id === "node-executable");
+  const node = resources.find(r => r.id === "node-executable");
+  if (node.location_fingerprint !== oldNode.location_fingerprint || node.before.sha256 !== oldNode.before.sha256)
+    fail("revision_git_input_remedy_invalid");
+  return snapshot;
+}
+
+// Current applicability, never immutable historical lineage interpretation.
+// A later published source correction must not invalidate its retained first edge.
+export function verifyGitInputPublication(p, original, git) {
+  if (!isGitInputRevision(p)) return;
   const value = args => git(args).toString().trim();
   if (value(["remote", "get-url", "origin"]) !== original.repository.origin ||
       value(["config", "--get-all", `branch.${p.branch}.remote`]) !== "origin" ||
       value(["config", "--get-all", `branch.${p.branch}.merge`]) !== `refs/heads/${p.branch}` ||
       value(["rev-parse", "--verify", "refs/remotes/origin/"+p.branch]) !== p.head)
     fail("revision_git_publication_unsettled");
-  const oldNode = original.inputs.resources.find(r => r.id === "node-executable");
-  const node = resources.find(r => r.id === "node-executable");
-  if (node.location_fingerprint !== oldNode.location_fingerprint || node.before.sha256 !== oldNode.before.sha256)
-    fail("revision_git_input_remedy_invalid");
-  return snapshot;
 }
 
 const webPhase = "dependencies-web-planning";
