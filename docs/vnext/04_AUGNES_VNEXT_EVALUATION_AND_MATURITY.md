@@ -10,6 +10,31 @@ sequence, or C9 scope. It records evaluation requirements, not measured
 baselines or success claims. A document, type, fixture, panel, schema, record,
 engine, test, or pull request does not advance maturity by existing.
 
+## Prospective protected Git-input qualification evidence
+
+The proposal related to #1612 must distinguish unchanged product source,
+materially changed execution inputs and the verifier implementation. The
+original metadata-consistency race remains an UNKNOWN observation window;
+the later protected Git change and operator attribution cannot make it valid.
+Cancelled build work is not a naturally failing product regression.
+
+Evaluate the alternative through real reusable input/preparation, authority,
+reservation and stock owners on disposable state. Require a positive unchanged
+product case with actual stable Git observations and natural child settlement,
+plus refusal for missing current authority, unchanged/incomplete inputs,
+unrelated product edits, stale predecessors, competing reservation/replay,
+unexplained faults, unsafe permissions/links and incomplete settlement. Preserve
+ordinary qualification, source-correction, recovery and historical interpretation
+controls. Synthetic authenticated transport is a test, never execution authority.
+
+The original false stock, complete ledger and first fault remain immutable
+even when the separate prospective fixture succeeds. A full planner-selected
+run and separate fresh stock are distinct from focused checks, independent
+source review and current-main applicability. The maintenance candidate must
+use current ordinary authority for its own qualification. Adopting this proposal
+or renewing #1612 requires the final separate review decision; no maturity,
+merge or installed-adoption claim follows from preparing the path.
+
 ## Maturity model
 
 | Level | Name | Required evidence |

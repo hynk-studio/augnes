@@ -1468,6 +1468,83 @@ permission and the original review and grant references. The physical
 successor consumes the remaining ordinal on reservation; replay through
 separate fresh-process stock is read-only.
 
+#### Proposed stable protected Git-input target within v10
+
+The optional commission discriminator
+`input_revision: "stable-protected-git-input-v1"` proposes an input correction
+alternative for the **first** v10 ordinal. Its development and fixture validation
+do not adopt new execution authority or authorize renewal of an existing PR.
+Adoption and the exact prospective execution grant remain separate decisions.
+In particular, #1612 remains SOURCE ACCEPT / RETAIN and qualification HOLD until
+a separately authorized complete qualification and separate stock succeed.
+
+This alternative retains the same ordered metadata-consistency observation
+failure followed by protected Git input invalidation, complete historical
+receipt/stock checks and settled physical predecessor. The first window remains
+UNKNOWN. Operator attribution does not reconstruct its contents or prove that
+no other transient change occurred. Additional unexplained faults, changed
+permissions or scope, unsafe files, incomplete cleanup, unsettled owners and
+unsupported lineage still refuse.
+
+The material difference is between the original frozen protected input and the
+prospective stable input, not a manufactured product failure. The current Git
+resource must have the original location, protected branches, scope and safe
+permission identity, and its protected projection must equal the recorded later
+observation while differing from the original freeze. Current origin must match
+the original repository; the branch must track its own origin branch, whose
+published tracking ref names the candidate head. Complete publishing and
+upstream configuration before the new inventory. Touching a file, relabeling a
+proof, moving the checkout or changing a runtime label cannot establish this
+remedy. The original Node path and content remain fixed.
+
+Reuse the existing v3 input snapshot as `focused.input_inventory`, with
+`input_remedy_resources: ["git-config"]`, an empty `implicated_paths` array and
+no product RED/GREEN `regression`. Its fingerprint and complete inventory
+commitment must agree with the actual executor inventory. The existing
+`observeGitRevisionTarget` returns that snapshot and observes the complete
+inventory twice around the fresh Companion read. Preparation, authenticated
+admission, in-flight monitoring, commit/settlement and separate stock keep their
+existing checks. No old phase pass contributes to a new deciding PASS.
+Current publication checks belong to preparation, admission and current stock.
+Historical lineage replay checks retained proofs and original physical records;
+publishing a later legitimate source correction must not invalidate an earlier
+edge merely because the tracking ref now names the successor.
+
+The predecessor-to-candidate Git delta must leave product sources unchanged.
+Only the existing verification admission, input, receipt/export, executor,
+regression/suite registration and corresponding policy/03/04 documentation
+owners enumerated in the reader may differ. Their complete Git delta identifies
+the verifier implementation independently of the retained product source.
+The current head/tree may equal the product candidate when the applicable
+verifier is already present. The complete candidate and current-main delta,
+actual natural focused results, original invalid evidence and new inventory
+are independently reviewed; a fixture or preparation is not that review.
+
+Use the existing commit-anchored ACCEPT / RETAIN review and subsequent
+authenticated, unedited execution grant. The first grant line is
+`Authorize prospective Mac qualification of this stable Git-input target.`
+Both operative records include the discriminator and the explicit boundary:
+`Historical window remains UNKNOWN; original false stock and consumed invocation remain unchanged.`
+They retain the normal exact repository/branch/base/head/tree, predecessor,
+target commitment, review link, fresh stock and independent audit requirements.
+Missing current authority, stale review/inputs or a quoted example refuse.
+
+The discriminator participates in the existing commission identity and cannot
+be added, removed or changed between ordinals. The same exclusive successor
+reservation consumes an invocation before execution; competing processes,
+replay, interruption, a new label or checkout cannot reset it. No ledger,
+wrapper, extra retry or new quota is introduced. Any second ordinal still
+requires v10's natural failed first Full, material source repair, causal
+RED/GREEN and fresh independent acceptance and execution authority.
+
+Unmarked v10 records retain their production-source correction predicate;
+ordinary qualification, source corrections, supported recovery and retired
+routes retain their meanings. Existing receipts and false stock are immutable.
+Rollback to a reader without this discriminator refuses new marked proofs;
+preserve them with their verifier revision rather than removing the marker or
+reinterpreting them as old v10. The maintenance proposal qualifies through the
+current ordinary planner/authority, never by granting itself this alternative.
+
 ### Completed source-correction routes v3-v6
 
 The task-specific observer repair, corrected timeout, condition requalification

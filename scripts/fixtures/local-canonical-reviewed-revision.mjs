@@ -8,7 +8,7 @@ import {chmodSync,cpSync,existsSync,lstatSync,realpathSync,mkdirSync,readFileSyn
 import path from "node:path";
 import {execFileSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
-import {digest,inputEventIdentity,observePreparedDependencyInputs} from "../local-canonical-inputs.mjs";
+import {digest,inputEventIdentity,observePreparedDependencyInputs,createGitTrackingResource,freezeInputContract} from "../local-canonical-inputs.mjs";
 import {REVIEWED_REVISION_PHASES,beginAttempt,finishAttempt,readSourceCorrectionProof,inspectAttemptRecords,reconstructAttemptTip,authorizeReviewedRevision,reviewedRevisionAuthorityObservation,validReviewedRevisionAttempt} from "../local-canonical-attempts.mjs";
 import {acquireCheckoutVerificationOwnership,releaseCheckoutVerificationOwnership} from "../local-canonical-checkout-ownership.mjs";
 import {createGitHubObserverAuthorizationTransport} from "../github-main-branch-transport.mjs";
@@ -17,7 +17,7 @@ import {runCanonicalChild} from "../canonical-child-runner.mjs";
 import {finalizeReceipt,inspectReceiptForDecision} from "../local-canonical-receipt.mjs";
 import {createPrivateReviewExport,inspectPrivateReviewExport} from "../local-canonical-review-export.mjs";
 import {runBrowserRevisionControls, browserFixtureReceipt} from "./local-canonical-browser-revision.mjs";
-import {checkSpentCommission,completeGitRevisionControls,checkFinalDependency,checkPostPass,gitFixtureDeclaration,gitFixtureReceipt,runGitRevisionControls} from "./local-canonical-git-observation.mjs";
+import {checkSpentCommission,completeGitRevisionControls,checkFinalDependency,checkPostPass,gitFixtureDeclaration,gitFixtureReceipt,runGitRevisionControls,runGitInputRevisionControls} from "./local-canonical-git-observation.mjs";
 import {GIT_ACQUISITION_REPAIR,gitAcquisitionIncident,gitRevisionInventory} from "../local-canonical-git-observation.mjs";
 import {CANONICAL_NODE_VERSION} from "../local-canonical-environment.mjs";
 import {inspectGitRevisionPreparation} from "../local-canonical-attempts.mjs";
@@ -74,18 +74,18 @@ function attachGit(c,gitIncident) {
   c.commit=value=>{write(path.join(c.checkout,"scripts/fixture.mjs"),"export const value="+value+";\n"+(gitIncident?'import assert from "node:assert/strict";\nassert.equal(value,4);\nconsole.log("corrected behavior");\n':""));c.git(["add","scripts"]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","value "+value]);return c.git(["rev-parse","HEAD"]).toString().trim();};
 }
 function setup(root,browser=false){
-  const gitIncident=browser==="git", product="apps/web_planning/src/client.js.txt";
+  const inputSourceSuccessor=browser==="git-input-successor", inputRevision=browser==="git-input" || inputSourceSuccessor, gitIncident=browser==="git" || inputRevision, product="apps/web_planning/src/client.js.txt";
   const c={checkout:path.join(root,"checkout"),anchor:path.join(root,"anchor"),branch:"codex/reviewed-revision",root};
   mkdirSync(c.checkout);mkdirSync(c.anchor);c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});c.env=buildCanonicalChildEnvironment({temporaryRoot:root});
-  attachGit(c,gitIncident);
-  if (gitIncident) {
+  attachGit(c,gitIncident && (!inputRevision || inputSourceSuccessor));
+  if (gitIncident && !inputRevision) {
     const module = new URL("../local-canonical-inputs.mjs",import.meta.url).href;
     // A synthetic exact-mode reader for the fork. Real predecessor behavior is
     // separately witnessed on its own published Git blob and retained tree.
     write(path.join(c.checkout,"scripts/local-canonical-inputs.mjs"), 'export * from '+JSON.stringify(module)+';\nimport {observePreparedDependencyInputs as observe} from '+JSON.stringify(module)+';\nexport function observePreparedDependencyInputs(args){const v=observe(args); if(v.generated_directories.some(d=>d.state==="proven_empty" && d.metadata.mode!==d.parent_metadata.mode)) throw Object.assign(new Error("mode differs"),{code:"dependency_input_cache_unsafe"}); return v;}\n');
   }
-  if (gitIncident) for (const scenario of ["registration", "final-check"]) write(path.join(c.checkout, "scripts/" + scenario + ".mjs"), 'import assert from "node:assert/strict";\nassert.equal(false, true);\nconsole.log("fixture assertion passed");\n');
-  if (gitIncident) {
+  if (gitIncident && !inputRevision) for (const scenario of ["registration", "final-check"]) write(path.join(c.checkout, "scripts/" + scenario + ".mjs"), 'import assert from "node:assert/strict";\nassert.equal(false, true);\nconsole.log("fixture assertion passed");\n');
+  if (gitIncident && !inputRevision) {
     write(path.join(c.checkout,"scripts/audit-subject.mjs"),"export const permitted = true;\n");
     write(path.join(c.checkout,"scripts/audit-driver.mjs"),'import assert from "node:assert/strict";\nimport {permitted} from "./audit-subject.mjs";\nconsole.log(JSON.stringify({permitted,expected:false}));\nassert.equal(permitted,false);\n');
   }
@@ -93,18 +93,30 @@ function setup(root,browser=false){
   c.inputs={contract:"augnes.local-canonical-runtime-inputs.v1",node:{location_fingerprint:digest("current-node"),observation:{present:true,sha256:digest("node"),metadata:{mode:"33261",uid:"1",gid:"1",device:"1",inode:"1",links:"1",bytes:"4",mtime_ns:"1",ctime_ns:"1"},permission_identity:digest("node permissions"),executable_identity_policy:"shared-posix-v1"}},
     headers:{location_fingerprint:digest("headers"),observation:{contract:"augnes.local-canonical-node-headers.v1",present:true,location_fingerprint:digest("headers"),inventory_sha256:digest("inventory"),content_sha256:digest("content"),permission_sha256:digest("permissions"),entries:2,bytes:10}}};
   if(gitIncident){write(path.join(c.checkout,product),"let decision = null;\n");c.git(["add",product]);c.git(["update-ref","refs/remotes/origin/main",c.base]);write(path.join(c.checkout,".git/info/exclude"),".augnes-local-verification/\n");}
-  if(browser){c.acceptedHead=c.commit(2);c.acceptedTree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();}
+  if(browser){c.acceptedHead=c.commit(inputSourceSuccessor?3:2);c.acceptedTree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();}
   if(gitIncident)c.gitDeclaration=gitFixtureDeclaration(c);
+  if(inputRevision){
+    c.git(["remote","add","origin","https://github.com/hynk-studio/augnes.git"]);
+    c.git(["config",`branch.${c.branch}.remote`,"origin"]);
+    c.git(["config",`branch.${c.branch}.merge`,"refs/heads/main"]);
+    const observe=()=>freezeInputContract({resources:[createGitTrackingResource(path.join(c.checkout,".git/config"),[c.checkout])],pathKind:"isolated-model-free-v1",binding:{}}).snapshot().resources[0];
+    c.gitDeclaration.resources[0]=observe();
+    c.git(["config",`branch.${c.branch}.merge`,`refs/heads/${c.branch}`]);
+    c.gitChangedObservation=observe().before;
+    c.git(["update-ref","refs/remotes/origin/"+c.branch,c.acceptedHead]);
+  }
   const a=beginAttempt({anchorRoot:c.anchor,repositoryRoot:c.checkout,checkoutOwner:c.owner,branch:c.branch,head:c.acceptedHead??c.base,tree:c.acceptedTree??c.baseTree,runId:"root-failure",contractFingerprint:gitIncident?digest(c.gitDeclaration):digest("root")});
   const raw=browser?browserFixtureReceipt(c,a):receipt(c,a);
+  if(inputRevision)raw.repository.origin=c.git(["remote","get-url","origin"]).toString().trim();
   const r=gitIncident?gitFixtureReceipt(c,raw):raw;storeReceipt(c,r);finishAttempt(a,{receiptFingerprint:r.integrity.content_fingerprint,disposition:r.outcome.disposition,cleanupComplete:true});
   c.legacyRoot=path.join(c.anchor,".augnes-local-verification/families",a.family_id);
   c.prior=r;
   const completion=path.join(c.legacyRoot,"completion-1.json");
   write(completion,{...read(completion),finished_at:time(-60000)});
   assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,branch:c.branch}).attempt_id,a.attempt_id);
-  if(gitIncident){write(path.join(c.checkout,product),"let decision = preserveDraft();\n");c.git(["add",product]);}
-  if(!browser){c.acceptedHead=c.commit(2);c.acceptedTree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();}c.commit(3);
+  if(gitIncident && !inputRevision){write(path.join(c.checkout,product),"let decision = preserveDraft();\n");c.git(["add",product]);}
+  if(!browser){c.acceptedHead=c.commit(2);c.acceptedTree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();}
+  if(!inputRevision)c.commit(3);
   return c;
 }
 function prepare(c,ordinal=1){
@@ -342,19 +354,19 @@ if(process.argv[2]==="--cold"){
   try{const p=proof(c),a=await auth(c,p);write(c.ready,"ready");while(!existsSync(c.go))await new Promise(r=>setTimeout(r,5));
     try{begin(c,p,a);console.log("admitted");}catch(e){assert(["EEXIST","ENOENT","attempt_latest_tip_required"].includes(e.code),e.message);console.log("refused");}
   }finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
-}else if (["git","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor","material-source","material-controls","material-successor","material-final","material-reservation"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
+}else if (["git","git-input","git-input-successor","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor","material-source","material-controls","material-successor","material-final","material-reservation"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
   const group = process.argv[2].slice(6,-9), handoff = JSON.parse(process.argv[3]);
   const outer = process.env.AUGNES_CANONICAL_TEMP_ROOT, physical = lstatSync(handoff.root);
   assert(handoff.root === outer || path.dirname(handoff.root) === path.dirname(path.dirname(outer)) &&
     /^ag-suite-[A-Za-z0-9]{6}$/u.test(path.basename(handoff.root)));
   assert(physical.isDirectory() && realpathSync(handoff.root) === handoff.root && physical.uid === process.getuid() &&
     (physical.mode & 0o777) === 0o700 && String(physical.dev) === handoff.device && String(physical.ino) === handoff.inode);
-  const dir = path.join(handoff.root,group.startsWith("material-") ? "acquisition-proposal" : group.startsWith("git") ? "git-case" : group.startsWith("final") ? "final-case" : group.startsWith("post-pass") ? "post-pass-case" : "prospective-fixture");
+  const dir = path.join(handoff.root,group.startsWith("material-") ? "acquisition-proposal" : group.startsWith("git-input") ? group+"-case" : group.startsWith("git") ? "git-case" : group.startsWith("final") ? "final-case" : group.startsWith("post-pass") ? "post-pass-case" : "prospective-fixture");
   const owner=createCanonicalTestResourceRoot("ag-resource-test-"), lifecycle={pendingChildren:0};beginCanonicalTestResourceUse(owner);
   const runOwned=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);
   let c;
   try {
-    if (group === "git") {mkdirSync(dir,{mode:0o700}); c=setup(dir,"git");}
+    if (["git","git-input","git-input-successor"].includes(group)) {mkdirSync(dir,{mode:0o700}); c=setup(dir,group);}
     else {
       assert.equal(realpathSync(dir),dir);
       c = read(path.join(dir,"context.json")); c.root=dir;
@@ -369,6 +381,7 @@ if(process.argv[2]==="--cold"){
       run:runOwned,behavior:(subject,syntaxOnly=false)=>behavior(subject,syntaxOnly,runOwned),fresh:packet=>freshReader(c,packet,runOwned),
       snapshot:path.join(handoff.root,"prospective-fixture"),fork:path.join(handoff.root,"final-case"),positive:path.join(handoff.root,"post-pass-case")};
     if (group==="git") await runGitRevisionControls(c,helpers);
+    else if (group.startsWith("git-input")) await runGitInputRevisionControls(c,helpers,group==="git-input-successor");
     else if (group==="git-successor") await completeGitRevisionControls(c,helpers);
     else if (group.startsWith("material-")) await runMaterialSourceControls(c,helpers,group);
     else if (group.startsWith("final")) await checkFinalDependency(c,helpers,group);

@@ -1281,10 +1281,11 @@ export async function observeGitRevisionTarget(verificationContext, browserExecu
     resources:invocationInputResources({verificationContext,browserExecutablePath,runtimeInputs}),
     pathKind:"isolated-model-free-v1",binding:{}
   }).snapshot();
-  const inventory = gitRevisionInventory(snapshot());
+  const inputInventory = snapshot();
+  const inventory = gitRevisionInventory(inputInventory);
   const service = await inspectVerificationCompanionPreservation(verificationContext,{freshTransport:true});
   if (gitRevisionInventory(snapshot()) !== inventory) throw new Error("revision_git_inputs_changed");
-  return {inventory,service};
+  return {inventory,service,inputInventory};
 }
 
 function invocationInputResources({ verificationContext, browserExecutablePath, runtimeInputs = null }) {

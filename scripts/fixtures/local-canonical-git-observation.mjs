@@ -1,12 +1,13 @@
 // Synthetic Git, ledger and authenticated read transport. No production admission.
 import assert from "node:assert/strict";
-import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, linkSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync } from "node:fs";
 import path from "node:path";
-import { digest, INPUT_CONTRACT, inputEventIdentity } from "../local-canonical-inputs.mjs";
+import { fileURLToPath } from "node:url";
+import { digest, INPUT_CONTRACT, inputEventIdentity, createGitTrackingResource, freezeInputContract } from "../local-canonical-inputs.mjs";
 import { CANONICAL_NODE_VERSION } from "../local-canonical-environment.mjs";
 import { finalizeReceipt } from "../local-canonical-receipt.mjs";
 import { REVIEWED_REVISION_PHASES, reconstructAttemptTip, inspectGitRevisionPreparation, readSourceCorrectionProof, reviewedRevisionAuthorityObservation } from "../local-canonical-attempts.mjs";
-import { gitObservationIncident, gitRevisionInventory, gitReviewTarget, finalDependencyCommand, finalDependencyProbe, verifyGitRevisionFailure, verifyGitRevisionSuccess, postPassReviewFields } from "../local-canonical-git-observation.mjs";
+import { GIT_INPUT_REVISION, GIT_INPUT_HISTORY_BOUNDARY, gitObservationIncident, gitRevisionInventory, gitReviewTarget, finalDependencyCommand, finalDependencyProbe, verifyGitRevisionFailure, verifyGitRevisionSuccess, postPassReviewFields } from "../local-canonical-git-observation.mjs";
 
 import { runCanonicalChild } from "../canonical-child-runner.mjs";
 import { behavior, dependencyRecords, executeFixture } from "./local-canonical-browser-successor.mjs";
@@ -30,8 +31,10 @@ export function gitFixtureDeclaration(c) {
 }
 
 export function gitFixtureReceipt(c, raw) {
-  const declared = c.gitDeclaration, config = structuredClone(declared.resources[0].before);
-  config.sha256 = digest("changed file"); config.git_projection.effective_sha256 = digest("changed protected projection");
+  const declared = c.gitDeclaration, config = structuredClone(c.gitChangedObservation ?? declared.resources[0].before);
+  if (!c.gitChangedObservation) {
+    config.sha256 = digest("changed file"); config.git_projection.effective_sha256 = digest("changed protected projection");
+  }
   const diagnostic = {contract:"augnes.input-observation-failure.v1",stage:"metadata_consistency",code:"input_observation_race"};
   const event = (disposition, offset, ns, after, extra) => {
     const v = {resource:"git-config",classification:"execution",disposition,observed_at:time(offset),monotonic_ns:ns,after,...extra};
@@ -68,6 +71,12 @@ async function checkGitSourceSuccessor(c, h, initial, initialCapability) {
   delegation.updated_at=delegation.created_at;
   c.prior=first.receipt;c.grantId=14;
   c.commit(4);
+  if(initial.commission.input_revision){
+    // Publishing the actual corrected source advances current applicability,
+    // while reconstruction still reads the unchanged first proof and ledger.
+    c.git(["update-ref","refs/remotes/origin/"+c.branch,"HEAD"]);
+    assert.equal(tip().attempt_id,first.receipt.attempt.attempt_id);
+  }
   h.prepare(c,2);
   const p=c.proof;
   p.schema=initial.schema;
@@ -97,6 +106,7 @@ async function checkGitSourceSuccessor(c, h, initial, initialCapability) {
   assert.equal(prepared.consumed,1);assert.equal(prepared.ordinal,2);assert.equal(prepared.target,target);assert.equal(prepared.reserved,false);
   for (const mutate of [q=>q.commission.ordinal=1,q=>q.commission.ordinal=3,q=>q.commission.root_family_id=digest("fork"),
     q=>q.commission.initial_accepted.review.id++,q=>q.commission.initial_authorization.grant_sha256=digest("replacement"),
+    q=>{if(q.commission.input_revision)delete q.commission.input_revision;else q.commission.input_revision=GIT_INPUT_REVISION;},
     q=>q.prior_receipt_fingerprint=initial.prior_receipt_fingerprint,q=>Object.assign(q,{head:previous,tree:initial.tree})]) {
     const bad=structuredClone(p);mutate(bad);assert.throws(()=>prepare(bad));
   }
@@ -130,6 +140,10 @@ async function checkGitSourceSuccessor(c, h, initial, initialCapability) {
   const grant={...firstAuthority.grant,id:14,created_at:time(0),body:["Authorize ordinal two of the original reviewed Git-observation commission.",
     p.schema,p.head,p.tree,p.base,p.branch,p.prior_receipt_fingerprint,finalTarget,p.commission.root_receipt_fingerprint,consumed.revision_commission,
     comment+delegation.id,comment+firstAuthority.grant.id,reviewUrl+review.id,"Separate fresh-process stock and independent audit."].join("\n")};
+  if(initial.commission.input_revision){
+    review.body+="\n"+GIT_INPUT_REVISION+"\n"+GIT_INPUT_HISTORY_BOUNDARY;
+    grant.body+="\n"+GIT_INPUT_REVISION+"\n"+GIT_INPUT_HISTORY_BOUNDARY;
+  }
   grant.updated_at=grant.created_at;
   c.authority={review,grant,pr:{...firstAuthority.pr,head:{...firstAuthority.pr.head,sha:p.head}},linked:{
     ["repos/hynk-studio/augnes/pulls/999/reviews/"+firstAuthority.review.id]:firstAuthority.review,
@@ -843,4 +857,177 @@ export async function completeGitRevisionControls(c,h) {
   console.log(JSON.stringify({synthetic_only:true,git_revision_controls:["protected Git race then effective change","unrelated fault, incomplete stock and unsettled cleanup refused",
     "actual raw/effective input identities, incomplete inventory and stale tip","exact product and regression byte witnesses","preparation cannot reserve",
     "negative review, missing scope, spoofed authority and unsafe inputs refused","exclusive successor, original ledger retained and read-only stock"]}));
+}
+
+// Controlled historical interruption; real disposable Git reads/mutations,
+// natural child settlement, authenticated transport and append-only admission.
+// This is not production qualification or authority for any existing PR.
+export async function runGitInputRevisionControls(c,h,sourceSuccessor=false) {
+  const original=c.prior, ledger=path.join(c.legacyRoot,"completion-1.json"), edge=path.join(c.legacyRoot,"correction-successor.json");
+  const historical=[ledger,path.join(c.legacyRoot,"attempt-1.json"),path.join(c.checkout,".augnes-local-verification/receipts",original.run.id+".json")];
+  const historicalBytes=historical.map(f=>readFileSync(f));
+  const stock={content_fingerprint:original.integrity.content_fingerprint,status:"non_deciding_or_stale",valid_deciding_evidence:false,
+    issues:["receipt_classified_outcome_not_passing","receipt_current_inputs_unverified","receipt_final_result_not_pass",
+      "receipt_input_observation_blocked","receipt_non_deciding","receipt_phase_environment_binding_invalid",...phaseIds.slice(3).map(id=>"phase_not_passing:"+id)],
+    dimensions:{historical_integrity:"intact",execution:"incomplete_or_failed",evidence_validity:"invalid_or_incomplete",safety:"blocked",current_merge_applicability:"blocked"}};
+  const completion=h.read(ledger), incident=gitObservationIncident(original,original.attempt,completion,stock,phaseIds);
+  h.prepare(c); const p=c.proof;
+  assert.equal(p.head,original.attempt.head); assert.equal(p.tree,original.attempt.tree);
+  p.schema="augnes.local-canonical-source-correction.v10";p.commission.input_revision=GIT_INPUT_REVISION;
+  p.originals.stock=h.artifact(c,"prior-stock.log",JSON.stringify(stock));p.inputs.predecessor_sha256=digest(incident);
+  const config=path.join(c.checkout,".git/config");
+  const observe=()=>freezeInputContract({resources:[createGitTrackingResource(config,[c.checkout])],pathKind:"isolated-model-free-v1",binding:{}}).snapshot().resources[0];
+  c.gitDeclaration.resources[0]=observe();
+  const inventory={...c.gitDeclaration,binding:{head:p.head,tree:p.tree,runtime_inputs:c.inputs}};
+  const snapshot={...inventory,fingerprint:digest(inventory),first_fault:null,secondary_faults:[],events:[]};
+  p.inputs.inventory_sha256=gitRevisionInventory(snapshot);
+  const module=new URL("../local-canonical-inputs.mjs",import.meta.url).href;
+  const probe='import assert from "node:assert/strict"; import path from "node:path"; import {createGitTrackingResource,freezeInputContract,digest} from '+JSON.stringify(module)+'; const root=process.cwd(); const read=()=>freezeInputContract({resources:[createGitTrackingResource(path.join(root,".git/config"),[root])],pathKind:"isolated-model-free-v1",binding:{}}).snapshot().resources; const a=read(),b=read(); assert.equal(digest(a),digest(b)); assert.equal(a[0].before.git_projection.applicable,true); console.log(JSON.stringify(a[0]));';
+  const command="node --input-type=module -e "+JSON.stringify(probe);
+  let stdout="";
+  const result=await h.run({command:process.execPath,args:["--input-type=module","-e",probe],cwd:c.checkout,env:c.env,
+    suite:"git-input-prospective",label:"actual stable protected Git input",timeoutMs:5000,stdout:{write(v){stdout+=v;}},stderr:process.stderr,log(){}});
+  assert.equal(result.exit_code,0);assert(result.exit_observed && result.streams_closed && result.cleanup_completed && result.remaining_owned_processes===0);
+  const get=ref=>h.read(path.join(c.artifacts,ref.artifact)), artifact=(name,v)=>h.artifact(c,name,v);
+  assert.deepEqual(JSON.parse(stdout),inventory.resources[0]);
+  const output=artifact("stable-input.log",stdout), record=artifact("stable-input.json",{command,tested_source_head:p.head,finished_at:time(-10000),result});
+  const focus={...get(p.focused),finished_at:time(-9000),remedy:"Completed upstream publication before freezing the changed protected Git input; product source is unchanged.",
+    input_remedy_resources:["git-config"],input_inventory:artifact("input-inventory.json",snapshot),implicated_paths:[],
+    commands:[{command,tested_source_head:p.head,result,record,stdout:output}]};
+  p.focused=artifact("focused.json",focus);
+  const source={...get(p.source),reviewed_at:time(-16000)};p.source=artifact("source.json",source);
+  const svc=original.cleanup.companion_service;
+  c.live={inventory:p.inputs.inventory_sha256,service:{state:svc.after,diagnostics:{...svc.observations.after,finished_at:time(0)}}};
+  const prep=path.join(c.artifacts,"preparation.json");
+  const prepare=(candidate=p,live=c.live)=>{
+    const material=structuredClone(candidate);delete material.accepted.review;delete material.authorization;h.write(prep,material);
+    return inspectGitRevisionPreparation({file:prep,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live});
+  };
+  assert.deepEqual(prepare().target,gitReviewTarget(p));assert(!existsSync(edge));
+  if(!sourceSuccessor){
+  // A real Git product delta cannot use the unchanged-product lane.
+  h.write(path.join(c.checkout,product),"let decision = changedProduct();\n");c.git(["add",product]);
+  const productTree=c.git(["write-tree"]).toString().trim();
+  const productHead=c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit-tree",productTree,"-p",p.head,"-m","product control"]).toString().trim();
+  c.git(["restore","--source=HEAD","--staged","--worktree","--",product]);
+  const delta=from=>{const bytes=c.git(["diff","--binary","--full-index","--no-ext-diff","--no-textconv",from,productHead,"--"]);
+    return {bytes:bytes.length,sha256:digest(bytes),paths:c.git(["diff","--name-only",from,productHead,"--"]).toString().trim().split("\n").filter(Boolean).sort()};};
+  const productCandidate={...structuredClone(p),head:productHead,tree:productTree,accepted:{...p.accepted,head:productHead,tree:productTree}};
+  productCandidate.source=artifact("product-delta.json",{...source,accepted_to_final:delta(productHead),predecessor_to_final:delta(p.head),main_to_final:delta(p.base)});
+  assert.throws(()=>prepare(productCandidate),/revision_product_source_changed/);
+  for (const mutate of [
+    v=>v.resources[0].before=structuredClone(original.inputs.resources[0].before),
+    v=>v.resources[0].before.git_projection.scope_fingerprint=digest("substituted scope"),
+    v=>v.resources[0].before.metadata.mode="33206",
+    v=>v.resources[0].before.metadata.links="2",
+    v=>v.resources[0].location_fingerprint=digest("relocated"),
+    v=>v.resources.splice(1,1),
+    v=>v.events.push({resource:"unexplained"}),
+  ]) {
+    const altered=structuredClone(snapshot);mutate(altered);
+    const {contract,path_kind,binding,resources}=altered;altered.fingerprint=digest({contract,path_kind,binding,resources});
+    const candidate=structuredClone(p);
+    assert.throws(()=>{
+      candidate.inputs.inventory_sha256=gitRevisionInventory(altered);
+      candidate.focused=artifact("bad-focus.json",{...focus,input_inventory:artifact("bad-inventory.json",altered)});
+      prepare(candidate,{...c.live,inventory:candidate.inputs.inventory_sha256});
+    });
+  }
+  for(const change of [q=>delete q.commission.input_revision,q=>q.commission.input_revision="new-label",
+    q=>q.prior_attempt_id="stale",q=>q.prior_receipt_fingerprint=digest("substitution")]){
+    const bad=structuredClone(p);change(bad);assert.throws(()=>prepare(bad));
+  }
+  assert.throws(()=>prepare(p,{...c.live,inventory:digest("unverified complete inventory")}));
+  assert.throws(()=>prepare(p,{...c.live,service:{...c.live.service,state:{...svc.after,preservation_valid:false}}}));
+  const oldCompletion=readFileSync(ledger);
+  h.write(ledger,{...completion,cleanup_complete:false});
+  try{assert.throws(()=>prepare());}finally{h.write(ledger,oldCompletion);}
+  const mergeKey="branch."+c.branch+".merge", ownMerge="refs/heads/"+c.branch;
+  c.git(["config",mergeKey,"refs/heads/main"]);
+  assert.throws(()=>prepare(),/revision_git_publication_unsettled/);
+  c.git(["config",mergeKey,ownMerge]);
+  // Real unsafe file and protected edit controls, through the production reader.
+  const frozen=freezeInputContract({resources:[createGitTrackingResource(config,[c.checkout])],pathKind:"isolated-model-free-v1",binding:{}});
+  c.git(["config",mergeKey,"refs/heads/main"]);frozen.check();
+  assert.equal(frozen.snapshot().first_fault.disposition,"input_invalidation");
+  c.git(["config",mergeKey,ownMerge]);
+  const mode=statSync(config).mode;
+  chmodSync(config,0o666);
+  try{assert.throws(()=>gitRevisionInventory({...snapshot,resources:[observe(),...snapshot.resources.slice(1)]}));}finally{chmodSync(config,mode);}
+  const alias=config+".alias";linkSync(config,alias);try{assert.throws(observe);}finally{rmSync(alias);}
+  // Freeze the actual settled input after controls, never reuse a pre-edit full-file inventory.
+  inventory.resources[0]=observe();
+  Object.assign(snapshot,inventory,{fingerprint:digest(inventory)});
+  p.inputs.inventory_sha256=gitRevisionInventory(snapshot);c.live.inventory=p.inputs.inventory_sha256;
+  focus.input_inventory=artifact("input-inventory.json",snapshot);p.focused=artifact("focused.json",focus);
+  }
+  c.gitDeclaration=inventory;
+  const {review,grant}=c.authority,target=gitReviewTarget(p);
+  review.body=["Source review decision: ACCEPT / RETAIN for prospective qualification.",p.base,p.head,p.tree,p.prior_receipt_fingerprint,target,GIT_INPUT_REVISION,GIT_INPUT_HISTORY_BOUNDARY].join("\n");
+  review.submitted_at=time(-8000);grant.created_at=grant.updated_at=time(-5000);
+  grant.body=["Authorize prospective Mac qualification of this stable Git-input target.",p.schema,p.branch,p.base,p.head,p.tree,p.prior_receipt_fingerprint,target,
+    GIT_INPUT_REVISION,GIT_INPUT_HISTORY_BOUNDARY,"https://github.com/hynk-studio/augnes/pull/999#pullrequestreview-10","Separate fresh-process stock and independent audit."].join("\n");
+  const bind=()=>{p.accepted.review.sha256=digest(reviewedRevisionAuthorityObservation(review,"accepted_revision"));
+    p.authorization.grant_sha256=digest(reviewedRevisionAuthorityObservation(grant,"execution_commission"));h.write(c.file,p);};
+  const grantBody=grant.body,reviewBody=review.body;
+  if(!sourceSuccessor){
+  for(const object of [review,grant]) {
+    const body=object.body;
+    for(const bad of [body.replace(GIT_INPUT_HISTORY_BOUNDARY,""),body.replace(GIT_INPUT_REVISION,""),"> "+body,"HOLD\n"+body]){
+      object.body=bad;bind();await assert.rejects(h.auth(c,h.proof(c)));
+    }object.body=body;
+  }
+  }
+  assert.equal(review.body,reviewBody);assert.equal(grant.body,grantBody);bind();
+  const proof=h.proof(c),cap=await h.auth(c,proof);
+  assert.throws(()=>h.begin(c,proof,null));
+  assert.throws(()=>h.begin(c,proof,{observations:cap.observations}));
+  assert.throws(()=>h.begin(c,proof,cap,{revisionLive:{...c.live,inventory:digest("changed at admission")}}));
+  if(sourceSuccessor){
+    await checkGitSourceSuccessor(c,{...h,snapshot:null},proof,cap);
+    for(const [i,file] of historical.entries())assert.deepEqual(readFileSync(file),historicalBytes[i]);
+    return;
+  }
+  // Two ordinary fresh processes race for one existing exclusive successor.
+  // The winning reservation is deliberately left incomplete in this isolated
+  // fork, so interruption cannot become another allowance.
+  const raceAnchor=path.join(c.root,"race-anchor"),go=path.join(c.root,"race-go"),ready=[],packets=[];
+  cpSync(c.anchor,raceAnchor,{recursive:true});
+  for(let i=0;i<2;i++){
+    const checkout=path.join(c.root,"racing-checkout-"+i),file=path.join(c.root,"race-packet-"+i+".json"),readyFile=path.join(c.root,"race-ready-"+i);
+    cpSync(c.checkout,checkout,{recursive:true,filter:source=>source!==path.join(c.checkout,".augnes-local-verification/checkout-owner.json")});
+    h.write(file,{anchor:raceAnchor,checkout,file:path.join(checkout,path.relative(c.checkout,c.file)),inputs:c.inputs,authority:c.authority,live:c.live,ready:readyFile,go});
+    ready.push(readyFile);packets.push(file);
+  }
+  let raceOutput="";
+  const racing=packets.map(file=>h.run({command:process.execPath,args:[fileURLToPath(new URL("./local-canonical-reviewed-revision.mjs",import.meta.url)),"--race",file],
+    cwd:c.checkout,env:c.env,suite:"git-input-prospective",label:"competing stable-input reservation",timeoutMs:10000,
+    stdout:{write(v){raceOutput+=v;}},stderr:process.stderr,log(){}}));
+  let reached=false, results;
+  try{
+    const deadline=Date.now()+8000;
+    while(!ready.every(existsSync)&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,5));
+    reached=ready.every(existsSync);
+  }finally{h.write(go,"go");results=await Promise.allSettled(racing);}
+  assert(reached);
+  for(const r of results){assert.equal(r.status,"fulfilled");assert.equal(r.value.exit_code,0);assert(r.value.cleanup_completed && r.value.remaining_owned_processes===0);}
+  assert.equal(raceOutput.split("\n").filter(v=>v==="admitted").length,1);
+  assert.equal(raceOutput.split("\n").filter(v=>v==="refused").length,1);
+  const raceFamilies=path.join(raceAnchor,".augnes-local-verification/families");
+  const reserved=readdirSync(raceFamilies).filter(id=>id!==p.prior_family_id);
+  assert.equal(reserved.length,1);assert(existsSync(path.join(raceFamilies,reserved[0],"attempt-1.json")));
+  assert(!existsSync(path.join(raceFamilies,reserved[0],"completion-1.json")));
+  assert(existsSync(path.join(raceFamilies,p.prior_family_id,"correction-successor.json")));
+  const exe=inventory.resources.find(r=>r.id==="browser-executable");
+  const browser={contract:"augnes.local-canonical-browser-use.v2",executable_name:"Fixture",location_fingerprint:exe.location_fingerprint,before:exe.before,after:exe.before,
+    actual_version:"Chrome/1",runtime_versions:{http:"Chrome/1",cdp:"Chrome/1"},disposition:"unchanged",unchanged:true};
+  const completed=await executeFixture(c,h,proof,cap,browser,dependencyRecords(c));
+  assert.equal(completed.stock.valid_deciding_evidence,true);assert.equal(completed.child.result.exit_code,0);
+  assert.throws(()=>h.begin(c,proof,cap));assert.throws(()=>prepare());
+  const tip=reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch});
+  assert.equal(tip.reviewed_revision_consumed,1);
+  for(const [i,file] of historical.entries())assert.deepEqual(readFileSync(file),historicalBytes[i]);
+  assert.equal(stock.valid_deciding_evidence,false);assert.equal(original.inputs.first_fault.disposition,"observer_failure");
+  console.log(JSON.stringify({synthetic_only:true,unchanged_product:true,stable_protected_input:true,natural_child:true,separate_stock:true,
+    historical_invalidity_preserved:true,consumed:1,controls:["missing or negative authority","unknown history acknowledgment","unchanged, incomplete or substituted input","unrelated product delta","stale predecessor","unsafe permissions and links","unsettled cleanup","in-flight input invalidation","competing reservations and exclusive replay"]}));
 }
