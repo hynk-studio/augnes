@@ -1114,7 +1114,9 @@ substitute for this grant.
 
 The actual exclusive edge reserves only that single invocation. Duplicate or
 interrupted reservations remain consumed; no automatic second ordinal,
-recovery, generic-v7 continuation or route downgrade follows it. Ordinary
+recovery, generic-v7 continuation or route downgrade follows it. A separately
+delegated material-source correction may follow only under the explicit
+exhausted-serial transition below; it does not extend this grant. Ordinary
 admission, planner-selected complete Full, resource policy and fresh-process
 stock still apply to any separately authorized deciding invocation. Receipt and
 stock additionally validate disjoint serial accounting. Historical physical
@@ -1145,6 +1147,29 @@ the physical append-only edges, detects cycles and is bounded by the physical
 family inventory; it does not reset a root or impose a new cross-commission quota.
 A material-source descendant cannot fall back into a legacy route.
 
+The supported incoming predecessor also includes a completely settled, exhausted
+`serial-aggregate-budget-v1` commission with a natural product failure. Its actual
+latest receipt, original v2 incident, consumed authority and exclusive history
+remain mandatory. Serial provenance is not globally Git-observation provenance.
+The first material descendant records `commission.inherited_serial`: original
+serial route and envelope commitment plus origin family, number, attempt and
+receipt. Every later material descendant must retain it exactly. Omission,
+alteration, unrelated insertion and legacy downgrade refuse. Serial predecessors
+genuinely lack a delegation role; no historical delegation is fabricated. The
+new real delegation must follow completion and cannot reuse the old grant.
+
+The inherited commitment retains four ordered children and their existing
+commands, assertions, natural exits and 360000/60000/180000/60000 ms limits,
+660000 ms execution + 40000 ms natural child settlement + independent 30000 ms
+coordinator = 730000 ms, with parent post-exit settlement separate. Maintenance
+ownership, phase-five/full-workload-twenty Browser records, terminal IPC fault
+retention and synthetic-output quarantine remain unchanged. The proof target,
+commission identity, authenticated review/grant scope, physical replay, receipt,
+fresh stock and sanitized export retain and enforce the inherited obligation.
+Both review and grant state `Inherited serial envelope: <exact commitment>` and
+bind its origin and the original serial history boundary. Export remains
+structural, non-deciding and not independent attestation.
+
 `input_acquisition` is preserved exactly when inherited. It describes acquisition
 provenance, not the new product incident. Current incoming edges require a fully
 supported physical lineage. A retired workload marker anywhere in that chain
@@ -1166,6 +1191,19 @@ may retain the after witness only with the complete exact Git delta and identica
 consumed bytes; executable changes require relevant new evidence. Witness originals
 are never relabeled.
 
+For a compiler defect, the bounded `repository-typecheck-v1` alternative records
+the unchanged `npm run typecheck` (`npm run typegen && tsc --noEmit`) with actual
+natural RED exit 2 and GREEN exit 0. It binds exact clean Git heads/trees and tree
+inventories, unchanged package/lock/tsconfig, compiler version and executable
+hashes, actual npm/tsc/next launchers, exact PATH Node identity, no preload or
+script-shell override, runtime/environment, both configured generated type roots
+including explicit absence, complete raw diagnostics,
+source stability, and cleanup. Both runs begin without an incremental cache;
+cached diagnostic exit 1 is retained separately, never relabeled. Typegen/setup
+failure, a wrapper substituted for the compiler, sparse or changed bindings,
+altered diagnostics and a merely cosmetic source delta refuse. This alternative
+has no new historical driver and does not weaken existing behavioral witnesses.
+
 The production reader owns the four-paragraph material-source delegation. It must
 be unedited, genuinely new and later than the physical predecessor's completion.
 Real non-reserving preparation precedes separate independent acceptance of the
@@ -1180,6 +1218,14 @@ unchanged-target retry/extra recovery, separate fresh-process stock and independ
 result audit. Preparation, source acceptance and synthetic controls grant no
 execution authority. Fresh current-main, published-source, runtime/header,
 complete input, Companion, ownership and capacity admission still precede Full.
+
+`node scripts/prepare-local-canonical-material-source.mjs <material.json>` is a
+thin read-only caller of the existing preparation owner. It checks the current
+authenticated Draft PR, genuine unedited conditional delegation and permission,
+completion ordering, physical latest tip, source/runtime/inventory, Companion
+and current compiler bytes when applicable. Its material has no execution
+authorization or accepted-review field; it acquires no capability, lease,
+reservation, successor or consumption.
 
 Rollback removes prospective admission; it never deletes historical proofs,
 markers, grant identities, consumed reservations or failed receipts. Older readers
@@ -1256,6 +1302,10 @@ and cleanup owners; the additional negative controls do not enlarge a deadline.
 `node scripts/run-canonical-test-suite.mjs authority
 --reviewed-revision-only` selects these actual registrations with their normal
 resource and cleanup owners. The aggregate has no additional registration.
+The serial-material registration additionally executes three actual compiler
+children and serial incident/lineage controls in its own disposable root. Its
+60-second nested owner and 75-second outer natural-exit limit are focused-test
+bounds only; all production serial limits and other registrations stay fixed.
 
 The new commission's initial ordinal binds its latest tip as its root. All old
 grant IDs and consumption are reconstructed from the existing exclusive chain.

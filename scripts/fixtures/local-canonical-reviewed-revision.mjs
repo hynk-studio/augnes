@@ -397,12 +397,12 @@ if(process.argv[2]==="--cold"){
       cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});
     assert(cleanupCanonicalTestResources([owner])[0].completed);
   }
-}else if(process.argv[2]==="--run-serial-aggregate-fixtures"){
+}else if(["--run-serial-aggregate-fixtures","--run-serial-material-fixtures"].includes(process.argv[2])){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
   const lifecycle={pendingChildren:0}, run=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);
   const c=setup(owner.root);
   try { await runSerialAggregateControls(c,{prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,run,
-    fresh:packet=>freshReader(c,packet,run),behavior:(subject)=>behavior(subject,false,run)}); }
+    fresh:packet=>freshReader(c,packet,run),behavior:(subject)=>behavior(subject,false,run)},process.argv[2]==="--run-serial-material-fixtures"); }
   finally {releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});assert(cleanupCanonicalTestResources([owner])[0].completed);}
 }else if(process.argv[2]==="--run-browser-fixtures"){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);

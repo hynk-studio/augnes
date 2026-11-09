@@ -15,11 +15,15 @@ import { gitFixtureDeclaration, } from "./local-canonical-git-observation.mjs";
 import { browserFixtureReceipt } from "./local-canonical-browser-revision.mjs";
 import { browserConsumersForPhase, BROWSER_IDENTITY_PREFIX } from "../local-canonical-browser-identity.mjs";
 import { behavior, dependencyRecords, executeFixture } from "./local-canonical-browser-successor.mjs";
+import { gitRevisionInventory } from "../local-canonical-git-observation.mjs";
+import { seedSerialMaterialCompiler, runSerialMaterialControls } from "./local-canonical-serial-material.mjs";
 
 const clone=v=>structuredClone(v), time=n=>new Date(Date.now()+n).toISOString();
 const names=["projectExperienceStep","projectClientBrowserStep","webPlanningBrowserStep","webPlanningDraftSafetyStep"];
-export async function runSerialAggregateControls(c,h) {
+export async function runSerialAggregateControls(c,h,materialMode=false) {
   const {write,read,artifact}=h, findings=[], phases=REVIEWED_REVISION_PHASES;
+  const sourceRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../..");
+  if (materialMode) seedSerialMaterialCompiler(c,h,sourceRoot);
   const commit=message=>{c.git(["add","scripts"]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m",message]);return c.git(["rev-parse","HEAD"]).toString().trim();};
   const suite="scripts/run-canonical-test-suite.mjs", parent="scripts/run-local-canonical-verification.mjs", budget="scripts/project-experience-serial-budget.mjs";
   const legacy=PROJECT_EXPERIENCE_SERIAL.children.map((v,i)=> i === 3 ? `const ${names[i]} = {\n  ...webPlanningBrowserStep, id: ${JSON.stringify(v.id)}, label: ${JSON.stringify(v.label)},\n  ...rootNode(${v.args.slice(2).map(JSON.stringify).join(', ')}), timeoutMs: ${v.timeoutMs},\n};` : `const ${names[i]} = {\n  id: ${JSON.stringify(v.id)}, group: ${JSON.stringify(v.group)}, requirements: ${JSON.stringify(v.requirements)}, label: ${JSON.stringify(v.label)},\n  ...rootNode(${JSON.stringify(v.args[2])}), timeoutMs: ${v.timeoutMs}, requireNaturalExit: true,\n};`).join("\n");
@@ -84,15 +88,18 @@ export async function runSerialAggregateControls(c,h) {
   const completion=path.join(priorRoot,"completion-1.json");write(completion,{...read(completion),finished_at:time(-3000)});
   assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}).reviewed_revision_consumed,undefined);
   // Copy the actual reusable serial owner and driver into this synthetic source.
-  const sourceRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../..");
   const driver="scripts/test-project-experience-serial-budget.mjs";
   const ownerPaths=[budget,"scripts/canonical-child-runner.mjs",suite,parent,"scripts/canonical-test-environment.mjs","scripts/test-harness-process-lifecycle.mjs","scripts/project-experience-connection.mjs"];
   for(const name of [...ownerPaths,driver]) write(path.join(c.checkout,name),readFileSync(path.join(sourceRoot,name)));
+  if (materialMode) {
+    const runner=path.join(c.checkout,"scripts/canonical-child-runner.mjs");
+    write(runner,readFileSync(runner,"utf8").replace(/^  onMessage =.*$/mu,"  onMessage,"));
+  }
   c.head=c.commit(4);c.tree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();c.acceptedHead=c.head;c.acceptedTree=c.tree;
-  c.git(["update-ref","refs/remotes/origin/main",c.base]);write(path.join(c.checkout,".git/info/exclude"),".augnes-local-verification/\n");
+  c.git(["update-ref","refs/remotes/origin/main",c.base]);write(path.join(c.checkout,".git/info/exclude"),".augnes-local-verification/\nnode_modules\n.next/\nnext-env.d.ts\ntsconfig.tsbuildinfo\n");
   h.prepare(c);let p=c.proof;
   p.commission={...p.commission,maximum_invocations:1,route:SERIAL_AGGREGATE_ROUTE,envelope_sha256:PROJECT_EXPERIENCE_COMMITMENT};
-  p.inputs.inventory_sha256=digest("fresh fixture inventory");
+  p.inputs.inventory_sha256=gitRevisionInventory(declared);
   const outer='[canonical:local-changed] ', parentLabel='label="Canonical project experience Browser owner"';
   const capture=c.prior.phases.slice(0,9).flatMap(v=>v.browser_use).map(v=>'[local-canonical-browser-use] '+JSON.stringify(v)+'\n').join('')+'[local-canonical] phase_start id=e2e-project-experience timeout_ms=480000\n'+outer+'child_start '+parentLabel+' timeout_ms=480000\n'+outer+'child_spawn '+parentLabel+' pid=123 wait=process_exit\n'+log+
     outer+'child_cleanup_start '+parentLabel+' elapsed_ms=480000 reason=bounded_timeout exit_observed=false stdout_closed=false stderr_closed=false\n'+
@@ -144,6 +151,7 @@ export async function runSerialAggregateControls(c,h) {
   c.proof=p;write(c.file,p);
   const prepFile=path.join(c.artifacts,"preparation.json"), edge=path.join(priorRoot,"correction-successor.json");
   const prep=(q=p,live=c.live)=>{q=clone(q);delete q.authorization;delete q.accepted.review;write(prepFile,q);return inspectSerialAggregatePreparation({file:prepFile,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live});};
+  assert.equal(c.git(["status","--porcelain=v1"]).toString().trim(),"","fixture must be clean before preparation");
   const preparation=prep();assert.equal(preparation.consumed,0);assert.equal(preparation.reserved,false);assert(!existsSync(edge));
   const originalHashes=[completion,path.join(priorRoot,"attempt-1.json")].map(f=>digest(readFileSync(f)));
   for(const mutate of [q=>q.prior_attempt_id="wrong-tip",q=>q.commission.envelope_sha256=digest("changed inventory"),q=>q.head=c.base,q=>q.commission.ordinal=2,q=>q.commission.maximum_invocations=2]) {
@@ -225,6 +233,7 @@ export async function runSerialAggregateControls(c,h) {
   assert.throws(()=>h.begin(c,proof,{}));assert(!existsSync(edge));
   // Existing complete receipt/stock fixture uses the actual reservation owner.
   c.gitDeclaration=declared;
+  if (materialMode) return runSerialMaterialControls(c,h,proof,authority,sourceRoot,use);
   const execution=await executeFixture(c,h,proof,authority,use,dependencyRecords(c));
   assert.equal(execution.stock.valid_deciding_evidence,true);
   // Reuse actual parent IPC accounting from the source-bound focused driver.

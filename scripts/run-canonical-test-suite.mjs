@@ -135,12 +135,14 @@ const goldenStep = {
   requireNaturalExit: true,
 };
 
-const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-input", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation", "serial-aggregate"].map(group => ({
+const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-input", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation", "serial-aggregate", "serial-material"].map(group => ({
   id: "local-canonical-reviewed-revision-" + group,
   label: "reviewed revision controls: " + group,
-  sharedFixture: !["revision", "settlement", "browser", "serial-aggregate"].includes(group),
+  sharedFixture: !["revision", "settlement", "browser", "serial-aggregate", "serial-material"].includes(group),
   ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--reviewed-revision-controls", group),
-  timeoutMs: 30_000,
+  // The material consumer adds three real compiler children to incident and
+  // ledger controls. Its inner 60s owner settles before this outer deadline.
+  timeoutMs: group === "serial-material" ? 75_000 : 30_000,
   requireNaturalExit: true,
 }));
 

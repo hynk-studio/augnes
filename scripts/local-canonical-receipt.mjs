@@ -1,4 +1,4 @@
-import { isSerialAggregateRevision } from "./local-canonical-serial-aggregate.mjs";
+import { hasSerialAccounting } from "./local-canonical-serial-aggregate.mjs";
 import { validProjectExperienceAccounting } from "./project-experience-serial-budget.mjs";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -717,7 +717,7 @@ export function inspectClassifiedEvidence(receipt, issues, incomplete = null) {
       attempt.contract_fingerprint !== input.fingerprint || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== (isReviewedRevision(attempt.source_correction) ? 0 : 1) ||
       (attempt.number === 1 && (attempt.prior_attempt_id !== null || attempt.recovery !== null)) ||
       (attempt.number === 2 && (!SHA256_PATTERN.test(attempt.prior_receipt_fingerprint ?? "") || !attempt.recovery)))) issues.push("receipt_attempt_lineage_invalid");
-  if (isSerialAggregateRevision(attempt?.source_correction) && receipt.phases.some(p => p.id === "e2e-project-experience" && p.status === "pass" && !validProjectExperienceAccounting(p.serial_budget)))
+  if (hasSerialAccounting(attempt?.source_correction) && receipt.phases.some(p => p.id === "e2e-project-experience" && p.status === "pass" && !validProjectExperienceAccounting(p.serial_budget)))
     issues.push("receipt_serial_budget_invalid");
   const expectedBrowser = input.resources.find(r => r.id === "browser-executable");
   let actualVersion = browserRevision ? browser?.actual_version : null;

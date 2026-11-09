@@ -9,6 +9,36 @@ import { settledIsolatedResources } from "./local-canonical-browser-revision.mjs
 export const SERIAL_AGGREGATE_ROUTE = "serial-aggregate-budget-v1";
 export const isSerialAggregateRevision = p => p?.schema === "augnes.local-canonical-source-correction.v7" &&
   p.kind === "reviewed_revision" && p.commission?.route === SERIAL_AGGREGATE_ROUTE;
+// A material-source successor carries the original serial obligation, without
+// acquiring another invocation of that spent serial commission.
+export function validSerialInheritance(value) {
+  return value && Object.keys(value).sort().join(",") === "envelope_sha256,origin_attempt_id,origin_family_id,origin_number,origin_receipt_fingerprint,route" &&
+    value.route === SERIAL_AGGREGATE_ROUTE && value.envelope_sha256 === PROJECT_EXPERIENCE_COMMITMENT &&
+    /^[a-f0-9]{64}$/u.test(value.origin_family_id ?? "") && value.origin_number === 1 &&
+    typeof value.origin_attempt_id === "string" && value.origin_attempt_id.length > 0 &&
+    /^[a-f0-9]{64}$/u.test(value.origin_receipt_fingerprint ?? "");
+}
+export const hasSerialAccounting = p => isSerialAggregateRevision(p) ||
+  p?.schema === "augnes.local-canonical-source-correction.v7" && p.kind === "reviewed_revision" &&
+  p.commission?.source_revision === "material-source-correction-v1" && validSerialInheritance(p.commission.inherited_serial);
+export const serialInheritanceFrom = (previous, next) => isSerialAggregateRevision(previous) ? {
+  route:SERIAL_AGGREGATE_ROUTE,envelope_sha256:previous.commission.envelope_sha256,
+  origin_family_id:next.prior_family_id,origin_number:next.prior_number,
+  origin_attempt_id:next.prior_attempt_id,origin_receipt_fingerprint:next.prior_receipt_fingerprint,
+} : previous?.commission?.inherited_serial ?? null;
+export function inheritedSerialAuthorityScope(p, body) {
+  const value=p.commission?.inherited_serial;
+  return value === undefined || validSerialInheritance(value) && [
+    "Inherited serial envelope: " + value.envelope_sha256, value.route, value.origin_family_id,
+    value.origin_attempt_id, value.origin_receipt_fingerprint, SERIAL_HISTORY,
+  ].every(text=>body.includes(text));
+}
+export function verifyInheritedSerialConnection(p,git) {
+  if(p.commission?.inherited_serial && !validProjectExperienceConnection(
+    git(["show",p.head+":scripts/run-canonical-test-suite.mjs"]).toString(),
+    git(["show",p.head+":scripts/run-local-canonical-verification.mjs"]).toString()))
+    refuse("revision_inherited_serial_connection_invalid");
+}
 const equal = (a,b) => a !== undefined && b !== undefined && digest(a) === digest(b);
 const refuse = code => { throw Object.assign(new Error(code), { code }); };
 export const SERIAL_HISTORY = "Original timeout, false stock, interrupted child UNKNOWN and all earlier lineage remain unchanged.";

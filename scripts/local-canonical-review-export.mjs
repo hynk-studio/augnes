@@ -4,6 +4,8 @@ import { browserConsumersForPhase } from "./local-canonical-browser-identity.mjs
 import { validCanonicalRuntimeInputs } from "./local-canonical-inputs.mjs";
 import { canonicalSerialize, assertPublicSafeReceipt, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
 import { digest, validInputFailureDiagnostics } from "./local-canonical-inputs.mjs";
+import { hasSerialAccounting } from "./local-canonical-serial-aggregate.mjs";
+import { validProjectExperienceAccounting } from "./project-experience-serial-budget.mjs";
 
 
 export const REVIEW_EXPORT_SCHEMA = "augnes.local-canonical-private-review.v1";
@@ -47,6 +49,8 @@ export function createPrivateReviewExport(receipt) {
       ...(isReviewedRevision(receipt.attempt.source_correction) ? { branch: receipt.attempt.branch, revision_authority: receipt.attempt.revision_authority } : {}),
       repair: receipt.attempt.recovery ? pick(receipt.attempt.recovery, ["cause", "observed_code", "remedy", "evidence_sha256", "scope"]) : null } : null,
     phases: receipt.phases.map(p => ({ id: p.id, command: p.command, status: p.status, duration_ms: p.duration_ms,
+      ...(hasSerialAccounting(attempt?.source_correction) && p.serial_budget ? {serial_budget:pick(p.serial_budget,
+        ["contract","commitment","complete","completed_children","failure_code","execution_ms","natural_settlement_ms","coordinator_ms","envelope_elapsed_ms","parent_post_exit_settlement_ms"])} : {}),
       exit_status: p.exit_status, timed_out: p.timed_out, failure_code: p.failure_code,
       cleanup: pick(p.cleanup, ["completed", "remaining_owned_processes", "termination_reason", "exit_observed", "streams_closed", "listener_residue_count"]),
       browser_use: (p.browser_use ?? []).map(b => ({ contract: b.contract, consumer: b.consumer, disposition: b.disposition, runtime_versions: b.runtime_versions, executable_name: b.executable_name, location_fingerprint: b.location_fingerprint,
@@ -79,7 +83,9 @@ export function inspectPrivateReviewExport(value) {
           r.location_fingerprint === target.executable.location_fingerprint && r.actual_version === target.actual_version &&
           r.runtime_versions?.http === r.actual_version && r.runtime_versions?.cdp === r.actual_version);
     }) : runtime === undefined;
-  const valid = browserValid && correctionValid && !hasRetiredQualificationMarker(value) && revisionValid && safe && validInputFailureDiagnostics(value.inputs, { exported: true }) && value?.schema === REVIEW_EXPORT_SCHEMA && Object.keys(value).length === allowed.size && Object.keys(value).every(k => allowed.has(k)) &&
+  const serialValid = Array.isArray(value.phases) && value.phases.every(phase =>
+    hasSerialAccounting(p) ? phase.id !== "e2e-project-experience" || phase.status !== "pass" || validProjectExperienceAccounting(phase.serial_budget) : phase.serial_budget === undefined);
+  const valid = serialValid && browserValid && correctionValid && !hasRetiredQualificationMarker(value) && revisionValid && safe && validInputFailureDiagnostics(value.inputs, { exported: true }) && value?.schema === REVIEW_EXPORT_SCHEMA && Object.keys(value).length === allowed.size && Object.keys(value).every(k => allowed.has(k)) &&
     [3, 4].includes(value.receipt_version) && Array.isArray(value.phases) && value.phases.length > 0 &&
     value.receipt_schema === "augnes.local-canonical-receipt.v1" &&
     /^[0-9a-f]{64}$/u.test(value.original_receipt_fingerprint ?? "") &&
@@ -90,7 +96,7 @@ export function inspectPrivateReviewExport(value) {
 
 function revisionProofExport(p) {
   return { ...pick(p, ["schema", "kind", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "pull_request"]),
-    commission: pick(p.commission, ["root_family_id", "root_number", "root_attempt_id", "root_receipt_fingerprint", "ordinal", "maximum_invocations", "initial_authorization", "delegation", "input_acquisition", "source_revision", "route", "envelope_sha256"]),
+    commission: pick(p.commission, ["root_family_id", "root_number", "root_attempt_id", "root_receipt_fingerprint", "ordinal", "maximum_invocations", "initial_authorization", "delegation", "input_acquisition", "source_revision", "route", "envelope_sha256", "inherited_serial"]),
     accepted: { ...pick(p.accepted, ["head", "tree", "base"]), review: pick(p.accepted?.review, ["id", "sha256"]) },
     authorization: { ...pick(p.authorization, ["grant_comment_id", "grant_sha256"]),
       ...(p.authorization?.contract_review ? { contract_review: pick(p.authorization.contract_review, ["pull_request", "id", "sha256", "head"]) } : {}),
