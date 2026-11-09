@@ -82,7 +82,17 @@ export async function POST(request: Request) {
     } catch {
       return denied("external_invalid_input", 400);
     }
-    return NextResponse.json(await handleExternalOperation(input), { headers });
+    const authorize = () => {
+      if (!localClientRequest(request) || !equal(request.headers.get("x-augnes-companion-proxy"), process.env.AUGNES_COMPANION_PROXY_TOKEN))
+        throw new ExternalError("external_access_refused", 403);
+      if (process.env.AUGNES_RECOVERY_MODE === "1" || process.env.AUGNES_RUNTIME_CHILD_ROLE !== "ui")
+        throw new ExternalError("external_runtime_unavailable", 503);
+      if (process.env.AUGNES_RUNTIME_INSTANCE_ID !== identity["x-augnes-runtime-instance"] ||
+          process.env.AUGNES_RUNTIME_GENERATION_ID !== identity["x-augnes-runtime-generation"] ||
+          process.env.AUGNES_RUNTIME_REPOSITORY_FINGERPRINT !== identity["x-augnes-runtime-repository"])
+        throw new ExternalError("external_runtime_changed", 409);
+    };
+    return NextResponse.json(await handleExternalOperation(input, authorize), { headers });
   } catch (error) {
     if (error instanceof ExternalError) return denied(error.code, error.status);
     return denied("external_inspection_or_storage_unavailable", 503);

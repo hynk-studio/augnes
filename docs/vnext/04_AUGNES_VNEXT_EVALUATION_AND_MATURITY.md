@@ -1548,6 +1548,32 @@ human/model usefulness, installed adoption, general post-withdrawal cleanup,
 cancellation, payment and settlement remain NOT_RUN or unsupported. The existing
 #1453/#1527/#1537/#1538 allocations and #1595 RETAIN conclusion are unchanged.
 
+### Original receipt after execution-binding withdrawal (#1610)
+
+The external-response integration extends its existing production owners with
+task-owned withdrawal cases. A real aggregate POST retains a counterpart receipt
+before losing its actual response. After removal of the sending envelope, a
+fresh ordinary consumer reads the unresolved obligation without contact or
+consumption. Explicit finite receipt-only authority then retrieves that original
+receipt with the sending envelope still absent. Complete bytes are read and
+independently checked, a late result is deliberately reconsidered, and a fresh
+consumer checks/uses it in a dependent report followed by separate saved readback.
+Actual POST, GET, processing-effect and reservation counts remain distinct.
+
+Affected controls exercise counterpart rejection of POST/other-request/changed
+identity, missing or exhausted permission, never-issued work, original-owner and
+input mismatch, authority loss at effect boundaries, concurrency and replay,
+legacy/separate-route accounting, credential rotation and configuration
+relocation, uncertain/absent replies, closed work and staged restore suspension.
+Successful histories use real writers and transport; malformed negative fixtures
+do not manufacture issuance, permission, receipts or consumer decisions.
+The existing #1597 evidence and controls remain separately attributable.
+
+This establishes a prospective owned-loopback capability, not remote execution
+secret revocation, cancellation, settlement, arbitrary provider compatibility,
+installed adoption or comparative usefulness. Exact-candidate qualification,
+development failures, original artifacts and cleanup are reported separately.
+
 ### Non-model harness qualification evidence
 
 For [non-model harness readiness](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#non-model-harness-capability-readiness--2026-10-31),
@@ -1727,7 +1753,7 @@ hypothetical arrangement is implemented or authorize the described actions.
 | Private know-how service with agreed benefit | A participant returns checkable work while retaining its private method and receives the agreed benefit through the named recipient. Keep deliverable, compensation and actual fulfillment separate; a service return does not imply method publication, project ownership or free labor. | Selected terms/material and contribution decisions; no payment or general rights-enforcement engine is implied. |
 | Permitted redelegation | A scoped downstream contribution preserves commissioning responsibility, disclosed material limits and aggregate outstanding commitments. Changing executor or adding a child must not duplicate budget, transfer project direction or silently authorize further delegation. | Current grants, choice and external-effect journals; unsupported multi-party allocation/redelegation stays an explicit gap. |
 | Paid negative experiment | An agreed, properly performed experiment can return a useful negative or inconclusive result and satisfy its stated compensation condition. Preserve the scientific/task outcome, deliverable acceptance and compensation evidence separately; do not relabel the hypothesis successful or simulated payment real. | Authored terms, original evidence and result-linked assessment. |
-| Timeout, expired task authority and cleanup | A timeout preserves unknown effects and outstanding obligations. Reconcile or clean up only through still-valid authority or a separately authorized limited cleanup path; expiry neither authorizes retry nor erases cleanup responsibility. Missing cleanup authority leaves the obligation unresolved, not an implicitly renewed grant. Silence or local closure is not remote cancellation. | External-response sent-reservation/query/closure and native lifecycle owners; #1597 supplies only explicitly bounded original-receipt observation after send expiry/exhaustion with unchanged bindings, not general cleanup after withdrawal. |
+| Timeout, expired task authority and cleanup | A timeout preserves unknown effects and outstanding obligations. Reconcile or clean up only through still-valid authority or a separately authorized limited cleanup path; expiry neither authorizes retry nor erases cleanup responsibility. Missing cleanup authority leaves the obligation unresolved, not an implicitly renewed grant. Silence or local closure is not remote cancellation. | External-response sent-reservation/query/closure and native lifecycle owners; #1597 supplies bounded original-receipt observation after send expiry/exhaustion with unchanged bindings; #1610 adds prospective confirmation after binding withdrawal with separate receipt-only authority. Neither grants general cleanup, cancellation or settlement. |
 | Partial adoption of a return | Check and use a valid part for the current purpose while declining another part and retaining the complete original and limitations. A returned artifact, passing component or accepted payment must not become wholesale semantic acceptance. | Manual contribution assessment and external-response check/use/material dependency. |
 | Conditional method reuse in another task | Pin the prior method and basis, reconsider changed conditions, select permitted material and validate authority for the new task. Valid non-use is allowed; an earlier success, source link or executor grant is not universal applicability, causal proof or a transferable permission. | Task-bound contribution/profile notes, source selection, material/correction and current grants. |
 | Visibility without willingness | A visible example or asset can be readable while its author declines work or keeps its method private. Change willingness or access independently: no automatic request acceptance, private indexing or competence failure follows from nonresponse. | Access-filtered discovery, explicit shares and per-request response; no global participant directory is assumed. |

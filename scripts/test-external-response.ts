@@ -54,6 +54,7 @@ import {
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator";
 import { createRecoveryBackup } from "./recovery-backup.mjs";
 import { verifyReceiptObservation } from "./external-response-observation-checks";
+import { verifyWithdrawnReceipt } from "./external-response-withdrawal-checks";
 
 const started = Date.now(),
   root = process.cwd(),
@@ -399,6 +400,8 @@ async function main() {
     "changed",
     "observation",
     "expired-observation",
+    "withdrawal",
+    "withdrawal-controls",
   ].map((label) => {
     const dir = path.join(temporary, label);
     mkdirSync(dir);
@@ -488,7 +491,7 @@ async function main() {
     envelopes: [
       {
         id: "controlled-report-envelope",
-        project_keys: projects.filter(p => !p.label.includes("observation")).map((p) => scopeKey(p.scope)),
+        project_keys: projects.filter(p => !p.label.includes("observation") && !p.label.startsWith("withdrawal")).map((p) => scopeKey(p.scope)),
         endpoint,
         instance: processor.instance,
         secret,
@@ -1805,7 +1808,7 @@ async function main() {
   phase(
     "experience_kind_admission_atomic_privacy_replay_and_fresh_recovery_parity",
   );
-  const observationEvidence = await verifyReceiptObservation({
+  const receiptHarness = {
     db, projects, config, configure, op, ok, consumer, preserves,
     processor, exhausted, fault, phase,
     persistedReceipt: (attemptRef: string) => {
@@ -1822,7 +1825,9 @@ async function main() {
       transform: (f: (v: any) => any) => { wireTransform = f; },
       failCommit: (enabled: boolean) => { failResponseCommit = enabled; },
     },
-  });
+  };
+  const observationEvidence = await verifyReceiptObservation(receiptHarness);
+  const withdrawalEvidence = await verifyWithdrawnReceipt({ ...receiptHarness, configPath, temporary });
   // Unsupported readers refuse an additive new schema; the old nonempty store
   // remains byte-preserved until the explicit staged lifecycle prepares it.
   await db.backup(path.join(temporary, "migration-source.db"));
@@ -1946,6 +1951,16 @@ async function main() {
     expected_head: restoredObservation.state.head, mode: "reconcile",
   }, "external_recovery_suspended");
   assert.deepEqual(restoredObservation.events, observationEvidence.unresolved_events);
+  const restoredWithdrawal = ok(await op(projects.find(p => p.label === "withdrawal-controls"), "read", {
+    work_ref: withdrawalEvidence.unresolved_work_ref,
+  })).work;
+  assert(restoredWithdrawal.state.unresolved);
+  assert.equal(restoredWithdrawal.receipt_confirmation.reason, "external_recovery_suspended");
+  await preserves(projects.find(p => p.label === "withdrawal-controls"), "act", {
+    key: "withdrawal-after-restore", work_ref: restoredWithdrawal.work_ref,
+    expected_head: restoredWithdrawal.state.head, mode: "reconcile",
+  }, "external_recovery_suspended");
+  assert.deepEqual(restoredWithdrawal.events, withdrawalEvidence.unresolved_events);
   assert.deepEqual(errors, []);
   assert.equal(guard.attempts.length, 0);
   phase("nonempty_older_store_recovery_and_suspension");
@@ -1962,6 +1977,7 @@ async function main() {
           children,
           trace,
           receipt_observation: observationEvidence,
+          withdrawn_receipt: withdrawalEvidence,
           original_journal_rows: retained,
           positive_service_receipts: positiveService,
           final_service_receipts: processor.snapshot(),
