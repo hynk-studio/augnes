@@ -52,6 +52,22 @@ and proportionate verification selection remain open under #1430, with current
 planner coverage and fixed timing gates preserved. The separate #1429 research
 implementation and its qualification are not included.
 
+### Proposed qualification after a protected Git-input interruption
+
+The maintenance proposal related to [#1612](https://github.com/hynk-studio/augnes/pull/1612)
+extends existing v10 owners with an explicit stable protected Git-input target.
+It preserves the independently accepted #1610 product source and the invalid
+original execution, false stock and consumed invocation. The narrow input
+alternative requires independent review of the complete candidate, current
+exact authority, full execution and separate stock; it adds no retry ledger or
+wrapper. Unmarked source-correction and recovery routes remain unchanged.
+
+This is reviewable verification maintenance, not adopted renewal authority for
+#1612. Its ordinary qualification is separate from future use of the proposal.
+The final adoption/execution decision remains open; #1612 stays SOURCE ACCEPT /
+RETAIN and qualification HOLD. The [verification policy](../../.github/LOCAL_CANONICAL_VERIFICATION.md#proposed-stable-protected-git-input-target-within-v10)
+owns the proposed admission and compatibility boundary.
+
 ### Native pending preparation and deliberate departure candidate (#1599)
 
 [#1599](https://github.com/hynk-studio/augnes/issues/1599) adds consistent pending
