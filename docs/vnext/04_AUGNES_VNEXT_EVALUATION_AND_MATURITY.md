@@ -286,6 +286,36 @@ and repeated detail requests alongside useful completion and total burden.
 These are conditional evaluation questions, not a new schema, disclosure gate
 or blanket study allocation.
 
+#### Conditional case: useful communication during unfinished work
+
+For [03's s³-motivated question](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#contribution-and-undertaking-follow-through--2026-10-20),
+select an actual task where a finding can affect another contribution before
+its next material action. Use the supported execution path and existing
+source/result/use records. Distinguish a decision-relevant report's availability,
+delivery or observed reading, the recipient's next action and the checked joint
+outcome; delivery or quotation alone does not establish useful uptake.
+
+Distinguish announced exploration, observed findings and tentative exclusions.
+"Not found" supports only the examined scope. Where premature exclusion is
+material, apply the existing [correction-uptake contrast](#conditional-case-repeated-derivatives-and-correction-uptake)
+to a mistaken report and its supported correction. Observe whether affected
+work changes while valid findings and necessary independent checks remain.
+Count avoidable repeated work separately from deliberate corroboration.
+
+For a communication claim, compare useful during-work updates with independent
+attempts plus final integration, keeping relevant capability, source access and
+the aggregate team resource ceiling comparable. Hold the initial task split
+and other interaction rules fixed when attributing a timing effect, or disclose
+the differences. Retain a strong direct/adaptive-memo alternative when the
+question is whether teaming adds value. Select only contrasts needed for that
+claim; use [total-burden accounting](#cost-and-user-burden), including receiver
+processing, integration and human relay. Per-agent allowances or message-call
+counts alone do not establish equal cost or savings.
+
+Use these observations to retain, revise, simplify or stop the method. Any
+later-task reuse claim follows the existing #1373 conditions and comparison
+rules; within-task cooperation alone does not establish accumulated capability.
+
 ### Strategic operating-profile evidence
 
 For #1518, the supported validation/preview entry and consumer, not a type alone,
@@ -1853,6 +1883,23 @@ When an increment actually changes or claims harness capability, retain the
 affected qualification below. This is not a live-run gate on the preparation
 above, a mandate to replace every layer, or a blanket test campaign for every PR.
 
+For the [BOXBOX-motivated in-task review](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#non-model-harness-capability-readiness--2026-10-31),
+state the intended user/task outcome and acceptance basis before judging benefit.
+Distinguish successful activation/context transfer, the best historical score and
+the checked result actually usable at the observation cutoff. Measure time to a
+checked result when its evidence becomes available, not merely the start of a
+retrospectively successful trial. A method revision cannot silently change the
+criteria used to declare its own success; an authorized criteria change has a
+different evaluation basis.
+
+For a continuation claim, observe a meaningful next action using preserved reasons
+and unfinished work after the change: successful resume can still repeat a
+previously ruled-out approach under unchanged conditions. Retain failed revisions
+and uncertain effects; restoring harness code does not undo completed effects.
+Use the existing total-burden and strong-comparison rules, including diagnosis,
+review, verification, switching and recovery. These are claim-specific questions
+within assigned work, not a new acceptance ladder or mandatory live experiment.
+
 | Claim or invariant | Required observation and refusal boundary |
 |---|---|
 | Policy/configuration control | Identify policy origin, authorized owner, scope and control coverage. Compare intended settings with observable application; unavailable fields and uncertain refusal origin stay explicit. Configuration acceptance is not application proof, and conflict permits no hidden override or boundary relaxation. |
@@ -1874,6 +1921,53 @@ savings. A working prototype is not an economical managed multi-tenant service.
 Reuse, augmentation, owned replacement and justified non-use are valid outcomes;
 the replaced-layer count is not success. Return retain/augment/replace/simplify/defer/stop
 with its bounded evidence. No result grants broader use, live runs, spending or deployment.
+
+#### Pi reference and worker evidence
+
+For the [Pi reference and second-executor plan](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#pi-reference-implementation-and-second-executor-candidate),
+select affected cases for each increment rather than requiring every comparison
+before any useful change. Keep source inspection, focused development feedback,
+exact-source qualification and fixed usefulness evaluation distinct under
+[method-improvement evidence](#method-improvement-evidence).
+
+| Question | Discriminating observation |
+|---|---|
+| Does context preparation preserve meaning? | A matching whole group omitted by budget remains distinguishable from no match and unavailable material at the actual consumer. Current corrections, criteria and unfinished work survive the supported re-entry path; source access and disclosure do not widen. Existing passing behavior supports retain, not a mandatory new memory system. |
+| Does the reference method help? | Compare existing and revised preparation on the same executor where possible, including selection/curation cost. Inspect later actions and checked outcomes, rediscovery, unnecessary calls and user explanation; token reduction alone is insufficient. |
+| Is Pi a useful executor? | Use comparable task/source basis, model where supported, tools, budgets and independent acceptance criteria against the current Codex path. Record host instructions, model-setting, cache, environment and assistance differences. Separate API-equivalent price, actual added spend and subscription use. |
+| Does Augnes help succession? | Compare a good ordinary artifact/handoff account with the existing Augnes source/work/result path. A fresh executor handles an actual changed condition, preserves unresolved work and rechecks current authority without copying the whole old conversation or silently refreshing resources. |
+
+Begin with a small representative set: a reproducible bug, a bounded multi-file
+change, and changed-condition continuation. This screens suitability; it is not
+a general performance ranking or statistical superiority claim. Development-exposed
+cases remain exposed. Freeze comparison conditions and a finite resource envelope
+before deciding live observations; no live-call budget is allocated by this plan.
+
+Affected negative cases include reordered/duplicate/malformed or absent results;
+accepted/handled commands without completed work; compaction/queued work after
+`agent_end`; cancellation with remaining queues or children; changed files before
+return-channel loss; and stale or withdrawn source/authority. Retain partial,
+failed and unknown outcomes. A synthesized protocol stream tests the consumer,
+an actual subprocess tests lifecycle, and a model task tests capability; none
+substitutes for the others or for actual Mac qualification where required.
+
+Trace authority and provenance through actual producers and readers. Renaming a
+managed adapter or its result cannot convert its work claims into direct local
+observations. Distinguish orchestration/delivery checks, host assertions,
+independently checked artifacts, and adopted results. Use existing predeclared
+acceptance tests where possible; model-authored tests are supplementary evidence.
+Exercise containment and credential/egress boundaries outside prompt instructions,
+and confirm queue/child settlement before declaring cancellation. Limit failure
+blocking to the affected work/effects while independent permitted work continues.
+
+Adoption is scoped to the exercised harness/configuration/model/environment/task
+profile. Require useful accepted output, correct failure and settlement behavior,
+preserved authority/evidence meaning and maintenance burden the user can support.
+An independently useful control or alternative route can justify adoption without
+winning every task. Record retain/augment/adopt-for-profile/defer/stop with its
+reason; do not automatically install, route, publish, merge or expand a grant.
+All reference improvements need not finish before a sufficient worker profile is
+usable, and worker adoption is not a prerequisite for useful reference improvements.
 
 ### Cost and user burden
 
@@ -2909,6 +3003,23 @@ benefit erased by total burden. Choose the next step under the existing
 simpler selector being sufficient is a successful research disposition.
 The prior P4.6 result above is preserved, not
 reopened or generalized into a verdict on this unexecuted hypothesis.
+
+For the [SwarmEvolve-motivated task-local search question](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#research--goal-directed-recombination-and-candidate-paths-1214),
+select only the contrasts needed for the claim: strong direct/adaptive-memo
+work and brief-text cooperation; candidate selection without sharing when
+testing recombination; cache transfer when testing that mechanism. Apply the
+same source/tool access and relevant budget rules above. Separate result
+quality at comparable evaluated-candidate counts from quality or time to a
+checked result within the total resource budget. Count evaluator work as well
+as generation, invalid/duplicate proposals, integration and human burden;
+additional proposal throughput alone does not establish better candidates.
+Latent distance, role labels or agreement on shared sources do not establish
+behavioral diversity or independent corroboration. Reuse observed candidate
+behavior and discriminating checks where they answer that question. Feedback
+used to select or revise candidates remains development exposure; a search
+winner alone is not evidence of improvement in a separate successor task.
+Apply the existing #1373 reuse and next-decision rules without a new benchmark
+matrix, mandatory comparison campaign or preservation of every internal trace.
 
 #### Example-guided atomic execution decomposition
 
