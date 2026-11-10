@@ -1561,11 +1561,12 @@ scope based on its result without automatically expanding or stopping every lane
 Develop these capabilities through complete assignments: current-source
 diagnosis, the smallest sufficient implementation, relevant checks, cleanup and
 one consolidated result with a Draft PR when code changes. Existing adequate
-behavior may need guidance/connection only or no code change. ChatGPT and the user
-retain goal/scope and result-review ownership; Codex chooses the implementation
-and tests. Existing preparation or a sufficient native path is reused. One
-continuing undertaking supplies concrete work for development; broader entry,
-noncommercial work and other already approved capabilities remain independent.
+behavior may need guidance/connection only or no code change. Task owners retain
+goal/scope ownership, contributors choose the implementation and tests, and
+reviewers independently assess the result. Existing preparation or a sufficient
+native path is reused. One continuing undertaking supplies concrete work for
+development; broader entry, noncommercial work and other already approved
+capabilities remain independent.
 This v0.2 integration updates planned responsibility and priority only. L1 remains
 Next/scoped; G1 and shared-resource development remain Later. It launches no worker,
 provider use, customer contact, transaction or deployment, claims no new completed
