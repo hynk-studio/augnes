@@ -289,7 +289,7 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   assert.notEqual(finalForecast.packet_ref.external_id, b1Forecast.packet_ref.external_id);
   assert.equal(readExpectationState(fixture.writable_database_path, projectId).runs, 1, 'Authoring and revision create no execution');
   await lifecycle.navigate(`${appOrigin}/projects/${encodeURIComponent(projectId)}`);
-  await lifecycle.waitForCondition(`document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"][data-blank-state-project-management-hydrated="true"]') !== null`, 'hydrated B2 Project Home');
+  await lifecycle.waitForCondition(`document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"][data-blank-state-project-management-hydrated="true"]') !== null`, 'hydrated B2 Project Home', undefined, { observe_project_home_readiness: true });
   await openProjectOptions(lifecycle);
   await clickSelector(lifecycle, '[data-direct-host-action="deterministic"]');
   await lifecycle.waitForCondition(`document.querySelector('[data-direct-host-round-trip-status="completed"], [data-direct-host-round-trip-status="error"]') !== null`, 'normal B2 deterministic execution');

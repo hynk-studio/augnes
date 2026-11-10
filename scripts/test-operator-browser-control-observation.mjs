@@ -39,4 +39,8 @@ assert.equal(JSON.stringify(rows).includes("secret-value"), false);
 assert.equal(JSON.stringify(rows).includes(process.cwd()), false);
 assert.ok(rows.at(-1).call_sites.every(site => /^scripts\/[\w.-]+:\d+:\d+$/u.test(site)));
 await assert.rejects(observe({ selector: "#control\nsecret", kind: "inspect" }), /match/u);
+for (let i = 0; i < 300; i++) await observe({ selector: "#control", kind: "set_value", value: "last" });
+assert.equal(input.saved, "last");
+assert.equal(rows.filter(row => row.stage === "retention_limit").length, 1);
+assert.equal(rows.filter(row => row.stage === "finish").length, 256);
 console.log("operator browser control observations: hidden/missing/actual click/setter and sanitized attribution PASS");
