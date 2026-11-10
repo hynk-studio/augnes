@@ -3,6 +3,7 @@
 import { useProjectClientFetch } from "./project-client-scope";
 import { useWorkDraftState, type WorkComposerDraft } from "./work-composer-draft";
 import { workExpectationBindingKey } from "./work-expectation-draft";
+import { acceptWorkPreparationFields, trackWorkPreparation } from "./work-preparation-departure";
 
 import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 
@@ -21,6 +22,7 @@ export function WorkExpectationPreparation({ initialization, draft, onAccessRefu
   onAccessRefused?: (errorCode: string) => void; onRefreshCurrentWork?: () => Promise<void>;
 }) {
   const fetch = useProjectClientFetch();
+  if (draft) trackWorkPreparation(draft);
   const [opened, setOpened] = useWorkDraftState(draft, "expectationOpened", false);
   const [started, setStarted] = useWorkDraftState(draft, "expectationStarted", () => Boolean(opened ||
     draft?.get("expectationReason") || draft?.get("expectationConditions")));
@@ -76,6 +78,7 @@ export function WorkExpectationPreparation({ initialization, draft, onAccessRefu
     // today's work; every later opening retains the actual editor's binding.
     if (nextOpened && !started) {
       setBoundWork(initialization); setCriterion(initialization.current_work?.success_criteria[0] ?? "");
+      acceptWorkPreparationFields(draft, { expectationCriterion: initialization.current_work?.success_criteria[0] ?? "" });
       setReviewRequired(false); setStarted(true);
     }
     setOpened(nextOpened);
@@ -124,8 +127,14 @@ export function WorkExpectationPreparation({ initialization, draft, onAccessRefu
         // their requirement, prediction, reason or applicability conditions.
         if (editVersion.current === submittedEditVersion) {
           setReason(""); setConditions("");
+          acceptWorkPreparationFields(draft, { expectationCriterion: criterion, expectationPrediction: prediction,
+            expectationReason: "", expectationConditions: "" });
           setMessage("Expectation saved before Start. Earlier versions are preserved.");
-        } else setMessage("Expectation saved before Start. Your later edits are retained and have not been saved.");
+        } else {
+          acceptWorkPreparationFields(draft, { expectationCriterion: criterion, expectationPrediction: prediction,
+            expectationReason: reason, expectationConditions: conditions });
+          setMessage("Expectation saved before Start. Your later edits are retained and have not been saved.");
+        }
       } catch { if (mounted.current) { setReviewRequired(true); setMaterial(null); setMessage("Save could not be confirmed. Your draft is retained. Refresh to inspect recorded history before retrying."); } }
       finally { saving.current = false; if (mounted.current) setBusy(false); }
     }}>
@@ -171,6 +180,7 @@ export function WorkExpectationResult({ comparison, receiptId, receiptFingerprin
   selectionRevision: ProjectSelectionRevision | null; onSaved?: () => Promise<void | boolean>;
 }) {
   const fetch = useProjectClientFetch();
+  if (draft) trackWorkPreparation(draft);
   const [outcome, setOutcome] = useWorkDraftState(draft, "reportOutcome", "unknown");
   const [observation, setObservation] = useWorkDraftState(draft, "reportObservation", "");
   const [applied, setApplied] = useWorkDraftState(draft, "reportApplied", false);
@@ -235,8 +245,13 @@ export function WorkExpectationResult({ comparison, receiptId, receiptFingerprin
           // Keep the whole report together if any field changed while either
           // the POST or the required history refresh was in flight.
           if (editVersion.current === submittedEditVersion) {
-            setObservation(""); setMessage("Source-linked operator report saved. Earlier reports are preserved.");
-          } else setMessage("Source-linked operator report saved. Your later edits are retained and have not been saved.");
+            setObservation("");
+            acceptWorkPreparationFields(draft, { reportOutcome: outcome, reportObservation: "", reportApplied: applied });
+            setMessage("Source-linked operator report saved. Earlier reports are preserved.");
+          } else {
+            acceptWorkPreparationFields(draft, { reportOutcome: outcome, reportObservation: observation, reportApplied: applied });
+            setMessage("Source-linked operator report saved. Your later edits are retained and have not been saved.");
+          }
         } catch { if (mounted.current) { setNeedsRefresh(true); setMessage("Report could not be confirmed. Your observation is retained; refresh to inspect saved history before retrying."); } }
         finally { saving.current = false; if (mounted.current) setBusy(false); }
       }}>

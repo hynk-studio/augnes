@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { checkReportSaveSettlement } from "./work-expectation-report-browser-checks.mjs";
 import { checkPreparationStay, checkPreparationPreviewResponse, checkPreparationSaveResponse, nativePreparationBrowser } from "./native-work-preparation-browser-checks.mjs";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
@@ -64,7 +65,7 @@ await runOperatorExecutionBrowserChildV1({
       await lifecycle.navigate(resultUrl);
       await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="unassessed"]') !== null`, "normal result consumer has original expectation");
       assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-expectation-comparison="unassessed"]').getBoundingClientRect().height > 0`), true, "The comparison is visible in normal result review");
-      await reportBrowserExpectation(lifecycle, "unsatisfied", "This exact result did not establish the criterion.");
+      await checkReportSaveSettlement(lifecycle, reportBrowserExpectation, "unsatisfied", "This exact result did not establish the criterion.", completedReceipt.receipt_id);
       await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="match"]') !== null`, "expected criterion failure matches without task success");
       assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-task-success-status="satisfied"]') === null`), true);
       await reportBrowserExpectation(lifecycle, "satisfied", "R2_REPORT_ONLY_RESELECT: Correction: the operator now attests that the criterion was met.");

@@ -140,7 +140,7 @@ function ScopedSemanticReviewSurface({
   const currentEditors = useRef({ initialEditor, revisionEditorBinding });
   currentEditors.current = { initialEditor, revisionEditorBinding };
   const confirmPreparationDeparture = useWorkPreparationDeparture(() => [
-    initialEditor?.draft, revisionEditorBinding?.draft,
+    initialEditor?.draft, revisionEditorBinding?.draft, ...expectationDrafts.current.values(),
   ]);
   const revisionButtonRef = useRef<HTMLButtonElement>(null);
   const operatorMutationInFlight = useRef(false);

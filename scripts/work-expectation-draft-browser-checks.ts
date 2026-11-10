@@ -10,7 +10,9 @@ export async function checkWorkExpectationDraftRecovery(tab: { eval(expression: 
     import{WorkExpectationPreparation,WorkExpectationResult}from'./components/workbench/semantic-review/work-expectation';
     import{readWorkExpectationDraft,workExpectationScopeKey}from'./components/workbench/semantic-review/work-expectation-draft';
     import{ProjectClientScopeProvider}from'./components/workbench/semantic-review/project-client-scope';
+    import{hasUnsavedWorkPreparation}from'./components/workbench/semantic-review/work-preparation-departure';
     const s=window.expectationFixture={owner:'operator:A',version:0,drafts:new Map(),posts:[],locked:false,mode:'preparation',receipt:'receipt:A',reportPosts:[],reportSaves:0,reportVersion:0,reportReads:0};
+    s.hasUnsaved=()=>[...s.drafts.values()].some(hasUnsavedWorkPreparation);
     const session=()=>({workspace_id:'workspace:A',project_id:'project:A',operator_id:s.owner});
     const work=()=>({workspace_id:'workspace:A',project_id:'project:A',project_work_binding:'root:'+s.version,active_selection_revision:null,current_packet:{packet_id:'packet:'+s.version,packet_fingerprint:'fingerprint:'+s.version},current_work:{goal:'Task '+s.version,success_criteria:[s.version===0?'Obsolete unopened requirement':s.version===1?'Inspect the exact source':'Recheck the exact source'],non_goals:[]}});
     window.fetch=async(url,init)=>{
@@ -60,11 +62,14 @@ export async function checkWorkExpectationDraftRecovery(tab: { eval(expression: 
     await until(`!!document.querySelector('[data-work-expectation]')`);
     await evaluate(`expectationFixture.version=1;expectationFixture.update()`); await until(`expectationFixture.renderedVersion===1`);
     assert.equal(await evaluate(`!!document.querySelector('[data-expectation-draft-conflict]')`), false, "A pristine unopened panel has no retained edit to rebase");
+    assert.equal(await evaluate(`expectationFixture.hasUnsaved()`), false, "A work revision does not author an unopened forecast");
     await evaluate(`document.querySelector('[data-work-expectation]').open=true`);
     await until(`!!document.querySelector('#expectation-reason')`);
     assert.equal(await evaluate(`document.querySelector('#expectation-criterion').value`), "Inspect the exact source");
+    assert.equal(await evaluate(`expectationFixture.hasUnsaved()`), false, "First opening adopts the current requirement without an unsaved warning");
     assert.equal(await evaluate(`!!document.querySelector('[data-expectation-draft-conflict]')`), false);
     await set('#expectation-reason', 'A retained forecast reason'); await set('#expectation-conditions', 'A retained applicability condition');
+    assert.equal(await evaluate(`expectationFixture.hasUnsaved()`), true, "Subsequent authored input needs departure protection");
     await click('[data-expectation-action="save"]'); await until(`!!document.querySelector('[data-expectation-draft-conflict]')`);
     await assertDraft(); assert.equal(await evaluate(`document.querySelector('#expectation-criterion').value`), "Inspect the exact source");
     assert.equal(await evaluate(`document.querySelector('[data-expectation-action="save"]').disabled`), true);

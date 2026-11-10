@@ -79,7 +79,7 @@ Work-preparation fields pause while a preview or save is pending. Add an unfinis
 source note, or use **Clear unfinished note**, before saving. Pending source
 selection/comparison also pauses preview/save until the selection is compared.
 Supported Native navigation and browser reload/close ask before discarding meaningful unsaved
-preparation. Staying keeps the exact draft; leaving or explicitly discarding does
+preparation, including optional forecasts and result observations. Staying keeps the exact draft; leaving or explicitly discarding does
 not save it or cancel a pending write. Clean editors and confirmed saves need no
 extra prompt. If a response is lost or cannot confirm the save, read current work
 before deciding on another action: the write may already have committed. This is

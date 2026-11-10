@@ -1,3 +1,4 @@
+import { assertOptionalExpectationDeparture } from "./work-expectation-departure-checks";
 import { assertIssuedSessionIdentityCompatibilityV01 } from "./local-operator-session-identity-checks";
 import { assertCompilerBudgetDiagnostics, assertExplicitArtifactPreservingRepair } from "./successor-budget-diagnostics-checks";
 import { differentSelectionRevision } from "./test-selection-observation";
@@ -5686,6 +5687,7 @@ async function assertSuccessorExpectationOptionalV01(original: FixtureV01, packe
 }
 
 async function assertWorkExpectationMechanics(): Promise<void> {
+  assertOptionalExpectationDeparture();
   await assertExpectationSchemaCompatibilityV01();
   // Declared before any outcome is introduced. These are recording mechanics,
   // not a predictive-accuracy or usefulness sample.
