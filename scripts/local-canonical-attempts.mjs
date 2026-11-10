@@ -627,9 +627,11 @@ function verifyRevisionOriginals(anchorRoot, repositoryRoot, proof, materialFile
     if (!/^\.augnes-local-verification\/logs\/[A-Za-z0-9_-]+\/e2e-project-experience\.log$/u.test(relative ?? "")) throw fail("serial_original_log_unsafe");
     const file=path.join(repositoryRoot,relative), stat=lstatSync(file);
     if (realpathSync(file)!==file || !stat.isFile() || stat.isSymbolicLink() || stat.nlink!==1 || (stat.mode & 0o022) || stat.size>4*1024*1024 ||
-        stat.size!==incident.log_identity.bytes || digest(readFileSync(file))!==incident.log_identity.sha256)
+        stat.size!==incident.log_identity.bytes)
       throw fail("serial_original_log_changed");
-    rememberRevisionFile(file,readFileSync(file));
+    const logBytes=readFileSync(file);
+    if(logBytes.length!==stat.size || digest(logBytes)!==incident.log_identity.sha256) throw fail("serial_original_log_changed");
+    rememberRevisionFile(file,logBytes);
     if (incident.capture) {
       // The complete capture may predate preparation outside the checkout.
       // Bind that exact regular local original, not just a copied excerpt.
@@ -637,9 +639,11 @@ function verifyRevisionOriginals(anchorRoot, repositoryRoot, proof, materialFile
       if (typeof original!=="string" || !path.isAbsolute(original) || !original.endsWith(".log")) throw fail("serial_original_capture_unsafe");
       const info=lstatSync(original);
       if (realpathSync(original)!==original || !info.isFile() || info.isSymbolicLink() || info.nlink!==1 || (info.mode & 0o022) || info.size>8*1024*1024 ||
-          info.size!==capture.bytes || digest(readFileSync(original))!==capture.sha256 || capture.sha256!==incident.capture.sha256)
+          info.size!==capture.bytes || capture.sha256!==incident.capture.sha256)
         throw fail("serial_original_capture_changed");
-      rememberRevisionFile(original,readFileSync(original));
+      const captureBytes=readFileSync(original);
+      if(captureBytes.length!==info.size || digest(captureBytes)!==capture.sha256) throw fail("serial_original_capture_changed");
+      rememberRevisionFile(original,captureBytes);
     }
   }
   if (proof.commission?.evidence_kind===REGISTERED_FIXTURE_BUDGET) {
@@ -649,9 +653,11 @@ function verifyRevisionOriginals(anchorRoot, repositoryRoot, proof, materialFile
     if(relative!==`.augnes-local-verification/logs/${proof.prior_attempt_id}/authority.log`)throw fail("revision_fixture_budget_original_log_invalid");
     const file=path.join(repositoryRoot,relative),stat=lstatSync(file);
     if(realpathSync(file)!==file||!stat.isFile()||stat.isSymbolicLink()||stat.nlink!==1||(stat.mode&0o022)||stat.size>2*1024*1024||
-      stat.size!==incident.log_identity.bytes||digest(readFileSync(file))!==incident.log.sha256||incident.log.sha256!==incident.log_identity.sha256)
+      stat.size!==incident.log_identity.bytes||incident.log.sha256!==incident.log_identity.sha256)
       throw fail("revision_fixture_budget_original_log_changed");
-    rememberRevisionFile(file,readFileSync(file));
+    const logBytes=readFileSync(file);
+    if(logBytes.length!==stat.size || digest(logBytes)!==incident.log.sha256) throw fail("revision_fixture_budget_original_log_changed");
+    rememberRevisionFile(file,logBytes);
   }
   return priorRoot;
 }
@@ -1215,6 +1221,7 @@ export async function prepareMaterialSourceRevision(args,{transport}={}) {
       delegation.id===evidence.prior.source_correction.commission.delegation?.id ||
       delegation.id===evidence.prior.source_correction.authorization.grant_comment_id)
     throw fail("revision_material_fresh_authority_required");
+  const checkCurrentInputs=()=>{
   if (evidence.focused.regression?.kind===REPOSITORY_TYPECHECK) {
     const witness=JSON.parse(revisionArtifact(path.dirname(args.file),evidence.focused.regression.after));
     if (!revisionEqual(observeTypecheckCompiler(args.repositoryRoot),{compiler_version:witness.compiler_version,compiler:witness.compiler,entrypoints:witness.entrypoints,overrides:witness.overrides}))
@@ -1226,7 +1233,14 @@ export async function prepareMaterialSourceRevision(args,{transport}={}) {
   if (evidence.focused.regression?.kind===REGISTERED_FIXTURE_BUDGET)
     for (const ref of [evidence.focused.regression.after,evidence.focused.regression.registration])
       inspectCurrentFixtureBudgetInputs(args.repositoryRoot,JSON.parse(revisionArtifact(path.dirname(args.file),ref)));
-  return {...await inspectGitRevisionPreparation(args),published_head_checked:true,delegation:observation,
+  };
+  // The observer can yield while generated/compiler/loader inputs change.
+  // Recheck these adopted owners after that yield, before final freshness.
+  const live=typeof args.live === "function" ? async()=>{
+    const current=await args.live();checkCurrentInputs();return current;
+  } : args.live;
+  if (typeof args.live !== "function") checkCurrentInputs();
+  return {...await inspectGitRevisionPreparation({...args,live}),published_head_checked:true,delegation:observation,
     ...(p.commission.inherited_serial ? {inherited_serial:p.commission.inherited_serial} : {})};
 }
 function inspectRevisionPreparation(options, accepts) {

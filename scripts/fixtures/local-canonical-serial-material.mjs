@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import {execFileSync} from "node:child_process";
-import {readFileSync,existsSync,symlinkSync,rmSync,chmodSync} from "node:fs";
+import {readFileSync,existsSync,symlinkSync,rmSync,chmodSync,renameSync,lstatSync} from "node:fs";
 import {digest,observeCanonicalRuntimeInputs} from "../local-canonical-inputs.mjs";
 import {observeTypecheckCompiler,observeGeneratedTypeInputs,typecheckDiagnostics,REPOSITORY_TYPECHECK} from "../local-canonical-typecheck-witness.mjs";
 import {inspectGitRevisionPreparation,prepareMaterialSourceRevision,reconstructAttemptTip,reviewedRevisionAuthorityObservation,REVIEWED_REVISION_PHASES} from "../local-canonical-attempts.mjs";
@@ -106,6 +106,19 @@ export async function runSerialMaterialControls(c,h,serialProof,serialAuthority,
       h.write(args.file,Buffer.concat([materialBytes,Buffer.from("\n")]));return c.live;
     }},{transport}),/revision_validated_material_changed/);
   } finally {h.write(args.file,materialBytes);}
+  const dependencyLink=path.join(c.checkout,"node_modules"),heldLink=dependencyLink+".held";
+  assert(lstatSync(dependencyLink).isSymbolicLink());
+  try {
+    await assert.rejects(prepareMaterialSourceRevision({...args,live:async()=>{
+      renameSync(dependencyLink,heldLink);return c.live;
+    }},{transport}),e=>e.code==="ENOENT");
+  } finally {if(existsSync(heldLink))renameSync(heldLink,dependencyLink);}
+  const lateGenerated=path.join(c.checkout,".next/dev/types/late.ts");
+  try {
+    await assert.rejects(prepareMaterialSourceRevision({...args,live:async()=>{
+      h.write(lateGenerated,"export type Added = true;\n");return c.live;
+    }},{transport}),/revision_typecheck_generated_changed/);
+  } finally {rmSync(path.join(c.checkout,".next/dev"),{recursive:true,force:true});}
   const devFile=path.join(c.checkout,".next/dev/types/probe.ts");h.write(devFile,"export type Added = true;\n");
   await assert.rejects(prepareMaterialSourceRevision(args,{transport}),/revision_typecheck_generated_changed/);
   rmSync(path.join(c.checkout,".next/dev"),{recursive:true});
