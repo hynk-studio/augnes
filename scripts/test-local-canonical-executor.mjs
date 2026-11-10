@@ -2,6 +2,7 @@
 import { hasRetiredQualificationMarker, isReviewedRevision, REVIEWED_REVISION_PHASES, readSourceCorrectionProof as readCorrectionProof } from "./local-canonical-attempts.mjs";
 
 import { isGitObservationRevision, isInventoryBoundRevision } from "./local-canonical-git-observation.mjs";
+import { isSerialAggregateRevision } from "./local-canonical-serial-aggregate.mjs";
 import { isBrowserRevision, verifyBrowserRevisionPreservation } from "./local-canonical-browser-revision.mjs";
 import assert from "node:assert/strict";
 import { digest } from "./local-canonical-inputs.mjs";
@@ -61,7 +62,9 @@ import {
   assertStockReceiptSupported,
   assertRuntimeInputSelection,
   executeLocalCanonicalVerification,
+  computeExecutorSourceFingerprint,
 } from "./run-local-canonical-verification.mjs";
+import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
 import {
   acquireCheckoutVerificationOwnership,
   assertCheckoutVerificationOwnership,
@@ -165,6 +168,28 @@ const executorSource = readFileSync(
   path.join(repositoryRoot, "scripts", "run-local-canonical-verification.mjs"),
   "utf8",
 );
+
+// A new production witness must affect the real default executor fingerprint,
+// not only the clean Git identity recorded by its own preparation observer.
+{
+  const owner = createCanonicalTestResourceRoot("ag-resource-test-");
+  try {
+    const declaration = /const EXECUTOR_SOURCE_FILES = Object\.freeze\(\[([\s\S]*?)\]\);/u.exec(executorSource);
+    assert(declaration);
+    for (const [, relative] of declaration[1].matchAll(/"([^"]+)"/gu)) {
+      const file = path.join(owner.root, relative); mkdirSync(path.dirname(file), { recursive: true });
+      writeFileSync(file, readFileSync(path.join(repositoryRoot, relative)));
+    }
+    for (const relative of ["scripts/local-canonical-pure-contract-witness.mjs", "scripts/canonical-revision-reader.mjs", "scripts/local-canonical-fixture-budget-witness.mjs", "scripts/capture-local-canonical-fixture-budget.mjs"]) {
+      const file = path.join(owner.root, relative), original = readFileSync(path.join(repositoryRoot, relative));
+      writeFileSync(file, original);
+      const before = computeExecutorSourceFingerprint(owner.root);
+      writeFileSync(file, "export const changed = true;\n");
+      assert.notEqual(computeExecutorSourceFingerprint(owner.root), before);
+      writeFileSync(file, original);
+    }
+  } finally { assert(cleanupCanonicalTestResources([owner])[0].completed); }
+}
 
 const authorizedIdentity = assertAuthorizedRepositoryIdentity({
   resolvedRoot: CANONICAL_DARWIN_REPOSITORY_ROOT,
@@ -1023,7 +1048,7 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
     const context = {
       checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
       controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, baseSha: "0".repeat(40), headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
-      isReviewedRevision, isBrowserRevision, isGitObservationRevision, isInventoryBoundRevision, digest, REVIEWED_REVISION_PHASES,
+      isReviewedRevision, isBrowserRevision, isGitObservationRevision, isInventoryBoundRevision, isSerialAggregateRevision, digest, REVIEWED_REVISION_PHASES,
       sourceCorrection: revisionLane ? { schema: browserRefusal ? "augnes.local-canonical-source-correction.v8" : "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", ...(revisionSettlement ? { settlement: { sha256: "c".repeat(64) } } : {}) } : null,
       authorizeReviewedRevision: async () => { authorityObserved = true; if (scenario === "revision_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
       observeReviewedRevisionSettlementState: async () => {
@@ -1298,7 +1323,7 @@ try {
       const authorize = role => async (proof, options) => { calls.push(role); assert.deepEqual(proof, candidate);
         return capabilities[role]; };
       const context = { sourceCorrection: candidate, inputs: { snapshot: () => frozenInputs, check() {} }, receipt: { inputs: frozenInputs, attempt: { source_correction: candidate } }, path, repositoryRoot: coexistenceRoot,
-        isReviewedRevision, isBrowserRevision, isGitObservationRevision, isInventoryBoundRevision,
+        isReviewedRevision, isBrowserRevision, isGitObservationRevision, isInventoryBoundRevision, isSerialAggregateRevision,
         mode: "full", checkoutContext: "isolated-worktree", plan: { selected_plan: "full-canonical" }, observeRevisionInputs: () => ({}), validationHost: {}, verificationContext: {}, inspectVerificationCompanionPreservation: async () => ({}),
         digest, REVIEWED_REVISION_PHASES, phaseDefinitions: REVIEWED_REVISION_PHASES.map(id => ({ id })),
         inputMonitor: { check: () => null }, signal: { aborted: false },
@@ -1321,7 +1346,7 @@ try {
     const candidate={schema:"augnes.local-canonical-source-correction.v7",kind:"reviewed_revision",settlement:{sha256:"c".repeat(64)}}, calls=[];
     const live=Object.freeze({synthetic_current_safe_observation:true}),contextToken=Object.freeze({synthetic_context:true});
     const context={sourceCorrection:candidate,receipt:{attempt:{source_correction:candidate}},verificationContext:contextToken,
-      isReviewedRevision, isBrowserRevision, isGitObservationRevision, isInventoryBoundRevision,
+      isReviewedRevision, isBrowserRevision, isGitObservationRevision, isInventoryBoundRevision, isSerialAggregateRevision,
       mode:"full",checkoutContext:"isolated-worktree",plan:{selected_plan:"full-canonical"},digest,REVIEWED_REVISION_PHASES,phaseDefinitions:REVIEWED_REVISION_PHASES.map(id=>({id})),
       inputs:{check(){}},inputMonitor:{check:()=>null},signal:{aborted:false},observeRevisionInputs:()=>({}), validationHost:{},
       authorizeReviewedRevision:async()=>{calls.push("authority");return{};},

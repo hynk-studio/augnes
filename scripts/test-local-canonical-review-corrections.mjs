@@ -43,7 +43,8 @@ if (process.argv[2] === "--observer-controls") {
 // The outer real child owner quarantines deliberately synthetic Browser records
 // from Canonical's actual-use stream. This probes the production phase executor.
 if (process.argv[2] === "--phase-probe") {
-  const { records, expected, cases } = JSON.parse(readFileSync(process.argv[3], "utf8"));
+  const { PROJECT_EXPERIENCE_SERIAL, PROJECT_EXPERIENCE_ENVELOPE_MS, projectExperienceBudgetEvent } = await import("./project-experience-serial-budget.mjs");
+  const { records, expected, cases, phaseId = "integration", browser = false } = JSON.parse(readFileSync(process.argv[3], "utf8"));
   const id = `review-probe-${randomUUID()}`, resources = createIsolatedInvocationResources(id);
   const logDirectories = [];
   let complete = true;
@@ -56,18 +57,46 @@ if (process.argv[2] === "--phase-probe") {
       if (c.mutation === "wrong-location") phaseRecords[0].location_fingerprint = "0".repeat(64);
       if (c.mutation === "wrong-version") phaseRecords[0].runtime_versions.cdp = "Fixture/2.0";
       if (c.mutation === "content") phaseRecords[0].after.sha256 = "0".repeat(64);
+      if (c.mutation === "wrong-consumer") phaseRecords.at(-1).consumer = "project-client";
       const output = phaseRecords.map(r => BROWSER_IDENTITY_PREFIX + JSON.stringify(r)).join("\n") + "\n";
-      const code = `process.stdout.write(${JSON.stringify(output)});` + (c.mutation === "timeout" ? "process.on('SIGTERM',()=>process.exit(0));setInterval(()=>{},1000);" : "");
+      const terminalIPC = c.mutation.startsWith("serial-");
+      const serial = phaseId === "e2e-project-experience" || terminalIPC;
+      const messages = serial ? [projectExperienceBudgetEvent("ready",0),
+        ...PROJECT_EXPERIENCE_SERIAL.children.flatMap((_,i)=>["execution","settlement","coordinator"].map(state=>projectExperienceBudgetEvent(state,i))),
+        ...(["cancelled","incomplete-accounting"].includes(c.mutation) ? [] : [projectExperienceBudgetEvent("complete",PROJECT_EXPERIENCE_SERIAL.children.length)])] : [];
+      let code = `for(const message of ${JSON.stringify(messages)}) process.send(message); process.stdout.write(${JSON.stringify(output)});` +
+        (["timeout","cancelled"].includes(c.mutation) ? "process.on('SIGTERM',()=>process.exit(0));setInterval(()=>{},1000);" : "");
+      if (terminalIPC) {
+        const late = c.mutation === "serial-malformed" ? {bad:"late-message"} : projectExperienceBudgetEvent("complete",PROJECT_EXPERIENCE_SERIAL.children.length);
+        const descendant = `setTimeout(()=>require("node:fs").writeSync(3,${JSON.stringify(JSON.stringify(late)+"\n")}),150);`;
+        code = `process.stdout.write(${JSON.stringify(output)});const messages=${JSON.stringify(messages)};function next(){const message=messages.shift();if(message)process.send(message,next);else{`+
+          (c.mutation === "serial-complete" ? "" : `require("node:child_process").spawn(process.execPath,["-e",${JSON.stringify(descendant)}],{stdio:["ignore",1,2,3]});`)+
+          `process.exit(0);}}next();`;
+      }
       const runLogRoot = path.join(repository, ".augnes-local-verification", "logs", `${id}-${index}`);
       logDirectories.push(runLogRoot);
-      const result = await executePhase({ phase: { id: "integration", browser: false, command: process.execPath, args: ["-e", code],
-        display: "disposable Browser evidence emitter", label: "disposable evidence", cwdScope: "root", timeoutMs: c.mutation === "timeout" ? 150 : 2000 },
-        mode: "regression", runLogRoot, isolatedResources: resources, expectedBrowser: expected });
+      const controller = new AbortController();
+      const cancellation = c.mutation === "cancelled" ? setTimeout(()=>controller.abort(),150) : null;
+      let result;
+      try { result = await executePhase({ phase: { id: serial ? "e2e-project-experience" : phaseId, browser, command: process.execPath, args: ["-e", code],
+        display: "disposable Browser evidence emitter", label: "disposable evidence", cwdScope: "root",
+        timeoutMs: serial ? PROJECT_EXPERIENCE_ENVELOPE_MS : c.mutation === "timeout" ? 150 : 2000 },
+        mode: "regression", runLogRoot, isolatedResources: resources, expectedBrowser: expected, signal:controller.signal }); }
+      finally { clearTimeout(cancellation); }
       complete &&= result.cleanup.completed && result.cleanup.remaining_owned_processes === 0;
       assert.equal(result.status, c.pass ? "pass" : "failure", c.mutation);
       assert.equal(result.browser_use.length, phaseRecords.length);
       if (c.mutation === "timeout") { assert(result.timed_out); assert.equal(result.exit_status, 0); }
-      else if (!c.pass) assert.equal(result.failure_code, "browser_identity_invalid");
+      else if (["cancelled","incomplete-accounting"].includes(c.mutation)) {
+        assert.equal(result.failure_code,"serial_execution_incomplete"); assert.equal(result.timed_out,false); assert.equal(result.exit_status,0);
+      }
+      else if (!c.pass) assert.equal(result.failure_code, terminalIPC ? "serial_event_after_exit" : "browser_identity_invalid");
+      if (terminalIPC) {
+        assert.equal(result.exit_status,0);assert.equal(result.timed_out,false);
+        assert.equal(result.cleanup.termination_reason,"natural_exit");
+        assert(result.cleanup.completed);assert.equal(result.cleanup.remaining_owned_processes,0);
+        console.log(JSON.stringify({terminal_ipc_phase:c.mutation,result}));
+      }
     }
   } finally {
     const cleanup = cleanupIsolatedInvocationResources(resources, { consumersSettled: complete });
@@ -76,7 +105,7 @@ if (process.argv[2] === "--phase-probe") {
   process.exit(0);
 }
 
-const groups = ["revision", "settlement", "browser", "git", "git-input", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation"];
+const groups = ["revision", "settlement", "browser", "git", "git-input", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation", "serial-aggregate", "serial-material"];
 const [selector, group, ...extra] = process.argv.slice(2);
 if (selector !== undefined && (selector !== "--reviewed-revision-controls" ||
     (group !== undefined && !groups.includes(group)) || extra.length > 1 || extra.length && groups.indexOf(group) < 3))
@@ -124,12 +153,26 @@ try {
         context.live.service.diagnostics.finished_at=new Date(Date.now()-61000).toISOString();
         write(contextFile,context);
       }
+      let pendingOutput = "", leakedBrowserRecords = 0;
+      const serialOutput = { write(chunk) {
+        process.stdout.write(chunk);
+        pendingOutput += chunk.toString();
+        for (let newline; (newline = pendingOutput.indexOf("\n")) >= 0;) {
+          if (pendingOutput.slice(0,newline).startsWith(BROWSER_IDENTITY_PREFIX)) leakedBrowserRecords++;
+          pendingOutput = pendingOutput.slice(newline+1);
+        }
+      } };
       const result = await child([fixture, "--run-" + name + "-fixtures", ...(groups.indexOf(name) >= 3 ? [JSON.stringify(handoff)] : [])], {
         controlId: name === "revision" ? "reviewed-revision" : "reviewed-revision-" + name,
-        timeoutMs: ["revision", "acquisition", "git-successor", "git-input-successor"].includes(name) ? AUXILIARY_EXECUTION_BUDGETS.reviewRevisionFixtureMs : 15000,
-        stdout: process.stdout, stderr: process.stderr,
+        timeoutMs: name === "serial-material" ? 60000 : name === "serial-aggregate" ? AUXILIARY_EXECUTION_BUDGETS.reviewSerialAggregateFixtureMs : ["revision", "acquisition", "git-successor", "git-input-successor"].includes(name) ? AUXILIARY_EXECUTION_BUDGETS.reviewRevisionFixtureMs : 15000,
+        stdout: name === "serial-aggregate" ? serialOutput : process.stdout, stderr: process.stderr,
       });
       assert.equal(result.exit_code, 0, lastChildDiagnostic);
+      if (name === "serial-aggregate") {
+        assert.equal(leakedBrowserRecords,0,"synthetic phase probes must not emit Canonical Browser-use records");
+        assert(!pendingOutput.startsWith(BROWSER_IDENTITY_PREFIX));
+        findings.push("synthetic phase Browser records remain quarantined from the authority output stream");
+      }
       findings.push("reviewed revision controls: " + name);
     }
   } else {
@@ -232,6 +275,28 @@ try {
     const copy = structuredClone(receipt); mutate(copy); assert.equal(browserIssues(copy).length, 1);
   }
   findings.push("real phase executor and stock reader require all integration Browser uses, exact executable/version and settled exit; timeout exit0 and invented NOT_RUN records refuse");
+
+  // Four registered children launch one project Browser, two project-client
+  // Browsers, and one Browser in each of the two independent Web journeys.
+  // Keep this observed launch inventory independent of the reader's counts.
+  const projectRecords = ["project-experience", "project-client", "project-client", "web-planning", "web-planning"]
+    .map(consumer => ({ ...structuredClone(record), consumer }));
+  write(probe, { phaseId: "e2e-project-experience", browser: true, records: projectRecords, expected,
+    cases: [{ mutation: "none", pass: true }, ...["missing", "extra", "overflow", "wrong-location", "wrong-version", "content", "wrong-consumer", "cancelled", "incomplete-accounting"].map(mutation => ({ mutation, pass: false }))] });
+  const projectProbe = await child([self, "--phase-probe", probe], { controlId: "synthetic-project-browser-phase-probe", timeoutMs: 15000 });
+  assert.equal(projectProbe.exit_code, 0, lastChildDiagnostic);
+  const projectReceipt = structuredClone(receipt);
+  Object.assign(projectReceipt.phases[0], { id: "e2e-project-experience", browser: true, browser_use: projectRecords });
+  const projectDeclaration = { ...declaration, binding: { ...declaration.binding,
+    phase_environment_fingerprints: [{ id: "e2e-project-experience", fingerprint: "a".repeat(64) }] } };
+  projectReceipt.inputs = { ...projectDeclaration, fingerprint: digest(projectDeclaration), checks: 1, events: benignSnapshot.events, first_fault: null };
+  assert.deepEqual(browserIssues(projectReceipt), []);
+  for (const mutate of [r => r.phases[0].browser_use.pop(), r => r.phases[0].browser_use.push(structuredClone(projectRecords.at(-1))),
+    r => r.phases[0].browser_use.at(-1).consumer = "project-client", r => r.phases[0].browser_use.at(-1).runtime_versions.cdp = "Fixture/2.0",
+    r => r.phases[0].status = "not_run"]) {
+    const copy = structuredClone(projectReceipt); mutate(copy); assert.equal(browserIssues(copy).length, 1);
+  }
+  findings.push("synthetic production-executor and stock controls require exactly five project-phase uses, including both Web launches; missing, duplicate, misattributed, altered and NOT_RUN evidence refuses; no actual Browser qualification is claimed");
 
   await successionControls();
   await exactPathControls({

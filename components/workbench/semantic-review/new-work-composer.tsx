@@ -3,7 +3,7 @@
 import { useProjectClientFetch } from "./project-client-scope";
 
 import { useWorkDraftState, type WorkComposerDraft } from "./work-composer-draft";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useWorkPreparationLifetime } from "./work-preparation-departure";
 import { FirstWorkComposer } from "./first-work-composer";
 import type { ProjectWorkInitializationV01 } from "@/types/vnext/project-work-initialization";
@@ -23,6 +23,15 @@ export function NewWorkComposer({ initialization, onCancel, onCommitted, onRefus
   const [preview, setPreview] = useWorkDraftState<Preview | null>(draft, "newWorkPreview", null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const container = useRef<HTMLElement>(null);
+  const previousPreview = useRef(preview !== null);
+  const showingPreview = preview !== null;
+  useEffect(() => {
+    if (busy || disabled || previousPreview.current === showingPreview) return;
+    previousPreview.current = showingPreview;
+    const target = container.current?.querySelector<HTMLElement>(showingPreview ? "[data-new-work-preview] h2" : "#new-work-goal");
+    if (target?.isConnected && target.getClientRects().length && !target.matches(":disabled")) target.focus();
+  }, [showingPreview, busy, disabled]);
   async function post(body: unknown, save = false) {
     const uncertain = save
       ? "The save response could not be confirmed. Your draft is retained. Review current work before taking another action; a save may have committed."
@@ -43,7 +52,7 @@ export function NewWorkComposer({ initialization, onCancel, onCommitted, onRefus
     if (!response.ok) throw new Error(`Preparation refused (${response.status}). Your draft is retained. Review refreshed current work before preparing again.`);
     return result;
   }
-  return <section data-new-work-composer>
+  return <section ref={container} data-new-work-composer>
     {error ? <div role="alert" className={styles.error}><p>{error}</p>
       <button type="button" disabled={busy} onClick={() => void onRefused(0)}>Refresh current work</button>
     </div> : null}
@@ -65,7 +74,7 @@ export function NewWorkComposer({ initialization, onCancel, onCommitted, onRefus
         finally { if (isCurrent()) setBusy(false); }
       }} /></div>
     {preview ? <div className={styles.panel} data-new-work-preview>
-      <h2>Review different task</h2>
+      <h2 tabIndex={-1}>Review different task</h2>
       <p>The prior preparation stays in history. It is not marked complete and its unresolved matters remain unresolved. The new task is unexecuted and unverified; no approval or execution grant transfers.</p>
       {(["before", "after"] as const).map(key => <div key={key} className={styles.materialCard}>
         <h3>{key === "before" ? "Prior task" : "New task"}</h3>

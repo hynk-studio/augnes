@@ -1,3 +1,5 @@
+import { hasSerialAccounting } from "../local-canonical-serial-aggregate.mjs";
+import { PROJECT_EXPERIENCE_SERIAL, PROJECT_EXPERIENCE_COMMITMENT } from "../project-experience-serial-budget.mjs";
 // Synthetic stock context. Only the failing/corrected behavioral child is executed.
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -124,7 +126,7 @@ export async function executeFixture(c, h, proof, cap, browserRecord, dependenci
   r.inputs = { ...input, fingerprint: digest(input), checks: 1, events: [], first_fault: null, secondary_faults: [], prepared_dependencies: dependencies };
   for (const [i, key] of ["root_lock_sha256", "nested_lock_sha256", "web_planning_lock_sha256"].entries())
     r.dependencies[key] = dependencies[i].before.sources.find(s => s.name === "package-lock.json").sha256;
-  const failure = passed ? Infinity : REVIEWED_REVISION_PHASES.indexOf("authority");
+  const failure = passed ? Infinity : REVIEWED_REVISION_PHASES.indexOf(c.failurePhase ?? "authority");
   const plan = buildPhasePlan({ mode: "full", selectedPlan: "full-canonical", baseSha: c.base, headSha: c.head });
   assert.deepEqual(plan.map(phase => phase.id), REVIEWED_REVISION_PHASES);
   r.phases = plan.map((phase, i) => {
@@ -142,6 +144,9 @@ export async function executeFixture(c, h, proof, cap, browserRecord, dependenci
         streams_closed: child.result.streams_closed, termination_reason: child.result.termination_reason,
         remaining_owned_processes: child.result.remaining_owned_processes, listener_residue_count: 0
       },
+      ...(hasSerialAccounting(proof) && id === "e2e-project-experience" && status === "pass" ? {serial_budget:{
+        contract:PROJECT_EXPERIENCE_SERIAL.contract,commitment:PROJECT_EXPERIENCE_COMMITMENT,complete:true,completed_children:PROJECT_EXPERIENCE_SERIAL.children.length,failure_code:null,
+        execution_ms:PROJECT_EXPERIENCE_SERIAL.children.map(()=>0),natural_settlement_ms:PROJECT_EXPERIENCE_SERIAL.children.map(()=>0),coordinator_ms:0,envelope_elapsed_ms:0,parent_post_exit_settlement_ms:0}} : {}),
       browser_use: i > failure ? [] : Object.entries(browserConsumersForPhase(id)).flatMap(([consumer, count]) =>
         Array.from({ length: count }, () => ({ ...browserRecord, consumer })))
     };
@@ -151,7 +156,7 @@ export async function executeFixture(c, h, proof, cap, browserRecord, dependenci
     validity: "valid_within_observed_scope", execution: passed ? "complete_pass" : "incomplete_or_failed"
   };
   r.final = {
-    ...r.final, result: passed ? "pass" : "failure", exit_status: child.result.exit_code,
+    ...r.final, result: passed ? "pass" : "failure", exit_status: passed ? 0 : 1,
     reason_codes: passed ? [] : ["phase_failed", "selected_phases_incomplete"]
   };
   if (h.finalInputFailure) {

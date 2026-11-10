@@ -502,6 +502,20 @@
             "download_and_atomic_erasure"
           ],
           "native_or_hosted_acceptance": false
+        },
+        {
+          "id": "web-planning-draft-safety",
+          "executable_source": "scripts/browser-validate-web-planning.mjs",
+          "canonical_suite": "e2e-project-experience",
+          "storage": "disposable Miniflare/workerd D1 and empty replacement stores",
+          "checks": [
+            "actual_draft_mutations_at_both_reconstruction_boundaries",
+            "erase_unknown_refusal_and_authoritative_reconciliation",
+            "file_specific_provenance_and_original_bytes",
+            "saved_scene_continuation_and_access_loss",
+            "bounded_rendered_accessibility_controls"
+          ],
+          "native_or_hosted_acceptance": false
         }
       ]
     },

@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { isSerialAggregateRevision } from "./local-canonical-serial-aggregate.mjs";
+import { PROJECT_EXPERIENCE_ENVELOPE_MS, PROJECT_EXPERIENCE_SERIAL, PROJECT_EXPERIENCE_COMMITMENT, runProjectExperienceParent } from "./project-experience-serial-budget.mjs";
 import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
 
 
@@ -109,6 +111,16 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-browser-bundle.mjs",
   "scripts/local-canonical-browser-revision.mjs",
   "scripts/local-canonical-git-observation.mjs",
+  "scripts/local-canonical-serial-aggregate.mjs",
+  "scripts/project-experience-serial-budget.mjs",
+  "scripts/project-experience-connection.mjs",
+  "scripts/prepare-local-canonical-serial-aggregate.mjs",
+  "scripts/prepare-local-canonical-material-source.mjs",
+  "scripts/local-canonical-typecheck-witness.mjs",
+  "scripts/local-canonical-pure-contract-witness.mjs",
+  "scripts/local-canonical-fixture-budget-witness.mjs",
+  "scripts/capture-local-canonical-fixture-budget.mjs",
+  "scripts/canonical-revision-reader.mjs",
   "scripts/local-canonical-browser-input.mjs",
   "scripts/browser-verification-owners.v1.json",
   "scripts/canonical-change-planner.mjs",
@@ -673,7 +685,7 @@ export async function executeLocalCanonicalVerification({
         if (historicalInputsRequired) historicalInputs = prepareHistoricalInputs({
           context: verificationContext, repositoryRoot, checkoutOwner, invocationId,
         });
-        const observed = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: isBrowserRevision(sourceCorrection) || isGitObservationRevision(sourceCorrection) || isInventoryBoundRevision(sourceCorrection) });
+        const observed = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: isBrowserRevision(sourceCorrection) || isGitObservationRevision(sourceCorrection) || isInventoryBoundRevision(sourceCorrection) || isSerialAggregateRevision(sourceCorrection) });
         serviceLifecycleBefore = observed.state;
         serviceObservations.before = observed.diagnostics;
         if (!observed.state.preservation_valid) throw Object.assign(
@@ -748,7 +760,7 @@ export async function executeLocalCanonicalVerification({
               isBrowserRevision(sourceCorrection) ? await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: true }) : null;
             if (revisionAuthorization && (mode !== "full" || checkoutContext !== "isolated-worktree" || plan.selected_plan !== "full-canonical" ||
                 digest(phaseDefinitions.map(p => p.id)) !== digest(REVIEWED_REVISION_PHASES))) throw Object.assign(new Error("reviewed_revision_workload_invalid"), { code: "reviewed_revision_workload_invalid" });
-            if (isGitObservationRevision(sourceCorrection) || isInventoryBoundRevision(sourceCorrection)) {
+            if (isGitObservationRevision(sourceCorrection) || isInventoryBoundRevision(sourceCorrection) || isSerialAggregateRevision(sourceCorrection)) {
               revisionLive = await observeGitRevisionTarget(verificationContext, hostResult.browserExecutablePath, runtimeInputs);
               if (gitRevisionInventory(inputs.snapshot()) !== revisionLive.inventory) throw Object.assign(new Error("revision_git_inputs_changed"), {code:"revision_git_inputs_changed"});
             }
@@ -873,7 +885,7 @@ export async function executeLocalCanonicalVerification({
       }
       if (serviceLifecycleBefore !== null) {
         if (checkoutContext === "isolated-worktree") {
-          const observed = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: isBrowserRevision(sourceCorrection) || isGitObservationRevision(sourceCorrection) || isInventoryBoundRevision(sourceCorrection) });
+          const observed = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: isBrowserRevision(sourceCorrection) || isGitObservationRevision(sourceCorrection) || isInventoryBoundRevision(sourceCorrection) || isSerialAggregateRevision(sourceCorrection) });
           serviceLifecycleAfter = observed.state;
           serviceObservations.after = observed.diagnostics;
         } else {
@@ -1453,7 +1465,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
     try { revisionAuthorization = await authorizeReviewedRevision(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
     try { runtimeInputs = observeRevisionInputs(receipt.attempt.source_correction, validationHost); } catch { /* stock refuses unavailable runtime input */ }
     if (isBrowserRevision(receipt.attempt.source_correction)) try { revisionLive = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: true }); } catch { /* stock requires coherent current preservation */ }
-    if (isGitObservationRevision(receipt.attempt.source_correction) || isInventoryBoundRevision(receipt.attempt.source_correction)) try {
+    if (isGitObservationRevision(receipt.attempt.source_correction) || isInventoryBoundRevision(receipt.attempt.source_correction) || isSerialAggregateRevision(receipt.attempt.source_correction)) try {
       revisionLive = await observeGitRevisionTarget(verificationContext, validationHost.browserExecutablePath, runtimeInputs);
       if (gitRevisionInventory(receipt.inputs) !== revisionLive.inventory) revisionLive = null;
     } catch { /* stock refuses incomplete or changed current observations */ }
@@ -1728,7 +1740,7 @@ function browserPhaseDefinition(id, { baseSha, headSha }) {
     "e2e-project-experience": {
       label: "Canonical project experience Browser owner",
       suite: "e2e-project-experience",
-      timeoutMs: 480_000,
+      timeoutMs: PROJECT_EXPERIENCE_ENVELOPE_MS,
     },
     "e2e-operator-review-control": {
       label: "Canonical operator review and control Browser owner",
@@ -1822,6 +1834,7 @@ function phaseDefinition({
     exclusive: RESOURCE_EXCLUSIVE_PHASE_IDS.includes(id),
     browser,
     browser_consumers: browserConsumersForPhase(id),
+    ...(id === "e2e-project-experience" ? { serial_budget: { inventory: PROJECT_EXPERIENCE_SERIAL, commitment: PROJECT_EXPERIENCE_COMMITMENT } } : {}),
     base_sha: baseSha,
     head_sha: headSha,
   };
@@ -1856,7 +1869,7 @@ export async function executePhase({
   });
   let result;
   try {
-    result = await runCanonicalChild({
+    result = await (phase.id === "e2e-project-experience" ? runProjectExperienceParent : runCanonicalChild)({
       suite: `local-${mode}`,
       label: phase.label,
       command: phase.command,
@@ -1905,6 +1918,7 @@ export async function executePhase({
       result.exit_observed === true &&
       result.streams_closed === true);
   const passed =
+    !result.serial_budget?.failure_code &&
     result.cancelled !== true &&
     result.exit_code === 0 &&
     result.timed_out === false &&
@@ -1930,9 +1944,10 @@ export async function executePhase({
     timed_out: result.timed_out,
     spawn_error_code: result.spawn_error_code ?? null,
     browser_use: browserUse,
+    ...(result.serial_budget ? { serial_budget: result.serial_budget } : {}),
     failure_code: passed
       ? null
-      : result.cancelled
+      : result.serial_budget?.failure_code ?? (result.cancelled
         ? "phase_cancelled"
       : result.timed_out
         ? "phase_timed_out"
@@ -1940,7 +1955,7 @@ export async function executePhase({
           ? "phase_failed"
         : !validPhaseBrowserUse(phase, browserUse, expectedBrowser)
           ? "browser_identity_invalid"
-          : "phase_cleanup_incomplete",
+          : "phase_cleanup_incomplete"),
     cleanup: {
       completed: result.cleanup_completed,
       remaining_owned_processes: result.remaining_owned_processes,

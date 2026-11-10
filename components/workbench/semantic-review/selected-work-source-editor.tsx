@@ -200,7 +200,7 @@ export function SelectedWorkSourceEditor({ composerDraft, onUnfinishedNoteChange
       {note.snapshotGroup ? <>
         <p className={styles.muted}>Literal saved review snapshot. Its original conditions and report remain distinct. Later corrections do not replace this selection automatically.</p>
         <button type="button" data-reviewed-outcome-action="author" className={styles.secondaryButton} disabled={busy || comparing}
-          onClick={() => { setDraft({ ...emptyNote(), source: `New authored note based on ${note.source}`, provenance: "user_declaration", text: note.text }); setDraftTime(""); }}>
+          onClick={() => { if (unfinishedNote && !window.confirm("Replace your unfinished note with a new note based on this saved review? Your current unadded note will be discarded.")) return; setDraft({ ...emptyNote(), source: `New authored note based on ${note.source}`, provenance: "user_declaration", text: note.text }); setDraftTime(""); }}>
           Use as a newly authored note
         </button>
       </> : null}

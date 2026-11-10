@@ -1,7 +1,12 @@
+import { isSerialAggregateRevision, hasSerialAccounting } from "./local-canonical-serial-aggregate.mjs";
+import { validProjectExperienceAccounting } from "./project-experience-serial-budget.mjs";
 import { digest, classifyInputChange, effectiveInputObservation, inputEventIdentity, nonFaultInputChange, INPUT_CONTRACT, PREPARED_DEPENDENCY_CONTRACT, comparePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
 import { settledIsolatedResources, cancelledPhase, verifySettledPhaseFailure } from "./local-canonical-browser-revision.mjs";
 import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
+import { REGISTERED_FIXTURE_BUDGET, verifyRegisteredFixtureBudget } from "./local-canonical-fixture-budget-witness.mjs";
+import { REPOSITORY_TYPECHECK, verifyRepositoryTypecheck } from "./local-canonical-typecheck-witness.mjs";
+import { REPOSITORY_PURE_CONTRACT, verifyRepositoryPureContract } from "./local-canonical-pure-contract-witness.mjs";
 
 export const isGitObservationRevision = p =>
   p?.schema === "augnes.local-canonical-source-correction.v10" && p.kind === "reviewed_revision";
@@ -15,7 +20,7 @@ export const GIT_INPUT_HISTORY_BOUNDARY = "Historical window remains UNKNOWN; or
 // A v7 commission descending from the spent Git-observation chain keeps the
 // complete input inventory throughout its physical lineage.
 export const isInventoryBoundRevision = p => p?.schema === "augnes.local-canonical-source-correction.v7" &&
-  p.kind === "reviewed_revision" && Object.hasOwn(p.inputs ?? {}, "inventory_sha256");
+  p.kind === "reviewed_revision" && !isSerialAggregateRevision(p) && Object.hasOwn(p.inputs ?? {}, "inventory_sha256");
 export const GIT_ACQUISITION_REPAIR = "coherent-git-file-acquisition-v1";
 export const isGitAcquisitionRevision = p => isInventoryBoundRevision(p) &&
   p.commission?.input_acquisition === GIT_ACQUISITION_REPAIR;
@@ -261,15 +266,17 @@ function verifyFinalDependencyFailure(r, stock, inputs, phases) {
   return deps[2].before;
 }
 
-export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expectedOrdinal = 1, forward = false) {
+export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expectedOrdinal = 1, forward = false, serialPredecessor = false) {
   const previous = receipt.attempt?.source_correction;
   const { contract, path_kind, binding, resources } = receipt.inputs;
-  if (!usesGitInventory(previous) || previous.commission.ordinal !== expectedOrdinal ||
+  if (!(usesGitInventory(previous) || serialPredecessor && isSerialAggregateRevision(previous)) || previous.commission.ordinal !== expectedOrdinal ||
       gitRevisionInventory(receipt.inputs) !== previous.inputs.inventory_sha256 ||
       digest({ contract, path_kind, binding, resources }) !== receipt.inputs.fingerprint)
     fail("revision_git_predecessor_invalid");
   if (forward) return verifyFinalDependencyFailure(receipt, stock, inputs, phases);
   verifySettledPhaseFailure(receipt, stock, inputs, phases, resources.find(r => r.id === "browser-executable"), false, expectedOrdinal);
+  if (hasSerialAccounting(previous) && receipt.phases.some(p=>p.id === "e2e-project-experience" && p.status === "pass" && !validProjectExperienceAccounting(p.serial_budget)))
+    fail("revision_inherited_serial_accounting_invalid");
 }
 
 // A later audit does not turn this complete successful invocation into a failed
@@ -320,9 +327,18 @@ export function verifyGitRevisionSuccess(r, stock, inputs, phases) {
 // Observe the same behavioral command on both exact Git sources and runtimes.
 // The v10 repair runs its changed script directly. Prospective v7 also allows
 // a stable test driver and explicit script arguments for the implicated code.
-export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt, retainedBefore, postPass = false, acquisition = false }) {
+export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt, retainedBefore, postPass = false, acquisition = false, original, completion, repositoryRoot }) {
   const regression = focused.regression;
   const material = isMaterialSourceRevision(p);
+  if (regression?.kind!==undefined) {
+    if (!material) fail("revision_git_regression_invalid");
+    if (regression.kind===REGISTERED_FIXTURE_BUDGET) return verifyRegisteredFixtureBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
+    if (p.commission.evidence_kind!==undefined) fail("revision_git_regression_invalid");
+    if (regression.kind===REPOSITORY_TYPECHECK) return verifyRepositoryTypecheck(p,prior,focused,{git,parse,bytes,completedAt});
+    if (regression.kind===REPOSITORY_PURE_CONTRACT) return verifyRepositoryPureContract(p,prior,focused,{git,parse,bytes,completedAt});
+    fail("revision_git_regression_invalid");
+  }
+  if (p.commission.evidence_kind!==undefined) fail("revision_git_regression_invalid");
   if (acquisition && (regression?.attribution !== "final-driver-prior-input-owner" ||
       !equal(focused.implicated_paths,["scripts/local-canonical-inputs.mjs"]))) fail("revision_git_regression_invalid");
   const file = regression?.path;
