@@ -758,8 +758,17 @@ export function verifyRegisteredIntegrationBudget(p,prior,focused,options) {
   const incident = integrationBudgetIncident(p,prior,reg,options);
   const measuredHead = parse(reg.before).before?.source.head;
   if (!/^[a-f0-9]{40}$/u.test(measuredHead ?? "") || measuredHead === p.head) fail();
-  for (const [a,b] of [[prior.head,baseline.head],[baseline.base,p.base],[p.base,measuredHead],[baseline.head,measuredHead],[measuredHead,p.head]])
+  const measuredBase = git(["merge-base",p.base,measuredHead]).toString().trim();
+  for (const [a,b] of [[prior.head,baseline.head],[baseline.base,measuredBase],[p.base,p.head],[baseline.head,measuredHead],[measuredHead,p.head]])
     git(["merge-base","--is-ancestor",a,b]);
+  const changed = (a,b) => git(["diff","--name-only",a,b,"--"]).toString().trim().split("\n").filter(Boolean);
+  const entry = (head,file) => git(["ls-tree",head,"--",file]);
+  // A later adopted prose-only main can be carried into the final target
+  // while the old measured source and its original complete inventory remain
+  // fixed. Execution changes require a new measurement.
+  const laterMain = changed(measuredBase,p.base);
+  if (laterMain.some(file => !/^(?:(?:AGENTS|README)\.md|docs\/[A-Za-z0-9_./-]+\.md)$/u.test(file) ||
+      !entry(p.head,file).equals(entry(p.base,file)))) fail();
   verifyIntegrationBudgetMeasurementSource(git,baseline.head,measuredHead);
   const original = integrationBudgetRegistration(git,measuredHead), final = integrationBudgetRegistration(git,p.head);
   const {normalized,...historical} = incident.registration;
@@ -767,14 +776,14 @@ export function verifyRegisteredIntegrationBudget(p,prior,focused,options) {
   if (!equal(historical,measuredRegistration) || measuredSyntax !== final.normalized ||
       original.parentMs !== final.parentMs || final.childMs <= original.childMs ||
       !git(["ls-tree",p.head,"--",integrationChild]).equals(git(["ls-tree",baseline.head,"--",integrationChild])) ||
-      !equal(git(["diff","--name-only",measuredHead,p.head,"--"]).toString().trim().split("\n").filter(Boolean)
-        .filter(file => !integrationEvidencePaths.has(file) && file !== integrationChild),[FIXTURE_BUDGET_PATHS.suite])) fail();
+      !equal(changed(measuredHead,p.head)
+        .filter(file => !integrationEvidencePaths.has(file) && file !== integrationChild && !laterMain.includes(file)),[FIXTURE_BUDGET_PATHS.suite])) fail();
   // Changes outside the workload, diagnostics and evidence owners must be
   // exact adopted-main entries, including their Git modes and deletions.
-  for (const head of [measuredHead,p.head]) {
-    const paths = git(["diff","--name-only",baseline.head,head,"--"]).toString().trim().split("\n").filter(Boolean);
+  for (const [head,adopted] of [[measuredHead,measuredBase],[p.head,p.base]]) {
+    const paths = changed(baseline.head,head);
     for (const file of paths.filter(file => !integrationEvidencePaths.has(file) && file !== integrationChild && file !== FIXTURE_BUDGET_PATHS.suite))
-      if (!git(["ls-tree",head,"--",file]).equals(git(["ls-tree",p.base,"--",file]))) fail();
+      if (!entry(head,file).equals(entry(adopted,file))) fail();
   }
   const before = integrationCapture(reg.before,measuredHead,original,p,options);
   const after = integrationCapture(reg.after,p.head,final,p,options);
