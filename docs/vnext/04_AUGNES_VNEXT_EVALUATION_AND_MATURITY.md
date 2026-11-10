@@ -1511,6 +1511,34 @@ retained this small documented composition and regression. Earlier review-pendin
 language and failed qualification remain historical; acceptance did not launch
 a participant or usefulness study or close the broader #1532 issue.
 
+### External-response capability, effect, usefulness and autonomy
+
+For [#1453](https://github.com/hynk-studio/augnes/issues/1453), keep four
+questions separate when evaluating a concrete permitted response:
+
+| Axis | Required observation |
+|---|---|
+| Capability | A response actually executes, relevant feedback informs a justified next action, and scoped experience/commitments survive later reconstruction and correction. |
+| Intervention effect | A credible comparison supports attributing a counterpart/environment change to the intervention, beyond temporal order or the counterpart's own report. |
+| Comparative usefulness | Quality, tractable task range or another stated user outcome improves against a strong alternative after relevant costs and risks. |
+| Autonomy | The actual human/model/host contributions and further intervention needed within the current delegation are observed. |
+
+User-directed use can establish capability without full autonomy; negative
+utility does not erase demonstrated control. A prepared proposal or safe stop
+does not establish successful delivery/use. Use a feedback case where a changed
+action is justified and a control where retention is correct; two project needs
+must be genuinely distinct for a cross-project claim. Preserve independent
+results when a relevant correction changes a dependent current judgment.
+
+Source/mechanism checks, actual human/model use and independently operated field
+observations retain their distinct scope. Nonresponsive payloads or unavailable
+observations cannot demonstrate negotiation or unchanged external state. Apply
+the existing strong-comparison and total-burden rules, including comparable
+tools, actuators, permissions and aggregate budgets. Capability admission need
+not wait for positive usefulness; broader/default operation and further
+investment still require their own justified decision. These are evaluation
+criteria, not a new study allocation or revision of the recorded outcomes below.
+
 ### Local external-response evidence (#1453)
 
 The [registered local consumer](../EXTERNAL_RESPONSE_LOCAL.md#report-example-fresh-process-and-evidence)

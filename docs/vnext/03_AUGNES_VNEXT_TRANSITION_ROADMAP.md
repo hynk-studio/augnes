@@ -258,8 +258,9 @@ The unchanged-condition control keeps the original action. An interrupted B
 successor queries the same receipt and continues without repeating processing.
 
 This is an additive local capability under the current implementation assignment.
-Planning PR #1454's prospective product/evidence meaning is preserved; its
-unmerged branch is not this candidate's integration base or runtime evidence.
+The broader product/evidence direction from
+[PR #1454](https://github.com/hynk-studio/augnes/pull/1454) remains prospective
+beyond the local capability described here; planning acceptance is not runtime evidence.
 01 adds the shared product meaning, 02 owns the concrete adapter contract, and
 04 keeps source correctness separate from model judgment/effect/usefulness.
 Neither a shared store alone nor a safe stop completes the positive delivery path.
@@ -1659,7 +1660,7 @@ the existing unit resource owner, with the old HTTP delivery and solver tests
 retained. [PR #1451](https://github.com/hynk-studio/augnes/pull/1451) records the
 source delivery; its actual host/catalog/activation and native consumer
 observations, exact candidate qualification and cleanup retain their own scope.
-A local catalog does not establish a public listing; a Draft branch does not
+A local catalog does not establish a public listing; a source merge does not
 establish a stable release. Separate explicit authority is needed for release,
 public-directory submission or changes to an installed user profile. If those
 operational steps remain pending, the overall distribution objective stays open.
