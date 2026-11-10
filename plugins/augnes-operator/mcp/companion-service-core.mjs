@@ -21,7 +21,14 @@ import {
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
+import { isSupportedCompanionNodeVersion } from "./node-runtime-policy.mjs";
+
+import { observeCheckoutIdentity, observeCurrentCheckoutIdentity, currentCheckoutObservationBinding,
+  compareCompanionCheckoutIdentity, checkoutObservationBinding, validDurableCheckoutIdentity } from "./checkout-identity.mjs";
+
+export const COMPANION_SERVICE_CONFIGURATION_SCHEMA_VERSION = 2;
 export const COMPANION_SERVICE_CONTRACT = "augnes-companion-service.v0.1";
 export const COMPANION_SERVICE_DESIRED_STATE_CONTRACT =
   "augnes-companion-service-desired-state.v0.1";
@@ -45,12 +52,16 @@ export const COMPANION_SUPERVISOR_FAILURE_ORIGINS = Object.freeze([
   "child_birth_identity_unavailable",
   "managed_child_exit_observed",
   "managed_child_identity_lost",
+  "managed_child_absence_confirmed",
 ]);
 
 const SERVICE_LABEL_PREFIX = "com.augnes.companion";
 const SERVICE_SOURCE_FILES = Object.freeze([
   "scripts/augnes-companion-service.mjs",
   "plugins/augnes-operator/mcp/companion-service-core.mjs",
+  "plugins/augnes-operator/mcp/checkout-identity.mjs",
+  "plugins/augnes-operator/mcp/node-runtime-policy.mjs",
+  "plugins/augnes-operator/mcp/checkout-identity-darwin.py",
 ]);
 const RUNTIME_CONTRACT = "augnes-local-runtime-supervisor-v1";
 const RUNTIME_SCHEMA_VERSION = 2;
@@ -331,6 +342,7 @@ export function resolveCompanionServiceLayout({
     desired_state_path: path.join(serviceDirectory, "desired-state.json"),
     lifecycle_lock_path: path.join(serviceDirectory, "lifecycle.lock"),
     manager_state_path: path.join(serviceDirectory, "manager-state.json"),
+    ownership_recovery_path: path.join(serviceDirectory, "ownership-recovery.json"),
     manager_lock_path: path.join(serviceDirectory, "manager.lock"),
     maintenance_lease_path: path.join(serviceDirectory, "maintenance.json"),
     stale_decommission_path: path.join(
@@ -391,6 +403,13 @@ export async function inspectCompanionService({
       resumeAvailable: false,
       reason: publicCode(error, "companion_service_repository_unverifiable"),
     });
+  }
+
+  try {
+    assertNoPendingOwnershipRecovery(layout);
+  } catch (error) {
+    return serviceObservation({ layout, status: "recovery_required", checkoutRelation: "exact",
+      startAvailable: false, resumeAvailable: false, reason: publicCode(error, "companion_service_recovery_record_invalid") });
   }
 
   const staleDecommissionResult = readRegularJson(
@@ -474,6 +493,8 @@ export async function inspectCompanionService({
       startAvailable: false,
       resumeAvailable: false,
       reason: validation.reason,
+      loaded: validation.identity?.legacy_exact === true ? launchctlLoaded(layout, launchctl) : false,
+      runtime: validation.identity?.legacy_exact === true ? await inspectVerifiedRuntime({ layout, configuration }) : null,
     });
   }
 
@@ -663,7 +684,7 @@ export async function inspectCompanionService({
       configuration,
       status: "recovery_required",
       checkoutRelation: "exact",
-      startAvailable: true,
+      startAvailable: false,
       resumeAvailable: false,
       reason: "companion_service_manager_ownership_unverifiable",
       runtime,
@@ -740,12 +761,33 @@ export function publicCompanionServiceProjection(observation) {
     start_available: observation?.start_available === true,
     canonical_resume_available: observation?.resume_available === true,
     reason: observation?.reason ?? "companion_service_status_unavailable",
+    checkout_identity: observation?.checkout_identity ?? null,
     next_action: serviceNextAction(status, observation?.reason),
     authority: lifecycleAuthority(false),
   };
 }
 
-export async function installCompanionService({
+export async function installCompanionService(options = {}) {
+  assertNoPendingOwnershipRecovery(resolveCompanionServiceLayout(options));
+  assertSupportedServiceHost(options.platform ?? process.platform);
+  if (options.testRepositoryPhysicalIdentityOverride != null)
+    throw new PublicCompanionServiceError("companion_service_test_physical_identity_override_refused");
+  const layout = resolveCompanionServiceLayout(options);
+  requireDurableCheckoutIdentity(layout);
+  ensureOwnedDirectory(layout.service_directory);
+  const lock = await acquireLifecycleLock(layout, {
+    service_identity: layout.service_identity,
+    repository_fingerprint: layout.repository.repository_fingerprint,
+  }, options.waitMs ?? STOP_WAIT_MS);
+  try {
+    const result = await installCompanionServiceUnlocked({ ...options, operationLayout: layout });
+    assertCurrentCheckoutObservation(layout);
+    return result;
+  }
+  finally { releaseLifecycleLock(layout, lock); removeDirectoryIfEmpty(layout.service_directory); }
+}
+
+async function installCompanionServiceUnlocked({
   repositoryRoot,
   nodePath = process.execPath,
   environment = process.env,
@@ -755,6 +797,8 @@ export async function installCompanionService({
   testRepositoryPhysicalIdentityOverride = null,
   launchctl = defaultLaunchctl,
   waitMs = DEFAULT_LIVE_WAIT_MS,
+  start = true,
+  operationLayout = null,
 } = {}) {
   assertSupportedServiceHost(platform);
   if (testRepositoryPhysicalIdentityOverride !== null) {
@@ -769,6 +813,7 @@ export async function installCompanionService({
     homeDirectory,
     testScope,
   });
+  if (operationLayout) assertCurrentCheckoutObservation(operationLayout);
   if (readRegularJson(layout.stale_decommission_path).state !== "missing") {
     throw new PublicCompanionServiceError(
       "companion_service_stale_decommission_incomplete",
@@ -787,7 +832,7 @@ export async function installCompanionService({
   assertRegularNonSymlink(managerEntryPath, "companion_service_source_invalid");
   const configuration = {
     contract: COMPANION_SERVICE_CONTRACT,
-    schema_version: COMPANION_SERVICE_SCHEMA_VERSION,
+    schema_version: COMPANION_SERVICE_CONFIGURATION_SCHEMA_VERSION,
     manager_version: COMPANION_SERVICE_MANAGER_VERSION,
     service_label: layout.service_label,
     service_identity: layout.service_identity,
@@ -795,6 +840,7 @@ export async function installCompanionService({
     repository_fingerprint: layout.repository.repository_fingerprint,
     repository_device: layout.repository.device,
     repository_inode: layout.repository.inode,
+    repository_identity: requireDurableCheckoutIdentity(layout),
     node_path: node.path,
     node_version: node.version,
     manager_entry_path: managerEntryPath,
@@ -819,6 +865,7 @@ export async function installCompanionService({
   const existingConfiguration = readRegularJson(layout.configuration_path);
   const existingPlist = readRegularText(layout.launch_agent_path);
   const existingDesiredState = readRegularJson(layout.desired_state_path);
+  let desiredIntent = start ? "running" : "stopped";
   if (
     existingConfiguration.state !== "missing" ||
     existingPlist.state !== "missing" ||
@@ -840,11 +887,16 @@ export async function installCompanionService({
     if (!desiredValidation.valid) {
       throw new PublicCompanionServiceError(desiredValidation.reason);
     }
+    // Source update is not permission to undo the user's stopped intent.
+    desiredIntent = desiredValidation.record.desired_state;
     if (
       sameInstalledConfiguration(existingConfiguration.value, configuration) &&
       existingPlist.contents === plist
     ) {
-      return startCompanionService({
+      if (desiredIntent === "stopped") return lifecycleCommandResult("install", await inspectCompanionService({
+        repositoryRoot, environment, platform, homeDirectory, testScope, launchctl,
+      }), false);
+      return startCompanionServiceUnlocked({
         repositoryRoot,
         environment,
         platform,
@@ -854,7 +906,8 @@ export async function installCompanionService({
         waitMs,
       });
     }
-    if (!replaceableInstalledConfiguration(existingConfiguration.value, layout)) {
+    if (existingConfiguration.value.schema_version !== COMPANION_SERVICE_CONFIGURATION_SCHEMA_VERSION ||
+        !replaceableInstalledConfiguration(existingConfiguration.value, layout)) {
       throw new PublicCompanionServiceError(
         "companion_service_installation_conflict",
       );
@@ -868,7 +921,7 @@ export async function installCompanionService({
         "companion_service_update_maintenance_refused",
       );
     }
-    await stopCompanionService({
+    await stopCompanionServiceUnlocked({
       repositoryRoot,
       environment,
       platform,
@@ -899,16 +952,21 @@ export async function installCompanionService({
 
   ensureOwnedDirectory(layout.service_directory);
   ensureLaunchAgentDirectory(path.dirname(layout.launch_agent_path));
+  assertCurrentCheckoutObservation(layout);
   atomicWriteJson(layout.configuration_path, configuration, 0o600);
   let desiredState = null;
   try {
     desiredState = setExactDesiredState({
       layout,
       configuration,
-      desiredState: "running",
+      desiredState: desiredIntent,
       allowMissing: true,
     }).record;
     atomicWriteText(layout.launch_agent_path, plist, 0o600, true);
+    assertCurrentCheckoutObservation(layout);
+    if (desiredIntent === "stopped") return lifecycleCommandResult("install", await inspectCompanionService({
+      repositoryRoot, environment, platform, homeDirectory, testScope, launchctl,
+    }), true);
     const result = launchctl([
       "bootstrap",
       `gui/${currentUid()}`,
@@ -946,6 +1004,7 @@ export async function installCompanionService({
 }
 
 export async function startCompanionService(options = {}) {
+  assertNoPendingOwnershipRecovery(resolveCompanionServiceLayout(options));
   const preliminary = await inspectCompanionService(options);
   if (!preliminary.configuration || preliminary.checkout_relation !== "exact") {
     return startCompanionServiceUnlocked(options);
@@ -957,7 +1016,9 @@ export async function startCompanionService(options = {}) {
       STOP_WAIT_MS,
   );
   try {
-    return await startCompanionServiceUnlocked(options);
+    const result = await startCompanionServiceUnlocked({ ...options, operationLayout: preliminary.layout });
+    assertCurrentCheckoutObservation(preliminary.layout);
+    return result;
   } finally {
     releaseLifecycleLock(preliminary.layout, lock);
   }
@@ -972,6 +1033,7 @@ async function startCompanionServiceUnlocked({
   testRepositoryPhysicalIdentityOverride = null,
   launchctl = defaultLaunchctl,
   waitMs = DEFAULT_LIVE_WAIT_MS,
+  operationLayout = null,
 } = {}) {
   const before = await inspectCompanionService({
     repositoryRoot,
@@ -983,6 +1045,7 @@ async function startCompanionServiceUnlocked({
     launchctl,
   });
   if (before.layout) assertNoOtherProductionCompanionService(before.layout);
+  if (operationLayout) assertCurrentCheckoutObservation(operationLayout);
   if (before.status === "live") {
     return lifecycleCommandResult("start", before, false);
   }
@@ -1009,6 +1072,9 @@ async function startCompanionServiceUnlocked({
     before.checkout_relation !== "exact"
   ) {
     throw new PublicCompanionServiceError(startRefusalCode(before.status));
+  }
+  if (before.reason === "companion_service_manager_ownership_unverifiable") {
+    throw new PublicCompanionServiceError(before.reason);
   }
   if (before.maintenance?.status === "active") {
     return lifecycleCommandResult("start", before, false);
@@ -1062,6 +1128,7 @@ async function startCompanionServiceUnlocked({
 }
 
 export async function stopCompanionService(options = {}) {
+  assertNoPendingOwnershipRecovery(resolveCompanionServiceLayout(options));
   const preliminary = await inspectCompanionService(options);
   if (!preliminary.configuration || preliminary.checkout_relation !== "exact") {
     return stopCompanionServiceUnlocked(options);
@@ -1073,7 +1140,9 @@ export async function stopCompanionService(options = {}) {
       STOP_WAIT_MS,
   );
   try {
-    return await stopCompanionServiceUnlocked(options);
+    const result = await stopCompanionServiceUnlocked({ ...options, operationLayout: preliminary.layout });
+    assertCurrentCheckoutObservation(preliminary.layout);
+    return result;
   } finally {
     releaseLifecycleLock(preliminary.layout, lock);
   }
@@ -1088,6 +1157,7 @@ async function stopCompanionServiceUnlocked({
   testRepositoryPhysicalIdentityOverride = null,
   launchctl = defaultLaunchctl,
   waitMs = STOP_WAIT_MS,
+  operationLayout = null,
 } = {}) {
   const before = await inspectCompanionService({
     repositoryRoot,
@@ -1101,6 +1171,7 @@ async function stopCompanionServiceUnlocked({
   if (before.status === "not_installed") {
     return lifecycleCommandResult("stop", before, false);
   }
+  if (operationLayout) assertCurrentCheckoutObservation(operationLayout);
   if (!before.configuration || before.checkout_relation !== "exact") {
     throw new PublicCompanionServiceError("companion_service_stop_refused");
   }
@@ -1248,6 +1319,7 @@ async function stopCompanionServiceUnlocked({
 }
 
 export async function uninstallCompanionService(options = {}) {
+  assertNoPendingOwnershipRecovery(resolveCompanionServiceLayout(options));
   const before = await inspectCompanionService(options);
   if (before.status === "not_installed") {
     return lifecycleCommandResult("uninstall", before, false);
@@ -1276,35 +1348,42 @@ export async function uninstallCompanionService(options = {}) {
   if (!replaceableInstalledConfiguration(before.configuration, before.layout)) {
     throw new PublicCompanionServiceError("companion_service_uninstall_refused");
   }
-  await stopCompanionService(options);
   const layout = before.layout;
-  removeInactiveLifecycleLock(layout, before.configuration);
-  removeOwnedRegularFile(
-    layout.launch_agent_path,
-    buildLaunchAgentPlist(before.configuration),
-  );
-  for (const file of [
-    layout.manager_state_path,
-    layout.manager_lock_path,
-    layout.maintenance_lease_path,
-  ]) {
-    removeServiceOwnedStateFile(file, before.configuration);
+  const lock = await acquireLifecycleLock(layout, before.configuration, options.waitMs ?? STOP_WAIT_MS);
+  try {
+    assertCurrentCheckoutObservation(layout);
+    await stopCompanionServiceUnlocked({ ...options, operationLayout: layout });
+    assertCurrentCheckoutObservation(layout);
+    removeOwnedRegularFile(
+      layout.launch_agent_path,
+      buildLaunchAgentPlist(before.configuration),
+    );
+    for (const file of [
+      layout.manager_state_path,
+      layout.manager_lock_path,
+      layout.maintenance_lease_path,
+    ]) {
+      removeServiceOwnedStateFile(file, before.configuration);
+    }
+    removeServiceOwnedDesiredState(
+      layout.desired_state_path,
+      before.configuration,
+    );
+    removeOwnedRegularJson(layout.configuration_path, before.configuration);
+    removeDirectoryIfEmpty(layout.runtime_directory);
+    assertCurrentCheckoutObservation(layout);
+    return lifecycleCommandResult("uninstall", serviceObservation({
+      layout,
+      status: "not_installed",
+      checkoutRelation: "exact",
+      startAvailable: false,
+      resumeAvailable: false,
+      reason: "companion_service_not_installed",
+    }), true);
+  } finally {
+    releaseLifecycleLock(layout, lock);
+    removeDirectoryIfEmpty(layout.service_directory);
   }
-  removeServiceOwnedDesiredState(
-    layout.desired_state_path,
-    before.configuration,
-  );
-  removeOwnedRegularJson(layout.configuration_path, before.configuration);
-  removeDirectoryIfEmpty(layout.service_directory);
-  removeDirectoryIfEmpty(layout.runtime_directory);
-  return lifecycleCommandResult("uninstall", serviceObservation({
-    layout,
-    status: "not_installed",
-    checkoutRelation: "exact",
-    startAvailable: false,
-    resumeAvailable: false,
-    reason: "companion_service_not_installed",
-  }), true);
 }
 
 async function decommissionStaleCheckoutCompanionService({
@@ -1600,6 +1679,7 @@ export async function acquireCompanionServiceMaintenance({
     acquired_at: new Date(nowMs).toISOString(),
     expires_at: new Date(nowMs + ttlMs).toISOString(),
   };
+  assertCurrentCheckoutObservation(before.layout);
   createExclusiveJson(before.layout.maintenance_lease_path, lease);
   if (lease.pre_maintenance_desired_state === "running" && before.loaded) {
     const maintenance = await waitForMaintenancePause({
@@ -1658,6 +1738,7 @@ export async function releaseCompanionServiceMaintenance({
     testScope,
   });
   const configurationResult = readRegularJson(layout.configuration_path);
+  if (lease.layout) assertCurrentCheckoutObservation(lease.layout);
   if (configurationResult.state !== "valid") {
     throw new PublicCompanionServiceError(
       "companion_service_maintenance_restore_refused",
@@ -1724,6 +1805,306 @@ export async function runWithCompanionServiceMaintenance({
   }
 }
 
+const OWNERSHIP_RECOVERY_CONTRACT = "augnes.companion-ownership-retirement.v1";
+const RECOVERY_TTL_MS = 5 * 60_000;
+
+function recoveryRefused(detail) {
+  return new PublicCompanionServiceError(`companion_service_recovery_${detail}`);
+}
+
+function recoveryCodeFingerprint() {
+  // This code may run from a reviewed, isolated checkout against an unchanged
+  // installed checkout. Bind both sources; never rewrite the installed binding.
+  return computeServiceSourceFingerprint(fileURLToPath(new URL("../../../", import.meta.url)));
+}
+
+function recoveryMaterial(layout, key) {
+  return captureStaleDecommissionMaterialSnapshot(layout[key], staleDecommissionAnchorForFile(layout, layout[key]));
+}
+
+function settledRecoveryMatchesRenumberedCheckout(record, layout) {
+  if (record.status !== "settled") return false;
+  const witness = record.evidence.material?.configuration_path;
+  const device = witness?.parent?.device;
+  if (witness?.state !== "valid" || !validCanonicalInstalledStatIdentity(device, true)) return false;
+  const configuration = readRegularJson(layout.configuration_path);
+  if (configuration.state !== "valid" || !isObject(configuration.value) ||
+      !compareCompanionCheckoutIdentity(configuration.value, layout.repository).valid) return false;
+  // A settled record is history, not a new recovery grant. Its immutable
+  // observation must still match every current field except device, including
+  // the durable identity also checked against current enrollment above. The
+  // recorded material supplies a candidate device number, not a mount identity:
+  // require the exact original hash, never assume the two paths share a mount.
+  // Do not pin current configuration bytes to a historical operation; normal
+  // configuration/source validation still owns later supported updates.
+  return record.evidence.repository_binding === checkoutObservationBinding({ ...layout.repository, device });
+}
+
+function readOwnershipRecovery(layout) {
+  const value = readRegularJson(layout.ownership_recovery_path);
+  if (value.state === "missing") return null;
+  const record = value.value;
+  if (value.state !== "valid" || record?.contract !== OWNERSHIP_RECOVERY_CONTRACT ||
+      record.service_identity !== layout.service_identity ||
+      !["retiring", "settled"].includes(record.status) || !isObject(record.evidence) ||
+      !/^[a-f0-9]{64}$/u.test(record.operation_binding ?? "") ||
+      record.operation_binding !== sha256(JSON.stringify(record.evidence))) throw recoveryRefused("record_invalid");
+  if (record.evidence.repository_binding !== checkoutObservationBinding(layout.repository) &&
+      !settledRecoveryMatchesRenumberedCheckout(record, layout)) throw recoveryRefused("record_invalid");
+  return record;
+}
+
+function assertNoPendingOwnershipRecovery(layout) {
+  const record = readOwnershipRecovery(layout);
+  if (record?.status === "retiring") throw recoveryRefused("incomplete");
+}
+
+function recoveryBase(options) {
+  assertSupportedServiceHost(options.platform ?? process.platform);
+  if (options.testRepositoryPhysicalIdentityOverride != null) throw recoveryRefused("test_override_refused");
+  const layout = resolveCompanionServiceLayout(options);
+  requireDurableCheckoutIdentity(layout);
+  assertStaleDecommissionLifecyclePaths(layout);
+  assertNoOtherProductionCompanionService(layout);
+  const configuration = readRegularJson(layout.configuration_path).value;
+  const plist = readRegularText(layout.launch_agent_path);
+  const validation = validateInstalledConfiguration({ configuration, plist: plist.contents, layout });
+  if (!validation.valid || !installedManagerMaterialStillExact(configuration, layout)) throw recoveryRefused("installation_unverifiable");
+  const node = inspectNodeBinary(configuration.node_path);
+  if (!node.valid || node.version !== configuration.node_version) throw recoveryRefused("node_unverifiable");
+  for (const key of ["maintenance_lease_path", "stale_decommission_path"])
+    if (recoveryMaterial(layout, key).material.state !== "missing") throw recoveryRefused("lifecycle_conflict");
+  const material = Object.fromEntries(["configuration_path", "launch_agent_path", "desired_state_path"]
+    .map(key => [key, recoveryMaterial(layout, key).material]));
+  return { layout, configuration, material, desired: readExactDesiredState(layout, configuration),
+    repository_binding: checkoutObservationBinding(layout.repository), recovery_source: recoveryCodeFingerprint() };
+}
+
+function recoveryJob(layout, configuration, launchctl) {
+  const result = launchctl(["print", `gui/${currentUid()}/${layout.service_label}`]);
+  if (result.status === 113) return null; // Explicit OS absence; not any failed read.
+  if (result.status !== 0) throw recoveryRefused("loaded_job_unavailable");
+  const job = readExactStaleDecommissionLaunchJob(layout, configuration, () => result);
+  if (!job) throw recoveryRefused("loaded_job_unavailable");
+  return job;
+}
+
+function recoveryProcessRelationship(pid, parent, command) {
+  const before = readProcessBirthIdentity(pid);
+  if (before.state !== "present") throw recoveryRefused("process_witness_unavailable");
+  const result = spawnSync("/bin/ps", ["-o", "ppid=", "-o", "command=", "-p", String(pid)],
+    { encoding: "utf8", timeout: 1_500, env: { PATH: "/usr/bin:/bin" } });
+  const match = result.status === 0 ? result.stdout.trim().match(/^(\d+)\s+(.+)$/u) : null;
+  if (!match || Number(match[1]) !== parent || match[2] !== command ||
+      !processMatchesBirthIdentity(pid, before.identity)) throw recoveryRefused("process_relationship_unverifiable");
+  return { pid, identity: before.identity, parent_pid: parent, command_fingerprint: sha256(command) };
+}
+
+async function freshOwnershipRecoverySnapshot(options) {
+  const base = recoveryBase(options), { layout, configuration } = base;
+  if (readOwnershipRecovery(layout)) throw recoveryRefused("record_exists");
+  const launchctl = options.launchctl ?? defaultLaunchctl;
+  const job = recoveryJob(layout, configuration, launchctl);
+  const manager = readRegularJson(layout.manager_state_path).value;
+  const lock = readRegularJson(layout.manager_lock_path).value;
+  if (!job?.pid || !structurallyExactManagerState(manager, configuration) ||
+      !validManagerLock(lock, configuration) || job.pid !== manager.manager_pid ||
+      lock.owner_pid !== manager.manager_pid || lock.owner_process_identity !== manager.manager_process_identity ||
+      !processMatchesBirthIdentity(manager.manager_pid, manager.manager_process_identity)) throw recoveryRefused("manager_witness_unavailable");
+  // Narrow entry for an erased relationship, not a general foreign-runtime adopter.
+  // Attempt diagnostics have no child identity and can describe a later attempt;
+  // retain them as history, but derive authority only from the current witnesses.
+  if (manager.status !== "recovery_required" || manager.reason !== "companion_service_foreign_runtime_conflict" ||
+      manager.supervisor_pid !== null || manager.supervisor_process_identity !== null || manager.runtime_ownership !== null)
+    throw recoveryRefused("lost_relationship_not_established");
+  const runtimeMaterials = Object.fromEntries(["runtime_manifest_path", "runtime_lock_path", "runtime_token_path", "runtime_access_path", "runtime_bridge_environment_path"]
+    .map(key => [key, recoveryMaterial(layout, key).material]));
+  const manifest = readRegularJson(layout.runtime_manifest_path).value;
+  if (!validRuntimeManifest(manifest, configuration)) throw recoveryRefused("runtime_manifest_unverifiable");
+  if (!validRuntimeLock(readRegularJson(layout.runtime_lock_path).value, manifest)) throw recoveryRefused("runtime_lock_unverifiable");
+  const runtime = await inspectVerifiedRuntime({ layout, configuration });
+  if (!runtime.verified) throw recoveryRefused("authenticated_runtime_unavailable");
+  const supervisor = recoveryProcessRelationship(runtime.supervisor_pid, manager.manager_pid,
+    `${configuration.node_path} ${path.join(configuration.repository_root, "scripts/augnes-runtime-supervisor.mjs")} start`);
+  const supervisorGroup = captureExactProcessGroup(supervisor.pid, supervisor.identity);
+  const groups = [{ role: "supervisor", pid: supervisor.pid, identity: supervisor.identity, ...supervisorGroup },
+    ...await captureExactRuntimeProcessGroups({ layout, configuration, supervisorPid: supervisor.pid })];
+  const evidence = { repository_binding: base.repository_binding, recovery_source: base.recovery_source,
+    installed_source: configuration.service_source_fingerprint, material: base.material,
+    desired: base.desired, job, manager: criticalManagerStateProjection(manager), manager_lock: lock,
+    supervisor, generation_id: runtime.generation_id, instance_id: runtime.instance_id, groups, runtime_material: runtimeMaterials };
+  // One coherent observation. No favorable sample/retry after a changed witness.
+  const after = recoveryBase(options);
+  const freshManager = readRegularJson(layout.manager_state_path).value;
+  if (JSON.stringify(after.material) !== JSON.stringify(base.material) || after.repository_binding !== base.repository_binding ||
+      JSON.stringify(criticalManagerStateProjection(freshManager)) !== JSON.stringify(evidence.manager) ||
+      JSON.stringify(readRegularJson(layout.manager_lock_path).value) !== JSON.stringify(lock) ||
+      JSON.stringify(recoveryJob(layout, configuration, launchctl)) !== JSON.stringify(job) ||
+      JSON.stringify(recoveryProcessRelationship(supervisor.pid, manager.manager_pid,
+        `${configuration.node_path} ${path.join(configuration.repository_root, "scripts/augnes-runtime-supervisor.mjs")} start`)) !== JSON.stringify(supervisor) ||
+      Object.entries(runtimeMaterials).some(([key, value]) => JSON.stringify(recoveryMaterial(layout, key).material) !== JSON.stringify(value)))
+    throw recoveryRefused("observation_changed");
+  for (const group of groups) captureStaleCheckoutDecommissionProcessGroup(group);
+  return { ...base, evidence, record: null, binding: sha256(JSON.stringify(evidence)) };
+}
+
+function recoveryRemainder(options, record) {
+  const base = recoveryBase(options), { layout, configuration } = base, evidence = record.evidence;
+  if (evidence.recovery_source !== base.recovery_source || evidence.installed_source !== configuration.service_source_fingerprint ||
+      evidence.repository_binding !== base.repository_binding) throw recoveryRefused("source_changed");
+  for (const key of ["configuration_path", "launch_agent_path"])
+    if (JSON.stringify(base.material[key]) !== JSON.stringify(evidence.material[key])) throw recoveryRefused("material_changed");
+  if (JSON.stringify(base.desired) !== JSON.stringify(evidence.desired) &&
+      JSON.stringify(base.desired) !== JSON.stringify(record.stopped_desired)) throw recoveryRefused("desired_state_changed");
+  const job = recoveryJob(layout, configuration, options.launchctl ?? defaultLaunchctl);
+  if (job && JSON.stringify(job) !== JSON.stringify(evidence.job)) throw recoveryRefused("manager_changed");
+  const managerAbsent = processConfirmedAbsent(evidence.manager.manager_pid, evidence.manager.manager_process_identity);
+  if (job && managerAbsent) throw recoveryRefused("loaded_job_changed");
+  const groups = evidence.groups.map(group => captureStaleCheckoutDecommissionProcessGroup(group));
+  for (const [key, expected] of Object.entries(evidence.runtime_material)) {
+    const current = recoveryMaterial(layout, key).material;
+    if (current.state !== "missing" && JSON.stringify(current) !== JSON.stringify(expected)) throw recoveryRefused("runtime_changed");
+  }
+  const lock = readRegularJson(layout.manager_lock_path);
+  if (lock.state !== "missing" && (lock.state !== "valid" || JSON.stringify(lock.value) !== JSON.stringify(evidence.manager_lock)))
+    throw recoveryRefused("manager_lock_changed");
+  const manager = readRegularJson(layout.manager_state_path);
+  if (manager.state !== "valid" || !structurallyExactManagerState(manager.value, configuration) ||
+      manager.value.manager_pid !== evidence.manager.manager_pid ||
+      manager.value.manager_process_identity !== evidence.manager.manager_process_identity ||
+      (JSON.stringify(criticalManagerStateProjection(manager.value)) !== JSON.stringify(evidence.manager) &&
+       !(managerAbsent && exactManagerStateExplicitlyStopped({ layout, configuration })))) throw recoveryRefused("manager_state_changed");
+  const state = { job, manager_absent: managerAbsent, groups: groups.map(group => ({ role: group.role, members: group.present_members })),
+    desired: base.desired, runtime_material: Object.fromEntries(Object.keys(evidence.runtime_material).map(key => [key, recoveryMaterial(layout, key).material])) };
+  return { ...base, evidence, record, state, binding: sha256(JSON.stringify([record, state])) };
+}
+
+export async function inspectCompanionOwnershipRecovery(options = {}) {
+  const base = recoveryBase(options), record = readOwnershipRecovery(base.layout);
+  if (!record) {
+    const value = await freshOwnershipRecoverySnapshot(options);
+    return { command: "ownership-recovery-inspect", result: "retirement_available", binding: value.binding,
+      service_identity: value.layout.service_identity, installed_source: value.evidence.installed_source,
+      recovery_source: value.evidence.recovery_source, manager_pid: value.evidence.manager.manager_pid,
+      manager_process_identity: value.evidence.manager.manager_process_identity, supervisor: value.evidence.supervisor,
+      generation_id: value.evidence.generation_id, instance_id: value.evidence.instance_id, authority: lifecycleAuthority(false) };
+  }
+  const value = recoveryRemainder(options, record);
+  const settled = !value.state.job && value.state.manager_absent && value.state.groups.every(group => !group.members.length) &&
+    value.desired.desired_state === "stopped" && Object.values(value.state.runtime_material).every(material => material.state === "missing") &&
+    readRegularJson(value.layout.manager_lock_path).state === "missing";
+  return { command: "ownership-recovery-inspect", result: settled ? "settled" : "incomplete",
+    recorded_status: record.status, operation_binding: record.operation_binding, binding: value.binding,
+    remaining_owned_processes: value.state.groups.reduce((sum, group) => sum + group.members.length, value.state.manager_absent ? 0 : 1),
+    authority: lifecycleAuthority(false) };
+}
+
+export async function prepareCompanionOwnershipRecovery(options = {}) {
+  const base = recoveryBase(options), record = readOwnershipRecovery(base.layout);
+  const value = record ? recoveryRemainder(options, record) : await freshOwnershipRecoverySnapshot(options);
+  if (record?.status === "settled") throw recoveryRefused("already_settled");
+  return { command: "ownership-recovery-prepare", result: "decision_required",
+    effect: "Retire only the corroborated manager and runtime; persist stopped intent. Preserve installation, enrollment, data and the recovery record. No replacement or source adoption.",
+    decision: { contract: OWNERSHIP_RECOVERY_CONTRACT, service_identity: value.layout.service_identity,
+      expected_binding: value.binding, recovery_source: value.recovery_source,
+      expires_at: new Date(Date.now() + RECOVERY_TTL_MS).toISOString() }, authority: lifecycleAuthority(false) };
+}
+
+export async function applyCompanionOwnershipRecovery({ decision, ...options } = {}) {
+  const base = recoveryBase(options), { layout, configuration } = base;
+  const lock = await acquireLifecycleLock(layout, configuration, options.waitMs ?? STOP_WAIT_MS);
+  let failure = null;
+  try {
+    const prior = readOwnershipRecovery(layout);
+    // A repeated request reconciles a settled outcome, never starts/replaces it.
+    if (prior?.status === "settled" && prior.decision_binding === sha256(JSON.stringify(decision)))
+      return await inspectCompanionOwnershipRecovery(options);
+    const current = prior ? recoveryRemainder(options, prior) : await freshOwnershipRecoverySnapshot(options);
+    const keys = ["contract", "service_identity", "expected_binding", "recovery_source", "expires_at"];
+    const expiry = Date.parse(decision?.expires_at);
+    const assertDecision = () => {
+      if (!isObject(decision) || Object.keys(decision).length !== keys.length || !keys.every(key => Object.hasOwn(decision, key)) ||
+          decision.contract !== OWNERSHIP_RECOVERY_CONTRACT || decision.service_identity !== layout.service_identity ||
+          decision.expected_binding !== current.binding || decision.recovery_source !== current.recovery_source ||
+          !Number.isFinite(expiry) || expiry <= Date.now() || expiry > Date.now() + RECOVERY_TTL_MS) throw recoveryRefused("decision_stale");
+    };
+    assertDecision();
+    const hook = stage => {
+      if (options.testOwnershipRecoveryStageHook === undefined) return;
+      if (!layout.test || typeof options.testOwnershipRecoveryStageHook !== "function") throw recoveryRefused("test_override_refused");
+      options.testOwnershipRecoveryStageHook(stage);
+    };
+    hook("before_effect");
+    const final = prior ? recoveryRemainder(options, prior) : await freshOwnershipRecoverySnapshot(options);
+    if (final.binding !== current.binding) throw recoveryRefused("decision_stale");
+    assertDecision();
+    let record = prior ?? { contract: OWNERSHIP_RECOVERY_CONTRACT, service_identity: layout.service_identity,
+      status: "retiring", evidence: current.evidence, operation_binding: sha256(JSON.stringify(current.evidence)),
+      decision_binding: sha256(JSON.stringify(decision)), stopped_desired: current.desired.desired_state === "stopped" ? current.desired : newDesiredStateRecord(configuration, "stopped") };
+    if (!prior) createExclusiveJson(layout.ownership_recovery_path, record);
+    const guard = () => {
+      assertDecision();
+      if (JSON.stringify(readOwnershipRecovery(layout)) !== JSON.stringify(record)) throw recoveryRefused("record_changed");
+      const ownedLock = readRegularJson(layout.lifecycle_lock_path);
+      if (ownedLock.state !== "valid" || JSON.stringify(ownedLock.value) !== JSON.stringify(lock)) throw recoveryRefused("lifecycle_changed");
+      const remainder = recoveryRemainder(options, record);
+      assertDecision();
+      return remainder;
+    };
+    const launchctl = options.launchctl ?? defaultLaunchctl;
+    const beforeBootout = guard();
+    if (beforeBootout.state.job) {
+      // Recheck the entire current relationship, including authenticated children,
+      // immediately before the first process effect; the record alone is no proof.
+      {
+        const runtime = await inspectVerifiedRuntime({ layout, configuration });
+        if (!runtime.verified || runtime.generation_id !== record.evidence.generation_id || runtime.instance_id !== record.evidence.instance_id)
+          throw recoveryRefused("authenticated_runtime_changed");
+        recoveryProcessRelationship(record.evidence.supervisor.pid, record.evidence.manager.manager_pid,
+          `${configuration.node_path} ${path.join(configuration.repository_root, "scripts/augnes-runtime-supervisor.mjs")} start`);
+      }
+      guard();
+      launchctl(["bootout", `gui/${currentUid()}/${layout.service_label}`]);
+      hook("after_bootout");
+    }
+    if (!(await waitForExactProcessExit(record.evidence.manager.manager_pid, record.evidence.manager.manager_process_identity, STOP_WAIT_MS)) ||
+        recoveryJob(layout, configuration, launchctl) !== null) throw recoveryRefused("manager_settlement_unproven");
+    guard();
+    if (JSON.stringify(readExactDesiredState(layout, configuration)) !== JSON.stringify(record.stopped_desired))
+      atomicWriteJson(layout.desired_state_path, record.stopped_desired, 0o600, guard);
+    for (const group of record.evidence.groups) {
+      guard();
+      await stopExactProcessGroup({ pid: group.pid, identity: group.identity, processGroup: group.process_group,
+        members: group.members, timeoutMs: 8_000, errorPrefix: "companion_service_recovery", beforeSignal: guard });
+      hook(`after_${group.role}`);
+    }
+    const after = guard();
+    if (after.state.job || !after.state.manager_absent || after.state.groups.some(group => group.members.length)) throw recoveryRefused("settlement_unproven");
+    // Cleanup only after exact settlement, through the existing bounded material
+    // owner. Retain the recovery record, configuration, enrollment and data.
+    for (const [key, expected] of Object.entries(record.evidence.runtime_material)) {
+      guard();
+      const observed = recoveryMaterial(layout, key).material;
+      if (observed.state === "missing") continue;
+      unlinkBoundedOwnedFile(layout[key], expected.parent, staleDecommissionAnchorForFile(layout, layout[key]), expected.sha256, layout, "ownership_recovery");
+    }
+    guard();
+    if (readRegularJson(layout.manager_lock_path).state !== "missing") removeOwnedRegularJson(layout.manager_lock_path, record.evidence.manager_lock);
+    const readback = await inspectCompanionOwnershipRecovery(options);
+    if (readback.result !== "settled") throw recoveryRefused("readback_failed");
+    guard();
+    record = { ...record, status: "settled", decision_binding: sha256(JSON.stringify(decision)) };
+    atomicWriteJson(layout.ownership_recovery_path, record);
+    return { ...await inspectCompanionOwnershipRecovery(options), authority: lifecycleAuthority(true) };
+  } catch (error) {
+    failure = error;
+    throw error;
+  } finally {
+    try { releaseLifecycleLock(layout, lock); }
+    catch (error) { throw serviceCleanupFailure(failure, [error]); }
+  }
+}
+
 export async function runCompanionServiceManager({
   configurationPath,
   launchEnvironment = process.env,
@@ -1765,6 +2146,7 @@ export async function runCompanionServiceManager({
     throw new PublicCompanionServiceError(validation.reason);
   }
   let startupRefusal = null;
+  assertNoPendingOwnershipRecovery(layout);
   try {
     assertNoOtherProductionCompanionService(layout);
   } catch (error) {
@@ -1813,75 +2195,56 @@ export async function runCompanionServiceManager({
     releaseManagerLock(layout, managerLock);
     return 0;
   }
-  if (desiredStateValidation.record.desired_state === "stopped") {
-    const maintenance = classifyMaintenanceLease({
-      leasePath: layout.maintenance_lease_path,
-      configuration,
-    });
-    if (
-      maintenance.lease &&
-      maintenance.lease.pre_maintenance_desired_state !== "stopped"
-    ) {
-      writeManagerState(layout, configuration, {
-        status: "recovery_required",
-        reason: "companion_service_maintenance_desired_state_conflict",
-        supervisor_pid: null,
-        restart_count: 0,
-      });
+  const retainedSupervisor = recoverableManagerState.state === "valid" &&
+    structurallyExactManagerState(recoverableManagerState.value, configuration) &&
+    Number.isInteger(recoverableManagerState.value.supervisor_pid) &&
+    /^[a-f0-9]{64}$/u.test(recoverableManagerState.value.supervisor_process_identity ?? "")
+      ? { pid: recoverableManagerState.value.supervisor_pid, identity: recoverableManagerState.value.supervisor_process_identity }
+      : null;
+  if (desiredStateValidation.record.desired_state === "stopped" && !retainedSupervisor) {
+    try {
+      writeSettledManagerState(layout, configuration, 0);
+    } finally {
       releaseManagerLock(layout, managerLock);
-      return 0;
     }
-    if (maintenance.status === "ambiguous" || maintenance.status === "active") {
-      writeManagerState(layout, configuration, {
-        status: maintenance.status === "active" ? "maintenance" : "recovery_required",
-        reason: maintenance.status === "active"
-          ? "companion_service_maintenance_active"
-          : "companion_service_maintenance_ambiguous",
-        supervisor_pid: null,
-        restart_count: 0,
-      });
-      releaseManagerLock(layout, managerLock);
-      return 0;
-    }
-    if (maintenance.status === "stale") {
-      removeExactMaintenanceLease(
-        layout.maintenance_lease_path,
-        maintenance.lease,
-      );
-    }
-    writeManagerState(layout, configuration, {
-      status: "installed_stopped",
-      reason: "companion_service_explicitly_stopped",
-      supervisor_pid: null,
-      restart_count: 0,
-    });
-    releaseManagerLock(layout, managerLock);
     return 0;
   }
   let shutdown = false;
   let child = null;
   let childIdentity = null;
   let childAttempt = null;
-  let adoptedPid = null;
-  let runtimeOwnership = null;
+  let adoptedPid = retainedSupervisor;
+  let runtimeOwnership = retainedSupervisor && validManagerRuntimeOwnership(recoverableManagerState.value.runtime_ownership)
+    ? recoverableManagerState.value.runtime_ownership : null;
   let failures = 0;
   let lastFailureProvenance = recoverableManagerState.state === "valid"
     ? readCompanionSupervisorFailureProvenance(recoverableManagerState.value)
     : null;
   let shutdownSignal = null;
+  const publishUnverified = (observation = "unavailable") => writeManagerState(layout, configuration, {
+    status: "recovery_required",
+    reason: "companion_service_supervisor_ownership_unverifiable",
+    supervisor_pid: child?.pid ?? adoptedPid?.pid ?? null,
+    supervisor_process_identity: childIdentity ?? adoptedPid?.identity ?? null,
+    supervisor_observation: observation,
+    runtime_ownership: runtimeOwnership,
+    restart_count: failures,
+    supervisor_failure_provenance: lastFailureProvenance,
+  });
 
   const requestShutdown = (signal) => {
     shutdownSignal = signal;
     shutdown = true;
   };
-  for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) {
-    process.on(signal, () => requestShutdown(signal));
-  }
+  const signalHandlers = new Map(["SIGTERM", "SIGINT", "SIGHUP"].map(signal => [signal, () => requestShutdown(signal)]));
+  for (const [signal, handler] of signalHandlers) process.on(signal, handler);
   try {
     writeManagerState(layout, configuration, {
       status: "starting",
       reason: "companion_service_manager_started",
-      supervisor_pid: null,
+      supervisor_pid: adoptedPid?.pid ?? null,
+      supervisor_process_identity: adoptedPid?.identity ?? null,
+      runtime_ownership: runtimeOwnership,
       restart_count: 0,
       supervisor_failure_provenance: lastFailureProvenance,
     });
@@ -1890,6 +2253,23 @@ export async function runCompanionServiceManager({
         throw new PublicCompanionServiceError(
           "companion_service_configuration_stale",
         );
+      }
+      // Observation failure is not exit. This gate also protects Stop and
+      // maintenance: neither may erase or signal an unsettled relationship.
+      const retainedPid = child?.pid ?? adoptedPid?.pid;
+      let retainedIdentity = child ? childIdentity : adoptedPid?.identity;
+      const observedExit = Boolean(childAttempt?.exit_observation);
+      const observation = retainedPid ? readProcessBirthIdentity(retainedPid) : null;
+      if (child && !childIdentity && !observedExit && observation?.state === "present" &&
+          child.exitCode === null && child.signalCode === null &&
+          processIsDescendantOf(child.pid, process.pid)) {
+        childIdentity = retainedIdentity = observation.identity;
+      }
+      if (retainedPid && !observedExit && observation.state !== "missing" &&
+          (observation.state !== "present" || observation.identity !== retainedIdentity)) {
+        publishUnverified(observation.state === "present" ? "conflicting" : "unavailable");
+        await delay(MANAGER_POLL_MS);
+        continue;
       }
       const currentDesiredStateResult = readRegularJson(layout.desired_state_path);
       const currentDesiredState = currentDesiredStateResult.state === "valid"
@@ -1929,12 +2309,8 @@ export async function runCompanionServiceManager({
         adoptedPid = null;
         runtimeOwnership = null;
         lastFailureProvenance = null;
-        writeManagerState(layout, configuration, {
-          status: "installed_stopped",
-          reason: "companion_service_explicitly_stopped",
-          supervisor_pid: null,
-          restart_count: failures,
-        });
+        // The common shutdown owner settles stopped maintenance before it
+        // publishes completion, including a retained but now absent supervisor.
         break;
       }
       const maintenance = classifyMaintenanceLease({
@@ -2009,16 +2385,24 @@ export async function runCompanionServiceManager({
         writeManagerState(layout, configuration, {
           status: "starting",
           reason: "companion_service_stale_maintenance_recovered",
-          supervisor_pid: null,
+          supervisor_pid: child?.pid ?? adoptedPid?.pid ?? null,
+          supervisor_process_identity: childIdentity ?? adoptedPid?.identity ?? null,
+          runtime_ownership: runtimeOwnership,
           restart_count: failures,
         });
       }
 
       if (
-        child &&
-        processMatchesBirthIdentity(child.pid, childIdentity)
+        child && !observedExit && observation?.state === "present" &&
+        observation.identity === childIdentity
       ) {
         const runtime = await inspectVerifiedRuntime({ layout, configuration });
+        if ((runtime.verified && runtime.supervisor_pid !== child.pid) ||
+            !processMatchesBirthIdentity(child.pid, childIdentity)) {
+          publishUnverified();
+          await delay(MANAGER_POLL_MS);
+          continue;
+        }
         if (runtime.verified) {
           runtimeOwnership = await captureManagerRuntimeOwnership({
             layout,
@@ -2034,6 +2418,7 @@ export async function runCompanionServiceManager({
             ? "companion_service_live"
             : "companion_service_runtime_starting",
           supervisor_pid: child.pid,
+          supervisor_process_identity: childIdentity,
           runtime_ownership: runtime.verified ? runtimeOwnership : null,
           restart_count: failures,
           supervisor_failure_provenance: lastFailureProvenance,
@@ -2049,7 +2434,7 @@ export async function runCompanionServiceManager({
           attempt: childAttempt ?? createCompanionSupervisorAttemptDiagnostics(),
           failureOrigin: childAttempt?.exit_observation
             ? "managed_child_exit_observed"
-            : "managed_child_identity_lost",
+            : "managed_child_absence_confirmed",
           restartCount: failures,
         });
         child = null;
@@ -2058,8 +2443,14 @@ export async function runCompanionServiceManager({
         runtimeOwnership = null;
       }
 
-      if (adoptedPid && processMatchesBirthIdentity(adoptedPid.pid, adoptedPid.identity)) {
+      if (adoptedPid && observation?.state === "present" && observation.identity === adoptedPid.identity) {
         const runtime = await inspectVerifiedRuntime({ layout, configuration });
+        if ((runtime.verified && runtime.supervisor_pid !== adoptedPid.pid) ||
+            !processMatchesBirthIdentity(adoptedPid.pid, adoptedPid.identity)) {
+          publishUnverified();
+          await delay(MANAGER_POLL_MS);
+          continue;
+        }
         if (runtime.verified) {
           runtimeOwnership = await captureManagerRuntimeOwnership({
             layout,
@@ -2075,6 +2466,7 @@ export async function runCompanionServiceManager({
             ? "companion_service_live"
             : "companion_service_adopted_runtime_starting",
           supervisor_pid: adoptedPid.pid,
+          supervisor_process_identity: adoptedPid.identity,
           runtime_ownership: runtime.verified ? runtimeOwnership : null,
           restart_count: failures,
           supervisor_failure_provenance: lastFailureProvenance,
@@ -2094,6 +2486,7 @@ export async function runCompanionServiceManager({
           ? recoverableManagerState.value?.supervisor_process_identity
           : null;
         if (
+          structurallyExactManagerState(recoverableManagerState.value, configuration) &&
           previousPid === existingRuntime.supervisor_pid &&
           processMatchesBirthIdentity(previousPid, previousIdentity)
         ) {
@@ -2106,6 +2499,21 @@ export async function runCompanionServiceManager({
           supervisor_pid: null,
           restart_count: failures,
           supervisor_failure_provenance: lastFailureProvenance,
+        });
+        await delay(MANAGER_POLL_MS);
+        continue;
+      }
+
+      // An unverified resident runtime is not an empty slot. This also covers
+      // entry from the already-erased old state when HTTP observation fails.
+      const resident = readRegularJson(layout.runtime_manifest_path);
+      const residentLock = readRegularJson(layout.runtime_lock_path);
+      if ((resident.state !== "missing" && (resident.state !== "valid" ||
+            readProcessBirthIdentity(resident.value?.supervisor_pid).state !== "missing")) ||
+          (resident.state === "missing" && residentLock.state !== "missing")) {
+        writeManagerState(layout, configuration, {
+          status: "recovery_required", reason: "companion_service_runtime_ownership_unverifiable",
+          supervisor_pid: null, restart_count: failures, supervisor_failure_provenance: lastFailureProvenance,
         });
         await delay(MANAGER_POLL_MS);
         continue;
@@ -2125,6 +2533,9 @@ export async function runCompanionServiceManager({
         });
         await delay(backoff);
         if (shutdown) break;
+        const afterBackoff = readExactDesiredState(layout, configuration);
+        if (afterBackoff.desired_state !== "running" ||
+            classifyMaintenanceLease({ leasePath: layout.maintenance_lease_path, configuration }).status !== "none") continue;
       }
 
       const currentNode = inspectNodeBinary(configuration.node_path);
@@ -2161,16 +2572,10 @@ export async function runCompanionServiceManager({
       });
       childIdentity = await waitForProcessIdentity(child.pid);
       if (!childIdentity) {
-        child.kill("SIGTERM");
-        failures += 1;
-        lastFailureProvenance = snapshotCompanionSupervisorFailureProvenance({
-          attempt: currentAttempt,
-          failureOrigin: "child_birth_identity_unavailable",
-          restartCount: failures,
-        });
-        child = null;
-        childIdentity = null;
-        childAttempt = null;
+        // The ChildProcess handle remains unsettled. Never kill an unidentified
+        // PID or start another supervisor because its first birth read failed.
+        publishUnverified("initial_identity_unavailable");
+        await delay(MANAGER_POLL_MS);
         continue;
       }
       writeManagerState(layout, configuration, {
@@ -2184,18 +2589,25 @@ export async function runCompanionServiceManager({
       await delay(MANAGER_POLL_MS);
     }
   } finally {
-    await stopManagedSupervisor({
-      child, childIdentity, adoptedPid, layout, configuration,
-    });
-    writeManagerState(layout, configuration, {
-      status: "installed_stopped",
-      reason: "companion_service_explicitly_stopped",
-      supervisor_pid: null,
-      restart_count: failures,
-    });
-    releaseManagerLock(layout, managerLock);
-    for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) {
-      process.removeAllListeners(signal);
+    try {
+      try {
+        await stopManagedSupervisor({ child, childIdentity, adoptedPid, layout, configuration });
+      } catch (error) {
+        // Unsettled process ownership retains both the witness and manager lock.
+        publishUnverified();
+        throw error;
+      }
+      try {
+        writeSettledManagerState(layout, configuration, failures);
+      } finally {
+        // A lease refusal is not unsettled supervisor ownership. Preserve that
+        // record, but release this completed manager's own exclusion lock.
+        releaseManagerLock(layout, managerLock);
+      }
+    } finally {
+      for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) {
+        process.removeListener(signal, signalHandlers.get(signal));
+      }
     }
   }
   return shutdownSignal ? 1 : 0;
@@ -2208,6 +2620,139 @@ export function boundedLifecycleState(observation) {
     service_identity: observation?.service_identity
       ? `sha256:${observation.service_identity}`
       : null,
+  };
+}
+
+// One read-only preservation observation. Bracket the ordinary inspector rather
+// than retrying a failed health/lifecycle sample. Only the manager heartbeat's
+// timestamp may differ; identity, generation, ownership and lifecycle may not.
+// Private configuration/access bytes are compared in memory and never projected.
+export async function inspectCompanionPreservation(options) {
+  const startedAt = new Date().toISOString();
+  const layout = resolveCompanionServiceLayout(options);
+  const launchctl = options.launchctl ?? defaultLaunchctl;
+  const capture = () => {
+    const material = Object.fromEntries(
+      [
+        "configuration_path",
+        "desired_state_path",
+        "maintenance_lease_path",
+        "manager_state_path",
+        "manager_lock_path",
+        "runtime_manifest_path",
+        "runtime_token_path",
+        "runtime_access_path",
+        "runtime_lock_path",
+      ].map((key) => [key, readRegularJson(layout[key])]),
+    );
+    const manager = material.manager_state_path.value ?? null;
+    const critical = {
+      repository_observation: observeRepository(layout.repository.realpath),
+      ...material,
+      manager_state_path:
+        material.manager_state_path.state === "valid"
+          ? { state: "valid", value: criticalManagerStateProjection(manager) }
+          : material.manager_state_path,
+      launch_agent: readRegularText(layout.launch_agent_path),
+    };
+    let job = null,
+      jobValid = true;
+    try {
+      const config = material.configuration_path.value;
+      if (config)
+        job = readExactStaleDecommissionLaunchJob(layout, config, launchctl);
+    } catch {
+      jobValid = false;
+    }
+    return {
+      material,
+      manager,
+      job,
+      jobValid,
+      repositoryBinding: checkoutObservationBinding(critical.repository_observation),
+      repositoryObservation: critical.repository_observation.durable_observation,
+      fingerprint: sha256(JSON.stringify([critical, job, jobValid])),
+    };
+  };
+  const before = capture();
+  const observation = await inspectCompanionService(options);
+  const after = capture();
+  const coherent =
+    before.fingerprint === after.fingerprint &&
+    before.jobValid &&
+    after.jobValid && before.repositoryObservation === "observed" && after.repositoryObservation === "observed";
+  const runtime = observation.runtime;
+  const manager = after.manager;
+  const liveIdentity =
+    observation.status !== "live" ||
+    (runtime?.verified === true &&
+      after.job?.pid === manager?.manager_pid &&
+      validLiveManagerState(manager, observation.configuration, runtime) &&
+      manager?.runtime_ownership?.generation_id === runtime.generation_id &&
+      manager?.runtime_ownership?.instance_id === runtime.instance_id &&
+      validManagerRuntimeOwnership(manager?.runtime_ownership));
+  const valid =
+    coherent &&
+    liveIdentity &&
+    ["live", "not_installed", "installed_stopped"].includes(
+      observation.status,
+    ) &&
+    observation.checkout_relation === "exact" &&
+    Object.values(after.material).every((value) =>
+      ["valid", "missing"].includes(value.state),
+    );
+  const projectManager = (value) =>
+    value
+      ? {
+          status: value.status,
+          reason: value.reason,
+          updated_at: value.updated_at,
+          manager_pid: value.manager_pid,
+          manager_process_identity: value.manager_process_identity,
+          supervisor_pid: value.supervisor_pid,
+          supervisor_process_identity: value.supervisor_process_identity,
+          restart_count: value.restart_count,
+          generation_id: value.runtime_ownership?.generation_id ?? null,
+          instance_id: value.runtime_ownership?.instance_id ?? null,
+        }
+      : null;
+  return {
+    state: {
+      ...boundedLifecycleState(observation),
+      preservation_valid: valid,
+      preservation_binding: after.fingerprint,
+    },
+    diagnostics: {
+      contract: "augnes.companion-preservation-observation.v2",
+      started_at: startedAt,
+      finished_at: new Date().toISOString(),
+      samples: 1,
+      coherent,
+      live_identity_valid: liveIdentity,
+      reason: observation.reason,
+      runtime,
+      manager_before: projectManager(before.manager),
+      manager_after: projectManager(after.manager),
+      loaded_job: after.job
+        ? {
+            label: after.job.label,
+            pid: after.job.pid,
+            fingerprint: after.job.fingerprint,
+          }
+        : null,
+      material_states: Object.fromEntries(
+        Object.entries(after.material).map(([key, value]) => [
+          key,
+          value.state,
+        ]),
+      ),
+      before_binding: before.fingerprint,
+      after_binding: after.fingerprint,
+      repository_binding_before: before.repositoryBinding,
+      repository_binding_after: after.repositoryBinding,
+      repository_observation_before: before.repositoryObservation,
+      repository_observation_after: after.repositoryObservation,
+    },
   };
 }
 
@@ -2324,7 +2869,7 @@ function validateInstalledConfiguration({ configuration, plist, layout }) {
   const exactContract =
     isObject(configuration) &&
     configuration.contract === COMPANION_SERVICE_CONTRACT &&
-    configuration.schema_version === COMPANION_SERVICE_SCHEMA_VERSION &&
+    [1, COMPANION_SERVICE_CONFIGURATION_SCHEMA_VERSION].includes(configuration.schema_version) &&
     configuration.manager_version === COMPANION_SERVICE_MANAGER_VERSION;
   if (!exactContract) {
     return invalidConfiguration(
@@ -2333,19 +2878,16 @@ function validateInstalledConfiguration({ configuration, plist, layout }) {
       "exact",
     );
   }
-  const exactRelation =
-    configuration.repository_root === layout.repository.realpath &&
-    configuration.repository_fingerprint ===
-      layout.repository.repository_fingerprint &&
-    configuration.repository_device === layout.repository.device &&
-    configuration.repository_inode === layout.repository.inode;
-  if (!exactRelation) {
-    return invalidConfiguration(
-      "companion_service_checkout_identity_changed",
-      false,
-      "substituted_or_moved",
-    );
-  }
+  const identity = compareCompanionCheckoutIdentity(configuration, layout.repository);
+  const identityRefusal = () => {
+    const legacyExact = identity.category === "legacy_evidence_insufficient" && identity.legacy_exact;
+    const unavailable = ["unsupported", "unavailable", "incoherent", "durable_evidence_invalid"].includes(identity.category);
+    return { ...invalidConfiguration(
+      legacyExact ? "companion_service_identity_enrollment_required" : unavailable
+        ? `companion_service_identity_${identity.category}` : "companion_service_checkout_identity_changed",
+      legacyExact, legacyExact ? "exact" : unavailable ? "unverifiable" : "substituted_or_moved"), identity };
+  };
+  if (!identity.valid && !identity.legacy_exact) return identityRefusal();
   const exactService =
     configuration.service_label === layout.service_label &&
     configuration.service_identity === layout.service_identity &&
@@ -2377,7 +2919,10 @@ function validateInstalledConfiguration({ configuration, plist, layout }) {
       "exact",
     );
   }
-  return { valid: true, reason: null, updateRequired: false, checkoutRelation: "exact" };
+  if (!identity.valid) {
+    return identityRefusal();
+  }
+  return { valid: true, reason: null, updateRequired: false, checkoutRelation: "exact", identity };
 }
 
 function invalidConfiguration(reason, updateRequired, checkoutRelation) {
@@ -2453,6 +2998,7 @@ function setExactDesiredState({
   desiredState,
   allowMissing = false,
 }) {
+  assertCurrentCheckoutObservation(layout);
   const current = readRegularJson(layout.desired_state_path);
   if (current.state === "missing" && allowMissing) {
     const record = newDesiredStateRecord(configuration, desiredState);
@@ -2625,7 +3171,7 @@ function validForeignProductionConfiguration({
   );
   return (
     configuration.contract === COMPANION_SERVICE_CONTRACT &&
-    configuration.schema_version === COMPANION_SERVICE_SCHEMA_VERSION &&
+    [1, COMPANION_SERVICE_CONFIGURATION_SCHEMA_VERSION].includes(configuration.schema_version) &&
     configuration.manager_version === COMPANION_SERVICE_MANAGER_VERSION &&
     checkoutScope === `checkout-${repositoryFingerprint.slice(0, 16)}` &&
     configuration.service_identity === serviceIdentity &&
@@ -2683,10 +3229,12 @@ function sameInstalledConfiguration(left, right) {
     "test_scope",
     "test_root",
   ];
-  return comparable.every((key) => left?.[key] === right?.[key]);
+  return comparable.filter(key => !["repository_device", "repository_inode"].includes(key)).every((key) => left?.[key] === right?.[key]) &&
+    JSON.stringify(left?.repository_identity) === JSON.stringify(right?.repository_identity);
 }
 
 function installedManagerMaterialStillExact(configuration, layout) {
+  assertCurrentCheckoutObservation(layout);
   const currentConfiguration = readRegularJson(layout.configuration_path);
   const currentPlist = readRegularText(layout.launch_agent_path);
   return (
@@ -2708,8 +3256,9 @@ function replaceableInstalledConfiguration(configuration, layout) {
     configuration.repository_root === layout.repository.realpath &&
     configuration.repository_fingerprint ===
       layout.repository.repository_fingerprint &&
-    configuration.repository_device === layout.repository.device &&
-    configuration.repository_inode === layout.repository.inode &&
+    (configuration.schema_version === 1
+      ? configuration.repository_device === layout.repository.device && configuration.repository_inode === layout.repository.inode
+      : compareCompanionCheckoutIdentity(configuration, layout.repository).valid) &&
     configuration.runtime_state_directory === layout.runtime_directory &&
     configuration.launch_agent_path === layout.launch_agent_path &&
     configuration.test_scope === (layout.test?.scope ?? null) &&
@@ -2721,19 +3270,20 @@ function staleCheckoutDecommissionConfigurationExact(configuration, layout) {
   if (!isObject(configuration) || !layout) return false;
   const keys = Object.keys(configuration).sort();
   if (
-    keys.length !== INSTALLED_CONFIGURATION_KEYS.length ||
-    !INSTALLED_CONFIGURATION_KEYS.every((key) => keys.includes(key))
+    keys.length !== INSTALLED_CONFIGURATION_KEYS.length + (configuration.schema_version === 2 ? 1 : 0) ||
+    !INSTALLED_CONFIGURATION_KEYS.every((key) => keys.includes(key)) ||
+    (configuration.schema_version === 2 && !validDurableCheckoutIdentity(configuration.repository_identity))
   ) return false;
   const sameLogicalCheckout =
     configuration.repository_root === layout.repository.realpath &&
     configuration.repository_fingerprint ===
       layout.repository.repository_fingerprint;
-  const physicalIdentityChanged =
-    configuration.repository_device !== layout.repository.device ||
-    configuration.repository_inode !== layout.repository.inode;
+  const physicalIdentityChanged = configuration.schema_version === 1
+    ? configuration.repository_device !== layout.repository.device || configuration.repository_inode !== layout.repository.inode
+    : compareCompanionCheckoutIdentity(configuration, layout.repository).category === "durable_mismatch";
   const exactService =
     configuration.contract === COMPANION_SERVICE_CONTRACT &&
-    configuration.schema_version === COMPANION_SERVICE_SCHEMA_VERSION &&
+    [1, COMPANION_SERVICE_CONFIGURATION_SCHEMA_VERSION].includes(configuration.schema_version) &&
     configuration.manager_version === COMPANION_SERVICE_MANAGER_VERSION &&
     configuration.service_label === layout.service_label &&
     configuration.service_identity === layout.service_identity &&
@@ -3539,7 +4089,9 @@ function captureStaleCheckoutDecommissionProcess(pid, identity) {
 }
 
 function captureStaleCheckoutDecommissionProcessGroup(group) {
-  const remaining = exactProcessGroupMembersStillPresent(group);
+  let remaining;
+  try { remaining = exactProcessGroupMembersStillPresent(group); }
+  catch { throw staleCheckoutDecommissionRefused(); }
   const current = captureProcessGroupMembers(group.process_group);
   if (
     current.length !== remaining.length ||
@@ -4176,7 +4728,7 @@ async function inspectVerifiedRuntime({ layout, configuration }) {
     !validRuntimeAccess(access.value, manifest.value) ||
     !processAlive(manifest.value.supervisor_pid)
   ) {
-    return { verified: false, supervisor_pid: null };
+    return { verified: false, supervisor_pid: null, reason: "runtime_material_or_supervisor_invalid" };
   }
   const children = new Map(
     manifest.value.children.map((child) => [child.role, child]),
@@ -4187,7 +4739,7 @@ async function inspectVerifiedRuntime({ layout, configuration }) {
       !validRuntimeChild(bridge, manifest.value.bridge_port) ||
       !isPort(ui.ownership_port) ||
       !isPort(bridge.ownership_port)) {
-    return { verified: false, supervisor_pid: manifest.value.supervisor_pid };
+    return { verified: false, supervisor_pid: manifest.value.supervisor_pid, reason: "runtime_child_invalid" };
   }
   const ownershipHeaders = {
     "x-augnes-child-ownership": token.value.child_ownership_token,
@@ -4204,27 +4756,33 @@ async function inspectVerifiedRuntime({ layout, configuration }) {
       { headers: ownershipHeaders },
     ),
   ]);
-  const exact =
-    uiHealth?.ok === true &&
+  const checks = {
+    ui_health:     uiHealth?.ok === true &&
     uiHealth?.service === "augnes-ui" &&
     uiHealth?.status === "ready" &&
     uiHealth?.recovery_mode === false &&
     uiHealth?.runtime_instance_id === manifest.value.instance_id &&
     uiHealth?.runtime_generation_id === manifest.value.generation_id &&
     uiHealth?.runtime_repository_fingerprint ===
-      manifest.value.repository_fingerprint &&
-    bridgeHealth?.ok === true &&
+      manifest.value.repository_fingerprint,
+    bridge_health: bridgeHealth?.ok === true &&
     bridgeHealth?.name === "augnes-console" &&
     bridgeHealth?.mode === "http" &&
     bridgeHealth?.live_core_status === "ready" &&
     bridgeHealth?.runtime_instance_id === manifest.value.instance_id &&
     bridgeHealth?.runtime_generation_id === manifest.value.generation_id &&
     bridgeHealth?.runtime_repository_fingerprint ===
-      manifest.value.repository_fingerprint &&
-    validRuntimeChildOwnership(uiOwnership, ui, manifest.value) &&
-    validRuntimeChildOwnership(bridgeOwnership, bridge, manifest.value);
+      manifest.value.repository_fingerprint,
+    ui_ownership: validRuntimeChildOwnership(uiOwnership, ui, manifest.value),
+    bridge_ownership: validRuntimeChildOwnership(bridgeOwnership, bridge, manifest.value),
+  };
+  const exact = Object.values(checks).every(value => value === true);
   return {
     verified: exact,
+    reason: exact ? "runtime_verified" : "runtime_probe_mismatch_or_unavailable",
+    probe_valid: checks,
+    probe_available: { ui_health: uiHealth !== null, bridge_health: bridgeHealth !== null,
+      ui_ownership: uiOwnership !== null, bridge_ownership: bridgeOwnership !== null },
     supervisor_pid: manifest.value.supervisor_pid,
     generation_id: exact ? manifest.value.generation_id : null,
     instance_id: exact ? manifest.value.instance_id : null,
@@ -4342,6 +4900,29 @@ async function fetchBoundedJson(url, { headers = undefined } = {}) {
   }
 }
 
+// Both stopped startup and settled loop/shutdown use this maintenance owner.
+// This is called only after the retained supervisor relationship has settled.
+function writeSettledManagerState(layout, configuration, restartCount) {
+  let status = "installed_stopped";
+  let reason = "companion_service_explicitly_stopped";
+  if (readExactDesiredState(layout, configuration).desired_state === "stopped") {
+    const maintenance = classifyMaintenanceLease({ leasePath: layout.maintenance_lease_path, configuration });
+    if (maintenance.lease && maintenance.lease.pre_maintenance_desired_state !== "stopped") {
+      status = "recovery_required";
+      reason = "companion_service_maintenance_desired_state_conflict";
+    } else if (maintenance.status === "active" || maintenance.status === "ambiguous") {
+      status = maintenance.status === "active" ? "maintenance" : "recovery_required";
+      reason = maintenance.status === "active"
+        ? "companion_service_maintenance_active" : "companion_service_maintenance_ambiguous";
+    } else if (maintenance.status === "stale") {
+      removeExactMaintenanceLease(layout.maintenance_lease_path, maintenance.lease);
+    }
+  }
+  writeManagerState(layout, configuration, {
+    status, reason, supervisor_pid: null, restart_count: restartCount,
+  });
+}
+
 function classifyMaintenanceLease({ leasePath, configuration, now = () => Date.now() }) {
   return classifyMaintenanceLeaseResult({
     result: readRegularJson(leasePath),
@@ -4417,7 +4998,7 @@ async function stopManagedSupervisor({
     adoptedPid?.pid === pid &&
     processMatchesBirthIdentity(pid, adoptedPid.identity);
   if (!exactManagedChild && !exactAdoptedRuntime) {
-    if (!processAlive(pid)) return;
+    if (readProcessBirthIdentity(pid).state === "missing") return;
     throw new PublicCompanionServiceError(
       "companion_service_supervisor_ownership_unverifiable",
     );
@@ -4571,7 +5152,9 @@ function readStaleManagerRuntimeOwnership({ layout, configuration }) {
   ) return null;
   let hasLiveMembers = false;
   for (const group of state.value.runtime_ownership.process_groups) {
-    const remaining = exactProcessGroupMembersStillPresent(group);
+    let remaining;
+    try { remaining = exactProcessGroupMembersStillPresent(group); }
+    catch { throw new PublicCompanionServiceError("companion_service_runtime_ownership_unverifiable"); }
     const current = captureProcessGroupMembers(group.process_group);
     if (
       current.length !== remaining.length ||
@@ -4766,10 +5349,7 @@ async function acquireLifecycleLock(layout, configuration, waitMs) {
         "companion_service_lifecycle_lock_ambiguous",
       );
     }
-    if (!processMatchesBirthIdentity(
-      existing.value.owner_pid,
-      existing.value.owner_process_identity,
-    )) {
+    if (processConfirmedAbsent(existing.value.owner_pid, existing.value.owner_process_identity)) {
       removeOwnedRegularJson(layout.lifecycle_lock_path, existing.value);
       continue;
     }
@@ -4812,10 +5392,7 @@ function removeInactiveLifecycleLock(layout, configuration) {
       "companion_service_lifecycle_lock_ambiguous",
     );
   }
-  if (processMatchesBirthIdentity(
-    existing.value.owner_pid,
-    existing.value.owner_process_identity,
-  )) {
+  if (!processConfirmedAbsent(existing.value.owner_pid, existing.value.owner_process_identity)) {
     throw new PublicCompanionServiceError("companion_service_lifecycle_busy");
   }
   removeOwnedRegularJson(layout.lifecycle_lock_path, existing.value);
@@ -4824,10 +5401,7 @@ function removeInactiveLifecycleLock(layout, configuration) {
 function acquireManagerLock(layout, configuration) {
   const existing = readRegularJson(layout.manager_lock_path);
   if (existing.state === "valid" && validManagerLock(existing.value, configuration)) {
-    if (processMatchesBirthIdentity(
-      existing.value.owner_pid,
-      existing.value.owner_process_identity,
-    )) {
+    if (!processConfirmedAbsent(existing.value.owner_pid, existing.value.owner_process_identity)) {
       throw new PublicCompanionServiceError(
         "companion_service_manager_already_running",
       );
@@ -5145,9 +5719,10 @@ function writeManagerState(layout, configuration, state) {
       readProcessBirthIdentity(process.pid).identity ?? null,
     supervisor_pid: state.supervisor_pid ?? null,
     supervisor_process_identity:
-      state.supervisor_process_identity ??
+      Object.hasOwn(state, "supervisor_process_identity") ? state.supervisor_process_identity :
       (supervisorIdentity.state === "present" ? supervisorIdentity.identity : null),
     runtime_ownership: state.runtime_ownership ?? null,
+    ...(state.supervisor_observation ? { supervisor_observation: state.supervisor_observation } : {}),
     restart_count: state.restart_count ?? 0,
     restart_after: state.restart_after ?? null,
     supervisor_failure_provenance:
@@ -5180,23 +5755,134 @@ function serviceChildEnvironment(configuration, environment) {
   return values;
 }
 
-function observeRepository(repositoryRoot) {
-  if (typeof repositoryRoot !== "string" || !path.isAbsolute(repositoryRoot)) {
-    throw new PublicCompanionServiceError("companion_service_repository_invalid");
-  }
-  const lexical = path.resolve(repositoryRoot);
-  assertRegularDirectory(lexical, "companion_service_repository_invalid");
-  const real = realpathSync(lexical);
-  if (real !== lexical) {
-    throw new PublicCompanionServiceError("companion_service_repository_alias_refused");
-  }
-  const stats = statSync(real, { bigint: true });
-  return {
-    realpath: real,
-    repository_fingerprint: sha256(real),
-    device: String(stats.dev),
-    inode: String(stats.ino),
+// Explicit legacy enrollment is a new local authorization, not an inference
+// about the missing historical volume. It never loads a job or opens storage.
+function identityEnrollmentSnapshot(options) {
+  assertSupportedServiceHost(options.platform ?? process.platform);
+  if (options.testRepositoryPhysicalIdentityOverride != null)
+    throw new PublicCompanionServiceError("companion_service_identity_enrollment_test_override_refused");
+  const layout = resolveCompanionServiceLayout(options);
+  const identity = requireDurableCheckoutIdentity(layout);
+  assertNoOtherProductionCompanionService(layout);
+  assertStaleDecommissionLifecyclePaths(layout);
+  const readMaterial = key => {
+    const snapshot = captureStaleDecommissionMaterialSnapshot(layout[key], staleDecommissionAnchorForFile(layout, layout[key]));
+    return { ...snapshot.material, contents: snapshot.contents };
   };
+  const material = Object.fromEntries(["configuration_path", "desired_state_path", "launch_agent_path"]
+    .map(key => [key, readMaterial(key)]));
+  if (Object.values(material).some(value => value.state !== "valid"))
+    throw new PublicCompanionServiceError("companion_service_identity_enrollment_material_invalid");
+  let configuration;
+  try { configuration = JSON.parse(material.configuration_path.contents); }
+  catch { throw new PublicCompanionServiceError("companion_service_identity_enrollment_material_invalid"); }
+  if (configuration.schema_version !== 1 || Object.keys(configuration).length !== INSTALLED_CONFIGURATION_KEYS.length ||
+      !INSTALLED_CONFIGURATION_KEYS.every(key => Object.hasOwn(configuration, key)) ||
+      !validCanonicalInstalledStatIdentity(configuration.repository_device) || !validCanonicalInstalledStatIdentity(configuration.repository_inode, true))
+    throw new PublicCompanionServiceError("companion_service_identity_enrollment_legacy_required");
+  const enrolled = { ...configuration, schema_version: COMPANION_SERVICE_CONFIGURATION_SCHEMA_VERSION, repository_identity: identity };
+  const validation = validateInstalledConfiguration({ configuration: enrolled, plist: material.launch_agent_path.contents, layout });
+  if (!validation.valid) throw new PublicCompanionServiceError(validation.reason);
+  const desired = readExactDesiredState(layout, configuration);
+  const node = inspectNodeBinary(configuration.node_path);
+  if (!node.valid || node.version !== configuration.node_version ||
+      configuration.manager_entry_path !== path.join(layout.repository.realpath, "scripts", "augnes-companion-service.mjs"))
+    throw new PublicCompanionServiceError("companion_service_identity_enrollment_source_invalid");
+  // No inferred settlement from a missing PID. Require the supported stop owner's
+  // settled material boundary and a successfully observed absent launchd job.
+  const absentJob = (options.launchctl ?? defaultLaunchctl)(["print", `gui/${currentUid()}/${layout.service_label}`]);
+  if (absentJob.status !== 113)
+    throw new PublicCompanionServiceError("companion_service_identity_enrollment_requires_quiescence");
+  for (const key of ["manager_lock_path", "maintenance_lease_path", "runtime_manifest_path", "runtime_lock_path",
+    "runtime_token_path", "runtime_access_path", "runtime_bridge_environment_path", "stale_decommission_path"])
+    if (readRegularText(layout[key]).state !== "missing")
+      throw new PublicCompanionServiceError("companion_service_identity_enrollment_requires_quiescence");
+  const manager = readRegularJson(layout.manager_state_path);
+  if (manager.state !== "missing" && !exactManagerStateExplicitlyStopped({ layout, configuration }))
+    throw new PublicCompanionServiceError("companion_service_identity_enrollment_requires_quiescence");
+  const source = computeServiceSourceFingerprint(layout.repository.realpath);
+  assertCurrentCheckoutObservation(layout);
+  if (Object.entries(material).some(([key, value]) => JSON.stringify(readMaterial(key)) !== JSON.stringify(value)) ||
+      JSON.stringify(readRegularJson(layout.manager_state_path)) !== JSON.stringify(manager))
+    throw new PublicCompanionServiceError("companion_service_identity_enrollment_observation_incoherent");
+  return { layout, configuration, enrolled, desired, source,
+    material_binding: sha256(JSON.stringify([material, manager])), repository_binding: checkoutObservationBinding(layout.repository) };
+}
+
+export function previewCompanionIdentityEnrollment(options = {}) {
+  const value = identityEnrollmentSnapshot(options);
+  return {
+    command: "identity-preview", result: "decision_required",
+    identity: compareCompanionCheckoutIdentity(value.configuration, value.layout.repository),
+    desired_state: value.desired.desired_state,
+    repository_root: value.layout.repository.realpath,
+    durable_identity: value.layout.repository.durable_identity,
+    warning: "New enrollment of the currently observed checkout and source; not proof of legacy continuity. No service start or database preparation.",
+    decision: { contract: "augnes.companion-identity-enrollment.v1", service_identity: value.layout.service_identity,
+      expected_material_binding: value.material_binding, expected_repository_binding: value.repository_binding,
+      expected_source_fingerprint: value.source, expires_at: new Date(Date.now() + 5 * 60_000).toISOString() },
+    authority: lifecycleAuthority(false),
+  };
+}
+
+export async function enrollCompanionIdentity({ decision, ...options } = {}) {
+  const before = identityEnrollmentSnapshot(options);
+  if (options.testIdentityEnrollmentStageHook != null && (!before.layout.test || typeof options.testIdentityEnrollmentStageHook !== "function"))
+    throw new PublicCompanionServiceError("companion_service_identity_enrollment_test_override_refused");
+  const lock = await acquireLifecycleLock(before.layout, before.configuration, options.waitMs ?? STOP_WAIT_MS);
+  let failure = null;
+  try {
+    const current = identityEnrollmentSnapshot(options);
+    const keys = ["contract", "service_identity", "expected_material_binding", "expected_repository_binding", "expected_source_fingerprint", "expires_at"];
+    const expiry = Date.parse(decision?.expires_at);
+    if (!isObject(decision) || Object.keys(decision).length !== keys.length || !keys.every(key => Object.hasOwn(decision, key)) ||
+        decision.contract !== "augnes.companion-identity-enrollment.v1" || decision.service_identity !== current.layout.service_identity ||
+        decision.expected_material_binding !== current.material_binding || decision.expected_repository_binding !== current.repository_binding ||
+        decision.expected_source_fingerprint !== current.source || !Number.isFinite(expiry) || expiry <= Date.now() || expiry > Date.now() + 5 * 60_000)
+      throw new PublicCompanionServiceError("companion_service_identity_enrollment_decision_stale");
+    const configuration = { ...current.enrolled,
+      repository_device: current.layout.repository.device, repository_inode: current.layout.repository.inode,
+      service_source_fingerprint: current.source };
+    options.testIdentityEnrollmentStageHook?.("before_commit");
+    const final = identityEnrollmentSnapshot(options);
+    if (final.material_binding !== current.material_binding || final.repository_binding !== current.repository_binding || final.source !== current.source)
+      throw new PublicCompanionServiceError("companion_service_identity_enrollment_decision_stale");
+    assertCurrentCheckoutObservation(current.layout);
+    // A single atomic configuration commit; desired state and launch definition
+    // are unchanged. A crash before this rename leaves legacy refusal intact.
+    atomicWriteJson(current.layout.configuration_path, configuration, 0o600, () => {
+      // Commit admission follows final identity/material checks and temporary
+      // file preparation. This clock check and rename are not one atomic act.
+      if (expiry <= Date.now())
+        throw new PublicCompanionServiceError("companion_service_identity_enrollment_decision_stale");
+    });
+    const saved = readRegularJson(current.layout.configuration_path);
+    if (saved.state !== "valid" || JSON.stringify(saved.value) !== JSON.stringify(configuration))
+      throw new PublicCompanionServiceError("companion_service_identity_enrollment_readback_failed");
+    return { command: "enroll-identity", result: "enrolled", desired_state: current.desired.desired_state,
+      source_fingerprint: current.source, authority: lifecycleAuthority(false) };
+  } catch (error) {
+    failure = error;
+    throw error;
+  } finally {
+    try { releaseLifecycleLock(before.layout, lock); }
+    catch (error) { throw serviceCleanupFailure(failure, [error]); }
+  }
+}
+
+function requireDurableCheckoutIdentity(layout) {
+  if (layout.repository.durable_observation !== "observed" || !validDurableCheckoutIdentity(layout.repository.durable_identity))
+    throw new PublicCompanionServiceError(`companion_service_identity_${layout.repository.durable_observation === "observed" ? "durable_evidence_invalid" : layout.repository.durable_observation}`);
+  return layout.repository.durable_identity;
+}
+
+function assertCurrentCheckoutObservation(layout) {
+  if (currentCheckoutObservationBinding(observeCurrentCheckoutIdentity(layout.repository.realpath)) !== currentCheckoutObservationBinding(layout.repository))
+    throw new PublicCompanionServiceError("companion_service_identity_observation_incoherent");
+}
+
+function observeRepository(repositoryRoot) {
+  return observeCheckoutIdentity(repositoryRoot);
 }
 
 function applyTestRepositoryPhysicalIdentityOverride({
@@ -5225,6 +5911,11 @@ function applyTestRepositoryPhysicalIdentityOverride({
     ...repository,
     device: override.device,
     inode: override.inode,
+    // A simulated object replacement must change the new durable witness too;
+    // a simulated mount/device renumbering alone must not do so.
+    durable_identity: repository.durable_identity && override.inode !== repository.inode
+      ? { ...repository.durable_identity, object_id: sha256(override.inode).slice(0, 16) }
+      : repository.durable_identity,
   };
 }
 
@@ -5277,7 +5968,7 @@ function inspectNodeBinary(nodePath) {
       env: {},
     });
     const version = result.status === 0 ? result.stdout.trim() : "";
-    if (!new RegExp(`^v${COMPANION_SERVICE_NODE_MAJOR}\\.\\d+\\.\\d+$`, "u").test(version)) {
+    if (!isSupportedCompanionNodeVersion(version)) {
       return { valid: false, path: resolved, version };
     }
     return { valid: true, path: resolved, version };
@@ -5313,6 +6004,7 @@ function serviceObservation({
     loaded,
     desired_state: desiredState?.desired_state ?? null,
     desired_state_record: desiredState,
+    checkout_identity: configuration && layout ? compareCompanionCheckoutIdentity(configuration, layout.repository) : null,
   };
 }
 
@@ -5326,6 +6018,11 @@ function lifecycleCommandResult(command, observation, changed) {
 }
 
 function serviceNextAction(status, reason = null) {
+  if (reason?.startsWith("companion_service_recovery_")) return "Inspect the retained ownership-recovery operation; do not Start or replace unsettled processes.";
+  if (reason === "companion_service_manager_ownership_unverifiable") return "Inspect ownership recovery from reviewed lifecycle source. Start cannot reconstruct a lost manager relationship.";
+  if (reason === "companion_service_configuration_version_stale") return "Compare the loaded Operator client with service status from the installed application checkout before choosing a reviewed update.";
+  if (reason === "companion_service_identity_enrollment_required") return "Stop the exact legacy service, inspect identity-preview, then explicitly enroll-identity with its current decision.";
+  if (reason?.startsWith("companion_service_identity_")) return "Inspect the typed checkout identity result; do not enroll automatically or start with unavailable evidence.";
   if (
     status === "recovery_required" &&
     [
@@ -5467,6 +6164,13 @@ function readProcessBirthIdentity(pid) {
   }
 }
 
+function processConfirmedAbsent(pid, identity) {
+  const current = readProcessBirthIdentity(pid);
+  if (current.state === "missing") return true;
+  if (current.state === "present" && current.identity === identity) return false;
+  throw new PublicCompanionServiceError("companion_service_process_ownership_unverifiable");
+}
+
 function processMatchesBirthIdentity(pid, identity) {
   const current = readProcessBirthIdentity(pid);
   return current.state === "present" && current.identity === identity;
@@ -5575,9 +6279,10 @@ async function stopExactProcessGroup({
   members = null,
   timeoutMs,
   errorPrefix,
+  beforeSignal = null,
 }) {
   const hasCapturedGroup = processGroup !== null && members !== null;
-  if (!hasCapturedGroup && !processMatchesBirthIdentity(pid, identity)) return;
+  if (!hasCapturedGroup && processConfirmedAbsent(pid, identity)) return;
   const captured = hasCapturedGroup
     ? { process_group: processGroup, members }
     : captureExactProcessGroup(pid, identity);
@@ -5589,18 +6294,19 @@ async function stopExactProcessGroup({
   ) {
     throw new PublicCompanionServiceError(`${errorPrefix}_ownership_unverifiable`);
   }
-  const beforeSignal = exactProcessGroupMembersStillPresent(captured);
-  if (beforeSignal.length === 0) return;
+  const presentBeforeSignal = exactProcessGroupMembersStillPresent(captured);
+  if (presentBeforeSignal.length === 0) return;
   const currentBeforeSignal = captureProcessGroupMembers(captured.process_group);
   if (
-    currentBeforeSignal.length !== beforeSignal.length ||
+    currentBeforeSignal.length !== presentBeforeSignal.length ||
     currentBeforeSignal.some((member, index) =>
-      member.pid !== beforeSignal[index].pid ||
-      member.identity !== beforeSignal[index].identity
+      member.pid !== presentBeforeSignal[index].pid ||
+      member.identity !== presentBeforeSignal[index].identity
     )
   ) {
     throw new PublicCompanionServiceError(`${errorPrefix}_ownership_unverifiable`);
   }
+  beforeSignal?.();
   signalExactProcessGroup(captured.process_group, "SIGTERM");
   if (await waitForExactProcessGroupExit(captured, timeoutMs)) return;
   const remaining = exactProcessGroupMembersStillPresent(captured);
@@ -5615,6 +6321,7 @@ async function stopExactProcessGroup({
   ) {
     throw new PublicCompanionServiceError(`${errorPrefix}_ownership_unverifiable`);
   }
+  beforeSignal?.();
   signalExactProcessGroup(captured.process_group, "SIGKILL");
   if (!(await waitForExactProcessGroupExit(captured, 4_000))) {
     throw new PublicCompanionServiceError(`${errorPrefix}_stop_timeout`);
@@ -5631,7 +6338,10 @@ function signalExactProcessGroup(processGroup, signal) {
 
 function exactProcessGroupMembersStillPresent(group) {
   return group.members.filter((member) => {
-    if (!processMatchesBirthIdentity(member.pid, member.identity)) return false;
+    const observation = readProcessBirthIdentity(member.pid);
+    if (observation.state === "missing") return false;
+    if (observation.state !== "present" || observation.identity !== member.identity)
+      throw new PublicCompanionServiceError("companion_service_process_ownership_unverifiable");
     const result = spawnSync(
       "/bin/ps",
       ["-o", "pgid=", "-p", String(member.pid)],
@@ -5641,26 +6351,31 @@ function exactProcessGroupMembersStillPresent(group) {
         env: { PATH: "/usr/bin:/bin" },
       },
     );
-    return result.status === 0 && Number(result.stdout.trim()) === group.process_group;
+    if (result.status !== 0 || Number(result.stdout.trim()) !== group.process_group)
+      throw new PublicCompanionServiceError("companion_service_process_group_ownership_unverifiable");
+    return true;
   });
 }
 
 async function waitForExactProcessGroupExit(group, timeoutMs) {
+  const absent = () => group.members.every(member => readProcessBirthIdentity(member.pid).state === "missing");
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (exactProcessGroupMembersStillPresent(group).length === 0) return true;
+    if (absent()) return captureProcessGroupMembers(group.process_group).length === 0;
+    // Unavailable/conflicting (including an unreaped child) is unsettled. It
+    // cannot authorize cleanup or SIGKILL; allow the bounded exit observation.
     await delay(50);
   }
-  return exactProcessGroupMembersStillPresent(group).length === 0;
+  return absent() && captureProcessGroupMembers(group.process_group).length === 0;
 }
 
 async function waitForExactProcessExit(pid, identity, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (!processMatchesBirthIdentity(pid, identity)) return true;
+    if (readProcessBirthIdentity(pid).state === "missing") return true;
     await delay(50);
   }
-  return !processMatchesBirthIdentity(pid, identity);
+  return readProcessBirthIdentity(pid).state === "missing";
 }
 
 function processAlive(pid) {
@@ -5712,8 +6427,8 @@ function tryCreateExclusiveJson(file, value) {
   }
 }
 
-function atomicWriteJson(file, value, mode = 0o600) {
-  atomicWriteText(file, `${JSON.stringify(value)}\n`, mode);
+function atomicWriteJson(file, value, mode = 0o600, beforePublish = null) {
+  atomicWriteText(file, `${JSON.stringify(value)}\n`, mode, false, beforePublish);
 }
 
 function atomicWriteText(
@@ -5721,6 +6436,7 @@ function atomicWriteText(
   value,
   mode = 0o600,
   preserveParentMode = false,
+  beforePublish = null,
 ) {
   if (preserveParentMode) {
     ensureLaunchAgentDirectory(path.dirname(file));
@@ -5729,22 +6445,42 @@ function atomicWriteText(
   }
   const temporary = `${file}.tmp-${process.pid}-${randomUUID()}`;
   let descriptor = null;
+  let failure = null;
   try {
     descriptor = openSync(temporary, "wx", mode);
     writeFileSync(descriptor, value, "utf8");
     fsyncSync(descriptor);
     closeSync(descriptor);
     descriptor = null;
+    beforePublish?.();
     renameSync(temporary, file);
     chmodSync(file, mode);
+  } catch (error) {
+    failure = error;
+    throw error;
   } finally {
-    if (descriptor !== null) closeSync(descriptor);
+    const cleanupFailures = [];
+    if (descriptor !== null) {
+      try { closeSync(descriptor); }
+      catch (error) { cleanupFailures.push(error); }
+    }
     try {
       unlinkSync(temporary);
     } catch (error) {
-      if (error?.code !== "ENOENT") throw error;
+      if (error?.code !== "ENOENT") cleanupFailures.push(error);
     }
+    if (cleanupFailures.length) throw serviceCleanupFailure(failure, cleanupFailures);
   }
+}
+
+function serviceCleanupFailure(primary, failures) {
+  const reason = primary ?? failures[0];
+  const error = new PublicCompanionServiceError(
+    reason instanceof PublicCompanionServiceError ? reason.code : "companion_service_internal_error",
+    new AggregateError(primary ? [primary, ...failures] : failures, "companion_service_cleanup_failed"),
+  );
+  error.cleanup_failed = true;
+  return error;
 }
 
 function readRegularJson(file) {
@@ -5772,13 +6508,16 @@ function readRegularText(file) {
 }
 
 function removeExactMaintenanceLease(file, lease) {
+  const before = lstatSync(file, { bigint: true, throwIfNoEntry: false });
   const current = readRegularJson(file);
+  const after = lstatSync(file, { bigint: true, throwIfNoEntry: false });
   if (
+    !before?.isFile() || !after?.isFile() ||
+    before.dev !== after.dev || before.ino !== after.ino ||
+    before.ctimeNs !== after.ctimeNs || before.mtimeNs !== after.mtimeNs ||
+    before.size !== after.size ||
     current.state !== "valid" ||
-    current.value?.operation_id !== lease.operation_id ||
-    current.value?.owner_pid !== lease.owner_pid ||
-    current.value?.owner_process_identity !== lease.owner_process_identity ||
-    current.value?.service_identity !== lease.service_identity
+    JSON.stringify(current.value) !== JSON.stringify(lease)
   ) {
     throw new PublicCompanionServiceError(
       "companion_service_maintenance_changed",

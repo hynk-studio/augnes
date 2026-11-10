@@ -11,7 +11,9 @@ import path from "node:path";
 export const DISTRIBUTABLE_PACKAGE_CONTRACT = "augnes.distributable.v1";
 export const DISTRIBUTABLE_PACKAGE_CONTRACT_VERSION = 2;
 export const DISTRIBUTABLE_MANIFEST_FILE = "augnes-package.json";
-export const DISTRIBUTABLE_NODE_MINIMUM = "20.9.0";
+export const DISTRIBUTABLE_NODE_MINIMUM = "22.23.4";
+// Historical manifests keep their schema-era minimum; execution checks the current policy.
+const LEGACY_MANIFEST_NODE_MINIMUM = "20.9.0";
 export const DISTRIBUTABLE_RUNTIME_CONTRACT =
   "augnes-local-runtime-supervisor-v1";
 export const DISTRIBUTABLE_RUNTIME_SCHEMA_VERSION = 2;
@@ -51,13 +53,27 @@ export const DISTRIBUTABLE_APPLICATION_SCOPE_FINGERPRINT = createHash("sha256")
   .update("hynk-studio/augnes\0augnes.application.scope.v1")
   .digest("hex");
 
+// Current builds copy this fixed source closure. Older v2 packages contain the
+// same migrations in db-migrations.mjs and their verified supervisor bundle.
+export const DISTRIBUTABLE_DATABASE_MIGRATION_FILES = Object.freeze([
+  "scripts/database-migrations/historical-compatibility.mjs",
+  "scripts/database-migrations/native-product.mjs",
+  "scripts/database-migrations/review-evidence.mjs",
+  "scripts/database-migrations/research-candidate.mjs",
+  "scripts/database-migrations/autonomy-autohunt.mjs",
+  "scripts/database-migrations/perspective-memory.mjs",
+  "scripts/database-migrations/canonical-compatibility.mjs",
+]);
+
 export const DISTRIBUTABLE_RUNTIME_SCRIPTS = Object.freeze([
+  "plugins/augnes-operator/mcp/node-runtime-policy.mjs",
   "scripts/augnes-local-paths.mjs",
   "scripts/augnes-runtime-supervisor.mjs",
   "scripts/augnes-runtime-supervisor-core.mjs",
   "scripts/canonical-database-migrations.mjs",
   "scripts/canonical-test-environment.mjs",
   "scripts/db-migrations.mjs",
+  ...DISTRIBUTABLE_DATABASE_MIGRATION_FILES,
   "scripts/distributable-package-contract.mjs",
   "scripts/distributable-package-launcher.mjs",
   "scripts/local-process-ownership.mjs",
@@ -107,7 +123,11 @@ export const DISTRIBUTABLE_REQUIRED_FILES = Object.freeze([
   "node_modules/better-sqlite3/build/Release/better_sqlite3.node",
   "package.json",
   "server.js",
-  ...DISTRIBUTABLE_RUNTIME_SCRIPTS.filter(file => !DISTRIBUTABLE_RECOVERY_CONTROL_FILES.includes(file)),
+  // Older v2 manifests predate the shared policy module and migration source
+  // decomposition; preserve their original required-file contract.
+  ...DISTRIBUTABLE_RUNTIME_SCRIPTS.filter(file => !DISTRIBUTABLE_RECOVERY_CONTROL_FILES.includes(file) &&
+    !DISTRIBUTABLE_DATABASE_MIGRATION_FILES.includes(file) &&
+    file !== "plugins/augnes-operator/mcp/node-runtime-policy.mjs"),
   ...DISTRIBUTABLE_COMPILED_RUNTIME_FILES.filter(file => !DISTRIBUTABLE_RECOVERY_CONTROL_FILES.includes(file)),
 ]);
 
@@ -256,7 +276,7 @@ export function validateDistributableManifest(manifest) {
     if (
       compareVersions(
         manifest.runtime.node_minimum,
-        DISTRIBUTABLE_NODE_MINIMUM,
+        LEGACY_MANIFEST_NODE_MINIMUM,
       ) < 0 ||
       !/^\d+$/.test(manifest.runtime.node_modules_abi ?? "") ||
       !/^\d+$/.test(manifest.runtime.node_napi ?? "") ||

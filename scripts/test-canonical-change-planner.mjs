@@ -3,8 +3,11 @@
 import assert from "node:assert/strict";
 import {
   chmodSync,
+  cpSync,
+  lstatSync,
   mkdtempSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -32,11 +35,13 @@ import {
   validateCanonicalOperatingPolicyChange,
   validateCanonicalOwnerTargetedChange,
 } from "./validate-canonical-docs-change.mjs";
-import { buildPhasePlan } from "./run-local-canonical-verification.mjs";
+import { buildPhasePlan, resolveVerificationPlan } from "./run-local-canonical-verification.mjs";
+import { createCanonicalRevisionReader, parseCanonicalBlobBatch } from "./canonical-revision-reader.mjs";
 
 const temporaryRoot = mkdtempSync(path.join(tmpdir(), "ag-planner-"));
 const results = [];
 const comparisons = [];
+const repositorySeeds = new Map();
 const projectExperienceVerificationPaths = [
   "scripts/browser-validate-project-experience-v1.mjs",
   "scripts/project-experience-browser-fixture-v1.ts",
@@ -54,6 +59,7 @@ const targetedPhaseIds = (...ownerPhaseIds) => [
 ];
 
 try {
+  runSameNameMarkdownConsumerCases();
   runContinuationDocumentationCases();
   // Optional read-only audit: replay the same exact fixture commits through a
   // pre-change planner and its two manifests. This never chooses deciding tests.
@@ -416,8 +422,83 @@ try {
       fullReasons: [
         "security_authority_or_process_isolation:lib/vnext/native-host/credential-broker.ts",
       ],
+      browserPhaseIds: ["e2e-operator-native-host-execution"],
     },
   );
+  const changeNativeHost = ({ write }) => write(
+    "lib/vnext/native-host/credential-broker.ts", "export const broker = true;\n",
+  );
+  for (const [name, documentPath, content, checks] of [
+    ["ordinary", "docs/guide.md", "# Guide\n", []],
+    ["registered-readme", "README.md", "# Fixture\n\nUpdated guidance.\n", ["references", "verification-policy"]],
+    ["registered-roadmap", "docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md", "# Roadmap\n", ["references"]],
+    ["registered-policy", ".github/LOCAL_CANONICAL_VERIFICATION.md", "# Fixture policy\n\nClarified guidance.\n", ["references", "verification-policy"]],
+  ]) {
+    runPlanCase(`full-owner-with-${name}-documentation`, "full-canonical", (repository) => {
+      changeNativeHost(repository);
+      repository.write(documentPath, content);
+    }, {
+      browserPhaseIds: ["e2e-operator-native-host-execution"],
+      documentationChecks: checks,
+      documentationPaths: [documentPath],
+      preserveFullPhases: true,
+    });
+  }
+  runPlanCase("full-composition-with-documentation", "full-canonical", ({ write }) => {
+    write("lib/vnext/project-work-initialization.ts", "export const initialize = true;\n");
+    write("docs/guide.md", "# Guide\n");
+  }, {
+    browserPhaseIds: ["e2e-project-experience", "e2e-operator-native-host-execution", "e2e-operator-work-expectation", "e2e-golden"],
+  });
+  runPlanCase("full-multiple-owners-with-documentation", "full-canonical", (repository) => {
+    changeNativeHost(repository);
+    repository.write("components/project-home/project-home.tsx", "export const home = true;\n");
+    repository.write("docs/guide.md", "# Guide\n");
+  }, {
+    browserPhaseIds: ["e2e-project-experience", "e2e-operator-native-host-execution", "e2e-golden"],
+  });
+  for (const [name, consumer] of [
+    ["literal", 'readFileSync("docs/guide.md");\n'],
+    ["dynamic", 'readFileSync("docs/" + name);\n'],
+  ]) {
+    for (const revision of ["base", "head"]) {
+      runPlanCase(`full-owner-with-${revision}-${name}-document-consumer`, "full-canonical", (repository) => {
+        if (revision === "base") {
+          repository.write("lib/vnext/native-host/credential-broker.ts", consumer);
+          repository.write("docs/guide.md", "# Guide\n");
+          commitAll(repository.cwd, "existing document consumer");
+          repository.baseSha = git(repository.cwd, ["rev-parse", "HEAD"]).trim();
+        }
+        repository.write("lib/vnext/native-host/credential-broker.ts", revision === "head" ? consumer : "export const broker = true;\n");
+        repository.write("docs/guide.md", "# Guide\n\nChanged.\n");
+      }, { browserPhaseIds: [...PERMANENT_BROWSER_PHASE_IDS] });
+    }
+  }
+  for (const [name, mutate] of [
+    ["unknown-source", ({ write }) => write("lib/unknown.ts", "export {};\n")],
+    ["shared-source", ({ write }) => write("package.json", '{"private":true,"version":"2"}\n')],
+    ["planner-self-change", ({ write }) => write("scripts/canonical-change-planner.mjs", "export {};\n")],
+    ["unproven-document-deletion", ({ remove }) => remove("docs/existing.md")],
+    ["nested-instructions", ({ write }) => write("docs/AGENTS.md", "# Instructions\n")],
+  ]) {
+    runPlanCase(`full-owner-documentation-preserves-${name}`, "full-canonical", (repository) => {
+      changeNativeHost(repository);
+      repository.write("docs/guide.md", "# Guide\n");
+      mutate(repository);
+    }, { browserPhaseIds: [...PERMANENT_BROWSER_PHASE_IDS] });
+  }
+  if (process.platform !== "win32") {
+    for (const [name, mutate] of [
+      ["executable", ({ chmod }) => chmod("docs/guide.md", 0o755)],
+      ["symlink", ({ remove, symlink }) => { remove("docs/guide.md"); symlink("../README.md", "docs/guide.md"); }],
+    ]) {
+      runPlanCase(`full-owner-with-unsafe-${name}-documentation`, "full-canonical", (repository) => {
+        changeNativeHost(repository);
+        repository.write("docs/guide.md", "# Guide\n");
+        mutate(repository);
+      }, { browserPhaseIds: [...PERMANENT_BROWSER_PHASE_IDS] });
+    }
+  }
   runPlanCase(
     "migration",
     "full-canonical",
@@ -553,6 +634,10 @@ try {
   assert.equal(pushPlan.reason, "main_push_always_full");
   results.push("main-push-always-full");
   assert.deepEqual(selectCanonicalBrowserPhasesForChanges([{ oldPath: null, newPath: "scripts/browser-validate-operator-work-expectation-v1.mjs" }]), ["e2e-operator-work-expectation"]);
+  assert.deepEqual(selectCanonicalBrowserPhasesForChanges([
+    { oldPath: null, newPath: "lib/vnext/native-host/credential-broker.ts" },
+    { oldPath: "README.md", newPath: "README.md" },
+  ]), PERMANENT_BROWSER_PHASE_IDS, "raw Browser selection cannot admit documentation without exact-tree classification");
   for (const changedPath of ["scripts/operator-work-expectation-browser-actions-v1.mjs", "scripts/operator-execution-browser-fixture-v1.ts", "unclassified/expectation-source.ts"]) {
     assert.deepEqual(selectCanonicalBrowserPhasesForChanges([{ oldPath: null, newPath: changedPath }]), PERMANENT_BROWSER_PHASE_IDS, changedPath);
   }
@@ -679,6 +764,9 @@ try {
   runIncomingReferenceCases();
   runDocumentationValidatorCases();
   runMarkdownAnchorBoundaryCases();
+  runCanonicalRevisionReaderCases();
+  runCanonicalRevisionPathEncodingCases();
+  runRepositoryIsolationCase();
 
   console.log(
     JSON.stringify(
@@ -758,6 +846,23 @@ function runPlanCase(name, expectedPlan, mutate, expected = {}) {
       `${name}:browser-phases`,
     );
   }
+  if (expected.documentationChecks) assert.deepEqual(plan.documentation_checks, expected.documentationChecks, `${name}:documentation-checks`);
+  if (expected.documentationPaths) {
+    assert.equal(plan.documentation_review_required, true, `${name}:documentation-review`);
+    assert.deepEqual(plan.documentation_responsibilities.flatMap(item => item.paths), expected.documentationPaths, `${name}:documentation-paths`);
+  }
+  if (expected.preserveFullPhases) {
+    const core = ["dependencies-root", "dependencies-nested", "dependencies-web-planning", "typecheck", "build", "unit", "authority", "integration", "operability"];
+    for (const mode of ["changed", "full"]) {
+      const resolved = resolveVerificationPlan({ mode, baseSha: repository.baseSha, headSha, planner: () => plan });
+      assert.equal(resolved.selected_plan, "full-canonical", `${name}:${mode}:full-core`);
+      const browsers = mode === "full" ? [...PERMANENT_BROWSER_PHASE_IDS] : expected.browserPhaseIds;
+      assert.deepEqual(resolved.planner_browser_phase_ids, browsers, `${name}:${mode}:browsers`);
+      const phases = buildPhasePlan({ mode, selectedPlan: resolved.selected_plan, baseSha: repository.baseSha, headSha,
+        browserPhaseIds: resolved.planner_browser_phase_ids, targetedPhaseIds: resolved.planner_targeted_phase_ids });
+      assert.deepEqual(phases.map(phase => phase.id), [...core, ...browsers], `${name}:${mode}:complete-phases`);
+    }
+  }
   if (expectedPlan === "operating-policy-only") {
     assert.equal(plan.reason, "registered_documentation_responsibilities", name);
     assert.deepEqual(plan.full_reasons, [], name);
@@ -767,7 +872,31 @@ function runPlanCase(name, expectedPlan, mutate, expected = {}) {
 }
 
 function createRepository(name, seedProjectVerification = true) {
+  const seed = repositorySeed(seedProjectVerification);
   const cwd = path.join(temporaryRoot, name);
+  // Copy all Git storage as ordinary files: each case owns its index, refs,
+  // configuration and objects, including subsequent real Git mutations.
+  cpSync(seed.cwd, cwd, { recursive: true, force: false, errorOnExist: true });
+  return {
+    cwd,
+    baseSha: seed.baseSha,
+    write: (relativePath, content) => write(cwd, relativePath, content),
+    remove: (relativePath) => unlinkSync(path.join(cwd, relativePath)),
+    rename: (from, to) => {
+      mkdirSync(path.dirname(path.join(cwd, to)), { recursive: true });
+      git(cwd, ["mv", from, to]);
+    },
+    chmod: (relativePath, mode) => chmodSync(path.join(cwd, relativePath), mode),
+    symlink: (target, relativePath) => {
+      mkdirSync(path.dirname(path.join(cwd, relativePath)), { recursive: true });
+      symlinkSync(target, path.join(cwd, relativePath));
+    },
+  };
+}
+
+function repositorySeed(seedProjectVerification) {
+  if (repositorySeeds.has(seedProjectVerification)) return repositorySeeds.get(seedProjectVerification);
+  const cwd = path.join(temporaryRoot, "repository-seeds", String(seedProjectVerification));
   mkdirSync(cwd, { recursive: true });
   git(cwd, ["init", "--quiet"]);
   git(cwd, ["config", "user.email", "local-canonical@example.invalid"]);
@@ -797,21 +926,240 @@ function createRepository(name, seedProjectVerification = true) {
   }
   commitAll(cwd, "base");
   const baseSha = git(cwd, ["rev-parse", "HEAD"]).trim();
-  return {
-    cwd,
-    baseSha,
-    write: (relativePath, content) => write(cwd, relativePath, content),
-    remove: (relativePath) => unlinkSync(path.join(cwd, relativePath)),
-    rename: (from, to) => {
-      mkdirSync(path.dirname(path.join(cwd, to)), { recursive: true });
-      git(cwd, ["mv", from, to]);
-    },
-    chmod: (relativePath, mode) => chmodSync(path.join(cwd, relativePath), mode),
-    symlink: (target, relativePath) => {
-      mkdirSync(path.dirname(path.join(cwd, relativePath)), { recursive: true });
-      symlinkSync(target, path.join(cwd, relativePath));
-    },
+  const seed = { cwd, baseSha };
+  repositorySeeds.set(seedProjectVerification, seed);
+  return seed;
+}
+
+function runRepositoryIsolationCase() {
+  const left = createRepository("fixture-isolation-left");
+  const right = createRepository("fixture-isolation-right");
+  const withVerification = repositorySeed(true);
+  const withoutVerification = repositorySeed(false);
+  const baselinePaths = (seed) => git(seed.cwd, ["ls-tree", "-r", "--name-only", seed.baseSha]).trim().split("\n");
+  const extraPaths = [
+    ...projectExperienceVerificationPaths,
+    "scripts/test-codex-augnes-user-hook-migration.mjs",
+  ].sort();
+  assert.deepEqual(baselinePaths(withVerification),
+    [...baselinePaths(withoutVerification), ...extraPaths].sort());
+  for (const relativePath of extraPaths) {
+    assert.equal(readFileSync(path.join(withVerification.cwd, relativePath), "utf8"), "export const baseline = true;\n");
+  }
+
+  const fileIdentities = new Set();
+  const snapshot = (cwd, checkStorage = false) => {
+    const entries = [];
+    const visit = (relativePath) => {
+      const target = path.join(cwd, relativePath);
+      const stat = lstatSync(target);
+      assert.ok(stat.isDirectory() || stat.isFile(), `real fixture storage: ${target}`);
+      if (stat.isFile() && checkStorage) {
+        assert.equal(stat.nlink, 1, `no hard links: ${target}`);
+        const identity = `${stat.dev}:${stat.ino}`;
+        assert.ok(!fileIdentities.has(identity), `independent files: ${target}`);
+        fileIdentities.add(identity);
+      }
+      entries.push({
+        path: relativePath, mode: stat.mode,
+        bytes: stat.isFile() ? readFileSync(target).toString("base64") : null,
+      });
+      if (stat.isDirectory()) {
+        for (const name of readdirSync(target).sort()) visit(path.join(relativePath, name));
+      }
+    };
+    visit("");
+    assert.ok(lstatSync(path.join(cwd, ".git")).isDirectory());
+    assert.ok(!entries.some(entry => entry.path === path.join(".git", "objects", "info", "alternates")));
+    return entries;
   };
+  const leftBefore = snapshot(left.cwd, true);
+  const rightBefore = snapshot(right.cwd, true);
+  const seedBefore = snapshot(withVerification.cwd, true);
+  const otherSeedBefore = snapshot(withoutVerification.cwd, true);
+  assert.deepEqual(leftBefore, seedBefore, "copied baseline bytes and modes");
+  assert.deepEqual(rightBefore, seedBefore, "second copied baseline bytes and modes");
+  assert.equal(git(left.cwd, ["rev-parse", "HEAD"]).trim(), withVerification.baseSha);
+  assert.equal(right.baseSha, withVerification.baseSha);
+
+  git(left.cwd, ["config", "--local", "fixture.isolation", "left"]);
+  git(left.cwd, ["checkout", "--quiet", "-b", "fixture-isolation"]);
+  left.write("README.md", "# Changed in left only\n");
+  left.write("isolation.txt", "Independent object and working tree\n");
+  commitAll(left.cwd, "isolation mutation");
+  assert.notEqual(git(left.cwd, ["rev-parse", "HEAD"]).trim(), left.baseSha);
+  left.write("README.md", "# Staged after the independent commit\n");
+  git(left.cwd, ["add", "README.md"]);
+  const leftAfter = snapshot(left.cwd);
+  for (const relativePath of ["README.md", ".git/config", ".git/index", ".git/HEAD"]) {
+    const key = relativePath.split("/").join(path.sep);
+    assert.notDeepEqual(leftAfter.find(entry => entry.path === key),
+      leftBefore.find(entry => entry.path === key), `mutation reached ${relativePath}`);
+  }
+  assert.ok(leftAfter.some(entry => entry.path === path.join(".git", "refs", "heads", "fixture-isolation")));
+  assert.deepEqual(snapshot(right.cwd), rightBefore, "other case unchanged");
+  assert.deepEqual(snapshot(withVerification.cwd), seedBefore, "full seed unchanged");
+  assert.deepEqual(snapshot(withoutVerification.cwd), otherSeedBefore, "minimal seed unchanged");
+  results.push("repository-seed-flavors-and-copy-isolation");
+}
+
+function runCanonicalRevisionReaderCases() {
+  const repository = createRepository("exact-revision-reader", false);
+  const literal = process.platform === "win32" ? "docs/literal[1].md" : "docs/literal[1]*?.md";
+  const unusual = process.platform === "win32" ? "docs/line name.md" : "docs/line\nname.md";
+  repository.write(literal, "# Literal\n\nBefore.\n");
+  repository.write(unusual, "# Newline path\n");
+  repository.write("docs/empty.md", "");
+  repository.write("docs/binary.bin", Buffer.from([0, 255, 10, 1]));
+  repository.write("docs/executable.md", "# Executable\n");
+  repository.chmod("docs/executable.md", 0o755);
+  repository.write("docs/directory.md/child.txt", "directory child\n");
+  if (process.platform !== "win32") repository.symlink("existing.md", "docs/link.md");
+  commitAll(repository.cwd, "reader old revision");
+  const before = git(repository.cwd, ["rev-parse", "HEAD"]).trim();
+  repository.write(literal, "# Literal\n\nAfter.\n");
+  repository.remove("docs/empty.md");
+  commitAll(repository.cwd, "reader new revision");
+  const after = git(repository.cwd, ["rev-parse", "HEAD"]).trim();
+  const reader = createCanonicalRevisionReader(repository.cwd);
+  const files = [literal, unusual, "docs/binary.bin", "docs/executable.md", "docs/directory.md",
+    ...(process.platform === "win32" ? [] : ["docs/link.md"])];
+  reader.prefetch([before, after].flatMap(revision => files.map(file => ({ revision, file }))));
+  for (const revision of [before, after]) {
+    for (const file of files) {
+      assert.equal(reader.read(revision, file), git(repository.cwd, ["show", `${revision}:${file}`]),
+        `exact bytes/presentation: ${revision}:${file}`);
+      const actual = reader.tree(revision).get(file);
+      const expected = git(repository.cwd, ["--literal-pathspecs", "ls-tree", "-l", "-z", revision, "--", file]);
+      assert.equal(expected.slice(0, 6), actual.mode);
+      assert.ok(expected.includes(` ${actual.type} ${actual.oid} `));
+      assert.ok(expected.endsWith(`\t${file}\0`));
+    }
+  }
+  assert.equal(reader.read(before, "docs/empty.md"), "");
+  assert.throws(() => reader.read(after, "docs/empty.md"), /git show failed/u);
+  assert.equal(reader.tree(after).has("docs/literal1x.md"), false, "no pathspec expansion");
+  assert.throws(() => reader.tree("HEAD"), /exact SHA/u);
+  assert.throws(() => reader.tree("f".repeat(40)), /git ls-tree failed/u);
+  const other = createRepository("exact-revision-other-repository", false);
+  assert.throws(() => createCanonicalRevisionReader(other.cwd).read(after, literal), /git ls-tree failed/u);
+  results.push("revision-reader-real-git-bytes-modes-literal-paths-both-revisions-and-repositories");
+
+  const objects = [reader.tree(before).get(literal), reader.tree(after).get(literal)];
+  const raw = spawnSync("git", ["cat-file", "--batch"], {
+    cwd: repository.cwd, input: objects.map(entry => entry.oid + "\n").join(""),
+    timeout: 30_000, maxBuffer: 8 * 1024 * 1024,
+  });
+  assert.equal(raw.status, 0, raw.stderr.toString());
+  assert.ifError(raw.error);
+  assert.deepEqual(parseCanonicalBlobBatch(raw.stdout, objects).map(bytes => bytes.toString()),
+    objects.map(entry => git(repository.cwd, ["show", entry.oid])));
+  const corrupt = Buffer.from(raw.stdout);
+  corrupt[corrupt.indexOf(10) + 1] ^= 1;
+  for (const [output, requested] of [
+    [raw.stdout, [...objects].reverse()],
+    [raw.stdout, [{ ...objects[0], type: "tree" }, objects[1]]],
+    [raw.stdout, [{ ...objects[0], size: objects[0].size + 1 }, objects[1]]],
+    [raw.stdout, [{ ...objects[0], size: 8 * 1024 * 1024 + 1 }, objects[1]]],
+    [raw.stdout, [objects[0], objects[0]]],
+    [raw.stdout.subarray(0, 20), objects],
+    [raw.stdout.subarray(0, raw.stdout.length - 2), objects],
+    [Buffer.concat([raw.stdout, Buffer.from("\n")]), objects],
+    [Buffer.from(`${objects[0].oid} missing\n`), objects],
+    [corrupt, objects],
+  ]) assert.throws(() => parseCanonicalBlobBatch(output, requested), /canonical blob batch/u);
+  results.push("revision-reader-real-batch-identity-content-framing-and-bound-refusals");
+
+  // Cross both batching limits with real objects. Oversize content stays a
+  // bounded read refusal; prefetch does not hide it or return a partial value.
+  const many = Array.from({ length: 129 }, (_, i) => `bounded/file-${i}.txt`);
+  for (const [i, file] of many.entries()) repository.write(file, `distinct object ${i}\n`);
+  repository.write("bounded/large-a.txt", "a".repeat(4 * 1024 * 1024 + 1));
+  repository.write("bounded/large-b.txt", "b".repeat(4 * 1024 * 1024 + 1));
+  repository.write("bounded/oversize.txt", "x".repeat(8 * 1024 * 1024 + 1));
+  commitAll(repository.cwd, "reader batch bounds");
+  const bounded = git(repository.cwd, ["rev-parse", "HEAD"]).trim();
+  const boundedReader = createCanonicalRevisionReader(repository.cwd);
+  boundedReader.prefetch([...many, "bounded/large-a.txt", "bounded/large-b.txt", "bounded/oversize.txt"]
+    .map(file => ({ revision: bounded, file })));
+  for (const [i, file] of many.entries()) assert.equal(boundedReader.read(bounded, file), `distinct object ${i}\n`);
+  for (const letter of ["a", "b"]) {
+    assert.equal(boundedReader.read(bounded, `bounded/large-${letter}.txt`), letter.repeat(4 * 1024 * 1024 + 1));
+  }
+  assert.throws(() => boundedReader.read(bounded, "bounded/oversize.txt"), /bounded input size/u);
+  assert.throws(() => boundedReader.read(bounded, many[0], 1), /bounded input size/u);
+  results.push("revision-reader-real-git-batch-count-byte-and-per-read-bounds");
+
+  const admission = createRepository("revision-reader-public-admission", false);
+  admission.write("docs/existing.md", "# Existing\n\n[Directory](.)\n[Self](#existing)\n");
+  commitAll(admission.cwd, "valid documentation admission");
+  const headSha = git(admission.cwd, ["rev-parse", "HEAD"]).trim();
+  const request = { cwd: admission.cwd, baseSha: admission.baseSha, headSha };
+  assert.equal(planCanonicalChange({ ...request, eventName: "pull_request" }).plan, "documentation-only");
+  assert.equal(validateCanonicalDocumentationChange(request).status, "pass");
+  // A prior success in this process must not supply a later public admission.
+  unlinkSync(path.join(admission.cwd, ".git", "objects", headSha.slice(0, 2), headSha.slice(2)));
+  assert.throws(() => planCanonicalChange({ ...request, eventName: "pull_request" }), /git cat-file failed/u);
+  assert.throws(() => validateCanonicalDocumentationChange(request), /git cat-file failed/u);
+  results.push("revision-reader-public-calls-readmit-and-validator-replans");
+}
+
+function runCanonicalRevisionPathEncodingCases() {
+  const repository = createRepository("revision-reader-path-encoding", false);
+  const files = ["docs/replacement-\uFFFD.md", "docs/雪.md"];
+  for (const file of files) repository.write(file, "# Unicode\n\nBefore.\n");
+  commitAll(repository.cwd, "valid Unicode paths");
+  const before = git(repository.cwd, ["rev-parse", "HEAD"]).trim();
+  for (const file of files) repository.write(file, "# Unicode\n\nAfter.\n");
+  commitAll(repository.cwd, "valid Unicode changes");
+  const after = git(repository.cwd, ["rev-parse", "HEAD"]).trim();
+  const reader = createCanonicalRevisionReader(repository.cwd);
+  for (const revision of [before, after]) {
+    for (const file of files) {
+      assert.equal(reader.read(revision, file), git(repository.cwd, ["show", `${revision}:${file}`]));
+      assert.equal(reader.tree(revision).get(file).mode, "100644");
+    }
+  }
+  const valid = { cwd: repository.cwd, baseSha: before, headSha: after };
+  const plan = planCanonicalChange({ ...valid, eventName: "pull_request" });
+  assert.equal(plan.plan, "documentation-only");
+  assert.deepEqual([...plan.changed_paths].sort(), [...files].sort());
+  assert.equal(validateCanonicalDocumentationChange(valid).status, "pass");
+  results.push("revision-reader-valid-replacement-character-and-Unicode-public-operations");
+
+  if (process.platform !== "win32") {
+    // Write an actual Git index entry with raw filename bytes. This avoids
+    // depending on whether the host filesystem accepts that filename.
+    const rawPath = Buffer.from("646f63732f61ff2e6d64", "hex");
+    const replacement = "docs/a\uFFFD.md";
+    assert.notDeepEqual(rawPath, Buffer.from(replacement));
+    const oid = git(repository.cwd, ["rev-parse", `${after}:${files[0]}`]).trim();
+    const indexed = spawnSync("git", ["update-index", "-z", "--index-info"], {
+      cwd: repository.cwd, timeout: 30_000, maxBuffer: 8 * 1024 * 1024,
+      input: Buffer.concat([Buffer.from(`100644 ${oid}\t`), rawPath, Buffer.from([0])]),
+    });
+    assert.ifError(indexed.error);
+    assert.equal(indexed.status, 0, indexed.stderr.toString());
+    git(repository.cwd, ["commit", "--quiet", "-m", "raw non-UTF-8 Git path"]);
+    const invalid = git(repository.cwd, ["rev-parse", "HEAD"]).trim();
+    const listing = spawnSync("git", ["ls-tree", "-r", "-z", invalid], {
+      cwd: repository.cwd, timeout: 30_000, maxBuffer: 8 * 1024 * 1024,
+    });
+    assert.ifError(listing.error);
+    assert.equal(listing.status, 0, listing.stderr.toString());
+    assert(listing.stdout.includes(Buffer.concat([Buffer.from("\t"), rawPath, Buffer.from([0])])));
+    assert.throws(() => git(repository.cwd, ["show", `${invalid}:${replacement}`]), /git show .* failed/u);
+    const refusal = /non-UTF-8 path bytes/u;
+    assert.throws(() => reader.read(invalid, replacement), refusal);
+    assert.throws(() => reader.tree(invalid), refusal, "no partially decoded tree was cached");
+    assert.equal(reader.read(after, files[0]), "# Unicode\n\nAfter.\n");
+    for (const [baseSha, headSha, label] of [[after, invalid, "head"], [invalid, after, "base"]]) {
+      const request = { cwd: repository.cwd, baseSha, headSha };
+      assert.throws(() => planCanonicalChange({ ...request, eventName: "pull_request" }), refusal);
+      assert.throws(() => validateCanonicalDocumentationChange(request), refusal);
+      results.push(`revision-reader-invalid-UTF-8-${label}-public-operations-refuse`);
+    }
+  }
 }
 
 function runDocumentationValidatorCases() {
@@ -997,6 +1345,152 @@ function runRegisteredReferenceConsumerCases() {
   removed.remove(roadmap);
   assert.equal(planCanonicalChange({ eventName: "pull_request", ...proposed(removed) }).plan, "full-canonical");
   results.push("registered-reference-does-not-admit-authority-disposition");
+}
+
+function runSameNameMarkdownConsumerCases() {
+  const web = "apps/web_planning/README.md";
+  const skill = "plugins/augnes-workflow-cost/skills/stationary-retry-work/SKILL.md";
+  const bundled = "assets/workflow-cost-v1/README.md";
+  const repo = createRepository("same-name-markdown-unrelated", false);
+  repo.write(web, "# Web planning\n");
+  repo.write(skill, `Read the bundled [method README](${bundled}).\n`);
+  repo.write(path.posix.join(path.posix.dirname(skill), bundled), "# Bundled method\n");
+  commitAll(repo.cwd, "same-name references baseline");
+  const baseSha = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+  repo.write(web, "# Web planning\n\nClarified existing guidance.\n");
+  commitAll(repo.cwd, "Web guidance only");
+  const headSha = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+  const plan = planCanonicalChange({ eventName: "pull_request", cwd: repo.cwd, baseSha, headSha });
+  assert.equal(plan.plan, "operating-policy-only", JSON.stringify({
+    case: "same-name-markdown-unrelated", plan: plan.plan, full_reasons: plan.full_reasons,
+  }));
+  assert.equal(validateCanonicalOperatingPolicyChange({ cwd: repo.cwd, baseSha, headSha }).status, "pass");
+  results.push("same-name-markdown-unrelated");
+  const bundledPath = path.posix.join(path.posix.dirname(skill), bundled);
+  repo.write(bundledPath, "# Bundled method\n\nREADME.md is the readable entry.\n\n[Readable Markdown](README.md)\n");
+  commitAll(repo.cwd, "retain another unresolved consumer");
+  const ambiguousBase = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+  repo.write(web, "# Web planning\n\nAnother guidance clarification.\n");
+  commitAll(repo.cwd, "clarify with residual consumer");
+  const ambiguous = planCanonicalChange({ eventName: "pull_request", cwd: repo.cwd,
+    baseSha: ambiguousBase, headSha: git(repo.cwd, ["rev-parse", "HEAD"]).trim() });
+  assert.deepEqual(ambiguous.full_reasons, [`unproven_documentation_consumer:${web}:${bundledPath}`]);
+  results.push("same-name-markdown-unrelated-skill-does-not-hide-bundled-bare-mention");
+
+  // Distinct basenames let one exact-tree comparison assert every edge without
+  // repeating repository setup and planning for each syntax variant. Keep the
+  // real README/skill comparison above separate, including its whole-plan result.
+  const cases = [];
+  function addCase(name, describe) {
+    const filename = `${name}.md`;
+    const web = `docs/same-name/${filename}`;
+    const directory = `docs/same-name/${name}`;
+    const consumer = `${directory}/AGENTS.md`;
+    const local = `assets/method/${filename}`;
+    const other = `${directory}/${local}`;
+    const safe = `[method](${local})`;
+    const genuine = `[required](../${filename})`;
+    cases.push({ name, web, consumer, other,
+      ...describe({ name, filename, web, directory, consumer, local, other, safe, genuine }) });
+  }
+  addCase("generic-relative", ({ safe }) => ({ text: safe, safe: true }));
+  addCase("dot-relative", ({ local }) => ({ text: `[method](./${local})`, safe: true }));
+  addCase("parent-relative", ({ name, local }) => ({ text: `[method](../${name}/${local})`, safe: true }));
+  addCase("repeated-safe", ({ safe }) => ({ text: `${safe} and ${safe}\n${safe}`, safe: true }));
+  addCase("front-matter-safe-body", ({ safe }) => ({ text: `---\nname: example\n---\n${safe}`, safe: true }));
+  addCase("context-three-space-paragraph", ({ safe }) => ({ text: "   " + safe, safe: true }));
+  addCase("context-normal-ordered-list", ({ safe }) => ({ text: "1. Read material.\n   " + safe, safe: true }));
+  addCase("context-four-space-list-padding", ({ safe }) => ({ text: "-    " + safe, safe: true }));
+  addCase("context-one-space-tab-code", ({ safe }) => ({ text: " \t" + safe }));
+  addCase("context-two-space-tab-code", ({ safe }) => ({ text: "  \t" + safe }));
+  addCase("context-three-space-tab-code", ({ safe }) => ({ text: "   \t" + safe }));
+  addCase("context-bullet-code", ({ safe }) => ({ text: "-     " + safe }));
+  addCase("context-ordered-code", ({ safe }) => ({ text: "1.     " + safe }));
+  addCase("context-bullet-tab-code", ({ safe }) => ({ text: "-\t\t" + safe }));
+  addCase("context-nested-list-code", ({ safe }) => ({ text: "- -     " + safe }));
+  addCase("context-prefix-fence", ({ safe }) => ({ text: "---\n```\n---\n" + safe }));
+  addCase("context-prefix-html-open", ({ safe }) => ({ text: "---\n<!--\n---\n" + safe }));
+  addCase("context-base-only-list-code", ({ safe, consumer }) => ({ text: "-     " + safe,
+    mutate: value => value.write(consumer, safe + "\n") }));
+  addCase("context-head-only-mixed-code", ({ safe, consumer }) => ({ text: safe,
+    mutate: value => value.write(consumer, " \t" + safe + "\n") }));
+  addCase("context-base-only-prefix-fence", ({ safe, consumer }) => ({ text: "---\n```\n---\n" + safe,
+    mutate: value => value.write(consumer, safe + "\n") }));
+  addCase("context-head-only-prefix-html-open", ({ safe, consumer }) => ({ text: safe,
+    mutate: value => value.write(consumer, "---\n<!--\n---\n" + safe + "\n") }));
+  addCase("genuine-relative", ({ genuine }) => ({ text: genuine }));
+  addCase("genuine-full-path", ({ web }) => ({ text: `Read ${web}.` }));
+  addCase("genuine-full-path-link", ({ web }) => ({ text: `[Web](../../../${web})` }));
+  addCase("mixed-genuine", ({ safe, genuine }) => ({ text: `${safe} and ${genuine}` }));
+  addCase("mixed-bare-same-line", ({ safe, filename }) => ({ text: `${safe} then read ${filename}.` }));
+  addCase("mixed-bare-next-line", ({ safe, filename }) => ({ text: `${safe}\nRead ${filename}.` }));
+  addCase("bare-before-safe", ({ safe, filename }) => ({ text: `Read ${filename} then ${safe}.` }));
+  addCase("label-mention", ({ filename, local }) => ({ text: `[${filename}](${local})` }));
+  addCase("mixed-reference-style", ({ safe, local }) => ({ text: `${safe}\n[method][ref]\n\n[ref]: ${local}` }));
+  addCase("mixed-url", ({ safe, filename }) => ({ text: `${safe} and [other](https://example.invalid/${filename})` }));
+  addCase("encoded-path", ({ filename }) => ({ text: `[method](assets/%6dethod/${filename})` }));
+  addCase("query", ({ safe, local }) => ({ text: `${safe}\n[method](${local}?mode=raw)` }));
+  addCase("fragment", ({ safe, local }) => ({ text: `${safe}\n[method](${local}#unknown)` }));
+  addCase("title-mention", ({ local, filename }) => ({ text: `[method](${local} "${filename}")` }));
+  addCase("escaped-markdown", ({ safe }) => ({ text: `\\${safe}` }));
+  addCase("inline-code", ({ safe }) => ({ text: "`" + safe + "`" }));
+  addCase("inline-math", ({ safe }) => ({ text: "$" + safe + "$" }));
+  addCase("math-with-spaces", ({ safe }) => ({ text: "$ " + safe + " $" }));
+  addCase("link-shaped-url", ({ safe }) => ({ text: "https://example.invalid/" + safe }));
+  addCase("fenced-code", ({ safe }) => ({ text: "~~~markdown\n" + safe + "\n~~~" }));
+  addCase("indented-code", ({ safe }) => ({ text: "    " + safe }));
+  addCase("html", ({ safe }) => ({ text: `<!-- ${safe} -->` }));
+  addCase("nested-link", ({ safe }) => ({ text: `[outer ${safe}](missing)` }));
+  addCase("front-matter-mention", ({ safe }) => ({ text: `---\ndescription: ${safe}\n---\n${safe}` }));
+  addCase("untracked-target", ({ safe, other }) => ({ text: safe,
+    seed: value => value.remove(other), dirty: value => value.write(other, "# Worktree rescue\n") }));
+  addCase("wrong-case-target", ({ filename }) => ({ text: `[method](assets/METHOD/${filename})` }));
+  addCase("escape-root", ({ filename }) => ({ text: `[method](../../../../${filename})` }));
+  addCase("unproven-traversal", ({ local }) => ({ text: `[method](missing/../${local})` }));
+  addCase("base-only-genuine", ({ safe, genuine, consumer }) => ({ text: genuine,
+    mutate: value => value.write(consumer, safe + "\n") }));
+  addCase("head-only-genuine", ({ safe, genuine, consumer }) => ({ text: safe,
+    mutate: value => value.write(consumer, genuine + "\n") }));
+  addCase("base-only-missing-target", ({ safe, other }) => ({ text: safe,
+    seed: value => value.remove(other), mutate: value => value.write(other, "# Method\n") }));
+  addCase("head-only-missing-target", ({ safe, other }) => ({ text: safe,
+    mutate: value => value.remove(other) }));
+  addCase("worktree-cannot-rewrite-consumer", ({ safe, genuine, consumer }) => ({ text: genuine,
+    dirty: value => value.write(consumer, safe + "\n") }));
+  if (process.platform !== "win32") {
+    addCase("executable-consumer", ({ safe, consumer }) => ({ text: safe,
+      seed: value => value.chmod(consumer, 0o755) }));
+    addCase("executable-target", ({ safe, other }) => ({ text: safe,
+      seed: value => value.chmod(other, 0o755) }));
+    addCase("symlink-target", ({ safe, other, filename }) => ({ text: safe,
+      seed: value => { value.remove(other); value.symlink(`../../../${filename}`, other); } }));
+    addCase("symlink-traversal", ({ local, directory }) => ({ text: `[method](alias/../${local})`,
+      seed: value => value.symlink("..", `${directory}/alias`) }));
+  }
+  const value = createRepository("same-name-generic", false);
+  for (const item of cases) {
+    value.write(item.web, "# Document\n");
+    value.write(item.other, "# Method\n");
+    value.write(item.consumer, item.text + "\n");
+    item.seed?.(value);
+  }
+  commitAll(value.cwd, "consumer baselines");
+  const base = git(value.cwd, ["rev-parse", "HEAD"]).trim();
+  for (const item of cases) {
+    value.write(item.web, "# Document\n\nClarified guidance.\n");
+    item.mutate?.(value);
+  }
+  commitAll(value.cwd, "proposed guidance");
+  const head = git(value.cwd, ["rev-parse", "HEAD"]).trim();
+  for (const item of cases) item.dirty?.(value);
+  const actual = planCanonicalChange({ eventName: "pull_request", cwd: value.cwd, baseSha: base, headSha: head });
+  assert.equal(actual.plan, "full-canonical", "mixed safe and unresolved references remain Full");
+  for (const item of cases) {
+    assert.equal(actual.full_reasons.includes(`unproven_documentation_consumer:${item.web}:${item.consumer}`), !item.safe, item.name);
+    assert.equal(actual.documentation_responsibilities.some(entry =>
+      entry.paths.includes(item.web) && entry.responsibility === "ordinary"), !!item.safe, item.name);
+    results.push(`same-name-markdown-${item.name}`);
+  }
 }
 
 function runContinuationDocumentationCases() {

@@ -215,6 +215,10 @@
   overflow-wrap: anywhere;
 }
 
+.selectedWorkSources {
+  overflow-wrap: anywhere;
+}
+
 .workbenchSequence {
   position: relative;
   gap: 0;

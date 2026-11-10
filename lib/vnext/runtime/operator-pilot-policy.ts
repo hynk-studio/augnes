@@ -14,7 +14,12 @@ import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 import { createEpisodeDeltaCandidateFingerprintV01 } from "@/lib/vnext/review-decision";
 import { deriveOperationalFrictionProposalAdmissionIdentityV01 } from "@/lib/vnext/operational-friction-proposal";
 import { readOperationalFrictionProposalByIdentityV01 } from "@/lib/vnext/persistence/episode-delta-proposal-admission";
-import { loadValidatedVNextSemanticTransitionRelationV01 } from "@/lib/vnext/runtime/durable-semantic-transition";
+import {
+  assertVNextSemanticTransitionRelationReadSessionScopeV01,
+  loadValidatedVNextSemanticTransitionRelationV01,
+  loadValidatedVNextSemanticTransitionRelationWithReadSessionV01,
+  type VNextSemanticTransitionRelationReadSessionV01,
+} from "@/lib/vnext/runtime/durable-semantic-transition";
 import type { VNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
 import type { EpisodeDeltaProposalDeltaCandidateV01, EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
@@ -82,6 +87,32 @@ export function inspectVNextOperatorPilotCandidateAdmissionV01(
     candidate_fingerprint: string;
   },
 ): VNextOperatorPilotCandidateAdmissionV01 {
+  return inspectCandidateAdmissionV01(db, input);
+}
+
+/**
+ * Shares immutable Transition validation inside one synchronous read snapshot.
+ * The caller owns a fresh session for that read; current head, projection and
+ * persisted-state checks below still run for every candidate.
+ */
+export function inspectVNextOperatorPilotCandidateAdmissionWithReadSessionV01(
+  db: Database.Database,
+  input: Parameters<typeof inspectVNextOperatorPilotCandidateAdmissionV01>[1],
+  readSession: VNextSemanticTransitionRelationReadSessionV01,
+): VNextOperatorPilotCandidateAdmissionV01 {
+  assertVNextSemanticTransitionRelationReadSessionScopeV01(
+    db,
+    input.config,
+    readSession,
+  );
+  return inspectCandidateAdmissionV01(db, input, readSession);
+}
+
+function inspectCandidateAdmissionV01(
+  db: Database.Database,
+  input: Parameters<typeof inspectVNextOperatorPilotCandidateAdmissionV01>[1],
+  readSession?: VNextSemanticTransitionRelationReadSessionV01,
+): VNextOperatorPilotCandidateAdmissionV01 {
   assertConfiguredProposal(input.config, input.proposal);
   const proposalCandidate = input.proposal.proposed_deltas.find(
     (candidate) => candidate.candidate_id === input.candidate.candidate_id,
@@ -137,7 +168,7 @@ export function inspectVNextOperatorPilotCandidateAdmissionV01(
   }
 
   const targetStates = input.candidate.target_refs.map((targetRef) =>
-    readTargetState(db, input.config, targetRef),
+    readTargetState(db, input.config, targetRef, readSession),
   );
   const blockingReasons: string[] = [];
   if (
@@ -293,6 +324,7 @@ function readTargetState(
   db: Database.Database,
   config: VNextOperatorPilotProjectScopeV01,
   targetRef: ExternalRefV01,
+  readSession?: VNextSemanticTransitionRelationReadSessionV01,
 ): VNextOperatorPilotTargetStateV01 {
   const targetKey = deriveVNextSemanticTargetKeyV01(targetRef);
   const projection = readVNextSemanticStateEntryV01(db, {
@@ -324,6 +356,7 @@ function readTargetState(
         targetKey,
         head,
         projection,
+        readSession,
       )
     : false;
   if (
@@ -430,15 +463,23 @@ function hasCoherentDurableTargetLineage(
   targetKey: string,
   head: VNextSemanticTargetHeadV01,
   projection: VNextSemanticStateProjectionEntryV01 | null,
+  readSession?: VNextSemanticTransitionRelationReadSessionV01,
 ): boolean {
   try {
-    const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
+    const source = {
       workspace_id: config.workspace_id,
       project_id: config.project_id,
       transition_receipt_id: head.source_transition_receipt_id,
       transition_receipt_fingerprint:
         head.source_transition_receipt_fingerprint,
-    });
+    };
+    const transition = readSession
+      ? loadValidatedVNextSemanticTransitionRelationWithReadSessionV01(
+          db,
+          source,
+          readSession,
+        )
+      : loadValidatedVNextSemanticTransitionRelationV01(db, source);
     const effect = transition.receipt.effects.find(
       (item) =>
         deriveVNextSemanticTargetKeyV01(item.target_ref) === targetKey,

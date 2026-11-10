@@ -66,14 +66,14 @@ export function OperatorSessionPanel({
       });
       const body = (await response.json()) as SessionRouteResponseV01;
       if (!response.ok || body.status !== "authenticated" || !body.session) {
-        setStatusMessage(publicErrorCode(body.error_code));
+        setStatusMessage(sessionErrorMessage(body.error_code));
         onLocked(body.error_code ?? "operator_bootstrap_invalid");
         return;
       }
       setStatusMessage("Local review access established for this project.");
       onAuthenticated(body.session);
     } catch {
-      setStatusMessage("operator_session_request_failed");
+      setStatusMessage(sessionErrorMessage("operator_session_request_failed"));
       onLocked("operator_session_request_failed");
     } finally {
       setBusy(false);
@@ -94,13 +94,13 @@ export function OperatorSessionPanel({
       });
       const body = (await response.json()) as SessionRouteResponseV01;
       if (!response.ok || body.status !== "revoked") {
-        setStatusMessage(publicErrorCode(body.error_code));
+        setStatusMessage(sessionErrorMessage(body.error_code));
         return;
       }
       setStatusMessage("Local review access ended.");
       onLocked();
     } catch {
-      setStatusMessage("operator_session_request_failed");
+      setStatusMessage(sessionErrorMessage("operator_session_request_failed"));
     } finally {
       setBusy(false);
     }
@@ -252,7 +252,7 @@ export function OperatorSessionPanel({
       </p>
       {statusMessage || state.error_code ? (
         <p className={styles.error} role="alert">
-          {statusMessage ?? publicErrorCode(state.error_code)}
+          {statusMessage ?? sessionErrorMessage(state.error_code)}
         </p>
       ) : null}
     </section>
@@ -270,4 +270,19 @@ function publicErrorCode(value: unknown): string {
     return "operator_session_invalid";
   }
   return /^[a-z0-9_:-]+$/.test(value) ? value : "operator_session_invalid";
+}
+
+function sessionErrorMessage(value: unknown): string {
+  const code = publicErrorCode(value);
+  const keepDraft = "Keep this tab open to retain any draft.";
+  if (code === "operator_session_scope_mismatch") {
+    return `This local review access belongs to another project. ${keepDraft} Unlock this exact project with its own local review token. (${code})`;
+  }
+  if (["operator_session_expired", "operator_session_revoked", "operator_bootstrap_consumed"].includes(code)) {
+    return `This project's local review access expired, ended, or was already used. ${keepDraft} Obtain fresh access for this exact project through the normal local review flow. (${code})`;
+  }
+  if (["operator_bootstrap_invalid", "operator_session_cookie_missing", "operator_session_cookie_invalid"].includes(code)) {
+    return `Local review access could not be validated for this project. ${keepDraft} Use this project's one-time local review token. (${code})`;
+  }
+  return `Local review access could not be confirmed; the cause is unknown. ${keepDraft} Check Augnes Companion service status before trying to unlock again. (${code})`;
 }

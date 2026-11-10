@@ -34,6 +34,8 @@ export interface CodexRepositoryWorkDefinitionSourcesV01 extends Omit<CodexRepos
   projection_version: typeof CODEX_REPOSITORY_WORK_DEFINITION_SOURCES_VERSION_V01;
   reason: CodexRepositoryWorkSourcesV01["reason"] | "work_definition_out_of_bounds";
   work_definition: ProjectWorkDefinitionV01 | null;
+  /** Opaque validated task origin. Optional for older readers; never infer it from text. */
+  task_identity?: string | null;
 }
 
 export type CodexRepositoryWorkSourcesReadV01 = CodexRepositoryWorkSourcesV01 | CodexRepositoryWorkDefinitionSourcesV01;

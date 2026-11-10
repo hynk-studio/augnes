@@ -81,10 +81,10 @@ export function createConnectedProjectReaderV01({ repositoryRoot, projectKey }, 
     } catch (error) {
       // Public errors are closed classifications, never upstream text, paths,
       // credentials, or a speculative authentication/transport diagnosis.
-      if (/^live_companion_(?:route|sources)_status_(?:401|403)$/u.test(error?.message ?? "")) {
+      if (error?.message === "companion_channel_refused") {
         return result("unauthorized", "companion_authentication_refused");
       }
-      if (/^live_companion_(?:route|sources)_status_409$/u.test(error?.message ?? "")) {
+      if (error?.message === "companion_identity_changed") {
         return result("refresh_required", "companion_identity_changed");
       }
       return result("unavailable", "companion_read_unavailable_or_invalid");

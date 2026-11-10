@@ -7,7 +7,7 @@ import {
   ProjectIdentityRegistryErrorV01,
   readDefaultWorkspaceIdentityV01,
 } from "@/lib/vnext/persistence/project-identity-registry";
-import { readProjectSelectionStateV02 } from "@/lib/vnext/persistence/project-lifecycle-registry";
+import { readProjectSelectionStateV02, readProjectOrganizationV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import { readProjectContinuityPinProjectionV01 } from "@/lib/vnext/persistence/project-continuity-pin-store";
 import {
   ProjectHomeProjectionErrorV01,
@@ -154,6 +154,7 @@ export async function readBlankStateSourceV01(
     recent_projects: recentProjects,
     projection,
     project_resolution: projection ? "resolved" : projectResolution,
+    project_organization: projection ? readProjectOrganizationV01(db, { workspace_id: workspace.workspace_id, project_id: targetProjectId }) : undefined,
     project_direction: readProjectDirection(db, { workspace_id: workspace.workspace_id, project_id: targetProjectId }, new Date().toISOString()),
     direct_host_round_trip_available: projection
       ? directHostRoundTripAvailableV01(projection)

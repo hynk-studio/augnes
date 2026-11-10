@@ -1,3 +1,4 @@
+import { suspendExternalEnvelopes } from '../lib/vnext/persistence/external-response-store.mjs';
 import { withOwnedDatabase } from "../lib/db/connection-ownership.mjs";
 import { buildStructuralSchemaContract, structuralSchemaContractSignature } from "../lib/db/structural-schema-contract.mjs";
 export { buildStructuralSchemaContract, structuralSchemaContractSignature } from "../lib/db/structural-schema-contract.mjs";
@@ -21,7 +22,7 @@ import {
 import path from "node:path";
 
 import Database from "better-sqlite3";
-import { invalidateRestoredProjectSelectionsV02 } from "../lib/vnext/persistence/project-lifecycle-schema.mjs";
+import { invalidateRestoredProjectSelectionsV02, invalidateRestoredProjectOrganizationV01 } from "../lib/vnext/persistence/project-lifecycle-schema.mjs";
 import { invalidateRestoredReviewSubscriptions } from "../lib/vnext/persistence/review-schema.mjs";
 
 import {
@@ -1310,7 +1311,9 @@ export async function restoreRuntimeDatabase({
       restoredSelections.pragma("journal_mode = DELETE");
       restoredSelections.pragma("foreign_keys = ON");
       invalidateRestoredProjectSelectionsV02(restoredSelections);
+      invalidateRestoredProjectOrganizationV01(restoredSelections);
       invalidateRestoredReviewSubscriptions(restoredSelections);
+      suspendExternalEnvelopes(restoredSelections);
     });
     if (requirePackageIdentityGuard) {
       requireRuntimePackageIdentityGuard(stagingPath);
@@ -1570,7 +1573,7 @@ export function inspectRecoveryDatabaseFile(
     withOwnedDatabase(new Database(databasePath, {
       readonly: true,
       fileMustExist: true,
-    }), (source) => {
+    }), (source) => source.transaction(() => {
       verifyOpenDatabase(source);
       sourceSignature = structuralSchemaContractSignature(source);
       sourceLedger = readCanonicalDatabaseMigrationLedger(source);
@@ -1599,7 +1602,7 @@ export function inspectRecoveryDatabaseFile(
         requireCurrentLedger: false,
       });
       serialized = standaloneSerializedDatabase(source.serialize());
-    });
+    })());
   } catch (error) {
     if (error instanceof PublicDatabaseBootstrapError) throw error;
     throw new PublicDatabaseBootstrapError("database_open_failed", error);
@@ -1638,7 +1641,16 @@ export function inspectRecoveryDatabaseFile(
         throw new PublicDatabaseBootstrapError("database_schema_unsupported");
       }
       verifyCanonicalDatabaseMigrationLedger(clone);
-      verifyCanonicalDatabaseInvariants(clone, { requireCurrentLedger: true });
+      // The source checks and serialization share one read transaction. Only
+      // this owned in-memory clone can change afterwards. Reuse the complete
+      // canonical/ordinary-reader result only when migration left every byte
+      // unchanged (with the same existing standalone SQLite header handling).
+      // No result survives this inspection; restore/publication revalidate.
+      if (serialized.equals(standaloneSerializedDatabase(clone.serialize()))) {
+        verifyCanonicalPackageIdentityGuard(clone);
+      } else {
+        verifyCanonicalDatabaseInvariants(clone, { requireCurrentLedger: true });
+      }
       const current =
         sourceSignature === canonicalSignature &&
         sourceLedgerCurrent &&
@@ -1916,6 +1928,10 @@ function verifyProjectRegistryBindings(database) {
   ) {
     return;
   }
+  const missingOrganization = databaseTableExists(database, "vnext_project_organization") ? database.prepare(`SELECT count(*) AS count FROM vnext_project_identities p
+    LEFT JOIN vnext_project_organization o USING(workspace_id, project_id)
+    WHERE o.project_id IS NULL`).get().count : 0;
+  if (missingOrganization !== 0) throw new PublicDatabaseBootstrapError("database_reader_incompatible");
   const missingActiveProject = database
     .prepare(
       `SELECT COUNT(*) AS count

@@ -1,0 +1,1963 @@
+{
+  "kind": "production-path development regression; no model use",
+  "reviewed_head": "903a5d3e53abd9eac84b81afe38f5b68c96dc0e4",
+  "before_source": {
+    "head": "903a5d3e53abd9eac84b81afe38f5b68c96dc0e4",
+    "sha256": {
+      "apps/web_planning/src/scene-contract.ts": "f844eac3dac4ed9630676eb33969871bb8bf39521ec25bfc38f36d386af4c294",
+      "apps/web_planning/src/directions.ts": "eb33a8a600b1ab5567785f7ddc044c7748682308e6db587787bb62b6a5260e51",
+      "scripts/web-planning-retained-revision-checks.mjs": "f83acbdfe016af87ef05ed4097162b4ed0bda1beadfeaa58db32ca9c472c20cf",
+      "scripts/browser-web-planning-retained-revisions.mjs": "b2bad4e036c05950aa75f1ab0dfe2c9222571015d1c3ebf3cd983b2a932b0dd0"
+    },
+    "product_diff": ""
+  },
+  "after_sha256": {
+    "apps/web_planning/src/scene-contract.ts": "09f3c515c4a07e66ff2cec885a86fb9c642e5a83f8fad53d18dc2b626434ea7d",
+    "apps/web_planning/src/directions.ts": "eb33a8a600b1ab5567785f7ddc044c7748682308e6db587787bb62b6a5260e51",
+    "scripts/web-planning-retained-revision-checks.mjs": "f0ad7ec90044db496f06defb71c48ca641011223aef1eb379cc862952d806eef",
+    "scripts/browser-web-planning-retained-revisions.mjs": "b2bad4e036c05950aa75f1ab0dfe2c9222571015d1c3ebf3cd983b2a932b0dd0"
+  },
+  "before_d1": {
+    "fresh_unchanged": {
+      "status": 409,
+      "error": "scene_revision_basis"
+    },
+    "retained_plus_addition": {
+      "status": 409,
+      "error": "scene_revision_basis"
+    }
+  },
+  "before_browser": {
+    "fresh_unchanged_action": false,
+    "retained_plus_addition_action": false
+  },
+  "after_d1_checks": 54,
+  "after_browser_checks": 28,
+  "script_exceptions": 0,
+  "external_requests": 0,
+  "runs": {
+    "before-d1": {
+      "exit_code": 1,
+      "duration_ms": 25608,
+      "timed_out": false,
+      "cleanup_completed": true,
+      "remaining_owned_processes": 0
+    },
+    "before-browser": {
+      "exit_code": 1,
+      "duration_ms": 86654,
+      "timed_out": false,
+      "cleanup_completed": true,
+      "remaining_owned_processes": 0
+    },
+    "after-d1-1": {
+      "exit_code": 0,
+      "duration_ms": 54569,
+      "timed_out": false,
+      "cleanup_completed": true,
+      "remaining_owned_processes": 0
+    },
+    "after-browser-1": {
+      "exit_code": 0,
+      "duration_ms": 94421,
+      "timed_out": false,
+      "cleanup_completed": true,
+      "remaining_owned_processes": 0
+    },
+    "web-typecheck": {
+      "exit_code": 0,
+      "duration_ms": 1605,
+      "timed_out": false,
+      "cleanup_completed": true,
+      "remaining_owned_processes": 0
+    },
+    "root-typecheck": {
+      "exit_code": 0,
+      "duration_ms": 5650,
+      "timed_out": false,
+      "cleanup_completed": true,
+      "remaining_owned_processes": 0
+    }
+  },
+  "browser": {
+    "adopted": {
+      "workspace_id": "155448c4-983f-4e32-83c5-6d340db5d4fd",
+      "project_id": "bb63e047-9125-43c0-88cd-79f6b212b2ad",
+      "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+      "format": "web_planning_revision.v0.3",
+      "schema": 1,
+      "compatibility": "web-planning/3",
+      "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d",
+      "revision": 11,
+      "predecessor": "sha256:0d0f5cd745d08155bbd8403c5da567df0a800e2ac5a446947db62fc7691d2c76",
+      "definition": {
+        "goal": "봉인과 황제 — 원래 갈래 독립 수정",
+        "success_criteria": [
+          "Preserve original writing and continue it across sessions."
+        ],
+        "non_goals": []
+      },
+      "sources": [],
+      "relations": {
+        "materials": [],
+        "origin": null,
+        "review": null
+      },
+      "files": [
+        {
+          "bytes": 546,
+          "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+          "name": "manuscript.txt",
+          "role": "source"
+        },
+        {
+          "bytes": 74,
+          "digest": "sha256:55b0e788949368473067f5d610874817da6cf610f8b81d6c2487cc7ea204ba21",
+          "name": "augnes-story-worldbuilding.v1.json",
+          "role": "other"
+        },
+        {
+          "bytes": 10390,
+          "digest": "sha256:fa8b246aafe124fe2b139e929a385adba571b76944c0c61aae069138de6b5bb5",
+          "name": "augnes-scenes.v1.json",
+          "role": "other"
+        }
+      ],
+      "recorded_at": "2026-10-15T17:53:43.717Z",
+      "request_key": "a277844b-92f4-4298-b728-a15e9607ece5",
+      "request_fingerprint": "sha256:e7863257b450b6309e283de83c8d48a284cc08a0bb5a96677d1e120a2093be88",
+      "fingerprint": "sha256:65aa961e0b1f9f9fb811c127935913ff2584a54f2669a03de35759dfd6e5a6a9"
+    },
+    "additional_selection": {
+      "workspace_id": "155448c4-983f-4e32-83c5-6d340db5d4fd",
+      "project_id": "bb63e047-9125-43c0-88cd-79f6b212b2ad",
+      "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+      "format": "web_planning_revision.v0.3",
+      "schema": 1,
+      "compatibility": "web-planning/3",
+      "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d",
+      "revision": 13,
+      "predecessor": "sha256:3e3d4c4071f279a5309ce250b8dd9a6282a592cf46a4833d95e19d9a79ec7304",
+      "definition": {
+        "goal": "봉인과 황제 — 원래 갈래 독립 수정 — 보존할 새 수정",
+        "success_criteria": [
+          "Preserve original writing and continue it across sessions."
+        ],
+        "non_goals": []
+      },
+      "sources": [],
+      "relations": {
+        "materials": [],
+        "origin": null,
+        "review": null
+      },
+      "files": [
+        {
+          "bytes": 546,
+          "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+          "name": "manuscript.txt",
+          "role": "source"
+        },
+        {
+          "bytes": 74,
+          "digest": "sha256:55b0e788949368473067f5d610874817da6cf610f8b81d6c2487cc7ea204ba21",
+          "name": "augnes-story-worldbuilding.v1.json",
+          "role": "other"
+        },
+        {
+          "bytes": 14666,
+          "digest": "sha256:bd1b3d1e1efd4946a1dd520d19affa6d269c0c47ccf51a6638cf03e265ce1038",
+          "name": "augnes-scenes.v1.json",
+          "role": "other"
+        }
+      ],
+      "recorded_at": "2026-10-15T17:53:45.027Z",
+      "request_key": "f4727a6f-4827-48ec-ad51-5494daf21c83",
+      "request_fingerprint": "sha256:aa97fffae9f8b9a3ddef85d02ec8012b2144b41b2d8aeca9aec9dbd30a60e20f",
+      "fingerprint": "sha256:e3ad797bb2124feb8c955ae596cdc6d9a8c9d93967798b5fc6700bbfb48169bb"
+    },
+    "initial_attribution": {
+      "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+      "dispositions": [
+        "adopted",
+        "adopted",
+        "undecided"
+      ],
+      "reason": "열어 읽은 편지의 재해석을 이 갈래에서도 유지한다.",
+      "source": {
+        "fingerprint": "sha256:23c736cb564422b0f02732f45862f301775c9aea83c84738b59d1e1e3446f498",
+        "revision": 4,
+        "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+      },
+      "target": {
+        "fingerprint": "sha256:0d0f5cd745d08155bbd8403c5da567df0a800e2ac5a446947db62fc7691d2c76",
+        "revision": 10,
+        "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+      },
+      "units": [
+        {
+          "disposition": "adopted",
+          "proposal": {
+            "event_time": 2,
+            "kind": "knowledge",
+            "requires": [],
+            "reveal_order": 1,
+            "revises": [
+              {
+                "proposal": 3,
+                "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+              },
+              {
+                "proposal": 5,
+                "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+              }
+            ],
+            "subject": "하린",
+            "text": "이 대안에서 하린은 봉인을 열어 황제가 살아 있음을 알았다."
+          },
+          "ref": {
+            "proposal": 0,
+            "scene_id": "8a224d6c-6c97-45ba-8917-6b4000f21205",
+            "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+          },
+          "review": {
+            "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+            "basis": {
+              "fingerprint": "sha256:4c67f4a37f90a1c6621d24fa59aed46c9aa39b977e70e82b2622723d8e49df42",
+              "revision": 2,
+              "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+            },
+            "dispositions": [
+              "adopted",
+              "adopted",
+              "undecided"
+            ],
+            "reason": "합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다."
+          },
+          "source_files": [
+            {
+              "bytes": 546,
+              "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+              "name": "manuscript.txt",
+              "role": "source"
+            }
+          ],
+          "title": "봉인을 연 밤 — 대안"
+        },
+        {
+          "disposition": "adopted",
+          "proposal": {
+            "event_time": 1,
+            "kind": "fact",
+            "reveal_order": 1,
+            "subject": "안뜰",
+            "text": "안뜰의 종은 새벽마다 한 번 울린다."
+          },
+          "ref": {
+            "proposal": 1,
+            "scene_id": "8a224d6c-6c97-45ba-8917-6b4000f21205",
+            "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+          },
+          "review": {
+            "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+            "basis": {
+              "fingerprint": "sha256:4c67f4a37f90a1c6621d24fa59aed46c9aa39b977e70e82b2622723d8e49df42",
+              "revision": 2,
+              "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+            },
+            "dispositions": [
+              "adopted",
+              "adopted",
+              "undecided"
+            ],
+            "reason": "합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다."
+          },
+          "source_files": [
+            {
+              "bytes": 546,
+              "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+              "name": "manuscript.txt",
+              "role": "source"
+            }
+          ],
+          "title": "봉인을 연 밤 — 대안"
+        },
+        {
+          "disposition": "undecided",
+          "proposal": {
+            "event_time": 10,
+            "kind": "intention",
+            "reveal_order": 10,
+            "subject": "작가",
+            "text": "황제의 공개 귀환 날짜는 계속 미정이다."
+          },
+          "ref": {
+            "proposal": 2,
+            "scene_id": "8a224d6c-6c97-45ba-8917-6b4000f21205",
+            "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+          },
+          "review": {
+            "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+            "basis": {
+              "fingerprint": "sha256:4c67f4a37f90a1c6621d24fa59aed46c9aa39b977e70e82b2622723d8e49df42",
+              "revision": 2,
+              "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+            },
+            "dispositions": [
+              "adopted",
+              "adopted",
+              "undecided"
+            ],
+            "reason": "합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다."
+          },
+          "source_files": [
+            {
+              "bytes": 546,
+              "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+              "name": "manuscript.txt",
+              "role": "source"
+            }
+          ],
+          "title": "봉인을 연 밤 — 대안"
+        }
+      ]
+    },
+    "final_book": {
+      "adoptions": [
+        {
+          "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+          "dispositions": [
+            "undecided",
+            "adopted",
+            "undecided"
+          ],
+          "reason": "종만 채택한다. 폭로와 대안 원고는 남긴다.",
+          "source": {
+            "fingerprint": "sha256:42c7f9d11293e615666d09eb80a76d097705d769adc58b77f88c328f4efe42b8",
+            "revision": 3,
+            "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+          },
+          "target": {
+            "fingerprint": "sha256:d038d90fcad2186fcc8e5bb971c2a0a3e09e5c4e9f57c8d1a021a9368ccbfc27",
+            "revision": 8,
+            "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+          },
+          "units": [
+            {
+              "disposition": "adopted",
+              "proposal": {
+                "event_time": 2,
+                "kind": "knowledge",
+                "requires": [],
+                "reveal_order": 1,
+                "revises": [
+                  {
+                    "proposal": 3,
+                    "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                    "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                  },
+                  {
+                    "proposal": 5,
+                    "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                    "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                  }
+                ],
+                "subject": "하린",
+                "text": "이 대안에서 하린은 봉인을 열어 황제가 살아 있음을 알았다."
+              },
+              "ref": {
+                "proposal": 0,
+                "scene_id": "8a224d6c-6c97-45ba-8917-6b4000f21205",
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:4c67f4a37f90a1c6621d24fa59aed46c9aa39b977e70e82b2622723d8e49df42",
+                  "revision": 2,
+                  "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "undecided"
+                ],
+                "reason": "합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다."
+              },
+              "source_files": [
+                {
+                  "bytes": 546,
+                  "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+                  "name": "manuscript.txt",
+                  "role": "source"
+                }
+              ],
+              "title": "봉인을 연 밤 — 대안"
+            },
+            {
+              "disposition": "adopted",
+              "proposal": {
+                "event_time": 1,
+                "kind": "fact",
+                "reveal_order": 1,
+                "subject": "안뜰",
+                "text": "안뜰의 종은 새벽마다 한 번 울린다."
+              },
+              "ref": {
+                "proposal": 1,
+                "scene_id": "8a224d6c-6c97-45ba-8917-6b4000f21205",
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:4c67f4a37f90a1c6621d24fa59aed46c9aa39b977e70e82b2622723d8e49df42",
+                  "revision": 2,
+                  "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "undecided"
+                ],
+                "reason": "합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다."
+              },
+              "source_files": [
+                {
+                  "bytes": 546,
+                  "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+                  "name": "manuscript.txt",
+                  "role": "source"
+                }
+              ],
+              "title": "봉인을 연 밤 — 대안"
+            },
+            {
+              "disposition": "undecided",
+              "proposal": {
+                "event_time": 10,
+                "kind": "intention",
+                "reveal_order": 10,
+                "subject": "작가",
+                "text": "황제의 공개 귀환 날짜는 계속 미정이다."
+              },
+              "ref": {
+                "proposal": 2,
+                "scene_id": "8a224d6c-6c97-45ba-8917-6b4000f21205",
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:4c67f4a37f90a1c6621d24fa59aed46c9aa39b977e70e82b2622723d8e49df42",
+                  "revision": 2,
+                  "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "undecided"
+                ],
+                "reason": "합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다."
+              },
+              "source_files": [
+                {
+                  "bytes": 546,
+                  "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+                  "name": "manuscript.txt",
+                  "role": "source"
+                }
+              ],
+              "title": "봉인을 연 밤 — 대안"
+            }
+          ]
+        },
+        {
+          "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+          "dispositions": [
+            "adopted",
+            "adopted",
+            "undecided"
+          ],
+          "reason": "열어 읽은 편지의 재해석을 이 갈래에서도 유지한다.",
+          "source": {
+            "fingerprint": "sha256:23c736cb564422b0f02732f45862f301775c9aea83c84738b59d1e1e3446f498",
+            "revision": 4,
+            "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+          },
+          "target": {
+            "fingerprint": "sha256:0d0f5cd745d08155bbd8403c5da567df0a800e2ac5a446947db62fc7691d2c76",
+            "revision": 10,
+            "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+          },
+          "units": [
+            {
+              "disposition": "adopted",
+              "proposal": {
+                "event_time": 2,
+                "kind": "knowledge",
+                "requires": [],
+                "reveal_order": 1,
+                "revises": [
+                  {
+                    "proposal": 3,
+                    "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                    "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                  },
+                  {
+                    "proposal": 5,
+                    "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                    "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                  }
+                ],
+                "subject": "하린",
+                "text": "이 대안에서 하린은 봉인을 열어 황제가 살아 있음을 알았다."
+              },
+              "ref": {
+                "proposal": 0,
+                "scene_id": "8a224d6c-6c97-45ba-8917-6b4000f21205",
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:4c67f4a37f90a1c6621d24fa59aed46c9aa39b977e70e82b2622723d8e49df42",
+                  "revision": 2,
+                  "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "undecided"
+                ],
+                "reason": "합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다."
+              },
+              "source_files": [
+                {
+                  "bytes": 546,
+                  "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+                  "name": "manuscript.txt",
+                  "role": "source"
+                }
+              ],
+              "title": "봉인을 연 밤 — 대안"
+            },
+            {
+              "disposition": "adopted",
+              "proposal": {
+                "event_time": 1,
+                "kind": "fact",
+                "reveal_order": 1,
+                "subject": "안뜰",
+                "text": "안뜰의 종은 새벽마다 한 번 울린다."
+              },
+              "ref": {
+                "proposal": 1,
+                "scene_id": "8a224d6c-6c97-45ba-8917-6b4000f21205",
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:4c67f4a37f90a1c6621d24fa59aed46c9aa39b977e70e82b2622723d8e49df42",
+                  "revision": 2,
+                  "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "undecided"
+                ],
+                "reason": "합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다."
+              },
+              "source_files": [
+                {
+                  "bytes": 546,
+                  "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+                  "name": "manuscript.txt",
+                  "role": "source"
+                }
+              ],
+              "title": "봉인을 연 밤 — 대안"
+            },
+            {
+              "disposition": "undecided",
+              "proposal": {
+                "event_time": 10,
+                "kind": "intention",
+                "reveal_order": 10,
+                "subject": "작가",
+                "text": "황제의 공개 귀환 날짜는 계속 미정이다."
+              },
+              "ref": {
+                "proposal": 2,
+                "scene_id": "8a224d6c-6c97-45ba-8917-6b4000f21205",
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:4c67f4a37f90a1c6621d24fa59aed46c9aa39b977e70e82b2622723d8e49df42",
+                  "revision": 2,
+                  "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "undecided"
+                ],
+                "reason": "합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다."
+              },
+              "source_files": [
+                {
+                  "bytes": 546,
+                  "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+                  "name": "manuscript.txt",
+                  "role": "source"
+                }
+              ],
+              "title": "봉인을 연 밤 — 대안"
+            }
+          ]
+        },
+        {
+          "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+          "dispositions": [
+            "adopted",
+            "adopted",
+            "undecided",
+            "adopted"
+          ],
+          "reason": "열어 읽은 편지의 재해석을 이 갈래에서도 유지한다.",
+          "source": {
+            "fingerprint": "sha256:b236636e3e484ef4cad2302efba12346ed12861dfc684fcfbd10c6204770270e",
+            "revision": 6,
+            "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+          },
+          "target": {
+            "fingerprint": "sha256:3e3d4c4071f279a5309ce250b8dd9a6282a592cf46a4833d95e19d9a79ec7304",
+            "revision": 12,
+            "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+          },
+          "units": [
+            {
+              "disposition": "adopted",
+              "proposal": {
+                "event_time": 2,
+                "kind": "knowledge",
+                "requires": [],
+                "reveal_order": 1,
+                "revises": [
+                  {
+                    "proposal": 3,
+                    "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                    "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                  },
+                  {
+                    "proposal": 5,
+                    "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                    "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                  }
+                ],
+                "subject": "하린",
+                "text": "이 대안에서 하린은 봉인을 열어 황제가 살아 있음을 알았다."
+              },
+              "ref": {
+                "proposal": 0,
+                "scene_id": "8a224d6c-6c97-45ba-8917-6b4000f21205",
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:4c67f4a37f90a1c6621d24fa59aed46c9aa39b977e70e82b2622723d8e49df42",
+                  "revision": 2,
+                  "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "undecided"
+                ],
+                "reason": "합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다."
+              },
+              "source_files": [
+                {
+                  "bytes": 546,
+                  "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+                  "name": "manuscript.txt",
+                  "role": "source"
+                }
+              ],
+              "title": "봉인을 연 밤 — 대안"
+            },
+            {
+              "disposition": "adopted",
+              "proposal": {
+                "event_time": 1,
+                "kind": "fact",
+                "reveal_order": 1,
+                "subject": "안뜰",
+                "text": "안뜰의 종은 새벽마다 한 번 울린다."
+              },
+              "ref": {
+                "proposal": 1,
+                "scene_id": "8a224d6c-6c97-45ba-8917-6b4000f21205",
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:4c67f4a37f90a1c6621d24fa59aed46c9aa39b977e70e82b2622723d8e49df42",
+                  "revision": 2,
+                  "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "undecided"
+                ],
+                "reason": "합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다."
+              },
+              "source_files": [
+                {
+                  "bytes": 546,
+                  "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+                  "name": "manuscript.txt",
+                  "role": "source"
+                }
+              ],
+              "title": "봉인을 연 밤 — 대안"
+            },
+            {
+              "disposition": "undecided",
+              "proposal": {
+                "event_time": 10,
+                "kind": "intention",
+                "reveal_order": 10,
+                "subject": "작가",
+                "text": "황제의 공개 귀환 날짜는 계속 미정이다."
+              },
+              "ref": {
+                "proposal": 2,
+                "scene_id": "8a224d6c-6c97-45ba-8917-6b4000f21205",
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:4c67f4a37f90a1c6621d24fa59aed46c9aa39b977e70e82b2622723d8e49df42",
+                  "revision": 2,
+                  "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "undecided"
+                ],
+                "reason": "합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다."
+              },
+              "source_files": [
+                {
+                  "bytes": 546,
+                  "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+                  "name": "manuscript.txt",
+                  "role": "source"
+                }
+              ],
+              "title": "봉인을 연 밤 — 대안"
+            },
+            {
+              "disposition": "adopted",
+              "proposal": {
+                "event_time": 1,
+                "kind": "fact",
+                "reveal_order": 1,
+                "subject": "정원",
+                "text": "정원의 등불은 푸른 유리로 덮여 있다."
+              },
+              "ref": {
+                "proposal": 0,
+                "scene_id": "8a79c7f6-a2d2-4001-bba8-c99655b39110",
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:13c655e9157dd44d24de73e4bdc7d69d77cf7d412d578a90f2d539c92660aca7",
+                  "revision": 5,
+                  "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+                },
+                "dispositions": [
+                  "adopted"
+                ],
+                "reason": "열어 읽은 편지의 재해석을 이 갈래에서도 유지한다."
+              },
+              "source_files": [
+                {
+                  "bytes": 546,
+                  "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+                  "name": "manuscript.txt",
+                  "role": "source"
+                }
+              ],
+              "title": "푸른 등불"
+            }
+          ]
+        }
+      ],
+      "format": "augnes_scene_notebook.v2",
+      "inheritance": null,
+      "scenes": [
+        {
+          "basis": {
+            "fingerprint": "sha256:aac39dba31f86e780cf85678dc5d479171236b3a9a436b18b9bb3ccff8b76186",
+            "revision": 2,
+            "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+          },
+          "draft": "하린은 궁정의 부고를 접어 품에 넣었다.\n\n문지기가 전한 봉인된 편지는 차가웠다. 하린은 봉인을 뜯지 않고 등불을 낮추었다.",
+          "event_time": 2,
+          "id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+          "proposals": [
+            {
+              "event_time": 0,
+              "kind": "fact",
+              "reveal_order": 0,
+              "subject": "작가",
+              "text": "황제는 살아 있다."
+            },
+            {
+              "event_time": 0,
+              "kind": "assertion",
+              "reveal_order": 0,
+              "subject": "궁정",
+              "text": "궁정은 황제가 죽었다고 발표했다."
+            },
+            {
+              "event_time": 0,
+              "kind": "belief",
+              "reveal_order": 0,
+              "subject": "하린",
+              "text": "하린은 궁정의 부고를 믿는다. 황제를 아직 보지 못했다."
+            },
+            {
+              "event_time": 2,
+              "kind": "knowledge",
+              "reveal_order": 1,
+              "subject": "하린",
+              "text": "하린은 봉인된 편지를 받았다. 아직 열지 않았고 내용은 모른다."
+            },
+            {
+              "event_time": 10,
+              "kind": "intention",
+              "reveal_order": 10,
+              "subject": "작가",
+              "text": "황제의 훗날 공개 귀환은 아직 결정하지 않았다."
+            },
+            {
+              "event_time": 2,
+              "kind": "knowledge",
+              "reveal_order": 1,
+              "subject": "하린",
+              "text": "지금 편지를 열어 황제의 생존을 즉시 알게 한다."
+            }
+          ],
+          "reveal_order": 1,
+          "review": {
+            "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+            "basis": {
+              "fingerprint": "sha256:16399d5473ecd6fe517bfd98f103c2309e710511ff67b761a5829b7a60e1f8bd",
+              "revision": 3,
+              "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+            },
+            "dispositions": [
+              "adopted",
+              "adopted",
+              "adopted",
+              "adopted",
+              "undecided",
+              "rejected"
+            ],
+            "reason": "합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다."
+          },
+          "source_files": [
+            {
+              "bytes": 546,
+              "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+              "name": "manuscript.txt",
+              "role": "source"
+            }
+          ],
+          "title": "봉인의 밤",
+          "viewpoint": "하린"
+        },
+        {
+          "basis": {
+            "fingerprint": "sha256:d8e047d87a4302d10ec82efe2a857492c64d1c4db746aaefc5a6d728e310b9ab",
+            "revision": 4,
+            "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+          },
+          "draft": "하린은 품 안의 봉인이 눌리지 않도록 외투를 여몄다.\n\n부고를 읽은 이들의 발소리가 복도를 메웠다. 그는 편지의 무게만 느끼며, 누구에게 먼저 물어야 할지 생각했다.",
+          "event_time": 3,
+          "id": "93bce0d1-61a1-4456-8470-1f224a79520a",
+          "proposals": [],
+          "reveal_order": 2,
+          "review": null,
+          "source_files": [
+            {
+              "bytes": 546,
+              "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+              "name": "manuscript.txt",
+              "role": "source"
+            }
+          ],
+          "title": "등불이 꺼진 복도",
+          "viewpoint": "하린"
+        },
+        {
+          "basis": {
+            "fingerprint": "sha256:48d25f5af21855cffdee8b08156ace77d827f272ed6e1581b1de5d580c1959b4",
+            "revision": 9,
+            "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+          },
+          "draft": "새벽 종소리가 안뜰을 건넜다. 하린은 아직 봉인된 편지를 품에 넣었다.\n\n부고를 전하던 목소리가 떠올랐지만, 종이 안쪽의 말은 알 수 없었다.",
+          "event_time": 3,
+          "id": "adb78500-2494-435f-bbe3-0c5a7ec34cd9",
+          "proposals": [],
+          "reveal_order": 2,
+          "review": null,
+          "source_files": [
+            {
+              "bytes": 546,
+              "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+              "name": "manuscript.txt",
+              "role": "source"
+            }
+          ],
+          "title": "새벽의 다음 장면",
+          "viewpoint": "하린"
+        }
+      ],
+      "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+    },
+    "recovered": [
+      {
+        "head": {
+          "workspace_id": "155448c4-983f-4e32-83c5-6d340db5d4fd",
+          "project_id": "bb63e047-9125-43c0-88cd-79f6b212b2ad",
+          "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+          "format": "web_planning_revision.v0.3",
+          "schema": 1,
+          "compatibility": "web-planning/3",
+          "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d",
+          "revision": 13,
+          "predecessor": "sha256:3e3d4c4071f279a5309ce250b8dd9a6282a592cf46a4833d95e19d9a79ec7304",
+          "definition": {
+            "goal": "봉인과 황제 — 원래 갈래 독립 수정 — 보존할 새 수정",
+            "success_criteria": [
+              "Preserve original writing and continue it across sessions."
+            ],
+            "non_goals": []
+          },
+          "sources": [],
+          "relations": {
+            "materials": [],
+            "origin": null,
+            "review": null
+          },
+          "files": [
+            {
+              "bytes": 546,
+              "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+              "name": "manuscript.txt",
+              "role": "source"
+            },
+            {
+              "bytes": 74,
+              "digest": "sha256:55b0e788949368473067f5d610874817da6cf610f8b81d6c2487cc7ea204ba21",
+              "name": "augnes-story-worldbuilding.v1.json",
+              "role": "other"
+            },
+            {
+              "bytes": 14666,
+              "digest": "sha256:bd1b3d1e1efd4946a1dd520d19affa6d269c0c47ccf51a6638cf03e265ce1038",
+              "name": "augnes-scenes.v1.json",
+              "role": "other"
+            }
+          ],
+          "recorded_at": "2026-10-15T17:53:45.027Z",
+          "request_key": "f4727a6f-4827-48ec-ad51-5494daf21c83",
+          "request_fingerprint": "sha256:aa97fffae9f8b9a3ddef85d02ec8012b2144b41b2d8aeca9aec9dbd30a60e20f",
+          "fingerprint": "sha256:e3ad797bb2124feb8c955ae596cdc6d9a8c9d93967798b5fc6700bbfb48169bb"
+        },
+        "context": {
+          "format": "augnes_scene_context.v2",
+          "availability": [
+            {
+              "source": {
+                "fingerprint": "sha256:42c7f9d11293e615666d09eb80a76d097705d769adc58b77f88c328f4efe42b8",
+                "revision": 3,
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "availability": "Exact historical source and bytes available; inherited attribution is not a new review."
+            },
+            {
+              "source": {
+                "fingerprint": "sha256:23c736cb564422b0f02732f45862f301775c9aea83c84738b59d1e1e3446f498",
+                "revision": 4,
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "availability": "Exact historical source and bytes available; inherited attribution is not a new review."
+            },
+            {
+              "source": {
+                "fingerprint": "sha256:b236636e3e484ef4cad2302efba12346ed12861dfc684fcfbd10c6204770270e",
+                "revision": 6,
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "availability": "Exact historical source and bytes available; inherited attribution is not a new review."
+            }
+          ],
+          "parameters": {
+            "title": "복구 후 읽기",
+            "viewpoint": "하린",
+            "event_time": 3,
+            "reveal_order": 2,
+            "source_names": [
+              "manuscript.txt"
+            ]
+          },
+          "basis": {
+            "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d",
+            "revision": 13,
+            "fingerprint": "sha256:e3ad797bb2124feb8c955ae596cdc6d9a8c9d93967798b5fc6700bbfb48169bb"
+          },
+          "originals": [
+            {
+              "file": {
+                "bytes": 546,
+                "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+                "name": "manuscript.txt",
+                "role": "source"
+              },
+              "text": "세계의 사실 — 작가가 정한 설정: 황제는 살아 있다.\n\n공식 발표: 궁정은 “황제가 죽었다”고 알렸다. 발표는 세계의 사실과 같지 않다.\n\n인물의 믿음: 기사 하린은 그 발표를 믿는다. 아직 황제를 보지 못했다.\n\n미정인 작가의 의도: 황제가 나중에 돌아오는 전개를 고려 중이다. 아직 결정하지 않았다. 재등장 시점도 열어 둔다.\n\n원문 표기: café / é ≠ é / 한글 🧭\n문단과 공백을 보존한다. <script>fiction only</script>",
+              "revision": {
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d",
+                "revision": 13,
+                "fingerprint": "sha256:e3ad797bb2124feb8c955ae596cdc6d9a8c9d93967798b5fc6700bbfb48169bb"
+              }
+            }
+          ],
+          "entries": [
+            {
+              "event_time": 0,
+              "kind": "fact",
+              "reveal_order": 0,
+              "subject": "작가",
+              "text": "황제는 살아 있다.",
+              "disposition": "adopted",
+              "scene_title": "봉인의 밤",
+              "source": {
+                "fingerprint": "sha256:aac39dba31f86e780cf85678dc5d479171236b3a9a436b18b9bb3ccff8b76186",
+                "revision": 2,
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:16399d5473ecd6fe517bfd98f103c2309e710511ff67b761a5829b7a60e1f8bd",
+                  "revision": 3,
+                  "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "undecided",
+                  "rejected"
+                ],
+                "reason": "합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다."
+              },
+              "identity": {
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d",
+                "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                "proposal": 0
+              },
+              "effective": "current",
+              "attribution": "local"
+            },
+            {
+              "event_time": 0,
+              "kind": "assertion",
+              "reveal_order": 0,
+              "subject": "궁정",
+              "text": "궁정은 황제가 죽었다고 발표했다.",
+              "disposition": "adopted",
+              "scene_title": "봉인의 밤",
+              "source": {
+                "fingerprint": "sha256:aac39dba31f86e780cf85678dc5d479171236b3a9a436b18b9bb3ccff8b76186",
+                "revision": 2,
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:16399d5473ecd6fe517bfd98f103c2309e710511ff67b761a5829b7a60e1f8bd",
+                  "revision": 3,
+                  "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "undecided",
+                  "rejected"
+                ],
+                "reason": "합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다."
+              },
+              "identity": {
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d",
+                "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                "proposal": 1
+              },
+              "effective": "current",
+              "attribution": "local"
+            },
+            {
+              "event_time": 0,
+              "kind": "belief",
+              "reveal_order": 0,
+              "subject": "하린",
+              "text": "하린은 궁정의 부고를 믿는다. 황제를 아직 보지 못했다.",
+              "disposition": "adopted",
+              "scene_title": "봉인의 밤",
+              "source": {
+                "fingerprint": "sha256:aac39dba31f86e780cf85678dc5d479171236b3a9a436b18b9bb3ccff8b76186",
+                "revision": 2,
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:16399d5473ecd6fe517bfd98f103c2309e710511ff67b761a5829b7a60e1f8bd",
+                  "revision": 3,
+                  "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "undecided",
+                  "rejected"
+                ],
+                "reason": "합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다."
+              },
+              "identity": {
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d",
+                "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                "proposal": 2
+              },
+              "effective": "current",
+              "attribution": "local"
+            },
+            {
+              "event_time": 2,
+              "kind": "knowledge",
+              "reveal_order": 1,
+              "subject": "하린",
+              "text": "하린은 봉인된 편지를 받았다. 아직 열지 않았고 내용은 모른다.",
+              "disposition": "adopted",
+              "scene_title": "봉인의 밤",
+              "source": {
+                "fingerprint": "sha256:aac39dba31f86e780cf85678dc5d479171236b3a9a436b18b9bb3ccff8b76186",
+                "revision": 2,
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:16399d5473ecd6fe517bfd98f103c2309e710511ff67b761a5829b7a60e1f8bd",
+                  "revision": 3,
+                  "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "undecided",
+                  "rejected"
+                ],
+                "reason": "합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다."
+              },
+              "identity": {
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d",
+                "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                "proposal": 3
+              },
+              "effective": "superseded",
+              "attribution": "local"
+            },
+            {
+              "event_time": 10,
+              "kind": "intention",
+              "reveal_order": 10,
+              "subject": "작가",
+              "text": "황제의 훗날 공개 귀환은 아직 결정하지 않았다.",
+              "disposition": "undecided",
+              "scene_title": "봉인의 밤",
+              "source": {
+                "fingerprint": "sha256:aac39dba31f86e780cf85678dc5d479171236b3a9a436b18b9bb3ccff8b76186",
+                "revision": 2,
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:16399d5473ecd6fe517bfd98f103c2309e710511ff67b761a5829b7a60e1f8bd",
+                  "revision": 3,
+                  "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "undecided",
+                  "rejected"
+                ],
+                "reason": "합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다."
+              },
+              "identity": {
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d",
+                "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                "proposal": 4
+              },
+              "effective": "current",
+              "attribution": "local"
+            },
+            {
+              "event_time": 2,
+              "kind": "knowledge",
+              "reveal_order": 1,
+              "subject": "하린",
+              "text": "지금 편지를 열어 황제의 생존을 즉시 알게 한다.",
+              "disposition": "rejected",
+              "scene_title": "봉인의 밤",
+              "source": {
+                "fingerprint": "sha256:aac39dba31f86e780cf85678dc5d479171236b3a9a436b18b9bb3ccff8b76186",
+                "revision": 2,
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:16399d5473ecd6fe517bfd98f103c2309e710511ff67b761a5829b7a60e1f8bd",
+                  "revision": 3,
+                  "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "undecided",
+                  "rejected"
+                ],
+                "reason": "합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다."
+              },
+              "identity": {
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d",
+                "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                "proposal": 5
+              },
+              "effective": "superseded",
+              "attribution": "local"
+            },
+            {
+              "event_time": 2,
+              "kind": "knowledge",
+              "requires": [],
+              "reveal_order": 1,
+              "revises": [
+                {
+                  "proposal": 3,
+                  "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                  "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                },
+                {
+                  "proposal": 5,
+                  "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                  "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                }
+              ],
+              "subject": "하린",
+              "text": "이 대안에서 하린은 봉인을 열어 황제가 살아 있음을 알았다.",
+              "disposition": "adopted",
+              "scene_title": "봉인을 연 밤 — 대안",
+              "source": {
+                "fingerprint": "sha256:42c7f9d11293e615666d09eb80a76d097705d769adc58b77f88c328f4efe42b8",
+                "revision": 3,
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:4c67f4a37f90a1c6621d24fa59aed46c9aa39b977e70e82b2622723d8e49df42",
+                  "revision": 2,
+                  "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "undecided"
+                ],
+                "reason": "합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다."
+              },
+              "identity": {
+                "proposal": 0,
+                "scene_id": "8a224d6c-6c97-45ba-8917-6b4000f21205",
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "effective": "current",
+              "attribution": "explicit target selection"
+            },
+            {
+              "event_time": 1,
+              "kind": "fact",
+              "reveal_order": 1,
+              "subject": "안뜰",
+              "text": "안뜰의 종은 새벽마다 한 번 울린다.",
+              "disposition": "adopted",
+              "scene_title": "봉인을 연 밤 — 대안",
+              "source": {
+                "fingerprint": "sha256:42c7f9d11293e615666d09eb80a76d097705d769adc58b77f88c328f4efe42b8",
+                "revision": 3,
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:4c67f4a37f90a1c6621d24fa59aed46c9aa39b977e70e82b2622723d8e49df42",
+                  "revision": 2,
+                  "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "undecided"
+                ],
+                "reason": "합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다."
+              },
+              "identity": {
+                "proposal": 1,
+                "scene_id": "8a224d6c-6c97-45ba-8917-6b4000f21205",
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "effective": "current",
+              "attribution": "explicit target selection"
+            },
+            {
+              "event_time": 1,
+              "kind": "fact",
+              "reveal_order": 1,
+              "subject": "정원",
+              "text": "정원의 등불은 푸른 유리로 덮여 있다.",
+              "disposition": "adopted",
+              "scene_title": "푸른 등불",
+              "source": {
+                "fingerprint": "sha256:b236636e3e484ef4cad2302efba12346ed12861dfc684fcfbd10c6204770270e",
+                "revision": 6,
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:13c655e9157dd44d24de73e4bdc7d69d77cf7d412d578a90f2d539c92660aca7",
+                  "revision": 5,
+                  "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+                },
+                "dispositions": [
+                  "adopted"
+                ],
+                "reason": "열어 읽은 편지의 재해석을 이 갈래에서도 유지한다."
+              },
+              "identity": {
+                "proposal": 0,
+                "scene_id": "8a79c7f6-a2d2-4001-bba8-c99655b39110",
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "effective": "current",
+              "attribution": "explicit target selection"
+            }
+          ],
+          "preceding": {
+            "basis": {
+              "fingerprint": "sha256:48d25f5af21855cffdee8b08156ace77d827f272ed6e1581b1de5d580c1959b4",
+              "revision": 9,
+              "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+            },
+            "draft": "새벽 종소리가 안뜰을 건넜다. 하린은 아직 봉인된 편지를 품에 넣었다.\n\n부고를 전하던 목소리가 떠올랐지만, 종이 안쪽의 말은 알 수 없었다.",
+            "event_time": 3,
+            "id": "adb78500-2494-435f-bbe3-0c5a7ec34cd9",
+            "proposals": [],
+            "reveal_order": 2,
+            "review": null,
+            "source_files": [
+              {
+                "bytes": 546,
+                "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+                "name": "manuscript.txt",
+                "role": "source"
+              }
+            ],
+            "title": "새벽의 다음 장면",
+            "viewpoint": "하린"
+          },
+          "text": "# Scene preparation: 복구 후 읽기\n\nViewpoint: 하린\nFictional event position: 3\nReveal position: 2\n\nFictional scope: 봉인과 황제 — 원래 갈래 독립 수정 — 보존할 새 수정\nSaved work: 71f1130c-727b-40dc-81d1-9735a4930d0d\nRevision: 13\nFingerprint: sha256:e3ad797bb2124feb8c955ae596cdc6d9a8c9d93967798b5fc6700bbfb48169bb\n\nAuthoring context, not empirical Evidence or execution authority. Facts are author knowledge, not automatically character knowledge. Beliefs and public/narrator assertions need not be true. Undecided and rejected changes have not happened by adoption. Draft prose is not canon. Fictional positions are independent of real revision time. Original sources remain the master; this view is bounded and rebuildable.\n\nSetting revisions are explicit retroactive reinterpretations at the same fictional positions, not later events. Superseded entries remain historical and do not supply current knowledge. Inherited reviews retain their original author and scope. Selected transfers adopt only the named proposals, never the source draft. Natural-language dependencies are UNKNOWN unless explicitly linked.\n\n## Applicable consequential material\n\n[adopted; current; local; fact; 작가; event 0; reveal 0] 황제는 살아 있다.\nFrom scene: 봉인의 밤; original basis revision 2; reviewed at revision 3 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다.\n\n[adopted; current; local; assertion; 궁정; event 0; reveal 0] 궁정은 황제가 죽었다고 발표했다.\nFrom scene: 봉인의 밤; original basis revision 2; reviewed at revision 3 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다.\n\n[adopted; current; local; belief; 하린; event 0; reveal 0] 하린은 궁정의 부고를 믿는다. 황제를 아직 보지 못했다.\nFrom scene: 봉인의 밤; original basis revision 2; reviewed at revision 3 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다.\n\n[adopted; superseded; local; knowledge; 하린; event 2; reveal 1] 하린은 봉인된 편지를 받았다. 아직 열지 않았고 내용은 모른다.\nFrom scene: 봉인의 밤; original basis revision 2; reviewed at revision 3 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다.\n\n[undecided; current; local; intention; 작가; event 10; reveal 10] 황제의 훗날 공개 귀환은 아직 결정하지 않았다.\nFrom scene: 봉인의 밤; original basis revision 2; reviewed at revision 3 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다.\n\n[rejected; superseded; local; knowledge; 하린; event 2; reveal 1] 지금 편지를 열어 황제의 생존을 즉시 알게 한다.\nFrom scene: 봉인의 밤; original basis revision 2; reviewed at revision 3 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다.\n\n[adopted; current; explicit target selection; knowledge; 하린; event 2; reveal 1] 이 대안에서 하린은 봉인을 열어 황제가 살아 있음을 알았다.\nFrom scene: 봉인을 연 밤 — 대안; original basis revision 3; reviewed at revision 2 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다.\n\n[adopted; current; explicit target selection; fact; 안뜰; event 1; reveal 1] 안뜰의 종은 새벽마다 한 번 울린다.\nFrom scene: 봉인을 연 밤 — 대안; original basis revision 3; reviewed at revision 2 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다.\n\n[adopted; current; explicit target selection; fact; 정원; event 1; reveal 1] 정원의 등불은 푸른 유리로 덮여 있다.\nFrom scene: 푸른 등불; original basis revision 6; reviewed at revision 5 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 열어 읽은 편지의 재해석을 이 갈래에서도 유지한다.\n\n## Previous applicable draft (prose, not canon)\n\n새벽의 다음 장면\n새벽 종소리가 안뜰을 건넜다. 하린은 아직 봉인된 편지를 품에 넣었다.\n\n부고를 전하던 목소리가 떠올랐지만, 종이 안쪽의 말은 알 수 없었다.\n\n## Exact selected originals (authored sources, not automatic adoption)\n\nmanuscript.txt · revision 13 · sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95\n세계의 사실 — 작가가 정한 설정: 황제는 살아 있다.\n\n공식 발표: 궁정은 “황제가 죽었다”고 알렸다. 발표는 세계의 사실과 같지 않다.\n\n인물의 믿음: 기사 하린은 그 발표를 믿는다. 아직 황제를 보지 못했다.\n\n미정인 작가의 의도: 황제가 나중에 돌아오는 전개를 고려 중이다. 아직 결정하지 않았다. 재등장 시점도 열어 둔다.\n\n원문 표기: café / é ≠ é / 한글 🧭\n문단과 공백을 보존한다. <script>fiction only</script>",
+          "bytes": 5739,
+          "limit": 16384,
+          "fingerprint": "sha256:61e4e39aea596bb3fba085747649b2dec00ffa80628dce43c80751956e5dd45a"
+        },
+        "draft": "새벽 종소리가 안뜰을 건넜다. 하린은 아직 봉인된 편지를 품에 넣었다.\n\n부고를 전하던 목소리가 떠올랐지만, 종이 안쪽의 말은 알 수 없었다."
+      },
+      {
+        "head": {
+          "workspace_id": "155448c4-983f-4e32-83c5-6d340db5d4fd",
+          "project_id": "bb63e047-9125-43c0-88cd-79f6b212b2ad",
+          "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+          "format": "web_planning_revision.v0.3",
+          "schema": 1,
+          "compatibility": "web-planning/3",
+          "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179",
+          "revision": 6,
+          "predecessor": "sha256:13c655e9157dd44d24de73e4bdc7d69d77cf7d412d578a90f2d539c92660aca7",
+          "definition": {
+            "goal": "봉인과 황제 — 대안",
+            "success_criteria": [
+              "Preserve original writing and continue it across sessions."
+            ],
+            "non_goals": []
+          },
+          "sources": [],
+          "relations": {
+            "materials": [],
+            "origin": {
+              "reason": "합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다.",
+              "selection": [],
+              "source": {
+                "fingerprint": "sha256:3d6531aac6621f0149cb8ae58e3f79aa0dc395cedfa5dbf5ad7ac9312225efc5",
+                "revision": 7,
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+              },
+              "starting_review": null
+            },
+            "review": null
+          },
+          "files": [
+            {
+              "bytes": 546,
+              "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+              "name": "manuscript.txt",
+              "role": "source"
+            },
+            {
+              "bytes": 74,
+              "digest": "sha256:55b0e788949368473067f5d610874817da6cf610f8b81d6c2487cc7ea204ba21",
+              "name": "augnes-story-worldbuilding.v1.json",
+              "role": "other"
+            },
+            {
+              "bytes": 6431,
+              "digest": "sha256:2ab0d3846737cc17fa991e4c7a2186d01738cb45243d7bea0f74dbba1860dec1",
+              "name": "augnes-scenes.v1.json",
+              "role": "other"
+            }
+          ],
+          "recorded_at": "2026-10-15T17:53:44.670Z",
+          "request_key": "9fa1e3a9-9684-4997-89b6-2e058b43f6ee",
+          "request_fingerprint": "sha256:f7f3e3d28c128cc97fe0a629ae8bf425df7b9abfd07f2b442d011df2c1e50f86",
+          "fingerprint": "sha256:b236636e3e484ef4cad2302efba12346ed12861dfc684fcfbd10c6204770270e"
+        },
+        "context": {
+          "format": "augnes_scene_context.v2",
+          "availability": [
+            {
+              "source": {
+                "fingerprint": "sha256:3d6531aac6621f0149cb8ae58e3f79aa0dc395cedfa5dbf5ad7ac9312225efc5",
+                "revision": 7,
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+              },
+              "availability": "Exact historical source and bytes available; inherited attribution is not a new review."
+            }
+          ],
+          "parameters": {
+            "title": "복구 후 읽기",
+            "viewpoint": "하린",
+            "event_time": 3,
+            "reveal_order": 2,
+            "source_names": [
+              "manuscript.txt"
+            ]
+          },
+          "basis": {
+            "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179",
+            "revision": 6,
+            "fingerprint": "sha256:b236636e3e484ef4cad2302efba12346ed12861dfc684fcfbd10c6204770270e"
+          },
+          "originals": [
+            {
+              "file": {
+                "bytes": 546,
+                "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+                "name": "manuscript.txt",
+                "role": "source"
+              },
+              "text": "세계의 사실 — 작가가 정한 설정: 황제는 살아 있다.\n\n공식 발표: 궁정은 “황제가 죽었다”고 알렸다. 발표는 세계의 사실과 같지 않다.\n\n인물의 믿음: 기사 하린은 그 발표를 믿는다. 아직 황제를 보지 못했다.\n\n미정인 작가의 의도: 황제가 나중에 돌아오는 전개를 고려 중이다. 아직 결정하지 않았다. 재등장 시점도 열어 둔다.\n\n원문 표기: café / é ≠ é / 한글 🧭\n문단과 공백을 보존한다. <script>fiction only</script>",
+              "revision": {
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179",
+                "revision": 6,
+                "fingerprint": "sha256:b236636e3e484ef4cad2302efba12346ed12861dfc684fcfbd10c6204770270e"
+              }
+            }
+          ],
+          "entries": [
+            {
+              "event_time": 0,
+              "kind": "fact",
+              "reveal_order": 0,
+              "subject": "작가",
+              "text": "황제는 살아 있다.",
+              "disposition": "adopted",
+              "scene_title": "봉인의 밤",
+              "source": {
+                "fingerprint": "sha256:aac39dba31f86e780cf85678dc5d479171236b3a9a436b18b9bb3ccff8b76186",
+                "revision": 2,
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:16399d5473ecd6fe517bfd98f103c2309e710511ff67b761a5829b7a60e1f8bd",
+                  "revision": 3,
+                  "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "undecided",
+                  "rejected"
+                ],
+                "reason": "합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다."
+              },
+              "identity": {
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d",
+                "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                "proposal": 0
+              },
+              "effective": "current",
+              "attribution": "inherited; not a new branch review"
+            },
+            {
+              "event_time": 0,
+              "kind": "assertion",
+              "reveal_order": 0,
+              "subject": "궁정",
+              "text": "궁정은 황제가 죽었다고 발표했다.",
+              "disposition": "adopted",
+              "scene_title": "봉인의 밤",
+              "source": {
+                "fingerprint": "sha256:aac39dba31f86e780cf85678dc5d479171236b3a9a436b18b9bb3ccff8b76186",
+                "revision": 2,
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:16399d5473ecd6fe517bfd98f103c2309e710511ff67b761a5829b7a60e1f8bd",
+                  "revision": 3,
+                  "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "undecided",
+                  "rejected"
+                ],
+                "reason": "합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다."
+              },
+              "identity": {
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d",
+                "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                "proposal": 1
+              },
+              "effective": "current",
+              "attribution": "inherited; not a new branch review"
+            },
+            {
+              "event_time": 0,
+              "kind": "belief",
+              "reveal_order": 0,
+              "subject": "하린",
+              "text": "하린은 궁정의 부고를 믿는다. 황제를 아직 보지 못했다.",
+              "disposition": "adopted",
+              "scene_title": "봉인의 밤",
+              "source": {
+                "fingerprint": "sha256:aac39dba31f86e780cf85678dc5d479171236b3a9a436b18b9bb3ccff8b76186",
+                "revision": 2,
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:16399d5473ecd6fe517bfd98f103c2309e710511ff67b761a5829b7a60e1f8bd",
+                  "revision": 3,
+                  "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "undecided",
+                  "rejected"
+                ],
+                "reason": "합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다."
+              },
+              "identity": {
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d",
+                "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                "proposal": 2
+              },
+              "effective": "current",
+              "attribution": "inherited; not a new branch review"
+            },
+            {
+              "event_time": 2,
+              "kind": "knowledge",
+              "reveal_order": 1,
+              "subject": "하린",
+              "text": "하린은 봉인된 편지를 받았다. 아직 열지 않았고 내용은 모른다.",
+              "disposition": "adopted",
+              "scene_title": "봉인의 밤",
+              "source": {
+                "fingerprint": "sha256:aac39dba31f86e780cf85678dc5d479171236b3a9a436b18b9bb3ccff8b76186",
+                "revision": 2,
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:16399d5473ecd6fe517bfd98f103c2309e710511ff67b761a5829b7a60e1f8bd",
+                  "revision": 3,
+                  "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "undecided",
+                  "rejected"
+                ],
+                "reason": "합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다."
+              },
+              "identity": {
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d",
+                "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                "proposal": 3
+              },
+              "effective": "superseded",
+              "attribution": "inherited; not a new branch review"
+            },
+            {
+              "event_time": 10,
+              "kind": "intention",
+              "reveal_order": 10,
+              "subject": "작가",
+              "text": "황제의 훗날 공개 귀환은 아직 결정하지 않았다.",
+              "disposition": "undecided",
+              "scene_title": "봉인의 밤",
+              "source": {
+                "fingerprint": "sha256:aac39dba31f86e780cf85678dc5d479171236b3a9a436b18b9bb3ccff8b76186",
+                "revision": 2,
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:16399d5473ecd6fe517bfd98f103c2309e710511ff67b761a5829b7a60e1f8bd",
+                  "revision": 3,
+                  "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "undecided",
+                  "rejected"
+                ],
+                "reason": "합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다."
+              },
+              "identity": {
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d",
+                "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                "proposal": 4
+              },
+              "effective": "current",
+              "attribution": "inherited; not a new branch review"
+            },
+            {
+              "event_time": 2,
+              "kind": "knowledge",
+              "reveal_order": 1,
+              "subject": "하린",
+              "text": "지금 편지를 열어 황제의 생존을 즉시 알게 한다.",
+              "disposition": "rejected",
+              "scene_title": "봉인의 밤",
+              "source": {
+                "fingerprint": "sha256:aac39dba31f86e780cf85678dc5d479171236b3a9a436b18b9bb3ccff8b76186",
+                "revision": 2,
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:16399d5473ecd6fe517bfd98f103c2309e710511ff67b761a5829b7a60e1f8bd",
+                  "revision": 3,
+                  "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "adopted",
+                  "undecided",
+                  "rejected"
+                ],
+                "reason": "합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다."
+              },
+              "identity": {
+                "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d",
+                "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                "proposal": 5
+              },
+              "effective": "superseded",
+              "attribution": "inherited; not a new branch review"
+            },
+            {
+              "event_time": 2,
+              "kind": "knowledge",
+              "requires": [],
+              "reveal_order": 1,
+              "revises": [
+                {
+                  "proposal": 3,
+                  "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                  "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                },
+                {
+                  "proposal": 5,
+                  "scene_id": "797555eb-0b82-4d75-ad8e-8a35aa25a50b",
+                  "work_id": "71f1130c-727b-40dc-81d1-9735a4930d0d"
+                }
+              ],
+              "subject": "하린",
+              "text": "이 대안에서 하린은 봉인을 열어 황제가 살아 있음을 알았다.",
+              "disposition": "adopted",
+              "scene_title": "봉인을 연 밤 — 대안",
+              "source": {
+                "fingerprint": "sha256:0484a761e8e41ddb1082d12009afc2def858edc4f627e4b152987c0188bd1cea",
+                "revision": 1,
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:4c67f4a37f90a1c6621d24fa59aed46c9aa39b977e70e82b2622723d8e49df42",
+                  "revision": 2,
+                  "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "undecided"
+                ],
+                "reason": "합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다."
+              },
+              "identity": {
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179",
+                "scene_id": "8a224d6c-6c97-45ba-8917-6b4000f21205",
+                "proposal": 0
+              },
+              "effective": "current",
+              "attribution": "local"
+            },
+            {
+              "event_time": 1,
+              "kind": "fact",
+              "reveal_order": 1,
+              "subject": "안뜰",
+              "text": "안뜰의 종은 새벽마다 한 번 울린다.",
+              "disposition": "adopted",
+              "scene_title": "봉인을 연 밤 — 대안",
+              "source": {
+                "fingerprint": "sha256:0484a761e8e41ddb1082d12009afc2def858edc4f627e4b152987c0188bd1cea",
+                "revision": 1,
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:4c67f4a37f90a1c6621d24fa59aed46c9aa39b977e70e82b2622723d8e49df42",
+                  "revision": 2,
+                  "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "undecided"
+                ],
+                "reason": "합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다."
+              },
+              "identity": {
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179",
+                "scene_id": "8a224d6c-6c97-45ba-8917-6b4000f21205",
+                "proposal": 1
+              },
+              "effective": "current",
+              "attribution": "local"
+            },
+            {
+              "event_time": 10,
+              "kind": "intention",
+              "reveal_order": 10,
+              "subject": "작가",
+              "text": "황제의 공개 귀환 날짜는 계속 미정이다.",
+              "disposition": "undecided",
+              "scene_title": "봉인을 연 밤 — 대안",
+              "source": {
+                "fingerprint": "sha256:0484a761e8e41ddb1082d12009afc2def858edc4f627e4b152987c0188bd1cea",
+                "revision": 1,
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:4c67f4a37f90a1c6621d24fa59aed46c9aa39b977e70e82b2622723d8e49df42",
+                  "revision": 2,
+                  "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+                },
+                "dispositions": [
+                  "adopted",
+                  "adopted",
+                  "undecided"
+                ],
+                "reason": "합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다."
+              },
+              "identity": {
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179",
+                "scene_id": "8a224d6c-6c97-45ba-8917-6b4000f21205",
+                "proposal": 2
+              },
+              "effective": "current",
+              "attribution": "local"
+            },
+            {
+              "event_time": 1,
+              "kind": "fact",
+              "reveal_order": 1,
+              "subject": "정원",
+              "text": "정원의 등불은 푸른 유리로 덮여 있다.",
+              "disposition": "adopted",
+              "scene_title": "푸른 등불",
+              "source": {
+                "fingerprint": "sha256:23c736cb564422b0f02732f45862f301775c9aea83c84738b59d1e1e3446f498",
+                "revision": 4,
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "review": {
+                "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+                "basis": {
+                  "fingerprint": "sha256:13c655e9157dd44d24de73e4bdc7d69d77cf7d412d578a90f2d539c92660aca7",
+                  "revision": 5,
+                  "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+                },
+                "dispositions": [
+                  "adopted"
+                ],
+                "reason": "열어 읽은 편지의 재해석을 이 갈래에서도 유지한다."
+              },
+              "identity": {
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179",
+                "scene_id": "8a79c7f6-a2d2-4001-bba8-c99655b39110",
+                "proposal": 0
+              },
+              "effective": "current",
+              "attribution": "local"
+            }
+          ],
+          "preceding": {
+            "basis": {
+              "fingerprint": "sha256:23c736cb564422b0f02732f45862f301775c9aea83c84738b59d1e1e3446f498",
+              "revision": 4,
+              "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+            },
+            "draft": "푸른 유리의 등불 아래에 작은 돌이 놓여 있었다.\n\n편지의 문장은 지우지 않았다.",
+            "event_time": 3,
+            "id": "8a79c7f6-a2d2-4001-bba8-c99655b39110",
+            "proposals": [
+              {
+                "event_time": 1,
+                "kind": "fact",
+                "reveal_order": 1,
+                "subject": "정원",
+                "text": "정원의 등불은 푸른 유리로 덮여 있다."
+              }
+            ],
+            "reveal_order": 2,
+            "review": {
+              "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+              "basis": {
+                "fingerprint": "sha256:13c655e9157dd44d24de73e4bdc7d69d77cf7d412d578a90f2d539c92660aca7",
+                "revision": 5,
+                "work_id": "cdc77cb6-c7e6-45a9-ab81-df40092cb179"
+              },
+              "dispositions": [
+                "adopted"
+              ],
+              "reason": "열어 읽은 편지의 재해석을 이 갈래에서도 유지한다."
+            },
+            "source_files": [
+              {
+                "bytes": 546,
+                "digest": "sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95",
+                "name": "manuscript.txt",
+                "role": "source"
+              }
+            ],
+            "title": "푸른 등불",
+            "viewpoint": "하린"
+          },
+          "text": "# Scene preparation: 복구 후 읽기\n\nViewpoint: 하린\nFictional event position: 3\nReveal position: 2\n\nFictional scope: 봉인과 황제 — 대안\nSaved work: cdc77cb6-c7e6-45a9-ab81-df40092cb179\nRevision: 6\nFingerprint: sha256:b236636e3e484ef4cad2302efba12346ed12861dfc684fcfbd10c6204770270e\n\nAuthoring context, not empirical Evidence or execution authority. Facts are author knowledge, not automatically character knowledge. Beliefs and public/narrator assertions need not be true. Undecided and rejected changes have not happened by adoption. Draft prose is not canon. Fictional positions are independent of real revision time. Original sources remain the master; this view is bounded and rebuildable.\n\nSetting revisions are explicit retroactive reinterpretations at the same fictional positions, not later events. Superseded entries remain historical and do not supply current knowledge. Inherited reviews retain their original author and scope. Selected transfers adopt only the named proposals, never the source draft. Natural-language dependencies are UNKNOWN unless explicitly linked.\n\n## Applicable consequential material\n\n[adopted; current; inherited; not a new branch review; fact; 작가; event 0; reveal 0] 황제는 살아 있다.\nFrom scene: 봉인의 밤; original basis revision 2; reviewed at revision 3 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다.\n\n[adopted; current; inherited; not a new branch review; assertion; 궁정; event 0; reveal 0] 궁정은 황제가 죽었다고 발표했다.\nFrom scene: 봉인의 밤; original basis revision 2; reviewed at revision 3 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다.\n\n[adopted; current; inherited; not a new branch review; belief; 하린; event 0; reveal 0] 하린은 궁정의 부고를 믿는다. 황제를 아직 보지 못했다.\nFrom scene: 봉인의 밤; original basis revision 2; reviewed at revision 3 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다.\n\n[adopted; superseded; inherited; not a new branch review; knowledge; 하린; event 2; reveal 1] 하린은 봉인된 편지를 받았다. 아직 열지 않았고 내용은 모른다.\nFrom scene: 봉인의 밤; original basis revision 2; reviewed at revision 3 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다.\n\n[undecided; current; inherited; not a new branch review; intention; 작가; event 10; reveal 10] 황제의 훗날 공개 귀환은 아직 결정하지 않았다.\nFrom scene: 봉인의 밤; original basis revision 2; reviewed at revision 3 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다.\n\n[rejected; superseded; inherited; not a new branch review; knowledge; 하린; event 2; reveal 1] 지금 편지를 열어 황제의 생존을 즉시 알게 한다.\nFrom scene: 봉인의 밤; original basis revision 2; reviewed at revision 3 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다.\n\n[adopted; current; local; knowledge; 하린; event 2; reveal 1] 이 대안에서 하린은 봉인을 열어 황제가 살아 있음을 알았다.\nFrom scene: 봉인을 연 밤 — 대안; original basis revision 1; reviewed at revision 2 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다.\n\n[adopted; current; local; fact; 안뜰; event 1; reveal 1] 안뜰의 종은 새벽마다 한 번 울린다.\nFrom scene: 봉인을 연 밤 — 대안; original basis revision 1; reviewed at revision 2 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다.\n\n[undecided; current; local; intention; 작가; event 10; reveal 10] 황제의 공개 귀환 날짜는 계속 미정이다.\nFrom scene: 봉인을 연 밤 — 대안; original basis revision 1; reviewed at revision 2 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다.\n\n[adopted; current; local; fact; 정원; event 1; reveal 1] 정원의 등불은 푸른 유리로 덮여 있다.\nFrom scene: 푸른 등불; original basis revision 4; reviewed at revision 5 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 열어 읽은 편지의 재해석을 이 갈래에서도 유지한다.\n\n## Previous applicable draft (prose, not canon)\n\n푸른 등불\n푸른 유리의 등불 아래에 작은 돌이 놓여 있었다.\n\n편지의 문장은 지우지 않았다.\n\n## Exact selected originals (authored sources, not automatic adoption)\n\nmanuscript.txt · revision 6 · sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95\n세계의 사실 — 작가가 정한 설정: 황제는 살아 있다.\n\n공식 발표: 궁정은 “황제가 죽었다”고 알렸다. 발표는 세계의 사실과 같지 않다.\n\n인물의 믿음: 기사 하린은 그 발표를 믿는다. 아직 황제를 보지 못했다.\n\n미정인 작가의 의도: 황제가 나중에 돌아오는 전개를 고려 중이다. 아직 결정하지 않았다. 재등장 시점도 열어 둔다.\n\n원문 표기: café / é ≠ é / 한글 🧭\n문단과 공백을 보존한다. <script>fiction only</script>",
+          "bytes": 6102,
+          "limit": 16384,
+          "fingerprint": "sha256:d6fd72482e2538c671ff9d49080d932e94a828c04fb650642f2197f1c1881e95"
+        },
+        "draft": "푸른 유리의 등불 아래에 작은 돌이 놓여 있었다.\n\n편지의 문장은 지우지 않았다."
+      }
+    ],
+    "provenance": "Real browser controls and D1; fresh tickets, explicit confirmations and empty-store recovery; no model use"
+  },
+  "recovery_serialization": "Parsed product-generated browser download value, serialized for this report; embedded original file bytes and all revision envelopes unchanged. The actual downloaded file was consumed by the product import picker before cleanup."
+}

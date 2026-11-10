@@ -128,6 +128,81 @@ attachment preparation is available only on the verified supported lane;
 packaged Windows preparation remains unavailable. No MCP result exposes the
 native component path, volume serial, file ID, or canonical private path.
 
+## Public setup and first continuation
+
+The connection Skill helps someone unfamiliar with Augnes use a supported path
+through their existing tools. Start from the person's or agent's concrete goal;
+knowledge of Augnes's roadmap or internal architecture is not a prerequisite.
+
+| First-time consumer | What the entry should make clear |
+| --- | --- |
+| A person new to Augnes | What useful task they can do now, which setup is needed, how to recognize the result and how to return to it. |
+| The person's agent, coding tool or harness | Which Augnes capabilities are actually available in this host, the correct project binding, required setup or permission, and how to read back a result. Keep the existing host's normal execution workflow. |
+| An independent agent considering participation | A concrete goal or offered task, accessible inputs, permitted actions, expected output and supported work/result or contribution path. Loading a Skill alone does not establish participation, organization membership or permission. |
+
+Give a short explanation of the available path and the next action. Reuse
+already available context and ask only for missing information that changes the
+choice. A different host needs its own capability/compatibility check: the
+concrete continuity route below is the supported local Codex/Companion path,
+not evidence that every agent or harness can use those tools. If a capability is
+absent, identify that exact gap and a supported next step without inventing a
+connection or performing unrelated setup.
+
+Choose the outcome before installing anything:
+
+| Outcome | Entry and prerequisites | First useful result |
+| --- | --- | --- |
+| Calculate retry work without Augnes | [Public workflow-cost files](PUBLIC_ASSET_SKILL_USAGE.md), Python 3.9+ and permitted local execution; optional separately installed Codex Skill | A checked calculation with its assumptions. No Companion, account or project is needed. |
+| Continue a project with Augnes | A source checkout, supported macOS/Node 24 Companion, ready local Codex client and installed `augnes-operator` | Current saved work, or an explicit blank/unavailable state, for the intended registered project. |
+| Route an explicit Augnes request | `augnes-codex` guidance | Delegation to the above owners. This routing skill alone provides no service or state. |
+
+For the continuity path, keep **application checkout** and **project folder**
+separate. The service install/status/start and plugin setup use the Augnes
+application checkout. Resume and ordinary work tools use the intended project's
+registered local root, including an ordinary folder without Git. A package
+label, GitHub URL or current shell directory does not establish either binding.
+
+1. Check the [Quickstart runtime and platform requirements](../README.md#quickstart)
+   on the computer that will run Augnes. Linux/Windows foreground development is
+   not the packaged macOS Companion route. Do not promise remote/mobile local
+   service access merely because a Skill loads.
+2. From the Augnes checkout, follow the existing service installation below if
+   the user requested installation. Inspect existing status first when resuming;
+   do not replace an unrelated installed service. Run `npm run augnes:plugin:install`
+   to install and check the Operator in the intended Codex profile. If you
+   also want the public routing Skill in another project, use
+   `codex plugin add augnes-codex@augnes-local --json` in that same profile
+   after Operator setup has registered the marketplace. Open a fresh client
+   in the project to use its loaded tools. If you set `CODEX_HOME`, use the
+   same absolute profile directory for setup and client use.
+3. From the application checkout run `npm run augnes -- status`. Open its
+   `effective_url` when the runtime is ready and verified; service lifecycle
+   status alone does not return an address. Connect/select the intended project
+   using the [normal project onboarding](../README.md#quickstart). A fresh project
+   legitimately has no previous work. Plugin installation is not registration.
+4. Ask Codex to resume that project. The live-continuity owner checks the
+   application service, then reads the project's current state. If tools are
+   absent or a version is refused, use the existing setup/diagnostic action;
+   preserve unsupported or unavailable results instead of reconstructing state.
+5. Define first work or continue the selected task within its existing scope.
+   Read back saved changes through a fresh Resume. Managed execution and its
+   result/continuation tools retain their own capability and admission checks.
+   A saved definition, successful read or installed Skill is not an executed job.
+
+For the chosen first task, report the actual result and its check, anything
+unfinished, and the next supported action in ordinary language. When work needs
+to continue, leave the necessary basis through the existing work/result path so
+a fresh session or authorized successor can resume it. One-time public asset
+use can finish with its useful output; it need not create an account, saved work
+or an agent organization.
+
+For example, in the registered project ask: “Use Augnes to check our release
+checklist against the build report. Flag the open items, save the evidence
+for the next shift, and reopen it to check.” When a new build arrives, a
+fresh session can retrieve those open items and check what changed. Report
+which parts needed setup help; this local path does not establish
+compatibility with other hosts or supply a standalone runtime.
+
 ## Current local product path
 
 The supported CDX2B1 path is:
@@ -154,11 +229,16 @@ npm run augnes:service:install
 ```
 
 The user LaunchAgent is an explicit, checkout-bound macOS installation. It
-pins one Node 24 binary and survives terminal/Codex exit, login, and unexpected
+pins one Node 24 binary at version 24.22.1 or later within that major and survives terminal/Codex exit, login, and unexpected
 supervisor failure. It grants no repository execution, managed Resume,
 provider, semantic, publication, or merge authority. Explicit stop/uninstall
 remain available. Stop persists across a later login or LaunchAgent reload;
-only explicit Start or Install returns that exact service to running. One
+only explicit Start returns that exact service to running; Install/update
+preserves an existing stopped intent. New schema-2 installations use durable
+Darwin volume/object enrollment, separate from current process and source
+bindings. Legacy enrollment is explicit, quiescent and never performed by
+status/discovery. See [Companion checkout identity](COMPANION_CHECKOUT_IDENTITY.md)
+for supported commands and refusal/recovery limits. One
 production Companion service is allowed per local user session, and a
 different checkout refuses without mutating the existing service. Linux and
 Windows service installation are unsupported.
@@ -255,6 +335,11 @@ it is development mechanism evidence, not independent usefulness or learning.
 For an explicit request to read the current task's saved notes, call
 `augnes_read_repository_work_sources` with the same `repositoryRoot` and the
 exact Resume `continuity.snapshot.binding` as `expectedSnapshotBinding`.
+When the authorized work needs its complete goal, success criteria and non-goals,
+also pass `includeWorkDefinition: true`. Omission retains the source-only read.
+This direct option uses the same snapshot as the selected notes, without
+execution-choice or review-connection processing. Those existing complete-context
+alternatives remain available; the method-outlook tool rejects this option.
 This local Companion read needs no Browser login or token transfer. It returns
 literal selected excerpts and their bounded provenance, permitted locators,
 review labels and unknown/known source times. It does not return full project
@@ -265,6 +350,18 @@ See the [source-read contract](CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-current
 for empty/unavailable distinctions and the locator projection difference from
 the authenticated Browser. Legacy `augnes_get_work_brief` and page-bound
 WebMCP retain their separate contracts.
+
+For normal authorized work, use the complete conditions and relevant sources to
+make a source-grounded judgment, perform the permitted task, and inspect its
+actual output and independent check. Through unchanged ordinary revision
+preview/save, attribute the observed result separately from a justified
+retention, revision or non-use judgment. Preserve still-valid obligations and
+unresolved conditions. Resume and explicitly read back the saved state; a fresh
+successor retrieves it through normal entry before its useful follow-up. A
+refused full read supplies no replacement definition, notes or bindings: do not
+fall back to Resume summaries or a source-only read. This workflow requires
+neither notes on every Resume nor another model call; it creates no execution
+grant, managed receipt, semantic acceptance or general learning claim.
 
 When the user explicitly authorizes finding omitted historical notes, use
 `augnes_lookup_repository_retained_sources` with the same root, exact Resume
@@ -303,6 +400,41 @@ missing/stale installation only through its separately authorized setup owner.
 Full input and recovery boundaries are in the
 [preparation contract](CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-preview-and-save-of-prepared-work).
 
+For an explicitly authorized follow-up from a **completed, settled local result**,
+Resume the intended repository and call `augnes_read_repository_result_work`
+with `repositoryRoot` and the returned `continuity.snapshot.binding` as
+`expectedSnapshotBinding`. The server
+resolves the current packet and latest local result; do not reconstruct receipt,
+packet or project identifiers. Existing result-successor eligibility still checks
+the physical root and unresolved effects. A failed verification check is distinct
+from a failed execution; a portable receipt alone is not a local predecessor.
+
+Carry `preparation_binding` as `preparationBinding`. Keep these repository,
+snapshot and preparation inputs unchanged through compare, preview and save.
+Explicitly supply
+`sources.keep`, `sources.add`, `sources.include_result`,
+`sources.include_reviewed_outcome` and `sources.omitted_sources` reasons for
+every omitted predecessor note. Call
+`augnes_compare_repository_result_work_sources`, then pass its
+`expected_source_comparison` as `expectedSourceComparison`, identical sources
+and a complete `definition` (`goal`, `success_criteria`, `non_goals`) to
+`augnes_preview_repository_result_work`. Inspect the authored definition,
+selected sources, omissions and mandatory packet obligations. Preview compiles
+the whole packet under existing budgets; nothing is silently truncated. Result
+reports remain attributed, unverified material.
+
+Only an explicit `augnes_prepare_repository_result_work` with the same inputs
+and returned `preview_binding` as `previewBinding` saves successor work. The
+Companion authenticates independently of those bindings and rechecks current
+state atomically. Read, comparison and preview write nothing; save starts no run,
+grants no execution authority and makes no semantic or predecessor-success claim.
+Resume again and use `augnes_read_repository_work_sources` with
+`includeWorkDefinition: true` to read the saved definition and sources. Reconcile
+a lost save response through this readback before further authorship; do not
+automatically retry. This path has no exact-replay contract. Stale bindings refuse;
+concurrent saves can have uncertain delivery and require the same readback.
+Existing unexecuted-new-work remains separate.
+
 For **experience use across goals**, first classify the permitted material against
 the new task: unchanged support/callables, conditions to recheck, and goal-specific
 or irrelevant advice to omit. Keep original observations separate from an attributed
@@ -331,6 +463,15 @@ derived. External output success does not mark the prior ordinary work complete
 or create a RunReceipt. Its scripted source choices are development mechanism
 evidence, not comparative usefulness or learning; exact ledger tasks need no
 retry-inspection outlook.
+
+For selected cross-project experience and a finite local processing request,
+use `augnes_external_repository_work` after operator configuration. Its ordinary
+`read` entry exposes current work, permitted shared experience, complete material
+reads, request/receipt reconciliation, explicit amendments and attributable
+check/use/correction. The [local contract](EXTERNAL_RESPONSE_LOCAL.md) specifies
+every action and the fresh-process report consumer. This additive byte/effect
+owner preserves the narrower execution-choice and review contracts; it does not
+activate Events or inherit predecessor execution authority.
 
 When Resume reports no work in an already registered and selected local project,
 use `augnes_preview_repository_initial_work` with the exact snapshot binding and
@@ -418,6 +559,15 @@ originating process; pagination returns `next_cursor` for the next `cursor`.
 The configured destination, exact reviewed material, answer, limitations and
 currentness remain visible. Unavailable inspection is a failure, not an empty
 request list.
+
+The separately scoped reviewer uses `augnes_get_review_status` with its exact
+`request_ref` to inspect the same request/response/current-use item available in
+its paginated list, including after an ordinary origin save. Pending/current,
+pending/historical and answered guidance reflects contributor capabilities.
+This read-only lookup creates no material-read binding, origin-readback marker,
+use note or reply authority. Only the origin prepares and saves use; current
+non-observation does not establish no historical use. See the
+[contributor sequence](EXECUTION_CHOICE_USAGE.md#contributor-status-after-the-origin-advances-1506).
 
 After reading a current answer, `prepare_use` takes `retain`, `revise` or `reject`
 and attributable reasoning. It returns ordinary revision preview arguments for

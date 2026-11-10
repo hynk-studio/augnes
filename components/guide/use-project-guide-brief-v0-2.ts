@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { projectExperienceGuideObserverV1 } from "@/components/delegated-work/project-experience-test-observer";
 
 import {
   GUIDE_BRIEF_REQUEST_SCOPE_V02,
@@ -24,11 +25,16 @@ export function useProjectGuideBriefV02(initialGuide?: ProjectGuideBriefV02, pro
   const controllerRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
   const requestCountRef = useRef(0);
+  const diagnosticIdentity = useRef<object>({});
+  const diagnostic = projectExperienceGuideObserverV1(diagnosticIdentity.current);
 
   const read = useCallback(async () => {
+    diagnostic?.abort(controllerRef.current, "supersede");
     controllerRef.current?.abort();
+    diagnostic?.abortReturned(controllerRef.current);
     const controller = new AbortController();
     controllerRef.current = controller;
+    const observation = diagnostic?.read(controller, projectId);
     requestCountRef.current += 1;
     setStatus("loading");
     try {
@@ -36,7 +42,7 @@ export function useProjectGuideBriefV02(initialGuide?: ProjectGuideBriefV02, pro
         scope: GUIDE_BRIEF_REQUEST_SCOPE_V02,
       });
       if (projectId) query.set("project_id", projectId);
-      const response = await fetch(`/api/augnes/read/guide-brief?${query}`, {
+      const response = await (observation?.fetch ?? fetch)(`/api/augnes/read/guide-brief?${query}`, {
         method: "GET",
         cache: "no-store",
         credentials: "same-origin",
@@ -45,33 +51,51 @@ export function useProjectGuideBriefV02(initialGuide?: ProjectGuideBriefV02, pro
         },
         signal: controller.signal,
       });
+      observation?.event("headers", response.status);
+      observation?.event("body_started");
       const body: unknown = await response.json();
+      observation?.event("body_completed");
       const parsed = readProjectGuideBriefV02(body);
+      observation?.event("parsed", parsed !== null);
       if (!response.ok || !parsed) throw new Error("guide_brief_unavailable");
       if (mountedRef.current && !controller.signal.aborted) {
+        observation?.apply(parsed);
         setGuide(parsed);
         setStatus(
           parsed.projections.ai_workplane.status === "available"
             ? "available"
             : "unavailable",
         );
-      }
-    } catch {
+      } else observation?.event("stale_blocked");
+    } catch (caught) {
+      observation?.event(caught instanceof Error && caught.name === "AbortError" && controller.signal.aborted
+        ? "read_aborted" : "read_failed");
       if (mountedRef.current && !controller.signal.aborted) {
         setGuide(null);
         setStatus("unavailable");
       }
+    } finally {
+      observation?.event("returned");
     }
-  }, [projectId]);
+  }, [projectId, diagnostic]);
 
   useEffect(() => {
+    diagnostic?.setup(projectId);
     mountedRef.current = true;
+    diagnostic?.initial(true);
     if (!initialGuide) void read();
+    diagnostic?.initial(false);
     return () => {
       mountedRef.current = false;
+      diagnostic?.abort(controllerRef.current, "cleanup");
       controllerRef.current?.abort();
+      diagnostic?.abortReturned(controllerRef.current);
     };
-  }, [initialGuide, read]);
+  }, [initialGuide, read, diagnostic, projectId]);
+
+  useEffect(() => {
+    diagnostic?.commit(guide, controllerRef.current, projectId);
+  }, [guide, diagnostic, projectId]);
 
   return {
     guide,

@@ -9,6 +9,28 @@ const MANIFEST_URL = new URL(
 
 export const OPERATOR_EXECUTION_OWNER_V1 = "operator_execution";
 
+// Existing operator-family phases; no project-experience policy is broadened.
+export const OPERATOR_REQUEST_LIFECYCLE_PHASES_V1 = Object.freeze([
+  "bounded_automation_execution",
+  "browser_navigation_diagnostics",
+  "direct_native_host_round_trip",
+  "executed_reviewed_follow_up",
+  "first_work_definition_and_start",
+  "live_native_host_approval_lifecycle",
+  "multi_candidate_decisions_and_preview",
+  "multi_candidate_guidebrief_read_only",
+  "multi_candidate_return_and_handoff",
+  "multi_candidate_session_and_scope",
+  "multi_candidate_transition_application",
+  "operator_session_bootstrap",
+  "operator_session_refusal_recovery",
+  "project_controls_and_automation",
+  "result_review_and_inspector",
+  "review_decision_and_transition",
+  "strategic_analysis_and_proposal_review",
+  "work_expectation_recording"
+]);
+
 const OPERATOR_REQUEST_FAILURE_EVIDENCE_KEYS_V1 = Object.freeze([
   "delivery_cardinality",
   "delivery_sequence",
@@ -17,6 +39,7 @@ const OPERATOR_REQUEST_FAILURE_EVIDENCE_KEYS_V1 = Object.freeze([
   "error_text",
   "evidence_version",
   "initiating_phase",
+  "initiator_consumers",
   "method",
   "navigation_epoch",
   "observation_phase",
@@ -27,6 +50,48 @@ const OPERATOR_REQUEST_FAILURE_EVIDENCE_KEYS_V1 = Object.freeze([
   "response_classification",
   "response_status",
 ]);
+
+// Only reviewed source suffixes leave the ephemeral CDP stack. No URLs,
+// query strings, function arguments, cookies or raw initiator stacks are retained.
+const OPERATOR_REQUEST_CONSUMERS_V1 = Object.freeze([
+  "components/guide/use-project-guide-brief-v0-2.ts",
+  "components/workbench/inspector/shared-project-inspector-loader.tsx",
+  "components/workbench/semantic-review/semantic-review-surface.tsx",
+  "components/workbench/semantic-review/operator-session-panel.tsx",
+  "components/workbench/result-review/run-result-review-loader.tsx",
+  "components/workbench/result-review/result-work-composer.tsx",
+  "components/blank-state/project-draft-access.ts",
+]);
+
+export function operatorRequestInitiatorConsumersV1(initiator) {
+  const observed = new Set();
+  let stack = initiator?.stack;
+  for (let depth = 0; stack && depth < 16; depth++, stack = stack.parent) {
+    for (const frame of (stack.callFrames ?? []).slice(0, 64)) {
+      const source = String(frame.url ?? "").split("?")[0];
+      for (const consumer of OPERATOR_REQUEST_CONSUMERS_V1) {
+        if (source.endsWith("/" + consumer)) observed.add(consumer);
+      }
+    }
+  }
+  return OPERATOR_REQUEST_CONSUMERS_V1.filter(value => observed.has(value));
+}
+
+// Complete small failure sets, with explicit accounting when a bounded private
+// diagnostic exceeds either limit. Counts used by the final gate never truncate.
+export function boundedOperatorRequestFailuresV1(entries) {
+  const records = [];
+  let bytes = 2;
+  for (const entry of entries) {
+    assertOperatorRequestFailureEvidenceV1(entry);
+    const size = Buffer.byteLength(JSON.stringify(entry)) + (records.length ? 1 : 0);
+    if (records.length >= 128 || bytes + size > 256 * 1024) break;
+    records.push(entry); bytes += size;
+  }
+  return { records, total: entries.length, captured: records.length,
+    omitted: entries.length - records.length, complete: entries.length === records.length,
+    record_limit: 128, byte_limit: 256 * 1024, serialized_bytes: bytes };
+}
 
 export function createOperatorRequestFailureEvidenceV1({
   request_id,
@@ -42,6 +107,7 @@ export function createOperatorRequestFailureEvidenceV1({
   delivery_sequence,
   delivery_cardinality,
   request_type,
+  initiator_consumers = [],
   private_roots = [],
 }) {
   const sanitize = (value, maximumLength) =>
@@ -51,6 +117,7 @@ export function createOperatorRequestFailureEvidenceV1({
     });
   const evidence = {
     evidence_version: "operator_request_failure_evidence.v1",
+    initiator_consumers: OPERATOR_REQUEST_CONSUMERS_V1.filter(value => initiator_consumers.includes(value)),
     request_id: sanitize(request_id ?? "request-id-unavailable", 128),
     method: sanitize(String(method ?? "UNKNOWN").toUpperCase(), 16),
     path: path === null || path === undefined ? null : sanitize(path, 240),
@@ -93,6 +160,7 @@ export function assertOperatorRequestFailureEvidenceV1(evidence) {
     evidence.evidence_version,
     "operator_request_failure_evidence.v1",
   );
+  assert.deepEqual(evidence.initiator_consumers, OPERATOR_REQUEST_CONSUMERS_V1.filter(value => evidence.initiator_consumers.includes(value)));
   assert.match(evidence.request_id, /^[\x20-\x7e]{1,128}$/u);
   assert.match(evidence.method, /^[A-Z][A-Z0-9_-]{0,15}$/u);
   if (evidence.path !== null) {
@@ -603,4 +671,10 @@ function boundedOperatorRequestFailureTextV1(
 
 function compareCodeUnits(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
+}
+
+export function classifyOperatorLifecycleRequestFailureV1(entry, requestVerdicts) {
+  if (entry.path === "/api/augnes/read/guide-brief") return requestVerdicts.guideEffectReplayCancellation(entry);
+  if (entry.path === "/api/vnext/operator/session") return requestVerdicts.inspectorEffectReplayCancellation(entry);
+  return requestVerdicts.normallyConsumedFlight(entry);
 }

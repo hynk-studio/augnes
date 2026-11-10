@@ -41,6 +41,42 @@ assert.equal(ambiguousConnection.result.structuredContent.reason, "companion_amb
 assert.equal(ambiguousConnection.result.structuredContent.sources, undefined);
 assert.equal(connectedDiscoveryCalls, 1);
 
+// Both shared read producers now return confirmed refusal codes. Preserve the
+// connected reader's public outcomes without classifying HTTP status alone.
+const connectedKey = `sha256:${"a".repeat(64)}`;
+for (const stage of ["continuity", "sources"]) {
+  for (const [code, status, reason] of [
+    ["companion_channel_refused", "unauthorized", "companion_authentication_refused"],
+    ["companion_identity_changed", "refresh_required", "companion_identity_changed"],
+    ...["companion_unavailable", "live_companion_read_unavailable", "live_companion_route_status_403",
+      "live_companion_sources_status_409", "private-path-and-token-must-not-escape"].map(code =>
+      [code, "unavailable", "companion_read_unavailable_or_invalid"]),
+  ]) {
+    let reads = 0;
+    const refuse = async () => { reads++; throw new Error(code); };
+    const reader = createConnectedProjectReaderV01({ repositoryRoot: process.cwd(), projectKey: connectedKey }, {
+      discover: async () => ({ status: "resolved", companion: {} }),
+      readContinuity: stage === "continuity" ? refuse : async () => ({
+        repository_resolution: { status: "resolved_exact", project_key: connectedKey },
+        continuity: { project: { project_key: connectedKey, root_availability: "available" },
+          current_work: { status: "current_work", currentness: "fresh" }, source_status: "exact",
+          snapshot: { status: "exact", binding: connectedKey } },
+      }),
+      readSources: refuse,
+    });
+    const response = (await reader({ jsonrpc: "2.0", id: 1, method: "tools/call",
+      params: { name: "augnes_read_connected_project_work", arguments: {} } })).result;
+    assert.equal(response.isError, true);
+    assert.equal(response.structuredContent.status, status);
+    assert.equal(response.structuredContent.reason, reason);
+    assert.equal(reads, 1, "a refusal must not retry either reader");
+    for (const key of ["current_work", "sources", "snapshot", "packet_fingerprint", "project"])
+      assert.equal(Object.hasOwn(response.structuredContent, key), false);
+    assert.equal(Object.values(response.structuredContent.authority).every(value => value === false), true);
+    assert.doesNotMatch(JSON.stringify(response), /private-path-and-token/u);
+  }
+}
+
 const requireMcpSdk = createRequire(path.join(process.cwd(), "apps", "augnes_apps", "package.json"));
 const { Client } = requireMcpSdk("@modelcontextprotocol/sdk/client/index.js");
 const { StdioClientTransport } = requireMcpSdk("@modelcontextprotocol/sdk/client/stdio.js");
@@ -116,12 +152,15 @@ let executionScenario = null;
 let uiHealthAvailable = true;
 let uiHealthCalls = 0;
 let sourcesScenario = null;
+const sourceRequests = [];
+let transportCalls = 0;
 let retainedScenario = null;
 let retainedCalls = 0;
 let workRevisionScenario = null;
 let workRevisionCalls = 0;
 
 const ui = createServer(async (request, response) => {
+  transportCalls++;
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
   response.setHeader("content-type", "application/json");
   response.setHeader("cache-control", "no-store");
@@ -194,6 +233,8 @@ const ui = createServer(async (request, response) => {
   }
   if (url.pathname === "/api/augnes/read/codex-repository-work-sources" && request.method === "POST") {
     assert(sourcesScenario);
+    let body = ""; for await (const chunk of request) body += chunk;
+    sourceRequests.push(JSON.parse(body));
     assert.equal(request.headers.cookie, undefined, "source read must not carry Browser credentials");
     assert.equal(request.headers["x-augnes-companion-proxy"], proxyToken);
     assert.equal(request.headers["x-augnes-runtime-generation"], generation);
@@ -201,7 +242,7 @@ const ui = createServer(async (request, response) => {
     response.setHeader("x-augnes-runtime-instance", instance);
     response.setHeader("x-augnes-runtime-generation", sourcesScenario.generation ?? generation);
     response.setHeader("x-augnes-runtime-repository", repository);
-    return response.end(JSON.stringify(sourcesScenario.body));
+    return response.writeHead(sourcesScenario.status ?? 200).end(JSON.stringify(sourcesScenario.body));
   }
   if (url.pathname === "/api/augnes/read/codex-repository-retained-sources" && request.method === "POST") {
     retainedCalls++;
@@ -221,6 +262,7 @@ const ui = createServer(async (request, response) => {
 });
 
 const bridge = createServer((request, response) => {
+  transportCalls++;
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
   response.setHeader("content-type", "application/json");
   if (url.pathname === "/healthz") {
@@ -295,7 +337,12 @@ try {
       "augnes_save_repository_work_revision",
       "augnes_preview_repository_new_work",
       "augnes_prepare_repository_new_work",
+      "augnes_read_repository_result_work",
+      "augnes_compare_repository_result_work_sources",
+      "augnes_preview_repository_result_work",
+      "augnes_prepare_repository_result_work",
       "augnes_prepare_repository_execution_choice",
+      "augnes_external_repository_work",
       "augnes_review_repository_work",
       "augnes_prepare_repository_execution",
       "augnes_adopt_repository_execution_root",
@@ -327,10 +374,17 @@ try {
       );
     }
     const byName = new Map(tools.tools.map((tool) => [tool.name, tool]));
+    assert.equal(byName.get("augnes_external_repository_work")?.annotations?.readOnlyHint, false);
+    assert.equal(Object.hasOwn(byName.get("augnes_external_repository_work").inputSchema.properties, "secret"), false);
     assert.equal(byName.get("augnes_review_repository_work")?.annotations?.readOnlyHint, false);
     assert.equal(byName.get("augnes_prepare_repository_execution_choice")?.annotations?.readOnlyHint, true);
     assert.equal(Object.hasOwn(byName.get("augnes_review_repository_work").inputSchema.properties, "secret"), false);
     assert.equal(byName.get("augnes_read_repository_work_sources")?.annotations?.readOnlyHint, true);
+    assert.deepEqual(byName.get("augnes_read_repository_work_sources").inputSchema.properties.includeWorkDefinition,
+      { type: "boolean", const: true });
+    assert.deepEqual(byName.get("augnes_read_repository_work_sources").inputSchema.required,
+      ["repositoryRoot", "expectedSnapshotBinding"]);
+    assert.equal(Object.hasOwn(byName.get("augnes_read_repository_method_outlook").inputSchema.properties, "includeWorkDefinition"), false);
     assert.equal(byName.get("augnes_lookup_repository_retained_sources")?.annotations?.readOnlyHint, true);
     assert.equal(byName.get("augnes_preview_repository_work_revision")?.annotations?.readOnlyHint, true);
     assert.equal(byName.get("augnes_preview_repository_initial_work")?.annotations?.readOnlyHint, true);
@@ -342,6 +396,16 @@ try {
     assert.equal(byName.get("augnes_prepare_repository_new_work")?.annotations?.readOnlyHint, false);
     assert.equal(byName.get("augnes_prepare_repository_new_work")?.annotations?.idempotentHint, false);
     assert.deepEqual(byName.get("augnes_prepare_repository_new_work")?.inputSchema.properties.changes.required, ["goal", "success_criteria", "non_goals", "sources"]);
+    for (const name of ["augnes_read_repository_result_work", "augnes_compare_repository_result_work_sources", "augnes_preview_repository_result_work"]) {
+      assert.equal(byName.get(name)?.annotations?.readOnlyHint, true);
+      assert.equal(byName.get(name)?.annotations?.idempotentHint, true);
+    }
+    const resultSave = byName.get("augnes_prepare_repository_result_work");
+    assert.equal(resultSave?.annotations?.readOnlyHint, false);
+    assert.equal(resultSave?.annotations?.idempotentHint, false);
+    assert.deepEqual(resultSave.inputSchema.required, ["repositoryRoot", "expectedSnapshotBinding", "preparationBinding", "sources", "definition", "expectedSourceComparison", "previewBinding"]);
+    assert.equal(resultSave.inputSchema.additionalProperties, false);
+    assert.match(resultSave.description, /explicitly Resume and read back/u);
     assert.equal(byName.get("augnes_save_repository_work_revision")?.annotations?.readOnlyHint, false);
     assert.equal(byName.get("augnes_save_repository_work_revision")?.annotations?.idempotentHint, false);
     assert.equal(byName.get("augnes_companion_lifecycle_status")?.annotations?.readOnlyHint, true);
@@ -399,7 +463,15 @@ try {
       arguments: { repositoryRoot: process.cwd() },
     });
     assert.notEqual(lifecycleStatus.isError, true);
-    assert.equal(lifecycleStatus.structuredContent?.service?.status, "not_installed");
+    // The service fixture is empty, but only a non-root macOS host supports
+    // installation. Other hosts must preserve the unsupported refusal.
+    const serviceHostSupported = process.platform === "darwin" &&
+      (typeof process.getuid !== "function" || process.getuid() !== 0);
+    assert.equal(lifecycleStatus.structuredContent?.service?.status,
+      serviceHostSupported ? "not_installed" : "unsupported");
+    assert.equal(lifecycleStatus.structuredContent?.service?.platform_support,
+      serviceHostSupported ? "supported" : "unsupported");
+    assert.equal(lifecycleStatus.structuredContent?.service?.start_available, false);
     assert.equal(
       lifecycleStatus.structuredContent?.service?.canonical_resume_available,
       false,
@@ -420,7 +492,9 @@ try {
     assert.equal(lifecycleStart.isError, true);
     assert.equal(
       lifecycleStart.structuredContent?.reason,
-      "companion_service_setup_required",
+      serviceHostSupported
+        ? "companion_service_setup_required"
+        : "companion_service_platform_unsupported",
     );
     assert.equal(lifecycleStart.structuredContent?.authority?.runtime_lifecycle_effect, false);
     assert.equal(executionCalls, executionCallsBeforeLifecycleStart);
@@ -438,36 +512,109 @@ try {
       work_definition: { goal: "Keep A  B\nwith\ttabs", success_criteria: ["A  B", "A B"], non_goals: ["No A  B", "No A B"] },
     };
     assert.deepEqual(parseRepositoryWorkSourcesResponseV01(definitionProjection, true), definitionProjection);
+    for (const task_identity of [null, sourceBinding]) {
+      const identified = { ...definitionProjection, task_identity };
+      assert.deepEqual(parseRepositoryWorkSourcesResponseV01(identified, true), identified);
+    }
+    assert.throws(() => parseRepositoryWorkSourcesResponseV01({ ...definitionProjection, task_identity: "/private/task" }, true), /contract_invalid/u);
+    assert.throws(() => parseRepositoryWorkSourcesResponseV01({ ...sourceProjection, task_identity: sourceBinding }), /contract_invalid/u);
     assert.throws(() => parseRepositoryWorkSourcesResponseV01(definitionProjection), /contract_invalid/u);
     assert.throws(() => parseRepositoryWorkSourcesResponseV01(sourceProjection, true), /contract_invalid/u);
-    for (const work_definition of [null,
+    const invalidDefinitions = [null,
       { ...definitionProjection.work_definition, private_field: "must not escape" },
       { ...definitionProjection.work_definition, goal: "x".repeat(2001) },
       { ...definitionProjection.work_definition, success_criteria: Array(13).fill("item") },
       { ...definitionProjection.work_definition, non_goals: ["x".repeat(501)] },
       { goal: "가".repeat(2000), success_criteria: Array(4).fill("나".repeat(500)), non_goals: [] },
-    ]) assert.throws(() => parseRepositoryWorkSourcesResponseV01({ ...definitionProjection, work_definition }, true), /contract_invalid/u);
+    ];
+    for (const work_definition of invalidDefinitions)
+      assert.throws(() => parseRepositoryWorkSourcesResponseV01({ ...definitionProjection, work_definition }, true), /contract_invalid/u);
     const definitionRefusal = { ...definitionProjection, status: "unavailable", reason: "work_definition_out_of_bounds",
       snapshot_binding: null, packet_fingerprint: null, work_definition: null };
     assert.deepEqual(parseRepositoryWorkSourcesResponseV01(definitionRefusal, true), definitionRefusal);
+    assert.throws(() => parseRepositoryWorkSourcesResponseV01({ ...definitionRefusal, task_identity: sourceBinding }, true), /contract_invalid/u);
     assert.throws(() => parseRepositoryWorkSourcesResponseV01({ ...definitionRefusal, work_definition: definitionProjection.work_definition }, true), /contract_invalid/u);
     for (const mutation of [
       { ...sourceProjection, extra_private_field: "not allowed" },
       { ...sourceProjection, status: "unavailable" },
       { ...sourceProjection, authority: { ...sourceProjection.authority, writes_database: true } },
     ]) assert.throws(() => parseRepositoryWorkSourcesResponseV01(mutation), /contract_invalid/u);
-    const callSources = () => client.callTool({ name: "augnes_read_repository_work_sources", arguments: { repositoryRoot: process.cwd(), expectedSnapshotBinding: sourceBinding } });
-    await assert.rejects(client.callTool({ name: "augnes_read_repository_work_sources", arguments: {
-      repositoryRoot: process.cwd(), expectedSnapshotBinding: sourceBinding, includeWorkDefinition: true,
-    } }), /invalid_repository_tool_request/u, "private delivery mode is not a new local Operator argument");
+    const sourceArgs = { repositoryRoot: process.cwd(), expectedSnapshotBinding: sourceBinding };
+    const callSources = (includeWorkDefinition = false) => client.callTool({ name: "augnes_read_repository_work_sources",
+      arguments: { ...sourceArgs, ...(includeWorkDefinition ? { includeWorkDefinition: true } : {}) } });
+    const beforeInvalid = transportCalls;
+    for (const name of ["augnes_read_repository_work_sources", "augnes_read_repository_method_outlook"]) {
+      for (const extra of [
+        ...[false, "true", null, 1, {}, []].map(includeWorkDefinition => ({ includeWorkDefinition })),
+        { include_work_definition: true }, { project_id: "foreign" }, { unknown: true },
+        { includeWorkDefinition: true, foreign: "must not forward" },
+        ...(name === "augnes_read_repository_method_outlook" ? [{ includeWorkDefinition: true }] : []),
+      ]) await assert.rejects(client.callTool({ name, arguments: { ...sourceArgs, ...extra } }), /invalid_repository_tool_request/u);
+    }
+    assert.equal(transportCalls, beforeInvalid, "invalid arguments must refuse before discovery or transport");
     sourcesScenario = { body: sourceProjection };
-    assert.equal((await callSources()).structuredContent.status, "available");
+    const defaultRead = (await callSources()).structuredContent;
+    const { companion: defaultCompanion, ...defaultProjection } = defaultRead;
+    assert.equal(defaultCompanion.status, "live");
+    assert.deepEqual(defaultProjection, sourceProjection, "omission preserves the exact source-only DTO");
+    assert.deepEqual(sourceRequests.at(-1), { repository_root: process.cwd(), expected_snapshot_binding: sourceBinding });
+    sourcesScenario = { body: definitionProjection };
+    const { companion: fullCompanion, ...fullProjection } = (await callSources(true)).structuredContent;
+    assert.equal(fullCompanion.status, "live");
+    assert.deepEqual(fullProjection, definitionProjection);
+    assert.deepEqual(sourceRequests.at(-1), { repository_root: process.cwd(), expected_snapshot_binding: sourceBinding, include_work_definition: true });
+    for (const [full, body, generation] of [
+      [false, definitionProjection], [true, sourceProjection],
+      [true, { ...definitionProjection, extra: "private-response-canary" }],
+      [true, { ...definitionProjection, work_definition: { ...definitionProjection.work_definition, extra: "private-response-canary" } }],
+      [true, { ...definitionProjection, snapshot_binding: `sha256:${"b".repeat(64)}` }],
+      [true, definitionProjection, "stale-generation"],
+      [true, { ...definitionRefusal, work_definition: definitionProjection.work_definition }],
+      ...invalidDefinitions.map(work_definition => [true, { ...definitionProjection, work_definition }]),
+    ]) {
+      sourcesScenario = { body, generation };
+      const refused = await callSources(full);
+      assert.equal(refused.isError, true);
+      assert.equal(refused.structuredContent.continuity, null);
+      assert.doesNotMatch(JSON.stringify(refused), /private-response-canary|Keep A|success_criteria|packet_fingerprint/u);
+    }
+    for (const body of [definitionRefusal, { ...definitionRefusal, status: "refresh_required", reason: "snapshot_changed" }]) {
+      sourcesScenario = { body };
+      const { companion, ...refused } = (await callSources(true)).structuredContent;
+      assert.deepEqual(refused, body, "refusal must not downgrade, reconstruct or replace full context");
+    }
+    for (const [status, code, next] of [
+      [403, "companion_channel_refused", /Companion channel.*lifecycle status/su],
+      [409, "companion_identity_changed", /connection identity.*lifecycle status/su],
+      [503, "companion_unavailable", /cause is unknown.*lifecycle status/su],
+    ]) {
+      sourcesScenario = { status, body: { error: { code, status } } };
+      const refused = await callSources();
+      assert.equal(refused.isError, true);
+      assert.equal(refused.structuredContent.repository_resolution.message, code);
+      assert.match(refused.content[0].text, next);
+      assert.equal(refused.structuredContent.continuity, null);
+    }
+    for (const body of [
+      { error: { code: "private-path-and-token-must-not-escape", status: 403 } },
+      { error: { code: "companion_channel_refused", status: 409 } },
+      { error: { code: "companion_channel_refused", status: 403, private: "must-not-escape" } },
+      { error: { code: ["companion_channel_refused"], status: 403 } },
+    ]) {
+      sourcesScenario = { status: 403, body };
+      const unknown = await callSources();
+      assert.equal(unknown.isError, true);
+      assert.match(unknown.content[0].text, /cause is unknown/u);
+      assert.doesNotMatch(JSON.stringify(unknown), /must-not-escape|log in|sign in/u);
+    }
     sourcesScenario = { body: { ...sourceProjection, snapshot_binding: `sha256:${"b".repeat(64)}` } };
     assert.equal((await callSources()).isError, true, "foreign/replayed snapshot response must refuse");
     sourcesScenario = { body: sourceProjection, generation: "stale-generation" };
     assert.equal((await callSources()).isError, true, "stale runtime response identity must refuse");
     sourcesScenario = { body: { ...sourceProjection, extra_private_field: "not allowed" } };
-    assert.equal((await callSources()).isError, true, "unknown DTO fields must not escape the proxy");
+    const incompatible = await callSources();
+    assert.equal(incompatible.isError, true, "unknown DTO fields must not escape the proxy");
+    assert.match(incompatible.content[0].text, /loaded Operator contract.*Compare the loaded Operator/su);
     sourcesScenario = { body: { ...sourceProjection, status: "refresh_required", reason: "snapshot_changed", snapshot_binding: null, packet_fingerprint: null } };
     assert.equal((await callSources()).structuredContent.status, "refresh_required");
     const retainedProjection = {
@@ -644,7 +791,22 @@ try {
       assert.match(unknown.content[0].text, /may have committed/u);
     }
     workRevisionScenario = { status: 409, body: { error: { code: "refresh_required", status: 409 } } };
-    assert.equal((await save()).structuredContent.reason, "refresh_required");
+    const staleSave = await save();
+    assert.equal(staleSave.structuredContent.reason, "refresh_required");
+    assert.match(staleSave.content[0].text, /Keep the draft.*Resume.*read/su);
+    for (const [status, reason, message] of [
+      [403, "companion_channel_refused", /Companion channel.*lifecycle status/su],
+      [409, "companion_identity_changed", /connection identity.*lifecycle status/su],
+      [503, "companion_unavailable", /cause is unknown.*lifecycle status/su],
+    ]) {
+      workRevisionScenario = { status, body: { error: { code: reason, status } } };
+      const previous = workRevisionCalls;
+      const refused = await save();
+      assert.equal(refused.structuredContent.reason, reason);
+      assert.match(refused.content[0].text, message);
+      assert.doesNotMatch(refused.content[0].text, /log in|sign in|reinstall|restart/iu);
+      assert.equal(workRevisionCalls, previous + 1);
+    }
     workRevisionScenario = { status: 422, body: { error: { code: "retained_source_changed_or_unavailable", status: 422 } } };
     assert.equal((await save()).structuredContent.reason, "retained_source_changed_or_unavailable");
     for (const status of ["previewed", "saved", "exact_replay"]) {
@@ -711,6 +873,7 @@ try {
     plugin_default_prompt_admitted_by_codex: true,
     plugin_default_hooks_absent_and_project_hooks_local: true,
     synthetic_discovery_harness: true,
+    bounded_read_and_save_recovery_guidance: true,
   }, null, 2));
 } finally {
   await Promise.all([close(ui), close(bridge)]);

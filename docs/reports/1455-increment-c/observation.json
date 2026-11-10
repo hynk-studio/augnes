@@ -1,0 +1,163 @@
+{
+  "kind": "assisted ordinary-use development observation, not blind comparison",
+  "source": "C development working tree based on 5c5c2cc89e2871b7cd2379927610275cae9cc1c0; contexts captured by web-browser-1. Final candidate correctness qualification is reported separately in the Draft PR.",
+  "client": "existing authenticated included Codex CLI 0.153.4; configured defaults, no account/profile/model override",
+  "assistance": "Coordinator supplied synthetic authored originals, consequential classification, branch/revision choices and explicit bell-only selection through the product. Consumers each received their own exact product-generated context file plus the same neutral writing request. No other conversation or evaluator answer was supplied.",
+  "exposure": "Normal configured host instructions, native memory and session/cache behavior were retained, not blinded or isolated. Their contribution is unknown.",
+  "observations": {
+    "primary": {
+      "context_bytes": 5827,
+      "sha256": "sha256:d16c6f75f6e52177752e64f070758121dab4ea2bef87bdaeae7a09797ba3f02a",
+      "started_at": "2026-10-15T14:42:39+00:00",
+      "cleanup_at": "2026-10-15T14:44:07.028563+00:00",
+      "active_seconds_upper_bound": 88.028563,
+      "turn_completed": true,
+      "usage": {
+        "input_tokens": 48183,
+        "cached_input_tokens": 35840,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 844,
+        "reasoning_output_tokens": 408
+      },
+      "read_exact": true,
+      "command": "/bin/zsh -lc 'cat scene-context.txt'",
+      "output_bytes": 1217,
+      "output_sha256": "sha256:31e113a2c99b4febf2e51b6a666b6249ae70b1e392e6fe1606084d283dcda183",
+      "exit_code": 0,
+      "delivery_removed": true,
+      "conversation_count": 1,
+      "task_message_count": 1,
+      "model": "gpt-6-astra",
+      "effort": "xhigh"
+    },
+    "alternate": {
+      "context_bytes": 5906,
+      "sha256": "sha256:e655a6d7541f0c3bc583829dfc8adb22be69c4f4a1666598752e66b388f6e2f0",
+      "started_at": "2026-10-15T14:44:07+00:00",
+      "cleanup_at": "2026-10-15T14:45:31.622787+00:00",
+      "active_seconds_upper_bound": 84.622787,
+      "turn_completed": true,
+      "usage": {
+        "input_tokens": 48219,
+        "cached_input_tokens": 22912,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 827,
+        "reasoning_output_tokens": 411
+      },
+      "read_exact": true,
+      "command": "/bin/zsh -lc 'cat scene-context.txt'",
+      "output_bytes": 1178,
+      "output_sha256": "sha256:640ce826e38508ce056abbb871faf32003bddce995c12f6c6012758db45818a8",
+      "exit_code": 0,
+      "delivery_removed": true,
+      "conversation_count": 1,
+      "task_message_count": 1,
+      "model": "gpt-6-astra",
+      "effort": "xhigh"
+    }
+  },
+  "messages_total": 2,
+  "conversations_total": 2,
+  "active_seconds_upper_bound": 172.65135,
+  "human_editing_minutes": null,
+  "causal_burden_reduction": null,
+  "recovered_exact": true,
+  "external_browser_requests": 0,
+  "browser_exceptions": 0,
+  "lineages": [
+    [
+      {
+        "work_id": "43216d63-37f0-403e-9870-501592cea6a5",
+        "revision": 1,
+        "fingerprint": "sha256:398891d6c360ccdcc0c4845351722d8a3342a339468b91a009d9b234dd70e369",
+        "predecessor": null
+      },
+      {
+        "work_id": "43216d63-37f0-403e-9870-501592cea6a5",
+        "revision": 2,
+        "fingerprint": "sha256:8a36d52e7bc681269b0565dacfe26ac4918798e6cfa0bea735a87fe925230b04",
+        "predecessor": "sha256:398891d6c360ccdcc0c4845351722d8a3342a339468b91a009d9b234dd70e369"
+      },
+      {
+        "work_id": "43216d63-37f0-403e-9870-501592cea6a5",
+        "revision": 3,
+        "fingerprint": "sha256:c97fb94897f30ead0dc85c22be63842ba5f967dd552f1f8f2d47430fa30bf1f0",
+        "predecessor": "sha256:8a36d52e7bc681269b0565dacfe26ac4918798e6cfa0bea735a87fe925230b04"
+      },
+      {
+        "work_id": "43216d63-37f0-403e-9870-501592cea6a5",
+        "revision": 4,
+        "fingerprint": "sha256:eaaaf7bc8c0d29879e47a06f8d0c3dd97a3104da544e57d9a4572ea223136dad",
+        "predecessor": "sha256:c97fb94897f30ead0dc85c22be63842ba5f967dd552f1f8f2d47430fa30bf1f0"
+      },
+      {
+        "work_id": "43216d63-37f0-403e-9870-501592cea6a5",
+        "revision": 5,
+        "fingerprint": "sha256:be898ac236ca9c4004f3a4c5bc263be622e099b68688720d0201d74c4cc1a50c",
+        "predecessor": "sha256:eaaaf7bc8c0d29879e47a06f8d0c3dd97a3104da544e57d9a4572ea223136dad"
+      },
+      {
+        "work_id": "43216d63-37f0-403e-9870-501592cea6a5",
+        "revision": 6,
+        "fingerprint": "sha256:41875a446db8a972ec5f379167cac34519d757caa7c6f23ee9cb5600603e0d48",
+        "predecessor": "sha256:be898ac236ca9c4004f3a4c5bc263be622e099b68688720d0201d74c4cc1a50c"
+      },
+      {
+        "work_id": "43216d63-37f0-403e-9870-501592cea6a5",
+        "revision": 7,
+        "fingerprint": "sha256:0beec564f05fb5d323f810b5e9354253a8e466edd8774c3154f1524021bf663d",
+        "predecessor": "sha256:41875a446db8a972ec5f379167cac34519d757caa7c6f23ee9cb5600603e0d48"
+      },
+      {
+        "work_id": "43216d63-37f0-403e-9870-501592cea6a5",
+        "revision": 8,
+        "fingerprint": "sha256:dd1244437936cb9ebd7a52093197d4d8ac23265a6f7ce5eb4ad84e6f66626be8",
+        "predecessor": "sha256:0beec564f05fb5d323f810b5e9354253a8e466edd8774c3154f1524021bf663d"
+      },
+      {
+        "work_id": "43216d63-37f0-403e-9870-501592cea6a5",
+        "revision": 9,
+        "fingerprint": "sha256:bd9d07eb83d979d2cac4d0de894baf2a002668fbc6571556198311984ef9ce4c",
+        "predecessor": "sha256:dd1244437936cb9ebd7a52093197d4d8ac23265a6f7ce5eb4ad84e6f66626be8"
+      },
+      {
+        "work_id": "43216d63-37f0-403e-9870-501592cea6a5",
+        "revision": 10,
+        "fingerprint": "sha256:c533505c62047215c955899d1d862cb2f51f589d25ec61be7775f5f6815c947a",
+        "predecessor": "sha256:bd9d07eb83d979d2cac4d0de894baf2a002668fbc6571556198311984ef9ce4c"
+      }
+    ],
+    [
+      {
+        "work_id": "93b9f19a-d9b4-4ce3-bd2c-8df8358add2f",
+        "revision": 1,
+        "fingerprint": "sha256:701d267cd938c4eae9312fb642f9b9a45c26bc28495d6d2396df4bb1bd3e1952",
+        "predecessor": null
+      },
+      {
+        "work_id": "93b9f19a-d9b4-4ce3-bd2c-8df8358add2f",
+        "revision": 2,
+        "fingerprint": "sha256:7b50afa4d2eaa339cda4f7ea4b6a9e3c35d6adb8b61f8950caf2984979301703",
+        "predecessor": "sha256:701d267cd938c4eae9312fb642f9b9a45c26bc28495d6d2396df4bb1bd3e1952"
+      },
+      {
+        "work_id": "93b9f19a-d9b4-4ce3-bd2c-8df8358add2f",
+        "revision": 3,
+        "fingerprint": "sha256:a3cdda36d3404fa0f89cdd48704a73eb1c628b11c6719cbd95cade7fc80e9c9b",
+        "predecessor": "sha256:7b50afa4d2eaa339cda4f7ea4b6a9e3c35d6adb8b61f8950caf2984979301703"
+      },
+      {
+        "work_id": "93b9f19a-d9b4-4ce3-bd2c-8df8358add2f",
+        "revision": 4,
+        "fingerprint": "sha256:9ffc0597e08804147b514b4bf23ec50b48c98c456a16912702119b0b89639861",
+        "predecessor": "sha256:a3cdda36d3404fa0f89cdd48704a73eb1c628b11c6719cbd95cade7fc80e9c9b"
+      }
+    ]
+  ],
+  "contexts_reprepared_exact": [
+    true,
+    true
+  ],
+  "recovery_sha256": "sha256:fec451eea21e7408cb3dc9ae8c48125d60ee388c358d3a39e84644468b6446e6",
+  "cleanup": "Both CLI processes exited normally; only the two created delivery files/directories were removed. Ordinary client persistence retained. Product return/recovery child settled with no owned resources remaining."
+}

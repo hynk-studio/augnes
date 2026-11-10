@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { isSupportedNodeVersion } from "../plugins/augnes-operator/mcp/node-runtime-policy.mjs";
 import {
   createHash,
   randomBytes,
@@ -2023,6 +2024,9 @@ export function buildSupervisorChildValues({
       AUGNES_REVIEW_CONNECTIONS_FILE: recoveryMode
         ? null
         : nonEmptyString(environment.AUGNES_REVIEW_CONNECTIONS_FILE),
+      AUGNES_EXTERNAL_CONFIG_FILE: recoveryMode
+        ? null
+        : nonEmptyString(environment.AUGNES_EXTERNAL_CONFIG_FILE),
       AUGNES_LOCAL_REVIEW_PROFILE:
         !packaged && !recoveryMode && environment.AUGNES_COMPANION_SERVICE === "1" &&
         environment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED === undefined
@@ -4989,7 +4993,8 @@ function validatePackageManifest(manifest) {
   if (Number(process.versions.napi) < Number(manifest.runtime.node_napi)) {
     throw new PublicRuntimeError("package_node_napi_unsupported");
   }
-  if (!runtimeMeetsMinimum(process.versions.node, manifest.runtime.node_minimum)) {
+  if (!isSupportedNodeVersion(process.versions.node) ||
+      !runtimeMeetsMinimum(process.versions.node, manifest.runtime.node_minimum)) {
     throw new PublicRuntimeError("package_node_version_unsupported");
   }
 }

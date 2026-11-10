@@ -30,11 +30,14 @@ For explicit resume, continue, recovery, or current-state intent:
 
 1. Use the `augnes-live-repository-continuity` owner from the reviewed
    `augnes-operator` plugin when available.
-2. Pass the exact physical repository root to
-   `augnes_companion_lifecycle_status`.
+2. Resolve the Augnes application/service checkout separately from the intended
+   project's registered local root. Pass the application checkout to
+   `augnes_companion_lifecycle_status`; use the project root for Resume and work
+   tools. They may differ, and a project may be an ordinary task folder.
 3. If one installed stopped service is startable, call
    `augnes_start_companion_service` once and require live verification.
-4. Call `augnes_resume_repository` once. Do not loop or reconstruct missing
+4. Call `augnes_resume_repository` once with the intended project root. Do not
+   substitute the application checkout, loop, or reconstruct missing
    continuity from docs, Git, GuideBrief, Work Brief, or Perspective memory.
 5. Preserve unavailable, ambiguous, partial, or unsupported results exactly.
 
@@ -45,8 +48,12 @@ remains available:
 npm run codex:current-continuity
 ```
 
-It is runtime-only and has no repository, documentation, GuideBrief, Work Brief,
-or memory fallback.
+Run it from the application checkout. It reads the runtime's currently selected
+project, accepts no project-root argument, and is not the root-bound Resume
+above. Confirm the intended selection first. It defaults to
+`http://localhost:3000`; use `AUGNES_API_BASE_URL` for a different verified local
+runtime address. It is runtime-only and has no repository, documentation,
+GuideBrief, Work Brief, or memory fallback.
 
 ## Explicit memory or reuse
 
@@ -84,12 +91,24 @@ installer-owned files. `/hooks` review and trust remain manual.
 
 ## Setup
 
-For general setup, prefer the current reviewed operator and Companion owners:
+First identify the requested outcome. The public workflow-cost calculator needs
+no Augnes installation; its packaged usage is separate from project continuity.
+For Augnes setup, use the current reviewed Operator and Companion owners. Run
+checkout commands from the Augnes application checkout, not the user's project:
 
 ```bash
 npm run augnes:plugin:install
 npm run augnes:service:status
 ```
+
+The install command changes the selected Codex profile; status only inspects an
+existing service. The packaged Companion lifecycle is macOS-only and needs the
+supported Node 24 runtime. If no reviewed Operator is installed, follow the
+public setup route before attempting its tools. A missing service needs the
+separate explicit service-install action; copying this routing skill does not
+install an Operator, a Companion, or a registered project. Read the source
+checkout's `docs/CODEX_MCP_AUGNES_BRIDGE_USAGE_V0_1.md`, section **Public setup and
+first continuation**, for the supported sequence and remaining gaps.
 
 Service install, start, stop, or uninstall requires the user's exact request.
 Do not start runtime, install a service, or mutate user-level hook state merely

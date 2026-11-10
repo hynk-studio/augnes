@@ -4444,6 +4444,12 @@ function assertRuntimeEnvironmentIsolation() {
   assert.equal(buildSupervisorChildValues({ ...sharedArguments, role: "ui", environment: reviewEnvironment, recoveryMode: true }).AUGNES_REVIEW_CONNECTIONS_FILE, null);
   assert.equal(buildSupervisorChildValues({ ...sharedArguments, role: "bridge", environment: reviewEnvironment }).AUGNES_REVIEW_CONNECTIONS_FILE, undefined);
   assert.equal(buildRuntimeChildEnvironment({ role: "ui", ambientEnvironment: reviewEnvironment }).AUGNES_REVIEW_CONNECTIONS_FILE, undefined);
+  const externalEnvironment = { ...ambientEnvironment, AUGNES_EXTERNAL_CONFIG_FILE: path.join(tempRoot, "external-capability.json") };
+  const externalValues = buildSupervisorChildValues({ ...sharedArguments, role: "ui", environment: externalEnvironment });
+  assert.equal(buildRuntimeChildEnvironment({ role: "ui", values: externalValues }).AUGNES_EXTERNAL_CONFIG_FILE, externalEnvironment.AUGNES_EXTERNAL_CONFIG_FILE);
+  assert.equal(buildSupervisorChildValues({ ...sharedArguments, role: "ui", environment: externalEnvironment, recoveryMode: true }).AUGNES_EXTERNAL_CONFIG_FILE, null);
+  assert.equal(buildSupervisorChildValues({ ...sharedArguments, role: "bridge", environment: externalEnvironment }).AUGNES_EXTERNAL_CONFIG_FILE, undefined);
+  assert.equal(buildRuntimeChildEnvironment({ role: "ui", ambientEnvironment: externalEnvironment }).AUGNES_EXTERNAL_CONFIG_FILE, undefined);
   const companionEnvironment = { ...ambientEnvironment, AUGNES_COMPANION_SERVICE: "1" };
   delete companionEnvironment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED;
   const companionValues = buildSupervisorChildValues({ ...sharedArguments, role: "ui", environment: companionEnvironment });

@@ -46,9 +46,11 @@ const ERROR_CODES = new Set([
   "ECONNREFUSED", "ECONNRESET", "EPIPE", "ETIMEDOUT",
 ]);
 const SUPERVISOR_VALUES = {
-  last_supervisor_result_code: new Set(["none", "started", "ready", "running", "stopped", "failed"]),
+  last_supervisor_result_code: new Set(["none", "starting", "started", "ready", "running", "stopped", "failed"]),
   last_public_reason_code: new Set([
     "none", "signal_sigterm", "signal_sigint", "required_child_exit",
+    "required_child_exited", "required_child_exited_during_startup",
+    "ui_startup_child_exit", "bridge_startup_child_exit", "startup_failed",
     "shutdown_timeout", "owned_cleanup_failed", "runtime_startup_failed",
     "ui_startup_timeout", "bridge_startup_timeout",
   ]),

@@ -1,5 +1,19 @@
+import { checkParticipation } from './web-planning-participation-checks.mjs';
+import { checkLargeExchanges } from './web-planning-large-exchange-checks.mjs';
+import { checkWorkSearch } from './web-planning-search-checks.mjs';
+import { checkReturnReassessment } from './web-planning-reassessment-checks.mjs';
+import { checkReturnContinuation } from './web-planning-return-checks.mjs';
+import { checkFileExchanges } from './web-planning-exchange-checks.mjs';
+import { checkDirections } from "./web-planning-direction-checks.mjs";
+import { checkWebPlanningInterceptionDiagnostics } from './test-web-planning-interception.mjs';
+import { checkSceneContinuity } from "./web-planning-scene-checks.mjs";
 import { checkFiles } from './web-planning-file-checks.mjs';
-import { checkCumulativeHistory } from './web-planning-history-checks.mjs';
+import { checkOrdinaryFiles } from './web-planning-ordinary-file-checks.mjs';
+import { checkStoryWriting } from './web-planning-story-checks.mjs';
+import { checkCumulativeHistory, checkRetainedNotes } from './web-planning-history-checks.mjs';
+import { checkIncomingOccurrences } from './web-planning-note-occurrence-checks.mjs';
+import { checkCrossWorkNotes } from './web-planning-cross-work-notes.mjs';
+import { checkHistoricalIncorporation } from './web-planning-historical-incorporation-checks.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -16,6 +30,7 @@ import { checkCapacity } from './web-planning-capacity-checks.mjs';
 import { checkBranching } from './web-planning-branch-checks.mjs';
 import { checkCloudflarePlanning } from './web-planning-cloudflare-checks.mjs';
 const root=process.env.AUGNES_CANONICAL_TEMP_ROOT;if(!root)throw new Error('owned_test_root_required');
+console.log(JSON.stringify({web_planning_interception_diagnostics_contract:await checkWebPlanningInterceptionDiagnostics()}));
 let local;const open=[];let checks=0;
 function passed(name){checks++;console.log('web-planning: '+name);}
 const scope={workspace_id:fixtureScope.workspace_id,project_id:fixtureScope.project_id};
@@ -43,6 +58,7 @@ async function edit(c,saved,goal){const t=await c.request('/api/work/'+saved.wor
 async function start(name,options={}){const dir=path.join(root,name);await mkdir(dir,{recursive:true});const s=await startLocal({root:dir,...options});open.push(s);return s;}
 try {
  new Script(await readFile(path.join(webRoot,'src/client.js.txt'),'utf8'));
+ new Script(await readFile(path.join(webRoot,'src/participation-client.js.txt'),'utf8'));
  const artifact=path.join(root,'artifact');
  process.env.OWNER_EMAIL='web-planning-artifact-secret-sentinel';
  process.env.REQUEST_SECRET='web-planning-artifact-secret-sentinel';
@@ -92,6 +108,19 @@ try {
  await local.close();open.splice(open.indexOf(local),1);local=await startLocal(snapshots);open.push(local);c=await client(local);
  assert.deepEqual((await c.request('/api/work/'+head.work_id)).data.saved,head);
  passed('fresh client and restarted workerd reopen persisted D1 without browser state');
+ const criteriaRows=(await local.db.prepare('SELECT COUNT(*) n FROM web_planning_revision').first()).n;
+ for(const success_criteria of [[],[' \t '],Array.from({length:13},(_,i)=>'criterion '+i),['😀'.repeat(501)]]){
+   const invalid=await newWork(c,{...baseDefinition,success_criteria,non_goals:[]},notes);
+   const refused=await save(c,invalid);assert.equal(refused.status,422);assert.equal(refused.data.error,'first_work_success_criteria_invalid');
+   assert.equal((await c.request('/api/work/'+invalid.id)).status,404);
+ }
+ assert.equal((await local.db.prepare('SELECT COUNT(*) n FROM web_planning_revision').first()).n,criteriaRows);
+ const criterion='😀'.repeat(500),other='a'.repeat(500);
+ const perEntry=await newWork(c,{...baseDefinition,success_criteria:[' '+criterion+' ',other,criterion,''],non_goals:[]},notes);
+ const criteriaSaved=(await save(c,perEntry)).data.saved;assert(criteriaSaved);
+ assert.deepEqual(criteriaSaved.definition.success_criteria,[other,criterion]);assert.deepEqual(criteriaSaved.definition.non_goals,[]);
+ assert.deepEqual((await c.request('/api/work/'+perEntry.id)).data.saved,criteriaSaved);
+ passed('criteria: server minimum/count/codepoint refusals write no rows; per-entry bounds, trimming, deduplication and optional non-goals survive fresh read');
  const bad={goal:'😀'.repeat(2001),success_criteria:['a'],non_goals:[]};const boundary=await newWork(c,bad,[]);assert.equal((await save(c,boundary)).status,422);
  const good=await newWork(c,{...bad,goal:'😀'.repeat(2000)},[]);assert.equal((await save(c,good)).status,200);
  const bytes=await newWork(c,{goal:'😀'.repeat(2000),success_criteria:['😀'.repeat(500),'한'.repeat(500),'a'.repeat(500)],non_goals:['z'.repeat(500)]},[]);assert.equal((await save(c,bytes)).status,422);
@@ -162,8 +191,22 @@ try {
  const p1=await c.request('/api/works');assert.equal(p1.data.items.length,10);assert(p1.data.next);const p2=await c.request('/api/works?cursor='+p1.data.next);assert(p2.data.items.length>0);assert(!p2.data.items.some(i=>p1.data.items.some(j=>i.work_id===j.work_id)));
  passed('ordinary revision 33 and retained ten-item list paging have exact effects');
  await checkCapacity({c,scope:fixtureScope,passed});
+ await checkRetainedNotes({c,passed});
+ await checkCrossWorkNotes({start,client,passed});
+ await checkWorkSearch({start,client,newWork,save,root,passed});
+ await checkIncomingOccurrences({start,client,passed});
+ await checkHistoricalIncorporation({start,client,passed,root,open});
  await checkBranching({start,client,newWork,save,edit,passed,open});
  await checkFiles({start,client,newWork,save,passed,root,open});
+ await checkFileExchanges({start,client,newWork,save,root,passed});
+ await checkReturnContinuation({start,client,newWork,save,passed});
+ await checkReturnReassessment({start,client,newWork,save,passed});
+ await checkParticipation({start,client,newWork,save,passed});
+ await checkLargeExchanges({start,client,newWork,save,passed});
+ await checkOrdinaryFiles({start,client,newWork,save,passed,open});
+ await checkStoryWriting({start,client,newWork,save,passed});
+ await checkSceneContinuity({start,client,newWork,save,passed});
+ await checkDirections({start,client,newWork,save,passed});
  await checkCloudflarePlanning({root,start,client,newWork,save,edit,passed,open});
  await checkCumulativeHistory({root,start,client,newWork,save,edit,passed,open});
  console.log(JSON.stringify({web_planning_d1_checks:checks,storage:'Miniflare/workerd D1',hosted_acceptance:false}));

@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
 import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, linkSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
   admitVerificationContext, assertVerificationContext, assertIsolatedMutableResources,
+  inspectVerificationCompanionPreservation, observeReviewedRevisionSettlementState,
 } from "./local-canonical-verification-context.mjs";
 import { acquireVerificationCapacity, assertVerificationCapacity, releaseVerificationCapacity, verificationCapacityLimit } from "./local-canonical-capacity.mjs";
 import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership, CHECKOUT_OWNER_FILE } from "./local-canonical-checkout-ownership.mjs";
@@ -36,6 +38,42 @@ function admit(root = a, options = {}) {
   return admitVerificationContext({ repositoryRoot: root, canonicalRoot: anchor, platform: "darwin", kind: "isolated-worktree", ...options });
 }
 
+// The accepted reader uses fetch just like the installed Companion reader.
+// Give consecutive samples different sockets and keep a refused response intact.
+async function checkFreshPreservationTransport(context, inspector, original) {
+  const sockets = new Set();
+  let requests = 0, status = 200;
+  const server = createServer((request, response) => {
+    sockets.add(request.socket);
+    requests++;
+    response.writeHead(status).end();
+  });
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  try {
+    const endpoint = JSON.stringify(`http://127.0.0.1:${server.address().port}`);
+    writeFileSync(inspector, `export async function inspectCompanionPreservation() {
+      const response = await fetch(${endpoint}, { signal: AbortSignal.timeout(1500) });
+      if (response.status === 500) throw new Error("private fixture details");
+      return { observedStatus: response.status };
+    }`);
+    const sample = () => inspectVerificationCompanionPreservation(context, { freshTransport: true });
+    assert.deepEqual(await sample(), { observedStatus: 200 });
+    status = 503;
+    assert.deepEqual(await sample(), { observedStatus: 503 });
+    status = 500;
+    await assert.rejects(sample(), hasCode("verification_preservation_reader_unavailable"));
+    assert.equal(requests, 3, "each call took one sample");
+    assert.equal(sockets.size, 3, "no sample reused an earlier connection");
+  } finally {
+    server.closeAllConnections();
+    await new Promise(resolve => server.close(resolve));
+    writeFileSync(inspector, original);
+  }
+}
+
 try {
   mkdirSync(anchor);
   git(anchor, "init", "--initial-branch=main"); git(anchor, "remote", "add", "origin", origin);
@@ -44,12 +82,42 @@ try {
     writeFileSync(path.join(anchor, relative, ".keep"), "fixture");
   }
   writeFileSync(path.join(anchor, ".gitignore"), ".augnes-local-verification/\nnode_modules/\n.next/\n");
+  const inspectorRelative = "plugins/augnes-operator/mcp/companion-service-core.mjs";
+  const inspectorSource = "export async function inspectCompanionPreservation({repositoryRoot}) { return {acceptedRoot:repositoryRoot, policy:'accepted-source'}; }\n";
+  mkdirSync(path.dirname(path.join(anchor, inspectorRelative)), {recursive:true});
+  writeFileSync(path.join(anchor, inspectorRelative), inspectorSource);
   git(anchor, "add", "."); git(anchor, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "fixture");
   git(anchor, "worktree", "add", "--detach", a, "HEAD"); git(anchor, "worktree", "add", "--detach", b, "HEAD");
   const contextA = admit(a), contextB = admit(b);
   assert.notEqual(contextA.checkout_fingerprint, contextB.checkout_fingerprint);
   assert.equal(contextA.anchor_fingerprint, contextB.anchor_fingerprint);
   assert.equal(assertVerificationContext(contextA, a), contextA);
+  // Candidate-only policy/source additions must not be applied to an installed
+  // accepted checkout. Calling the candidate inspector would throw here.
+  writeFileSync(path.join(a, inspectorRelative), "throw new Error('candidate_inspector_must_not_observe_accepted_service');\n");
+  assert.deepEqual(await inspectVerificationCompanionPreservation(contextA), {acceptedRoot:anchor,policy:'accepted-source'});
+  await checkFreshPreservationTransport(contextA, path.join(anchor, inspectorRelative), inspectorSource);
+  assert.deepEqual((await observeReviewedRevisionSettlementState(contextA)).foreign_checkout_owners, []);
+  const settlementOwner=acquireCheckoutVerificationOwnership({repositoryRoot:b});
+  const settlementOwnerFile=path.join(b,".augnes-local-verification",CHECKOUT_OWNER_FILE),settlementOwnerBytes=readFileSync(settlementOwnerFile);
+  try {
+    assert.deepEqual((await observeReviewedRevisionSettlementState(contextA)).foreign_checkout_owners, []);
+    const foreign={...settlementOwner.metadata,owner_pid:process.pid+100000};
+    writeFileSync(settlementOwnerFile,JSON.stringify(foreign));
+    const observed=await observeReviewedRevisionSettlementState(contextA);
+    assert.deepEqual(observed.service,{acceptedRoot:anchor,policy:'accepted-source'});
+    assert.equal(observed.foreign_checkout_owners.length,1);assert.equal(observed.foreign_checkout_owners[0].owner_pid,foreign.owner_pid);
+    assert.deepEqual(JSON.parse(readFileSync(settlementOwnerFile,"utf8")),foreign,"foreign ownership must be read only");
+    writeFileSync(settlementOwnerFile,JSON.stringify({...foreign,checkout_fingerprint:"invalid"}));
+    await assert.rejects(observeReviewedRevisionSettlementState(contextA),hasCode("revision_settlement_owner_ambiguous"));
+    writeFileSync(settlementOwnerFile,settlementOwnerBytes);chmodSync(settlementOwnerFile,0o666);
+    await assert.rejects(observeReviewedRevisionSettlementState(contextA),hasCode("revision_settlement_owner_ambiguous"));
+  } finally {chmodSync(settlementOwnerFile,0o600);writeFileSync(settlementOwnerFile,settlementOwnerBytes);releaseCheckoutVerificationOwnership(settlementOwner,b);}
+  await assert.rejects(inspectVerificationCompanionPreservation({...contextA}), hasCode("verification_context_not_owned"));
+  rmSync(path.join(anchor, inspectorRelative));
+  symlinkSync(path.join(a, inspectorRelative), path.join(anchor, inspectorRelative));
+  await assert.rejects(inspectVerificationCompanionPreservation(contextA), hasCode("companion_preservation_source_invalid"));
+  rmSync(path.join(anchor, inspectorRelative)); writeFileSync(path.join(anchor, inspectorRelative), inspectorSource);
   assert.throws(() => assertVerificationContext({ ...contextA }, a), hasCode("verification_context_not_owned"));
   assert.throws(() => assertVerificationContext(contextA, b), hasCode("verification_context_not_owned"));
   assert.throws(() => admit(a, { platform: "linux" }), hasCode("isolated_verification_host_unsupported"));

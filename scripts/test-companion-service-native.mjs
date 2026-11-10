@@ -11,12 +11,21 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import {
+  collectFixtureCliResult,
+  fixtureInstallFailureDiagnostic,
+  fixtureProcessIdentity,
+  observeFixtureLaunchJob,
+  readFixtureJson,
+  readFixtureManagerObservation,
+} from "./companion-service-fixture-observation.mjs";
 
 import Database from "better-sqlite3";
 
@@ -26,7 +35,6 @@ import {
   COMPANION_SERVICE_DESIRED_STATE_SCHEMA_VERSION,
   acquireCompanionServiceMaintenance,
   inspectCompanionService,
-  readCompanionSupervisorFailureProvenance,
   releaseCompanionServiceMaintenance,
   resolveCompanionServiceLayout,
   startCompanionService,
@@ -107,6 +115,9 @@ try {
   assert.equal(stoppedStale.loaded, false);
   const update = await runCli(["install"]);
   assert.equal(update.status, 0, update.stderr);
+  assert.equal(JSON.parse(update.stdout).service.status, "installed_stopped");
+  assert.equal(readDesiredState().desired_state, "stopped");
+  await startCompanionService(options);
   live = await waitForStatus("live", 120_000);
   rememberRuntime(live);
   const oldManifestPath = path.join(testRoot, "old-runtime.json");
@@ -320,6 +331,14 @@ try {
   const beforeStaleStoppedReload = JSON.parse(
     readFileSync(layout.manager_state_path, "utf8"),
   );
+  const staleStoppedInspection = await inspectCompanionService(options);
+  console.log(JSON.stringify({
+    case: "stale-stopped-entry", manager: beforeStaleStoppedReload,
+    desired_state: readDesiredState().desired_state,
+    maintenance: staleStoppedInspection.maintenance,
+    supervisor_process_present: beforeStaleStoppedReload.supervisor_pid
+      ? processIdentity(beforeStaleStoppedReload.supervisor_pid) !== null : false,
+  }));
   const staleStoppedReload = spawnSync("/bin/launchctl", [
     "bootstrap",
     `gui/${process.getuid()}`,
@@ -335,6 +354,12 @@ try {
     10_000,
   );
   await waitForManagerProcessGone(staleStoppedManager, 10_000);
+  console.log(JSON.stringify({
+    case: "stale-stopped-completion", manager: staleStoppedManager,
+    manager_lock_present: existsSync(layout.manager_lock_path),
+    lease_present: existsSync(layout.maintenance_lease_path),
+    runtime_present: existsSync(layout.runtime_manifest_path),
+  }));
   assert.equal(existsSync(layout.maintenance_lease_path), false);
   assert.equal(readDesiredState().desired_state, "stopped");
   assert.equal((await inspectCompanionService(options)).status, "installed_stopped");
@@ -1036,24 +1061,63 @@ try {
 }
 
 async function runCli(args, entry = serviceEntry, childEnvironment = environment) {
-  return new Promise((resolve, reject) => {
+  const installation = entry === serviceEntry && args[0] === "install";
+  const started = performance.now();
+  let previous = null, observations = 0;
+  const observe = stage => {
+    const configuration = readFixtureJson(layout.configuration_path);
+    const job = observeFixtureLaunchJob(layout.service_label);
+    let processObservation = { state: "not_observed" };
+    if (job.pid) {
+      try {
+        const birth = fixtureProcessIdentity(job.pid);
+        processObservation = birth === null ? { state: "absent" } : {
+          state: "present", identity: processIdentityFingerprint(job.pid, birth),
+        };
+      } catch { processObservation = { state: "unavailable" }; }
+    }
+    const value = {
+      manager: readFixtureManagerObservation(layout.manager_state_path),
+      job, process: processObservation,
+      configuration: configuration.state,
+      ...(configuration.state === "available" ? {
+        node_matches: configuration.value.node_path === realpathSync(process.execPath),
+        entry_matches: configuration.value.manager_entry_path === entry,
+        cwd_matches: configuration.value.repository_root === repositoryRoot,
+      } : {}),
+    };
+    const signature = JSON.stringify(value);
+    if (stage !== "pending" || signature !== previous) {
+      console.log(JSON.stringify({ case: "native-install-observation", stage,
+        elapsed_ms: performance.now() - started, observer_pid: process.pid,
+        observation: value }));
+      previous = signature;
+    }
+    observations += 1;
+  };
+  if (installation) {
+    console.log(JSON.stringify({ case: "native-install-input", node_path: process.execPath,
+      node_realpath: realpathSync(process.execPath),
+      node_sha256: createHash("sha256").update(readFileSync(process.execPath)).digest("hex"),
+      entry, cwd: repositoryRoot, test_root: testRoot, service_label: layout.service_label }));
+    observe("before_spawn");
+  }
+  const timer = installation ? setInterval(() => observe("pending"), 5_000) : null;
+  try {
     const child = spawn(process.execPath, [entry, ...args], {
       cwd: repositoryRoot,
       env: childEnvironment,
       stdio: ["ignore", "pipe", "pipe"],
     });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => { stdout += chunk; });
-    child.stderr.on("data", (chunk) => { stderr += chunk; });
-    child.once("error", reject);
-    child.once("exit", (code, signal) => resolve({
-      status: code,
-      signal,
-      stdout,
-      stderr,
-    }));
-  });
+    return await collectFixtureCliResult(child);
+  } finally {
+    if (timer) clearInterval(timer);
+    if (installation) {
+      observe("streams_closed");
+      console.log(JSON.stringify({ case: "native-install-settled", observations,
+        elapsed_ms: performance.now() - started }));
+    }
+  }
 }
 
 async function assertInstalledFirstWorkAccess(live) {
@@ -1127,26 +1191,8 @@ async function assertInstalledFirstWorkAccess(live) {
 }
 
 function installFailureDiagnostic(result) {
-  let publicResult = null;
-  let provenance = null;
-  try {
-    publicResult = JSON.parse(result.stdout);
-  } catch {
-    publicResult = { result: "unparseable_public_result" };
-  }
-  try {
-    const managerState = JSON.parse(
-      readFileSync(layout.manager_state_path, "utf8"),
-    );
-    provenance = readCompanionSupervisorFailureProvenance(managerState);
-  } catch {
-    provenance = null;
-  }
-  return JSON.stringify({
-    exit_status: result.status,
-    public_result: publicResult,
-    supervisor_failure_provenance: provenance,
-  });
+  return JSON.stringify(fixtureInstallFailureDiagnostic(result,
+    readFixtureManagerObservation(layout.manager_state_path)));
 }
 
 function createProxyNetworkGuard() {
@@ -1474,15 +1520,7 @@ function childExit(child, timeoutMs) {
 }
 
 function processIdentity(pid) {
-  const result = spawnSync(
-    "/bin/ps",
-    ["-o", "lstart=", "-o", "command=", "-p", String(pid)],
-    {
-    encoding: "utf8",
-    },
-  );
-  const birthMaterial = result.status === 0 ? result.stdout.trim() : "";
-  return birthMaterial || null;
+  return fixtureProcessIdentity(pid);
 }
 
 function processIdentityFingerprint(pid, birthMaterial = processIdentity(pid)) {

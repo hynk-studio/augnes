@@ -257,8 +257,8 @@ export function selectPersonalPerspectiveContextV01(input: {
     }
     selected.push({
       ...candidate.entry,
-      why_included:
-        "Included because this project explicitly permits Personal Perspective and the material passed project scope, review, currentness, trust, and context-selection checks.",
+      // Sharing eligibility does not replace the caller's task-specific reason.
+      // Preserve that context; the separate scope ref records this gate.
       compatibility_source_ref: scopeLineageRef,
     });
   }

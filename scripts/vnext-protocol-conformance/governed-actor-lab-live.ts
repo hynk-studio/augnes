@@ -32,7 +32,7 @@ export function runGovernedActorLabLiveConformanceV01() {
     "lib/vnext/model-gateway/openai/governed-actor-lab-codec.ts",
   );
   const adapterSource = sourceV01(
-    "lib/vnext/model-gateway/openai/responses-adapter.ts",
+    "lib/vnext/model-gateway/openai/responses-transport.ts",
   );
   const typesSource = sourceV01("types/vnext/governed-actor-lab-live.ts");
   const runnerSource = sourceV01("scripts/governed-actor-lab-live-cohort.ts");

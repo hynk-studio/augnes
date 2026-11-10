@@ -143,12 +143,49 @@ identities used to compute it are not exposed by the public projection.
 
 ## Privacy, Bounds, and Authority
 
+### Ordinary connection recovery
+
+The Operator presents existing bounded refusal codes without changing route
+authentication or result authority. Resume/source reads recognize only a
+matching route marker, known code and matching HTTP status for a channel
+refusal, changed runtime identity or unavailable Companion. Unknown/malformed
+failures keep an unknown cause; a failed contract check does not establish a
+provider-login failure or prove that the installed service is stale. The
+existing lifecycle status is the next action for connection failures. A
+configuration-version refusal first requires comparison of current source,
+installed/cache and loaded client state before an update decision.
+The opt-in connected-project reader consumes the same confirmed codes to retain
+its `unauthorized` and `refresh_required` outcomes without inferring either from
+an HTTP status alone. Refusals expose no work material and do not retry.
+
+Work currentness conflicts retain the client's proposed text and require
+explicit Resume/source read before another preview. A lost or invalid save
+response remains `save_outcome_unknown`, including when the writer committed;
+normal readback must reconcile it before any replacement write. No automatic
+retry, rebase, reauthentication, reinstall or execution grant is added. Browser
+project access and in-tab drafts retain their separate session/recovery owners.
+See the [ordinary walkthrough](../plugins/augnes-operator/INSTALL.md#ordinary-use-and-recovery).
+
+The disposable `companion-work-revision-envelope-checks.ts` integration uses
+production HTTP handlers, authentication, writers/readers and the stdio proxy.
+Its `companion-connection-roundtrip.mjs` processes discover through the normal
+runtime-directory hint, save Korean/Unicode work, close, and read using only the
+registered folder. A lost committed-save response, stale channel, explicit
+recovery and cancelled preview preserve the exact saved revision/history. Only
+discovery health/manifest and channel credentials are synthetic. This is
+protocol reconstructability; it does not prove model understanding, a fresh
+Codex conversation's plugin loading, or installed adoption.
+
 ### Explicit current-work source read
 
 Resume remains a compact orientation projection. The separate local Operator
 tool `augnes_read_repository_work_sources` accepts `repositoryRoot` and
 `expectedSnapshotBinding`, using the exact `continuity.snapshot.binding`
-returned by repository Resume. It does not accept project/packet IDs, database
+returned by repository Resume. Optional `includeWorkDefinition: true` requests
+the complete persisted work definition alongside the selected sources. Omission
+preserves the source-only request and DTO; false, null, strings and foreign keys
+refuse before transport. The method-outlook tool does not accept this option.
+The source tool does not accept project/packet IDs, database
 paths, or Browser credentials. Reading notes is explicit, never an automatic
 Resume expansion, history search, or context injection.
 
@@ -191,12 +228,26 @@ request envelopes. Retained lookup uses a separate 1,056,000-byte cumulative
 scan ceiling aligned with admitted native snapshots and the unchanged
 20,000-byte result ceiling; its work eligibility and task scope remain bounded.
 
-The opt-in connected-project reader requests `include_work_definition: true`
-on that same private route. Only this exact additional input is admitted; the
-default request and local Operator tool arguments remain unchanged. This mode
+The ordinary source tool forwards explicit `includeWorkDefinition: true` as
+`include_work_definition: true` on that same private route. The configured
+connected-project reader and execution-choice `action: read` already use this
+complete-definition mode. Direct source reading needs neither optional
+execution-arrangement interpretation nor review-connection processing. This is
+an explicit local disclosure extension to the already authorized caller, not
+new project, source, remote App, execution or semantic authority. This mode
 returns the closed `codex_repository_work_definition_sources.v0.1` projection
 with `work_definition` containing only goal, success criteria and non-goals from
 the validated persisted task already reconstructed in the read transaction.
+Its optional `task_identity` is the opaque fingerprint of the validated task origin,
+following exact ordinary revision links in that same read, including the validated
+authored-successor revision profile. Its original successor boundary is preserved;
+the predecessor of that original packet is not a same-task revision. It stays stable across
+same-task revisions and changes at an explicit different-task boundary even if the
+definition and selected bytes are identical. Unsupported or unrecoverable origin
+is `null`; older projections may omit it. Neither missing identity nor identical
+definition text permits inferring the same task. The default source-only DTO is
+unchanged. Manual-contribution request/decision currentness uses this identity;
+it adds no persisted Core field, authentication or execution authority.
 It does not reread history, expose a packet, or copy Resume's display-normalized
 text. Stored internal whitespace and distinct entries remain intact, including
 their stored order. The existing complete-definition limits apply (2,000 goal

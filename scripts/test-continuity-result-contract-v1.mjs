@@ -91,6 +91,7 @@ for (const mutation of [
 }
 
 await assertWaitDiagnostics();
+const recoveryReloadRefusals = assertRecoveryReloadFixture();
 
 process.stdout.write(
   `${JSON.stringify({
@@ -99,8 +100,47 @@ process.stdout.write(
     detailed_fields: contract.field_ids.length,
     semantic_markers: contract.marker_ids.length,
     wait_failure_diagnostics: "pass",
+    recovery_reload_refusal_controls: recoveryReloadRefusals,
   })}\n`,
 );
+
+function assertRecoveryReloadFixture() {
+  const source = readFileSync(new URL("./browser-validate-continuity-v1.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("function assertRecoveryReloadReadsV1(");
+  assert(start >= 0);
+  const check = runInNewContext(`(${source.slice(start, source.indexOf("async function waitForCondition(", start)).trim()})`, { assert });
+  const current = { request_id: "current", fulfilled: true, finished: true };
+  const request = id => ({ request_id: id, method: "GET", path: "/api/recovery" });
+  const single = { reads: [current], requests: [request("current")], responses: [{ request_id: "current", status: 200 }], failures: [] };
+  const replay = { ...single, reads: [{ request_id: "obsolete", fulfilled: false, finished: false }, current],
+    requests: [request("obsolete"), request("current")], failures: [{ request_id: "obsolete", canceled: true, error_text: "net::ERR_ABORTED" }] };
+  check(single); check(replay);
+  const adverse = [
+    value => { value.reads = []; },
+    value => { value.reads.push({ ...current, request_id: "third" }); value.requests.push(request("third")); },
+    value => { value.reads[0].request_id = "current"; },
+    value => { value.reads[1].request_id = null; },
+    value => { value.requests[1].method = "POST"; },
+    value => { value.requests[1].path = "/api/other"; },
+    value => { value.requests.push({ ...request("mutation"), method: "POST" }); },
+    value => { value.reads[1].fulfilled = false; },
+    value => { value.reads[1].finished = false; },
+    value => { value.failures.push({ request_id: "current", canceled: true, error_text: "net::ERR_ABORTED" }); },
+    value => { value.responses[0].status = 500; },
+    value => { value.responses = []; },
+    value => { value.responses.push(value.responses[0]); },
+    value => { value.failures = []; },
+    value => { value.failures[0].request_id = "unrelated"; },
+    value => { value.failures[0].canceled = false; },
+    value => { value.failures[0].error_text = "net::ERR_CONNECTION_RESET"; },
+    value => { value.reads[0].finished = true; },
+  ];
+  for (const mutate of adverse) {
+    const value = structuredClone(replay); mutate(value);
+    assert.throws(() => check(value));
+  }
+  return adverse.length;
+}
 
 async function assertWaitDiagnostics() {
   // Exercise the actual harness polling function without starting Browser or a database.

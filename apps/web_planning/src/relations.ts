@@ -1,31 +1,77 @@
-import { assertHistoryBudget, binding, boundedText, canonical, dispositions, exact, fail, hash, headBinding, inspectRelations, makeRevision, normalizePayload, reference, RELATION_BYTES, requestFingerprint, sameBinding, selectedWorkSourceInput, UUID, validateRelations, workRef, type Material, type Payload, type Relations, type Revision, type Scope, type WorkRef } from "./contract";
+import { directionSelection, fileBranch, fileIncorporation } from "./directions";
+import { hasSceneFile, ordinaryFileBranch, ordinaryFileIncorporation } from "./file-relations";
+import { fileSelection } from "./contract";
+import type { FileBody } from "./files";
+import { binding, boundedText, canonical, dispositions, exact, fail, FINGERPRINT, hash, headBinding, inspectRelations, makeRevision, materialRef, normalizePayload, reference, RELATION_BYTES, requireHistoricalContext, requestFingerprint, retainedNote, sameBinding, selectedWorkSourceInput, UUID, validateRelations, validateRetainedContext, validateRetainedIncorporations, workRef, type Material, type Payload, type Relations, type Revision, type Scope, type WorkRef } from "./contract";
 import { seal, unseal, type Access } from "./access";
-import { append, headsCurrent, readWork, requestRevision, type Store } from "./store";
+import { append, headsCurrent, readEnvelopes, readWork, requestRevision, type Store } from "./store";
 
 export function relationsOf(r:Revision):Relations {
   return r.relations ?? {origin:null,materials:r.sources.map(s=>({source_ref:s.source_ref!,kind:"authored",from:null,dependencies:[]})),review:null};
 }
+// At most one scoped, verified history per explicitly named source work (eight
+// draft rows). Do not follow its origins. A retained revision need not be its head.
+export async function selectionHistories(s:Store, id:string, edits:unknown) {
+  const histories=new Map<string,Revision[]>(), snapshots=new Map<string,WorkRef>();
+  if(Array.isArray(edits) && edits.length<=8)for(const edit of edits){
+    if(!edit || typeof edit!=="object" || !("historical" in edit))continue;
+    const {source_ref,...ref}=materialRef(edit.historical);
+    if(ref.work_id===id)continue;
+    snapshots.set(ref.fingerprint,ref);
+    if(!histories.has(ref.work_id)){
+      try { histories.set(ref.work_id,await readEnvelopes(s,ref.work_id)); }
+      catch(error){if((error as {code?:string}).code==="work_erased")fail("historical_note_unavailable",409);throw error;}
+    }
+  }
+  return {histories,snapshots:[...snapshots.values()]};
+}
 // Ordinary edits use the existing normalizer. The client supplies dependency
 // positions, never canonical source entries or cross-work provenance claims.
-export function editedPayload(scope:Scope,payload:Payload,notes:any[],edits:unknown,previous?:Revision):Payload {
-  const result=inspectEditedPayload(scope,payload,notes,edits,previous);
+export function editedPayload(scope:Scope,payload:Payload,notes:any[],edits:unknown,chain:Revision[]=[],histories?:Map<string,Revision[]>):Payload {
+  const result=inspectEditedPayload(scope,payload,notes,edits,chain,histories);
   if(result.relationBytes>RELATION_BYTES)fail("relation_budget_exceeded");
   return result.payload;
 }
-export function inspectEditedPayload(scope:Scope,payload:Payload,notes:any[],edits:unknown,previous?:Revision) {
+export function inspectEditedPayload(scope:Scope,payload:Payload,notes:any[],edits:unknown,chain:Revision[]=[],histories?:Map<string,Revision[]>) {
+  const previous=chain.at(-1);
   if (edits===undefined && !previous?.relations) return {payload,relationBytes:0};
   if (edits!==undefined && (!Array.isArray(edits) || edits.length!==notes.length)) fail("invalid_material_edits");
   const prior=previous?relationsOf(previous):{origin:null,materials:[],review:null};
   const refs=notes.map(n=>normalizePayload(scope,payload.definition,[n]).sources[0].source_ref!);
   const materials=new Map<string,Material>();
+  const origins:ReturnType<typeof retainedNote>[]=[];
   refs.forEach((ref,index)=>{
     const retained=prior.materials.find(m=>m.source_ref===ref);
     const edit=edits===undefined?null:(edits as any[])[index];
-    if(edit!==null)exact(edit,"dependencies,adapts");
+    const historical=!!edit && typeof edit==="object" && "historical" in edit;
+    if(edit!==null)exact(edit,historical?"dependencies,historical,mode":"dependencies,adapts");
     if(edit && (!Array.isArray(edit.dependencies) || edit.dependencies.length>7 || edit.dependencies.some((i:unknown)=>!Number.isInteger(i) || Number(i)<0 || Number(i)>=refs.length)))fail("invalid_dependencies");
     const deps=edit?[...new Set<string>(edit.dependencies.map((i:number)=>refs[i]))].sort():retained?.dependencies??[];
     let material:Material;
-    if(retained && canonical(deps)===canonical([...retained.dependencies].sort()) && (edit===null || edit.adapts===null)) material=retained;
+    if(historical) {
+      if(!previous)fail("historical_note_unavailable",409);
+      const locator=materialRef(edit.historical);
+      const origin=locator.work_id===previous.work_id?retainedNote(chain,previous.work_id,locator,previous.revision)
+        :retainedNote(histories?.get(locator.work_id)??[],locator.work_id,locator);
+      origins.push(origin);
+      const {entry,dependencies}=origin;
+      const candidate=payload.sources.find(s=>s.source_ref===ref)!;
+      if(dependencies.some(d=>!deps.includes(d)))fail("required_material_missing");
+      if(edit.mode==="reuse" || edit.mode==="required") {
+        if(canonical(entry)!==canonical(candidate) || canonical(deps)!==canonical([...dependencies].sort()))fail("historical_note_mismatch");
+        if(retained && (edit.mode==="required"?dependencies.some(d=>!retained.dependencies.includes(d)):canonical(retained.dependencies)!==canonical(deps)))
+          fail("historical_selection_conflict");
+        // Matching text is enough to share a prerequisite, not to replace the
+        // occurrence deliberately chosen by the actor.
+        material=retained && (edit.mode==="required" || canonical(retained.from)===canonical(locator))
+          ?retained:{source_ref:ref,kind:"inherited",from:locator,dependencies:deps};
+      } else if(edit.mode==="adapt") {
+        if(retained)fail("historical_selection_conflict");
+        if(candidate.trust_class!=="derived_interpretation" || candidate.compatibility_source_ref?.external_id!==scope.author_ref || candidate.external_ref?.observed_at!=null ||
+           candidate.bounded_summary===entry.bounded_summary)fail("historical_adaptation_required");
+        material={source_ref:ref,kind:"adapted",from:edit.historical,dependencies:deps};
+      } else fail("invalid_material_edits");
+    } else if(retained && canonical(deps)===canonical([...retained.dependencies].sort()) && (edit===null || edit.adapts===null)) material=retained;
     else if(edit?.adapts!==null && edit?.adapts!==undefined) {
       if(!previous || !previous.sources.some(s=>s.source_ref===edit.adapts))fail("invalid_adaptation_source");
       material={source_ref:ref,kind:"adapted",from:{...reference(previous),source_ref:edit.adapts},dependencies:deps};
@@ -37,7 +83,9 @@ export function inspectEditedPayload(scope:Scope,payload:Payload,notes:any[],edi
     materials.set(ref,material);
   });
   const result={...payload,relations:{...prior,materials:payload.sources.map(s=>materials.get(s.source_ref!)!)}};
-  const inspected=inspectRelations(result.relations,result,previous?.work_id??"new");
+  for(const origin of origins)requireHistoricalContext(origin,result.relations.materials);
+  if(previous)validateRetainedContext(chain,previous.work_id,result,scope);
+  const inspected=inspectRelations(result.relations,{...result,files:previous?.files},previous?.work_id??"new");
   return {payload:result,relationBytes:inspected.bytes};
 }
 async function current(s:Store,ref:WorkRef):Promise<Revision[]> {
@@ -57,25 +105,36 @@ export async function compare(s:Store,id:string,expected:unknown,source:unknown)
   const baseline=targetChain.find(r=>canonical(reference(r))===canonical(origin.source));
   if(!baseline)fail("origin_unavailable",409);
   if(!await headsCurrent(s,reference(target),reference(branch)))fail("refresh_required",409);
-  return {target,branch,baseline};
+  return {target,branch,baseline,targetChain};
 }
 function branchIntent(input:any) { exact(input,"reason"); return {reason:boundedText(input.reason,true)}; }
+function targetSelection(value:unknown):string[] {
+  if(!Array.isArray(value) || value.length>8 || value.some(ref=>typeof ref!=="string" || !FINGERPRINT.test(ref)) || new Set(value).size!==value.length)fail("invalid_target_selection");
+  return [...value].sort();
+}
 function incorporationIntent(input:any) {
-  exact(input,"source,dispositions,rationale,next_question");
-  return {source:sourceRef(input.source),dispositions:dispositions(input.dispositions),rationale:boundedText(input.rationale,true),next_question:boundedText(input.next_question)};
+  if("selection" in input){exact(input,"source,selection");return {source:sourceRef(input.source),selection:directionSelection(input.selection)};}
+  exact(input,"source,dispositions,rationale,next_question"+("target_selection" in input?",target_selection":"")+("file_selection" in input?",file_selection":""));
+  return {source:sourceRef(input.source),dispositions:dispositions(input.dispositions),rationale:boundedText(input.rationale,true),next_question:boundedText(input.next_question),...("target_selection" in input?{target_selection:targetSelection(input.target_selection)}:{}),...("file_selection" in input?{file_selection:fileSelection(input.file_selection)}:{})};
 }
 function branchPayload(source:Revision,reason:string):Payload {
-  if(source.files?.length)fail("file_branch_selection_unsupported");
-  return {definition:source.definition,sources:source.sources,relations:{
+  const fileCopy=source.relations?.file_materials===undefined?{}:{file_materials:(source.files??[]).map(file=>({file,kind:"inherited" as const,from:reference(source)}))};
+  return {definition:source.definition,sources:source.sources,...(source.relations?.file_materials!==undefined?{files:source.files??[]}:{}),relations:{
     origin:{source:reference(source),reason,selection:source.sources.map(s=>s.source_ref!),starting_review:source.relations?.review??source.relations?.origin?.starting_review??null},
-    materials:relationsOf(source).materials.map(m=>({...m,kind:"inherited",from:{...reference(source),source_ref:m.source_ref}})),review:null}};
+    materials:relationsOf(source).materials.map(m=>({...m,kind:"inherited",from:{...reference(source),source_ref:m.source_ref}})),review:null,...fileCopy}};
 }
 function incorporationPayload(target:Revision,source:Revision,intent:ReturnType<typeof incorporationIntent>):Payload {
-  if(target.files?.length || source.files?.length)fail("file_branch_selection_unsupported");
+  if("selection" in intent)fail("file_branch_selection_unsupported");
   if(canonical(intent.dispositions.map(d=>d.source_ref).sort())!==canonical(source.sources.map(s=>s.source_ref).sort()))fail("incomplete_dispositions");
   const selected=intent.dispositions.filter(d=>d.disposition==="incorporated").map(d=>d.source_ref);
-  const entries=new Map(target.sources.map(s=>[s.source_ref,s]));
-  const materials=new Map(relationsOf(target).materials.map(m=>[m.source_ref,m]));
+  const currentRefs=target.sources.map(s=>s.source_ref!);
+  // Omission keeps the legacy intent and its sealed fingerprint unchanged.
+  // Explicit choices are checked against this exact, current target, not the branch.
+  const retained=new Set(intent.target_selection??currentRefs);
+  if([...retained].some(ref=>!currentRefs.includes(ref)))fail("invalid_target_selection");
+  if(selected.some(ref=>currentRefs.includes(ref) && !retained.has(ref)))fail("target_selection_conflict");
+  const entries=new Map(target.sources.filter(s=>retained.has(s.source_ref!)).map(s=>[s.source_ref,s]));
+  const materials=new Map(relationsOf(target).materials.filter(m=>retained.has(m.source_ref)).map(m=>[m.source_ref,m]));
   for(const ref of selected) {
     entries.set(ref,source.sources.find(s=>s.source_ref===ref)!);
     const m=relationsOf(source).materials.find(m=>m.source_ref===ref)!;
@@ -83,11 +142,26 @@ function incorporationPayload(target:Revision,source:Revision,intent:ReturnType<
   }
   const payload=normalizePayload(target,target.definition,[...entries.values()].map(selectedWorkSourceInput));
   const relations:Relations={...relationsOf(target),materials:payload.sources.map(s=>materials.get(s.source_ref!)!),review:{source:reference(source),target:reference(target),dispositions:intent.dispositions,rationale:intent.rationale,next_question:intent.next_question}};
-  validateRelations(relations,payload,target.work_id); // all represented dependencies must remain selected
+  validateRelations(relations,{...payload,files:target.files},target.work_id);
+  // Validate incoming roots against the branch snapshot, including edges on
+  // matching target rows. Preview and commit both compose this same selection.
+  requireHistoricalContext({revision:source,dependencies:selected},relations.materials);
   // Repeating the same comparison choices is not another judgment or revision.
   const prior=target.relations?.review;
-  if(prior && canonical({...prior,target:relations.review!.target})===canonical(relations.review))relations.review=prior;
+  if(prior && canonical(payload.sources)===canonical(target.sources) && canonical(relations.materials)===canonical(relationsOf(target).materials) && canonical({...prior,target:relations.review!.target})===canonical(relations.review))relations.review=prior;
   return {...payload,relations,...(target.files!==undefined?{files:target.files}:{})};
+}
+async function incorporation(a:Access,target:Revision,source:Revision,intent:ReturnType<typeof incorporationIntent>){
+ if("selection" in intent)return fileIncorporation(a,target,source,intent.selection);
+ const payload=incorporationPayload(target,source,intent);
+ if(target.files?.length||source.files?.length||target.relations?.file_materials!==undefined||source.relations?.file_materials!==undefined||intent.file_selection)
+   return ordinaryFileIncorporation(a,target,source,payload,intent.file_selection);
+ return {payload,bodies:[] as FileBody[]};
+}
+async function branchFiles(a:Access,source:Revision,id:string,payload:Payload){
+ if(hasSceneFile(source))return fileBranch(a,source,id,payload);
+ if(source.files?.length||source.relations?.file_materials!==undefined)return ordinaryFileBranch(a,source,payload);
+ return {payload,bodies:[] as FileBody[]};
 }
 interface OperationTicket {
   kind:"branch"|"incorporate"; workspace_id:string; project_id:string; author_ref:string;
@@ -108,13 +182,18 @@ export async function previewOperation(a:Access,id:string,kind:"branch"|"incorpo
   if(kind==="branch") {
     const b=binding(expected);if(!b.fingerprint)fail("invalid_binding");
     source=(await current(a,{work_id:id,revision:b.revision,fingerprint:b.fingerprint})).at(-1)!;
-    payload=branchPayload(source,(intent as ReturnType<typeof branchIntent>).reason);work_id=crypto.randomUUID();
+    work_id=crypto.randomUUID();payload=branchPayload(source,(intent as ReturnType<typeof branchIntent>).reason);
+    payload=(await branchFiles(a,source,work_id,payload)).payload;
   } else {
     const result=await compare(a,id,expected,(intent as ReturnType<typeof incorporationIntent>).source);
-    source=result.branch;target=result.target;payload=incorporationPayload(target,source,intent as ReturnType<typeof incorporationIntent>);
+    source=result.branch;target=result.target;payload=(await incorporation(a,target,source,intent as ReturnType<typeof incorporationIntent>)).payload;
+    validateRetainedContext(result.targetChain,id,payload,a);
+    validateRetainedIncorporations(target,payload);
   }
+  if(payload.relations)validateRelations(payload.relations,payload,work_id);
   const t:OperationTicket={kind,workspace_id:a.workspace_id,project_id:a.project_id,author_ref:a.author_ref,work_id,request_key:crypto.randomUUID(),expected:headBinding(target),source:reference(source),intent_fingerprint:hash(canonical(intent)),request_fingerprint:"",expires:Date.now()+86_400_000};
   t.request_fingerprint=requestFingerprint(a,work_id,t.expected,t.request_key,payload);
+  if(!await headsCurrent(a,reference(target??source),reference(source)))fail("refresh_required",409);
   return {work_id,ticket:seal(a,t),intent,payload,target:target??null,source,noop:!!target && canonical(payload)===canonical({definition:target.definition,sources:target.sources,relations:target.relations,...(target.files!==undefined?{files:target.files}:{})})};
 }
 export async function saveOperation(a:Access,id:string,value:unknown,input:unknown,resolve=false) {
@@ -134,7 +213,7 @@ export async function saveOperation(a:Access,id:string,value:unknown,input:unkno
     if(t.kind==="incorporate" && sameBinding(headBinding(chain.at(-1)),t.expected)) {
       try {
         const {target,branch}=await compare(a,id,t.expected,t.source);
-        const payload=incorporationPayload(target,branch,intent as ReturnType<typeof incorporationIntent>);
+        const {payload}=await incorporation(a,target,branch,intent as ReturnType<typeof incorporationIntent>);
         if(requestFingerprint(a,id,t.expected,t.request_key,payload)===t.request_fingerprint &&
           canonical(payload)===canonical({definition:target.definition,sources:target.sources,relations:target.relations,...(target.files!==undefined?{files:target.files}:{})}) &&
           await headsCurrent(a,reference(target),t.source)) return {outcome:"saved",saved:target,head:headBinding(target),noop:true};
@@ -143,13 +222,14 @@ export async function saveOperation(a:Access,id:string,value:unknown,input:unkno
     return {outcome:"unknown",saved:null,head:headBinding(chain.at(-1))};
   }
   if(!sameBinding(headBinding(chain.at(-1)),t.expected))fail("refresh_required",409);
-  let payload:Payload;
+  let payload:Payload,bodies:FileBody[]=[];
   if(t.kind==="branch") {
     const source=(await current(a,t.source)).at(-1)!;
     payload=branchPayload(source,(intent as ReturnType<typeof branchIntent>).reason);
+    ({payload,bodies}=await branchFiles(a,source,id,payload));
   } else {
     const {target,branch}=await compare(a,id,t.expected,t.source);
-    payload=incorporationPayload(target,branch,intent as ReturnType<typeof incorporationIntent>);
+    ({payload,bodies}=await incorporation(a,target,branch,intent as ReturnType<typeof incorporationIntent>));
   }
   if(requestFingerprint(a,id,t.expected,t.request_key,payload)!==t.request_fingerprint)fail("preview_changed",409);
   const target=chain.at(-1);
@@ -158,8 +238,7 @@ export async function saveOperation(a:Access,id:string,value:unknown,input:unkno
     return {outcome:"saved",saved:target,head:headBinding(target),noop:true};
   }
   const next=makeRevision(a,id,t.expected,t.request_key,payload,new Date().toISOString());
-  assertHistoryBudget([...chain,next]);
-  await append(a,next,t.source);
+  await append(a,chain,next,t.source,bodies);
   const after=await readWork(a,id),result=after.find(r=>r.request_key===t.request_key);
   if(!result)fail("refresh_required",409);
   if(result.request_fingerprint!==t.request_fingerprint)fail("altered_replay",409);
@@ -176,6 +255,17 @@ export async function referenceAvailability(a:Store,r:Revision):Promise<{availab
       if(ref.fingerprint===r.relations?.review?.source.fingerprint)reviewSource=chain.find(v=>canonical(reference(v))===canonical(ref));
       result[ref.fingerprint]=chain.some(v=>canonical(reference(v))===canonical(ref))?(chain.at(-1)!.fingerprint===ref.fingerprint?"Exact saved revision available; source truth remains unverified.":"Saved source revision available; that work has newer material. No automatic update."):"Origin unavailable or unverified; this independently saved work remains readable.";
     } catch {result[ref.fingerprint]="Origin unavailable or unverified; this independently saved work remains readable.";}
+  }
+  // Check only the directly recorded occurrences for this explicit context
+  // view. Opening the original uses the integrity-checked note reader.
+  const notes=r.relations?.materials.flatMap(m=>m.from && m.from.work_id!==r.work_id?[m.from]:[])??[];
+  if(notes.length){
+    const rows=await a.DB.prepare(`SELECT p.key AS idx, EXISTS(SELECT 1 FROM web_planning_revision v
+      WHERE v.workspace_id=? AND v.project_id=? AND v.work_id=json_extract(p.value,'$.work_id')
+      AND v.revision=json_extract(p.value,'$.revision') AND v.fingerprint=json_extract(p.value,'$.fingerprint')
+      AND EXISTS (SELECT 1 FROM json_each(v.envelope,'$.sources') n WHERE json_extract(n.value,'$.source_ref')=json_extract(p.value,'$.source_ref'))) AS present
+      FROM json_each(?) p`).bind(a.workspace_id,a.project_id,canonical(notes)).all<{idx:number;present:number}>();
+    for(const row of rows.results)result[canonical(notes[row.idx])]=row.present?"Recorded source note is listed; inspect it to read the original.":"Origin unavailable. This saved selection remains in this work.";
   }
   return {availability:result,reviewSource};
 }

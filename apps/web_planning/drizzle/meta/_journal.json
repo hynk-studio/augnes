@@ -29,6 +29,27 @@
       "when": 1791158400000,
       "tag": "0003_cumulative_history",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793721087714,
+      "tag": "0004_complete_exchange_files",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1793865990631,
+      "tag": "0005_return_destination",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1794000000000,
+      "tag": "0006_request_participation",
+      "breakpoints": true
     }
   ]
 }

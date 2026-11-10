@@ -206,3 +206,13 @@ fetch/body failure. The completed marked-probe contract is unchanged. Synthetic
 proof, prospective exact-head Browser qualification and the historical failed
 receipts remain separate evidence; only a new clean-head deciding run can remove
 the current verification HOLD.
+
+The #1512 correction qualification exposed a separate completion-order race:
+the locked/hidden UI and consumer abort had settled, but the Browser owner
+sealed before CDP delivered the canceled request's terminal event. The harness
+now uses its existing bounded request-quiet wait before the no-write checks and
+scenario seal. The private verdict, event-order requirements, negative cases,
+and all time limits remain unchanged. A deterministic test executes that actual
+completion block with a delayed terminal event and with failed observation
+settlement; only the former can seal. This does not reclassify the failed
+historical run or make a public diagnostic snapshot acceptance evidence.

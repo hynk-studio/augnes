@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
+import { isMainThread, parentPort, Worker, workerData } from "node:worker_threads";
+import { readProcessBirthIdentity } from "./local-process-ownership.mjs";
+import { CHECKOUT_OWNER_FILE, CHECKOUT_OWNERSHIP_CONTRACT, checkoutVerificationFingerprint } from "./local-canonical-checkout-ownership.mjs";
 import {
   CANONICAL_DARWIN_REPOSITORY_ROOT, CANONICAL_ORIGIN_URL,
   CANONICAL_REPOSITORY_ID, matchCanonicalRepositoryIdentity,
@@ -79,6 +83,88 @@ export function verificationAnchorRoot(context) {
   const options = contexts.get(context);
   if (!options) fail("verification_context_not_owned");
   return context.kind === "canonical" ? options.root : options.canonicalRoot;
+}
+
+// Observe the accepted checkout with its own supported inspector. A candidate
+// may add source files or raise runtime floors without adopting that candidate
+// into the installed service. The inspector still binds the accepted checkout,
+// configuration, executable and lifecycle before/after every observation.
+export async function inspectVerificationCompanionPreservation(context, { freshTransport = false } = {}) {
+  const options = contexts.get(context);
+  if (!options) fail("verification_context_not_owned");
+  assertVerificationContext(context, options.root);
+  const repositoryRoot = verificationAnchorRoot(context);
+  if (freshTransport) return readWithFreshTransport(repositoryRoot);
+  return readAcceptedPreservation(repositoryRoot);
+}
+
+async function readAcceptedPreservation(repositoryRoot) {
+  const source = path.join(repositoryRoot, "plugins/augnes-operator/mcp/companion-service-core.mjs");
+  const stat = lstatSync(source);
+  if (!stat.isFile() || stat.isSymbolicLink() || realpathSync(source) !== source)
+    fail("companion_preservation_source_invalid");
+  const { inspectCompanionPreservation } = await import(pathToFileURL(source).href);
+  return inspectCompanionPreservation({ repositoryRoot });
+}
+
+// Synchronous input/ownership checks can leave an idle HTTP socket in the
+// executor's fetch pool after its peer has closed it. Give a single accepted
+// observation its own pool and event loop while the parent keeps monitoring.
+async function readWithFreshTransport(repositoryRoot) {
+  const worker = new Worker(new URL(import.meta.url), {
+    workerData: { operation: "companion_preservation", repositoryRoot },
+    execArgv: [],
+  });
+  let deadline;
+  try {
+    return await new Promise((resolve, reject) => {
+      const unavailable = () => reject(Object.assign(new Error("verification_preservation_reader_unavailable"),
+        { code: "verification_preservation_reader_unavailable" }));
+      deadline = setTimeout(unavailable, 60_000);
+      worker.once("message", resolve);
+      worker.once("error", unavailable);
+      worker.once("exit", unavailable);
+    });
+  } finally {
+    clearTimeout(deadline);
+    await worker.terminate();
+  }
+}
+
+if (!isMainThread && workerData?.operation === "companion_preservation") {
+  // Browser entry points also load this module through tsx's CommonJS loader.
+  readAcceptedPreservation(workerData.repositoryRoot)
+    .then(observation => parentPort.postMessage(observation))
+    .catch(() => process.exit(1)); // The parent rejects an exit without a sample.
+}
+
+// A read-only cooperating-owner observation, not a global lock or service
+// maintenance. A foreign/ambiguous owner is never reclaimed here.
+export async function observeReviewedRevisionSettlementState(context) {
+  const anchor = verificationAnchorRoot(context);
+  const owners = () => {
+    const roots = git(anchor, ["worktree", "list", "--porcelain", "-z"]).split("\0")
+      .filter(line => line.startsWith("worktree ")).map(line => line.slice(9));
+    roots.push(...[1, 2].map(i => path.join(anchor, ".augnes-local-verification", "capacity", `slot-${i}`)));
+    const birth = readProcessBirthIdentity(process.pid), foreign = [];
+    if (birth.state !== "present") fail("revision_settlement_process_unavailable");
+    for (const root of roots) {
+      const file = path.join(root, ".augnes-local-verification", CHECKOUT_OWNER_FILE), stat = lstatSync(file, { throwIfNoEntry: false });
+      if (!stat) continue;
+      if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > 4096 || realpathSync(file) !== file ||
+          (stat.mode & 0o022) || stat.uid !== process.getuid())
+        fail("revision_settlement_owner_ambiguous");
+      const owner = JSON.parse(readFileSync(file, "utf8"));
+      if (owner.contract !== CHECKOUT_OWNERSHIP_CONTRACT || owner.repository_id !== CANONICAL_REPOSITORY_ID ||
+          owner.checkout_fingerprint !== checkoutVerificationFingerprint(root) || !Number.isSafeInteger(owner.owner_pid) ||
+          !/^[0-9a-f]{64}$/u.test(owner.owner_process_identity ?? "")) fail("revision_settlement_owner_ambiguous");
+      if (owner.owner_pid !== process.pid || owner.owner_process_identity !== birth.identity) foreign.push({ root, ...owner });
+    }
+    return foreign;
+  };
+  const before = owners(), service = await inspectVerificationCompanionPreservation(context), after = owners();
+  if (hash(before) !== hash(after)) fail("revision_settlement_owners_changed");
+  return { observed_at: new Date().toISOString(), service, foreign_checkout_owners: after };
 }
 
 export function physicalFingerprint(entry) {
