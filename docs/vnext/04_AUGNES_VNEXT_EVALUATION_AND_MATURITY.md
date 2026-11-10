@@ -266,6 +266,36 @@ and repeated detail requests alongside useful completion and total burden.
 These are conditional evaluation questions, not a new schema, disclosure gate
 or blanket study allocation.
 
+#### Conditional case: useful communication during unfinished work
+
+For [03's s³-motivated question](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#contribution-and-undertaking-follow-through--2026-10-20),
+select an actual task where a finding can affect another contribution before
+its next material action. Use the supported execution path and existing
+source/result/use records. Distinguish a decision-relevant report's availability,
+delivery or observed reading, the recipient's next action and the checked joint
+outcome; delivery or quotation alone does not establish useful uptake.
+
+Distinguish announced exploration, observed findings and tentative exclusions.
+"Not found" supports only the examined scope. Where premature exclusion is
+material, apply the existing [correction-uptake contrast](#conditional-case-repeated-derivatives-and-correction-uptake)
+to a mistaken report and its supported correction. Observe whether affected
+work changes while valid findings and necessary independent checks remain.
+Count avoidable repeated work separately from deliberate corroboration.
+
+For a communication claim, compare useful during-work updates with independent
+attempts plus final integration, keeping relevant capability, source access and
+the aggregate team resource ceiling comparable. Hold the initial task split
+and other interaction rules fixed when attributing a timing effect, or disclose
+the differences. Retain a strong direct/adaptive-memo alternative when the
+question is whether teaming adds value. Select only contrasts needed for that
+claim; use [total-burden accounting](#cost-and-user-burden), including receiver
+processing, integration and human relay. Per-agent allowances or message-call
+counts alone do not establish equal cost or savings.
+
+Use these observations to retain, revise, simplify or stop the method. Any
+later-task reuse claim follows the existing #1373 conditions and comparison
+rules; within-task cooperation alone does not establish accumulated capability.
+
 ### Strategic operating-profile evidence
 
 For #1518, the supported validation/preview entry and consumer, not a type alone,
