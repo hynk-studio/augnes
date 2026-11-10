@@ -763,12 +763,21 @@ export function verifyRegisteredIntegrationBudget(p,prior,focused,options) {
     git(["merge-base","--is-ancestor",a,b]);
   const changed = (a,b) => git(["diff","--name-only",a,b,"--"]).toString().trim().split("\n").filter(Boolean);
   const entry = (head,file) => git(["ls-tree",head,"--",file]);
+  const adoptedProse = file => {
+    const main = entry(p.base,file), measured = entry(measuredHead,file), ancestor = entry(measuredBase,file), candidate = entry(p.head,file);
+    if (candidate.equals(main) && (measured.equals(ancestor) || measured.equals(main))) return true;
+    const blobs = [measured,ancestor,main,candidate].map(value => value.toString().match(/^100644 blob ([a-f0-9]{40})\t/u)?.[1]);
+    if (blobs.some(id => !id)) return false;
+    // A disjoint change in a shared prose file keeps the already accepted
+    // task paragraphs. Compare a read-only three-way merge of Git blobs.
+    return git(["merge-file","--stdout","--object-id",...blobs.slice(0,3)]).equals(git(["cat-file","blob",blobs[3]]));
+  };
   // A later adopted prose-only main can be carried into the final target
   // while the old measured source and its original complete inventory remain
   // fixed. Execution changes require a new measurement.
   const laterMain = changed(measuredBase,p.base);
   if (laterMain.some(file => !/^(?:(?:AGENTS|README)\.md|docs\/[A-Za-z0-9_./-]+\.md)$/u.test(file) ||
-      !entry(p.head,file).equals(entry(p.base,file)))) fail();
+      !adoptedProse(file))) fail();
   verifyIntegrationBudgetMeasurementSource(git,baseline.head,measuredHead);
   const original = integrationBudgetRegistration(git,measuredHead), final = integrationBudgetRegistration(git,p.head);
   const {normalized,...historical} = incident.registration;
@@ -782,7 +791,8 @@ export function verifyRegisteredIntegrationBudget(p,prior,focused,options) {
   // exact adopted-main entries, including their Git modes and deletions.
   for (const [head,adopted] of [[measuredHead,measuredBase],[p.head,p.base]]) {
     const paths = changed(baseline.head,head);
-    for (const file of paths.filter(file => !integrationEvidencePaths.has(file) && file !== integrationChild && file !== FIXTURE_BUDGET_PATHS.suite))
+    for (const file of paths.filter(file => !integrationEvidencePaths.has(file) && file !== integrationChild &&
+        file !== FIXTURE_BUDGET_PATHS.suite && (head !== p.head || !laterMain.includes(file))))
       if (!entry(head,file).equals(entry(adopted,file))) fail();
   }
   const before = integrationCapture(reg.before,measuredHead,original,p,options);
