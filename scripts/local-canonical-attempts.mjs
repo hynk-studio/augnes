@@ -1,10 +1,12 @@
+import { PREPARED_ELIGIBILITY_REPAIR, PREPARED_ELIGIBILITY_CLAIM, PREPARED_ELIGIBILITY_GRANT, PREPARED_ELIGIBILITY_PHASE, verifyPreparedEligibilityPredecessor } from "./local-canonical-prepared-eligibility-witness.mjs";
+import { readPreparedEligibilityDelegation, preparedEligibilityAuthorityScope } from "./local-canonical-git-observation.mjs";
 import { SERIAL_AGGREGATE_ROUTE, isSerialAggregateRevision, serialReviewTarget, serialAuthorityScope, readSerialAggregateIncident, verifySerialAggregateRemedy, validSerialInheritance, serialInheritanceFrom, inheritedSerialAuthorityScope, verifyInheritedSerialConnection } from "./local-canonical-serial-aggregate.mjs";
 import { PROJECT_EXPERIENCE_COMMITMENT } from "./project-experience-serial-budget.mjs";
 import { mkdirSync, lstatSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
 import { AsyncLocalStorage } from "node:async_hooks";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { digest, validNodeHeaders, classifyInputChange, nonFaultInputChange, inputEventIdentity, comparePreparedDependencyInputs, preparedDependencyIdentity, observePreparedDependencyInputs, PREPARED_DEPENDENCY_CONTRACT } from "./local-canonical-inputs.mjs";
+import { assertInputContractBinding, digest, validNodeHeaders, classifyInputChange, nonFaultInputChange, inputEventIdentity, comparePreparedDependencyInputs, preparedDependencyIdentity, observePreparedDependencyInputs, PREPARED_DEPENDENCY_CONTRACT } from "./local-canonical-inputs.mjs";
 import { assertCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 
@@ -167,7 +169,7 @@ export function beginAttempt(options) {
   return afterRevisionValidation(options.observeRevision, () => prepareAttempt(options), (finish, current, check) => finish(current, check));
 }
 
-function prepareAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, head, tree, runId, contractFingerprint, recoveryProof = null, sourceCorrection = null, acceptedMain = null, revisionAuthorization = null, revisionInputs = null, revisionLive = null, observeRevision = null, assertCurrent = null, ...retiredOptions }) {
+function prepareAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, head, tree, runId, contractFingerprint, inputContract = null, recoveryProof = null, sourceCorrection = null, acceptedMain = null, revisionAuthorization = null, revisionInputs = null, revisionLive = null, observeRevision = null, assertCurrent = null, ...retiredOptions }) {
   if (["browserReplacement", "browserAuthorization", "browserLive", "observerAuthorization", "timeoutAuthorization", "conditionAuthorization", "guideAuthorization"].some(key => Object.hasOwn(retiredOptions, key))) throw fail("qualification_route_retired");
   assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
   if (hasRetiredQualificationMarker(sourceCorrection) || hasRetiredQualificationMarker(recoveryProof)) throw fail("qualification_route_retired");
@@ -186,8 +188,12 @@ function prepareAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, hea
           tip.reviewed_revision_consumed)) throw fail("attempt_latest_tip_required");
   }
   if (observeRevision && (!isReviewedRevision(sourceCorrection) || typeof observeRevision !== "function" || typeof assertCurrent !== "function")) throw fail("revision_observer_invalid");
+  if (preparedEligibilityEvidence(sourceCorrection) && inputContract === null) throw fail("input_contract_owner_invalid");
+  if (inputContract !== null) assertInputContractBinding(inputContract, contractFingerprint);
   const binding = digest({ sourceCorrection, branch, head, tree, acceptedMain, revisionInputs });
-  const correction = sourceCorrection ? prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof: sourceCorrection, acceptedMain, reserve: true }) : null;
+  let dependencyPrerequisites = null;
+  const correction = sourceCorrection ? prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof: sourceCorrection, acceptedMain, reserve: true,
+    retainDependencyPrerequisites: value => { dependencyPrerequisites = structuredClone(value); } }) : null;
   if (isReviewedRevision(sourceCorrection)) {
     const candidate = path.join(artifact,"families",familyId);
     if (pathPresent(candidate)) {
@@ -234,9 +240,25 @@ function prepareAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, hea
     budget: { initial: 1, recovery: isReviewedRevision(sourceCorrection) ? 0 : 1 } };
   append(root, `attempt-${number}.json`, record);
   const capability = Object.freeze({ ...record });
-  capabilities.set(capability, { root, repositoryRoot, checkoutOwner, record });
+  capabilities.set(capability, { root, repositoryRoot, checkoutOwner, record,
+    dependencyPrerequisites, inputContract, correctionFingerprint: digest(sourceCorrection) });
   return capability;
   };
+}
+
+// Only an admitted attempt can supply the immutable focused prerequisite to
+// its registered preparation. This capability is invocation-local; a label,
+// proof argument or caller-provided observation cannot acquire it.
+export function prepareAttemptDependencies(attempt, { repositoryRoot, inputs, phaseId }) {
+  const current = capabilities.get(attempt);
+  if (!current || current.repositoryRoot !== repositoryRoot || current.inputContract !== inputs ||
+      digest(attempt.source_correction) !== current.correctionFingerprint) throw fail("attempt_dependency_owner_invalid");
+  assertCheckoutVerificationOwnership(current.checkoutOwner, repositoryRoot);
+  assertInputContractBinding(inputs, attempt.contract_fingerprint);
+  const prerequisite = current.dependencyPrerequisites?.observations.find(value => value.phase_id === phaseId) ?? null;
+  if (current.dependencyPrerequisites?.process_umask !== undefined &&
+      current.dependencyPrerequisites.process_umask !== process.umask()) throw fail("revision_dependency_process_settings_changed");
+  return inputs.prepareDependencies({ repositoryRoot, phaseId, prerequisite });
 }
 
 export function validRecoveryProof(proof, prior) {
@@ -495,11 +517,16 @@ function readSourceCorrectionMaterial(file, repositoryRoot) {
   return { proof: { ...proof, local_relative_path: relative.split(path.sep).join("/") } };
 }
 
-function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, acceptedMain, reserve, stockReceipt = null }) {
+function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, acceptedMain, reserve, stockReceipt = null, retainDependencyPrerequisites = null }) {
   const { proof: reread, evidence } = readSourceCorrectionMaterial(path.join(repositoryRoot, proof.local_relative_path ?? ""), repositoryRoot);
   if (digest(reread) !== digest(proof) || proof.branch !== branch || proof.head !== head || proof.tree !== tree ||
       !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree)) throw fail("source_correction_identity_invalid");
   if (isReviewedRevision(proof)) {
+    if (evidence.integrationBudget) retainDependencyPrerequisites?.({
+      observations: [evidence.integrationBudget.after.dependencies,
+        ...(evidence.generatedStockBrowser ? [evidence.generatedStockBrowser] : [])],
+      ...(evidence.preparedEligibility ? { process_umask: evidence.integrationBudget.process_umask } : {}),
+    });
     const priorRoot = verifyRevisionOriginals(anchorRoot, repositoryRoot, proof);
     const successor = { contract: "augnes.local-canonical-successor.v2", kind: "reviewed_revision",
       family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
@@ -538,6 +565,14 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
     }
     if (evidence.integrationBudget) inspectCurrentIntegrationBudgetInputs(repositoryRoot, evidence.integrationBudget, stockReceipt);
     if (evidence.generatedStockBrowser) inspectGeneratedStockBrowserInputs(repositoryRoot, evidence.generatedStockBrowser);
+    if (evidence.preparedEligibility) {
+      if (process.umask() !== evidence.integrationBudget.process_umask) throw fail("revision_dependency_process_settings_changed");
+      if (stockReceipt) for (const expected of [evidence.integrationBudget.after.dependencies, evidence.generatedStockBrowser]) {
+        const observed = stockReceipt.inputs.prepared_dependencies.find(value => value.phase_id === expected.phase_id);
+        if (!observed || !revisionEqual(observed.prerequisite, expected) || comparePreparedDependencyInputs(expected, observed.before) !== "unchanged")
+          throw fail("revision_prepared_dependency_eligibility_unverified");
+      }
+    }
     // Mutable tree/ownership/input checks may block. Freshness is evaluated
     // after them, immediately before the exclusive append, never before them.
     if (assertCurrent?.()?.then) throw fail("revision_boundary_must_be_synchronous");
@@ -655,7 +690,7 @@ function verifyRevisionOriginals(anchorRoot, repositoryRoot, proof, materialFile
       rememberRevisionFile(original,captureBytes);
     }
   }
-  const budgetPhase = generatedStockEvidence(proof) ? GENERATED_STOCK_PHASE : fixtureBudgetFailurePhase(proof.commission?.evidence_kind);
+  const budgetPhase = preparedEligibilityEvidence(proof) ? PREPARED_ELIGIBILITY_PHASE : generatedStockEvidence(proof) ? GENERATED_STOCK_PHASE : fixtureBudgetFailurePhase(proof.commission?.evidence_kind);
   if (budgetPhase) {
     const folder=path.dirname(materialFile??path.join(repositoryRoot,proof.local_relative_path));
     const focused=JSON.parse(revisionArtifact(folder,proof.focused));
@@ -908,8 +943,9 @@ export function validateReviewedRevisionAuthorityRecords(p, review, grant, permi
     /materially corrected/iu.test(grantText) && /focused checks/iu.test(grantText) && /no additional recovery allowance/iu.test(grantText) && /Interrupted reservations consume/iu.test(grantText);
   const measuredIntegration = p.commission.evidence_kind === REGISTERED_INTEGRATION_BUDGET;
   const generatedStock = generatedStockEvidence(p);
-  const typedMaterial = measuredIntegration || generatedStock;
-  const prospectiveScope = measuredIntegration ? integrationBudgetAuthorityScope(p,review,grant) :
+  const preparedEligibility = preparedEligibilityEvidence(p);
+  const typedMaterial = measuredIntegration || generatedStock || preparedEligibility;
+  const prospectiveScope = preparedEligibility ? preparedEligibilityAuthorityScope(p,review,grant) : measuredIntegration ? integrationBudgetAuthorityScope(p,review,grant) :
     generatedStock ? generatedStockAuthorityScope(p,review,grant) :
     [p.branch, String(p.accepted.review.id), p.commission.root_receipt_fingerprint].every(s => grant.body.includes(s)) &&
     /NEW.*commission/iu.test(grantText) && /v7 reviewed_revision/iu.test(grantText) && /old commission remains spent/iu.test(grantText) &&
@@ -976,7 +1012,7 @@ export function validateReviewedRevisionAuthorityRecords(p, review, grant, permi
       (permitsFinalDependencySuccessor(forward.body,p,revisionCommissionIdentity(p)) ||
         readPostPassDecision(forward.body,p,revisionCommissionIdentity(p)) && permitsPostPassReview(currentReview.body,p,revisionCommissionIdentity(p)))) && prospectiveScope && firstLine(review.body) === decision && firstLine(currentReview.body) === decision &&
       [p.base, p.head, p.tree, target, p.prior_receipt_fingerprint].every(s => currentReview.body.includes(s)) &&
-      firstLine(grant.body) === (measuredIntegration ? INTEGRATION_BUDGET_GRANT : generatedStock ? GENERATED_STOCK_GRANT : isMaterialSourceRevision(p) ?
+      firstLine(grant.body) === (preparedEligibility ? PREPARED_ELIGIBILITY_GRANT : measuredIntegration ? INTEGRATION_BUDGET_GRANT : generatedStock ? GENERATED_STOCK_GRANT : isMaterialSourceRevision(p) ?
         "Authorize one NEW prospective v7 reviewed_revision commission for a material source correction." : isGitAcquisitionRevision(p) ?
         "Authorize a NEW prospective v7 reviewed_revision commission for a Git acquisition correction." :
         "Authorize a NEW prospective v7 reviewed_revision commission.") &&
@@ -1036,6 +1072,7 @@ export async function authorizeReviewedRevision(p, { transport = createGitHubObs
       throw fail("revision_material_fresh_authority_required");
     if (measuredIntegrationEvidence(p)) await verifyIntegrationBudgetDelegation(p,delegation,evidence,repositoryRoot,transport);
     if (generatedStockEvidence(p)) await verifyGeneratedStockDelegation(p, delegation, evidence, repositoryRoot, transport);
+    if (preparedEligibilityEvidence(p)) await verifyPreparedEligibilityDelegation(p, delegation, evidence, repositoryRoot, transport);
   }
   const postPass = forward && readPostPassDecision(forward.body,p,revisionCommissionIdentity(p));
   if (postPass) {
@@ -1218,8 +1255,9 @@ function assertRevisionPublication(p,pr) {
 
 const measuredIntegrationEvidence = p => p?.commission?.evidence_kind === REGISTERED_INTEGRATION_BUDGET;
 const generatedStockEvidence = p => p?.commission?.evidence_kind === GENERATED_STOCK_REPAIR;
-const usesGeneratedStockWitness = p => measuredIntegrationEvidence(p) || generatedStockEvidence(p);
-const materialEvidenceClaim = kind => kind === GENERATED_STOCK_REPAIR ? GENERATED_STOCK_CLAIM : fixtureBudgetEvidenceClaim(kind);
+const preparedEligibilityEvidence = p => p?.commission?.evidence_kind === PREPARED_ELIGIBILITY_REPAIR;
+const usesGeneratedStockWitness = p => measuredIntegrationEvidence(p) || generatedStockEvidence(p) || preparedEligibilityEvidence(p);
+const materialEvidenceClaim = kind => kind === PREPARED_ELIGIBILITY_REPAIR ? PREPARED_ELIGIBILITY_CLAIM : kind === GENERATED_STOCK_REPAIR ? GENERATED_STOCK_CLAIM : fixtureBudgetEvidenceClaim(kind);
 async function verifyIntegrationBudgetDelegation(p,delegation,evidence,repositoryRoot,transport) {
   const scope = readIntegrationBudgetDelegation(delegation.body,p), prior = evidence.prior.source_correction;
   const baseline = evidence.focused.regression.accepted_baseline;
@@ -1286,6 +1324,36 @@ async function verifyGeneratedStockDelegation(p, delegation, evidence, repositor
       throw fail("revision_authority_permission_invalid");
   }
 }
+async function verifyPreparedEligibilityDelegation(p, delegation, evidence, repositoryRoot, transport) {
+  const scope = readPreparedEligibilityDelegation(delegation.body, p), prior = evidence.prior.source_correction;
+  const baseline = evidence.focused.regression.accepted_baseline;
+  const statuses = ["pass", "failure", "not_run"].map(status => evidence.original.phases.filter(phase => phase.status === status).length);
+  if (!scope || realpathSync(repositoryRoot) !== scope.worktree || !["base", "head", "tree"].every(key => scope[key] === baseline[key]) ||
+      scope.reviewId !== baseline.receiving_review?.id || scope.preparation !== gitReviewTarget(prior) ||
+      !revisionEqual(scope.counts, [...statuses, evidence.stock.issues.length])) throw fail("revision_prepared_eligibility_delegation_invalid");
+  const received = await transport.review(scope.reviewId);
+  if (received?.commit_id !== baseline.head || !["COMMENTED", "APPROVED"].includes(received.state) ||
+      !received.body.includes(p.prior_receipt_fingerprint) || !received.body.includes("SOURCE REVISE") ||
+      !(Date.parse(evidence.completion.finished_at) < Date.parse(received.submitted_at) && Date.parse(received.submitted_at) < Date.parse(delegation.created_at)))
+    throw fail("revision_prepared_eligibility_baseline_invalid");
+  const records = [
+    [received, "accepted_revision", baseline.receiving_review],
+    [await transport.review(prior.accepted.review.id), "accepted_revision", prior.accepted.review],
+    [await transport.grant(prior.authorization.grant_comment_id), "execution_commission", { id: prior.authorization.grant_comment_id, sha256: prior.authorization.grant_sha256 }],
+    [await transport.grant(prior.commission.delegation.id), "task_delegation", prior.commission.delegation],
+  ];
+  for (const [record, role, ref] of records) {
+    const review = role === "accepted_revision";
+    if (record?.id !== ref.id || record.user?.type !== "User" || !revisionId(record.user?.id) ||
+        !["OWNER", "MEMBER", "COLLABORATOR"].includes(record.author_association) ||
+        (review ? record.pull_request_url !== `https://api.github.com/repos/hynk-studio/augnes/pulls/${p.pull_request}` ||
+          record.commit_id !== prior.head || !["COMMENTED", "APPROVED"].includes(record.state) :
+          record.issue_url !== `https://api.github.com/repos/hynk-studio/augnes/issues/${p.pull_request}` || record.created_at !== record.updated_at) ||
+        digest(reviewedRevisionAuthorityObservation(record, role)) !== ref.sha256) throw fail("revision_prepared_eligibility_baseline_invalid");
+    const permission = await transport.permission(record.user.login);
+    if (permission?.user?.login !== record.user.login || !["admin", "maintain"].includes(permission.permission)) throw fail("revision_authority_permission_invalid");
+  }
+}
 // Development delegation is conditional. Preparation reads it, but obtains no
 // execution capability and never supplies an accepted review or a grant.
 export async function prepareMaterialSourceRevision(args,{transport}={}) {
@@ -1311,6 +1379,7 @@ export async function prepareMaterialSourceRevision(args,{transport}={}) {
     throw fail("revision_material_fresh_authority_required");
   if (measuredIntegrationEvidence(p)) await verifyIntegrationBudgetDelegation(p,delegation,evidence,args.repositoryRoot,api);
   if (generatedStockEvidence(p)) await verifyGeneratedStockDelegation(p, delegation, evidence, args.repositoryRoot, api);
+  if (preparedEligibilityEvidence(p)) await verifyPreparedEligibilityDelegation(p, delegation, evidence, args.repositoryRoot, api);
   const checkCurrentInputs=()=>{
   if (evidence.focused.regression?.kind===REPOSITORY_TYPECHECK) {
     const witness=JSON.parse(revisionArtifact(path.dirname(args.file),evidence.focused.regression.after));
@@ -1355,6 +1424,7 @@ function prepareRevisionInspection({ file, repositoryRoot, predecessorRoot, anch
   if (evidence.retainedObservation) verifyRetainedWebInput(repositoryRoot,evidence.retainedObservation);
   if (evidence.integrationBudget) inspectCurrentIntegrationBudgetInputs(repositoryRoot,evidence.integrationBudget);
   if (evidence.generatedStockBrowser) inspectGeneratedStockBrowserInputs(repositoryRoot, evidence.generatedStockBrowser);
+  if (evidence.preparedEligibility && process.umask() !== evidence.integrationBudget.process_umask) throw fail("revision_dependency_process_settings_changed");
   if (isBrowserSuccessor(p) || usesRevisionInventory(p)) {
     const git = args => execFileSync("git", args, { cwd: repositoryRoot, encoding: "utf8", timeout: 10000 }).trim();
     verifyGitInputPublication(p,evidence.original,git);
@@ -1422,9 +1492,13 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
     if (postPass) {
       verifyGitRevisionSuccess(original,stock,inputs,REVIEWED_REVISION_PHASES);
       if (p.accepted.head!==prior.head || p.accepted.tree!==prior.tree || p.accepted.base!==original.repository.base_sha) throw fail("revision_positive_predecessor_invalid");
-    } else if (!acquisitionIncident) retainedBefore = verifyGitRevisionFailure(original, stock, inputs, REVIEWED_REVISION_PHASES,
-      isMaterialSourceRevision(p) ? prior.source_correction.commission.ordinal : boundedV7 && p.commission.ordinal === 1 ? 2 : 1,
-      !!p.commission.forward_decision, isMaterialSourceRevision(p) && isSerialAggregateRevision(prior.source_correction), generatedStockEvidence(p));
+    } else if (!acquisitionIncident) {
+      const validateFailure = observedStock => verifyGitRevisionFailure(original, observedStock, inputs, REVIEWED_REVISION_PHASES,
+        isMaterialSourceRevision(p) ? prior.source_correction.commission.ordinal : boundedV7 && p.commission.ordinal === 1 ? 2 : 1,
+        !!p.commission.forward_decision, isMaterialSourceRevision(p) && isSerialAggregateRevision(prior.source_correction), generatedStockEvidence(p));
+      if (preparedEligibilityEvidence(p)) verifyPreparedEligibilityPredecessor(p, prior, parse(p.focused), { original, stock, parse, validateFailure });
+      else retainedBefore = validateFailure(stock);
+    }
     if (completion.infrastructure_code !== null || !(Date.parse(completion.finished_at) >= Date.parse(original.run.finished_at)) ||
         (gitSuccessor && (!revisionEqual(p.commission.initial_accepted, prior.source_correction.accepted) ||
           !revisionEqual(p.commission.initial_authorization, prior.source_correction.authorization))) ||
@@ -1611,6 +1685,7 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
     throw fail("serial_focused_contract_invalid");
   const integrationBudget = usesGeneratedStockWitness(p) ? parse(focused.regression.after) : null;
   return { serialIncident, original, prior, completion, stock, inputs, source, focused, dependencySafety, externalSettlement, browserIncident, postPass, acquisitionIncident,
-    integrationBudget, generatedStockBrowser: generatedStockEvidence(p) ? integrationBudget.after.web_dependencies : null,
+    integrationBudget, preparedEligibility: preparedEligibilityEvidence(p),
+    generatedStockBrowser: generatedStockEvidence(p) || preparedEligibilityEvidence(p) ? integrationBudget.after.web_dependencies : null,
     retainedObservation: retainedBefore && JSON.parse(bytes(parse(focused.regression.after).stdout)) };
 }

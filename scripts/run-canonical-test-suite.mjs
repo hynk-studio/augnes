@@ -1503,6 +1503,11 @@ const suites = {
     },
     ...reviewedRevisionSteps,
     {
+      label: "prepared dependency eligibility before consumers",
+      ...rootNode("scripts/test-prepared-dependency-eligibility.mjs"),
+      timeoutMs: 120_000,
+    },
+    {
       label: "operator Browser control observation",
       ...rootNode("scripts/test-operator-browser-control-observation.mjs"),
       timeoutMs: 30_000,

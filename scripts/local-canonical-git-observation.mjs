@@ -1,3 +1,4 @@
+import { PREPARED_ELIGIBILITY_REPAIR, PREPARED_ELIGIBILITY_CLAIM, PREPARED_ELIGIBILITY_GRANT, verifyPreparedEligibilityRepair } from "./local-canonical-prepared-eligibility-witness.mjs";
 import { isSerialAggregateRevision, hasSerialAccounting } from "./local-canonical-serial-aggregate.mjs";
 import { validProjectExperienceAccounting } from "./project-experience-serial-budget.mjs";
 import { digest, classifyInputChange, effectiveInputObservation, inputEventIdentity, nonFaultInputChange, INPUT_CONTRACT, PREPARED_DEPENDENCY_CONTRACT, comparePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
@@ -419,6 +420,8 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
     if (!material) fail("revision_git_regression_invalid");
     if (regression.kind===REGISTERED_FIXTURE_BUDGET) return verifyRegisteredFixtureBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
     if (regression.kind===REGISTERED_INTEGRATION_BUDGET) return verifyRegisteredIntegrationBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
+    if (regression.kind===PREPARED_ELIGIBILITY_REPAIR)
+      return verifyPreparedEligibilityRepair(p, prior, focused, { git, parse, bytes, completedAt, original, stock, completion });
     if (regression.kind===GENERATED_STOCK_REPAIR)
       return verifyGeneratedStockRepair(p, prior, focused, { git, parse, bytes, completedAt, original, stock, completion });
     if (p.commission.evidence_kind!==undefined) fail("revision_git_regression_invalid");
@@ -518,6 +521,7 @@ function visibleDelegationParagraphs(body) {
 }
 
 export function delegatesMaterialSourceCommission(body,p) {
+  if (p.commission.evidence_kind === PREPARED_ELIGIBILITY_REPAIR) return !!readPreparedEligibilityDelegation(body,p);
   if (p.commission.evidence_kind === REGISTERED_INTEGRATION_BUDGET)
     return !!readIntegrationBudgetDelegation(body,p);
   if (p.commission.evidence_kind === GENERATED_STOCK_REPAIR)
@@ -795,3 +799,36 @@ export function gitReviewTarget(p) {
     prior:[p.prior_family_id,p.prior_number,p.prior_attempt_id,p.prior_receipt_fingerprint],
     originals:p.originals, inputs:p.inputs, source:p.source, focused:p.focused, commission:p.commission});
 }
+
+// Separate visible authorization for a preparation/consumer boundary correction.
+// The operative delegation and single-use paragraphs are literal; source and
+// historical bindings are parsed once and independently authenticated below.
+export function readPreparedEligibilityDelegation(body, p) {
+  const sections = visibleDelegationParagraphs(body);
+  if (sections.length !== 27 || !/^## R[1-9]\d* — one cohesive B1 and dependency-lifecycle correction-through-qualification assignment$/u.test(sections[0]) ||
+      sections[18] !== "### Delegated recording after independent review" ||
+      sections[19] !== "After a separate read-only reviewer accepts the actual final published source, the implementation operator is explicitly authorized to publish the required separate exact-candidate execution record through the existing authenticated maintainer identity under this delegation." || sections[20] !== "The actual acceptance must include the complete final delta, B1 evidence and limitations, dependency-transition correction, policy/refusal controls, real non-reserving preparation commitment and complete current inventory. Identify the independent reviewer separately from the submitting operator. Faithfully record that decision on the exact published candidate, then publish a **distinct, subsequent, immutable exact-target execution grant** linked to this delegation, the actual acceptance and the latest physical predecessor. Authenticate and read back the complete records, current maintainer permission, chronology and normalized authority digests before reservation. A local review report, this task comment, or an old review/grant alone does not supply those later records." || sections[21] !== "The user authorizes **one new prospective commission with one deciding invocation**, conditional on that independent acceptance and separate grant. Preserve the spent history rather than resetting it. Reservation, including interruption, consumes the new allowance. No ordinal two, recovery allowance, unchanged-target retry or replacement commission merely because an execution fails is authorized. Before reservation, demonstrated issues within this task may be corrected and reviewed with updated exact-target records in the same assignment; do not loop unchanged commands or reuse a stale target's authority." || sections[23] !== "After the real conditions are met, use the unchanged planner selection for the final exact candidate and complete its actual reference-Mac qualification, including selected Full/Browser phases, followed by a separate fresh-process stock of the actual receipt and independent result audit. Preserve real FAIL, cancellation, refusal and NOT_RUN results and the executor's stop behavior. A consumed failure ends deciding execution under this delegation; complete cleanup and handoff while retaining HOLD.") return null;
+  const assignment = sections[1].match(/^Authorize one cohesive correction and qualification assignment for issue #([1-9]\d*) on ([\w/-]+) and Draft PR #([1-9]\d*)\.$/u);
+  if (assignment?.[2] !== p.branch || assignment?.[3] !== String(p.pull_request)) return null;
+  const review = sections[2].match(/\[R([1-9]\d*) receiving review ([1-9]\d*)\]\(https:\/\/github\.com\/hynk-studio\/augnes\/pull\/([1-9]\d*)#pullrequestreview-\2\)/u);
+  const lines = sections[4].split("\n");
+  const workspace = lines[1]?.match(/^- Branch \/ worktree: `([^`]+)` \/ `(\/[A-Za-z0-9_./-]+)`\.$/u);
+  const source = lines[2]?.match(/^- Received head: `([a-f0-9]{40})`; tree: `([a-f0-9]{40})`\.$/u);
+  const base = lines[3]?.match(/^- R[1-9]\d* execution base: `([a-f0-9]{40})`; currently observed main: `([a-f0-9]{40})`\.$/u);
+  const receipt = lines[4]?.match(/^- R[1-9]\d* receipt: `([a-f0-9]{64})`; preparation: `([a-f0-9]{64})`\.$/u);
+  const tip = lines[5]?.match(/^- Latest settled family: `([a-f0-9]{64})`; attempt: `([^`]+)`\.$/u);
+  const counts = sections[5].match(/^R[1-9]\d* remains \*\*(\d+) PASS \/ (\d+) FAIL \/ (\d+) NOT_RUN; fresh-process stock false \/ (\d+) issues\*\*\./u);
+  if (lines.length !== 6 || lines[0] !== "- Repository / origin: `hynk-studio/augnes` / `https://github.com/hynk-studio/augnes.git`." ||
+      !review || review[3] !== String(p.pull_request) || workspace?.[1] !== p.branch || !source || !base || !receipt || !tip || !counts ||
+      workspace[2].slice(1).split("/").some(part => !part || part === "." || part === "..") ||
+      receipt[1] !== p.prior_receipt_fingerprint || tip[1] !== p.prior_family_id || tip[2] !== p.prior_attempt_id ||
+      sections[11] !== "Establish the eligibility of the actual registered root/Web dependency preparation outputs against the accepted focused prerequisite **before expensive consumer phases**. Either use the same supported clean-preparation and launch conditions and require matching effective identities, or demonstrate and narrowly bind a legitimate nonidentical transition with concrete owner, source, content and security provenance. Successful npm ci, matching lockfiles or later stability alone does not justify unexplained differences." ||
+      sections[12] !== "Retain focused evidence integrity and actual Full prepared-before/after/current checks. Unjustified source, lockfile, loader, runtime, dependency content/layout, ownership or permission changes must remain refusals. Preserve the narrow generated-Next declaration writer-window rules, unsafe-file and substitution refusals. The source correction must not simply remove the focused guard, broadly ignore permissions/generated state or rewrite dependencies to match an expected digest." ||
+      sections[13] !== "Use scoped evidence-file creation permissions rather than inadvertently imposing evidence-only umask settings on workload processes. Alternatively, explicitly support, record and validate the chosen process setting consistently throughout preparation, focused execution, Full and stock. Do not assert that umask 077 caused the historical content differences or B1 failure; that causality and the original swallowed stock exception remain UNKNOWN." ||
+      sections[14] !== "Include a positive regression through the real owner ordering: accepted focused inputs, registered dependency preparation, early eligibility boundary, relevant subsequent generated output, and fresh-process stock inspection. Negative controls must prove that unjustified root/Web differences stop execution before expensive phase entry, not merely produce a later false stock. Mutations after the boundary must still be refused. Development controls must not reserve a real deciding allowance.") return null;
+  return { worktree: workspace[2], head: source[1], tree: source[2], base: base[1], observedMain: base[2],
+    reviewId: Number(review[2]), precedingRevision: Number(review[1]), preparation: receipt[2], counts: counts.slice(1).map(Number) };
+}
+export const preparedEligibilityAuthorityBindings = p => typedMaterialAuthorityBindings(p, PREPARED_ELIGIBILITY_REPAIR, PREPARED_ELIGIBILITY_CLAIM);
+export const preparedEligibilityAuthorityScope = (p, review, grant) =>
+  typedMaterialAuthorityScope(p, review, grant, preparedEligibilityAuthorityBindings(p), PREPARED_ELIGIBILITY_GRANT);

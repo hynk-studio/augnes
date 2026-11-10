@@ -1750,6 +1750,23 @@ independently checked, a late result is deliberately reconsidered, and a fresh
 consumer checks/uses it in a dependent report followed by separate saved readback.
 Actual POST, GET, processing-effect and reservation counts remain distinct.
 
+The R13 verification development keeps the R12 12 PASS / 1 FAIL / 3 NOT_RUN
+and false stock immutable. New bounded Browser observations distinguish B1
+refresh, explicit review, field updates and Save, including visibility and fast
+waits. A development capture passed those B1 checkpoints then failed at the
+later B2 readiness wait; a subsequent attributed capture passed naturally.
+Neither identifies R12's exact failed control or cause. Current readiness checks
+require visible, enabled controls without retries or longer deadlines.
+
+Dependency regression controls compare accepted focused root/Web inputs with
+actual registered clean-preparation outputs before expensive consumers. Genuine
+prior input-owner bytes demonstrate the missing early check; corrected owner
+controls retain content/layout/permission/location refusals, later mutation,
+capability ownership and fresh-process generated-output stock checks. Disposable
+structural fixtures and passing development journeys do not establish deciding
+qualification. Process settings, runtime/source attribution, complete inventory,
+independent acceptance and single-use authority remain separate obligations.
+
 Affected controls exercise counterpart rejection of POST/other-request/changed
 identity, missing or exhausted permission, never-issued work, original-owner and
 input mismatch, authority loss at effect boundaries, concurrency and replay,

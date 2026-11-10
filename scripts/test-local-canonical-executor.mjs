@@ -1068,6 +1068,10 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
         },
         checkPreparedDependencies: () => { assertCheckoutVerificationOwnership(activeOwner, root); preparedChecks++; }, snapshot: () => ({ resources: [], binding: { tree: "c".repeat(40) }, fingerprint: "d".repeat(64) }) }),
       monitorInputContract: () => ({ check: () => [    "revision_changed_after_authority",    ].includes(scenario) && authorityObserved ? { disposition: "input_invalidation" } : null, stop() {}, fault: () => null }),
+      prepareAttemptDependencies: (attempt, options) => {
+        assert.equal(attemptClaims, 1);
+        return options.inputs.prepareDependencies(options);
+      },
       beginAttempt: async options => {
         const current = await options.observeRevision?.();
         options.assertCurrent();

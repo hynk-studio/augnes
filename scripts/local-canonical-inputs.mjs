@@ -11,6 +11,10 @@ export const LEGACY_INPUT_CONTRACT = "augnes.local-canonical-inputs.v2";
 export const supportedInputContract = value => [LEGACY_INPUT_CONTRACT, INPUT_CONTRACT].includes(value);
 export const INPUT_CLASSES = Object.freeze(["execution", "safety", "ambient", "unknown"]);
 export const EXCLUDED_PREFERENCES = Object.freeze(["model", "model_reasoning_effort", "service_tier"]);
+const inputCapabilities = new WeakMap();
+export function assertInputContractBinding(contract, fingerprint) {
+  if (!inputCapabilities.has(contract) || inputCapabilities.get(contract) !== fingerprint) throw fail("input_contract_owner_invalid");
+}
 const sorted = value => Array.isArray(value) ? value.map(sorted) : value && typeof value === "object"
   ? Object.fromEntries(Object.keys(value).sort().map(key => [key, sorted(value[key])])) : value;
 export const digest = value => createHash("sha256").update(typeof value === "string" || Buffer.isBuffer(value) ? value : JSON.stringify(sorted(value))).digest("hex");
@@ -439,7 +443,8 @@ function atStage(stage, action) {
   }
 }
 export const inputEventIdentity = event => digest([event.resource, event.disposition, event.after,
-  ...(event.diagnostic === undefined ? [] : [event.diagnostic])]);
+  ...(event.diagnostic === undefined ? [] : [event.diagnostic]),
+  ...(event.prerequisite_sha256 === undefined ? [] : [{ prerequisite_sha256: event.prerequisite_sha256 }])]);
 
 // Optional diagnostics are additive. An old diagnostic-free failure is never
 // reconstructed or reinterpreted. Unknown/extra fields cannot become an export.
@@ -449,6 +454,7 @@ export function validInputFailureDiagnostics(input, { exported = false } = {}) {
   if (!Array.isArray(events) || !Array.isArray(secondary) || secondary.some(f => !f || typeof f !== "object" || Array.isArray(f))) return false;
   const faults = [input.first_fault, ...secondary].filter(Boolean);
   const valid = item => item && typeof item === "object" && !Array.isArray(item) &&
+    (item.prerequisite_sha256 === undefined || sha(item.prerequisite_sha256)) &&
     (item.diagnostic === undefined || (item.disposition === "observer_failure" && validObservationDiagnostic(item.diagnostic)));
   if (!events.every(e => valid(e) && (e.diagnostic === undefined || exported || e.after === null)) || !faults.every(valid)) return false;
   return faults.every(fault => {
@@ -760,11 +766,11 @@ export function freezeInputContract({ resources, pathKind, binding, read = creat
   const preparedDependencies = [], dependencyLocations = new Map();
   let dependenciesChecked = false;
   let firstFault = null, checks = 0;
-  const dependencyFailure = (entry, after, disposition, code, diagnostic) => {
+  const dependencyFailure = (entry, after, disposition, code, diagnostic, prerequisite = false) => {
     entry.error = code;
     const event = { resource: entry.phase_id, classification: "execution", disposition,
       observed_at: new Date().toISOString(), monotonic_ns: String(process.hrtime.bigint()), after,
-      ...(diagnostic ? { diagnostic } : {}) };
+      ...(diagnostic ? { diagnostic } : {}), ...(prerequisite ? { prerequisite_sha256: digest(entry.prerequisite) } : {}) };
     event.identity = inputEventIdentity(event);
     const fault = { resource: event.resource, disposition, observed_at: event.observed_at, monotonic_ns: event.monotonic_ns,
       ...(diagnostic ? { diagnostic } : {}) };
@@ -777,13 +783,26 @@ export function freezeInputContract({ resources, pathKind, binding, read = creat
       "dependency_input_cache_unsafe", "dependency_input_generated_unsafe", "dependency_input_external_hardlink"].includes(diagnostic.code);
     dependencyFailure(entry, null, safety ? "safety_violation" : "observer_failure", diagnostic.code, safety ? null : diagnostic);
   };
-  const prepareDependencies = ({ repositoryRoot, phaseId }) => {
-    if (!validCanonicalRuntimeInputs(binding?.runtime_inputs) || !Object.hasOwn(dependencyRoots, phaseId) || dependenciesChecked ||
+  const prepareDependencies = ({ repositoryRoot, phaseId, prerequisite = null }) => {
+    if (!validCanonicalRuntimeInputs(frozen.binding?.runtime_inputs) || !Object.hasOwn(dependencyRoots, phaseId) || dependenciesChecked ||
         preparedDependencies.some(entry => entry.phase_id === phaseId)) throw fail("dependency_input_preparation_invalid");
+    if (prerequisite !== null && preparedDependencyIdentity(prerequisite).phase_id !== phaseId)
+      throw fail("dependency_input_preparation_invalid");
     const entry = { phase_id: phaseId, before: null, after: null, unchanged: false, error: null };
     preparedDependencies.push(entry); dependencyLocations.set(phaseId, repositoryRoot);
     try { entry.before = observePreparedDependencyInputs({ repositoryRoot, phaseId }); }
     catch (error) { dependencyObservationFailure(entry, error); throw fail(entry.error); }
+    // This is the actual registered preparation's output, before a consumer
+    // can run. Preserve both observations on refusal; later stability cannot
+    // establish eligibility against a different accepted focused prerequisite.
+    if (prerequisite !== null) {
+      entry.prerequisite = structuredClone(prerequisite);
+      const disposition = comparePreparedDependencyInputs(prerequisite, entry.before);
+      if (disposition !== "unchanged") {
+        dependencyFailure(entry, entry.before, disposition, `dependency_prerequisite_${disposition}`, null, true);
+        throw fail(entry.error);
+      }
+    }
     return structuredClone(entry.before);
   };
   const checkPreparedDependencies = () => {
@@ -841,10 +860,12 @@ export function freezeInputContract({ resources, pathKind, binding, read = creat
     if (events.length < 64) events.push(event);
     firstFault ??= { resource: reason, disposition: "safety_violation", observed_at: event.observed_at, monotonic_ns: event.monotonic_ns };
   };
-  return Object.freeze({ check, prepareDependencies, checkPreparedDependencies, reportSafetyEvent, snapshot: () => ({ ...frozen, fingerprint, checks, events: structuredClone(events),
-    ...(binding?.runtime_inputs ? { prepared_dependencies: structuredClone(preparedDependencies) } : {}),
+  const capability = Object.freeze({ check, prepareDependencies, checkPreparedDependencies, reportSafetyEvent, snapshot: () => ({ ...structuredClone(frozen), fingerprint, checks, events: structuredClone(events),
+    ...(frozen.binding?.runtime_inputs ? { prepared_dependencies: structuredClone(preparedDependencies) } : {}),
     first_fault: structuredClone(firstFault), secondary_faults: structuredClone(secondary),
     limitations: ["bounded polling cannot exclude transient changes between observations", "metadata timestamps are not observed write times", "cooperative ownership is not hostile-user isolation"] }) });
+  inputCapabilities.set(capability, fingerprint);
+  return capability;
 }
 
 // Cancellation uses the executor's controller capability, never a PID or a

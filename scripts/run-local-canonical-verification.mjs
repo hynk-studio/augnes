@@ -21,7 +21,7 @@ import {
 import path from "node:path";
 import os from "node:os";
 import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, createInputReader, classifyInputChange, nonFaultInputChange, inputReadOptions, supportedInputContract, createGitTrackingResource, observeCanonicalRuntimeInputs, canonicalRuntimeInputEnvironment, observePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
-import { beginAttempt, finishAttempt, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords, hasRetiredQualificationMarker, isReviewedRevision, isWebPlanningClientRevision, authorizeReviewedRevision, REVIEWED_REVISION_PHASES } from "./local-canonical-attempts.mjs";
+import { beginAttempt, finishAttempt, prepareAttemptDependencies, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords, hasRetiredQualificationMarker, isReviewedRevision, isWebPlanningClientRevision, authorizeReviewedRevision, REVIEWED_REVISION_PHASES } from "./local-canonical-attempts.mjs";
 import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-evidence-retention.mjs";
 import { isGitObservationRevision, isInventoryBoundRevision, gitRevisionInventory } from "./local-canonical-git-observation.mjs";
 import { isBrowserRevision, browserBindingMatches } from "./local-canonical-browser-revision.mjs";
@@ -120,6 +120,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-pure-contract-witness.mjs",
   "scripts/local-canonical-fixture-budget-witness.mjs",
   "scripts/local-canonical-stock-lifecycle-witness.mjs",
+  "scripts/local-canonical-prepared-eligibility-witness.mjs",
   "scripts/capture-local-canonical-fixture-budget.mjs",
   "scripts/canonical-revision-reader.mjs",
   "scripts/local-canonical-browser-input.mjs",
@@ -761,7 +762,7 @@ export async function executeLocalCanonicalVerification({
                 digest(phaseDefinitions.map(p => p.id)) !== digest(REVIEWED_REVISION_PHASES))) throw Object.assign(new Error("reviewed_revision_workload_invalid"), { code: "reviewed_revision_workload_invalid" });
             attempt = await beginAttempt({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, checkoutOwner,
               branch: identityBefore.branch, head: headSha, tree: inputs.snapshot().binding.tree, runId,
-              contractFingerprint: inputs.snapshot().fingerprint, acceptedMain: baseSha,
+              contractFingerprint: inputs.snapshot().fingerprint, inputContract: inputs, acceptedMain: baseSha,
               recoveryProof: recoveryProofPath ? readRecoveryProof(resolveArtifactPath(recoveryProofPath)) : null,
               sourceCorrection, revisionInputs: runtimeInputs,
               observeRevision: reviewed ? async () => {
@@ -793,8 +794,14 @@ export async function executeLocalCanonicalVerification({
             result.cleanup?.exit_observed === true && result.cleanup?.streams_closed === true &&
             result.cleanup?.remaining_owned_processes === 0;
           if (runtimeInputs && result.status === "pass" && ["dependencies-root", "dependencies-nested", "dependencies-web-planning"].includes(phase.id)) {
-            try { inputs.prepareDependencies({ repositoryRoot, phaseId: phase.id }); }
-            catch (error) { result.status = "failure"; result.failure_code = safeErrorCode(error); }
+            try {
+              if (attempt) prepareAttemptDependencies(attempt, { repositoryRoot, inputs, phaseId: phase.id });
+              else inputs.prepareDependencies({ repositoryRoot, phaseId: phase.id });
+            }
+            catch (error) {
+              console.error(`[local-canonical] dependency_eligibility id=${phase.id} child_status=pass status=refused code=${safeErrorCode(error)}`);
+              result.status = "failure"; result.failure_code = safeErrorCode(error);
+            }
           }
           return result;
         },

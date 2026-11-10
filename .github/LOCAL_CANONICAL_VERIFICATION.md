@@ -1424,6 +1424,52 @@ ownership, freshness and reservation checks. Full and fresh-process stock
 still require complete Browser and phase coverage. The historical partial
 Browser record and false stock remain evidence of the failed predecessor.
 
+##### Focused prerequisites and registered dependency preparation
+
+An installed focused prerequisite is not automatically the output of a later
+clean installation. For a reviewed witness that binds prepared dependencies,
+the admitted attempt retains those observations privately. After each registered
+dependency child settles successfully, the input owner records its actual output
+and compares it with that prerequisite before the next consumer can enter.
+Content, package sources, location, layout and security identities remain strict.
+A refusal preserves the successful child result and both input observations;
+it does not claim npm failed. Later prepared-before/after/current comparisons
+remain required. Neither matching lockfiles nor successful installation excuses
+an unexplained difference. Evidence files use explicit creation modes rather
+than changing the workload process's umask.
+
+`prepared-dependency-eligibility-repair-v1` is a separate material-source evidence
+kind. It retains a settled work-expectation Browser failure after a generated-stock
+correction, the exact false stock and authenticated receiving revision decision.
+Both original focused root/Web prerequisites must demonstrably differ from their
+corresponding stable actual prepared outputs while retaining original package
+sources and locations. The narrowly accounted stock comparison permits only the
+retained attempt-reader and stale-base issues in addition to the ordinary strict
+failed-phase issues. It neither identifies the historical swallowed exception
+nor alters historical validity or applicability. Additional faults refuse.
+
+The new evidence binds the actual final-source Browser journey, full source and
+input inventory, original Node/headers, current Browser, loader, root/Web clean
+preparation, process umask and natural cleanup. Bounded control diagnostics record
+selectors, call sites and structural readiness, never field values or credentials.
+Fast successful waits remain observable. The development controls exercise the
+real input owner and sequential runner, including genuine predecessor owner
+bytes, independent root/Web refusals before consumer entry, later mutation and
+fresh-process stock with the existing generated-declaration writer window.
+Structural fixtures are not deciding runs or reconstructed historical causes.
+
+The distinct visible delegation binds the receiving decision and physical
+predecessor. Preparation authenticates that decision and the predecessor's
+review, grant and delegation. A later independent final-source/preparation
+acceptance must precede a distinct grant beginning
+`Authorize one NEW prospective v7 reviewed_revision commission for the prepared dependency eligibility correction.`
+The existing v7 material-source commission retains all spent lineage and permits
+exactly one new deciding invocation. Reservation or interruption consumes it;
+there is no ordinal two, recovery or unchanged-target retry. Publication, exact
+source and inventory, authority chronology, ownership, exclusive successor,
+freshness, full planner workload and separate fresh-process stock still apply.
+This evidence kind does not change the meaning of an older recorded kind.
+
 An inventory-bound ordinal two may also follow a settled ordinal one whose Full
 and Browser phases all passed naturally but whose only fault occurred in the final
 Web dependency observation. The v2 Web record must have the cache-safety error
