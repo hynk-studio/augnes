@@ -135,6 +135,7 @@ export function createVNextOperatorContextUseReviewHandlerV01(
 ) {
   return async function POST(request: Request): Promise<NextResponse> {
     let db: Database.Database | null = null;
+    let includePacketBudgetDiagnostics = false;
     try {
       const environment = options.environment ?? process.env;
       assertVNextLocalReviewEnabledV01(environment);
@@ -223,7 +224,14 @@ export function createVNextOperatorContextUseReviewHandlerV01(
         const fields = body.action === "read_result_work_preparation" ? ["action", "receipt_id"] :
           body.action === "compare_result_work_sources" ? ["action", "binding", "notes"] :
           body.action === "preview_result_work" ? ["action", "binding", "definition", "selected_sources"] : ["action", "request"];
+        // Transport-only opt-in: never enters the authored request or packet.
+        if (Object.hasOwn(body, "include_packet_budget_diagnostics")) {
+          if (!["preview_result_work", "prepare_result_work"].includes(body.action as string) || body.include_packet_budget_diagnostics !== true)
+            throw new AuthoredSuccessorTaskErrorV01("successor_task_request_fields");
+          fields.push("include_packet_budget_diagnostics");
+        }
         if (Object.keys(body).sort().join(",") !== fields.sort().join(",")) throw new AuthoredSuccessorTaskErrorV01("successor_task_request_fields");
+        includePacketBudgetDiagnostics = body.include_packet_budget_diagnostics === true;
         if (body.action === "prepare_result_work") {
           const workRequest = body.request as DefineAuthoredSuccessorTaskRequestV01;
           if (!workRequest?.selected_sources) throw new AuthoredSuccessorTaskErrorV01("successor_task_source_selection_required");
@@ -246,7 +254,7 @@ export function createVNextOperatorContextUseReviewHandlerV01(
             if (!Array.isArray(body.notes) || body.notes.length > 8) throw new AuthoredSuccessorTaskErrorV01("successor_task_source_selection_invalid");
             return { status: "selected_source_comparison", comparison: compareResultWorkSourcesV01(db!, { ...shared, binding, notes: body.notes }) };
           }
-          return { status: "result_work_preview", ...previewResultWorkV01(db!, { ...shared, binding,
+          return { status: "result_work_preview", ...previewResultWorkV01(db!, { ...shared, session_id: credential.session_id, binding,
             definition: body.definition, selected_sources: body.selected_sources as DefineAuthoredSuccessorTaskRequestV01["selected_sources"] }) };
         })();
         return jsonResponse({ ok: true, ...result, projection_is_read_only: true });
@@ -397,7 +405,7 @@ export function createVNextOperatorContextUseReviewHandlerV01(
         }),
       );
     } catch (error) {
-      return errorResponse(error);
+      return errorResponse(error, includePacketBudgetDiagnostics);
     } finally {
       db?.close();
     }
@@ -406,8 +414,10 @@ export function createVNextOperatorContextUseReviewHandlerV01(
 
 export const POST = createVNextOperatorContextUseReviewHandlerV01();
 
-function errorResponse(error: unknown): NextResponse {
+function errorResponse(error: unknown, includePacketBudgetDiagnostics = false): NextResponse {
   if (error instanceof AuthoredSuccessorTaskErrorV01 || error instanceof ProjectRunResultReadErrorV01) return jsonResponse({ ok: false, status: "error", error_code: error.code,
+    ...(includePacketBudgetDiagnostics && error instanceof AuthoredSuccessorTaskErrorV01 && error.packet_budget
+      ? { packet_budget: error.packet_budget } : {}),
     semantic_authority_granted: false, execution_authority_granted: false }, 409);
   if (error instanceof HostedResearchProjectionErrorV02) {
     return jsonResponse({

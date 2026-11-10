@@ -27,7 +27,7 @@ export async function checkFiles({start,client,newWork,save,passed,root,open}) {
  await old.close();open.splice(open.indexOf(old),1);old=await start('nonempty-v2-direct',options);oc=await client(old);
  assert.equal(await (await old.mf.dispatchFetch(old.origin+`/api/work/${ow.id}/export`,{headers:{cookie:oc.cookies}})).text(),oldBytes);
  assert.deepEqual((await old.db.prepare('SELECT envelope FROM web_planning_revision ORDER BY revision').all()).results,rowsBefore);
- assert.deepEqual((await old.db.prepare('SELECT name FROM d1_migrations ORDER BY id').all()).results.map(r=>r.name),['0000_web_planning.sql','0001_schema_version.sql','0002_revision_files.sql','0003_cumulative_history.sql']);
+ assert.deepEqual((await old.db.prepare('SELECT name FROM d1_migrations ORDER BY id').all()).results.map(r=>r.name),['0000_web_planning.sql','0001_schema_version.sql','0002_revision_files.sql','0003_cumulative_history.sql','0004_complete_exchange_files.sql','0005_return_destination.sql','0006_request_participation.sql']);
  passed('files: accepted hosted 7d4320a writer creates mixed v0.1/v0.2 history; pinned Wrangler upgrades nonempty D1 once with byte-identical envelopes/export');
  const server=await start('files'),c=await client(server);
  const count=async table=>(await server.db.prepare(`SELECT count(*) n FROM ${table}`).first()).n;
@@ -96,8 +96,8 @@ export async function checkFiles({start,client,newWork,save,passed,root,open}) {
  assert.equal((await raw(fileUrl(r,0),{origin:'https://foreign.example'})).status,403);
  assert.equal((await c.request(`/api/work/${r.work_id}/save`,successor.input,{'x-csrf-token':'wrong'})).status,403);
  assert.equal((await c.request(`/api/work/${r.work_id}/save`,{...successor.input,workspace_id:randomUUID()})).status,403);
- assert.equal((await c.request(`/api/work/${r.work_id}/branch-preview`,{expected:headBinding(r),intent:{reason:'Do not silently copy attachments'}})).data.error,'file_branch_selection_unsupported');
- passed('files: exact historical binding; stale/foreign/auth/CSRF refusal; explicit selection; altered replay; lost acknowledgement resolves without duplicate bodies; branch copy refuses explicitly');
+ const branchPreview=await c.request(`/api/work/${r.work_id}/branch-preview`,{expected:headBinding(r),intent:{reason:'Review copying the exact selected attachments'}});assert.equal(branchPreview.status,200);assert.deepEqual(branchPreview.data.payload.files,r.files);
+ passed('files: exact historical binding; stale/foreign/auth/CSRF refusal; explicit selection; altered replay; lost acknowledgement resolves without duplicate bodies; branch preview preserves exact files');
  const exported=(await c.request(`/api/work/${r.work_id}/export`)).data;
  assert.equal(exported.files.length,5);validateFileExport(fixtureScope,exported);
  const replacement=await start('files-reconstruction'),rc=await client(replacement);

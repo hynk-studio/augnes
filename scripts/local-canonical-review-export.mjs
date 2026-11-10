@@ -1,0 +1,102 @@
+import { REVIEWED_REVISION_SCHEMA, isReviewedRevision, validReviewedRevisionAttempt, hasRetiredQualificationMarker, supportsSourceCorrection } from "./local-canonical-attempts.mjs";
+import { isBrowserRevision, browserBindingMatches } from "./local-canonical-browser-revision.mjs";
+import { browserConsumersForPhase } from "./local-canonical-browser-identity.mjs";
+import { validCanonicalRuntimeInputs } from "./local-canonical-inputs.mjs";
+import { canonicalSerialize, assertPublicSafeReceipt, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
+import { digest, validInputFailureDiagnostics } from "./local-canonical-inputs.mjs";
+
+
+export const REVIEW_EXPORT_SCHEMA = "augnes.local-canonical-private-review.v1";
+const pick = (value, names) => Object.fromEntries(names.filter(name => value?.[name] !== undefined).map(name => [name, value[name]]));
+export function createPrivateReviewExport(receipt) {
+  if (hasRetiredQualificationMarker(receipt)) throw new Error("review_export_retired_route_use_historical_revision");
+  if (![3, 4].includes(receipt?.receipt_version)) throw new Error("review_export_version_unsupported");
+  const integrity = verifyReceiptIntegrity(receipt);
+  if (!integrity) throw new Error("review_export_original_invalid");
+  const attempt = receipt?.attempt;
+  if (((attempt?.source_correction?.schema === REVIEWED_REVISION_SCHEMA) || attempt?.source_correction?.kind === "reviewed_revision" || attempt?.revision_authority) && !validReviewedRevisionAttempt(attempt))
+    throw Object.assign(new Error("review_export_revision_invalid"), { code: "review_export_revision_invalid" });
+  if (receipt.attempt?.source_correction && (!supportsSourceCorrection(receipt.attempt.source_correction) || receipt.receipt_version !== 4))
+    throw new Error("review_export_source_correction_unsupported");
+  if (!validInputFailureDiagnostics(receipt.inputs)) throw new Error("review_export_diagnostic_invalid");
+  assertPublicSafeReceipt(receipt);
+  const browser = isBrowserRevision(attempt?.source_correction);
+  const runtime = receipt.inputs?.binding?.runtime_inputs;
+  if (browser ? !validCanonicalRuntimeInputs(runtime) || !browserBindingMatches(receipt.inputs, runtime.browser) ||
+      digest(runtime) !== attempt.source_correction.inputs.identity_sha256 :
+      runtime?.browser || receipt.inputs?.resources?.some(r => r.protectedInstallation !== undefined || r.id === "browser-installation"))
+    throw new Error("review_export_browser_installation_invalid");
+  const value = {
+    schema: REVIEW_EXPORT_SCHEMA, original_receipt_fingerprint: receipt.integrity.content_fingerprint,
+    receipt_schema: receipt.schema, receipt_version: receipt.receipt_version,
+    repository: pick(receipt.repository, ["repository_id", "origin", "base_sha", "head_sha", "tree_sha", "branch", "detached", "worktree_before", "worktree_after"]),
+    executor: pick(receipt.executor, ["version", "source_files", "source_fingerprint", "scheduling", "resource_exclusive_phases"]),
+    context: pick(receipt.verification_context, ["contract", "kind", "repository_id", "admission", "anchor_fingerprint", "checkout_fingerprint", "git_common_fingerprint"]),
+    run: pick(receipt.run, ["id", "invocation_id", "started_at", "finished_at", "duration_ms"]),
+    toolchain: { node: pick(receipt.environment.node, ["actual_version", "path_version", "canonical_version", "compatibility_range", "canonical_match", "compatibility_match"]), npm_version: receipt.environment.npm_version,
+      operating_system: receipt.environment.operating_system, architecture: receipt.environment.architecture },
+    inputs: receipt.inputs ? { contract: receipt.inputs.contract, fingerprint: receipt.inputs.fingerprint,
+      path_kind: receipt.inputs.path_kind, binding: pick(receipt.inputs.binding, ["head", "tree", "executor_fingerprint", "phase_inventory", "phase_environment_fingerprints", "environment_keys", "authenticated_transport", "provider_policy"]),
+      ...(browser ? { runtime_inputs: structuredClone(runtime) } : {}),
+      resources: receipt.inputs.resources.map(r => ({ id: r.id, classification: r.classification, excludePreferences: r.excludePreferences === true })),
+      events: receipt.inputs.events.map(e => ({ resource: e.resource, disposition: e.disposition, observed_at: e.observed_at, identity: e.identity,
+        ...(e.diagnostic === undefined ? {} : { diagnostic: { ...e.diagnostic } }) })),
+      first_fault: receipt.inputs.first_fault, limitations: receipt.inputs.limitations } : null,
+    attempt: receipt.attempt ? { ...pick(receipt.attempt, ["contract", "family_id", "attempt_id", "number", "head", "tree", "contract_fingerprint", "prior_attempt_id", "prior_receipt_fingerprint", "budget"]),
+      source_correction: isReviewedRevision(receipt.attempt.source_correction) ? revisionProofExport(receipt.attempt.source_correction) : receipt.attempt.source_correction ? pick(receipt.attempt.source_correction, ["schema", "kind", "defect", "prior_family_id", "prior_attempt_id", "prior_receipt_fingerprint", "head", "tree", "source_module", "fixture_sha256", "accepted_main", "review"]) : null,
+      ...(isReviewedRevision(receipt.attempt.source_correction) ? { branch: receipt.attempt.branch, revision_authority: receipt.attempt.revision_authority } : {}),
+      repair: receipt.attempt.recovery ? pick(receipt.attempt.recovery, ["cause", "observed_code", "remedy", "evidence_sha256", "scope"]) : null } : null,
+    phases: receipt.phases.map(p => ({ id: p.id, command: p.command, status: p.status, duration_ms: p.duration_ms,
+      exit_status: p.exit_status, timed_out: p.timed_out, failure_code: p.failure_code,
+      cleanup: pick(p.cleanup, ["completed", "remaining_owned_processes", "termination_reason", "exit_observed", "streams_closed", "listener_residue_count"]),
+      browser_use: (p.browser_use ?? []).map(b => ({ contract: b.contract, consumer: b.consumer, disposition: b.disposition, runtime_versions: b.runtime_versions, executable_name: b.executable_name, location_fingerprint: b.location_fingerprint,
+        before_sha256: b.before?.sha256 ?? null, after_sha256: b.after?.sha256 ?? null, actual_version: b.actual_version, unchanged: b.unchanged })) })),
+    outcome: receipt.outcome ? pick(receipt.outcome, ["disposition", "execution", "validity", "safety", "applicability_at_admission"]) : null,
+    cleanup: { completed: receipt.cleanup.completed, remaining_owned_processes: receipt.cleanup.remaining_owned_processes,
+      companion_restored: receipt.cleanup.companion_service.restored }, final: pick(receipt.final, ["result", "exit_status", "reason_codes"]),
+    limitations: ["derived sanitized export, not original receipt bytes or independent attestation", "off-host review is structural only; local context-bound stock validation remains required", "no credential contents or complete global configuration projection included"] };
+  // Never copy arbitrary log/config/environment fields into a review export.
+  assertPublicSafeReceipt(value);
+  return { ...value, export_fingerprint: digest(canonicalSerialize(value)) };
+}
+
+export function inspectPrivateReviewExport(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { structurally_valid: false, deciding: false, independent_attestation: false, original_receipt_fingerprint: null };
+  const allowed = new Set(["schema", "original_receipt_fingerprint", "receipt_schema", "receipt_version", "repository", "executor", "context", "run", "toolchain", "inputs", "attempt", "phases", "outcome", "cleanup", "final", "limitations", "export_fingerprint"]);
+  const copy = structuredClone(value); delete copy.export_fingerprint;
+  let safe = true; try { assertPublicSafeReceipt(value); } catch { safe = false; }
+  const revisionValid = (value.attempt?.source_correction?.schema === REVIEWED_REVISION_SCHEMA) || value.attempt?.source_correction?.kind === "reviewed_revision" || value.attempt?.revision_authority ? validReviewedRevisionAttempt(value.attempt) && value.receipt_version === 4 : true;
+  const correctionValid = !value.attempt?.source_correction || (supportsSourceCorrection(value.attempt.source_correction) && value.receipt_version === 4);
+  const p = value.attempt?.source_correction, runtime = value.inputs?.runtime_inputs;
+  const browserValid = isBrowserRevision(p) ? validCanonicalRuntimeInputs(runtime) && !!runtime.browser &&
+    digest(runtime) === p.inputs.identity_sha256 && Array.isArray(value.phases) && value.phases.every(phase => {
+      if (phase?.status !== "pass") return true;
+      const consumers = browserConsumersForPhase(phase.id), records = phase.browser_use, target = runtime.browser;
+      return Array.isArray(records) && records.length === Object.values(consumers).reduce((a,b) => a+b, 0) &&
+        Object.entries(consumers).every(([c,n]) => records.filter(r => r.consumer === c).length === n) &&
+        records.every(r => r.contract === "augnes.local-canonical-browser-use.v2" && r.unchanged === true &&
+          r.before_sha256 === target.executable.observation.sha256 && r.after_sha256 === r.before_sha256 &&
+          r.location_fingerprint === target.executable.location_fingerprint && r.actual_version === target.actual_version &&
+          r.runtime_versions?.http === r.actual_version && r.runtime_versions?.cdp === r.actual_version);
+    }) : runtime === undefined;
+  const valid = browserValid && correctionValid && !hasRetiredQualificationMarker(value) && revisionValid && safe && validInputFailureDiagnostics(value.inputs, { exported: true }) && value?.schema === REVIEW_EXPORT_SCHEMA && Object.keys(value).length === allowed.size && Object.keys(value).every(k => allowed.has(k)) &&
+    [3, 4].includes(value.receipt_version) && Array.isArray(value.phases) && value.phases.length > 0 &&
+    value.receipt_schema === "augnes.local-canonical-receipt.v1" &&
+    /^[0-9a-f]{64}$/u.test(value.original_receipt_fingerprint ?? "") &&
+    value.export_fingerprint === digest(canonicalSerialize(copy));
+  return { structurally_valid: valid, deciding: false, independent_attestation: false,
+    original_receipt_fingerprint: valid ? value.original_receipt_fingerprint : null };
+}
+
+function revisionProofExport(p) {
+  return { ...pick(p, ["schema", "kind", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "pull_request"]),
+    commission: pick(p.commission, ["root_family_id", "root_number", "root_attempt_id", "root_receipt_fingerprint", "ordinal", "maximum_invocations", "initial_authorization", "delegation", "input_acquisition", "source_revision"]),
+    accepted: { ...pick(p.accepted, ["head", "tree", "base"]), review: pick(p.accepted?.review, ["id", "sha256"]) },
+    authorization: { ...pick(p.authorization, ["grant_comment_id", "grant_sha256"]),
+      ...(p.authorization?.contract_review ? { contract_review: pick(p.authorization.contract_review, ["pull_request", "id", "sha256", "head"]) } : {}),
+      ...(p.authorization?.settlement_review ? { settlement_review: pick(p.authorization.settlement_review, ["id", "sha256", "head"]) } : {}) },
+    originals: Object.fromEntries(["receipt", "attempt", "completion", "stock"].map(k => [k, pick(p.originals?.[k], ["sha256"])])),
+    inputs: { ...pick(p.inputs, ["identity_sha256", "predecessor_sha256", "inventory_sha256"]), current: pick(p.inputs?.current, ["sha256"]) },
+    source: pick(p.source, ["sha256"]), focused: pick(p.focused, ["sha256"]),
+    ...(p.settlement ? { settlement: pick(p.settlement, ["sha256"]) } : {}) };
+}

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { AUXILIARY_EXECUTION_BUDGETS, CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,6 +16,8 @@ import {
 } from "./canonical-child-runner.mjs";
 import {
   buildCanonicalChildEnvironment,
+  beginCanonicalTestResourceUse,
+  settleCanonicalTestResourceUse,
   createCanonicalTestResourceRoot,
   cleanupCanonicalTestResources,
   findForbiddenAmbientKeysForwarded,
@@ -32,7 +35,9 @@ const repoRoot = path.resolve(
 const nestedAppRoot = path.join(repoRoot, "apps/augnes_apps");
 const suiteName = process.argv[2];
 const projectWorkFocus = process.argv[3] === "--project-work-only";
-if (process.argv.length > 3 && (!projectWorkFocus || suiteName !== "integration" || process.argv.length !== 4))
+const revisionFocus = process.argv[3] === "--reviewed-revision-only";
+if (process.argv.length > 3 && (process.argv.length !== 4 ||
+    !(projectWorkFocus && suiteName === "integration" || revisionFocus && suiteName === "authority")))
   throw new Error("unsupported canonical suite focus");
 const rootNode = (...args) => ({
   command: process.execPath,
@@ -159,8 +164,33 @@ const goldenStep = {
   requireNaturalExit: true,
 };
 
+const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-input", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation"].map(group => ({
+  id: "local-canonical-reviewed-revision-" + group,
+  label: "reviewed revision controls: " + group,
+  sharedFixture: !["revision", "settlement", "browser"].includes(group),
+  ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--reviewed-revision-controls", group),
+  timeoutMs: 30_000,
+  requireNaturalExit: true,
+}));
+
 const suites = {
   unit: [
+    {
+      id: "operating-profile-contribution-input",
+      label: "complete bounded profile input, selected step and manual use refusals",
+      requirements: ["immutable-fixture-input"],
+      ...rootNode("scripts/test-operating-profile-contribution-input.mjs"),
+      timeoutMs: 10_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "operating-profile",
+      label: "bounded operating-profile validation and actual read-only CLI preview",
+      requirements: ["filesystem", "process-owning", "immutable-fixture-input"],
+      ...rootNode("scripts/test-operating-profile.mjs"),
+      timeoutMs: 20_000,
+      requireNaturalExit: true,
+    },
     {
       id: "active-observation-study",
       label: "chosen file-processing observations and retained conditional method use",
@@ -193,6 +223,15 @@ const suites = {
       label: "source-derived exact solver and separate retry workflow consumer (Python stdlib)",
       command: "python3",
       args: ["-E", "-s", "-B", "scripts/executable-reuse/test_workflow_cost.py"],
+      cwd: repoRoot,
+      timeoutMs: 10_000,
+      requireNaturalExit: true,
+    },
+    {
+      label: "portable software-change selected-input observation (Python stdlib)",
+      requirements: ["filesystem", "process-owning", "immutable-fixture-input"],
+      command: "python3",
+      args: ["-E", "-s", "-S", "-B", "scripts/test-software-change-inputs.py"],
       cwd: repoRoot,
       timeoutMs: 10_000,
       requireNaturalExit: true,
@@ -497,8 +536,18 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "native Browser requested viewport and document fit contract",
+      ...rootNode("scripts/test-operator-native-viewport-fit.mjs"),
+      timeoutMs: 10_000,
+    },
+    {
       label: "historical R8A fixture build configuration contract",
       ...rootNode("scripts/test-merged-r8a-fixture-build-config.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "patched dependency resolution and native runtime consumers",
+      ...rootNode("scripts/test-security-runtime-dependencies.mjs"),
       timeoutMs: 30_000,
     },
     {
@@ -661,6 +710,15 @@ const suites = {
         "managed Codex runtime staging, exact lane selection, rollback, and retention authority",
       ...rootNode("scripts/test-codex-managed-runtime-store.ts"),
       timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "native-host-execution-boundary",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "project-root", "process-owning", "mutable-module-state"],
+      label: "injected native-host lifecycle isolation and scripted default composition parity",
+      ...rootNode("scripts/test-native-host-execution-boundary.mjs"),
+      timeoutMs: 45_000,
       requireNaturalExit: true,
     },
     {
@@ -967,6 +1025,33 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "external-response-selective",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "declared upstream correction changes a fresh downstream report while independent support survives",
+      ...rootNode("scripts/test-external-response-selective.ts"),
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "selected-source-retrieval",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "mutable-module-state"],
+      label: "explicit selected corpus, complete correction context, fresh coding/textual output and access lifecycle",
+      ...rootNode("scripts/test-selected-source-retrieval.ts"),
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "web-export-native",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state", "backup-restore"],
+      label: "actual Web export, atomic native admission and fresh selected-source use with recovery",
+      ...rootNode("scripts/test-web-export-native.mjs"),
+      timeoutMs: 120_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "execution-choice",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
@@ -976,12 +1061,75 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "manual-contribution",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "manual selected request, preserved original, checked card, saved feedback and fresh read",
+      ...rootNode("scripts/test-manual-contribution.ts"),
+      timeoutMs: 150_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "operating-profile-contribution",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "profile step, manual return, checked recommendation and fresh persisted follow-up",
+      ...rootNode("scripts/test-operating-profile-contribution.ts"),
+      timeoutMs: 150_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "native-method-use",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "scoped native contribution and fresh cross-project permitted method use",
+      ...rootNode("scripts/test-native-method-use.ts"),
+      timeoutMs: 150_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "profile-task-continuation",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "checked profile contribution into a distinct task, new reconciliation and persisted re-entry",
+      ...rootNode("scripts/test-profile-task-continuation.ts"),
+      timeoutMs: 150_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "manual-contribution-successor",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "authored-successor stable task origin, manual use/feedback and fresh historical read",
+      ...rootNode("scripts/test-manual-contribution-successor.ts"),
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "late-review",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state", "backup-restore"],
+      label: "late original-basis review, selective current use and fresh restored continuation",
+      ...rootNode("scripts/test-late-review.ts"),
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "request-bound-review",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
       label: "native request-bound review, attributed continuation and disposable MCP Events lifecycle",
       ...rootNode("scripts/test-request-bound-review.ts"),
       timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "companion-result-successor",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "native settled-result preparation, atomic successor save and fresh checked consumer",
+      ...rootNode("scripts/test-companion-result-successor.ts"),
+      timeoutMs: 60_000,
       requireNaturalExit: true,
     },
     {
@@ -1114,7 +1262,7 @@ const suites = {
       requirements: ["database", "migrations", "filesystem", "mutable-module-state", "process-owning"],
       label: "settled failed result, expired history and explicit revalidated task authorship",
       ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--settled-expired-successor-only"),
-      timeoutMs: 30_000,
+      timeoutMs: 45_000,
       requireNaturalExit: true,
     },
     {
@@ -1312,17 +1460,53 @@ const suites = {
     {
       label: "local Canonical executor identity and scheduling contract",
       ...rootNode("scripts/test-local-canonical-executor.mjs"),
-      timeoutMs: 30_000,
+      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.executorHarnessMs,
     },
     {
       label: "local Canonical receipt integrity and staleness contract",
       ...rootNode("scripts/test-local-canonical-receipt.mjs"),
-      timeoutMs: 30_000,
+      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.receiptHarnessMs,
     },
     {
       id: "local-canonical-isolation",
       label: "isolated verification admission, capacity, cancellation and resource ownership",
       ...rootNode("scripts/test-local-canonical-isolation.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "local-canonical-classification",
+      label: "classified verification inputs, operational recovery and private evidence controls",
+      ...rootNode("scripts/test-local-canonical-classification.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "local-canonical-review-corrections",
+      label: "shared executable roles, actual Browser consumers and reviewed candidate succession",
+      ...rootNode("scripts/test-local-canonical-review-corrections.mjs"),
+      timeoutMs: AUXILIARY_EXECUTION_BUDGETS.reviewHarnessMs,
+      requireNaturalExit: true,
+    },
+    {
+      id: "local-canonical-review-child-result",
+      label: "review child natural completion, bounded diagnostics and intentional cancellation controls",
+      ...rootNode("scripts/test-local-canonical-review-child-result.mjs"),
+      timeoutMs: AUXILIARY_EXECUTION_BUDGETS.reviewChildResultHarnessMs,
+      requireNaturalExit: true,
+    },
+    ...reviewedRevisionSteps,
+    {
+      id: "operator-project-home-readiness-observation",
+      label: "bounded Project Home observations preserve the original condition result",
+      ...rootNode("scripts/test-operator-project-home-readiness-observation-v1.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "local-canonical-browser-input",
+      label: "strict Browser bundle selection, observation and nested input refusal",
+      ...rootNode("scripts/test-local-canonical-browser-input.mjs"),
       timeoutMs: 30_000,
       requireNaturalExit: true,
     },
@@ -1698,6 +1882,7 @@ let canonicalChildrenChecked = 0;
 let serviceMaintenance = null;
 let serviceMaintenanceRelease = null;
 let suiteFailure = null;
+let handoffInUse = false, lastHandoffChild = null;
 let summary;
 
 try {
@@ -1706,7 +1891,7 @@ try {
   );
   const selectedSteps = projectWorkFocus
     ? suites[suiteName].filter(step => ["project-work-initialization", "project-work-scoped-host"].includes(step.id))
-    : suites[suiteName];
+    : revisionFocus ? suites.authority.filter(step => reviewedRevisionSteps.includes(step)) : suites[suiteName];
   const preparedSteps = selectedSteps.map((step, index) => {
     const resourceOwner = createCanonicalTestResourceRoot(`ag-c${String(index + 1).padStart(2, "0")}-`);
     const resourceRoot = resourceOwner.root;
@@ -1748,7 +1933,8 @@ try {
       suite: suiteName,
       label: step.label,
       command: step.command,
-      args: step.args,
+      sharedFixture: step.sharedFixture === true,
+      args: step.sharedFixture ? [...step.args, JSON.stringify(temporaryOwner)] : step.args,
       cwd: step.cwd,
       env: childEnvironment,
       timeoutMs,
@@ -1820,7 +2006,12 @@ try {
     completedResults = [];
     for (const step of preparedSteps) {
       console.log();
+      if (step.sharedFixture) {
+        if (!handoffInUse) { beginCanonicalTestResourceUse(temporaryOwner); handoffInUse = true; }
+        lastHandoffChild = null;
+      }
       const result = await runCanonicalChild(step);
+      if (step.sharedFixture) lastHandoffChild = result;
       completedResults.push(result);
       const acceptanceFailure = canonicalChildAcceptanceFailure(result, {
         suite: suiteName,
@@ -1863,7 +2054,7 @@ try {
 
   summary = {
         suite: suiteName,
-        coverage: projectWorkFocus ? "focused_project_work_children_only" : "complete_suite",
+        coverage: projectWorkFocus ? "focused_project_work_children_only" : revisionFocus ? "focused_reviewed_revision_children_only" : "complete_suite",
         status: "pass",
         environment_isolation_verified: forbiddenEnvironmentKeysForwarded === 0,
         forbidden_environment_keys_forwarded: forbiddenEnvironmentKeysForwarded,
@@ -1909,10 +2100,21 @@ try {
       });
     } catch (error) { failures.push(error); }
   }
+  if (handoffInUse && lastHandoffChild) {
+    try { settleCanonicalTestResourceUse(temporaryOwner, lastHandoffChild); }
+    catch (error) { failures.push(error); }
+  }
+  const cleanupStart = performance.now();
   const resourceCleanup = cleanupCanonicalTestResources([...ownedResourceRoots, temporaryOwner]);
+  if (handoffInUse) console.log(JSON.stringify({review_fixture_cleanup_ms:Math.ceil(performance.now()-cleanupStart)}));
   console.log(JSON.stringify({ suite: suiteName, resource_cleanup: resourceCleanup }));
   for (const result of resourceCleanup) if (!result.completed)
     failures.push(new Error(`canonical resource cleanup refused: ${result.root}: ${result.failures.join(",")}`));
-  if (failures.length) throw new AggregateError(failures, "canonical suite execution or cleanup failed");
+  if (failures.length) {
+    // A top-level throw can terminate with forwarded pipe writes still queued.
+    // Preserve failure status while natural shutdown drains child/cleanup output.
+    console.error(new AggregateError(failures, "canonical suite execution or cleanup failed"));
+    process.exitCode = 1;
+  }
 }
-console.log(JSON.stringify(summary, null, 2));
+if (summary && !process.exitCode) console.log(JSON.stringify(summary, null, 2));

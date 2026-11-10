@@ -1,3 +1,4 @@
+import { readProjectOrganizationV01 } from "../persistence/project-lifecycle-registry";
 import type Database from "better-sqlite3";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { realpathSync, statSync } from "node:fs";
@@ -203,7 +204,7 @@ export function discoverAgentProjects(db: Database.Database, access: DirectionAg
     }
     const project = readCanonicalProjectIdentityV01(db, selected.scope);
     check(project, "discovery_incomplete");
-    return [{ project, effective: selected.current,
+    return [{ project, organization: readProjectOrganizationV01(db, selected.scope), effective: selected.current,
       direction_current: selected.current ? directionCurrent(db, selected.current, at) : null,
       permission: selected.owned ? "within_policy_direction_and_proposals" : "proposals_only" }];
   });

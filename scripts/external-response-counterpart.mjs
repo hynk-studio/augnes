@@ -2,6 +2,8 @@
 // reasoning agent. The caller owns listener settlement and finite lifetime.
 import { createServer } from "node:http";
 import { timingSafeEqual, randomUUID } from "node:crypto";
+import { lstatSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import {
   EXTERNAL_VERSION,
   canonical,
@@ -11,18 +13,23 @@ import {
   terms,
   bytes,
 } from "../lib/vnext/external-response-rules.mjs";
+/** @param {{ secret: string, formats?: string[], maxRows?: number, accepting?: boolean, receiptDirectory?: string }} options */
 export function createLocalProcessor({
   secret,
   formats = ["json"],
   maxRows = 200,
   accepting = true,
+  receiptDirectory = undefined,
 }) {
   // A new receipt owner always has a new incarnation. Restarting this in-memory
   // counterpart cannot truthfully answer absence for the previous incarnation.
   const instance = `local-processor:${randomUUID()}`;
+  if (receiptDirectory !== undefined &&
+      (!path.isAbsolute(receiptDirectory) || !lstatSync(receiptDirectory).isDirectory()))
+    throw new Error("invalid_owned_receipt_directory");
   let conditions = { formats, maxRows, accepting };
   const receipts = new Map();
-  let effects = 0;
+  let effects = 0, posts = 0, queries = 0;
   const same = (a, b) =>
     typeof a === "string" &&
     Buffer.byteLength(a) === Buffer.byteLength(b) &&
@@ -47,6 +54,7 @@ export function createLocalProcessor({
       }
       const requestRef = `sha256:${url.pathname.split("/").at(-1)}`;
       if (req.method === "GET") {
+        queries++;
         const previous = receipts.get(requestRef);
         send(
           200,
@@ -65,6 +73,7 @@ export function createLocalProcessor({
         send(405, { status: "refused" });
         return;
       }
+      posts++;
       let size = 0;
       const chunks = [];
       for await (const chunk of req) {
@@ -247,6 +256,13 @@ export function createLocalProcessor({
         }
       }
       receipts.set(requestRef, { fingerprint, response: output });
+      // Optional task-owned evidence persists the actual receipt before reply.
+      // It does not restore an incarnation or become a replacement receipt owner.
+      if (receiptDirectory !== undefined) writeFileSync(
+        path.join(receiptDirectory, `${requestRef.slice(7)}.json`),
+        canonical({ instance, request_ref: requestRef, fingerprint, response: output }) + "\n",
+        { flag: "wx", mode: 0o600, flush: true },
+      );
       send(200, output);
     } catch {
       send(422, { status: "invalid_material" });
@@ -262,6 +278,8 @@ export function createLocalProcessor({
       return {
         conditions: { ...conditions },
         effects,
+        posts,
+        queries,
         receipts: [...receipts].map(([ref, v]) => ({
           ref,
           fingerprint: v.fingerprint,

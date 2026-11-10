@@ -23,6 +23,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { isSupportedCompanionNodeVersion } from "./node-runtime-policy.mjs";
+
 import { observeCheckoutIdentity, observeCurrentCheckoutIdentity, currentCheckoutObservationBinding,
   compareCompanionCheckoutIdentity, checkoutObservationBinding, validDurableCheckoutIdentity } from "./checkout-identity.mjs";
 
@@ -58,6 +60,7 @@ const SERVICE_SOURCE_FILES = Object.freeze([
   "scripts/augnes-companion-service.mjs",
   "plugins/augnes-operator/mcp/companion-service-core.mjs",
   "plugins/augnes-operator/mcp/checkout-identity.mjs",
+  "plugins/augnes-operator/mcp/node-runtime-policy.mjs",
   "plugins/augnes-operator/mcp/checkout-identity-darwin.py",
 ]);
 const RUNTIME_CONTRACT = "augnes-local-runtime-supervisor-v1";
@@ -1819,6 +1822,24 @@ function recoveryMaterial(layout, key) {
   return captureStaleDecommissionMaterialSnapshot(layout[key], staleDecommissionAnchorForFile(layout, layout[key]));
 }
 
+function settledRecoveryMatchesRenumberedCheckout(record, layout) {
+  if (record.status !== "settled") return false;
+  const witness = record.evidence.material?.configuration_path;
+  const device = witness?.parent?.device;
+  if (witness?.state !== "valid" || !validCanonicalInstalledStatIdentity(device, true)) return false;
+  const configuration = readRegularJson(layout.configuration_path);
+  if (configuration.state !== "valid" || !isObject(configuration.value) ||
+      !compareCompanionCheckoutIdentity(configuration.value, layout.repository).valid) return false;
+  // A settled record is history, not a new recovery grant. Its immutable
+  // observation must still match every current field except device, including
+  // the durable identity also checked against current enrollment above. The
+  // recorded material supplies a candidate device number, not a mount identity:
+  // require the exact original hash, never assume the two paths share a mount.
+  // Do not pin current configuration bytes to a historical operation; normal
+  // configuration/source validation still owns later supported updates.
+  return record.evidence.repository_binding === checkoutObservationBinding({ ...layout.repository, device });
+}
+
 function readOwnershipRecovery(layout) {
   const value = readRegularJson(layout.ownership_recovery_path);
   if (value.state === "missing") return null;
@@ -1826,9 +1847,10 @@ function readOwnershipRecovery(layout) {
   if (value.state !== "valid" || record?.contract !== OWNERSHIP_RECOVERY_CONTRACT ||
       record.service_identity !== layout.service_identity ||
       !["retiring", "settled"].includes(record.status) || !isObject(record.evidence) ||
-      record.evidence.repository_binding !== checkoutObservationBinding(layout.repository) ||
       !/^[a-f0-9]{64}$/u.test(record.operation_binding ?? "") ||
       record.operation_binding !== sha256(JSON.stringify(record.evidence))) throw recoveryRefused("record_invalid");
+  if (record.evidence.repository_binding !== checkoutObservationBinding(layout.repository) &&
+      !settledRecoveryMatchesRenumberedCheckout(record, layout)) throw recoveryRefused("record_invalid");
   return record;
 }
 
@@ -5946,7 +5968,7 @@ function inspectNodeBinary(nodePath) {
       env: {},
     });
     const version = result.status === 0 ? result.stdout.trim() : "";
-    if (!new RegExp(`^v${COMPANION_SERVICE_NODE_MAJOR}\\.\\d+\\.\\d+$`, "u").test(version)) {
+    if (!isSupportedCompanionNodeVersion(version)) {
       return { valid: false, path: resolved, version };
     }
     return { valid: true, path: resolved, version };

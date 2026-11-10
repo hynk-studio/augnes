@@ -42,6 +42,7 @@ import {
   DISTRIBUTABLE_SUPERVISOR_BUNDLE_FILE,
   DISTRIBUTABLE_RECOVERY_WORKER_BUNDLE_FILE,
   DISTRIBUTABLE_RECOVERY_CONTROL_FILES,
+  DISTRIBUTABLE_DATABASE_MIGRATION_FILES,
   DISTRIBUTABLE_SUPPORTED_OPERATING_SYSTEMS,
   assertAllowedDistributablePayloadPath,
   assertSafeDistributablePath,
@@ -51,6 +52,7 @@ import {
   formatDistributablePlatformLabel,
   validateDistributableManifest,
 } from "./distributable-package-contract.mjs";
+import { readPreparedR8ADependencies } from "./merged-r8a-dependency-provision.mjs";
 import { materializeMergedR8ADependencies, snapshotMergedR8ACurrentInputs } from "./merged-r8a-fixture-dependencies.mjs";
 import {
   MERGED_R8A_BUILD_ID,
@@ -182,6 +184,7 @@ let packageManifest = null;
 let mergedR8ABuildIdentity = null;
 let mergedR8AFixtureBuildConfiguration = null;
 let mergedR8ADependencyMaterialization = null;
+let mergedR8AProvision = null;
 let currentRuntimeParserVerified = false;
 let assertCurrentDependencyInputsUnchanged = null;
 let fakePackageManagerSentinel = null;
@@ -207,6 +210,7 @@ if (
 }
 
 try {
+  mergedR8AProvision = readPreparedR8ADependencies(repositoryRoot);
   assertCurrentDependencyInputsUnchanged = snapshotMergedR8ACurrentInputs(repositoryRoot);
   assertContractRejectsForbiddenPayloads();
   const packageStartedAt = Date.now();
@@ -230,6 +234,21 @@ try {
   packageRoot = findPackageRoot(unpackRoot);
   assertOutsideRepository(packageRoot, "unpacked package root");
   packageManifest = validatePackageContents(packageRoot);
+  for (const relativePath of DISTRIBUTABLE_DATABASE_MIGRATION_FILES) {
+    assert.equal(
+      packageManifest.files.some(entry => entry.path === relativePath),
+      true,
+      `current package is missing migration support: ${relativePath}`,
+    );
+  }
+  // Manifest compatibility does not require a historical v2 package to contain
+  // the later source decomposition. Its original bundle remains its runtime.
+  const preMigrationSplitManifest = structuredClone(packageManifest);
+  preMigrationSplitManifest.files = preMigrationSplitManifest.files.filter(
+    entry => !DISTRIBUTABLE_DATABASE_MIGRATION_FILES.includes(entry.path),
+  );
+  preMigrationSplitManifest.build_identity = calculateDistributableBuildIdentity(preMigrationSplitManifest);
+  validateDistributableManifest(preMigrationSplitManifest);
   // Manifest-level compatibility only: pre-capability packages did not contain
   // recovery worker files. Their original file requirements still apply.
   const historicalManifest = structuredClone(packageManifest);
@@ -2005,7 +2024,11 @@ async function buildMergedR8APackage() {
       .version,
     MERGED_R8A_APPLICATION_VERSION,
   );
-  const dependencyMaterialization = materializeMergedR8ADependencies({ historicalRoot: sourceRoot, currentRoot: repositoryRoot });
+  const provision = readPreparedR8ADependencies(repositoryRoot);
+  assert.equal(provision.fingerprint, mergedR8AProvision.fingerprint, "historical provision changed before handoff");
+  const dependencyMaterialization = materializeMergedR8ADependencies({
+    historicalRoot: sourceRoot, currentRoot: repositoryRoot, dependencyRoot: provision.root,
+  });
   mergedR8ADependencyMaterialization = dependencyMaterialization.evidence;
   const dependencySnapshot = packageDependencySnapshot(sourceRoot);
 
@@ -2041,6 +2064,7 @@ async function buildMergedR8APackage() {
   assert.deepEqual(packageDependencySnapshot(sourceRoot), dependencySnapshot);
   dependencyMaterialization.assertUnchanged();
   dependencyMaterialization.assertHistoricalViewUnchanged();
+  assert.equal(readPreparedR8ADependencies(repositoryRoot).fingerprint, provision.fingerprint);
   assert.deepEqual(
     listBuildTemporaryEntries(temporaryRoot),
     [],

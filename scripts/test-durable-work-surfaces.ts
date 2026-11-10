@@ -1,9 +1,11 @@
+import { selectBrowserPath, strictNetworkSandboxLaunch } from "./local-canonical-browser-input.mjs";
 // Fresh process, real component, HTTP writers and authenticated local agent route.
 // All identity/channel credentials below belong only to the disposable fixture.
+import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
-import { readFileSync, mkdirSync, rmSync } from "node:fs";
+import { readFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { build } from "esbuild";
@@ -41,7 +43,7 @@ class CDP {
 async function until(fn: () => Promise<unknown>, label: string) { const end = performance.now() + 10000; while (performance.now() < end) { if (await fn()) return; await delay(50); } throw new Error(`browser_wait:${label}`); }
 
 async function main() {
-  const { config, projectRoot, at, mode, cumulative = false } = JSON.parse(readFileSync(process.argv[2]!, "utf8"));
+  const { config, projectRoot, at, mode, cumulative = false, exerciseHttpIdleBoundary = false } = JSON.parse(readFileSync(process.argv[2]!, "utf8"));
   assert.ok(config.database_path.includes("durable-surface-"));
   const db = new Database(config.database_path), root = path.join(path.dirname(config.database_path), `owned-${mode}`); mkdirSync(root);
   const owned = new Set(), guard = installZeroNetworkGuard({ allowLoopback: true });
@@ -52,6 +54,7 @@ async function main() {
   const sessions = createVNextLocalOperatorSessionHandlersV01({ environment, clock });
   const stateless = createStatelessSourceReviewHandler({ environment, clock });
   const post = createVNextOperatorContextUseReviewHandlerV01({ environment, clock }), get = createVNextOperatorProjectContinuityHandlerV01({ environment, clock });
+  let browserUse: ReturnType<typeof beginBrowserUse> | undefined;
   let c: CDP | undefined, chrome: ReturnType<typeof registerOwnedChild> | undefined, origin = "", script = "", css = "", errors = 0, external = 0, saves = 0;
   const cookieJar = new Map<string, string>();
   const cookieHeader = () => [...cookieJar].map(([name, value]) => `${name}=${value}`).join("; ");
@@ -79,10 +82,15 @@ async function main() {
     } catch { errors++; res.statusCode = 500; res.end('{"error":"fixture_http_failed"}'); }
   }));
   async function http(endpoint: string, body?: unknown, status = 200) {
-    const response = await fetch(origin + endpoint, { signal: AbortSignal.timeout(10000), method: body ? "POST" : "GET", headers: { origin, cookie: cookieHeader(), "Augnes-Project-Id": config.project_id, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    // This fixture's server and synchronous database assertions share an event
+    // loop. Do not reuse a pooled socket whose idle timeout could expire while
+    // validation prevents either endpoint from processing its timers. Each
+    // operation still uses real HTTP exactly once, including mutating POSTs.
+    const response = await fetch(origin + endpoint, { signal: AbortSignal.timeout(10000), method: body ? "POST" : "GET", headers: { connection: "close", origin, cookie: cookieHeader(), "Augnes-Project-Id": config.project_id, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
     rememberCookies(response.headers.getSetCookie());
     const data = await response.json(); assert.equal(response.status, status, canonical(data)); return data;
   }
+  let primaryError: unknown;
   try {
     await new Promise<void>(ok => server.listen(0, "127.0.0.1", ok)); origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
     const issued = issueVNextLocalOperatorBootstrapV01(db, { config, clock });
@@ -173,10 +181,15 @@ async function main() {
       script = bundled.outputFiles.find(f => f.path.endsWith(".js"))!.text; css = bundled.outputFiles.find(f => f.path.endsWith(".css"))?.text ?? "";
       const profile = path.join(root, "chrome"), args = ["--headless=new", "--no-sandbox", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--disable-background-networking", "--disable-component-update", "--disable-default-apps", "--disable-domain-reliability", "--disable-extensions", "--disable-sync", "--metrics-recording-only", "--no-pings", "--password-store=basic", "--use-mock-keychain", "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1", "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "about:blank"];
       const sandbox = '(version 1) (allow default) (deny network*) (allow network-inbound (local ip "localhost:*")) (allow network-outbound (remote ip "localhost:*")) (allow network-bind (local ip "localhost:*")) (allow network* (local unix-socket))';
-      chrome = registerOwnedChild(owned, spawn("/usr/bin/sandbox-exec", ["-p", sandbox, "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", ...args], { detached: true, stdio: "ignore", env: { ...process.env, OPENAI_API_KEY: "" } }), { label: "durable-work-browser" });
+      const executable = selectBrowserPath([process.env.AUGNES_BROWSER_EXECUTABLE_PATH ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]);
+      assert.ok(executable && existsSync(executable), "durable_browser_executable_missing");
+      browserUse = beginBrowserUse(executable, { consumer: cumulative ? "cumulative-work-surface" : "durable-work-surface" });
+      chrome = registerOwnedChild(owned, spawn(...strictNetworkSandboxLaunch("/usr/bin/sandbox-exec", ["-p", sandbox, executable, ...args], cumulative ? "cumulative-work-surface" : "durable-work-surface"), { detached: true, stdio: "ignore", env: { ...process.env, OPENAI_API_KEY: "" } }), { label: "durable-work-browser" });
       let port = ""; await until(async () => { try { port = readFileSync(path.join(profile, "DevToolsActivePort"), "utf8").split("\n")[0]!; return !!port; } catch { return false; } }, "chrome");
       const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: "PUT" })).json() as any;
-      c = new CDP(target.webSocketDebuggerUrl); await c.open(); const browser = c;
+      c = new CDP(target.webSocketDebuggerUrl); await c.open();
+      browserUse.version((await (await fetch(`http://127.0.0.1:${port}/json/version`)).json() as { Browser: string }).Browser);
+      browserUse.version((await c.send("Browser.getVersion")).product, "cdp"); const browser = c;
       await c.send("Network.enable"); await c.send("Runtime.enable"); await c.send("Page.enable");
       c.handlers.push(m => { if (m.method === "Runtime.exceptionThrown") errors++; if (m.method === "Network.requestWillBeSent" && /^https?:/u.test(m.params.request.url) && !m.params.request.url.startsWith(origin + "/")) external++; });
       for (const [name, value] of cookieJar) await c.send("Network.setCookie", { name, value, url: origin, path: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01, httpOnly: true, sameSite: "Strict" });
@@ -199,21 +212,35 @@ async function main() {
       }
       assert.equal(saves, 1);
     }
+    const validationStarted = performance.now();
     assert.equal(current().expires_at, null); assert.equal(current().capability_grant, null); assert.deepEqual(current().task, { ...old.task, goal: nextGoal });
     assert.deepEqual(readSelectedWorkSources(current()), readSelectedWorkSources(old));
     assert.deepEqual(db.prepare("SELECT * FROM vnext_core_records ORDER BY rowid").all().slice(0, rows.length), rows);
     assert.equal(authority(), beforeAuthority); assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
     assert.equal(external, 0); assert.equal(errors, 0); assert.equal(guard.attempts.length, 0);
+    if (exerciseHttpIdleBoundary) {
+      assert.equal(cumulative, true); assert.equal(mode, "readback");
+      // Exercise the observed lifecycle boundary using the actual recovery
+      // validator, not a forced reset, sleep, deadline change or request retry.
+      // Only one ordinary-successor readback receives this regression input.
+      const idleLifetime = server.keepAliveTimeout + server.keepAliveTimeoutBuffer;
+      do { assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid"); }
+      while (performance.now() - validationStarted <= idleLifetime);
+      console.log(JSON.stringify({ cumulative_http_idle_boundary: true, validation_ms: performance.now() - validationStarted, idle_lifetime_ms: idleLifetime }));
+    }
     if (cumulative) {
       const result = await http("/api/vnext/operator/project-continuity");
       assert.equal(result.work_initialization.revision_eligibility.revision_count, mode === "readback" ? 34 : 33);
       console.log(JSON.stringify({ cumulative_surface: mode, revision_count: result.work_initialization.revision_eligibility.revision_count, fresh_process: true, authority_unchanged: true, external_requests: external }));
     }
     if (!cumulative) console.log(JSON.stringify({ durable_surface: mode, fresh_process: process.pid, days_elapsed: mode === "readback" ? 8 : 4, unchanged_task: true, authority_unchanged: true, historical_rows_unchanged: true, provider_calls: 0 }));
+  } catch (error) {
+    primaryError = error; throw error;
   } finally {
     globalThis.Date = NativeDate;
     try { if (cookieJar.size) { await http("/api/vnext/operator/session", { action: "logout" }); await http("/api/vnext/operator/session", undefined, 401); } }
-    finally { c?.close(); if (chrome) await terminateOwnedProcessTree(chrome); await closeTrackedServer(server); db.close(); guard.restore(); rmSync(root, { recursive: true, force: true });
+    catch (cleanupError) { throw primaryError ? new AggregateError([primaryError, cleanupError], "Surface operation and session cleanup both failed") : cleanupError; }
+    finally { c?.close(); if (chrome) await terminateOwnedProcessTree(chrome); browserUse?.finish(); await closeTrackedServer(server); db.close(); guard.restore(); rmSync(root, { recursive: true, force: true });
       for (const key of Object.keys(process.env)) if (!(key in envBefore)) delete process.env[key]; Object.assign(process.env, envBefore); assert.equal(owned.size, 0); }
   }
 }

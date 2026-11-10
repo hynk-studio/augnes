@@ -63,11 +63,11 @@ import {
   STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
   type ModelAdapterV01,
 } from "@/lib/vnext/model-gateway/contracts";
-import {
+import type {
   invokeStrategicAdvantageTransferModelGatewayV01,
-  readDefaultModelGatewayLocalCapabilityV01,
-  type StrategicAdvantageTransferModelGatewayDependenciesV01,
+  StrategicAdvantageTransferModelGatewayDependenciesV01,
 } from "@/lib/vnext/model-gateway/model-gateway";
+import { readDefaultModelGatewayLocalCapabilityV01 } from "@/lib/vnext/model-gateway/local-capability";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
 import {
   assertModelGatewayCostBudgetCurrentV01,
@@ -885,11 +885,11 @@ export async function requestVNextOperatorStrategicAdvantageTransferV01(
     try {
       const invocation = await invokeStrategicAnalysisOnceV01(
         prepared.identity.analysis_identity,
-        () =>
-          (
-            input.dependencies?.invoke_model ??
-            invokeStrategicAdvantageTransferModelGatewayV01
-          )(
+        async () => {
+          const invokeModel = input.dependencies?.invoke_model ??
+            (await import("@/lib/vnext/model-gateway/model-gateway"))
+              .invokeStrategicAdvantageTransferModelGatewayV01;
+          return invokeModel(
             {
               envelope_version: MODEL_INVOCATION_ENVELOPE_VERSION_V01,
               invocation_id: `strategic:${prepared.identity.analysis_identity.slice(7, 39)}`,
@@ -947,8 +947,9 @@ export async function requestVNextOperatorStrategicAdvantageTransferV01(
                 ? { now: input.dependencies.now }
                 : {}),
             },
-          ),
-        );
+          );
+        },
+      );
       modelResult = invocation.result;
       modelInvocationCount = invocation.invoked ? 1 : 0;
       releaseModelInvocation = invocation.release;

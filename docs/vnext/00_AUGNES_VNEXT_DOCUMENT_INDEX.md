@@ -26,6 +26,24 @@ The governing rule is:
 
 ## Supporting layers
 
+### Autonomous-project and public-collaboration design
+
+The 2026-10-26 v0.2 design is integrated by topic into the active owners below.
+Its full design scope includes optional public use, continuing autonomous
+projects, collaboration, participant resources and the conditions for a viable
+ecosystem. Read the current sequence and evidence before treating a target as
+an implemented capability. The design does not create a second roadmap or
+change an existing execution assignment.
+
+| Design topic | Active reading location |
+|---|---|
+| First value, optional use, autonomy, participation and agreed returns | `01` product doctrine; README explains the supported entry and links to the direction. |
+| Existing roles, grants, accepted Perspective, explicit writes, sharing and recovery semantics | `02` remains the semantic owner. Design requirements do not extend the existing protocol. |
+| Ordinary request through actual work, experience use and necessary succession | `03` development and operation sequence, within the existing L1/L2/G1 and P2-P5 responsibilities. |
+| Provider resource coordination, unresolved settlement and future shared infrastructure | `03` future implementation scope. Any new resource protocol must be specified in `02` with a real producer, consumer and enforcing provider. |
+| Correctness, continuity, experience utility, incremental workflow benefit, external demand and economics | `04` evaluation and maturity, with evidence appropriate to the claim. |
+| Current implementation, dated observations and remaining decisions | `03` owns status and sequence; `04` owns interpretation. Original issue/PR evidence retains its scope and history. |
+
 ### Active implementation contracts
 
 Versioned contracts such as

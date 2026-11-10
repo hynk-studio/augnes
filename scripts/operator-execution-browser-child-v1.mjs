@@ -20,6 +20,7 @@ import {
 } from "./operator-execution-browser-lifecycle-v1.mjs";
 import {
   assertOperatorExecutionFinalSuccessV1,
+  boundedOperatorRequestFailuresV1,
   createOperatorDetailedFieldCompletionOwnerV1,
   createOperatorResultFieldDefaultsV1,
   createOperatorSemanticMarkerOwnerV1,
@@ -129,6 +130,7 @@ export async function runOperatorExecutionBrowserChildV1({
     browser_failure_diagnostic: null,
     browser_port_allocation_diagnostic: null,
     browser_failure_snapshot: null,
+    project_home_readiness_observation: null,
     failure_evidence_capture_errors: [],
     supervisor_exit_diagnostic: null,
     failure: null,
@@ -227,6 +229,7 @@ export async function runOperatorExecutionBrowserChildV1({
       result.failure_evidence_capture_errors.push("primary_capture_failed");
     }
     result.browser_failure_snapshot = failureEvidence?.browser_failure_snapshot ?? null;
+    result.project_home_readiness_observation = failureEvidence?.project_home_readiness_observation ?? null;
     result.browser_failure_diagnostic =
       failureEvidence?.browser_failure_diagnostic ?? null;
     result.supervisor_exit_diagnostic =
@@ -316,6 +319,9 @@ export async function runOperatorExecutionBrowserChildV1({
     if (evidence?.browser_failure_snapshot) {
       result.browser_failure_snapshot = evidence.browser_failure_snapshot;
     }
+    if (evidence?.project_home_readiness_observation) {
+      result.project_home_readiness_observation = evidence.project_home_readiness_observation;
+    }
     if (evidence?.browser_failure_diagnostic) {
       result.browser_failure_diagnostic = evidence.browser_failure_diagnostic;
     }
@@ -359,9 +365,12 @@ export async function runOperatorExecutionBrowserChildV1({
     const unexpectedConsole = classifiedConsole.filter(
       (entry) => !console_allowlist(entry),
     );
-    const unexpectedFailedRequests = (evidence?.failed_requests ?? []).filter(
-      (entry) => !request_failure_allowlist(entry),
-    );
+    const requestClassifications = (evidence?.failed_requests ?? []).map(entry => ({
+      entry, verdict: lifecycle.requestFailureVerdict(entry),
+    }));
+    const unexpectedFailedRequests = requestClassifications.filter(
+      ({ entry, verdict }) => verdict.expected !== true && !request_failure_allowlist(entry),
+    ).map(({ entry }) => entry);
     result.unexpected_external_request_count =
       evidence?.external_requests.length ?? null;
     result.unexpected_console_failure_count = evidence ? unexpectedConsole.length : null;
@@ -390,6 +399,8 @@ export async function runOperatorExecutionBrowserChildV1({
     );
     result.unexpected_refusal_accounting_failure_count =
       refusalAccounting.failure_count;
+    const requestDiagnostics = boundedOperatorRequestFailuresV1(unexpectedFailedRequests);
+    const { records: failureRecords, ...failureCoverage } = requestDiagnostics;
     result.request_response_console_page_refusal_summary = {
       request_count: evidence?.requests.length ?? null,
       response_count: evidence?.responses.length ?? null,
@@ -404,9 +415,13 @@ export async function runOperatorExecutionBrowserChildV1({
       unexpected_console_failures: unexpectedConsole
         .slice(0, 8)
         .map((entry) => publicDiagnostic(entry, roots)),
-      unexpected_request_failures: unexpectedFailedRequests
-        .slice(0, 8)
-        .map((entry) => publicDiagnostic(entry, roots)),
+      unexpected_request_failures: failureRecords,
+      unexpected_request_failure_capture: failureCoverage,
+      all_request_failures: boundedOperatorRequestFailuresV1(evidence?.failed_requests ?? []),
+      request_lifecycle_verdicts: requestClassifications.slice(0, 128).map(({ entry, verdict }) => ({
+        request_id: entry.request_id, ...verdict,
+      })),
+      request_lifecycle: evidence?.request_lifecycle ?? null,
     };
     result.e2e_timing_summary = evidence?.timing_summary ?? null;
     result.total_duration_ms = Date.now() - startedAt;

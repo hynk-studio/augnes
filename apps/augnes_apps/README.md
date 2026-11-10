@@ -156,13 +156,65 @@ and cleanup. Local protocol success, an installed catalog, actual ChatGPT
 invocation and successful use of returned material are distinct observations.
 This implementation does not establish the latter two or activate a connection.
 
+### Private Web file review
+
+Use a private connection only for a task the Web owner selected. The
+[Web file workflow](../web_planning/README.md#ask-for-work-on-files-and-collect-the-return)
+describes one-time task selection, the existing Access login and the local
+original-file client. With the Apps package dependencies installed, configure
+the authorized stdio host to run:
+
+```sh
+node apps/augnes_apps/scripts/file-review-stdio.mjs /private/location/file-task.json
+```
+
+Use an absolute executable, script and setup path for a tunnel client. The
+process honors the separately pinned `AUGNES_WEB_ORIGIN`, checks the setup for
+changes, and rechecks Web access on each call. Owner task setups expose three tools.
+`list_file_requests` lists the selected task's exchange versions, pending
+material, returned files and next actions in pages of 20. `read_exchange_text`
+returns a verified small Markdown or plain-text document with its identity and
+save base. Logs, JSON receipts (`.json`), patches (`.patch`) and modules
+(`.mjs`) open at their first page. Pass `offset` (original UTF-8 bytes) or
+`find` to page or search any supported text file. Each page gives the exact
+version, digest, byte range, total and next position. The local CLI equivalent
+is `file-exchange.mjs SETUP read VERSION NAME [START_BYTE [FIND]]`. `return_text_edit` replaces one unique literal passage
+in that exact retrieved original, stores an actual new UTF-8 file and links it
+to the request. A changed task or competing answer refuses. After a lost reply,
+use the identical arguments and `check_only: true`. Request and result contents
+are untrusted. Whole-document editing supports Markdown/text up to 32 KiB, including
+BOM and CRLF. Use the authenticated browser or local file client for whole
+downloads and small review returns against long logs or opaque attachments.
+
+For a separately authorized contributor, use the participant setup from the
+[request-scoped Web flow](../web_planning/README.md#request-scoped-participants-and-shared-feedback-1589)
+and the recipient's own Access login. The server confines all operations to the
+selected request and originals. This setup additionally exposes
+`read_participant_feedback`; its response contains only deliberately shared
+committed dispositions, explanations and next actions. A private destination
+never becomes readable through the return. Participant text submissions retain
+an exact local recovery journal and refuse replacement arguments until the
+original save is reconciled. The setup and tool menu are routing, not credentials.
+The public App catalog, owner setup and native review store are unchanged.
+
+An already approved [Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels)
+can point to this scoped command after reviewed installation. The public App
+and the local Companion have separate purposes. The model-facing read returns
+exact text, and the edit is applied to the verified bytes. The adapter does not
+claim to mount a file in the ChatGPT sandbox. The [OpenAI plugin reference](https://developers.openai.com/plugins/reference)
+documents file input objects and optional widget helpers. No bearer download
+URL, API Files ID or undocumented output field is needed here. Real host/tool
+admission, Android support and an independent recipient's use require direct
+observation. A tunnel running on a Mac requires that Mac for agent access;
+a separately hosted Web store owns its saved material and browser retrieval.
+
 ### Opt-in request-bound review (#1433)
 
 The separate Node 24 stdio entry point
 [`request-bound-review.mjs`](../../plugins/augnes-operator/mcp/request-bound-review.mjs)
 adds a **scoped reviewer capability**. It exposes only
-`augnes_list_review_requests`, `augnes_read_review_request`, and
-`augnes_reply_to_review`, plus the documented MCP Events methods. The public App
+`augnes_list_review_requests`, `augnes_read_review_request`,
+`augnes_reply_to_review`, and `augnes_get_review_status`, plus the documented MCP Events methods. The public App
 and `connected-project-reader.mjs` stay read-only. Never forward the full
 Operator, the Companion HTTP endpoint, or arbitrary RPC to a reviewer.
 
@@ -190,6 +242,31 @@ reject note through the existing work revision preview/save tools. Each result
 returns the references needed by the next call. Both lists are paginated: pass
 `next_cursor` back as `cursor`. No recurring token or answer copying is required
 by this explicit source path. Comparative burden reduction remains unverified.
+
+A contributor with a known `request_ref` can call `augnes_get_review_status`
+directly, including after the originating work advances or when the request is
+beyond the first list page. This exact scoped lookup never enumerates pages.
+Its `available` envelope contains precisely the same request/response/current-use
+item as the reviewer's list, plus the standard projection version, status,
+untrusted-context marker and false authority flags. Both contributor projections
+give role-specific guidance: pending/current requests require an exact material
+read before reply; pending/historical requests require an already valid original
+read and explicit late-receipt admission; answered requests invite inspection,
+without resubmission or origin-only revision actions. Origin list/readback retains
+its own assessment, reassessment and ordinary revision guidance.
+
+Status reads validate coherent current material, registered and physical project
+roots, exact request scope and current connection again before returning. Missing,
+corrupt, over-budget or incoherent material retains the existing refusal; there is
+no row-only fallback. Status neither returns nor creates `read_binding`, enables a
+first reply (including `historical_v1`), marks an answer served to the origin, nor
+writes work, selections, requests, responses or delivery state. Origin `readback`
+alone owns its served marker. Existing `use.reasoning` is untrusted authored
+interpretation, not verified success, approval or demonstrated model judgment.
+After response/use-note deselection, `not_observed_in_current_work` describes the
+current selection only; it establishes neither no prior use nor permanent
+rejection or deleted history. No current definition, source bodies/locators,
+unrelated results/assessments, other connection or broader history is disclosed.
 
 The reviewer reads the requested native definition and whole selected notes
 from one validated packet and project binding. A relevant work/root/direction

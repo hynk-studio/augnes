@@ -152,6 +152,7 @@ function projection(overrides: {
 
 function recentEntry(overrides: Partial<RecentProjectEntryV01> = {}): RecentProjectEntryV01 {
   return {
+    organization: { state: "working", revision: "organization:" + "a".repeat(32) },
     recent_project_entry_version: "recent_project_entry.v0.1",
     project: {
       project_identity_version: "project_identity.v0.1",

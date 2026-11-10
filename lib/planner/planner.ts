@@ -3,9 +3,8 @@ import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { createHash, randomUUID } from "node:crypto";
 
 import { buildStateBrief } from "@/lib/state/brief";
-import {
-  invokePlannerModelGatewayV01,
-  type PlannerModelGatewayDependenciesV01,
+import type {
+  PlannerModelGatewayDependenciesV01,
 } from "@/lib/vnext/model-gateway/model-gateway";
 import {
   MODEL_INVOCATION_ENVELOPE_VERSION_V01,
@@ -116,6 +115,9 @@ export async function buildPlan(
   const brief = buildStateBrief(request.project_id);
   const executionMode = request.execution_mode;
   const gatewayDependencies = options.gateway_dependencies ?? {};
+  const { invokePlannerModelGatewayV01 } = await import(
+    "@/lib/vnext/model-gateway/model-gateway"
+  );
   const result = await invokePlannerModelGatewayV01(
     buildPlannerModelInvocationEnvelopeV01({
       invocation_id: `model-invocation:${(options.create_uuid ?? randomUUID)()}`,

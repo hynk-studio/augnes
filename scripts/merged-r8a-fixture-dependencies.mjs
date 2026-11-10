@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, lstatSync, readFileSync, readdirSync,
+import fs, { cpSync, existsSync, lstatSync, readFileSync, readdirSync,
   readlinkSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -198,23 +198,74 @@ export function snapshotMergedR8ACurrentInputs(currentRoot) {
   };
 }
 
+// Used by the separately owned, network-enabled preparation command. The
+// package scenario itself remains offline and validates this material again.
+export function mergedR8AInstalledIdentity(root) {
+  return installedIdentity(root, PREFIXES);
+}
+
+export function historicalRootInstalledIdentity(root) {
+  return installedIdentity(root, [""]);
+}
+
+function installedIdentity(root, prefixes) {
+  return prefixes.map(prefix => {
+    const projectRoot = path.join(realpathSync(root), prefix);
+    const lock = readJson(path.join(projectRoot, "package-lock.json"));
+    const installed = inspectInstalled(projectRoot, lock);
+    return { prefix, packages: installed.installed.length,
+      sha256: stableHash([...installed.snapshot].map(([p, { inode, ...v }]) => [p, v])) };
+  });
+}
+
 /** Only the existing archived #1118 fixture calls this owner. No installs,
  * environment changes, source-lock writes or current-tree mutations occur. */
-export function materializeMergedR8ADependencies({ historicalRoot, currentRoot }) {
+export function materializeMergedR8ADependencies({ historicalRoot, currentRoot, dependencyRoot = currentRoot }) {
+  return materializeDependencies({ historicalRoot, currentRoot, dependencyRoot, prefixes: PREFIXES });
+}
+
+// The durable-work predecessor has its own exact root graph. It cannot take
+// the current-view exception or borrow the older R8A graph.
+export function materializeExactHistoricalRootDependencies({ historicalRoot, currentRoot, dependencyRoot }) {
+  assert(dependencyRoot && realpathSync(dependencyRoot) !== realpathSync(currentRoot), "exact historical provision required");
+  return materializeDependencies({ historicalRoot, currentRoot, dependencyRoot, prefixes: [""] });
+}
+
+// cpSync creates symlinks using the caller's umask on Darwin. Restore the
+// prepared link itself before the unchanged full contents/modes comparison.
+function preserveCopiedLinkModes(destination, paths, sourceSnapshot) {
+  if (process.platform !== "darwin") return;
+  for (const relative of paths) {
+    const source = sourceSnapshot.get(relative);
+    if (source.kind !== "link") continue;
+    const file = path.join(destination, relative);
+    const copied = lstatSync(file, { bigint: true });
+    if (Number(copied.mode & 0o777n) === source.mode) continue;
+    assert.equal(realpathSync(path.dirname(file)), path.dirname(file), "copied symlink parent must be physical");
+    assert(copied.isSymbolicLink() && readlinkSync(file) === source.link, "copied symlink target changed");
+    assert.notEqual(`${copied.dev}:${copied.ino}`, source.inode, "copied symlink must be disjoint");
+    fs.lchmodSync(file, source.mode);
+  }
+}
+
+function materializeDependencies({ historicalRoot, currentRoot, dependencyRoot, prefixes }) {
   historicalRoot = realpathSync(historicalRoot);
   currentRoot = realpathSync(currentRoot);
-  assert(historicalRoot !== currentRoot && !inside(currentRoot, historicalRoot) && !inside(historicalRoot, currentRoot), "dependency copies must be disjoint");
-  const inputs = PREFIXES.map(prefix => {
+  dependencyRoot = realpathSync(dependencyRoot);
+  assert(historicalRoot !== dependencyRoot && !inside(dependencyRoot, historicalRoot) && !inside(historicalRoot, dependencyRoot), "dependency copies must be disjoint");
+  assert(historicalRoot !== currentRoot && !inside(currentRoot, historicalRoot) && !inside(historicalRoot, currentRoot), "historical source must be isolated");
+  const inputs = prefixes.map(prefix => {
     const oldFile = path.join(historicalRoot, prefix, "package-lock.json");
-    const newFile = path.join(currentRoot, prefix, "package-lock.json");
+    const newFile = path.join(dependencyRoot, prefix, "package-lock.json");
     regular(oldFile);
     regular(newFile);
     const historical = readJson(oldFile), current = readJson(newFile);
     const excluded = planMergedR8ADependencyView(historical, current, prefix !== "");
-    const source = path.join(currentRoot, prefix, "node_modules");
+    if (dependencyRoot !== currentRoot) assert.equal(hash(readFileSync(oldFile)), hash(readFileSync(newFile)), "prepared historical lock bytes differ");
+    const source = path.join(dependencyRoot, prefix, "node_modules");
     const destination = path.join(historicalRoot, prefix, "node_modules");
     assert(!existsSync(destination), "historical dependencies already materialized");
-    const installed = inspectInstalled(path.join(currentRoot, prefix), current);
+    const installed = inspectInstalled(path.join(dependencyRoot, prefix), current);
     return { prefix, oldFile, newFile, historical, current, excluded, source, destination, installed,
       oldHash: hash(readFileSync(oldFile)), newHash: hash(readFileSync(newFile)) };
   });
@@ -225,16 +276,17 @@ export function materializeMergedR8ADependencies({ historicalRoot, currentRoot }
     cpSync(source, destination, { recursive: true, force: false, errorOnExist: true,
       preserveTimestamps: true, verbatimSymlinks: true,
       filter: file => file !== path.join(source, ".package-lock.json") &&
-        !excluded.some(p => file === path.join(currentRoot, input.prefix, p)) });
+        !excluded.some(p => file === path.join(dependencyRoot, input.prefix, p)) });
     const historicalHidden = { ...installed.hidden, name: historical.name, version: historical.version,
       packages: Object.fromEntries(installed.installed.filter(p => !excluded.includes(p)).map(p => [p, historical.packages[p]])) };
     writeFileSync(path.join(destination, ".package-lock.json"), `${JSON.stringify(historicalHidden, null, 2)}\n`, { flag: "wx", mode: 0o644 });
-    const actual = inspectInstalled(path.join(historicalRoot, input.prefix), historical);
-    historicalSnapshots.push({ root: destination, snapshot: actual.snapshot });
-    for (const p of excluded) assert(!existsSync(path.join(historicalRoot, input.prefix, p)), "current-only package leaked");
     const expectedPaths = [...installed.snapshot.keys()].filter(p => !excluded.some(e => {
       const relative = e.slice("node_modules/".length); return p === relative || p.startsWith(`${relative}/`);
     }));
+    preserveCopiedLinkModes(destination, expectedPaths, installed.snapshot);
+    const actual = inspectInstalled(path.join(historicalRoot, input.prefix), historical);
+    historicalSnapshots.push({ root: destination, snapshot: actual.snapshot });
+    for (const p of excluded) assert(!existsSync(path.join(historicalRoot, input.prefix, p)), "current-only package leaked");
     assert.deepEqual([...actual.snapshot.keys()], expectedPaths, "historical dependency view has unexpected paths");
     for (const [p, entry] of actual.snapshot) {
       const original = installed.snapshot.get(p);
@@ -245,8 +297,9 @@ export function materializeMergedR8ADependencies({ historicalRoot, currentRoot }
       assert.deepEqual(copied, sourceEntry, "copied installed bytes/mode/link changed");
     }
     evidence.push({ prefix: input.prefix, excluded, historical_lock_sha256: input.oldHash,
-      current_lock_sha256: input.newHash, historical_installed_packages: actual.installed.length,
-      current_installed_packages: installed.installed.length, copied_entries: actual.snapshot.size,
+      dependency_source: dependencyRoot === currentRoot ? "approved_current_view" : "exact_historical_install",
+      source_lock_sha256: input.newHash, historical_installed_packages: actual.installed.length,
+      source_installed_packages: installed.installed.length, copied_entries: actual.snapshot.size,
       historical_dependency_view_sha256: stableHash([...actual.snapshot].map(([p, { inode, ...v }]) => [p, v])),
       hidden_lock_historical_only: true, resolution_and_bins_verified: true, all_copied_inodes_disjoint: true });
   }

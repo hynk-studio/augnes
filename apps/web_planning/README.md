@@ -4,6 +4,11 @@ One configured owner keeps independent planning work, its attributed context and
 explicitly selected small files. Web work neither reads the installed Augnes
 database nor creates native work, results or accepted state.
 
+An explicitly downloaded complete export can be admitted by the separate native
+[local selected-source handoff](../../docs/WEB_EXPORT_NATIVE_HANDOFF.md). It
+requires selected current-revision text and an exact authorized native target;
+Web/native stores and Web reconstruction remain independent.
+
 [#1351](https://github.com/hynk-studio/augnes/issues/1351) completed private
 branching/incorporation through merged #1353; [#1356](https://github.com/hynk-studio/augnes/issues/1356)
 accepted its bounded direct-Cloudflare hosted synthetic journey.
@@ -24,6 +29,614 @@ edits and no failed UI save. All five pre-existing works' actual complete export
 were byte-identical before/after. Sign-in and operator repairs, limited security
 observations and lack of general time-saving evidence remain. #1354's separate
 Sites rollout is deferred; its resources and evidence are untouched.
+
+## Find a task to continue
+
+In **Your work**, each saved title opens that exact task. Its version and save
+time describe the observed work. Expand the file counts to see which requests
+are awaiting a return, which files came back, and what the workspace author
+recorded on each request or return. For example, a poetry shortlist can still
+await permission for one translation after another poem has been returned.
+A next action belongs to its recorded version; a returned file does not mean
+that someone approved it or that the whole task is finished.
+
+**Refresh work list** reads the first page again without changing the editor or
+its save base. **More work** continues by task identity. Opening a request or
+return reads the selected task again and focuses its exact version; later replies
+can already be present. An unavailable list is labelled as such, and loss of
+access clears private content.
+
+The authenticated `GET /api/works` and the project client's `tasks` command
+provide the same additive `overview` per item. It counts unanswered requests,
+return versions and returned file entries. It includes the first two unanswered
+requests and the two most recent returns with their original requests, exact
+version references, stored author references, file descriptors and recorded
+text. The full exchange reader remains available for the selected task.
+Attribution is to the saved workspace author; there is no per-person read or
+notification state.
+
+On the existing scoped index, discovery seeks up to eleven task IDs and reads
+one bounded metadata observation for each of at most ten displayed works.
+It checks the seals of the head and exchange records that supply the displayed
+facts, prior revision links, scope, completeness, and stored file membership.
+Other historical planning rows supply metadata only. It does not reconstruct
+their notes or comparisons, load scene or attachment bodies, or write state.
+The ordinary task, download, history and recovery readers retain their full
+validation. No storage format, migration or new status record is required.
+
+
+## Use saved notes in your current work
+
+### Find work from a remembered phrase
+
+In **Your work → Find work by a phrase**, enter part of a saved goal/title or
+current selected note. Matching is literal and case-sensitive, including spaces
+and Unicode; surrounding query whitespace is trimmed. Queries accept up to
+256 UTF-8 bytes without control characters. Search does not inspect past-only
+text, source labels, attachments or unsaved drafts.
+
+Each result identifies its work, observed revision, fingerprint, save time and
+matching field or note reference. Goals and excerpts are abbreviated to 160
+Unicode codepoints; **Inspect matched revision/note** opens the complete saved
+notes through the existing history reader. Identical titles remain distinct.
+Inspection preserves the open editor and its save base. With an existing
+destination open, use the ordinary explicit note selection or adaptation
+controls. **Open current work** deliberately reopens that work with the existing
+unsaved-edit guard and current-head checks. If it advanced, inspection keeps the
+observed basis and explains the newer revision. Erasure makes that basis
+unavailable; a result never restores it or grants write authority.
+
+Each search request visits at most ten work IDs in index order and reads only
+their current sealed planning envelopes (at most 128 KiB each). It does not
+reconstruct prior planning revisions, exchange catalogues or file bodies.
+Responses are bounded to 96 KiB. **Continue search** visits the next unsearched
+IDs, even if the first page had no matches. The response distinguishes `more`
+from `exhausted`; a refused, incomplete or failed read is an error, never a
+completed no-match. An unreadable or oversized head refuses that whole page.
+The ordinary ten-item work list retains its own behavior and cost.
+
+This is an ordered traversal of heads observed on each request, not a project
+snapshot. Work created or changed behind the cursor needs a new search. A
+completed no-match applies to that traversal. Continuation binds the query and
+configured owner/project; it cannot be reused for another phrase or scope.
+Search and inspection create no work records, revisions, requests or returns.
+
+The authenticated project-owner client uses the same routes and can choose
+returned results without a browser setup or a guessed work ID:
+
+```sh
+FILE_CLIENT=apps/augnes_apps/scripts/file-exchange.mjs
+node "$FILE_CLIENT" search "remembered phrase"
+node "$FILE_CLIENT" search "remembered phrase" "RETURNED_NEXT"
+node "$FILE_CLIENT" inspect-match "RETURNED_SELECTION"
+node "$FILE_CLIENT" select-match "RETURNED_SELECTION" ./chosen-task.json
+node "$FILE_CLIENT" ./chosen-task.json context
+```
+
+`search` returns a `selection` for each hit. `inspect-match` returns its exact
+`observed` notes, current binding, matching references and `current`/`advanced`
+status; erased or unavailable bases refuse. `select-match` verifies that basis
+before creating a new private task setup. `context` explicitly reads the current
+save base; use the existing planning draft/ticket/save methods below to continue.
+The same methods are available as `openFileProject().search(query, cursor)` and
+`.inspectMatch(selection)`, and on a task client's `planning` object. The tokens
+are read locators, not authentication or permission to write. The task-bound
+file reviewer keeps its existing three tools and gains no project search.
+
+The HTTP routes are `GET /api/works/search?q=...&cursor=...` and
+`GET /api/works/match?selection=...`. Omit the cursor for a new search. Unknown
+or duplicate parameters refuse; configured project authentication is required
+on every call. Ordinary exact-title `select` remains available; ambiguous
+titles now point to the deliberate search selection path.
+
+### Inspect and reuse selected notes
+
+Open the destination work. Under **History, export and erasure**, choose
+**Read history** for an earlier version of this work, or **Choose notes from
+another work** for an independent work in this private project. Choose a
+revision to see its whole notes, source descriptions, observation times,
+required notes and exact saved references. Each note says whether its text and
+attribution match the current draft. Only the chosen revision's notes are
+expanded; the history reader does not download attached file bodies. The picker
+starts at the version you chose from the list, even if the source has advanced.
+**Inspect recorded source note** follows one exact earlier relationship on demand,
+including from the latest saved version in a conflict comparison. Inspecting it
+leaves your draft and its base unchanged. If matching text comes from another
+occurrence, **Use this source occurrence** records the version you chose. A
+compatible note used only as a prerequisite keeps its own recorded source.
+
+Choose **Use unchanged note**, or **Write an adaptation** and enter your
+interpretation. The editor adds the chosen note and any required notes that
+are missing. It keeps the current goal, files and other draft edits. An exact
+note already in the selection is not duplicated or relabelled. To link a
+manually retyped draft note to history, remove that row and choose the saved
+note. If an existing selection has incompatible required context, review it
+before trying again. **Review changes before saving** and the capacity display
+show the proposal; **Save** appends against the reviewed current version.
+
+An unchanged copy retains its original text, source attribution, trust class
+and observation time. An adaptation is a new interpretation attributed to the
+configured current workspace author. Neither choice renews the source or grants
+approval or execution authority. Both use the existing material `from` link
+to the chosen work, revision, fingerprint and note reference. The linked
+revision retains its own origin and earlier adaptation links. B owns its saved
+note text, attribution, represented conditions and references. Its export does
+not archive A’s unselected notes or its history. If A is erased, its original
+can no longer be inspected; B still opens, exports, restores and continues.
+No branch, file exchange, or native import is created by selecting notes. No new storage
+format or migration is needed. Capacity remains 12,000 bytes for normalized
+Web selected notes; relation, file and cumulative history limits are separate.
+
+### Read and prepare the same draft from a local client
+
+Use the existing [authenticated task setup](#connect-a-local-or-hosted-assistant).
+The task CLI's `context`, `history` and `history VERSION` commands read the
+current revision, revision list and exact saved contents. For a draft, use
+the task client's ordinary capacity, signed ticket, save and resolve methods:
+
+```js
+import { openFileTask } from './apps/augnes_apps/scripts/web-file-client.mjs';
+import { planningDraft, selectHistoricalNote } from './apps/augnes_apps/scripts/planning-notes.mjs';
+
+const { planning } = await openFileTask(setupPath);
+const current = await planning.current();
+const expected = { revision: current.revision, fingerprint: current.fingerprint };
+// planning.tasks(cursor) pages through the same authenticated project.
+const history = await planning.history(chosenWorkId); // omit the ID for this work
+const earlier = history.find(r => r.revision === chosenRevision && r.fingerprint === chosenFingerprint);
+if (!earlier) throw Error('Chosen revision unavailable');
+// Inspect earlier.sources and earlier.relations?.materials, including dependencies.
+const draft = selectHistoricalNote(planningDraft(current), current, earlier, chosenSourceRef);
+// Pass your new text as the last argument to adapt instead. Review any other
+// draft edits and the capacity result before preparing this exact request.
+const capacity = await planning.capacity(expected, draft);
+if (!capacity.fits) throw Error(JSON.stringify(capacity.issues));
+const pending = await planning.prepare(expected, draft);
+// Keep pending privately until acknowledged. After an uncertain response use
+// planning.resolve(pending); a retry uses the same pending request.
+const result = await planning.save(pending);
+```
+
+An earlier occurrence of a repeated note remains selectable by its exact
+revision. The server checks the immutable source in the authenticated project;
+a matching label or revision number from another work is not proof. The
+destination head must still match. A source advance leaves the chosen revision
+usable; erasure before a new save refuses the whole selection and its files.
+For a draft selecting another work, use a material-bound ticket. Keep the exact
+pending draft: its signed input and the saved destination revision can resolve
+a lost response even after the source disappears. Reading a failed history request as an empty list is unsupported.
+
+## Use a returned file in current or follow-on work
+
+Open a saved work, find its answered request and choose **Inspect return and
+decide** beside a particular file. Read or download the exact originals.
+Compare the planning revision on which the request was made with the conditions
+shown now. A return, a sender’s proposed next step and an owner’s reported
+checks do not by themselves mean that any material was used.
+
+Choose **Use unchanged bytes** or **Author an adaptation**, give the local
+output a free filename, and record why, limits and the next action. An adaptation
+is newly authored UTF-8 content, different from the original; unchanged use can
+retain opaque bytes. Preview the saved effect on the original, another listed
+work, or a new follow-on with an explicit goal, then save. Existing files and
+notes are retained; a same-name file is never silently substituted or replaced.
+**Defer** and **Do not use** instead preserve the reason and next action on the
+original without creating new work. Each judgment is a separate saved revision.
+Ordinary file limits still apply: eight names, 256 KiB per output, 512 KiB
+together and the existing per-work history quotas. A larger return can still be
+read/downloaded intact, or used as the basis of a smaller authored adaptation.
+
+The original item lists decisions on that exact returned file (ten per page).
+A destination’s **File requests and returns** also lists its recorded decisions
+and the output bytes at the revision where they were saved. **Inspect recorded
+return** follows the exact source. If it has been erased, the destination still
+owns its saved bytes and recorded identity; it cannot recreate a missing source.
+Reading history/export and quiesced recovery retain the destination independently.
+Reconstruction is an imported attestation, not a new verification of its origin.
+
+The authenticated owner CLI uses the same flow. Start with `tasks` / `select` or
+`search` / `select-match`. Use the version and filename from `list`. An observation
+and a pending file are new, private local files; preserve them until confirmed.
+
+```sh
+node "$FILE_CLIENT" "$TASK" list
+node "$FILE_CLIENT" "$TASK" inspect-return 6 seat-plan.md ./observed.json
+node "$FILE_CLIENT" "$TASK" read 6 seat-plan.md
+node "$FILE_CLIENT" "$TASK" prepare-use ./observed.json ./choice.json new ./pending.json "Pack seating kits"
+node "$FILE_CLIENT" "$TASK" commit-use ./pending.json
+node "$FILE_CLIENT" "$TASK" check-use ./pending.json
+```
+
+For an existing destination, replace `new` with `current` or a separately
+selected task setup and omit the new goal. A choice for the example is:
+
+```json
+{"decision":"adapted","name":"kit-order.md","text":"Pack six kits of four for 22 guests.","rationale":"The room now admits 24 including two staff.","limits":"Ground floor only","reported_check":"Compared with the venue update.","next_action":"Label six kits."}
+```
+
+Use `unchanged` without `text`, or `deferred` / `declined` with neither
+`name` nor `text`. Preview returns the actual destination and its base without
+saving work. Check after an ambiguous response; retry only the same pending
+file. In the browser use **Check return save**; after a reload an exact retry
+may require re-entering authored text. No file contents are stored in tab
+storage. A changed source head or destination requires fresh assessment.
+On a fresh destination setup, `list` shows the committed destination revision;
+`read-saved REV NAME` returns verified output bytes and text when decodable.
+`inspect-origin REV` and `read-origin REV` follow that recorded occurrence.
+Use `more-decisions VERSION NAME 'CURSOR_JSON'` with a returned `next` cursor.
+The owner task-bound reviewer tools remain unchanged; a participant setup adds the scoped feedback reader described below.
+
+The v0.7 revision stores `return_use` only on the committing revision. Its
+request basis, request, return, file position/manifest, reviewed source head,
+decision and output are covered by the normal revision seal. Source and target
+checks, destination bytes and revision commit in the existing transaction. The
+source view reads these committed revisions through the additive
+`0005_return_destination.sql` partial index; there is no second write or
+cross-work receipt to repair. Earlier v0.1–v0.6 envelopes and exports retain
+their existing bytes and compatibility; a history containing a judgment exports
+as v0.7 and uses the existing exchange reconstruction route. The migration adds
+only an index to schema 4. Apply it through the established migration owner
+before activating this version; neither migration nor activation happens here.
+
+## Reconsider an existing returned-file use (#1593)
+
+Open the consuming work and choose **Reconsider current use** beside its saved
+use. The original use, exact request basis/return, historical output and current
+consumer context remain visible together. **List evidence work**, select a saved
+revision/file (or a returned file), then **Read selected basis together**. Read or
+download its exact bytes. A newer timestamp, filename or similarity does not
+establish correction, supersession or applicability. Missing origins are labelled
+unavailable; the consumer's own history and output remain readable. Unavailable
+selected evidence cannot supply a new save observation.
+
+Choose **Retain current use**, **Update output or context**, **Defer judgment** or
+**End current use**. Supply current context, a reason, limits and a next action or
+reconsideration condition. Reported checks are attribution, not verified success.
+An update may replace the output of this exact use with newly authored text, or
+leave both output fields blank and change only current context. A context-only
+update must actually change context. Retention and deferral keep the current
+output; ending removes only this use's currently selected output. Other files,
+notes, definitions, dependencies, original decisions and historical bytes remain.
+The original request owner's defer/decline still belongs to the original work.
+A consumer judgment neither changes other consumers nor publishes new feedback.
+
+**Preview current decision** is read-only. **Save current decision** appends one
+consumer revision and any new bytes atomically. Normal entry, **Saved context**
+and the task client's `list` show the latest judgment with `selected`, `ended`
+or `no_longer_selected` output status. An ordinary later edit that removes or
+replaces that output cannot leave it labelled current. Historical outputs remain
+explicitly historical. Continue from the chosen saved result using ordinary work
+editing; no successor or extra handoff record is required.
+
+An untouched reconsideration panel is temporarily read-only while an ordinary
+work change replaces the editor. If that save is unknown, use **Check save outcome** to
+reconcile it before authoring a consumer decision. A failed check retains the
+pending operation and the input lock. Edited or previewed consumer decisions
+participate in the browser's existing reload/close warning; cancel navigation to
+keep the draft. This warning is not durable tab-session recovery.
+
+Ordinary **Import** recognizes complete v0.9 standalone exports and direction
+bundles containing them, through the existing exchange/direction reconstruction
+routes and bounded file limit (25,000,000 bytes). Older formats retain their
+existing routes and limits. Restore requires the existing quiesced empty store;
+complete historical bytes and direction lineage are retained without reviving
+participation grants.
+
+The supported authenticated owner client uses the same enforcing writer. Select
+consumer and evidence task setups through the existing `tasks`/`select` or
+search path, with the approved origin and your existing supported login. A
+participant setup does not authorize private consumer reassessment.
+
+```sh
+node "$FILE_CLIENT" "$TASK" list
+node "$FILE_CLIENT" "$TASK" inspect-use 4
+node "$FILE_CLIENT" "$TASK" read-saved 4 route.md
+node "$FILE_CLIENT" ./evidence-task.json read-saved 2 README.md
+node "$FILE_CLIENT" "$TASK" inspect-use 4 ./evidence-task.json 2 README.md file ./observed-use.json
+node "$FILE_CLIENT" "$TASK" prepare-reassessment ./observed-use.json ./judgment.json ./pending-use.json
+node "$FILE_CLIENT" "$TASK" commit-reassessment ./pending-use.json
+node "$FILE_CLIENT" "$TASK" check-reassessment ./pending-use.json
+```
+
+Use `return` instead of `file` for an exact returned-file occurrence. A judgment
+such as `{"decision":"updated","context":"Recipient route chosen; activation still pending.","rationale":"The selected README now documents the supported recipient path.","limits":"No deployment authority","next_action":"Confirm the operational prerequisites."}`
+changes context without manufacturing a file. Add `name` and `text` for an actual
+output update. The module exposes `evidenceFile`, `inspectUse`,
+`prepareReassessment` and `sendReassessment` on `openFileTask`; `savedFile` reads
+and verifies any exact selected saved output. `list` is the current-use entry;
+`context` retains its existing exact current-revision response.
+
+After an unknown acknowledgement, **Check decision save** or `check-reassessment`
+reconciles that exact operation. Retry only its unchanged pending body. Browser
+recovery reuses the per-operation IndexedDB journal, scoped to the consuming
+project/work, and retains full private draft bytes until confirmed or explicitly
+released after a proven stale noncommit. Download them before release or loss of
+access. CLI observation/pending files are private, exclusively created files and
+are never overwritten or automatically deleted. Preserve and reconcile them before
+preparing a replacement. A late acknowledgement only clears its own exact browser
+operation. Previews and resolve calls change no work; a changed consumer or selected
+evidence head refuses stale saves. Exact committed replay still works when the
+original/evidence later becomes unavailable.
+
+Only a new reassessment revision uses `web_planning_revision.v0.9` and
+`web-planning/9`; a history containing one exports as `web_planning_export.v0.9`.
+The record seals the original use, preceding consumer judgment, explicitly selected
+evidence occurrence/manifest and observed head, reason/context/limits/next action,
+and output selection. Earlier v0.1–v0.8 revision and export bytes stay unchanged.
+No table, index, migration, grant, authentication adapter or Core record is added.
+Existing bounded history, selected-file quotas, CAS, transactions and reconstruction
+remain authoritative. Restore retains independent destination readability and
+revokes retained operational grants; it never renews source access.
+
+Before v0.9 records exist, the earlier binary can still read existing data.
+Afterwards keep a v0.9-compatible reader/writer for rollback or recover a complete
+quiesced export with compatible source; never strip the record or relabel history
+for an older binary. Direction-pair recovery retains its existing larger budget
+for these exchange-bearing histories. Existing participant activation still needs
+migration 0006, v0.8-or-later support, the participation mode and verified ingress
+under separate operational authority. Deploying this candidate is a separate act.
+
+Access loss clears the private view and reports the original access denial. It
+does not automatically resend a confirmed or uncertain operation. Reauthenticate
+explicitly to read the saved result or reconcile the exact pending operation.
+Reassessment fields stay locked while their durable journal write is pending;
+late completion cannot restore a cleared view or send a save. The journal's exact
+body remains available to the existing authenticated recovery controls.
+
+## Request-scoped participants and shared feedback (#1589)
+
+The optional participant path gives a separately authenticated recipient one
+exact request, selected original files and an owner-written brief. The normal
+workspace remains owner-only. This is a client of the Web store, not native
+workspace access or Web/native synchronization.
+
+After operational activation, open an existing file request and expand
+**Participant access for this request**. Enter the recipient's email, select
+which original files to disclose, edit the brief and return conditions, and
+choose a finite duration (1–90 days). **Create participant link** saves the exact
+selection; it does not contact anyone. The link is not a bearer credential.
+The recipient signs in through the configured verified ingress using their own
+identity. The owner can revisit these records and choose **End access**.
+
+The participant page shows only that brief and those files. **Read** uses the
+existing exact byte-position reader; downloads verify the recorded size and
+SHA-256. Small Markdown/text files support the existing unique-passage edit,
+including BOM and line-ending preservation. Alternatively upload returned files
+or write `review.md`. Sending retains a private local recovery copy in IndexedDB
+until the response is confirmed. Each pending operation keeps its own exact body;
+another tab cannot overwrite it or clear it with a different acknowledgement or
+release. The pending-return selector also exposes other retained operations for
+this request. Existing grant-keyed recovery copies remain readable. A reload
+resolves the selected submission before offering an exact retry. Keep a recovery
+download when access may end. When access expires, is revoked,
+or the source is erased, the same authenticated recipient can reopen a recovery-only
+page to download an existing local pending draft. It reveals no server material or
+save outcome and does not restore access. Disabling participation altogether also
+disables this route; preserve recovery copies before an operational shutdown. A stale
+unrecorded draft can be exported before releasing it; a failed read or unknown
+acknowledgement is never permission to submit a replacement.
+
+The original work receives the return through its ordinary request list. Use
+**Inspect return and decide** to compare actual returned bytes with current
+conditions, then use unchanged bytes, author an adaptation, defer or decline
+through the existing workflow. For a participant return, the decision editor
+also offers **Share this saved disposition and the following feedback**. Write
+the explanation and next action intended for the participant there. Preview
+shows exactly what will be shared; the ordinary save commits the output,
+decision and disclosure together. Private rationale, checks, limits, destination
+identity/title, selected notes and output files are not copied into feedback.
+No separate approval step or second feedback write is needed.
+
+A fresh participant session can reopen the same permitted request and read its
+own return and explicitly shared committed decisions, including decisions saved
+in another private work. The feedback cursor conceals destination identifiers.
+No feedback means no shared committed decision is available, not rejection.
+Feedback reading changes no use, readback, acceptance or execution state.
+
+### Participant CLI and agent connection
+
+Download **participant setup** from the participant page. Pin its origin using
+`AUGNES_WEB_ORIGIN` and use the recipient's own existing `cloudflared access`
+login. The setup contains scope and request identifiers, never credentials.
+The CLI does not start login or borrow an owner's session. Sites email ingress
+supports browser entry; this first local-client transport requires Cloudflare
+Access. A headless agent needs an independently provisioned supported recipient
+login; this task adds no service-token identity mapping.
+
+```sh
+export AUGNES_WEB_ORIGIN=https://your-approved-origin.example
+node apps/augnes_apps/scripts/file-exchange.mjs ./participant.json list
+node apps/augnes_apps/scripts/file-exchange.mjs ./participant.json read 2 notice.md
+node apps/augnes_apps/scripts/file-exchange.mjs ./participant.json get 2 notice.md ./original.md
+node apps/augnes_apps/scripts/file-exchange.mjs ./participant.json return 2 "Corrected arrival details" "Confirm the room" ./notice.md
+node apps/augnes_apps/scripts/file-exchange.mjs ./participant.json check
+node apps/augnes_apps/scripts/file-exchange.mjs ./participant.json feedback
+```
+
+The normal CLI journal preserves exact pending files after a refusal or unknown
+response. Use `check`, then `retry` for the same submission, or
+`recover NEW_DIRECTORY` after a confirmed stale noncommit. Access loss leaves
+the journal intact; it cannot prove noncommit or authorize a new answer.
+A permitted owner can reconcile the original request key in committed history.
+The opt-in `file-review-stdio.mjs` accepts this same setup, retains its three
+file tools and adds `read_participant_feedback`. Participant text returns also
+retain private `.review-pending.<body-hash>.json` files alongside the setup.
+Each immutable file belongs to one exact operation, so a delayed acknowledgement
+from another SDK call or process cannot clear its bytes. Existing single
+`.review-pending.json` records remain readable and clear only when their original
+arguments reconcile as saved. Reuse those arguments with `check_only: true`;
+changed arguments cannot replace an unknown submission. Preserve the recovery file when a stale/refused return needs human
+reconciliation. The public App catalog and the owner task setup remain unchanged.
+
+### Authorization, data and activation
+
+`PARTICIPATION_MODE=verified-recipient-v1` is required and absent by default.
+The owner explicitly authorizes a normalized verified email for one grant.
+The production Cloudflare adapter still requires matching `ctx.access.aud`
+and `getIdentity().email`; the Sites adapter still requires its verified-private
+header overwrite/no-bypass contract. An arbitrary email header is not identity.
+The ingress audience must separately admit the intended recipient before use.
+Identifiers, setup editing and hidden tool menus grant no server access.
+Origin/fetch-metadata checks, same-origin CSRF and private/no-store responses
+remain enforced. Participant CSRF seals bind the authenticated recipient too.
+
+Migration `0006_request_participation.sql` adds an operational grant table and
+index without changing schema 4 or previous migration bytes. The grant freezes
+request identity, observed save base, selected file occurrences, brief, recipient
+and expiry. Later work revisions do not retarget disclosure: original reads
+remain historical; a new return against a changed save base refuses. The
+existing one-answer, exact replay, file quotas, digest validation and atomic
+revision/file writer remain authoritative. Its INSERT additionally checks the
+grant, recipient, disclosure fingerprint, expiry and revocation in SQL.
+
+Storage `author_ref` still denotes the Web owner. A participant return separately
+records grant ID, a hashed normalized email reference and whether its identity
+came from verified ingress or the explicitly local fixture. That credential
+establishes control of an admitted email identity, not a named human, model,
+agent operator or independent reviewer. Return use retains this contributor
+attestation even in another work. Only these new attributed records and their
+shared-feedback decisions use revision/export v0.8. Existing v0.1–v0.7 bytes and
+seals are unchanged. Imported attribution remains an attestation.
+
+Expiry/revocation stops server reads, writes and feedback without deleting
+committed history. Erasing the source makes its participant material unavailable;
+a separate saved destination retains its own bytes and contributor/source
+attribution. Erasing a destination removes its available feedback; absence is
+not rewritten as a rejection. Work exports contain no grant table, recipient
+login, token, cookie or server secret. Supported empty-store reconstruction
+atomically revokes any retained grants and never imports new ones. Restoring an
+entire infrastructure/database backup is a separate operational procedure: keep
+participation disabled and retire restored grants before enabling it.
+
+Activation requires the additive migration through the existing migration owner,
+a version supporting v0.8, a verified ingress/audience for the intended recipient,
+and explicit deployment/audience authority. No live audience, sharing policy,
+invitation or deployment is changed by this implementation. Disabling the mode
+stops participant entry immediately. Before v0.8 data exists, the additive table
+is compatible with the earlier owner-only binary; afterwards retain a v0.8
+reader for rollback/recovery rather than rewriting or dropping history.
+
+## Ask for work on files and collect the return
+
+Open your private project, select a task by title, or choose **New work** and save
+its title and success criterion. Under **File requests and returns**, choose
+**Request work on files**, select original files, describe the work and send.
+The request shows its version, filenames and next action. A recipient with access
+to that task can download those versions and choose **Return edited files**.
+Include what changed and what remains to do. Reopen the task to find the original
+and return together, including same-name files. A later task or ordinary save
+does not retarget a pending request. The configured project can have a friendly
+`PROJECT_NAME`. Each private workspace entry still admits one configured owner
+and project. An assistant can work for that owner.
+
+Choose **Read text** beside a Markdown, text, log, JSON (`.json`), patch
+(`.patch`) or JavaScript module (`.mjs`) file. Logs, JSON, patches, modules
+and larger text documents open in pages. The reader shows the original text,
+even with no MIME type; it does not format JSON, apply patches or run code.
+Enter an original **byte** position or find a literal phrase from that
+position. Each page identifies its exact version, digest and half-open byte
+range, total bytes, and whether another page follows. A search miss means no
+match from that offset. A final page can still be partial inspection. Pages
+contain at most 8,192 bytes and end on a UTF-8 character boundary, even on very
+long lines. Search is case-sensitive (up to 256 UTF-8 bytes). A position inside
+a character is refused. BOM, line endings and terminal escapes remain inert;
+malformed UTF-8 or non-text data is refused. Complete downloads always remain
+available to an authorized reader, including opaque ZIPs.
+
+For one unanswered small Markdown or text file (up to 32 KiB), **Edit this
+text** replaces one unique passage and returns a new version with the original
+filename. For a large or multi-file request, **Return edited files** also lets
+you write a short review as `review.md` (32 KiB) or attach selected files.
+Describe what changed and the next action. The original remains available at
+its own revision.
+
+The writer verifies the supplied length and SHA-256 against each uploaded body.
+Each request or return appends one revision to this work. A return names the
+exact original request and its whole selected file set. A second answer refuses.
+File requests leave ordinary authored files, notes, branches and reviews in
+place. File types, when supplied, are descriptive. Downloads are inert bytes.
+Saved, downloaded, reviewed and applied are separate observations.
+
+Before sending, the request text and chosen files stay in the tab. When the
+browser shows a warning on refresh or exit, choose to stay to keep editing.
+Closing the tab or losing the browser process can discard an unsent draft.
+If sending fails, the form keeps its inputs. On an unknown outcome choose
+**Check file save**, then retry the exact request only if absent. After reopening
+the same tab, the task reconciles the pending request against server history.
+Only form metadata is held in tab storage. Reselect local files if the request
+was never received. A changed task requires reading the latest requests before
+resubmitting. Expired access requires sign-in. After erasure, delayed writes
+refuse. **Complete work** exports and reconstructs exchange history and bytes
+in the existing quiesced empty replacement store. **Readable history** includes
+the messages, basis and next action. Older readers refuse the v0.5 exchange
+revision/export. Existing works without exchanges retain their original formats.
+
+An exchange accepts 1–8 distinct filenames, up to **6 MiB per file and 7 MiB
+together**. Empty files are allowed. A work with exchanges retains **16 unique
+digests / 8 MiB** across all its ordinary and exchanged files; identical bytes
+are counted once. Ordinary file selections retain their 256 KiB per file and
+512 KiB selection budgets, and an ordinary-only work retains its 1 MiB history
+budget. Planning notes and cumulative revision budgets are separate.
+
+The save/resolve JSON is limited to 10,000,000 bytes. Each file is verified
+before the existing atomic head check and write. Files over 256 KiB occupy
+aligned 192 KiB slices in D1, all committed with the manifest in one transaction.
+There are no pending server chunks to reserve or expire. A broken request has
+no completed prefix. On an uncertain response, check the original request;
+do not send a replacement. Work erasure removes the scoped files and their
+slices. Every text read verifies the full retained file's digest and UTF-8,
+then returns only the specified page; this is bounded by the per-file limit.
+
+### Connect a local or hosted assistant
+
+The browser follows ordinary private sign-in. For a terminal client serving the
+same authorized owner, download **Connect an assistant to this task → Download
+task setup** once. Keep that file in a private directory. The operator pins
+`AUGNES_WEB_ORIGIN` to the intended private HTTPS project and signs in to its
+existing Cloudflare Access application with `cloudflared access login` when
+needed. The client reads the cached application token through `cloudflared
+access token`; each operation rechecks the actual Web principal. The setup file
+contains scope and an origin, never credentials. Select another task deliberately
+by downloading its own setup. A fresh client uses the setup and the private
+session to discover the permitted requests and versions.
+
+From a checkout with the supported Node and dependencies, examples below use
+`FILE_CLIENT=apps/augnes_apps/scripts/file-exchange.mjs` and `TASK` as the path
+to the downloaded setup. Normal browser users do not need a checkout.
+
+```sh
+node "$FILE_CLIENT" tasks
+node "$FILE_CLIENT" select "Autumn event plan" "$TASK"
+node "$FILE_CLIENT" "$TASK" list
+node "$FILE_CLIENT" "$TASK" request "Check the venue capacity" "행사 계획.md"
+node "$FILE_CLIENT" "$TASK" get 2 "행사 계획.md" ./original.md
+node "$FILE_CLIENT" "$TASK" return 2 "Updated table count" "Confirm the entrance layout" ./edited.md
+node "$FILE_CLIENT" "$TASK" get 3 edited.md ./returned.md
+```
+
+The owner can use `tasks` and `select` to bind by exact task title instead of transferring a browser setup. For duplicate titles or a remembered note, use `search`, `inspect-match` and `select-match` as described above. The reviewer sees only the configured task. Use listed version numbers and filenames. Downloads create a new explicit path.
+Sends keep an owner-only pending request beside the setup until confirmed.
+The CLI checks the 500-character limit for the message and return next action
+before keeping a pending request. If an older client kept text that the server
+refuses, `check` identifies the invalid draft. Use `recover NEW_DIRECTORY` to
+preserve the original text, request key, version and files before editing it.
+Recovery does not send a request or return.
+After a lost acknowledgement, `check` reads that same request and `retry`
+resends it unchanged. For an unrecorded request whose task moved on, `check` preserves the message and files.
+Use `recover NEW_DIRECTORY` to save its request as `request.json` and its original
+bytes under `files/`; this does not send anything. Review the current task before a
+new send. In the browser, reopening restores the text and asks you to review the
+latest requests and reselect the files. A permanently refused input remains available
+in the pending directory.
+Keep the original files while working and remove the refused pending file only
+after checking the outcome and correcting the inputs.
+
+The optional [private file-review adapter](../augnes_apps/README.md#private-web-file-review)
+uses the same Web history and authentication. The separate Native handoff still
+admits explicitly selected ordinary current-revision material. Downloading a
+return or applying it locally is an explicit later action. Actual activation of
+a reviewed Web release, authentication from another device and a live ChatGPT
+file round trip are separately evidenced operations.
 
 ## Story & Worldbuilding — Increment A (#1455)
 
@@ -214,8 +827,8 @@ actual context delivery and saved output, intervention and unknown burden.
 
 This bounded flow supports a primary containing saved scenes and one direct
 alternate in the same owner/project. Ordinary work and file-free planning branches
-retain their existing behavior. Other file-bearing branches, nested story forks,
-shared worlds and automatic semantic merging remain unavailable.
+retain their existing behavior; ordinary files use the separate whole-file selection
+path below. Nested story forks, shared worlds and automatic semantic merging remain unavailable.
 
 1. Open the saved primary, inspect its original sources and reviewed scene, then
    choose **Continue another direction**. Give a reason, **Review starting material**,
@@ -301,7 +914,8 @@ workflow, not unlimited long-form writing.
 
 ## Cumulative saved history (#1397)
 
-The current local candidate removes the Web revision-32 lifetime constraint.
+The local implementation integrated through [#1404](https://github.com/hynk-studio/augnes/pull/1404)
+removes the Web revision-32 lifetime constraint. Hosted adoption remains with #1372.
 The same saved work can continue through ordinary edits and supported
 incorporation. Revision identities are positive safe integers; envelopes,
 request keys, predecessor fingerprints, provenance, judgments and file bodies
@@ -379,12 +993,16 @@ resource exhaustion, later-chunk rollback and erase/copy boundaries. The owned
 Chrome check uses ordinary editor saves, a fresh workerd process and fresh tab,
 and the same private Saved context visible to authorized browser agents. It is
 neither hosted/non-Mac acceptance nor actual live-agent adoption. Exact-head
-Canonical evidence and cleanup belong to the Draft PR; prior failures remain
-historical evidence. The retained real candidate and hosted stores are untouched.
+Canonical evidence and cleanup remain attributed to their original candidates:
+#1398's implementation was integrated through #1404, whose reported final run
+qualified head `820249de35a27df5f25c99bdac9bde5873278724`. Prior failures remain
+historical evidence. None of these results qualifies a later head or observes
+the existing hosted store; see the dated records below.
 
 ## Revision-bound private files (#1372)
 
-Current local implementation / Draft-HOLD: choose files in the ordinary editor, review
+Implemented in merged [#1377](https://github.com/hynk-studio/augnes/pull/1377):
+choose files in the ordinary editor, review
 names, roles and sizes, then Save. Selection alone performs no upload. Saved
 context exposes authenticated **Download** controls with exact revision, byte
 count and SHA-256 identity. The browser checks returned size/hash before creating
@@ -404,16 +1022,76 @@ payload in this tab, with explicit outcome read or identical retry. Closing the
 tab can lose unsaved bytes; access loss clears them. There is no browser backup.
 
 Keep necessary qualifications, dependencies and source attribution in selected
-context. This slice does not infer file-to-note dependencies. Branch creation or
-generic note incorporation with files selected on either participating work refuses
-with `file_branch_selection_unsupported`. The explicit C scene-direction flow above
-is the bounded exception: it copies selected original bytes and attributed scene
-context, then transfers only explicitly reviewed fictional proposals. Comparison
-itself remains read-only. No required files are silently dropped. For a genuinely independent task,
-explicitly download and select its needed bytes with their attribution and
-conditions; this is a separately owned copy, not a provenance-certified branch.
-Do not remove required files merely to enable branching. File-free behavior
-continues unchanged, including independent copies after source erasure.
+context. File handling does not infer file-to-note dependencies. Ordinary files
+now support the direct branch and selective incorporation path below. The C
+scene-direction flow continues to own reserved notebook inheritance and fictional
+adoption; generic file choices cannot bypass it. File-free behavior is unchanged.
+
+### Ordinary file branches and deliberate replacement (#1517)
+
+1. Save an ordinary work with its selected notes and files. No note is required
+   merely to carry a file. Choose **Continue another direction**, give the reason,
+   **Review starting material**, and **Save reviewed change**. The independent
+   alternate owns exact copies of the current selection, with the original work,
+   revision, fingerprint and full file identities. It does not copy the original's
+   full history, access credentials or execution authority. This path supports a
+   direct alternate, not nested file branches.
+2. Edit the alternative with the normal file picker or **Text file → Open text**,
+   and Save. Return to the original and **Compare a private branch**. Target notes
+   and files are kept by default. Explicitly retain or deselect each, and choose
+   the branch notes and whole files to use. Partial use and non-use are valid.
+3. For a same-name file with different content or role, deliberately uncheck the
+   target version and select the branch version. Keeping both conflicting versions
+   refuses the preview with a correction message. Equal bytes under different names
+   or roles remain distinct selections; storage deduplicates only their bodies.
+4. **Review selective incorporation** shows the complete result, file identities,
+   copy attribution, additions and deselections before one **Save reviewed change**.
+   Earlier bytes and revisions stay in each owning work. Whole-file transfer does
+   not merge file meaning or infer dependencies on notes. Represented required-note
+   context and existing disposition qualifications still apply.
+5. Changed choices invalidate the preview. Either saved head changing or being
+   erased refuses the actual Save. A correctable refusal retains the choices for
+   explicit correction and a fresh preview. For an unknown response, **Check change
+   outcome** resolves the original exact request; **Retry same change** preserves
+   its identity. Access loss continues to clear private tab state.
+6. Reopen **Saved context** and download the exact files. **Complete work** and
+   **Readable history** retain all this work's revisions and bytes. Reconstruct the
+   complete JSON through the existing file picker in an explicitly configured,
+   empty disposable replacement store. Original and alternate are independently
+   complete exports. A missing origin is labelled unavailable, never reconstructed
+   as a hidden snapshot or treated as permission to read another work.
+
+Ordinary file-copy attribution uses `web_planning_revision.v0.4` and
+`web_planning_export.v0.4`, compatibility `web-planning/4`. The closed `relations`
+adds ordered `file_materials` (full descriptor, authored/inherited/incorporated,
+and exact source revision or null for authored material). A comparison review
+adds `file_selection` with the exact retained target and selected source entries.
+These fields participate in the existing relation-byte budget and request/revision
+fingerprints. Normal edits retain attribution for unchanged identities and mark
+new identities authored. Once introduced, this envelope cannot downgrade, even
+when the current file selection becomes empty.
+
+There is **no schema migration**: existing schema-3 revision envelopes and scoped
+file BLOBs are sufficient. Legacy v0.1/v0.2/v0.3 rows, exports and fingerprints
+remain unchanged. Old binaries explicitly refuse v0.4 work and recovery; code
+rollback does not make newer work readable by an older writer. Preserve complete
+exports and use a compatible reader/writer to roll forward. No marker reset,
+production migration, deployment or installed adoption is part of this change.
+
+The existing authenticated, signed-preview and atomic append owners bind both
+reviewed heads through Save. Actual source and retained-target bytes are verified
+before file-copy admission. Invalid choices, unavailable/corrupt bytes and any
+existing file/history/request budget refuse without partial revisions or orphaned
+bodies. Already saved copies survive origin erasure; erasing an owning work removes
+all of its own revisions and bodies. Branching never compacts the original history.
+
+The registered Web focused and Browser owners exercise the pinned-main intentional
+refusal, normal zero-note/file and note/file flows, explicit same-name replacement,
+full identity and budget controls, post-read head/erasure races, exact request
+resolution, legacy code upgrade/refusal/roll-forward, actual downloads and independent
+empty-store recovery. These are synthetic local correctness checks, not hosted
+authentication, independent consumer use, semantic understanding or comparative
+usefulness evidence.
 
 | Quantity | Limit and accounting |
 | --- | --- |
@@ -422,7 +1100,7 @@ continues unchanged, including independent copies after source erasure.
 | Work history | 16 distinct content digests; sum of their sizes ≤ 1,048,576 bytes, shared only within this work |
 | Name / role | 160 UTF-8 name bytes; Unicode preserved, no path separators, controls, bidi overrides or malformed Unicode; report/source/results/other |
 | Ordinary JSON request | Existing 1,500,000-byte streaming cap, including base64 uploads; old routes are not enlarged |
-| File-export reconstruction | Only `POST /api/reconstruct-files`: 3,000,000-byte streaming cap for v0.3 work exports or the bounded C pair |
+| File-export reconstruction | Only `POST /api/reconstruct-files`: 3,000,000-byte streaming cap for v0.3/v0.4 work exports or the bounded C pair |
 | Planning material | Existing note, definition, relation and list-page limits remain; complete-history operation budgets are specified above |
 
 The 69,216-byte representative bundle motivates small bounded outputs: the
@@ -448,14 +1126,21 @@ access capability; normal owner/origin gates apply and responses are private,
 no-store, nosniff, attachment/octet-stream with safe UTF-8 names.
 
 [Current D1 limits](https://developers.cloudflare.com/d1/platform/limits/) allow
-2,000,000 bytes per BLOB/row and 100 bound parameters per statement. Each body
-row stays below 263 KiB; the largest body INSERT uses 59 parameters for 16
-bodies. Export reads at most 1 MiB of bodies; base64 is at most 1,398,144 bytes
-including per-body padding. The original conservative 32-revision envelope
-bound plus file descriptors/packaging was 2,691,682 bytes, below 3 MB. The current
-complete-history byte budget and chunked reconstruction above preserve both
-transport limits and the 50-query Free per-invocation ceiling. These are bounded design/local checks, not measured
-hosted latency, load or remaining provider allowance.
+2,000,000 bytes per row/value and 100 bound parameters per statement.
+Ordinary BLOBs remain unchanged. Each large body slice is at most 262,144
+base64 characters; batched inserts bind at most 59 parameters per statement.
+Legacy file reconstruction retains its 3,000,000-byte route. Complete extended
+work exports use `web_planning_export.v0.6` / `web-planning/6` when an
+exchange exceeds the old per-selection limits or the work exceeds the old byte
+budget. Individual extended exchange envelopes use v0.6; earlier versions
+keep their seals. The complete export packages all bytes, once per digest.
+The private import control chooses the bounded quiesced replacement route:
+13,000,000 bytes for one extended work; 25,000,000 for an extended direction
+pair (still subject to the existing combined history and query budgets).
+Readable HTML identifies large originals and does not inline or claim to have
+inspected their text. Older readers and Native do not import v0.6. Schema 4
+requires the matching Worker; do not roll back a migrated store with an old
+binary. These are finite local integration bounds, not hosted load measurements.
 
 `web_planning_export.v0.3` / `web-planning/3` carries all original revisions and
 one byte-bearing base64 entry per distinct digest referenced anywhere in history.
@@ -468,15 +1153,19 @@ independent authorship. Erasure atomically deletes every owned revision and body
 and leaves the content-free tombstone. Delayed saves cannot resurrect it; private
 exports, independent copies and provider backups remain outside that deletion.
 
-Additive migration `0002_revision_files.sql` creates the file table/quotas and
-replaces only the schema marker with version 2. The shipped 0000/0001 SQL and
-v0.1/v0.2 envelopes, fingerprints and artifact-free exports remain byte-identical.
+Historically, additive migration `0002_revision_files.sql` created the file
+table/quotas and replaced the schema marker with version 2. Current code requires
+schema 3 through the subsequent `0003_cumulative_history.sql`, including its
+`web_planning_revision_positive` constraint; 0002 alone is insufficient.
+The shipped 0000/0001 SQL and v0.1/v0.2 envelopes, fingerprints and artifact-free
+exports remain byte-identical.
 Empty file selection on legacy work does not promote its format; once v0.3 is
 used, later revisions cannot downgrade. Saving v0.3 requires an explicit file
-selection, so old request shapes cannot silently remove files. Old code's
-schema-1 gate refuses the entire migrated store, including lists, saves, exports
-and erasure. New code refuses unmigrated schema 1. A code-only rollback to that
-old reader is therefore incompatible. Quiesce old writers, preserve complete
+selection, so old request shapes cannot silently remove files. The schema-1
+predecessor refuses schema 2/3, and the schema-2 predecessor refuses schema 3,
+including lists, saves, exports and erasure. Current code refuses schema 1/2
+with `incompatible_schema` / HTTP 503. A code-only downgrade cannot recover an
+upgraded database. Quiesce old writers, preserve complete
 exports/provider recovery material and review migration/roll-forward together;
 never erase files or reset the marker to simulate rollback. No live migration
 or deployment is performed by #1372 development.
@@ -489,10 +1178,13 @@ is selected and saved as revision 2, then reopened and exported with revision 1
 unchanged. This is same-Mac engineering feasibility with local Access simulation,
 not a non-Mac agent, hosted acceptance, blinded successor or general usefulness
 claim. The checks record editing actions, deliberately refused selection and
-injected response-loss recovery. Required exact-head Canonical qualification
-remains blocked by the separately owned Companion recovery prerequisite; focused
-checks do not replace it. Review the Draft before any separately authorized
-hosted migration, rollout and actual Windows/Android/browser-agent continuation.
+injected response-loss recovery. The earlier Companion prerequisite and
+Draft/HOLD were historical: #1377's integrated candidate
+`51f37663ee711e292875734e7e9acef321fbd4d3` completed its reported 16-phase
+Canonical run and receipt validation on 2026-10-01, before merge. That evidence
+does not transfer to this documentation head or establish schema-3 hosted
+adoption. #1372 remains open for the separately authorized existing-target
+transition and actual hosted successor use described below.
 
 ## After an accumulated-history refusal (#1439)
 
@@ -517,21 +1209,27 @@ relations and bodies. It retains the exhausted budget and imported-attestation
 status. It does not restore a referenced work absent from that export, external
 files not retained by this work, access credentials or execution authority.
 
-For file-free work, explicit **Branch** can create a separately owned work from
-the current definition and selected sources, with an exact origin reference. It
-does not copy the original work's full history; retain the original and its export.
-Generic branching with selected files remains `file_branch_selection_unsupported`;
-the explicit C scene-direction contract above is the bounded exception. For an
-independent question, explicitly select the needed original file bytes,
-attribution and unresolved conditions in a new work. Do not drop required files
-to enable branching or call an independent copy transparent continuation. When
-the next operation requires the exhausted history/body budget, retain the material:
-there is currently no preserving capacity-release path for that same work.
+For ordinary work, explicit **Continue another direction** can create a separately
+owned direct alternate from the current definition and selected notes/files, with
+exact attribution. It does not copy or compact the original work's full history;
+retain the original and its export. The scene-direction contract separately owns
+creative inheritance and adoption. Do not drop required material merely to fit.
+When an operation requires an exhausted history/body budget, retain the material:
+there is no preserving capacity-release path for that same owning work.
 
 These are current support boundaries, not a new runtime contract. Native project
 and direction history use [different owners and recovery limits](../../docs/DATABASE_ACCESS_LIFECYCLE.md#accumulated-native-history-refusal-and-preservation-1439).
 
 ## Draft capacity and deliberate revision
+
+**Success criteria** requires 1–12 distinct, nonblank entries; **Non-goals** is
+optional (0–12). Both fields explain the 500-codepoint per-entry limit and the
+existing trim, blank-line removal, deduplication and sorting on Save. Empty
+criteria retain native browser validation. A server-refused criteria definition
+also shows an associated field error and focuses that field after a deliberate
+Save; raw draft input and selected context remain intact. Editing criteria or
+loading another work clears the prior field error. Background capacity checks
+do not move focus. Correction still saves through the existing server authority.
 
 [#1369](https://github.com/hynk-studio/augnes/issues/1369) adds a read-only
 **Draft capacity** check to the ordinary editor. Edits invalidate old feedback
@@ -634,7 +1332,14 @@ npm run web:test:browser
 ```
 
 The Sites build dependencies require Node 22.13+ or 24; deciding verification
-still requires the repository's exact Node 24.18.0/npm 11.16.0 toolchain.
+still requires the repository's exact Node 24.22.1/npm 11.16.0 toolchain.
+
+The web source compatibility range is `^22.23.4 || ^24.22.1`. Its three
+Miniflare paths use scoped overrides for sharp 0.35.5 and Undici 7.30.1.
+The inspected stable parent releases still pin affected Undici, so this keeps
+the existing Vite/Miniflare/Wrangler/workerd versions instead of introducing
+unrelated parent or major changes. Verify all nested paths after installation;
+Node's bundled HTTP client is a separate runtime dependency.
 
 `web:dev` prints a loopback `/_local/login` URL. Enter the **synthetic workspace**,
 create work, add attributed notes, Save, and reopen **Saved context**. From a
@@ -721,7 +1426,7 @@ IDs, secrets, asset router or preview URL. Builds replace this generated folder;
 keep deployment configuration in a separate private operator directory.
 `wrangler.cloudflare.json` is an unbound template, not a usable cloud target.
 
-Direct D1 initialization belongs exclusively to pinned **Wrangler D1 migrations**,
+Direct D1 initialization and upgrades belong to pinned **Wrangler D1 migrations**,
 using the unchanged shipped SQL and its `d1_migrations` ledger. The existing
 Sites path still owns its Drizzle journal. Do not mix those migration ledgers
 on one database. The D1 owner invokes the actual pinned CLI with `--local` in an
@@ -744,25 +1449,188 @@ this documentation. #1356 established the existing protected target and #1364 /
 #1371 exercised later-source updates. Resolve the exact private target/configuration
 from those retained records; do not create resources or repeat initial setup.
 
-1. Confirm the approved source/tree, actual active version, existing Worker/D1/
-   Access identities and authenticated work/export baseline. Preserve all existing
-   work and the original failed/limited observations. Current main is not automatic
-   deployment approval.
-2. Build from the approved source with the pinned Mac-side Wrangler 4.126.0 and
-   retained Keychain-backed session (`CLOUDFLARE_AUTH_USE_KEYRING=true`). Retain
-   artifact/input hashes privately. The unbound generated template must never
-   replace the existing private target configuration or secrets.
-3. Review data compatibility before any separately authorized migration. #1372
-   requires new migration 0002 and schema-2 code together, with old writes quiesced;
-   do not replay 0000/0001, mix Drizzle/Wrangler ledgers or use an incompatible
-   code-only rollback. Preserve recovery exports and stop on ambiguous state.
-4. Within separately approved scope, update only that target's reviewed code and
-   any specifically approved migration. Reconcile unknown outcomes by reading
-   actual deployment/traffic and migration state before retrying. Preserve Access,
-   previews, bindings, mapping, secrets and all pre-existing works.
-5. Verify the active source and run the authorized normal-browser acceptance,
-   including actual byte download, complete export and preservation comparisons.
-   Keep private deployment/work identifiers and exports in private review material.
+1. **Bind the later approval.** Record the exact approved commit/tree, locked
+   inputs, direct Worker artifact hash and compatible reader/writer/recovery
+   versions. Current main and a historical receipt are not deployment approval.
+   Readers must support schema 3, retained v0.1/v0.2/v0.3 envelopes and complete
+   histories within current budgets, plus any retained story/scene formats.
+   A binary that merely accepts the schema marker is not sufficient compatibility
+   evidence for those later file semantics. Retain the preceding artifact and
+   its actual compatibility limits privately.
+2. **Bind the existing target and build separately.** Reconcile the retained
+   account, Worker, active deployment/version and traffic, D1 binding/identity,
+   Access application/audience/policy, protected origin and preview restrictions.
+   Retain `OWNER_EMAIL`, `REQUEST_SECRET`, `WORKSPACE_ID`, `PROJECT_ID` and
+   `AUTHOR_REF` through their existing private configuration owner; do not print
+   secrets or replace that configuration with the unbound template. The local
+   `npm run web:build:cloudflare` build needs installed locked dependencies, not
+   a Cloudflare session. Record inputs, artifact and shipped SQL hashes; verify
+   the retained private configuration resolves those exact artifacts. Remote
+   operations separately use the established Wrangler 4.126.0 and CLI-managed
+   Keychain session (`CLOUDFLARE_AUTH_USE_KEYRING=true`). An unavailable session
+   is a separate access input, not a failed local build or authority to log in,
+   refresh credentials, rotate secrets or change configuration during preparation.
+3. **Select the migration path from actual state.** Read the schema, table SQL
+   and established ledger using the bounded observations below. Current
+   `src/access.ts` requires exactly one version-3 row and the revision constraint;
+   schema-2 code plus 0002 is historical. Use the matrix below. Compare the
+   ledger with the approved artifact's unchanged SQL, then review only genuinely
+   pending 0002/0003 in order. Do not replay initialization, rewrite ledger rows,
+   reset markers or mix direct Wrangler and Sites Drizzle histories.
+4. **Quiesce and preserve before incompatible effects.** The existing operator
+   must specify and confirm the separately approved method of stopping all
+   browser/agent writers for the migration and code-switch window, settle
+   in-flight/unknown saves through their existing outcome readers, and preserve
+   unsaved drafts privately. Closing one tab or relying on schema refusal is not
+   evidence of quiescence. With the currently compatible reader, inventory every
+   saved work/current binding and retain validated complete exports and hashes;
+   include required paired story-direction exports. Reuse a retained export only
+   when its exact binding still matches. Record the provider recovery checkpoint,
+   covered database/ledger/mapping/erasure state, retention window and supported
+   restore owner. Missing export access or recovery coverage stops the transition
+   for diagnosis; do not deploy a new reader just to probe an incompatible store.
+5. **Apply the approved pending migrations and code within that window.** For
+   this direct target, the existing pinned CLI's
+   `d1 migrations apply DB --remote --config "$AUGNES_WEB_PRIVATE_CONFIG"`
+   is the mutation owner, only after separate approval and verification that its
+   resolved migration directory/ledger has exactly the reviewed pending set.
+   The variable denotes the retained private configuration, never the generated
+   placeholder. Schema 1 progresses through 0002 then 0003; schema 2 through
+   0003; compatible schema 3 needs no migration. Each migration settles through
+   that owner; do not assume a multi-file upgrade and deployment are one atomic
+   operation. While writers remain quiesced, read back the ledger, sole schema
+   marker and table constraints, then use the existing deployment owner for the
+   exact approved artifact. Preserve Access, traffic restrictions, bindings,
+   mapping, secrets and existing work. Unexpected pending SQL or state stops here.
+6. **Resolve uncertainty before retrying or reopening writes.** Retain the
+   original command/result and timestamp. Read actual deployment/version/traffic
+   and D1 ledger/schema/table state; an interrupted command may have completed.
+   Compare the active artifact and data to the approved target and preservation
+   baseline. If the result is unknown, keep the transition stopped. Do not replay
+   migrations or deploy again to manufacture certainty. With compatible code
+   active, compare all pre-existing complete exports/bindings and verify the
+   private configuration before a separately approved return of writers.
+7. **Recover compatibly if needed.** If schema 3 is intact, use a reviewed
+   schema-3-compatible artifact or roll forward with a reviewed correction.
+   Schema-1/2 code cannot read an upgraded database, even below 33 revisions.
+   If database recovery is required, retain the failed state and use only the
+   separately approved provider recovery owner/checkpoint, then pair the recovered
+   database with compatible code and verify the complete baseline before traffic
+   resumes. Do not assume that an old code deployment also restores data. Never
+   truncate history, delete files or reset the marker to simulate compatibility.
+
+Complete work exports preserve authored history and file bodies; they are not a
+whole-database backup of every work, owner mapping, migration ledger and erased-ID
+guard. The existing `handler.ts` / `store.ts` reconstruction owner requires
+`RECONSTRUCTION_MODE=quiesced-empty-store`, matching scope and an entirely empty
+destination (including no erased IDs/files). It imports one work or the supported
+story pair atomically. It cannot restore multiple independent exports by appending
+them successively to one populated store or recover the target's deletion ledger.
+Use it only for a separately approved replacement recovery within that scope;
+do not clear the existing target, provision a replacement or enable reconstruction
+as part of this preparation. Provider recovery availability remains an input to
+review, not a capability demonstrated by local reconstruction tests.
+
+### Existing-target compatibility matrix for the schema-3 baseline
+
+These are source-supported conditional paths, not observations of the live D1.
+"Coherent ledger" means the retained migration owner, ordered applied filenames
+and actual tables/constraints agree with the shipped SQL and retained records.
+The last known deployed source does not determine today's database schema.
+
+| Observed existing state | Transition to the accepted schema-3 code |
+| --- | --- |
+| Schema 1 with a coherent established ledger | Review genuinely pending shipped `0002_revision_files.sql`, then `0003_cumulative_history.sql`, through that same owner, with writers quiesced and recovery retained. Do not replay 0000/0001. |
+| Schema 2 with a coherent ledger | Review only pending `0003_cumulative_history.sql` through the established owner. Preserve file bodies and all prior history. |
+| Compatible schema 3: one marker row, required positive safe-integer revision constraint, expected tables/quotas and coherent ledger | Do not infer that another migration is necessary. Review code/readers and preservation; leave the migration history intact. |
+| Marker-only schema 3, inconsistent/mixed ledgers, missing/duplicate markers, unexpected tables or unknown state | Preserve evidence and stop for diagnosis. No initialization replay, ledger repair, inferred upgrade or code-only downgrade. |
+
+### Bounded observations and retained evidence
+
+For a later private target observation, use already authorized provider metadata
+reads and explicit SQL `SELECT` through the established query owner. First inspect
+`sqlite_master` for table/index/trigger definitions and ledger presence, then read
+`web_planning_schema` and the existing ledger in order. Compare the actual
+`web_planning_revision` SQL with shipped 0003, not only the marker. For the direct
+owner the ledger is `d1_migrations`; `__drizzle_migrations` belongs to Sites.
+Unexpected coexistence or a missing established ledger stops the transition for
+diagnosis. Preserve scope/mapping comparisons and recovery material privately.
+For example, these are SQL reads for the already authorized direct query owner,
+not commands executed during preparation:
+
+```sql
+SELECT name, type, sql FROM sqlite_master
+WHERE name LIKE 'web_planning_%'
+   OR name IN ('d1_migrations', '__drizzle_migrations') ORDER BY type, name;
+-- Only after the expected tables and direct ledger are confirmed present:
+SELECT version FROM web_planning_schema ORDER BY version;
+SELECT name FROM d1_migrations ORDER BY id;
+```
+
+Timestamp each observation and record its target/source privately. Check for
+unexpected leftover migration tables as part of schema inspection; a valid
+marker alone is not a complete migration observation.
+
+Do **not** use `GET /` as a read-only probe: `authorize` may initialize an empty
+store's owner mapping, and the page can issue a CSRF cookie. Pinned Wrangler
+4.126.0's `d1 migrations list` calls its ledger initialization helper, so do not
+use that command as a guaranteed non-mutating query either. For an already
+mapped store and existing authorized session, `GET /api/works` and the exact
+work/export/file GET routes in `handler.ts` do not initialize mapping; they still
+require the deployed code's schema and access checks. No auth bypass or new
+probe endpoint is implied. If observations require login/session maintenance,
+new access or a configuration/operational change, leave the inputs NOT_OBSERVED
+and obtain that specific authority separately.
+
+The following records were re-read on **2026-10-18 UTC**. Historical reviews are
+attributed reports, not fresh provider queries or re-executed tests:
+
+| Date and source | Established observation and limit |
+| --- | --- |
+| 2026-09-29, [#1356 final review](https://github.com/hynk-studio/augnes/issues/1356#issuecomment-5897395431) | Reported one protected Worker/D1/owner Access target, schema 1 and two migrations applied once; private configuration and complete exports retained. This is the initial deployment record, not today's schema/traffic. |
+| 2026-09-30, [#1371 reviewed disposition](https://github.com/hynk-studio/augnes/issues/1371) | Approved source `7d4320a4c6ebd08f2f8b4e530f5150d972a58ec1`; supplied records showed the same target, accepted-version traffic, unchanged schema/ledger/mapping and byte-identical exports for five pre-existing works. Sign-in repairs and security limits remain; this does not observe later schema-3 adoption. |
+| 2026-10-01, [#1377 integrated candidate](https://github.com/hynk-studio/augnes/pull/1377) | Reported 16/16 Canonical phases and valid receipt for base `704e2865c3fe76b058bcbbcbb2940075c1cd4631`, head `51f37663ee711e292875734e7e9acef321fbd4d3`; merged at `2026-10-01T07:18:19Z`. Same-Mac synthetic downloaded-file continuation was bounded engineering evidence. Earlier HOLD/failures remain historical. |
+| 2026-10-05, [#1404 integration](https://github.com/hynk-studio/augnes/pull/1404); 2026-10-06, [#1372 reconciliation](https://github.com/hynk-studio/augnes/issues/1372) | #1398's schema-3 implementation entered main through #1404; its reported 16/16 result belongs to base `5a47a9f32fde8e9d4cc65831fd9ef848c397b155`, head `820249de35a27df5f25c99bdac9bde5873278724`. Hosted adoption and successor-use obligations remain open in #1372. |
+| 2026-10-18, source inspection at main `51410e43101be300a5ef7f08c873580728695ce4` and authenticated GitHub history | `access.ts` requires schema 3 plus the constraint; shipped 0003 upgrades schema 2; `buildCloudflarePlanning` includes SQL through 0003. Test sources cover direct artifact SQL parity, both migration owners, historical-byte preservation and old/new schema refusal. These are source-established contracts; no build, migration test, browser test or Canonical runtime run was executed by this documentation preparation. |
+
+Current operational inputs remain **NOT_OBSERVED**: live Worker version/traffic
+and artifact linkage; D1 identity, actual schema/constraints/ledger; current Access
+and retained private configuration/session validity; complete current work/export
+baseline; writer inventory/quiescence method; available provider recovery
+checkpoint, coverage and retention. Historical GitHub/retained issue records were
+available; no live target was queried or credential/session maintained here.
+Keep private identifiers, configurations, exports and recovery records outside
+public reports. The later approval must bind these inputs, exact artifacts,
+pending migration set, maintenance window and recovery decision before effects.
+
+### Later hosted successor acceptance (#1372)
+
+**NOT_RUN in this preparation.** After separately approved transition and
+preservation, conduct one bounded real successor task on one authorized supported
+browser/agent host. Record the actual host/environment; neither both physical
+Windows and Android nor a replay of the old #1366 study is required.
+
+1. Through the existing protected hosted surface, reopen the intended saved work
+   with its exact revision/fingerprint, qualifications and file manifest. Retrieve
+   the actual report/source/result bytes through authenticated revision-bound
+   downloads; verify names, sizes and hashes. A Mac path, source checkout or old
+   conversation attachment must not be needed to retrieve the working material.
+2. Have that consumer actually use those delivered files in the named successor
+   task and retain its concrete new observation/output and input bindings. Record
+   what the host could consume and any manual transfer, reattachment, login,
+   context repair or failed operation. Download alone is not consumer use; a
+   manual relay cannot be reported as meeting the no-relay product outcome.
+3. Return the new observation or artifact through ordinary selected context/file
+   Save, resolve uncertain outcomes before retrying, and freshly reopen the new
+   revision and complete export. Verify the prior revision/file bytes remain
+   intact and attribute any unrelated concurrent changes without overwriting them.
+
+Report hosted delivery, actual use, returned result, preservation and operator
+burden separately. One journey does not establish comparative usefulness,
+independence or learning. #1372 stays open until its actual hosted and successor
+outcome is reviewed. This preparation grants no deployment, remote migration,
+traffic/configuration/authentication change, resource creation, provider study,
+installed-runtime adoption, Ready/merge, auto-merge or Augnes Space write.
 
 Local owners test the compiled entry with platform Access simulation. #1356,
 #1364 and #1371's reviewed hosted observations are dated, bounded evidence; they
@@ -851,7 +1719,16 @@ Sites consumes `.openai/drizzle/**` from the build. The same journal and SQL run
 through Drizzle's D1 migrator in the disposable real local D1 tests; snapshot
 regeneration and negative drift controls prevent schema/SQL divergence. Version,
 JSON, revision bounds, scoped foreign keys and both uniqueness constraints are
-also exercised directly in D1. The original two migrations remain unchanged. #1351 used schema 1 with only a JSON-envelope extension. #1372 adds migration 0002 and schema 2 as specified above; local compatibility tests upgrade a nonempty old-writer store without resealing historical bytes. No live hosted migration or native schema change is performed.
+also exercised directly in D1. The original two migrations remain unchanged.
+#1351 used schema 1 with only a JSON-envelope extension; #1372's file implementation
+added 0002/schema 2, and #1397 added 0003/schema 3. The complete-originals
+Worker requires 0004/schema 4. Its migration copies the old file headers and
+BLOBs, retains every revision, and adds scoped parts with cascading erasure.
+Apply it only through the established migration owner in a separately approved
+transition after a fresh backup. The local compatibility test owners cover nonempty
+old-writer upgrades without resealing historical bytes; their presence is not
+a new execution result. No live hosted migration or native schema change is
+performed by this documentation preparation.
 
 The available Sites database tools are read-only, and the current documented
 migration workflow supplies no dynamic, secret-aware seed write. Therefore the
@@ -875,7 +1752,7 @@ no Site, D1, R2, version, configuration, secret or audience.
 
 ## Data and access contract
 
-`src/contract.ts` and `src/files.ts` own the v0.1/v0.2/v0.3 Web host envelopes;
+`src/contract.ts` and `src/files.ts` own the v0.1/v0.2/v0.3/v0.4 Web host envelopes;
 it does not add a Core record type. The extracted definition normalizer remains
 re-exported by its old native module. Selected entries and canonical fingerprints
 reuse existing code; frozen vectors from merged `d7c8c326` and the local Worker
@@ -911,8 +1788,9 @@ list read; it does not resubmit the saved request. Access denial still clears
 private material. Change summaries compare trimmed, deduplicated/sorted definition
 meaning, including empty lists; raw input remains subject to server validation.
 
-All private HTML/assets/list/work/history/export and mutation paths authorize
-owner and configured scope. Writes and exact-context reads also require same
+The ordinary workspace HTML/assets/list/work/history/export and mutation paths
+authorize the owner and configured scope. The separate participant routes above
+authorize only the exact recipient/request/material/action grant. Writes and exact-context reads also require same
 origin and a signed, owner-bound CSRF cookie/header. No wildcard CORS, private
 cache, raw-error logging, remote source fetch, inference or active note HTML.
 Source locators are inert text. Saved context performs a new primary read against
@@ -939,7 +1817,8 @@ recovery operation, never automatic synchronization or a second live writer.
 
 ## Private branches and selective incorporation
 
-For file-free selections (see #1372's explicit file-bearing refusal above), the normal work-detail flow is **Continue another direction → Review starting
+For file-free selections and ordinary files (see the whole-file selection contract
+above), the normal work-detail flow is **Continue another direction → Review starting
 material → Save reviewed change**. The server resolves the complete saved
 source definition and selection at the displayed exact revision. The first
 branch deliberately inherits all of them, its last bounded planning judgment
@@ -954,21 +1833,38 @@ comparison does not classify all differences as branch contributions or infer
 semantic novelty. Parentless reconstructed branches remain readable; comparison
 back to an unavailable parent is refused rather than inventing a baseline.
 
-Choose `incorporated`, `not_selected`, `deferred`, or `declined` per whole unit.
-Deferred/declined choices require a rationale. The reviewed target keeps its
-own definition and unrelated selected material. Explicit dependency links are
+Review **Current notes in this work** alongside the proposed branch material.
+Every current target note starts checked. Deliberately uncheck an obsolete
+current instruction, or keep both old and new notes. Then choose `incorporated`,
+`not_selected`, `deferred`, or `declined` for each whole branch unit.
+Deferred/declined choices require a rationale. An incorporated item with no
+optional rationale says only that none was supplied; non-selection still does
+not mean rejection or refutation. Authored rationales are displayed unchanged
+and escaped. The reviewed target keeps its own definition. Earlier source
+bodies, revisions and attribution remain in history when a note is deselected.
+Review the complete proposed selection, then **Save reviewed change** once.
+**Saved context** reads that confirmed selection freshly from the server.
+
+A note may appear in both works. Deselecting it in the target while choosing
+`incorporated` in the branch visibly refuses with `target_selection_conflict`;
+keep it in the target or change its branch disposition before previewing again.
+No displayed deselection is silently reversed. Explicit dependency links are
 entered with **Required context** in the note editor. Linked conditions must
 already be selected in the target or travel with the selected material; an
 incomplete or over-budget selection refuses in full. The validator cannot
 discover every unstated natural-language dependency. New or edited notes have
 their own attribution; editing an existing note in the UI produces a linked
 `derived_interpretation`, not unchanged inherited evidence.
+Historical adaptation/provenance links do not themselves require their original
+note to remain currently selected. Explicit **Required context** links do: both
+retained target notes and selected additions are checked against the complete
+proposed selection. Missing required context refuses without a partial save.
 
 `src/relations.ts` resolves originals, normalizes choices and builds the bounded
 host metadata; `handler.ts` retains the existing authorization/CSRF gates;
 `store.ts` persists through the same conditional revision INSERT. The signed
 preview binds the source, target, normalized material, dispositions/rationale,
-request identity and 24-hour expiry. A single SQL statement checks both heads
+explicit target choices, request identity and 24-hour expiry. A single SQL statement checks both heads
 and erasure guards at admission; there are no separately committed relation or
 provenance rows. Two competing target writes cannot both advance the same head.
 Exact replay acknowledges the original result; altered requests refuse. An
@@ -979,12 +1875,29 @@ versions and compare again**, retaining prior choices for review, followed by a
 new preview. No automatic retry, rebase or latest-version substitution occurs.
 
 If that refresh fails, the tab retains each whole-unit disposition and rationale,
-the overall rationale and unresolved question, the earlier source/target
-bindings, and the unsaved-work warning. Currentness remains unconfirmed and the
+each current target note's retain/deselect choice, the overall rationale and
+unresolved question, the earlier source/target bindings, and the unsaved-work
+warning. Currentness remains unconfirmed and the
 old preview is invalidated. A complete explicit comparison must succeed before
 a fresh preview: only exact source bindings retain their choices; removed or
 changed units are shown for review. HTTP 401/403 instead clears private content
 and draft state. These drafts are held only in the current tab's memory.
+New target notes encountered during refresh start retained; a choice is carried
+forward only for its exact source reference. Target-choice edits invalidate the
+preview and its request snapshot. An unknown save locks those controls and
+reconciles the exact original request, including its target selection.
+
+The file-free incorporation intent accepts optional `target_selection`, an array
+of up to eight unique source references from the exact reviewed target. Omission
+retains every target note and preserves legacy intent/seal behavior. Malformed,
+duplicate or foreign references refuse with `invalid_target_selection`.
+The server validates choices on preview and save, within the existing exact
+source/target binding. The saved `sources`/material selection and comparison's
+target revision record the result through unchanged v0.2/v0.3 envelopes,
+fingerprint algorithms and export/reconstruction consumers. No new schema,
+store or automatic semantic supersession is introduced. Older servers reject
+the new request field; refresh the client with its compatible server rather
+than silently falling back to an intent that could retain deselected material.
 
 The normal UI's ordinary save ticket also binds normalized material, refusing
 an altered retry even when nothing was written. An unchanged v0.2 save using
@@ -1052,7 +1965,9 @@ The [reviewed #1345 closeout](../../docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMA
 accepted the bounded hosted v0 slice and supersedes its earlier remaining-hosted
 status. Isolated-session, final logged-out, identity-header/bypass and other
 unperformed checks stay explicitly limited there; Sites identity remains a
-platform trust dependency. The #1351 extension is locally tested only. No new
-hosted deployment, independent model interpretation, separate successor-task
-usefulness or comparative benefit is established. This candidate adds no
+platform trust dependency. #1356 separately accepted #1351's bounded direct-host
+journey as recorded above. That historical acceptance does not establish #1372's
+hosted schema-3 adoption, agent-host file consumption or separate successor-task
+usefulness. No new hosted deployment, independent model interpretation or
+comparative benefit is established by this preparation. It adds no
 WebMCP, new transport, public discovery, inference or automatic execution.

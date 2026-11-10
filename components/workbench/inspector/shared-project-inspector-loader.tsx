@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ProjectClientScopeProvider, useProjectClientFetch, useProjectClientHref } from "@/components/workbench/semantic-review/project-client-scope";
+import { ProjectClientScopeProvider, useProjectClientFetch, useProjectClientHref, useProjectClientScope } from "@/components/workbench/semantic-review/project-client-scope";
+import { projectExperienceInspectorObserverV1, type ProjectExperienceInspectorReadObserverV1 } from "@/components/delegated-work/project-experience-test-observer";
 
 import { ProductShell } from "@/components/product-shell";
 import {
@@ -39,6 +40,9 @@ export function SharedProjectInspectorLoader({ projectId: defaultProjectId = nul
 
 function ScopedProjectInspectorLoader() {
   const fetch = useProjectClientFetch();
+  const projectId = useProjectClientScope();
+  const diagnosticIdentity = useRef<object>({});
+  const diagnostic = projectExperienceInspectorObserverV1(diagnosticIdentity.current);
   const searchParams = useSearchParams();
   const targetParams = useMemo(() => projectClientTargetQuery(new URLSearchParams(searchParams)), [searchParams]);
   const query = targetParams.toString();
@@ -54,7 +58,7 @@ function ScopedProjectInspectorLoader() {
   const headingRef = useRef<HTMLHeadingElement | null>(null);
 
   const loadInspector = useCallback(
-    async (signal?: AbortSignal) => {
+    async (signal?: AbortSignal, observation?: ProjectExperienceInspectorReadObserverV1 | null) => {
       if (!parsedTarget.target) return;
       setInspectorResponse(null);
       setErrorCode(null);
@@ -66,6 +70,10 @@ function ScopedProjectInspectorLoader() {
           signal,
         });
         const body = (await response.json()) as InspectorRouteResponseV01;
+        observation?.event("inspector_body", response.status);
+        // Body settlement can win a race with effect cleanup. An obsolete
+        // result must not overwrite the replacement target's current state.
+        if (signal?.aborted) { observation?.event("stale_blocked"); return; }
         if (response.status === 401 || response.status === 403) {
           setSession({
             status: "locked",
@@ -81,12 +89,17 @@ function ScopedProjectInspectorLoader() {
           (body.project_activity !== "active" &&
             body.project_activity !== "inactive_read_only")
         ) {
-          setErrorCode(publicContextualInspectorErrorCodeV01(body.error_code));
+          const code = publicContextualInspectorErrorCodeV01(body.error_code);
+          observation?.applyInspectorRefusal(code);
+          setErrorCode(code);
           return;
         }
+        observation?.applyInspector(body);
         setInspectorResponse(body);
       } catch (error) {
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
+        // A named AbortError is still a real failure when this owner did not abort.
+        if (!signal?.aborted) {
+          observation?.event("inspector_failed");
           setErrorCode("shared_inspector_request_failed");
         }
       }
@@ -97,19 +110,27 @@ function ScopedProjectInspectorLoader() {
   useEffect(() => {
     if (!parsedTarget.target) return;
     const controller = new AbortController();
+    const observation = diagnostic?.effect(controller, projectId, query, fetch);
+    const applySession = (value: OperatorSessionStateV01) => {
+      observation?.applySession(value);
+      setSession(value);
+    };
     let active = true;
     void (async () => {
       try {
-        const response = await fetch(SESSION_ROUTE, {
+        const response = await (observation?.fetch ?? fetch)(SESSION_ROUTE, {
           method: "GET",
           cache: "no-store",
           credentials: "same-origin",
           signal: controller.signal,
         });
+        observation?.event("headers", response.status);
+        observation?.event("body_started");
         const body = (await response.json()) as SessionRouteResponseV01;
-        if (!active) return;
+        observation?.event("body_completed");
+        if (!active) { observation?.event("stale_blocked"); return; }
         if (response.status === 404) {
-          setSession({
+          applySession({
             status: "disabled",
             session: null,
             error_code: "not_found",
@@ -118,7 +139,7 @@ function ScopedProjectInspectorLoader() {
         }
         if (!response.ok || body.status !== "authenticated" || !body.session) {
           const code = publicContextualInspectorErrorCodeV01(body.error_code);
-          setSession({
+          applySession({
             status: "locked",
             session: null,
             error_code:
@@ -126,30 +147,34 @@ function ScopedProjectInspectorLoader() {
           });
           return;
         }
-        setSession({
+        applySession({
           status: "authenticated",
           session: body.session,
           error_code: null,
         });
-        await loadInspector(controller.signal);
+        await loadInspector(controller.signal, observation);
       } catch (error) {
+        observation?.event(controller.signal.aborted && error instanceof DOMException && error.name === "AbortError" ? "read_aborted" : "read_failed");
         if (
-          active &&
-          !(error instanceof DOMException && error.name === "AbortError")
+          active && !controller.signal.aborted
         ) {
-          setSession({
+          applySession({
             status: "locked",
             session: null,
             error_code: "operator_session_request_failed",
           });
         }
-      }
+      } finally { observation?.event("returned"); }
     })();
     return () => {
       active = false;
+      observation?.cleanup(active);
       controller.abort();
+      observation?.event("abort_returned", controller.signal.aborted);
     };
   }, [loadInspector, parsedTarget.target, fetch]);
+
+  useEffect(() => { diagnostic?.commit(session, inspectorResponse, errorCode); }, [diagnostic, session, inspectorResponse, errorCode]);
 
   useEffect(() => {
     if (inspectorResponse?.inspector) {

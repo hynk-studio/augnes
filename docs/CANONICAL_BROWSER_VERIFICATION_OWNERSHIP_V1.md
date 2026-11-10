@@ -22,6 +22,47 @@ child copies them into its own writable database and reads them through the
 production application. It does not borrow a live operator or continuity
 runtime.
 
+The GuideBrief request guard admits an observed initial-effect cancellation:
+the initial effect's cleanup aborts its exact request, then effect replay
+in the same consumer, document, frame, project context and protocol connection
+starts a distinct replacement. Private request/controller/signal bindings must
+prove the first read returned aborted without a response or application, and
+the replacement completed, parsed successfully and committed to the current
+consumer. Missing, copied, altered, ambiguous or lossy evidence refuses; so do
+independent network failures, unconsumed replacements and stale writes.
+It also recognizes one bounded extension of that prefix: A is the cleanup-aborted
+initial read, B is the effect-2 initial replacement, and one explicit refresh C
+supersedes B before B receives a response. The actual hook exposes `refresh` as
+the same read function; its callers can refresh guidance while the initial read
+is pending. B need not first adopt obsolete guidance. This is not permission to
+ignore either cancellation: both original failure entries must independently
+bind to the private protocol and lifecycle owners, with the same consumer,
+document, project context and distinct request/controller identities. A retains
+its cleanup and repeated-abort evidence; B requires the exact refresh target,
+supersede/abort/signal/return ordering and aborted settlement. Neither canceled
+read may receive a body or apply a result. C must complete response/body/parse
+and commit to the current matching controller/context after both cancellations
+settle. A fourth pre-commit read, intermediate adoption, context change or
+missing/duplicate evidence refuses. This is a fixed three-read prefix, not an
+arbitrary chain or a search for the last successful request. Later refreshes
+after that proven commit remain separate reads.
+
+Ordinary unmounts, standalone explicit-refresh cancellations and other shapes
+gain no exception. `explicit_refresh` identifies a call outside the initial
+effect; it does not identify its caller or prove a historical user action.
+Public diagnostic snapshots are not verdict inputs. Offline controls execute
+the actual hook, observer, collector and verdict with controlled promise and
+protocol delivery; they do not reconstruct unavailable historical private pins
+or qualify a Browser phase. This change grants no deciding execution allowance
+and does not change Local Canonical admission or terminal lineage.
+
+This observation is installed only by the disposable development Browser.
+It preserves request arguments, the original fetch Promise, cancellation and
+scheduling. The strict return-focus predicate, 45-second condition deadline,
+phase/child bounds, Browser inventory, global network/privacy/integrity guards
+and cleanup owners remain unchanged. Focused diagnostics and controls do not
+qualify a Browser phase or rewrite historical failed results.
+
 ### Operator and execution
 
 `npm run test:e2e:operator-execution` is a focused developer convenience that
@@ -185,6 +226,34 @@ Historical verification results and timing causes are not revised by this split.
 
 ## Resource and lifecycle contract
 
+### Native-host requested viewport fit
+
+Native-host revision/editor, retained-source, new-task preparation, result
+comparison/preparation and saved-successor checks use one synchronous geometry
+sample through `scripts/operator-native-viewport-fit.mjs`. Requested inner width
+and height, device scale factor 1 and unzoomed visual scale establish the CSS
+viewport before fit is claimed. Document client dimensions may exclude
+scrollbars; visual dimensions are floating CSS pixels and must round to those
+integer client dimensions. Host outer-window and screen dimensions are not CSS
+viewport identity. Missing, invalid or contradictory required dimensions fail.
+
+The document must fit its client width and requested width with the existing
+one-CSS-pixel allowance. Failures distinguish measurement validity, requested
+viewport mismatch and document overflow, retaining the first immutable sample
+in a closed numeric diagnostic. No fit polling, frame retry or implicit viewport
+correction occurs. In particular, requested/client 390 with inner/scroll 739
+cannot pass even though the former innerWidth-only predicate returns true.
+Numeric controls preserve that exact regression. Real Browser controls in the
+native child prove fitting content, wrong-but-fitting actual viewport refusal,
+persistent overflow refusal and preservation of the first failure after a
+separate restored-fitting control. They leave no DOM or persisted work changes.
+
+Selected-source comparison text may contain long source/revision identifiers.
+The editor's selected-source panel permits wrapping within those identifiers;
+it preserves the complete text and prevents intrinsic grid sizing from widening
+the document. The saved-successor Browser flow checks unchanged complete source
+text at 390/768/1440 before its normal explicit save and fresh read.
+
 Every Browser child independently owns:
 
 - an immutable fixture copy and writable database;
@@ -247,6 +316,13 @@ At runtime each owner rejects missing, duplicate, or foreign fields and
 markers. The manifest contract rejects duplicate ownership, missing command or
 suite bindings, missing resource/lifecycle declarations, and incomplete
 operator child unions. Source-code parsing is not part of permanent ownership.
+
+The existing Browser-owner unit child separately syntax-checks complete launch
+entry points with bounded Node children, without importing or executing them.
+Its malformed complete-file negative control uses the same failure-propagating
+child check. This catches invalid headers before long Browser verification;
+it does not infer semantic ownership from source strings or replace runtime
+completion, selection, lifecycle or qualification evidence.
 
 ## Changed-file selection
 
@@ -330,3 +406,31 @@ This architecture does not change product, API, Core, protocol, schema,
 authority, native-host, provider, or UI behavior. It does not create hosted
 evidence, publish Local Canonical artifacts, dispatch workflows, or grant merge
 authority.
+
+## Strict Browser input compatibility
+
+The shared selector in `local-canonical-browser-input.mjs` remains at all
+selected launch sites. It retains this document's phase ownership and the 19
+actual launch records (integration 5, project 4, review 5, and one each for
+native, expectation, multi-candidate, continuity and golden). The v3 use record
+binds the full-bundle input fingerprint and matching CLI/HTTP/CDP versions.
+Strict selection and the active checkout sentinel refuse missing, stripped or
+invalid bindings; ordinary selection outside that contract is unchanged.
+
+The task-specific #1545/#1546 replacement qualification route, its strict v2
+continuation and receipt version 5 are retired. Their complete historical
+reader is pinned at `b057069e2ebbafe36acaa84736e9742b19c32547`; these shared
+guards grant no new execution or replacement authority. The Local Canonical
+policy owns current admission. C8's 30-second child and the 3,600-second unit
+phase limit remain unchanged.
+
+The existing Darwin durable/cumulative five and project-client two launches use
+the exact outer loopback/Unix network sandbox together with `--no-sandbox`.
+Strict input validation binds that actual spawn construction and refuses lost
+or altered protection. The other twelve direct launches keep their prior
+sandbox behavior. The seven wrapped launches are limited to reviewed local
+fixtures and disposable profiles/DBs; their network policy is not equivalent
+to Chromium filesystem/IPC compartmentalization. Existing assertions and owned
+process teardown, including normal supported SIGTERM, remain authoritative.
+A diagnostic `Browser.close` acknowledgement is separate from useful page work,
+component health and cleanup; it is not an added universal acceptance gate.

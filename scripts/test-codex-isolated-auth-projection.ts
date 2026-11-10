@@ -300,6 +300,17 @@ async function contractsV01(roots: RootsV01): Promise<void> {
     await officialAuthStorageAlignmentV01(roots);
     await fileBackedAuthSourceV01(roots);
     const provisioned = await provisionV01(roots, "primary", FAKE_JWT);
+    const fixed = path.join(process.cwd(), "scripts", "fixtures", "fake-codex-app-server.mjs");
+    const impostor = path.join(roots.runtime, "fake-codex-app-server.mjs");
+    writeFileSync(impostor, readFileSync(fixed));
+    try {
+      for (const [index, prefix] of [[impostor], [fixed, "extra"], [fixed, "before-sk-synthetic-after"], ["before-sk-synthetic-after"]].entries()) {
+        const input = ownerInputV01(roots, `fixture-prefix-refusal-${index}`, provisioned, FAKE_JWT, "isolated_auth_success");
+        input.prefix_args = prefix;
+        assert.throws(() => new CodexIsolatedAuthenticatedExecutionOwnerV01(input), /prefix_args_invalid/);
+        assert.deepEqual(readdirSync(input.state_parent), [], "refusal precedes private-state allocation");
+      }
+    } finally { unlinkSync(impostor); }
     assert.equal(provisioned.availability.state, "available_exact");
     assert.match(
       provisioned.credential_attestation.account_identity_fingerprint,

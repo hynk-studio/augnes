@@ -5,6 +5,13 @@ filesystem mount changes. It is not a durable process, a source approval, or an
 execution grant. This contract belongs to `companion-service-core.mjs` and its
 Darwin `checkout-identity.mjs` / `checkout-identity-darwin.py` provider.
 
+Companion selects only patched Node 24 (minimum 24.22.1). The shared version
+policy keeps the v-prefixed service identity separate from bare Canonical
+versions. Older enrollment records remain readable for diagnosis and retirement;
+an executable below the floor cannot install, start or recover the service.
+Changing a version floor does not rewrite enrollment, adopt a new binary or
+approve changed source. Exact path/version drift checks remain in force.
+
 ## Four separate lifetimes
 
 | Witness | Lifetime and purpose |
@@ -257,6 +264,21 @@ Stop, installation and manager entry while that operation is incomplete. An
 exclusive, coordinated operator window is still required: older installed
 clients do not understand the new record, and a lifecycle lock is not a machine-
 wide prohibition on independently authorized writers.
+
+An already **settled** retirement is historical across supported device-number
+changes. If its original observation hash differs, ordinary lifecycle inspection
+requires valid current durable enrollment and an exact reconstruction of the
+historical hash by changing only the current device number to the recorded configuration-parent
+device. This does not assume that two paths share a mount: if that one recorded
+number cannot reproduce the original hash, inspection refuses. Missing or
+invalid enrollment, changed durable identity, malformed evidence and an
+incomplete retirement still refuse. The record and its digest remain unchanged;
+this compatibility check grants no process ownership or recovery replay.
+Current configuration and source checks still apply; historical configuration
+bytes do not freeze later otherwise-valid configuration updates.
+Recovery inspection/application retain their stricter same-operation source,
+material and repository checks. Preservation still brackets the actual current
+observation and refuses device changes during a run.
 
 ### Non-circular, post-review operational handoff
 

@@ -24,7 +24,7 @@ export function assertReadOnlyRequestWindow(requests,{expected,background,allowF
    }
    // The viewport/keyboard journey can also cause the existing focus access read.
    // This exception is not enabled for list recovery or either branch window.
-   if(allowFocusReads&&request.method==='GET'&&request.path==='/api/works'&&body===undefined&&caller('api')&&caller('request')){focus++;continue;}
+   if(allowFocusReads&&request.method==='GET'&&request.path==='/api/project'&&body===undefined&&caller('checkProjectAccessOnFocus')&&caller('api')&&caller('request')){focus++;continue;}
    foreground.push({target_id:source.target_id,method:request.method,path:request.path,body});
  }
  assert.deepEqual(foreground,expected,'exact foreground requests; no ticket, preview, save or other operation');

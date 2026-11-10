@@ -9,12 +9,14 @@ import {
   retrieveGovernedActorLabPrivateMemoryV01,
 } from "@/lib/vnext/governed-actor-lab";
 import {
-  GOVERNED_ACTOR_LAB_MODEL_EGRESS_LIMITS_V01,
   invokeGovernedActorLabModelGatewayV01,
   type GovernedActorLabModelGatewayDependenciesV01,
   type ModelGatewayInteractiveAdmissionV01,
-  validateGovernedActorLabModelInputV01,
 } from "@/lib/vnext/model-gateway/model-gateway";
+import {
+  GOVERNED_ACTOR_LAB_MODEL_EGRESS_LIMITS_V01,
+  validateGovernedActorLabModelInputV01,
+} from "@/lib/vnext/model-gateway/method-routes";
 import {
   GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01,
   MODEL_GATEWAY_VERSION_V01,

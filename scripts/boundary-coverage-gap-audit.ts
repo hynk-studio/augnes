@@ -246,7 +246,7 @@ export const BOUNDARY_COVERAGE_AUDIT_ROWS_V01: readonly BoundaryCoverageAuditRow
       canonical_current_owner: "model-gateway",
       reachable_channels: ["GuideBrief Gateway request", "Governed Actor Lab Gateway request", "injected test adapter"],
       exact_sources: [
-        sourceRef("lib/vnext/model-gateway/model-gateway.ts", "assertNoProviderControlFields", "PROVIDER_CONTROL_KEYS", "refusal"),
+        sourceRef("lib/vnext/model-gateway/method-bindings.ts", "assertNoProviderControlFields", "PROVIDER_CONTROL_KEYS", "refusal"),
         sourceRef("lib/vnext/model-gateway/model-gateway.ts", "validateModelInvocationEnvelopeV01", "validateModelInvocationEnvelopeV01", "gate"),
       ],
       coverage_status: "enforced",
@@ -262,7 +262,7 @@ export const BOUNDARY_COVERAGE_AUDIT_ROWS_V01: readonly BoundaryCoverageAuditRow
       canonical_current_owner: "model-gateway envelope validator",
       reachable_channels: ["all live Model Gateway purposes"],
       exact_sources: [
-        sourceRef("lib/vnext/model-gateway/model-gateway.ts", "validateModelInvocationEnvelopeV01", "dataClassification === \"local_only\" || dataClassification === \"secret\"", "refusal"),
+        sourceRef("lib/vnext/model-gateway/invocation-core.ts", "validateModelInvocationEnvelopeCoreV01", "dataClassification === \"local_only\" || dataClassification === \"secret\"", "refusal"),
       ],
       coverage_status: "enforced",
       platform_applicability: ["server-side live model invocation"],
@@ -277,8 +277,8 @@ export const BOUNDARY_COVERAGE_AUDIT_ROWS_V01: readonly BoundaryCoverageAuditRow
       canonical_current_owner: "model-gateway invocation envelope",
       reachable_channels: ["one admitted Gateway invocation"],
       exact_sources: [
-        sourceRef("lib/vnext/model-gateway/model-gateway.ts", "invokeLiveAdapter", "mark_egress_attempted()", "gate"),
-        sourceRef("lib/vnext/model-gateway/model-gateway.ts", "budget refusal", "model_gateway_budget_refused", "refusal"),
+        sourceRef("lib/vnext/model-gateway/invocation-core.ts", "invokeLiveAdapter", "mark_egress_attempted()", "gate"),
+        sourceRef("lib/vnext/model-gateway/invocation-core.ts", "budget refusal", "model_gateway_budget_refused", "refusal"),
       ],
       coverage_status: "enforced",
       platform_applicability: ["server-side model invocation"],

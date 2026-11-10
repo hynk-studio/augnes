@@ -1,0 +1,51 @@
+let searchNext=null,searchPhrase='',searchCount=0,searchEpoch=0;
+$('work-search-query').oninput=()=>{
+  searchEpoch++;searchNext=null;$('search-more').hidden=true;
+  $('search-state').textContent='Press Find work to search this phrase. Existing results belong to the previous search.';
+};
+$('work-search').onsubmit=event=>{event.preventDefault();run(()=>findWork(false));};
+$('search-more').onclick=()=>run(()=>findWork(true));
+async function findWork(append){
+  const query=$('work-search-query').value.trim(),epoch=++searchEpoch,cursor=append?searchNext:null;
+  if(append&&(!cursor||query!==searchPhrase))return;
+  const state=$('search-state'),results=$('search-results');
+  if(!append){results.replaceChildren();searchCount=0;searchPhrase=query;searchNext=null;$('search-more').hidden=true;}
+  state.textContent='Searching saved goals and selected notes…';
+  try{
+    const data=await api('/api/works/search?q='+encodeURIComponent(query)+(cursor?'&cursor='+encodeURIComponent(cursor):''));
+    if(accessLost||epoch!==searchEpoch)return;
+    if(data.query!==query||data.workspace_id!==scope.workspace_id||data.project_id!==scope.project_id||
+      !Array.isArray(data.items)||data.items.length>10||!Number.isSafeInteger(data.scanned)||data.scanned<0||
+      (data.next!==null&&typeof data.next!=='string')||data.status!==(data.next?'more':'exhausted'))throw Error('search_incomplete');
+    const rows=document.createDocumentFragment();
+    for(const item of data.items){
+      if(typeof item.goal!=='string'||!item.work_id||!item.fingerprint||!Number.isSafeInteger(item.revision)||
+        !Array.isArray(item.matches)||!item.matches.length||item.matches.length>9||
+        item.matches.some(m=>!['goal','note'].includes(m.field)||typeof m.excerpt!=='string'||(m.field==='note'&&!m.source_ref)))throw Error('search_incomplete');
+      const row=historyElement('li','');
+      row.append(historyElement('h3',item.goal),historyElement('p',`Revision ${item.revision} · ${item.recorded_at}`),
+        historyElement('small','Work '+item.work_id));
+      const identity=historyElement('details','');identity.append(historyElement('summary','Exact matched basis'),historyElement('p',item.fingerprint));row.append(identity);
+      for(const match of item.matches){
+        row.append(historyElement('p',(match.field==='goal'?'Goal':'Note '+match.note)+' matched: '+match.excerpt));
+        if(match.source_ref)identity.append(historyElement('p','Note '+match.note+' · '+match.source_ref));
+        const inspect=historyElement('button',match.field==='goal'?'Inspect matched revision':'Inspect matched note '+match.note);inspect.type='button';
+        inspect.onclick=()=>run(async()=>{
+          const view=$('search-view');view.hidden=false;
+          await inspectNoteHistory(item.work_id,{...item,source_ref:match.source_ref},view);
+          if(!accessLost)view.scrollIntoView({block:'start'});
+        });row.append(inspect);
+      }
+      const open=historyElement('button','Open current work');open.type='button';open.onclick=()=>run(()=>openWork(item.work_id,item));row.append(open);rows.append(row);
+    }
+    results.append(rows);searchCount+=data.items.length;searchNext=data.next;$('search-more').hidden=!searchNext;
+    state.textContent=`${data.scanned} saved works searched. `+(searchNext?
+      `${searchCount} matches so far. More work remains to search.`:
+      searchCount?`${searchCount} matches. Search complete for this traversal. Search again to include later changes.`:
+      'No match in the completed search scope. Search again to include later changes.');
+  }catch(e){
+    if(accessLost||epoch!==searchEpoch)return;
+    state.textContent=e.message==='invalid_search_query'?'Enter a literal phrase of 1–256 UTF-8 bytes without control characters.':
+      'Search could not complete. Existing results cover only completed pages. Retry Find work or Continue search; your draft is retained.';
+  }
+}

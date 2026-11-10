@@ -359,7 +359,7 @@ async function main() {
     assert(prepared.result_source);
     const selected = [...entries(), prepared.result_source];
     const resultComparison = compareResultWorkSourcesV01(db, { config, binding: prepared.binding, notes: selected.map(selectedWorkSourceInput), clock: { now } });
-    const preview = previewResultWorkV01(db, { config, binding: prepared.binding, clock: { now },
+    const preview = previewResultWorkV01(db, { config, session_id: credential.session_id, binding: prepared.binding, clock: { now },
       definition: { goal: "Review the source-bound release recommendation", success_criteria: ["Keep judgment separate from release authority"], non_goals: ["Do not publish or deploy"] },
       selected_sources: { selected_source_context: resultComparison.entries, expected_source_comparison: resultComparison.fingerprint,
         omitted_sources: [] } });

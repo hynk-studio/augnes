@@ -25,7 +25,7 @@ import {
   readCanonicalProjectIdentityV01,
   renameCanonicalProjectDisplayNameV01,
 } from "../lib/vnext/persistence/project-identity-registry";
-import { removeRecentProjectV01, readProjectSelectionStateV02, readActiveProjectSelectionV01, selectActiveProjectV01, touchRecentProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
+import { changeProjectOrganizationV01, readProjectOrganizationV01, removeRecentProjectV01, readProjectSelectionStateV02, readActiveProjectSelectionV01, selectActiveProjectV01, touchRecentProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { readProjectHomeDatabaseCompatibilityV01, readProjectHomeProjectionV01 } from "../lib/vnext/project-home/project-home-projection";
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage";
 import { readSharedProjectInspectorV01 } from "../lib/vnext/runtime/shared-project-inspector";
@@ -163,12 +163,24 @@ try {
     "new import must use the exported display name",
   );
 
+  const importedScope={workspace_id:fixtureManifest.workspace_id,project_id:fixtureManifest.project_id};
+  assert.equal(readProjectOrganizationV01(destination,importedScope).state,"working","portable fresh import starts with local working organization");
+  const selectedBeforeArchive=readProjectSelectionStateV02(destination,importedScope.workspace_id)!;
+  changeProjectOrganizationV01(destination,{...importedScope,state:"archived",expected_organization_revision:readProjectOrganizationV01(destination,importedScope).revision,
+    expected_project_id:selectedBeforeArchive.project_id,expected_revision:selectedBeforeArchive.selection_revision});
+  const archivedOrganization=readProjectOrganizationV01(destination,importedScope);
   const replay = importPortableProjectV01(destination, {
     bytes: exported.bytes,
     destination_root_base: destinationProjects,
     imported_at: "2026-07-21T03:06:00.000Z",
   });
   assert.equal(replay.status, "exact_replay");
+  assert.deepEqual(readProjectOrganizationV01(destination,importedScope),archivedOrganization,"portable replay preserves local archive choice and observation");
+  const selectionAfterArchive=readProjectSelectionStateV02(destination,importedScope.workspace_id)!;
+  assert.equal(selectionAfterArchive.project_id,null,"replay cannot select the archived project");
+  changeProjectOrganizationV01(destination,{...importedScope,state:"working",expected_organization_revision:archivedOrganization.revision,
+    expected_project_id:null,expected_revision:selectionAfterArchive.selection_revision});
+  selectActiveProjectV01(destination,{...importedScope,now:"2026-07-21T03:06:00.000Z",expected_project_id:null,expected_revision:selectionAfterArchive.selection_revision});
   assert.equal(
     count(destination, "vnext_core_records", fixtureManifest.workspace_id, fixtureManifest.project_id),
     exported.package.records.length,

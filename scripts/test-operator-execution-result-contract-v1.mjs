@@ -1,10 +1,19 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import vm from "node:vm";
+import { createRequire } from "node:module";
 import "./test-operator-browser-failure-snapshot-v1.mjs";
+import "./test-operator-session-request-boundary-v1.mjs";
+import { runGuideLifecycleRegressionV1 } from "./test-project-experience-guide-lifecycle-v1.mjs";
+import { runInspectorLifecycleRegressionV1 } from "./test-project-experience-inspector-lifecycle-v1.mjs";
+import { runFlightConsumptionRegressionV1 } from "./test-project-experience-flight-consumption-v1.mjs";
 
 import {
   assertOperatorRequestFailureEvidenceV1,
+  boundedOperatorRequestFailuresV1,
+  operatorRequestInitiatorConsumersV1,
   assertOperatorExecutionDetailedValuesV1,
   assertOperatorExecutionFinalSuccessV1,
   createOperatorRequestFailureEvidenceV1,
@@ -13,6 +22,28 @@ import {
   createOperatorSemanticMarkerOwnerV1,
   loadOperatorExecutionOwnerContractV1,
 } from "./operator-execution-result-contract-v1.mjs";
+
+// The actual owner configuration must not bypass lifecycle refusal for a
+// still-required Fetch merely because its route and error string match.
+function assertNoUnprovenRequestFallback() {
+  const ts=createRequire(import.meta.url)('typescript');
+  const parse=file=>{const text=fs.readFileSync(file,'utf8');return ts.createSourceFile(file,text,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);};
+  const shared=parse('scripts/operator-execution-browser-child-v1.mjs');
+  const fn=shared.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='runOperatorExecutionBrowserChildV1');
+  const fallback=fn.parameters[0].name.elements.find(n=>n.name.getText(shared)==='request_failure_allowlist').initializer.getText(shared);
+  const cases=[['operator-review-control','result_review_and_inspector','/workbench/inspector'],['operator-native-host-execution','first_work_definition_and_start','/workbench/semantic-review']];
+  const outcomes=cases.map(([owner,phase,path])=>{
+    const source=parse(`scripts/browser-validate-${owner}-v1.mjs`),calls=[];
+    const visit=n=>{if(ts.isCallExpression(n)&&n.expression.getText(source)==='runOperatorExecutionBrowserChildV1')calls.push(n);ts.forEachChild(n,visit);};visit(source);assert.equal(calls.length,1);
+    const config=calls[0].arguments[0];assert(ts.isObjectLiteralExpression(config));
+    const override=config.properties.find(n=>n.name?.getText(source)==='request_failure_allowlist');
+    const predicate=vm.runInNewContext('('+(override?override.initializer.getText(source):fallback)+')');
+    return {owner,override:!!override,unproven_current_fetch_allowed:predicate({phase,path,error_text:'net::ERR_ABORTED',request_type:'Fetch',method:'GET',response_status:200})};
+  });
+  console.log(JSON.stringify({actual_owner_configuration_and_shared_default:true,outcomes}));
+  for(const row of outcomes)assert.equal(row.unproven_current_fetch_allowed,false,`${row.owner}: route/error alone must not allow an unproven required Fetch`);
+}
+assertNoUnprovenRequestFallback();
 
 const requestFailureEvidence = createOperatorRequestFailureEvidenceV1({
   request_id: "321.45",
@@ -78,6 +109,20 @@ for (const privateMaterial of [
   assert.equal(serializedRequestFailureEvidence.includes(privateMaterial), false);
 }
 
+const consumer = "components/workbench/inspector/shared-project-inspector-loader.tsx";
+assert.deepEqual(operatorRequestInitiatorConsumersV1({ stack: { callFrames: [
+  { url: "webpack-internal:///(app-pages-browser)/" + consumer + "?secret=not-retained" },
+  { url: "https://example.invalid/private-unrelated-consumer" },
+] } }), [consumer]);
+const thirteen = Array.from({ length: 13 }, (_, i) => ({ ...requestFailureEvidence, request_id: `321.${i}` }));
+const complete = boundedOperatorRequestFailuresV1(thirteen);
+assert.equal(complete.complete, true); assert.equal(complete.omitted, 0);
+assert.deepEqual(complete.records.map(r => r.request_id), thirteen.map(r => r.request_id));
+const overflow = boundedOperatorRequestFailuresV1(Array.from({ length: 129 }, () => requestFailureEvidence));
+assert.equal(overflow.complete, false); assert.equal(overflow.captured, 128); assert.equal(overflow.omitted, 1);
+assert.equal(overflow.serialized_bytes <= overflow.byte_limit, true);
+assert.throws(() => boundedOperatorRequestFailuresV1([{ ...requestFailureEvidence, headers: "must-not-serialize" }]));
+
 const owner = loadOperatorExecutionOwnerContractV1();
 for (const contract of owner.children) {
   const fieldOwner = createOperatorDetailedFieldCompletionOwnerV1(contract);
@@ -105,6 +150,10 @@ for (const contract of owner.children) {
     ["runtime not shut down", (candidate) => (candidate.runtime_shutdown_complete = false)],
     ["Chrome not shut down", (candidate) => (candidate.chrome_cdp_shutdown_complete = false)],
     ["external request", (candidate) => (candidate.unexpected_external_request_count = 1)],
+    ["required request failure", (candidate) => (candidate.unexpected_request_failure_count = 1)],
+    ["console failure", (candidate) => (candidate.unexpected_console_failure_count = 1)],
+    ["page failure", (candidate) => (candidate.unexpected_page_failure_count = 1)],
+    ["refusal accounting failure", (candidate) => (candidate.unexpected_refusal_accounting_failure_count = 1)],
     ["unowned effect", (candidate) => (candidate.unowned_effect_count = 1)],
     [
       "fixture timing missing",
@@ -166,7 +215,7 @@ process.stdout.write(
     detailed_fields: owner.field_ids.length,
     semantic_markers: owner.marker_ids.length,
     request_failure_evidence_contracts: 1,
-    staged_finalization_negatives: owner.children.length * 11,
+    staged_finalization_negatives: owner.children.length * 15,
   })}\n`,
 );
 
@@ -336,3 +385,13 @@ function validResult(contract, fieldOwner, markerOwner) {
   }
   return result;
 }
+
+// The ordinary operator contract entry owns these operator-specific scopes.
+// Imports above also retain each existing default project-experience regression.
+await runGuideLifecycleRegressionV1(['--operator-scope']);
+await runInspectorLifecycleRegressionV1(['--operator-scope']);
+for (const scope of ['--operator-scope', '--operator-semantic-review', '--operator-root-flight', '--operator-detail-flight']) {
+  await runFlightConsumptionRegressionV1([scope]);
+}
+console.log(JSON.stringify({ test: 'operator-request-scopes-routine-integration', status: 'pass',
+  guide_operator: true, inspector_operator: true, flight_scopes: ['project', 'semantic-review-index', 'root', 'semantic-review-detail'] }));

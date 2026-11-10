@@ -11,6 +11,15 @@ const recoveryResponseHeaders = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Packaged runtime bytes are immutable. Next 16.4 promotes route seeds into
+  // server/route-cache at runtime unless disk flushing is disabled. Keep its
+  // bounded memory cache while preserving ordinary source-build behavior.
+  experimental: {
+    // Next 16.4 otherwise fetches advisory data during development startup.
+    // Dependency changes and agent invocation require separate user authority.
+    agentUpgrade: false,
+    ...(process.env.AUGNES_PACKAGE_BUILD === "1" ? { isrFlushToDisk: false } : {}),
+  },
   async headers() {
     return [
       {

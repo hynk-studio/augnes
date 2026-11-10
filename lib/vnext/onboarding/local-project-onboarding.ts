@@ -32,6 +32,9 @@ import {
 } from "@/lib/vnext/persistence/project-identity-registry";
 import {
   ProjectLifecycleErrorV01,
+  assertProjectSelectionV01,
+  readProjectOrganizationV01,
+  readProjectOrganizationListRevisionV01,
   listRecentProjectRowsV01,
   readActiveProjectSelectionV01,
   readProjectSelectionStateV02,
@@ -990,6 +993,11 @@ export async function confirmLocalProjectOnboardingV01(db: Database.Database, in
   });
   const now = (options.now ?? (() => new Date().toISOString()))();
   return db.transaction(() => {
+    assertProjectSelectionV01(db, {
+      workspace_id: workspace.workspace_id,
+      expected_project_id: record.expected_active_project_id,
+      expected_revision: record.expected_active_revision,
+    });
     const physicalRegistration =
       readCanonicalProjectForPhysicalObservationV01(
           db,
@@ -1044,14 +1052,16 @@ export async function confirmLocalProjectOnboardingV01(db: Database.Database, in
       workspace_id: workspace.workspace_id, project_id: registration.project.project_id,
       external_ref: inspection.repository_ref,
     }, { now: () => now });
-    touchRecentProjectV01(db, { workspace_id: workspace.workspace_id, project_id: registration.project.project_id, now });
-    selectActiveProjectV01(db, {
-      workspace_id: workspace.workspace_id,
-      project_id: registration.project.project_id,
-      now,
-      expected_project_id: record.expected_active_project_id,
-      expected_revision: record.expected_active_revision,
-    });
+    if (readProjectOrganizationV01(db, { workspace_id: workspace.workspace_id, project_id: registration.project.project_id }).state === "working") {
+      touchRecentProjectV01(db, { workspace_id: workspace.workspace_id, project_id: registration.project.project_id, now });
+      selectActiveProjectV01(db, {
+        workspace_id: workspace.workspace_id,
+        project_id: registration.project.project_id,
+        now,
+        expected_project_id: record.expected_active_project_id,
+        expected_revision: record.expected_active_revision,
+      });
+    }
     const status: ProjectOnboardingConfirmationV01["status"] =
       registration.status === "inserted" ? "created" : "already_added";
     return {
@@ -1238,14 +1248,21 @@ export async function rebindLocalProjectRootFromSelectionV01(db: Database.Databa
     authorize_decision_inside_transaction:
       options.authorize_decision_inside_transaction,
     after_rebind_inside_transaction: () => {
-      touchRecentProjectV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id, now });
-      selectActiveProjectV01(db, {
+      assertProjectSelectionV01(db, {
         workspace_id: workspace.workspace_id,
-        project_id: input.project_id,
-        now,
         expected_project_id: record.expected_active_project_id,
         expected_revision: record.expected_active_revision,
       });
+      if (readProjectOrganizationV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id }).state === "working") {
+        touchRecentProjectV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id, now });
+        selectActiveProjectV01(db, {
+          workspace_id: workspace.workspace_id,
+          project_id: input.project_id,
+          now,
+          expected_project_id: record.expected_active_project_id,
+          expected_revision: record.expected_active_revision,
+        });
+      }
     },
   });
   return {
@@ -1370,6 +1387,7 @@ async function projectManagementEntry(db: Database.Database, scope: { workspace_
   // Capture database metadata before the asynchronous filesystem availability observation.
   const entry = {
     project: registration.project, local_root: registration.root_binding.local_root,
+    organization: readProjectOrganizationV01(db, scope),
     is_active: active?.project_id === scope.project_id,
     active_project_id: active?.project_id ?? null, active_selection_revision: active?.selection_revision ?? null,
     root_binding_fingerprint: fingerprintProjectRootBindingV01(registration.root_binding),
@@ -1382,23 +1400,32 @@ async function projectManagementEntry(db: Database.Database, scope: { workspace_
 
 /** Registered native projects, bounded to 20 entries from one identity snapshot.
  * Recency is list organization, not project existence or authority. */
-export async function listRegisteredProjectsV02(db: Database.Database, cursor: string | null): Promise<RegisteredProjectPageV02> {
+export async function listRegisteredProjectsV02(db: Database.Database, cursor: string | null, organizationScope: "all" | "working" | "archived" = "all"): Promise<RegisteredProjectPageV02> {
   const workspace = readDefaultWorkspaceIdentityV01(db);
   if (!workspace) {
     if (cursor !== null) throw new ProjectOnboardingErrorV01("selection_invalid", 400);
-    return { projects: [], next_cursor: null, complete: true };
+    return { projects: [], next_cursor: null, complete: true, organization_scope: organizationScope };
   }
   const nodeObservation = await inspectPhysicalRootForExecutionV01(db, path.dirname(path.resolve(db.name)));
   const snapshot = db.transaction(() => {
     const active = readProjectSelectionStateV02(db, workspace.workspace_id);
+    if (db.prepare(`SELECT 1 FROM vnext_project_identities p
+      LEFT JOIN vnext_project_root_bindings b USING(workspace_id, project_id)
+      LEFT JOIN vnext_project_organization o USING(workspace_id, project_id)
+      WHERE p.workspace_id=? AND (b.project_id IS NULL OR o.project_id IS NULL) LIMIT 1`).get(workspace.workspace_id)) {
+      throw new ProjectOnboardingErrorV01("project_discovery_incomplete",409);
+    }
+    const organizationRevision = readProjectOrganizationListRevisionV01(db, workspace.workspace_id);
     const maximum = (db.prepare("SELECT coalesce(max(rowid),0) AS n FROM vnext_project_identities WHERE workspace_id=?").get(workspace.workspace_id) as { n: number }).n;
     let upper = maximum, after = 0;
     if (cursor !== null) {
       let value;
       try { if (cursor.length > 1024 || !/^[A-Za-z0-9_-]+$/u.test(cursor)) throw new Error(); value=JSON.parse(Buffer.from(cursor,"base64url").toString("utf8")); } catch { throw new ProjectOnboardingErrorV01("selection_invalid",400); }
-      if (!value || Object.keys(value).sort().join() !== "after,selection,upper,workspace" ||
+      if (!value || Object.keys(value).sort().join() !== "after,organization,scope,selection,upper,workspace" ||
           value.workspace !== workspace.workspace_id || !Number.isSafeInteger(value.after) || !Number.isSafeInteger(value.upper) ||
           value.after < 0 || value.after >= value.upper || value.upper > maximum) throw new ProjectOnboardingErrorV01("selection_invalid",400);
+      if (value.scope !== organizationScope) throw new ProjectOnboardingErrorV01("selection_invalid",400);
+      if (value.organization !== organizationRevision) throw new ProjectOnboardingErrorV01("project_discovery_changed",409);
       if (value.selection !== (active?.selection_revision ?? null)) throw new ProjectLifecycleErrorV01("active_selection_conflict");
       upper=value.upper;after=value.after;
     }
@@ -1407,26 +1434,28 @@ export async function listRegisteredProjectsV02(db: Database.Database, cursor: s
     const result = db.prepare(`WITH page AS MATERIALIZED (
       SELECT p.rowid AS position,p.project_id,EXISTS(SELECT 1 FROM vnext_recent_projects r WHERE r.workspace_id=p.workspace_id AND r.project_id=p.project_id) AS in_recents
       FROM vnext_project_identities p JOIN vnext_project_root_bindings b USING(workspace_id,project_id)
-      WHERE p.workspace_id=? AND p.rowid>? AND p.rowid<=? ORDER BY p.rowid LIMIT 21
+      JOIN vnext_project_organization o USING(workspace_id,project_id)
+      WHERE p.workspace_id=? AND p.rowid>? AND p.rowid<=? AND (?='all' OR o.organization_state=?) ORDER BY p.rowid LIMIT 21
     ) SELECT 0 AS summary,position,project_id,in_recents,NULL AS n FROM page
       UNION ALL SELECT 1,NULL,NULL,NULL,count(*) FROM page ORDER BY summary DESC,position`)
-      .all(workspace.workspace_id,after,upper) as Array<{summary:number;position:number;project_id:string;in_recents:number;n:number}>;
+      .all(workspace.workspace_id,after,upper,organizationScope,organizationScope) as Array<{summary:number;position:number;project_id:string;in_recents:number;n:number}>;
     const [summary,...rows]=result;
     if (!summary || summary.summary!==1 || !Number.isSafeInteger(summary.n) || summary.n<0 || summary.n>21 ||
         summary.n!==rows.length || rows.some((r,i)=>r.summary!==0 || !Number.isSafeInteger(r.position) || r.position<=(rows[i-1]?.position ?? after) || r.position>upper || ![0,1].includes(r.in_recents))) {
       throw new ProjectOnboardingErrorV01("project_discovery_incomplete",409);
     }
-    return {active,upper,rows,projects:rows.slice(0,20).map(row=>({row,promise:projectManagementEntry(db,{workspace_id:workspace.workspace_id,project_id:row.project_id},active,nodeObservation)}))};
+    return {active,upper,organizationRevision,rows,projects:rows.slice(0,20).map(row=>({row,promise:projectManagementEntry(db,{workspace_id:workspace.workspace_id,project_id:row.project_id},active,nodeObservation)}))};
   })();
   const projects=await Promise.all(snapshot.projects.map(async({row,promise})=>({...await promise,in_recents:row.in_recents===1})));
   if ((readProjectSelectionStateV02(db,workspace.workspace_id)?.selection_revision ?? null)!==(snapshot.active?.selection_revision ?? null)) throw new ProjectLifecycleErrorV01("active_selection_conflict");
+  if (readProjectOrganizationListRevisionV01(db,workspace.workspace_id)!==snapshot.organizationRevision) throw new ProjectOnboardingErrorV01("project_discovery_changed",409);
   for (const project of projects) {
     const current=readCanonicalProjectWithRootV01(db,project.project);
     if (!current || JSON.stringify(current.project)!==JSON.stringify(project.project) || fingerprintProjectRootBindingV01(current.root_binding)!==project.root_binding_fingerprint) throw new ProjectOnboardingErrorV01("project_discovery_changed",409);
   }
-  const next_cursor=snapshot.rows.length>20 ? Buffer.from(JSON.stringify({workspace:workspace.workspace_id,upper:snapshot.upper,after:snapshot.rows[19]!.position,selection:snapshot.active?.selection_revision ?? null})).toString("base64url") : null;
+  const next_cursor=snapshot.rows.length>20 ? Buffer.from(JSON.stringify({workspace:workspace.workspace_id,upper:snapshot.upper,after:snapshot.rows[19]!.position,selection:snapshot.active?.selection_revision ?? null,organization:snapshot.organizationRevision,scope:organizationScope})).toString("base64url") : null;
   if (Buffer.byteLength(JSON.stringify(projects), "utf8") > 1024 * 1024) throw new ProjectOnboardingErrorV01("project_discovery_incomplete",409);
-  return {projects,next_cursor,complete:next_cursor===null};
+  return {projects,next_cursor,complete:next_cursor===null,organization_scope:organizationScope};
 }
 
 export async function readRootAvailabilityV01(root: string): Promise<ProjectRootAvailabilityV01> {
@@ -1454,6 +1483,7 @@ export async function openRecentProjectV01(db: Database.Database, input: {
   }
   const now = input.now ?? new Date().toISOString();
   return db.transaction(() => {
+    if (readProjectOrganizationV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id }).state === "archived") throw new ProjectLifecycleErrorV01("project_archived");
     touchRecentProjectV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id, now });
     const selection = selectActiveProjectV01(db, {
       workspace_id: workspace.workspace_id,
@@ -1489,6 +1519,8 @@ export async function readProjectDestinationV01(db: Database.Database, projectId
   if (!registration) return null;
   return {
     ...registration,
+    organization: readProjectOrganizationV01(db, { workspace_id: workspace.workspace_id, project_id: projectId }),
+    selection_state: readProjectSelectionStateV02(db, workspace.workspace_id),
     external_refs: listProjectExternalRefsV01(db, { workspace_id: workspace.workspace_id, project_id: projectId }),
     active_selection: readActiveProjectSelectionV01(db, workspace.workspace_id),
     root_availability: await readRootAvailabilityV01(registration.root_binding.local_root.normalized_path),

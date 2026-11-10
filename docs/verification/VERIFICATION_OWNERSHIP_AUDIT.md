@@ -5,6 +5,42 @@ Audit baseline: `22c0433d245da7e9357e7f6a50c7e6e0f31902cb` in
 protocol, research-sequencing, or execution-authority owner. Final exact-head
 execution evidence belongs in the accompanying Draft PR and local receipt.
 
+## Documentation accompanying Full Browser ownership (#1602)
+
+This bounded follow-up uses main
+`2d8e82164e4c2357020e64bcaa79024d0c0f9f74` as its intake baseline. The existing
+planner completes documentation responsibility classification, but its Full
+branch then passes every raw changed path to the separate Browser selector.
+A synthetic native-host credential change selects Full with its one Browser
+owner; adding an admitted ordinary document makes the unchanged selector return
+all seven Browser phases. The same new regression test fails against the intake
+planner at that exact comparison. This is observed excess selection, not a
+measured wall-time or throughput improvement.
+
+The correction excludes only final `documentation` and `policy-documentation`
+classifications from that Full Browser input. Existing exact-base/head literal
+and dynamic consumer checks, file modes, registered responsibilities, and
+disposition checks still decide admission. Unknown or unsafe documents and
+executable consumers not covered by an admitted responsibility in either tree
+retain conservative selection. The raw path-only selector gains no documentation
+exemption.
+
+Regression coverage includes ordinary and registered documents, retained static
+checks and review metadata, multiple Browser owners and composition/golden
+coverage, base/head consumers, unknown/shared source, self-change, unproven
+deletion, nested instructions, executable mode, and symlinks. Full still runs
+the same nine non-Browser phases; explicit Full and main push retain all seven
+Browser phases. No phase definition, timeout, capacity slot, receipt, attempt
+allowance, or qualification provenance changes. This verification-machinery
+change itself remains Full with all seven Browser phases. Focused Cloud results
+are development evidence; actual Mac exact-head qualification is reported
+separately in the Draft PR.
+
+Next decision: retain this bounded fix if the regression and independent review
+confirm those boundaries, then obtain the existing exact-head Mac qualification.
+Reverting the planner change restores the former selection; no product state or
+data migration is involved.
+
 ## Audited independent research registration (#1430)
 
 Intake main: `52f8b278bad5ddd8c261af127dca712cdd8da925`, tree
@@ -202,6 +238,67 @@ listeners remain with the enclosing cleanup owner. Focused deterministic and
 real-loopback settlement controls reuse the registered preferred-port test;
 intentional packaged-runtime collision tests remain intact. Constructed high-port
 schedules establish a mechanism, not the unrecorded original OS assignments.
+
+## Same-name Markdown consumer screening (#1481)
+
+The planner retains full-path and basename screening over both exact Git trees.
+For a regular Markdown consumer, it may discharge only destination occurrences
+in plain inline relative links at text boundaries to a different regular tracked
+Markdown file.
+Initial `./` and `../` segments resolve from the consumer's own directory;
+internal parent traversal, missing targets, case aliases and unsafe modes do not
+establish another target. Labels, front matter and all residual basename mentions
+remain consumer evidence. A harmless link cannot suppress a second occurrence.
+
+This is a bounded disambiguation, not a general Markdown parser. Code, math,
+escapes, HTML, link-shaped URL substrings, nested/reference-style links, titles,
+fragments, queries, encoded paths and other unsupported syntax retain conservative
+screening. The broader existing
+destination extractor and exact-tree path/anchor validator remain unchanged, as
+do delegated instructions, dynamic/package readers and target-bound registrations.
+
+Context screening covers the entire source before separating an initial
+delimiter prefix: arbitrary Markdown does not establish YAML front matter, and
+that prefix may contain an opening code fence or HTML comment. Tabs and list
+markers with five or more following spaces remain unsupported, including nested
+markers. Ordinary plain links, normal list padding and simple front-matter cases
+remain eligible.
+
+In #1480's recorded comparison, the skill's bundled method link resolves away
+from the Web README. A candidate-planner replay clears that edge but still selects
+Full for the bundled README's residual bare `README.md` mention. The original
+classification remains historical evidence; this replay does not replace its
+qualification or establish runtime savings. This planner change itself requires
+Full Canonical under the unchanged integrity self-change rule.
+
+### Checkpoint fixture readiness continuation (#1481 / #1482)
+
+The `c53c2de2` Full run failed at the first startup-ready JSON parse, before
+checkpoint work assertions. The fixture was byte-identical to its base. Its
+writer opened the final path directly; the reader treated existence as complete
+publication. Controlled schedules demonstrate an empty final file during a held
+write and after interrupted publication. The original file bytes were not
+retained, so the historical cause remains unknown; these controls are not a
+reconstruction or a retry of that failed deciding candidate.
+
+The fixture's private readiness helper now writes a create-only staging file,
+closes it, then renames it within the same directory. The reader inspects only
+the final file and parses it once, requiring the expected child PID, fresh
+attempt nonce and exact loopback origin. A malformed completed notification is
+a terminal failure. Startup exit, spawn failure, incomplete publication and
+timeout retain bounded settlement and local stderr/publication diagnostics.
+Failed server startup closes its tracked server and restores its network guard;
+it does not leave a live server behind an exit code.
+
+The existing `--observation-checkpoint` test owner runs deterministic publication,
+attribution and terminal-failure controls, plus a real-server publication-failure
+control and the original authenticated two-process checkpoint acceptance. The
+10-second startup bound, 60-second child bound, natural-exit requirement, phase
+inventory and shared lifecycle/cleanup owners are unchanged. This fixture repair
+changes no product checkpoint, persistence, authentication or Core semantics.
+The accepted Markdown correction and its 240 planner cases remain intact. A new
+candidate still requires its own Full Canonical and separate receipt validation;
+earlier receipts, including the failed `c53c2de2` receipt, do not transfer.
 
 ## Audited roadmap reference consumer (#1342)
 

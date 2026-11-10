@@ -403,8 +403,8 @@ for (const retiredCommand of [
     `retired PR-comment publication command must remain absent: ${retiredCommand}`,
   );
 }
-assert.equal(nodeVersionMarker, "24.18.0");
-assert.equal(packageJson.engines.node, "^22.0.0 || ^24.0.0");
+assert.equal(nodeVersionMarker, "24.22.1");
+assert.equal(packageJson.engines.node, "^22.23.4 || ^24.22.1");
 assert.equal(packageJson.engines.npm, ">=10 <12");
 assert.match(gitignore, /^\/next-env\.d\.ts$/mu);
 assert.equal(
@@ -454,8 +454,8 @@ for (const fragment of [
   `AUTHORIZED_REPOSITORY_ID =`,
   `AUTHORIZED_ORIGIN_URL =`,
   `matchCanonicalRepositoryIdentity`,
-  `CANONICAL_NODE_VERSION = "24.18.0"`,
-  `CANONICAL_NODE_COMPATIBILITY = "^22.0.0 || ^24.0.0"`,
+  `CANONICAL_NODE_VERSION = "24.22.1"`,
+  `CANONICAL_NODE_COMPATIBILITY = SUPPORTED_NODE_RANGE`,
   `missing_\${safeLabel(label)}_commit`,
   `ensureBoundedLocalDirectory`,
   `unsafe_local_artifact_directory`,
@@ -759,6 +759,26 @@ const isolatedChild = canonicalSuite.slice(isolatedChildStart, canonicalSuite.in
 for (const fragment of ['timeoutMs: 30_000', 'requireNaturalExit: true', '"scripts/test-local-canonical-isolation.mjs"'])
   requireText(isolatedChild, fragment, "isolated verification has a bounded authority child and complete cleanup");
 
+const revisionSteps = canonicalSuite.slice(canonicalSuite.indexOf("const reviewedRevisionSteps ="), canonicalSuite.indexOf("const suites ="));
+for (const fragment of ['["revision", "settlement", "browser", "git", "git-input", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation"].map(group', '"--reviewed-revision-controls", group',
+  'timeoutMs: 30_000', 'requireNaturalExit: true'])
+  requireText(revisionSteps, fragment, "each reviewed fixture group has its own bounded natural-exit registration");
+assert.equal(countOccurrences(canonicalSuite, "...reviewedRevisionSteps,"), 1);
+assert.equal(countOccurrences(canonicalSuite, '"--reviewed-revision-controls"'), 1);
+assert.doesNotMatch(canonicalSuite, /--operating-profile-succession-controls/u);
+for (const route of ["operating-profile-succession", "successor-budget-succession"]) {
+  for (const prefix of ["scripts/", "scripts/fixtures/"])
+    assert.equal(existsSync(path.join(repositoryRoot, `${prefix}local-canonical-${route}.mjs`)), false,
+      "completed controllers and dedicated fixtures stay retired; Git is the source archive");
+  assert(!localExecutor.includes(`"scripts/local-canonical-${route}.mjs"`), "executor inventory has no deleted owner");
+}
+requireText(localPolicy, "df920cd3f5c35774ad2743500a6f3657e4ecb95e", "retired mixed history has a pinned Git reading path");
+requireText(localPolicy, "qualification_route_retired", "current mixed-chain refusal is explicit");
+requireText(localPolicy, "d72c0f3dc5b224c02a44033d9ed83eb3eb5af3fb", "completed workload history has a pinned reader");
+for (const name of ["authority-scope", "reviewed-workload", "post-terminal"])
+  assert.equal(existsSync(path.join(repositoryRoot, `scripts/fixtures/local-canonical-${name}.mjs`)), false,
+    "completed workload controllers and the unregistered scope probe remain in Git history");
+
 for (const retiredPath of [
   ".github/LOCAL_CANONICAL_PR_EVIDENCE.md",
   "scripts/local-canonical-pr-evidence.mjs",
@@ -800,9 +820,6 @@ for (const fragment of [
   );
 }
 for (const forbiddenTransportFragment of [
-  "/pulls",
-  "/issues",
-  "/comments",
   "--input",
   `"POST"`,
   `"PATCH"`,
@@ -814,6 +831,9 @@ for (const forbiddenTransportFragment of [
     `read-only GitHub transport must not contain ${forbiddenTransportFragment}`,
   );
 }
+const mainOnlyTransport = githubMainBranchTransport.slice(githubMainBranchTransport.indexOf("export function createGitHubMainBranchTransport"), githubMainBranchTransport.indexOf("export function createGitHubObserverAuthorizationTransport"));
+assert.doesNotMatch(mainOnlyTransport, /pulls|issues|comments/iu);
+for (const route of ["pulls/${pullRequest}/reviews/", "issues/comments/", "collaborators/"]) requireText(githubMainBranchTransport, route, "bounded authority GET route missing");
 assert.doesNotMatch(
   githubMainBranchTransport,
   /GITHUB_TOKEN|GH_TOKEN|auth status|credential/iu,
@@ -1115,6 +1135,7 @@ const integrationChildren = [
   "codex-rolling-stable-candidate",
   "codex-production-runtime",
   "codex-managed-runtime-store",
+  "native-host-execution-boundary",
   "codex-sandbox-projection",
   "codex-isolated-auth-projection",
   "codex-isolated-auth-rollback-lifecycle",
@@ -1144,8 +1165,18 @@ const integrationChildren = [
   "retry-inspection-outlook",
   "companion-experience-use",
   "external-response",
+  "external-response-selective",
+  "selected-source-retrieval",
+  "web-export-native",
   "execution-choice",
+  "manual-contribution",
+  "operating-profile-contribution",
+  "native-method-use",
+  "profile-task-continuation",
+  "manual-contribution-successor",
+  "late-review",
   "request-bound-review",
+  "companion-result-successor",
   "companion-method-outlook",
   "pre-execution-support-material",
   "native-selected-source-budget",
@@ -1231,6 +1262,15 @@ const selectionReconstruction = readCanonicalChildRegistration(integrationSource
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 1_200_000', 'requireNaturalExit: true', '"--selection-profile"', '"process-owning"'])
   requireText(selectionReconstruction.block, fragment, "prospective RC1 has one bounded observation and recovery owner");
 const webPlanningRegistration = readCanonicalChildRegistration(integrationSource, "web-planning-d1");
+const profileContributionRegistration = readCanonicalChildRegistration(integrationSource, "operating-profile-contribution");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 150_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-operating-profile-contribution.ts"'])
+  requireText(profileContributionRegistration.block, fragment, "profile contribution retains one bounded persistence and process owner");
+const profileContinuationRegistration = readCanonicalChildRegistration(integrationSource, "profile-task-continuation");
+const nativeMethodRegistration = readCanonicalChildRegistration(integrationSource, "native-method-use");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 150_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-native-method-use.ts"'])
+  requireText(nativeMethodRegistration.block, fragment, "cross-project method use retains bounded native owners and process settlement");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 150_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-profile-task-continuation.ts"'])
+  requireText(profileContinuationRegistration.block, fragment, "cross-task continuation retains bounded ordinary writers and process ownership");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 120_000', 'requireNaturalExit: true', '"scripts/test-web-planning.mjs"', '"backup-restore"'])
   requireText(webPlanningRegistration.block, fragment, "web planning D1 retains one bounded storage and recovery owner");
 for (const id of ["project-work-initialization", "project-work-expectation", "project-work-scoped-host"]) {
@@ -1264,6 +1304,9 @@ const retryInspectionRegistration = readCanonicalChildRegistration(integrationSo
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"process-owning"', '"--retry-inspection-only"'])
   requireText(retryInspectionRegistration.block, fragment, "retry-inspection outlook retains one bounded native consumer and successor owner");
 const companionOutlookRegistration = readCanonicalChildRegistration(integrationSource, "companion-method-outlook");
+const companionResultRegistration = readCanonicalChildRegistration(integrationSource, "companion-result-successor");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 60_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-companion-result-successor.ts"'])
+  requireText(companionResultRegistration.block, fragment, "result-linked successor retains its bounded authenticated route and fresh-process consumer owner");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"process-owning"', '"mutable-module-state"', '"scripts/test-companion-method-outlook.ts"'])
   requireText(companionOutlookRegistration.block, fragment, "ordinary outlook feedback retains one bounded authenticated consumer owner");
 for (const [id, script] of [
@@ -1285,7 +1328,16 @@ for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requ
 const externalResponseRegistration = readCanonicalChildRegistration(integrationSource, "external-response");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 90_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-external-response.ts"'])
   requireText(externalResponseRegistration.block, fragment, "external response owns disposable stores, loopback service, fresh file consumers and recovery settlement");
+const selectiveResponseRegistration = readCanonicalChildRegistration(integrationSource, "external-response-selective");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 90_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '...rootNode("scripts/test-external-response-selective.ts")'])
+  requireText(selectiveResponseRegistration.block, fragment, "selective response owns disposable stores, loopback service, fresh correction consumers and natural-exit recovery settlement");
+const selectedSourceRegistration = readCanonicalChildRegistration(integrationSource, "selected-source-retrieval");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 90_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"mutable-module-state"', '...rootNode("scripts/test-selected-source-retrieval.ts")'])
+  requireText(selectedSourceRegistration.block, fragment, "selected source retrieval owns disposable stores, complete context, fresh file consumers and natural-exit recovery settlement");
 const requestReviewRegistration = readCanonicalChildRegistration(integrationSource, "request-bound-review");
+const webExportNativeRegistration = readCanonicalChildRegistration(integrationSource, "web-export-native");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 120_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"backup-restore"', '...rootNode("scripts/test-web-export-native.mjs")'])
+  requireText(webExportNativeRegistration.block, fragment, "Web export admission owns D1, native stores, loopback ingress, fresh consumers and supported backup recovery");
 const executionChoiceRegistration = readCanonicalChildRegistration(integrationSource, "execution-choice");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-execution-choice.ts"'])
   requireText(executionChoiceRegistration.block, fragment, "execution choice owns disposable state, exact materials, downstream artifact and fresh-process readback");
@@ -1339,7 +1391,7 @@ for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 45_000', '"pro
 assert.equal(countOccurrences(firstWorkFixture, 'await assertPersistedScopedContinuationV01(["handoff"]);'), 1,
   "the handoff profile must run once without extending the legacy continuation child");
 const expiredSuccessorRegistration = readCanonicalChildRegistration(integrationSource, "settled-expired-successor");
-for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', '"process-owning"', '"--settled-expired-successor-only"'])
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 45_000', '"process-owning"', '"--settled-expired-successor-only"'])
   requireText(expiredSuccessorRegistration.block, fragment, "expired successor uses the existing bounded serial owner");
 assert.equal(countOccurrences(firstWorkFixture, 'await assertPersistedScopedContinuationV01(["settled_expired"]);'), 1);
 const expiredRefusalRegistration = readCanonicalChildRegistration(integrationSource, "settled-expired-successor-refusals");
@@ -1351,7 +1403,7 @@ for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 45_000', '"pro
   requireText(continuationRegistration.block, fragment, "persisted continuation must retain bounded serial ownership");
 assert.equal(countOccurrences(firstWorkFixture, "await assertPersistedScopedContinuationV01();"), 1,
   "persisted continuation cases run once through their complete child");
-requireText(canonicalSuite, `coverage: projectWorkFocus ? "focused_project_work_children_only" : "complete_suite"`,
+requireText(canonicalSuite, `coverage: projectWorkFocus ? "focused_project_work_children_only" : revisionFocus ? "focused_reviewed_revision_children_only" : "complete_suite"`,
   "focused children cannot impersonate a complete suite");
 const qualifiedRuntimeRegistryRegistration = readCanonicalChildRegistration(
   integrationSource,
@@ -1605,7 +1657,7 @@ for (const fragment of [
   `"build:native:windows-identity"`,
   `generatedWindowsHelperRoot`,
   `generated_windows_helper`,
-  `browserExecutablePath: phase.browser ? browserExecutablePath : null`,
+  `buildLocalPhaseEnvironment(process.env, {\n    browserExecutablePath,`,
   `environment.AUGNES_BROWSER_EXECUTABLE_PATH = browserExecutablePath`,
 ]) {
   requireText(

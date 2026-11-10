@@ -466,7 +466,7 @@ export function issueVNextLocalOperatorBootstrapV01(
   );
   const expiresAt = addMilliseconds(now, ttl);
   const source = input.secret_source ?? SYSTEM_SECRET_SOURCE;
-  const sessionId = `${SESSION_ID_PREFIX}${randomBase64Url(source, 16)}`;
+  const sessionId = `${SESSION_ID_PREFIX}${randomSessionIdSuffix(source)}`;
   const bootstrapToken = [
     BOOTSTRAP_TOKEN_PREFIX,
     sessionId,
@@ -685,7 +685,7 @@ export function issueVNextRecoveryRepositoryDecisionSessionV01(
   }
 
   const source = input.secret_source ?? SYSTEM_SECRET_SOURCE;
-  const sessionId = `${RECOVERY_SESSION_ID_PREFIX}${randomBase64Url(source, 16)}`;
+  const sessionId = `${RECOVERY_SESSION_ID_PREFIX}${randomSessionIdSuffix(source)}`;
   const credential: VNextLocalOperatorSessionCredentialV01 = {
     session_id: sessionId,
     session_secret: randomBase64Url(source, 32),
@@ -1072,7 +1072,7 @@ export function recordCompanionWorkAdmissionInsideTransactionV01(
     !requiredCanonicalId(input.project_id) || parseStrictIsoTimestampV01(input.observed_at) === null) {
     throw sessionError("operator_session_conflict", 409);
   }
-  const sessionId = `${COMPANION_WORK_SESSION_ID_PREFIX}${randomBase64Url(SYSTEM_SECRET_SOURCE, 16)}`;
+  const sessionId = `${COMPANION_WORK_SESSION_ID_PREFIX}${randomSessionIdSuffix(SYSTEM_SECRET_SOURCE)}`;
   const unissued = (purpose: string) => credentialHash(`companion-work-unissued-${purpose}`, sessionId);
   db.prepare(`INSERT INTO vnext_local_operator_sessions (
     session_id, workspace_id, project_id, operator_id, bootstrap_token_hash,
@@ -2068,6 +2068,16 @@ function safeDigestEqual(left: string, right: string): boolean {
     Buffer.from(left.slice(7), "hex"),
     Buffer.from(right.slice(7), "hex"),
   );
+}
+
+// Session IDs become public provenance. Hex preserves all 128 random bits while
+// avoiding credential-shaped substrings; actual credential secrets stay base64url.
+function randomSessionIdSuffix(source: VNextLocalOperatorSecretSourceV01): string {
+  const bytes = source.bytes(16);
+  if (!(bytes instanceof Uint8Array) || bytes.byteLength !== 16) {
+    throw sessionError("operator_session_conflict", 500);
+  }
+  return Buffer.from(bytes).toString("hex");
 }
 
 function randomBase64Url(
