@@ -1360,7 +1360,9 @@ observed historical prefix. The final focused capture must pass naturally.
 The exact accepted external-response test bytes are restored after diagnostic
 capture. No other suite registration or parent executor can change between
 measurement and final capture, apart from the selected deadline and separately
-reviewed evidence owners. Changes outside that closure must match adopted main.
+reviewed evidence owners. Before measurement, changes outside that closure
+must match adopted main entries or reproduce a conflict-free three-way merge
+of regular blobs from the accepted source, common ancestor and adopted main.
 A later adopted prose-only main delta may carry forward the original measurement
 without relabeling it. Execution changes require a new measurement. The final
 focused capture and preparation still bind the complete current target.

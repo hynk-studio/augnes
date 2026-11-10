@@ -77,6 +77,25 @@ assert.throws(() => verifyIntegrationBudgetAdoptedEntries(unusualEntry,renamedEn
   new Map([...unusualEntry,...renamedEntry]),new Set()), /revision_fixture_budget_invalid/u);
 assert.throws(() => verifyIntegrationBudgetAdoptedEntries(unusualEntry,
   new Map([[quotedPath,{...blob,mode:"100755"}]]),unusualEntry,new Set()), /revision_fixture_budget_invalid/u);
+const ancestorEntry = new Map([[quotedPath,{...blob,oid:"2".repeat(40)}]]);
+const adoptedEntry = new Map([[quotedPath,{...blob,oid:"3".repeat(40)}]]);
+const integratedEntry = new Map([[quotedPath,{...blob,oid:"4".repeat(40)}]]);
+const observedMerge = args => {
+  if (args[0] === "merge-file") {
+    assert.deepEqual(args,["merge-file","--stdout","--object-id",blob.oid,ancestorEntry.get(quotedPath).oid,adoptedEntry.get(quotedPath).oid]);
+    return Buffer.from("accepted changes and adopted changes\n");
+  }
+  assert.equal(args[0],"cat-file");
+  return Buffer.from(args[2] === integratedEntry.get(quotedPath).oid ? "accepted changes and adopted changes\n" : "extra changes\n");
+};
+const mergeInputs = {ancestor:ancestorEntry,git:observedMerge};
+verifyIntegrationBudgetAdoptedEntries(unusualEntry,integratedEntry,adoptedEntry,new Set(),mergeInputs);
+for (const [candidate,main,inputs] of [
+  [new Map([[quotedPath,{...blob,oid:"5".repeat(40)}]]),adoptedEntry,mergeInputs],
+  [integratedEntry,ancestorEntry,mergeInputs],
+  [new Map([[quotedPath,{...integratedEntry.get(quotedPath),mode:"100755"}]]),adoptedEntry,mergeInputs],
+  [integratedEntry,adoptedEntry,{...mergeInputs,git:()=>{throw new Error("conflict");}}],
+]) assert.throws(() => verifyIntegrationBudgetAdoptedEntries(unusualEntry,candidate,main,new Set(),inputs), /revision_fixture_budget_invalid/u);
 
 // Binding-only fixtures. The production authentication owner separately
 // verifies maintainer identity, publication, chronology and the physical tip.
