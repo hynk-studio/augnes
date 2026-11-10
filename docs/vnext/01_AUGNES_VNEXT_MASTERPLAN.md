@@ -96,6 +96,10 @@ competence, chosen response and attributable result remain distinguishable.
 A permitted response must be able to execute, incorporate actual feedback, deliver
 usable material and support unfinished work after replacement of the executor.
 Prepared records alone do not establish that capability.
+External availability, versions and deadlines also matter without an agent or
+an inferred hostile intention. User-directed capability need not first establish
+economic superiority or full autonomy; broader/default operation still requires
+its own justified decision.
 
 Correction preserves earlier observations at their original basis and supports
 selective reconsideration of affected current work. Independent results remain
@@ -103,8 +107,8 @@ usable within their actual scope; new information can justify retaining an actio
 Logical closure does not settle unknown external effects or revoke credentials.
 The [local increment](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#current-p3p4p5--local-external-response-continuity-1453)
 is bounded by [02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#scoped-external-response-adapter-1453).
-It is consistent with the prospective external-response direction in planning
-PR #1454; it adds executable capability, without making a universal organization
+It realizes a bounded part of the external-response direction in
+[PR #1454](https://github.com/hynk-studio/augnes/pull/1454), without making a universal organization
 engine, reputation network or autonomous operation a prerequisite. Capability,
 intervention effect, comparative usefulness and autonomy remain separate claims
 under [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#local-external-response-evidence-1453).

@@ -1206,6 +1206,56 @@ simplify, revise or stop decision, not general superiority or equivalence.
 Preserve #1459's fixed-history tie/SIMPLIFY and #1447's supplied-entry evidence;
 neither is retrospectively an active-selection test.
 
+For an authorized later execution-context-change question, retain historical
+observations with their original tool/executor, conditions and judgment-time
+basis; bind revised predictions and applicability to their current basis. Use
+one consequential change and an appropriate unchanged-use contrast within the
+chosen task. A version label alone neither proves semantic incompatibility nor
+licenses transfer. Missing compatibility evidence remains unknown; preserve
+failure/conflict evidence and still-applicable uses. Reassessment may justify
+retention, a useful observation, changed execution or non-use.
+
+Inspect the resulting later output and actual reassessment burden against the
+same capable adaptive memo/code alternative. Separate effects of a stronger
+executor or changed tool from effects of the experience-update procedure. The
+deterministic case needs no invented probabilities; an empirical probability or
+cost-calibration claim needs observations beyond a single successful outcome.
+Preserve #1465's tie/SIMPLIFY and original allocation. These criteria apply only
+to the conditional follow-up in 03, not retrospectively or as a new release gate.
+
+### Research-informed method formation
+
+For the [conditional research-informed refinement](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#conditional-follow-up--research-informed-method-formation),
+distinguish a supplied research source, consumer discovery/selection, local
+adaptation, actual method use and Augnes's incremental continuity contribution.
+Using a supplied paper can demonstrate adaptation; it does not by itself
+establish autonomous discovery. A source author's claim is a candidate rationale;
+local checked outcomes test the adapted method under observed conditions.
+Record what the research changed in the explanation, prediction or action and
+what the successor actually used, revised or declined. Preserve the source and
+observations when changing the current applicability judgment.
+
+Use the [strong-comparison rules](#strong-comparisons-and-independence): the
+capable ordinary memo/code reference has the same source access and information
+cutoffs and may select research, construct and revise methods, and retain useful
+assets within comparable total resources. A research-selection
+intervention may yield different papers; hold useful sources/assets materially
+equivalent when isolating a representation or transfer contribution. Added
+research information or a better prepared asset is not by itself an Augnes
+continuity effect. Choose the smallest contrast needed
+for the claim, accounting for formation and later use under [total burden](#cost-and-user-burden).
+Keep publication time, actual source availability and local trial time distinct
+where they affect interpretation; later information cannot repair the historical
+knowledge basis retroactively.
+
+When a claimed improvement combines materially interacting changes, observe
+their relevant joint behavior rather than infer it from standalone gains.
+Neither topic diversity nor interface separation establishes independence.
+These distinctions add no fixed candidate count, factorial campaign or live-run
+requirement to an existing assignment. Preserve historical ties/SIMPLIFY and
+report method availability, actual successor outcome and comparative benefit
+separately.
+
 ### Public asset entry and later consumer (#1447)
 
 The [declared public-question case and successor](../PUBLIC_ASSET_SKILL_USAGE.md#candidate-and-intended-observation)
@@ -1545,6 +1595,34 @@ The [later accepted closure and user merge of #1534](https://github.com/hynk-stu
 retained this small documented composition and regression. Earlier review-pending
 language and failed qualification remain historical; acceptance did not launch
 a participant or usefulness study or close the broader #1532 issue.
+
+### External-response capability, effect, usefulness and autonomy
+
+For [#1453](https://github.com/hynk-studio/augnes/issues/1453), keep four
+questions separate when evaluating a concrete permitted response:
+
+| Axis | Required observation |
+|---|---|
+| Capability | A response actually executes, relevant feedback informs a justified next action, and scoped experience/commitments survive later reconstruction and correction. |
+| Intervention effect | A credible comparison supports attributing a counterpart/environment change to the intervention, beyond temporal order or the counterpart's own report. |
+| Comparative usefulness | Quality, tractable task range or another stated user outcome improves against a strong alternative after relevant costs and risks. |
+| Autonomy | The actual human/model/host contributions and further intervention needed within the current delegation are observed. |
+
+User-directed use can establish capability without full autonomy; negative
+utility does not erase demonstrated control. A prepared proposal or safe stop
+does not establish successful delivery/use. Use a feedback case where a changed
+action is justified and a control where retention is correct; two project needs
+must be genuinely distinct for a cross-project claim. Preserve independent
+results when a relevant correction changes a dependent current judgment.
+
+Source/mechanism checks, actual human/model use and independently operated field
+observations retain their distinct scope. Nonresponsive payloads or unavailable
+observations cannot demonstrate negotiation or unchanged external state. Apply
+the existing strong-comparison and total-burden rules, including comparable
+tools, actuators, permissions and aggregate budgets. Capability admission need
+not wait for positive usefulness; broader/default operation and further
+investment still require their own justified decision. These are evaluation
+criteria, not a new study allocation or revision of the recorded outcomes below.
 
 ### Local external-response evidence (#1453)
 

@@ -290,8 +290,9 @@ The unchanged-condition control keeps the original action. An interrupted B
 successor queries the same receipt and continues without repeating processing.
 
 This is an additive local capability under the current implementation assignment.
-Planning PR #1454's prospective product/evidence meaning is preserved; its
-unmerged branch is not this candidate's integration base or runtime evidence.
+The broader product/evidence direction from
+[PR #1454](https://github.com/hynk-studio/augnes/pull/1454) remains prospective
+beyond the local capability described here; planning acceptance is not runtime evidence.
 01 adds the shared product meaning, 02 owns the concrete adapter contract, and
 04 keeps source correctness separate from model judgment/effect/usefulness.
 Neither a shared store alone nor a safe stop completes the positive delivery path.
@@ -1691,7 +1692,7 @@ the existing unit resource owner, with the old HTTP delivery and solver tests
 retained. [PR #1451](https://github.com/hynk-studio/augnes/pull/1451) records the
 source delivery; its actual host/catalog/activation and native consumer
 observations, exact candidate qualification and cleanup retain their own scope.
-A local catalog does not establish a public listing; a Draft branch does not
+A local catalog does not establish a public listing; a source merge does not
 establish a stable release. Separate explicit authority is needed for release,
 public-directory submission or changes to an installed user profile. If those
 operational steps remain pending, the overall distribution objective stays open.
@@ -1979,6 +1980,12 @@ cover them. No automatic product adoption or next research topic follows.
 
 ### Current contained research — Chosen observations and productive actions (#1464)
 
+The first bounded source increment merged through [#1465](https://github.com/hynk-studio/augnes/pull/1465)
+on 2026-10-16 at `073c6516e4f1694c1236950fa63659031a0e0d08`.
+The commissioned #1464 work later closed as COMPLETED on 2026-10-23 after
+[#1528](https://github.com/hynk-studio/augnes/pull/1528). Its scoped
+**tie / SIMPLIFY** and later RETAIN/ENDED findings below remain unchanged.
+
 The [commissioned #1464 task](https://github.com/hynk-studio/augnes/issues/1464#issuecomment-6190899064)
 implements the post-r1 capability question: permitted history → conditional
 model → chosen observation/productive action → actual result → method revision
@@ -2056,6 +2063,56 @@ establish consumer investigation, learning, successor asset use, comparative
 advantage or normal product integration. No model consumers or route-control
 budget is commissioned. Retain the discriminating regression case and end the
 comparative branch absent a concrete useful intervention beyond ordinary memo/code.
+
+#### Conditional follow-up — Predictions after execution-context change
+
+The 2026-10-16 review of [Terminal-RSI, section 2.1](https://arxiv.org/abs/2610.22192v1)
+suggests retaining observed experience while revisiting outcome/cost predictions
+when the executor, tool or relevant condition changes. This is an Augnes design
+hypothesis; the paper does not isolate critic inheritance's causal benefit.
+The current [method](../../scripts/active-observation-study/method.mjs) preserves
+conflicting observations and returns unknown for a different tool scope. That
+honest boundary is not a demonstrated defect or evidence of cross-tool learning.
+
+Reconsider this scoped candidate when a concrete later task needs a prediction
+under changed conditions. Inspect existing experience/use owners first and select
+the smallest needed capability; retain ordinary adaptive memo/code if sufficient.
+A justified follow-up would preserve historical observations,
+use permitted new evidence to revise the affected prediction or applicability,
+and carry that revision into actual later work while retaining unaffected uses.
+Apply the [bounded evidence guidance](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#active-observation-and-productive-action-selection-1464).
+This conditional question stays under the broader P3/P4/P5 owners. It starts
+no experiment, reopens neither closed #1464 nor #1465's study, and does not
+expand #1468/#1471's retrieval implementation. It requires no new critic, training
+pipeline, global store or calibration service.
+
+#### Conditional follow-up — Research-informed method formation
+
+The completed explanation-forming and software-compatibility work under
+[#1464](https://github.com/hynk-studio/augnes/issues/1464) retains its closed
+ACCEPTED / ENDED / SIMPLIFY and regression-case RETAIN dispositions above.
+A distinct later task under the broader P3/P4/P5 owners may still need a missing
+explanation or executable method. [ScholarEvolve v1](https://arxiv.org/abs/2609.40169v1),
+especially sections 3.2.4–3.4, motivates considering external research when it can
+answer that concrete need. This is an Augnes application hypothesis, not an
+inherited benchmark result or a reproduction commitment.
+
+A concrete capability opportunity or anticipated task-condition change may
+justify this exploration before an observed failure. Start with current source
+and ordinary notes/code; use research when it can change a useful method or
+discriminating observation. Retain the source mechanism, assumptions and version
+separately from local adaptations, the pre-action prediction and actual result.
+Carry the usable method and its supported or unresolved conditions into a distinct
+successor task; qualify outcomes to the implementation and relevant conditions
+rather than label an entire paper successful or failed. Apply
+[04's attribution guidance](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#research-informed-method-formation).
+
+This optional method does not reopen #1464, assign a successor to its ended
+comparisons, reuse historical allocations or change Current/Next priorities.
+Literature retrieval and research-guided method generation are optional means,
+not new completion gates or mandatory per-paper implementations. No new study
+allocation, Core schema, population/crossover platform or recurring research
+service is introduced; automation needs a concrete consumer or repeated burden.
 
 <a id="current-contained-research--exact-file-identity-and-successor-reconciliation-1526"></a>
 
