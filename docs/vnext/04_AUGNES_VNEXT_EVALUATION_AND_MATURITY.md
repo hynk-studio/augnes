@@ -2864,6 +2864,23 @@ simpler selector being sufficient is a successful research disposition.
 The prior P4.6 result above is preserved, not
 reopened or generalized into a verdict on this unexecuted hypothesis.
 
+For the [SwarmEvolve-motivated task-local search question](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#research--goal-directed-recombination-and-candidate-paths-1214),
+select only the contrasts needed for the claim: strong direct/adaptive-memo
+work and brief-text cooperation; candidate selection without sharing when
+testing recombination; cache transfer when testing that mechanism. Apply the
+same source/tool access and relevant budget rules above. Separate result
+quality at comparable evaluated-candidate counts from quality or time to a
+checked result within the total resource budget. Count evaluator work as well
+as generation, invalid/duplicate proposals, integration and human burden;
+additional proposal throughput alone does not establish better candidates.
+Latent distance, role labels or agreement on shared sources do not establish
+behavioral diversity or independent corroboration. Reuse observed candidate
+behavior and discriminating checks where they answer that question. Feedback
+used to select or revise candidates remains development exposure; a search
+winner alone is not evidence of improvement in a separate successor task.
+Apply the existing #1373 reuse and next-decision rules without a new benchmark
+matrix, mandatory comparison campaign or preservation of every internal trace.
+
 #### Example-guided atomic execution decomposition
 
 For the [research candidate](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#example-guided-atomic-execution-decomposition-research),

@@ -2926,6 +2926,24 @@ adoption establishes neither implementation nor usefulness, creates no new phase
 and does not reorder unrelated Current/Next work. #1214 connects phase scope;
 this roadmap owns sequencing and 04 owns evaluation.
 
+**Research reference — SwarmEvolve (2026-11-10).**
+[SwarmEvolve v1](https://arxiv.org/html/2611.08483v1) motivates a bounded
+task-local search question within #1214/#1443. Appendix A reports close mean
+scores for latent and short-text communication and later convergence across
+swarm sizes, including zero latent agents; these observations do not isolate
+the contribution of cache transfer or the novelty filter.
+
+For an actual checkable task where competing approaches matter, choose the
+smallest useful comparison with strong direct work or brief-text cooperation.
+Latent communication remains an optional executor-local research mechanism;
+its availability is not a dependency for this comparison or #1373 successor
+use. Use existing artifact, source and assessment paths to carry selected
+results and applicability into later work. The
+[evaluation owner](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#goal-directed-recombination-and-candidate-paths-p4p5)
+separates candidate quality, throughput and later-task contribution. This is an
+unexecuted research refinement, with no new phase or study allocation and no
+reordering of Current/Next work or reopening of historical dispositions.
+
 #### Example-guided atomic execution decomposition (Research)
 
 [DOLORES, “Deep Reasoning in General Purpose Agents via Structured Meta-Cognition”](https://arxiv.org/abs/2605.11388v3)
