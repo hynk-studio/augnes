@@ -1503,6 +1503,11 @@ const suites = {
     },
     ...reviewedRevisionSteps,
     {
+      label: "operator Browser control observation",
+      ...rootNode("scripts/test-operator-browser-control-observation.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
       id: "operator-project-home-readiness-observation",
       label: "bounded Project Home observations preserve the original condition result",
       ...rootNode("scripts/test-operator-project-home-readiness-observation-v1.mjs"),
