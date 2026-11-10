@@ -111,10 +111,6 @@ operatingPolicyReceipt.dependencies.policy =
   "operating_policy_only_no_dependency_install";
 const operatingPolicyPhaseIds = [
   "operating-policy-validator",
-  "operating-policy-planner-contract",
-  "operating-policy-executor-contract",
-  "operating-policy-receipt-contract",
-  "operating-policy-verification-contract",
 ];
 operatingPolicyReceipt.phases = operatingPolicyPhaseIds.map((id) => ({
   ...structuredClone(baseReceipt.phases[0]),

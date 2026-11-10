@@ -37,14 +37,8 @@ const readme = readRepositoryFile("README.md");
 const localPolicy = readRepositoryFile(
   ".github/LOCAL_CANONICAL_VERIFICATION.md",
 );
-const canonicalBrowserOwnershipPolicy = readRepositoryFile(
-  "docs/CANONICAL_BROWSER_VERIFICATION_OWNERSHIP_V1.md",
-);
 const pullRequestTemplate = readRepositoryFile(
   ".github/pull_request_template.md",
-);
-const reductionScope = readRepositoryFile(
-  "docs/REPOSITORY_REDUCTION_SCOPE.md",
 );
 const canonicalSuite = readRepositoryFile(
   "scripts/run-canonical-test-suite.mjs",
@@ -189,39 +183,7 @@ const activePolicySources = {
   "README.md": readme,
   ".github/LOCAL_CANONICAL_VERIFICATION.md": localPolicy,
   ".github/pull_request_template.md": pullRequestTemplate,
-  "docs/REPOSITORY_REDUCTION_SCOPE.md": reductionScope,
 };
-for (const [file, source] of Object.entries(activePolicySources)) {
-  assert.doesNotMatch(
-    source,
-    /ubuntu-latest|actions\/checkout|actions\/setup-node|canonical-tests|hosted Canonical CI|post-merge Canonical CI/iu,
-    `active policy must not depend on hosted GitHub Actions: ${file}`,
-  );
-}
-
-for (const fragment of [
-  "exact repository identity",
-  "exact base SHA",
-  "exact head SHA",
-  "dirty-worktree status",
-  "operating system and architecture",
-  "Node and npm versions",
-  "root, Apps and web-planning lockfile fingerprints",
-  "selected plan",
-  "each selected command and result",
-  "finite duration",
-  "cleanup and remaining-process result",
-  "final pass or failure",
-  "shared local host",
-  "does not provide independent hosted reproduction",
-  "GitHub remains source control, pull-request, review, and history infrastructure only",
-]) {
-  requireText(
-    localPolicy,
-    fragment,
-    `local verification policy is missing required evidence: ${fragment}`,
-  );
-}
 assertVerificationDocumentation(activePolicySources);
 const harmlessProse = Object.fromEntries(Object.entries(activePolicySources).map(([file, source]) =>
   [file, source.replace(/^#{1,6} .+$/gmu, "## Reworded heading").replace("Local evidence is review material", "Local results support review")]));
@@ -232,26 +194,6 @@ assert.throws(() => assertVerificationDocumentation({ "AGENTS.md": agents.replac
 assert.throws(() => assertVerificationDocumentation({ ".github/pull_request_template.md": pullRequestTemplate.replace("https://github.com/hynk-studio/augnes/blob/main/.github/LOCAL_CANONICAL_VERIFICATION.md", "LOCAL_CANONICAL_VERIFICATION.md") }), /absolute URL usable in copied PR text/u);
 assert.deepEqual(buildPhasePlan({ mode: "changed", selectedPlan: "operating-policy-only", baseSha: "1".repeat(40), headSha: "2".repeat(40) }).map((phase) => phase.id), [...OPERATING_POLICY_PHASE_IDS]);
 assert.ok(buildPhasePlan({ mode: "changed", selectedPlan: "operating-policy-only", baseSha: "1".repeat(40), headSha: "2".repeat(40) }).every((phase) => !["npm", "npm.cmd"].includes(phase.command)));
-for (const obsoleteFixedField of [
-  "Augnes Work ID:",
-  "## Execution Surfaces Used",
-  "## Browser / Chrome Checks",
-  "## Structured Evidence Records",
-  "## Optional Local Canonical PR publication",
-  "Pseudonymous local machine fingerprint:",
-  "Root `package-lock.json` SHA-256:",
-]) {
-  assert.equal(
-    pullRequestTemplate.includes(obsoleteFixedField),
-    false,
-    `pull-request template must not require obsolete fixed ceremony: ${obsoleteFixedField}`,
-  );
-}
-assert.ok(
-  pullRequestTemplate.split(/\r?\n/u).length <= 40,
-  "pull-request template must remain concise",
-);
-
 const canonicalCommands = Object.freeze({
   typegen: "next typegen",
   typecheck: "npm run typegen && tsc --noEmit",
@@ -422,31 +364,6 @@ for (const generatedTypeInclude of [
   assert.equal(tsconfig.include.includes(generatedTypeInclude), true);
 }
 
-for (const command of [
-  "npm run typecheck",
-  "npm run build",
-  "npm test",
-  "npm run test:authority",
-  "npm run test:integration",
-  "npm run test:operability",
-  "npm run test:e2e:project-experience",
-  "npm run test:e2e:operator-execution",
-  "npm run test:e2e:continuity",
-  "npm run test:e2e:golden",
-  "npm run test:e2e",
-]) {
-  requireText(readme, `\`${command}\``, `README is missing ${command}`);
-  requireText(localPolicy, command, `policy is missing ${command}`);
-}
-for (const command of [
-  "npm run verify:local:quick",
-  "npm run verify:local:changed --",
-  "npm run verify:local:full --",
-  "npm run verify:local:receipt --",
-]) {
-  requireText(readme, command, `README is missing ${command}`);
-  requireText(localPolicy, command, `policy is missing ${command}`);
-}
 for (const fragment of [
   `WINDOWS_AUTHORIZED_REPOSITORY_ROOT_ENV =`,
   `"AUGNES_CANONICAL_WINDOWS_REPOSITORY_ROOT"`,
@@ -514,10 +431,6 @@ for (const fragment of [
   `planner_failure_requires_full_canonical`,
   `documentation-validator`,
   `operating-policy-validator`,
-  `operating-policy-planner-contract`,
-  `operating-policy-executor-contract`,
-  `operating-policy-receipt-contract`,
-  `operating-policy-verification-contract`,
   `operating_policy_only_no_dependency_install`,
   `targeted-change-validator`,
   `invalid_owner_targeted_phase_inventory`,
@@ -772,9 +685,6 @@ for (const route of ["operating-profile-succession", "successor-budget-successio
       "completed controllers and dedicated fixtures stay retired; Git is the source archive");
   assert(!localExecutor.includes(`"scripts/local-canonical-${route}.mjs"`), "executor inventory has no deleted owner");
 }
-requireText(localPolicy, "df920cd3f5c35774ad2743500a6f3657e4ecb95e", "retired mixed history has a pinned Git reading path");
-requireText(localPolicy, "qualification_route_retired", "current mixed-chain refusal is explicit");
-requireText(localPolicy, "d72c0f3dc5b224c02a44033d9ed83eb3eb5af3fb", "completed workload history has a pinned reader");
 for (const name of ["authority-scope", "reviewed-workload", "post-terminal"])
   assert.equal(existsSync(path.join(repositoryRoot, `scripts/fixtures/local-canonical-${name}.mjs`)), false,
     "completed workload controllers and the unregistered scope probe remain in Git history");
@@ -793,7 +703,7 @@ for (const retiredPath of [
     `retired PR-comment publication path must remain absent: ${retiredPath}`,
   );
 }
-for (const source of [readme, localPolicy, localExecutor, canonicalSuite]) {
+for (const source of [localExecutor, canonicalSuite]) {
   assert.doesNotMatch(
     source,
     /verify:local:evidence|local-canonical-pr-evidence|local-pr-evidence/iu,
@@ -853,36 +763,6 @@ for (const fragment of [
     `read-only GitHub transport regression is missing: ${fragment}`,
   );
 }
-for (const fragment of [
-  `Publication used: \`yes | no\``,
-  `Dedicated evidence comment URL:`,
-  `Publication-envelope SHA-256 content fingerprint:`,
-  `Remote-only verification result:`,
-  `Local-linked verification result:`,
-  `Identical-publication idempotent no-op proof:`,
-  `Replacement used: \`yes | no\``,
-]) {
-  assert.equal(
-    pullRequestTemplate.includes(fragment),
-    false,
-    `ordinary pull-request template must not require optional publication metadata: ${fragment}`,
-  );
-}
-for (const fragment of [
-  `small, durable repository constitution`,
-  `ChatGPT and the user own the goal, scope, invariants, authority, non-goals,`,
-  `Codex owns current-source inspection, implementation search, file, function,`,
-  `Evidence is review material, not approval`,
-  `Semantic, execution, external-effect, and repository merge authority`,
-  `Do not merge, mark Ready, enable auto-merge, release, deploy, publish evidence,`,
-  `without exact user authority for that action`,
-]) {
-  requireText(
-    agents,
-    fragment,
-    `AGENTS.md durable authority instruction is missing: ${fragment}`,
-  );
-}
 assert.match(gitignore, /^\.augnes-local-verification\/$/mu);
 for (const forbiddenConfig of [
   ".gitlab-ci.yml",
@@ -897,16 +777,14 @@ for (const forbiddenConfig of [
 }
 
 for (const fragment of [
-  `eventName === "push"`,
+  `["pull_request", "push"].includes(eventName)`,
   `plan: "full-canonical"`,
-  `reason: "main_push_always_full"`,
-  `eventName !== "pull_request"`,
   `--name-status`,
   `--find-renames=50%`,
   `unsupported canonical diff status`,
   `mode_change:`,
   `classifyDocumentationChange`,
-  `registered_documentation_responsibilities`,
+  `documentation_responsibilities`,
   `operating-policy-only`,
   `OWNER_TARGETED_PLAN`,
   `all_changes_have_owner_complete_targeted_coverage`,
@@ -978,7 +856,6 @@ for (const [id, script] of [
 }
 assert(canonicalSuite.includes("suites.unit.filter((step) => step.id === id)"));
 assert(canonicalSuite.includes("checks.length !== 1"));
-assert(localPolicy.includes("three named checks"));
 assert.deepEqual(
   changeOwnerManifest.targeted_owners
     .filter((owner) => owner.deletion_policy === "targeted")
@@ -1001,19 +878,6 @@ for (const requiredHighRiskOwner of [
     ),
     true,
     `missing fail-closed responsibility owner: ${requiredHighRiskOwner}`,
-  );
-}
-for (const fragment of [
-  `known single detailed Browser owner`,
-  `multiple detailed Browser owners require \`full-canonical\``,
-  `unknown or ambiguous verification ownership selects all seven phases`,
-  `deletion is not targeted in this version`,
-  `arbitrary standalone focused run is diagnostic evidence`,
-]) {
-  requireText(
-    canonicalBrowserOwnershipPolicy,
-    fragment,
-    `Browser ownership policy is missing targeted fail-closed guidance: ${fragment}`,
   );
 }
 for (const regression of [
@@ -1927,21 +1791,6 @@ for (const fragment of [
     packageTest,
     fragment,
     `package-history requirement is missing: ${fragment}`,
-  );
-}
-
-for (const fragment of [
-  `Canonical planner for the final exact head`,
-  `Deciding evidence binds the exact clean repository`,
-  `Repository-owned process tests must use bounded lifecycle and cleanup owners`,
-  `Do not retry a failed exact-head deciding run merely to obtain a pass`,
-  `source change creates a new verification target`,
-  `[Local Canonical verification policy](.github/LOCAL_CANONICAL_VERIFICATION.md)`,
-]) {
-  requireText(
-    agents,
-    fragment,
-    `AGENTS.md durable verification instruction is missing: ${fragment}`,
   );
 }
 

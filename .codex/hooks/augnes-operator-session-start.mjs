@@ -6,6 +6,7 @@ const reminder = [
   "- Ordinary source-first work does not require continuity or memory priming.",
   "- Explicit resume, continue, recovery, or current-state intent uses the reviewed Augnes Operator Companion lifecycle and repository-continuity owner; preserve unavailable or ambiguous results without fallback reconstruction.",
   "- Preserve the exact repository root, unrelated user work, concrete skipped reasons, and planner-selected exact-head verification.",
+  "- Ordinary prose needs content review, not Local Canonical execution or a receipt. Documentation links and wording alone do not require unrelated runtime suites; follow the documentation responsibilities in the verification policy.",
   "- Codex may implement and open a Draft PR, but never claim approval or merge authority.",
 ].join("\n");
 

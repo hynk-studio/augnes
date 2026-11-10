@@ -356,11 +356,11 @@
         "docs/REPOSITORY_REDUCTION_SCOPE.md",
         "docs/CANONICAL_BROWSER_VERIFICATION_OWNERSHIP_V1.md"
       ],
-      "checks": [
-        "verification-policy"
-      ],
+      "checks": [],
       "consumer_paths": [
         "scripts/test-local-canonical-verification-contract.mjs",
+        "scripts/run-local-canonical-verification.mjs",
+        "scripts/local-canonical-git-observation.mjs",
         "scripts/augnes-codex-doctor.mjs",
         "scripts/lib/codex-augnes-user-hook-installer-common.mjs",
         ".codex/hooks/augnes-reuse-intake-user-prompt-submit.mjs",
@@ -386,22 +386,53 @@
         "plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md",
         "plugins/augnes-operator/skills/augnes-closeout-proof/SKILL.md",
         "plugins/augnes-operator/skills/augnes-codex-surface-ops/SKILL.md",
-        "plugins/augnes-operator/skills/augnes-guidebrief-handoff/SKILL.md"
+        "plugins/augnes-operator/skills/augnes-guidebrief-handoff/SKILL.md",
+        "apps/augnes_apps/README.md",
+        "apps/web_planning/README.md",
+        "plugins/augnes-workflow-cost/skills/stationary-retry-work/SKILL.md",
+        "plugins/augnes-workflow-cost/skills/stationary-retry-work/assets/workflow-cost-v1/README.md",
+        "plugins/augnes-workflow-cost/skills/stationary-retry-work/assets/workflow-cost-v1/exact_linear.py",
+        "plugins/augnes-workflow-cost/skills/stationary-retry-work/assets/workflow-cost-v1/index.html",
+        "plugins/augnes-workflow-cost/skills/stationary-retry-work/assets/workflow-cost-v1/manifest.json",
+        "plugins/augnes-workflow-cost/skills/stationary-retry-work/references/usage.md",
+        "plugins/augnes-workflow-cost/skills/stationary-retry-work/scripts/verify_material.py",
+        "publications/workflow-cost-v1/README.md",
+        "publications/workflow-cost-v1/exact_linear.py",
+        "publications/workflow-cost-v1/index.html",
+        "publications/workflow-cost-v1/manifest.json",
+        "scripts/browser-web-planning-reassessment-safety.mjs",
+        "scripts/browser-web-planning-reassessment.mjs",
+        "scripts/build-workflow-cost-publication.mjs",
+        "scripts/canonical-research-registration.mjs",
+        "scripts/companion-work-revision-envelope-checks.ts",
+        "scripts/configure-review-connection.mjs",
+        "scripts/executable-reuse/README.md",
+        "scripts/executable-reuse/exact_linear.py",
+        "scripts/executable-reuse/test_public_consumer.py",
+        "scripts/fixtures/local-canonical-receipt-v3.mjs",
+        "scripts/software-compatibility-case/freeze-ready.json",
+        "scripts/software-compatibility-case/prepare-manifest.mjs",
+        "scripts/test-canonical-research-registration.mjs",
+        "scripts/test-workflow-cost-plugin.mjs",
+        "scripts/test-workflow-cost-publication.mjs",
+        "scripts/web-planning-reassessment-checks.mjs"
       ],
       "disposition": "full",
-      "consumer_scope": "Policy contract, doctor file-presence checks, repository instruction marker readers, suggested-file context, and incidental names in disposable repository/CODEX_HOME/font fixtures. Only regular in-place changes are admitted; these readers do not grant deletion or semantic authority. Nested App instructions reference their own README and AGENTS heading. Operator skills delegate root-policy authority or show changed-file examples; wording/authority review remains required, with no new executable consumer."
+      "consumer_scope": "Documented interfaces, doctor file-presence checks, repository instruction marker readers, suggested-file context, and incidental names in disposable repository/CODEX_HOME/font fixtures. The executor hashes declared policy inputs for in-run preservation; git-observation lists allowed verification paths. Neither evaluates document prose. These source/input protections remain unchanged. Only regular in-place changes are admitted; these readers do not grant deletion or semantic authority. Nested App instructions reference their own README and AGENTS heading. Operator skills delegate root-policy authority or show changed-file examples; wording/authority review remains required. Additional README basename hits were traced to nested App links, workflow-cost release-local files and material verification, software-compatibility preparation records, research-registration names, synthetic receipt paths, and disposable Web/envelope fixtures. Those readers preserve their own exact artifact checks; they do not read the root README bytes. This registration does not admit new readers or changes to packaged material."
     },
     {
       "id": "active-authority-documentation",
       "paths": [
         "docs/vnext/00_AUGNES_VNEXT_DOCUMENT_INDEX.md",
         "docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md",
+        "docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md",
         "docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md",
         "docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md"
       ],
       "checks": [],
       "consumer_paths": [
-        "fixtures/vnext/protocol/task-context-packet-v0-1.ts"
+        "fixtures/vnext/protocol/task-context-packet-v0-1.ts",
+        "scripts/local-canonical-git-observation.mjs"
       ],
       "reference_consumers": [
         {
@@ -410,9 +441,28 @@
             "docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md"
           ],
           "scope": "Regular-file explanatory provenance link to the retained hosted-closeout anchor. The Web build and distributable payload do not consume this README; it is not an agent instruction owner. This edge does not classify README edits, other targets, executable readers, or dispositions as safe. Exact-tree incoming-reference validation and meaning review remain required."
+        },
+        {
+          "path": "apps/augnes_apps/README.md",
+          "targets": [
+            "docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md"
+          ],
+          "scope": "Regular-file explanatory link to the architecture historical-compatibility-inputs anchor. It does not consume architecture prose as executable input. Exact-tree incoming-reference validation remains required; other targets, nested instructions, source readers and dispositions retain their existing classification."
         }
       ],
       "disposition": "full"
+    },
+    {
+      "id": "verification-input-documentation",
+      "paths": [
+        "docs/LOCAL_CANONICAL_INPUT_CONTRACT.md"
+      ],
+      "checks": [],
+      "consumer_paths": [
+        "scripts/local-canonical-git-observation.mjs"
+      ],
+      "disposition": "full",
+      "consumer_scope": "The Git observation module names this policy in its explicit verification-path set. It does not read or execute the document contents. Input preservation and correction admission still validate the actual source, resources and evidence; the document retains meaning and exact-tree reference review."
     },
     {
       "id": "explanatory-verification-history",

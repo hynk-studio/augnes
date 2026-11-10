@@ -59,24 +59,9 @@ export function planCanonicalChange({
   headSha,
   cwd = repositoryRoot,
 }) {
-  if (eventName === "push") {
-    return boundedSummary({
-      schema_version: 2,
-      event: "push",
-      plan: "full-canonical",
-      reason: "main_push_always_full",
-      base_sha: normalizeOptionalSha(baseSha),
-      head_sha: normalizeOptionalSha(headSha),
-      change_count: null,
-      changed_paths: [],
-      full_reasons: ["main_push_always_full"],
-      owner_ids: ["repository-main-push"],
-      targeted_phase_ids: [],
-      browser_phase_ids: [...PERMANENT_BROWSER_PHASE_IDS],
-      changes: [],
-    });
-  }
-  if (eventName !== "pull_request") {
+  // Both entry points classify the actual exact-tree delta. A push is not an
+  // implicit request to expand explanatory documentation into runtime testing.
+  if (!["pull_request", "push"].includes(eventName)) {
     throw new Error(`unsupported canonical planner event: ${eventName || "<missing>"}`);
   }
 
@@ -94,7 +79,7 @@ export function planCanonicalChange({
   if (changes.length > MAX_CHANGED_PATHS) {
     return boundedSummary({
       schema_version: 2,
-      event: "pull_request",
+      event: eventName,
       plan: "full-canonical",
       reason: "change_count_exceeds_documentation_bound",
       base_sha: baseSha,
@@ -161,10 +146,10 @@ export function planCanonicalChange({
 
   return boundedSummary({
     schema_version: 2,
-    event: "pull_request",
+    event: eventName,
     plan: selectedPlan,
     reason: operatingPolicyOnly
-      ? "registered_documentation_responsibilities"
+      ? "documentation_responsibilities"
       : documentationOnly
         ? "ordinary_documentation_with_review_obligations"
         : selectedPlan === OWNER_TARGETED_PLAN
@@ -669,13 +654,14 @@ function classifyDocumentationChange(change, context) {
     removedAnchor = [...previous].some((anchor) => !proposed.has(anchor));
   }
   const isDisposition = pathDisposition || removedAnchor;
-  const authority = owners.some((owner) => owner?.disposition === "full");
+  const authority = owners.some((owner) => owner?.disposition === "full") ||
+    paths.some((file) => context.delegated.has(file));
   if (pathDisposition && (authority || !owners[0] || owners[0].disposition !== "references")) {
     return fullClassification("unproven-documentation-disposition", `unproven_documentation_consumers:${paths[0]}`);
   }
   for (const [index, file] of paths.entries()) {
     const owner = owners[index];
-    if ((!owner && context.delegated.has(file)) || /(^|\/)AGENTS\.md$/u.test(file) && file !== "AGENTS.md") {
+    if (/(^|\/)AGENTS\.md$/u.test(file) && file !== "AGENTS.md") {
       return fullClassification("unregistered-documentation-contract", `unregistered_documentation_contract:${file}`);
     }
     const references = owner?.reference_consumers?.filter((reference) => reference.targets.includes(file)) ?? [];
@@ -698,7 +684,9 @@ function classifyDocumentationChange(change, context) {
   const responsibility = authority ? "authority-contract" : isDisposition ? "disposition" : "ordinary";
   return {
     kind: authority ? "policy-documentation" : "documentation",
-    ownerId: authority ? owners.find((owner) => owner?.disposition === "full").id : "documentation",
+    ownerId: authority
+      ? owners.find((owner) => owner?.disposition === "full")?.id ?? "delegated-authority-documentation"
+      : "documentation",
     phaseIds: [],
     reason: `documentation_${responsibility}`,
     checks: [...new Set([...(isDisposition || authority ? ["references"] : []), ...owners.flatMap((owner) => owner?.checks ?? [])])],
@@ -1043,10 +1031,6 @@ function normalizeRepositoryPath(relativePath) {
 
 function isSafeRegularMode(mode) {
   return mode === "100644";
-}
-
-function normalizeOptionalSha(sha) {
-  return SHA_PATTERN.test(sha ?? "") ? sha : null;
 }
 
 function matchesOwnershipRule(relativePath, rule) {

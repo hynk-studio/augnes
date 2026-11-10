@@ -399,6 +399,8 @@ const operatingPolicyPhases = buildPhasePlan({
   baseSha,
   headSha,
 });
+assert.equal(operatingPolicyPhases.length, 1,
+  "document-only execution must not run unrelated verification implementation tests");
 assert.deepEqual(
   operatingPolicyPhases.map((phase) => phase.id),
   OPERATING_POLICY_PHASE_IDS,
@@ -417,8 +419,8 @@ assert.match(
   /--plan operating-policy-only$/u,
 );
 
-assert.deepEqual(operatingPolicyPhases.at(-1).args,
-  ["scripts/test-local-canonical-verification-contract.mjs", "--head", headSha]);
+assert.deepEqual(operatingPolicyPhases[0].args,
+  ["scripts/validate-canonical-docs-change.mjs", "--base", baseSha, "--head", headSha, "--plan", "operating-policy-only"]);
 const decisionExpression = executorSource.slice(executorSource.indexOf("  const deciding ="), executorSource.indexOf("  const finishedMs ="));
 assert.ok(decisionExpression.includes("plan.selected_plan"));
 const evaluateDecision = new Function("plan", "mode", "passing", "nodePolicy", "identityBefore", "identityAfter", `${decisionExpression} return deciding;`);
