@@ -180,7 +180,9 @@ const executorSource = readFileSync(
       const file = path.join(owner.root, relative); mkdirSync(path.dirname(file), { recursive: true });
       writeFileSync(file, readFileSync(path.join(repositoryRoot, relative)));
     }
-    for (const relative of ["scripts/local-canonical-pure-contract-witness.mjs", "scripts/canonical-revision-reader.mjs", "scripts/local-canonical-fixture-budget-witness.mjs", "scripts/capture-local-canonical-fixture-budget.mjs"]) {
+    for (const relative of ["scripts/local-canonical-pure-contract-witness.mjs", "scripts/canonical-revision-reader.mjs",
+      "scripts/local-canonical-fixture-budget-witness.mjs", "scripts/capture-local-canonical-fixture-budget.mjs",
+      "scripts/local-canonical-stock-lifecycle-witness.mjs"]) {
       const file = path.join(owner.root, relative), original = readFileSync(path.join(repositoryRoot, relative));
       writeFileSync(file, original);
       const before = computeExecutorSourceFingerprint(owner.root);

@@ -1,20 +1,132 @@
 import assert from 'node:assert/strict';
+import { mock } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { CDP } from './web-planning-cdp.mjs';
 import { observeWebPlanningInterceptions } from './web-planning-interception.mjs';
+
+class ControlledSocket extends EventTarget {
+  static CONNECTING = 0;
+  static OPEN = 1;
+  static CLOSING = 2;
+  static CLOSED = 3;
+  readyState = ControlledSocket.CONNECTING;
+  sent = [];
+  constructor() {
+    super();
+    queueMicrotask(() => {
+      if (this.readyState !== ControlledSocket.CONNECTING) return;
+      this.readyState = ControlledSocket.OPEN;
+      this.dispatchEvent(new Event('open'));
+    });
+  }
+  send(raw) {
+    if (this.failSend) throw new Error('private socket detail');
+    this.sent.push(JSON.parse(raw));
+  }
+  message(data) {
+    this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(data) }));
+  }
+  remoteClose(code) {
+    this.readyState = ControlledSocket.CLOSED;
+    this.dispatchEvent(Object.assign(new Event('close'), { code, reason: 'private socket detail' }));
+  }
+  close() {
+    if (this.readyState >= ControlledSocket.CLOSING) return;
+    this.readyState = ControlledSocket.CLOSING;
+    queueMicrotask(() => this.remoteClose(1000));
+  }
+}
+
+export async function checkWebPlanningTouchTransport() {
+  const originalSocket = globalThis.WebSocket;
+  const commands = [], method = 'Input.dispatchTouchEvent';
+  const create = () => new CDP('ws://constructed.invalid', { observeTouch: event => commands.push(event) });
+  const outcome = promise => promise.then(value => ({ value }), error => ({ error }));
+  const nextTurn = () => new Promise(resolve => setImmediate(() => resolve({ pending: true })));
+  globalThis.WebSocket = ControlledSocket;
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const remote = await create().open();
+    const pending = outcome(remote.send(method, { type: 'touchStart', touchPoints: [{ x: 1, y: 1 }] }));
+    const id = remote.ws.sent[0].id;
+    remote.ws.remoteClose(1001);
+    const closed = await Promise.race([pending, nextTurn()]);
+    assert.equal(closed.error?.message, 'cdp_socket_closed:' + method, 'peer close must settle the original command before the response timeout');
+    assert.deepEqual(closed.error.cdpTerminal, { event: 'socket_closed', close_code: 1001 });
+    assert.match(closed.error.commandStack, /checkWebPlanningTouchTransport/);
+    await Promise.all([remote.close(), remote.close()]);
+    remote.ws.message({ id, result: {} });
+    assert.equal(remote.pending.size, 0);
+    assert.deepEqual(commands.splice(0).map(e => [e.subtype, e.stage]), [['touchStart', 'sent'], ['touchStart', 'terminal']]);
+
+    const target = await create().open();
+    for (const subtype of ['touchStart', 'touchEnd']) {
+      const reply = target.send(method, { type: subtype, private: 'private touch params' });
+      const sent = target.ws.sent.at(-1);
+      target.ws.message({ id: sent.id + 100, result: {} });
+      assert.equal(target.pending.size, 1, 'a response with another id cannot acknowledge a touch');
+      target.ws.message({ id: sent.id, result: {} });
+      await reply;
+    }
+    assert.deepEqual(commands.splice(0).map(e => [e.subtype, e.stage]), [
+      ['touchStart','sent'],['touchStart','acknowledged'],['touchEnd','sent'],['touchEnd','acknowledged'],
+    ]);
+    const protocol = outcome(target.send(method, { type: 'touchStart' }));
+    target.ws.message({ id: target.ws.sent.at(-1).id,
+      error: { code: -32602, message: 'private touch detail', data: 'private target detail' } });
+    assert.equal((await protocol).error.message, 'cdp_protocol_error:' + method);
+    assert.equal(commands.at(-1).protocol_code, -32602);
+    const lost = outcome(target.send(method, { type: 'touchEnd' }));
+    mock.timers.tick(14999);
+    assert.equal(target.pending.size, 1);
+    mock.timers.tick(1);
+    const timedOut = (await lost).error;
+    assert.equal(timedOut.message, 'cdp_timeout:' + method);
+    assert.match(timedOut.commandStack, /checkWebPlanningTouchTransport/);
+    target.ws.message({ id: target.ws.sent.at(-1).id, result: {} });
+    assert.equal(commands.at(-1).stage, 'timeout');
+    await target.close();
+
+    for (const terminal of ['Inspector.detached', 'Inspector.targetCrashed', 'socket_error']) {
+      const tab = await create().open();
+      const command = outcome(tab.send(method, { type: 'touchEnd', private: 'private touch params' }));
+      if (terminal === 'socket_error') tab.ws.dispatchEvent(new Event('error'));
+      else tab.ws.message({ method: terminal, params: { reason: 'private target detail' } });
+      assert.equal((await command).error.cdpTerminal.event, terminal);
+      assert.equal(tab.pending.size, 0);
+      await tab.close();
+    }
+    const neverOpened = create();
+    const opened = outcome(neverOpened.open());
+    neverOpened.ws.remoteClose(1006);
+    assert.equal((await opened).error.message, 'cdp_socket_closed');
+    await neverOpened.close();
+    const cannotSend = await create().open();
+    cannotSend.ws.failSend = true;
+    await assert.rejects(cannotSend.send(method, { type: 'touchStart' }), { message: 'cdp_send_failed:' + method });
+    assert.equal(cannotSend.pending.size, 0);
+    await cannotSend.close();
+    assert.doesNotMatch(JSON.stringify(commands), /private (socket|target|touch)/u);
+    return { constructed: true, response_timeout_ms: 15000, reply_id_matched: true, peer_close: true,
+      target_detach_and_crash: true, socket_error: true, close_before_open: true, failed_send: true,
+      late_reply_ignored: true, private_payloads_excluded: true, touch_protocol_error_sanitized: true, cleanup_complete: true };
+  } finally {
+    mock.timers.tick(15000);
+    mock.timers.reset();
+    globalThis.WebSocket = originalSocket;
+  }
+}
 
 // Pure constructed transport controls. These test diagnostic fidelity; they do
 // not reproduce or establish the cause of a real Chrome interception failure.
 export async function checkWebPlanningInterceptionDiagnostics() {
   const originalSocket = globalThis.WebSocket;
-  class Socket extends EventTarget {
-    constructor() { super(); queueMicrotask(() => this.dispatchEvent(new Event('open'))); }
+  class Socket extends ControlledSocket {
     send(raw) {
       const { id } = JSON.parse(raw);
       queueMicrotask(() => this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify({ id,
         error: { code: -32602, message: 'Invalid InterceptionId.', data: 'constructed Chrome detail' } }) })));
     }
-    close() { queueMicrotask(() => this.dispatchEvent(new Event('close'))); }
   }
   try {
     globalThis.WebSocket = Socket;
@@ -69,5 +181,6 @@ export async function checkWebPlanningInterceptionDiagnostics() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  console.log(JSON.stringify({ web_planning_touch_transport_contract: await checkWebPlanningTouchTransport() }));
   console.log(JSON.stringify({ web_planning_interception_diagnostics_contract: await checkWebPlanningInterceptionDiagnostics() }));
 }

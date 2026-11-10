@@ -6,6 +6,8 @@ import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { REGISTERED_FIXTURE_BUDGET, verifyRegisteredFixtureBudget,
   REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM, verifyRegisteredIntegrationBudget } from "./local-canonical-fixture-budget-witness.mjs";
+import { GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM, GENERATED_STOCK_GRANT,
+  verifyGeneratedStockRepair } from "./local-canonical-stock-lifecycle-witness.mjs";
 import { REPOSITORY_TYPECHECK, verifyRepositoryTypecheck } from "./local-canonical-typecheck-witness.mjs";
 import { REPOSITORY_PURE_CONTRACT, verifyRepositoryPureContract } from "./local-canonical-pure-contract-witness.mjs";
 
@@ -267,7 +269,7 @@ function verifyFinalDependencyFailure(r, stock, inputs, phases) {
   return deps[2].before;
 }
 
-export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expectedOrdinal = 1, forward = false, serialPredecessor = false) {
+export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expectedOrdinal = 1, forward = false, serialPredecessor = false, generatedStockSerial = false) {
   const previous = receipt.attempt?.source_correction;
   const { contract, path_kind, binding, resources } = receipt.inputs;
   if (!(usesGitInventory(previous) || serialPredecessor && isSerialAggregateRevision(previous)) || previous.commission.ordinal !== expectedOrdinal ||
@@ -275,7 +277,8 @@ export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expecte
       digest({ contract, path_kind, binding, resources }) !== receipt.inputs.fingerprint)
     fail("revision_git_predecessor_invalid");
   if (forward) return verifyFinalDependencyFailure(receipt, stock, inputs, phases);
-  verifySettledPhaseFailure(receipt, stock, inputs, phases, resources.find(r => r.id === "browser-executable"), isGitObservationRevision(previous) && expectedOrdinal === 1, expectedOrdinal);
+  verifySettledPhaseFailure(receipt, stock, inputs, phases, resources.find(r => r.id === "browser-executable"),
+    generatedStockSerial || isGitObservationRevision(previous) && expectedOrdinal === 1, expectedOrdinal, generatedStockSerial);
   if (hasSerialAccounting(previous) && receipt.phases.some(p=>p.id === "e2e-project-experience" && p.status === "pass" && !validProjectExperienceAccounting(p.serial_budget)))
     fail("revision_inherited_serial_accounting_invalid");
 }
@@ -407,7 +410,7 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
 // Observe the same behavioral command on both exact Git sources and runtimes.
 // The v10 repair runs its changed script directly. Prospective v7 also allows
 // a stable test driver and explicit script arguments for the implicated code.
-export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt, retainedBefore, postPass = false, acquisition = false, original, completion, repositoryRoot }) {
+export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt, retainedBefore, postPass = false, acquisition = false, original, stock, completion, repositoryRoot }) {
   const regression = focused.regression;
   if (isGitObservationSuccessor(p) && regression?.attribution === "candidate-driver-prior-implicated-source")
     return verifyCanonicalTsRepair(p,prior,focused,{git,parse,bytes,completedAt,repositoryRoot});
@@ -416,6 +419,8 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
     if (!material) fail("revision_git_regression_invalid");
     if (regression.kind===REGISTERED_FIXTURE_BUDGET) return verifyRegisteredFixtureBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
     if (regression.kind===REGISTERED_INTEGRATION_BUDGET) return verifyRegisteredIntegrationBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
+    if (regression.kind===GENERATED_STOCK_REPAIR)
+      return verifyGeneratedStockRepair(p, prior, focused, { git, parse, bytes, completedAt, original, stock, completion });
     if (p.commission.evidence_kind!==undefined) fail("revision_git_regression_invalid");
     if (regression.kind===REPOSITORY_TYPECHECK) return verifyRepositoryTypecheck(p,prior,focused,{git,parse,bytes,completedAt});
     if (regression.kind===REPOSITORY_PURE_CONTRACT) return verifyRepositoryPureContract(p,prior,focused,{git,parse,bytes,completedAt});
@@ -515,6 +520,8 @@ function visibleDelegationParagraphs(body) {
 export function delegatesMaterialSourceCommission(body,p) {
   if (p.commission.evidence_kind === REGISTERED_INTEGRATION_BUDGET)
     return !!readIntegrationBudgetDelegation(body,p);
+  if (p.commission.evidence_kind === GENERATED_STOCK_REPAIR)
+    return !!readGeneratedStockDelegation(body,p);
   const paragraphs=visibleDelegationParagraphs(body);
   return paragraphs.length===4 && paragraphs[0] === "Authorize one materially corrected-source qualification assignment on " + p.branch + " in Draft PR #" + p.pull_request + ". Adopt the reusable material-source-correction-v1 transition within the existing inventory-bound v7 owners for the observed in-scope product defect." &&
     paragraphs[1] === "Predecessor: " + p.prior_family_id + " / " + p.prior_attempt_id + " / " + p.prior_receipt_fingerprint + "." &&
@@ -568,7 +575,51 @@ export function readIntegrationBudgetDelegation(body,p) {
   return { worktree, base, head, tree, reviewId:Number(receiving[3]), previousCommission:history[3], spent:Number(history[4]) };
 }
 
-export function integrationBudgetAuthorityBindings(p) {
+
+// The verifier-lifecycle route accepts the operative Browser/stock correction
+// delegation only. IDs and source identities are read from that authenticated
+// record and checked again against physical history and the receiving review.
+const generatedStockSections = [
+  [2, "### Received baseline and task ownership"],
+  [5, "### One correction objective with two evidence obligations"],
+  [11, "### Bounded common-owner and admission support"],
+  [12, "Necessary narrow, reusable corrections to the existing evidence, attempt, stock, admission owners and their policy are included in this approved scope. Review the actual predecessor and supported material-correction route rather than forcing this task into an old grammar. The existing product-defect delegation grammar and R11's measured-integration-budget grammar do not already authorize or truthfully describe this combined task."],
+  [15, "### Conditional recording and prospective execution"],
+  [16, "After a genuinely separate read-only reviewer accepts the actual final published source, relevant evidence and policy, refusal controls, real exact-target preparation commitment and complete input inventory, the implementation operator is authorized to record that independent decision faithfully and publish a separate new exact-target commission/execution grant through the existing authenticated maintainer identity. Identify the actual reviewer separately from the operator recording the decision. Resolve material findings first, then authenticate the actual author/permission, bodies and timestamps and read back the records before reservation."],
+  [17, "This task delegation is not an execution grant for the received head or a future unspecified candidate. A supported substantive correction and accepted final preparation must exist first. The new grant must bind repository, branch, base, head, tree, preparation, input/runtime identities and the actual predecessor lineage under the independently reviewed common-owner contract. The applicable material-source commission permits one deciding invocation total: reservation or interruption consumes it, with no ordinal two, recovery or unchanged-candidate retry. This task authorizes that new prospective commission after the conditions above; it does not authorize replacement commissions merely because a run fails."],
+  [18, "Run the unchanged planner for the exact final candidate and execute its applicable actual Mac qualification, including the selected Full and Browser phases. Then run stock in a separate fresh process, obtain an independent read-only result audit, finish owned cleanup and return the result. Preserve refusals, failures, cancellations and NOT_RUN phases. An unsuccessful deciding run remains HOLD and proceeds to truthful closeout without a blind retry. These authorized review, publication and conditional recording steps do not require a new permission roundtrip merely because a prerequisite has been completed."],
+  [19, "### Immutable accounting and completion boundary"],
+  [23, "Keep PR #1612 Draft with auto-merge off and QUALIFICATION HOLD / DO NOT MERGE pending independent receiving judgment. This assignment grants no merge, Ready transition, deployment, installed adoption or final product-adoption authority."],
+];
+export function readGeneratedStockDelegation(body, p) {
+  const sections = visibleDelegationParagraphs(body);
+  if (sections.length !== 24 ||
+      !/^## R[1-9]\d* cohesive Browser and stock lifecycle correction delegation$/u.test(sections[0]) ||
+      generatedStockSections.some(([index, expected]) => sections[index] !== expected)) return null;
+  const assignment = sections[1].match(/^The user has approved one complete follow-up assignment for issue #([1-9]\d*) on `([^`\n]+)` and Draft PR #([1-9]\d*)\. Continue with the existing implementation owner, worktree and PR through diagnosis, justified corrections, focused verification, independent source and preparation review, conditional public authority recording, actual qualification, separate stock, independent result audit, owned cleanup and one consolidated handoff\. Routine work within this scope does not require another intermediate user approval\.$/u);
+  if (assignment?.[2] !== p.branch || assignment[3] !== String(p.pull_request) ||
+      !sections[6].startsWith("**Web Planning touch failure.** Determine which real touch command was sent,") ||
+      !/^\*\*R[1-9]\d*-F1 generated-input lifecycle\.\*\* Correct the distinction between frozen focused evidence, current admission inputs and generated output after deciding execution\./u.test(sections[8]))
+    return null;
+
+  const lines = sections[3].split("\n");
+  const worktree = lines[1]?.match(/^- Worktree: `(\/[A-Za-z0-9_./-]+)`\.$/u)?.[1];
+  const source = lines[2]?.match(/^- Received head: `([a-f0-9]{40})`; tree: `([a-f0-9]{40})`\.$/u);
+  const base = lines[3]?.match(/^- Base and authenticated main at intake: `([a-f0-9]{40})`\.$/u)?.[1];
+  const review = lines[4]?.match(/^- \[Receiving review ([1-9]\d*)\]\(https:\/\/github\.com\/hynk-studio\/augnes\/pull\/([1-9]\d*)#pullrequestreview-\1\): measured allowance and failed-result evidence ACCEPT \/ RETAIN; SOURCE REVISE for R([1-9]\d*)-F1; QUALIFICATION HOLD \/ DO NOT MERGE\.$/u);
+  if (lines.length !== 6 ||
+      lines[0] !== "- Repository: `hynk-studio/augnes`; origin: `https://github.com/hynk-studio/augnes.git`." ||
+      !worktree || worktree.slice(1).split("/").some(part => !part || part === "." || part === "..") ||
+      !source || !base || review?.[2] !== String(p.pull_request) || !Number.isSafeInteger(Number(review[1]))) return null;
+  const history = sections[20].match(/^Preserve the original commission `([a-f0-9]{64})`: ordinary 1 \+ reviewed 2 \/ recovery 0, original reviewed maximum 2 spent\. Preserve R([1-9]\d*) commission `([a-f0-9]{64})` at 1\/1 consumed, remaining 0, and its physical family `([a-f0-9]{64})`\. Any authorized successor must retain that lineage without resetting, relabeling or reusing spent grants\.$/u);
+  const failed = sections[21].match(/^R([1-9]\d*) receipt `([a-f0-9]{64})` remains (\d+) PASS \/ (\d+) FAIL \/ (\d+) NOT_RUN, fresh stock false \/ (\d+) issues\./u);
+  if (history?.[2] !== review[3] || history[4] !== p.prior_family_id ||
+      failed?.[1] !== history[2] || failed[2] !== p.prior_receipt_fingerprint) return null;
+  return { worktree, base, head: source[1], tree: source[2], reviewId: Number(review[1]),
+    originalCommission: history[1], previousCommission: history[3], counts: failed.slice(3).map(Number) };
+}
+
+function typedMaterialAuthorityBindings(p, kind, claim) {
   return [
     "Repository: hynk-studio/augnes", "Proof schema: " + p.schema, "Branch: " + p.branch,
     "Base: " + p.base, "Head: " + p.head, "Tree: " + p.tree,
@@ -577,22 +628,29 @@ export function integrationBudgetAuthorityBindings(p) {
     "Predecessor family: " + p.prior_family_id, "Predecessor attempt: " + p.prior_attempt_id,
     "Predecessor receipt: " + p.prior_receipt_fingerprint, "Original root receipt: " + p.commission.root_receipt_fingerprint,
     "Task delegation: https://github.com/hynk-studio/augnes/pull/" + p.pull_request + "#issuecomment-" + p.commission.delegation.id,
-    "Evidence kind: " + REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM,
+    "Evidence kind: " + kind, claim,
   ].join("\n");
 }
 
-export function integrationBudgetAuthorityScope(p,review,grant) {
+export const integrationBudgetAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM);
+export const generatedStockAuthorityBindings = p => typedMaterialAuthorityBindings(p, GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM);
+
+function typedMaterialAuthorityScope(p, review, grant, bindings, opening) {
   const accepted = visibleDelegationParagraphs(review.body);
   const commission = visibleDelegationParagraphs(grant.body);
-  const bindings = integrationBudgetAuthorityBindings(p);
   return accepted[0] === "Source review decision: ACCEPT / RETAIN for prospective qualification." &&
     accepted[1] === bindings && accepted[2] === MATERIAL_HISTORY_BOUNDARY &&
     equal(commission,[
-      INTEGRATION_BUDGET_GRANT, bindings,
+      opening, bindings,
       "Accepted review: https://github.com/hynk-studio/augnes/pull/" + p.pull_request + "#pullrequestreview-" + p.accepted.review.id,
       MATERIAL_HISTORY_BOUNDARY, INTEGRATION_BUDGET_LIMIT,
     ]);
 }
+
+export const integrationBudgetAuthorityScope = (p, review, grant) =>
+  typedMaterialAuthorityScope(p, review, grant, integrationBudgetAuthorityBindings(p), INTEGRATION_BUDGET_GRANT);
+export const generatedStockAuthorityScope = (p, review, grant) =>
+  typedMaterialAuthorityScope(p, review, grant, generatedStockAuthorityBindings(p), GENERATED_STOCK_GRANT);
 
 function operativeAuthoritySections(body) {
   // Read this existing decision format, not arbitrary mentions of its target.

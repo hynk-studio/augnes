@@ -1385,6 +1385,43 @@ It permits one invocation and retains the same reservation, settlement,
 authentication, freshness, history, separate fresh-process stock and independent
 result audit requirements. Reservation or interruption consumes that invocation.
 
+##### Generated declaration stock lifecycle correction
+
+The registered source witnesses freeze the complete focused source, including
+`next-env.d.ts`. Preparation and reservation still require that exact current
+source, loader and prepared dependencies. Stock first replays the immutable
+witness and physical attempt. Its live source comparison keeps tracked bytes,
+loader, prepared dependencies and effective inputs fixed. A changed
+`next-env.d.ts` can be accepted as generated output only when its complete
+bytes are a supported Next build or dev declaration and its modification and
+change times fall inside an actual naturally settled writer phase in the
+receipt. File ownership, permissions, link count and read stability are
+checked. Missing, unexpected, linked, unsafe and out-of-window files refuse.
+Stock leaves the file and the original receipt untouched.
+
+`generated-stock-lifecycle-repair-v1` is a separate material-source evidence
+kind. It requires an independently corroborated stock-reader defect on a
+settled predecessor with the exact registered first-Browser failure prefix.
+The reader matches the physical log, completed children, serial bounds, four
+actual Browser consumers and original false stock issue set. A retained
+attempt-inspection comparison must show the difference on the same original
+source, receipt, inventory and authority using the exact corrected reader.
+A stock replay must retain all failure and incomplete coverage issues. A
+later observation cannot identify the historical internal exception, touch
+subtype, generated-file writer or underlying Browser cause.
+
+The actual final-source development capture must exercise the real D1 history
+touch path with both command acknowledgements, same-document and viewport
+checks, original assertions, and owned natural cleanup. The typed delegation
+binds the receiving review and both spent commissions. Preparation
+authenticates these records without reserving. Independent exact-source and
+preparation acceptance must precede a separate grant that begins
+`Authorize one NEW prospective v7 reviewed_revision commission for the generated stock lifecycle correction.`
+The new commission permits one deciding invocation through the existing
+ownership, freshness and reservation checks. Full and fresh-process stock
+still require complete Browser and phase coverage. The historical partial
+Browser record and false stock remain evidence of the failed predecessor.
+
 An inventory-bound ordinal two may also follow a settled ordinal one whose Full
 and Browser phases all passed naturally but whose only fault occurred in the final
 Web dependency observation. The v2 Web record must have the cache-safety error
