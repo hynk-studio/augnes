@@ -268,6 +268,12 @@ const phase = (label: string) => {
   phases.push({ label, elapsed_ms: Date.now() - started });
   console.log(JSON.stringify(phases.at(-1)));
 };
+// Operation boundaries survive a parent timeout without exporting store bytes.
+let recoveryOperation: string | null = null;
+const recoveryProgress = (operation: string, event: "start" | "finish") => {
+  recoveryOperation = event === "start" ? operation : null;
+  console.log(JSON.stringify({ recovery_operation: operation, event, elapsed_ms: Date.now() - started }));
+};
 function databaseState(database = db) {
   return database
     .prepare(
@@ -1830,7 +1836,10 @@ async function main() {
   const withdrawalEvidence = await verifyWithdrawnReceipt({ ...receiptHarness, configPath, temporary });
   // Unsupported readers refuse an additive new schema; the old nonempty store
   // remains byte-preserved until the explicit staged lifecycle prepares it.
+  recoveryProgress("populated_store_copy", "start");
   await db.backup(path.join(temporary, "migration-source.db"));
+  recoveryProgress("populated_store_copy", "finish");
+  recoveryProgress("older_store_setup", "start");
   let older = new Database(path.join(temporary, "migration-source.db"));
   older.exec(
     "DROP TRIGGER trg_vnext_project_organization_initialize; DROP TABLE vnext_project_organization; DROP TABLE vnext_external_shares;DROP TABLE vnext_external_records;DROP TABLE vnext_external_materials;DROP TABLE vnext_external_envelopes;",
@@ -1848,6 +1857,8 @@ async function main() {
     .all();
   const oldState = snapshot(older);
   older.close();
+  recoveryProgress("older_store_setup", "finish");
+  recoveryProgress("staged_migration_rollback", "start");
   await assert.rejects(
     prepareRuntimeDatabase({
       databasePath: path.join(temporary, "migration-source.db"),
@@ -1864,6 +1875,8 @@ async function main() {
     } as any),
     (e: any) => e.code === "database_bootstrap_failed",
   );
+  recoveryProgress("staged_migration_rollback", "finish");
+  recoveryProgress("rollback_and_migration_assertions", "start");
   older = new Database(path.join(temporary, "migration-source.db"));
   assert.equal(snapshot(older), oldState);
   assert.equal(
@@ -1877,6 +1890,7 @@ async function main() {
     prior,
   );
   older.close();
+  recoveryProgress("rollback_and_migration_assertions", "finish");
   // Full recovery owns preparation/publication and suspends all restored effects.
   const retained = db
     .prepare("SELECT * FROM vnext_external_records ORDER BY ref")
@@ -1890,6 +1904,7 @@ async function main() {
     repositoryFingerprint: repository,
     databaseOverrideActive: true,
   };
+  recoveryProgress("recovery_backup", "start");
   const backup = await createRecoveryBackup({
     databasePath: dbPath,
     backupDirectory: lifecycle.backupDirectory,
@@ -1905,11 +1920,17 @@ async function main() {
     reason: "manual_recovery",
     inspectDatabase: inspectRecoveryDatabaseFile,
   } as any);
+  recoveryProgress("recovery_backup", "finish");
+  recoveryProgress("recovery_restore", "start");
   await restoreRuntimeDatabase({
     ...lifecycle,
     selectedBackupId: backup.manifest.backup_id,
   } as any);
+  recoveryProgress("recovery_restore", "finish");
+  recoveryProgress("restored_store_preparation", "start");
   await prepareRuntimeDatabase(lifecycle as any);
+  recoveryProgress("restored_store_preparation", "finish");
+  recoveryProgress("restored_store_invariants", "start");
   db = new Database(dbPath);
   assert.deepEqual(
     db.prepare("SELECT * FROM vnext_external_records ORDER BY ref").all(),
@@ -1935,6 +1956,8 @@ async function main() {
     admissionCorrection,
   );
   assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
+  recoveryProgress("restored_store_invariants", "finish");
+  recoveryProgress("restored_suspension_and_history", "start");
   const restoredUnknown = await reread(unknown);
   assert(restoredUnknown.state.unresolved);
   await compareRefusal(
@@ -1963,6 +1986,7 @@ async function main() {
   assert.deepEqual(restoredWithdrawal.events, withdrawalEvidence.unresolved_events);
   assert.deepEqual(errors, []);
   assert.equal(guard.attempts.length, 0);
+  recoveryProgress("restored_suspension_and_history", "finish");
   phase("nonempty_older_store_recovery_and_suspension");
   if (exportDirectory) {
     mkdirSync(exportDirectory, { mode: 0o700 });
@@ -2023,6 +2047,17 @@ async function run() {
   }
 }
 run().catch((error) => {
-  console.error(error);
+  if (recoveryOperation) {
+    // Assertion messages can contain complete rows. Report only bounded error
+    // identifiers here; the unchanged assertion still fails this child.
+    const identifier = (value: unknown) => typeof value === "string" &&
+      /^[A-Za-z_][A-Za-z_0-9]{0,63}$/u.test(value) ? value : null;
+    console.error(JSON.stringify({
+      recovery_operation: recoveryOperation, event: "failed",
+      elapsed_ms: Date.now() - started,
+      error_name: identifier(error?.name), error_code: identifier(error?.code),
+      cause_code: identifier(error?.cause?.code),
+    }));
+  } else console.error(error);
   process.exitCode = 1;
 });
