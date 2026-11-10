@@ -1188,6 +1188,39 @@ cost-calibration claim needs observations beyond a single successful outcome.
 Preserve #1465's tie/SIMPLIFY and original allocation. These criteria apply only
 to the conditional follow-up in 03, not retrospectively or as a new release gate.
 
+### Research-informed method formation
+
+For the [conditional research-informed refinement](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#conditional-follow-up--research-informed-method-formation),
+distinguish a supplied research source, consumer discovery/selection, local
+adaptation, actual method use and Augnes's incremental continuity contribution.
+Using a supplied paper can demonstrate adaptation; it does not by itself
+establish autonomous discovery. A source author's claim is a candidate rationale;
+local checked outcomes test the adapted method under observed conditions.
+Record what the research changed in the explanation, prediction or action and
+what the successor actually used, revised or declined. Preserve the source and
+observations when changing the current applicability judgment.
+
+Use the [strong-comparison rules](#strong-comparisons-and-independence): the
+capable ordinary memo/code reference has the same source access and information
+cutoffs and may select research, construct and revise methods, and retain useful
+assets within comparable total resources. A research-selection
+intervention may yield different papers; hold useful sources/assets materially
+equivalent when isolating a representation or transfer contribution. Added
+research information or a better prepared asset is not by itself an Augnes
+continuity effect. Choose the smallest contrast needed
+for the claim, accounting for formation and later use under [total burden](#cost-and-user-burden).
+Keep publication time, actual source availability and local trial time distinct
+where they affect interpretation; later information cannot repair the historical
+knowledge basis retroactively.
+
+When a claimed improvement combines materially interacting changes, observe
+their relevant joint behavior rather than infer it from standalone gains.
+Neither topic diversity nor interface separation establishes independence.
+These distinctions add no fixed candidate count, factorial campaign or live-run
+requirement to an existing assignment. Preserve historical ties/SIMPLIFY and
+report method availability, actual successor outcome and comparative benefit
+separately.
+
 ### Public asset entry and later consumer (#1447)
 
 The [declared public-question case and successor](../PUBLIC_ASSET_SKILL_USAGE.md#candidate-and-intended-observation)

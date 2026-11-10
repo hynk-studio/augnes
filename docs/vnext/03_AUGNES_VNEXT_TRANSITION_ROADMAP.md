@@ -2054,6 +2054,34 @@ no experiment, reopens neither closed #1464 nor #1465's study, and does not
 expand #1468/#1471's retrieval implementation. It requires no new critic, training
 pipeline, global store or calibration service.
 
+#### Conditional follow-up — Research-informed method formation
+
+The completed explanation-forming and software-compatibility work under
+[#1464](https://github.com/hynk-studio/augnes/issues/1464) retains its closed
+ACCEPTED / ENDED / SIMPLIFY and regression-case RETAIN dispositions above.
+A distinct later task under the broader P3/P4/P5 owners may still need a missing
+explanation or executable method. [ScholarEvolve v1](https://arxiv.org/abs/2609.40169v1),
+especially sections 3.2.4–3.4, motivates considering external research when it can
+answer that concrete need. This is an Augnes application hypothesis, not an
+inherited benchmark result or a reproduction commitment.
+
+A concrete capability opportunity or anticipated task-condition change may
+justify this exploration before an observed failure. Start with current source
+and ordinary notes/code; use research when it can change a useful method or
+discriminating observation. Retain the source mechanism, assumptions and version
+separately from local adaptations, the pre-action prediction and actual result.
+Carry the usable method and its supported or unresolved conditions into a distinct
+successor task; qualify outcomes to the implementation and relevant conditions
+rather than label an entire paper successful or failed. Apply
+[04's attribution guidance](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#research-informed-method-formation).
+
+This optional method does not reopen #1464, assign a successor to its ended
+comparisons, reuse historical allocations or change Current/Next priorities.
+Literature retrieval and research-guided method generation are optional means,
+not new completion gates or mandatory per-paper implementations. No new study
+allocation, Core schema, population/crossover platform or recurring research
+service is introduced; automation needs a concrete consumer or repeated burden.
+
 <a id="current-contained-research--exact-file-identity-and-successor-reconciliation-1526"></a>
 
 ### Completed contained observation — Exact file identity and successor reconciliation (#1526)
