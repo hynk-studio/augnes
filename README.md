@@ -514,6 +514,12 @@ active owner per durable topic:
 Implementation contracts, research, operator manuals, compatibility material,
 and historical records do not silently override those owners.
 
+For contributions, start with [AGENTS.md](AGENTS.md) and the owner relevant to
+the change. Task definition, implementation, independent review, and authorized
+merge are separate responsibilities for human and automated contributors.
+Contributors can use their preferred tools while following the repository's
+contribution and verification rules.
+
 RR0 was completed in
 [issue #69](https://github.com/hynk-studio/augnes-perspective-lab/issues/69)
 and [PR #70](https://github.com/hynk-studio/augnes-perspective-lab/pull/70).
@@ -533,21 +539,19 @@ verification rules. Current research status remains owned by `03`.
 
 ## Canonical repository migration
 
-`hynk-studio/augnes` is the canonical repository and
-`/Users/hynk/code/augnes` is the canonical macOS root. The complete
+`hynk-studio/augnes` is the canonical repository. The complete
 perspective-lab Git history through the migration point remains ancestry and
 historical provenance; historical Issue, PR, release, receipt, and research
 links stay bound to `hynk-studio/augnes-perspective-lab`.
 
-The local cutover is complete: the existing workspace/project identity,
-database, project-root binding, Companion, Codex operator plugin, and active
-RW1/RW1A artifacts now continue at the canonical root. [Augnes Issue
-#1130](https://github.com/hynk-studio/augnes/issues/1130) is the Current RW1B
-owner; perspective-lab Issue #268 is historical/migrated, not completed
-research. Completed perspective-lab artifacts remain readable only as isolated
-historical evidence. Neither the legacy repository/root nor historical
-readability grants current execution, Local Canonical, project, Companion,
-provider, or GitHub transport authority. No general multi-repository or
+The completed reference-installation cutover and retained research
+responsibilities are recorded in the
+[migration record](docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#canonical-repository-migration-and-local-cutover).
+Historical readability grants no current execution, Local Canonical, project,
+Companion, provider, or GitHub transport authority. The registered reference
+host remains governed by the
+[verification policy](.github/LOCAL_CANONICAL_VERIFICATION.md); an ordinary
+development checkout does not become that host. No general multi-repository or
 configurable-root mode exists.
 
 ## Canonical verification

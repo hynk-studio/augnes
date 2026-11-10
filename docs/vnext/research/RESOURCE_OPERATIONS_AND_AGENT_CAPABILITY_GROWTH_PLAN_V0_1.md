@@ -201,7 +201,7 @@ For implementation selection, distinguish the following scopes; 03 remains the o
 | The first case's missing connection | Select actual tasks, consumers, and a provider; inspect which connection is missing between existing paths and implement only what the case needs. This document does not assign that implementation. |
 | Later expansion | Provider-backed shared reservation and settlement remain Later and require a concrete 02 contract and actual provider enforcement when needed. Continuing services and broader organizations depend on observed demand and responsibility; they are not prerequisites for the first case. |
 
-ChatGPT handles goal and scope analysis, plan refinement, and result review; Codex inspects current source and performs necessary implementation, verification, and PR preparation. Preserve existing assignments and responsibility boundaries while connecting changes needed for the selected case. This document retains design rationale and links to existing owners; repository issues and PRs retain execution assignments and status.
+Task owners define goals, scope, and acceptance criteria; contributors inspect current source and perform necessary implementation, verification, and PR preparation; reviewers independently assess the result. Preserve existing assignments and responsibility boundaries while connecting changes needed for the selected case. This document retains design rationale and links to existing owners; repository issues and PRs retain execution assignments and status.
 
 ## Conditions for expansion
 
