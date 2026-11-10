@@ -240,12 +240,30 @@ remove it reversibly with `npm run augnes:service:stop` or
 `npm run augnes:service:uninstall`. Linux and Windows service installation are
 unsupported; their source development flow remains foreground-only.
 
+For foreground source development, including Linux and Windows, install the
+same two dependency sets above and run `npm run dev` from this checkout instead
+of the service-install command. Keep that terminal open while using Augnes.
+
 Normal startup prepares the application-owned local database and does not
 reset or seed operator data. Ordinary reads and writes then connect only to that
 prepared store; missing or incompatible storage is refused without implicit
 creation or repair. See [database lifecycle ownership](docs/DATABASE_ACCESS_LIFECYCLE.md). `npm run augnes:service:status` returns bounded
 lifecycle state without exposing service paths, Node paths, PIDs, ports,
 tokens, manifests, or database paths.
+
+To find the running UI address, read runtime status from the application
+checkout (use another terminal for foreground development):
+
+```bash
+npm run augnes -- status
+```
+
+When the runtime is ready and verified, open the returned `effective_url` in
+your browser. The address is selected at startup; do not assume a fixed port.
+If no verified address is returned, check the foreground terminal's startup
+result or, for an installed service, run `npm run augnes:service:status` and
+follow its supported recovery action. Service lifecycle status alone does not
+return the UI address.
 
 <details>
 <summary>Companion lifecycle and recovery boundaries</summary>
@@ -288,7 +306,7 @@ Restore/update still require their separate explicit action and full target
 revalidation under the existing recovery lifecycle. Unknown/interrupted requests
 remain unresolved; do not send a replacement merely to hide a lost response.
 
-Open the URL and connect a local project. The primary path uses **Choose a
+In the opened UI, connect a local project. The primary path uses **Choose a
 folder**. If the native picker is unavailable, remains invisible, is cancelled,
 or does not return, **Enter the folder path instead** accepts one exact absolute
 path from the computer running Augnes. Both paths converge on the same review

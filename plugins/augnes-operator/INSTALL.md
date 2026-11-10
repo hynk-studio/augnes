@@ -17,6 +17,20 @@
    npm run augnes:service:install
    ```
 
+   From that same application checkout, read the running UI address:
+
+   ```bash
+   npm run augnes -- status
+   ```
+
+   When the runtime is ready and verified, open its returned `effective_url`.
+   The port is selected at startup; service lifecycle status alone does not
+   return this address. If no verified address is returned, run
+   `npm run augnes:service:status` and use the
+   [ordinary recovery guidance](#ordinary-use-and-recovery).
+   For Linux/Windows source development, use
+   the [foreground Quickstart](../../README.md#quickstart).
+
    Connect the intended local project in the Browser. If you want to use its
    protected Browser editors, run `npm run augnes -- access` from another
    terminal in the service checkout. For an installed healthy Companion with

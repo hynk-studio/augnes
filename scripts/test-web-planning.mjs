@@ -1,4 +1,5 @@
 import { checkParticipation } from './web-planning-participation-checks.mjs';
+import { checkRequestBodies } from './web-planning-request-checks.mjs';
 import { checkLargeExchanges } from './web-planning-large-exchange-checks.mjs';
 import { checkWorkSearch } from './web-planning-search-checks.mjs';
 import { checkReturnReassessment } from './web-planning-reassessment-checks.mjs';
@@ -67,6 +68,7 @@ try {
  const runtimeConfig=await checkSitesArtifact(artifact,code);
  await exerciseSitesBootstrap({start,artifact,code,runtimeConfig,client,newWork,save,edit,headBinding,passed});
  local=await start('primary');let c=await client(local);
+ await checkRequestBodies({server:local,client:c,passed});
  const normalized=normalizePayload(fixtureScope,{goal:'  계획 🌿  ',success_criteria:[' b ','a','a',''],non_goals:[]},notes);
  assert.deepEqual(normalized.definition,{goal:'계획 🌿',success_criteria:['a','b'],non_goals:[]});
  // Frozen byte fingerprints collected from the merged d7c8c326 normalizer/source owner,

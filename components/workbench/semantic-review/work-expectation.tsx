@@ -35,6 +35,7 @@ export function WorkExpectationPreparation({ initialization, draft, onAccessRefu
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const saving = useRef(false);
+  const editVersion = useRef(0);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const needsReview = started && (reviewRequired || workExpectationBindingKey(boundWork) !== workExpectationBindingKey(initialization));
@@ -48,6 +49,13 @@ export function WorkExpectationPreparation({ initialization, draft, onAccessRefu
     setMaterial(null);
     const controller = new AbortController();
     void fetch(ROUTE, { cache: "no-store", credentials: "same-origin", signal: controller.signal }).then(async response => {
+      if (controller.signal.aborted) return;
+      if (response.status === 401 || response.status === 403) {
+        setReviewRequired(true);
+        setMessage("Your expectation draft is retained. Authenticate the original project and operator before recording.");
+        onAccessRefused?.("operator_session_required");
+        return;
+      }
       const body = await response.json();
       if (controller.signal.aborted) return;
       if (!response.ok || body.eligibility.current_packet_id !== initialization.current_packet?.packet_id ||
@@ -55,7 +63,6 @@ export function WorkExpectationPreparation({ initialization, draft, onAccessRefu
         body.eligibility.project_work_binding !== initialization.project_work_binding) {
         setReviewRequired(true);
         setMessage("Your expectation draft is retained. Refresh and review current work before recording.");
-        if (response.status === 401 || response.status === 403) onAccessRefused?.(body.error_code ?? "operator_session_required");
         return;
       }
       setMaterial(body);
@@ -93,6 +100,7 @@ export function WorkExpectationPreparation({ initialization, draft, onAccessRefu
     {(material?.authoring_available && material.capacity_available) || reason || conditions || needsReview ? <form className={styles.form} onSubmit={async event => {
       event.preventDefault(); if (saving.current || !boundWork.current_packet || !canRecord || !material) return;
       saving.current = true; setBusy(true); setMessage("");
+      const submittedEditVersion = editVersion.current;
       try {
         const response = await fetch(ROUTE, { method: "POST", cache: "no-store", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({
           action: "record_work_expectation", expected_active_project_id: boundWork.project_id,
@@ -101,32 +109,39 @@ export function WorkExpectationPreparation({ initialization, draft, onAccessRefu
           expected_packet_id: boundWork.current_packet.packet_id, expected_packet_fingerprint: boundWork.current_packet.packet_fingerprint,
           expected_previous_id: latest?.record_id ?? null, criterion_id: material.criteria.find(c => c.criterion === criterion)?.criterion_id, predicted_outcome: prediction, reason, conditions,
         }) });
-        const body = await response.json();
         if (!mounted.current) return;
         if (!response.ok) {
           setReviewRequired(true); setMaterial(null);
           setMessage("The work, session or start boundary changed. Your draft is retained. Refresh and review before recording.");
-          if (response.status === 401 || response.status === 403) onAccessRefused?.(body.error_code ?? "operator_session_required");
+          // Known access refusal must not depend on a JSON error body.
+          if (response.status === 401 || response.status === 403) onAccessRefused?.("operator_session_required");
           return;
         }
+        const body = await response.json();
+        if (!mounted.current) return;
         setMaterial({ ...material, history: [...material.history, body.record] });
-        setReason(""); setConditions(""); setMessage("Expectation saved before Start. Earlier versions are preserved.");
+        // The saved record owns the submitted values, not any later edits to
+        // their requirement, prediction, reason or applicability conditions.
+        if (editVersion.current === submittedEditVersion) {
+          setReason(""); setConditions("");
+          setMessage("Expectation saved before Start. Earlier versions are preserved.");
+        } else setMessage("Expectation saved before Start. Your later edits are retained and have not been saved.");
       } catch { if (mounted.current) { setReviewRequired(true); setMaterial(null); setMessage("Save could not be confirmed. Your draft is retained. Refresh to inspect recorded history before retrying."); } }
       finally { saving.current = false; if (mounted.current) setBusy(false); }
     }}>
       <label htmlFor="expectation-criterion">Task requirement</label>
-      <select id="expectation-criterion" value={criterion} onChange={e => setCriterion(e.target.value)}>
+      <select id="expectation-criterion" value={criterion} onChange={e => { editVersion.current++; setCriterion(e.target.value); }}>
         {!initialization.current_work?.success_criteria.includes(criterion) && criterion ? <option value={criterion}>Previous requirement: {criterion}</option> : null}
         {initialization.current_work?.success_criteria.map(c => <option key={c} value={c}>{c}</option>)}
       </select>
       <label htmlFor="expectation-prediction">I predict this requirement will be</label>
-      <select id="expectation-prediction" value={prediction} onChange={e => setPrediction(e.target.value)}>
+      <select id="expectation-prediction" value={prediction} onChange={e => { editVersion.current++; setPrediction(e.target.value); }}>
         <option value="satisfied">Satisfied</option><option value="unsatisfied">Unsatisfied</option>
       </select>
       <label htmlFor="expectation-reason">Short reason</label>
-      <textarea id="expectation-reason" required maxLength={600} value={reason} onChange={e => setReason(e.target.value)} />
+      <textarea id="expectation-reason" required maxLength={600} value={reason} onChange={e => { editVersion.current++; setReason(e.target.value); }} />
       <label htmlFor="expectation-conditions">Conditions under which this prediction applies</label>
-      <textarea id="expectation-conditions" required maxLength={600} value={conditions} onChange={e => setConditions(e.target.value)} />
+      <textarea id="expectation-conditions" required maxLength={600} value={conditions} onChange={e => { editVersion.current++; setConditions(e.target.value); }} />
       <p className={styles.muted}>The comparison rule is fixed now: use supported exact criterion evidence, otherwise a source-linked operator report. A conclusive comparison also needs your observation that these conditions held. Missing or conflicting evidence remains unknown; a run that does not complete remains unobserved.</p>
       <button className={styles.secondaryButton} disabled={busy || !canRecord || !reason.trim() || !conditions.trim()} data-expectation-action="save">
         {busy ? "Saving…" : latest ? "Record a new expectation version" : "Record expectation"}
@@ -165,6 +180,9 @@ export function WorkExpectationResult({ comparison, receiptId, receiptFingerprin
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const saving = useRef(false);
+  const editVersion = useRef(0);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   if (!visible) return <p role="status">Authenticate the original project and operator to recover this result report draft.</p>;
   return <section className={styles.panel} style={{ overflowWrap: "anywhere" }} data-expectation-comparison={comparison.comparison} data-expectation-eligibility={comparison.eligibility}>
     <h2>Expectation and result</h2>
@@ -185,15 +203,18 @@ export function WorkExpectationResult({ comparison, receiptId, receiptFingerprin
       <button type="button" disabled={busy} data-expectation-action="refresh-report" onClick={async () => {
         if (saving.current) return; saving.current = true; setBusy(true);
         try {
-          if (await onSaved?.() !== true) { setMessage("The result could not be refreshed. Your draft is retained and reporting remains disabled."); return; }
+          const refreshed = await onSaved?.();
+          if (!mounted.current) return;
+          if (refreshed !== true) { setMessage("The result could not be refreshed. Your draft is retained and reporting remains disabled."); return; }
           setNeedsRefresh(false); setMessage("Current result and report history loaded. Review them and your retained observation before recording.");
-        } catch { setMessage("The result could not be refreshed. Your draft is retained and reporting remains disabled."); }
-        finally { saving.current = false; setBusy(false); }
+        } catch { if (mounted.current) setMessage("The result could not be refreshed. Your draft is retained and reporting remains disabled."); }
+        finally { saving.current = false; if (mounted.current) setBusy(false); }
       }}>Refresh result and report history</button>
     </div> : null}
     {comparison.report_allowed && (projectWorkBinding || selectionRevision !== null) ? <details data-expectation-report-editor open={opened} onToggle={e => setOpened(e.currentTarget.open)}><summary>Report a criterion observation (optional)</summary>
       <form className={styles.form} onSubmit={async event => {
         event.preventDefault(); if (saving.current || needsRefresh) return; saving.current = true; setBusy(true); setMessage("");
+        const submittedEditVersion = editVersion.current;
         try {
           const response = await fetch(ROUTE, { method: "POST", cache: "no-store", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({
             action: "report_work_expectation_outcome", expected_active_project_id: comparison.expectation.project_id,
@@ -201,26 +222,33 @@ export function WorkExpectationResult({ comparison, receiptId, receiptFingerprin
             expectation_id: comparison.expectation.record_id, receipt_id: receiptId, receipt_fingerprint: receiptFingerprint,
             outcome: comparison.outcome_source === "criterion_assessment" ? comparison.actual_outcome : outcome, observation, applicability: applied ? "applied" : "not_established",
           }) });
+          if (!mounted.current) return;
           if (response.status === 401 || response.status === 403) {
             // Hide on known refusal even when a proxy returns a non-JSON body.
             // The mounted loader retains this receipt/principal's draft only.
             setVisible(false); onAccessRefused?.("operator_session_required"); return;
           }
           if (!response.ok) { setNeedsRefresh(true); setMessage("The exact result, project binding or report version changed. Your observation is retained; refresh this result before reporting."); return; }
-          if (await onSaved?.() === false) { setNeedsRefresh(true); setMessage("The report was saved, but its current history could not be read. Your draft is retained; refresh before another report."); return; }
-          setObservation(""); setMessage("Source-linked operator report saved. Earlier reports are preserved.");
-        } catch { setNeedsRefresh(true); setMessage("Report could not be confirmed. Your observation is retained; refresh to inspect saved history before retrying."); }
-        finally { saving.current = false; setBusy(false); }
+          const refreshed = await onSaved?.();
+          if (!mounted.current) return;
+          if (refreshed === false) { setNeedsRefresh(true); setMessage("The report was saved, but its current history could not be read. Your draft is retained; refresh before another report."); return; }
+          // Keep the whole report together if any field changed while either
+          // the POST or the required history refresh was in flight.
+          if (editVersion.current === submittedEditVersion) {
+            setObservation(""); setMessage("Source-linked operator report saved. Earlier reports are preserved.");
+          } else setMessage("Source-linked operator report saved. Your later edits are retained and have not been saved.");
+        } catch { if (mounted.current) { setNeedsRefresh(true); setMessage("Report could not be confirmed. Your observation is retained; refresh to inspect saved history before retrying."); } }
+        finally { saving.current = false; if (mounted.current) setBusy(false); }
       }}>
         {comparison.outcome_source === "criterion_assessment" ? <p>The supported criterion assessment owns the outcome. This report only confirms whether your recorded conditions applied.</p> : null}
         <p>This is your observation of the exact result linked above. It does not change the forecast, receipt, criterion assessment or task success.</p>
         <label htmlFor="expectation-outcome">Observed criterion outcome</label>
-        <select id="expectation-outcome" disabled={comparison.outcome_source === "criterion_assessment"} value={comparison.outcome_source === "criterion_assessment" ? comparison.actual_outcome : outcome} onChange={e => setOutcome(e.target.value)}>
+        <select id="expectation-outcome" disabled={comparison.outcome_source === "criterion_assessment"} value={comparison.outcome_source === "criterion_assessment" ? comparison.actual_outcome : outcome} onChange={e => { editVersion.current++; setOutcome(e.target.value); }}>
           <option value="unknown">Unknown</option><option value="satisfied">Satisfied</option><option value="unsatisfied">Unsatisfied</option><option value="not_applicable">Not applicable</option>
         </select>
         <label htmlFor="expectation-observation">What in this result supports your observation?</label>
-        <textarea id="expectation-observation" required maxLength={600} value={observation} onChange={e => setObservation(e.target.value)} />
-        <label><input type="checkbox" style={{ width: "auto" }} checked={applied} onChange={e => setApplied(e.target.checked)} id="expectation-applicability" />I observed that the recorded applicability conditions held for this attempt.</label>
+        <textarea id="expectation-observation" required maxLength={600} value={observation} onChange={e => { editVersion.current++; setObservation(e.target.value); }} />
+        <label><input type="checkbox" style={{ width: "auto" }} checked={applied} onChange={e => { editVersion.current++; setApplied(e.target.checked); }} id="expectation-applicability" />I observed that the recorded applicability conditions held for this attempt.</label>
         <button className={styles.secondaryButton} disabled={busy || needsRefresh || !observation.trim()} data-expectation-action="report">{busy ? "Saving…" : comparison.reports.length ? "Record a corrected report" : "Record operator observation"}</button>
       </form>
     </details> : null}
