@@ -5,6 +5,8 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { assertProjectExperienceInventory, projectExperienceSteps } from "./project-experience-serial-budget.mjs";
+import { validProjectExperienceConnection } from "./project-experience-connection.mjs";
 
 import { ProductShell } from "../components/product-shell";
 import {
@@ -658,8 +660,43 @@ assert.equal(
   canonicalSuite.includes("browser-validate-vnext-native-host-result-v0-1.mjs"),
   false,
 );
+const projectExperienceInventory = projectExperienceSteps(repositoryRoot);
+const projectExperienceBrowserArgs = ["--import", "tsx", "scripts/browser-validate-project-experience-v1.mjs"];
+const canonicalParent = source("scripts/run-local-canonical-verification.mjs");
+function assertProjectExperienceRegistration(
+  inventory: ReturnType<typeof projectExperienceSteps>, suite: string, parent: string,
+): void {
+  assertProjectExperienceInventory(inventory, repositoryRoot);
+  const browser = inventory.filter((step: { command: string; args: string[]; id: string }) => step.command === process.execPath &&
+    JSON.stringify(step.args) === JSON.stringify(projectExperienceBrowserArgs));
+  assert.equal(browser.length, 1);
+  assert.equal(browser[0].id, "project-experience");
+  assert.equal(inventory[0], browser[0]);
+  assert.equal(validProjectExperienceConnection(suite, parent), true);
+}
+assertProjectExperienceRegistration(projectExperienceInventory, canonicalSuite, canonicalParent);
+for (const mutate of [
+  (steps: typeof projectExperienceInventory) => steps.shift(),
+  (steps: typeof projectExperienceInventory) => steps.push({ ...steps[0] }),
+  (steps: typeof projectExperienceInventory) => { steps[0].command = "unused-node"; },
+  (steps: typeof projectExperienceInventory) => { steps[0].args = ["--import", "tsx", "scripts/unused.mjs"]; },
+  (steps: typeof projectExperienceInventory) => steps.reverse(),
+]) {
+  const inventory = projectExperienceSteps(repositoryRoot); mutate(inventory);
+  assert.throws(() => assertProjectExperienceRegistration(inventory, canonicalSuite, canonicalParent));
+}
+for (const disconnected of [
+  canonicalSuite.replace("{ ...projectExperienceStep }, ", ""),
+  canonicalSuite.replace("{ ...projectExperienceStep }, { ...projectClientBrowserStep }",
+    "{ ...projectClientBrowserStep }, { ...projectExperienceStep }"),
+  canonicalSuite.replaceAll("runProjectExperienceChildren({", "runUnusedChildren({"),
+]) {
+  assert.notEqual(disconnected, canonicalSuite);
+  assert.throws(() => assertProjectExperienceRegistration(projectExperienceInventory, disconnected, canonicalParent));
+}
+assert.throws(() => assertProjectExperienceRegistration(projectExperienceInventory, canonicalSuite,
+  canonicalParent.replaceAll("runProjectExperienceParent", "runUnusedParent")));
 for (const permanentBrowserSource of [
-  "browser-validate-project-experience-v1.mjs",
   "browser-validate-operator-review-control-v1.mjs",
   "test-operator-browser-navigation-diagnostics-v1.mjs",
   "browser-validate-operator-native-host-execution-v1.mjs",

@@ -48,6 +48,8 @@ export async function runCanonicalChild({
   stderr = process.stderr,
   log = (line) => console.log(line),
   onSpawn = () => {},
+  onBoundary = () => {},
+  onMessage = /** @type {((message: import("node:child_process").Serializable, sendHandle: import("node:child_process").SendHandle) => void) | undefined} */ (undefined),
   resourceOwner,
   signal = undefined,
 }) {
@@ -63,14 +65,16 @@ export async function runCanonicalChild({
 
   const owner = new Set();
   if (resourceOwner) beginCanonicalTestResourceUse(resourceOwner);
+  onBoundary("execution");
   const child = spawn(command, args, {
     cwd,
     env,
     detached: process.platform !== "win32",
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: ["ignore", "pipe", "pipe", ...(onMessage ? ["ipc"] : [])],
     windowsHide: true,
   });
   const record = registerOwnedChild(owner, child, { label: safeLabel });
+  if (onMessage) child.on("message", onMessage);
   onSpawn(record.pid);
   log(
     `[canonical:${safeSuite}] child_spawn label=${JSON.stringify(safeLabel)} pid=${record.pid ?? "unavailable"} wait=process_exit`,
@@ -116,6 +120,7 @@ export async function runCanonicalChild({
       timeoutOutcome,
       cancellation,
     ]);
+    onBoundary("settlement", { kind: outcome.kind, exited: record.exited });
     if (outcome.kind === "timeout" || outcome.kind === "cancelled") {
       timedOut = outcome.kind === "timeout";
       cancelled = outcome.kind === "cancelled";
@@ -180,6 +185,7 @@ export async function runCanonicalChild({
     child.stderr.removeAllListeners("data");
   }
 
+  onBoundary("coordinator");
   const durationMs = Date.now() - startedAt;
   const result = {
     label: safeLabel,

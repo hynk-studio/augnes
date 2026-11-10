@@ -1019,6 +1019,112 @@ retired with the earlier workload route. The [original proposal](../docs/verific
 retains its failure and authority history. Use the pinned historical reader;
 neither route can supply a current successor or new execution authority.
 
+#### Prospective serial aggregate budget correction from v2
+
+`commission.route = serial-aggregate-budget-v1` is a narrow v7
+`reviewed_revision` variant. It explicitly follows a latest settled ordinary v2
+`source_revision` with no consumed reviewed-v7 commission. It does not broaden
+the ordinary timeout disposition list. No issue, branch, receipt, or maintainer
+identity is built into the discriminator. A different candidate-family hash
+preserves the existing logical root and the exclusive immediate predecessor
+edge; it does not reset the task or manufacture spent v7 ordinals.
+
+The sole eligible incident is the existing serial project-experience parent
+deadline interrupting the third child while it still had individual execution
+allowance. The first two children must have naturally passed and settled; any
+observed third-child exit, assertion failure, timeout, or settlement refuses.
+The third outcome remains UNKNOWN. The reader checks original receipt integrity,
+physical attempt/completion and original log bytes, recorded source and phase
+inventory, every executed environment binding, every present Browser record,
+and genuine following NOT_RUN placeholders. Only those proven missing records
+may explain false stock. Other input, Browser, stock, cleanup, or preservation
+invalidity refuses. Original results, false stock and earlier lineage stay
+unchanged. Full local incident evaluation needs the original files and physical
+anchor; exported digests do not prove causal history or the latest physical tip.
+
+For an original phase capped at 2097152 bytes, the reader additionally requires
+the complete original wrapper capture (at most 8 MiB), its exact physical
+regular-file identity, and a matching copy. Only unique parent spawn/result
+boundaries and validated parent lifecycle rows delimit the phase. The capped
+bytes must be its exact prefix; the complete phase and wrapper Browser records
+must match the respective original receipt records. Missing suffixes, duplicate
+boundaries, changed originals, unexpected lifecycle rows, and any interrupted
+or following-child completion/start refuse. Original truncation and timeout
+fields remain unchanged. Physical capture paths stay private and are excluded
+from sanitized exports.
+
+The shared owner `scripts/project-experience-serial-budget.mjs` retains the
+four children in order with the same commands, requirements, assertions,
+natural-exit requirements, and individual limits: 360000, 60000, 180000 and
+60000 ms. The fourth child is the separate Web draft-safety matrix. The derived
+execution envelope is 730000 ms: 660000 child execution, 40000 conservative
+natural-child settlement (10000 per child), and 30000 coordinator time. These
+are disjoint intervals. Each child pays its `--import tsx` startup from its own
+execution limit and cannot borrow unused time from another child.
+
+The Full Browser parent invokes Node directly. Suite startup/imports,
+preparation, between-child work, finalization, resource settlement and output
+drain belong to coordinator time. Both the suite and the parent enforce that
+30000 ms allowance independently of the outer 730000 ms guard. Early child
+completion cannot subsidize excessive coordination. Parent post-exit settlement
+is separately reported; forced terminal cleanup is separately identified and
+always fails. Total observed phase duration can exceed the execution envelope.
+Budget failure still settles owned process/resource cleanup and preservation.
+
+This suite may observe a no-lease state or join an existing ancestor lease. It
+cannot acquire a new maintenance lease. The actual Companion owner rejects that
+acquisition before mutation, so the coordinator allowance never silently cuts
+an owned 90000 ms restoration obligation. Other suites retain their maintenance
+ownership, phase limits and concurrency. Commands/inventory disagreement or
+unapproved override refuses. Existing input machinery freezes the shared owner
+and binds the phase inventory and envelope commitment.
+
+A successor must materially connect the changed orchestration owner and retain
+all useful child code and limits. Focused evidence binds the actual reusable
+serial-owner control driver, source blobs, exact command, runtime inputs,
+natural exit, output and cleanup. It demonstrates controlled old aggregate
+interruption, corrected serial completion, and refusal of child failure,
+individual timeout, forced cleanup, incomplete cleanup, excessive coordinator
+time, inventory disagreement, and borrowed child/settlement allowances. An
+unrelated PASS, unused export or cosmetic source change is insufficient.
+Synthetic controls prove their mechanisms, not the old child's unknown result.
+
+`scripts/prepare-local-canonical-serial-aggregate.mjs <material.json>` performs
+read-only preparation from the admitted isolated Mac checkout. It checks the
+current published Draft PR head/base, exact clean source, original physical tip,
+runtime and full input inventory, and fresh Companion preservation. It obtains
+no capacity or maintenance lease, authorization capability or reservation.
+Its commitment binds discriminator, original predecessor, source, focused and
+incident material, inventory/envelope, and the single issued limit. Source and
+preparation must then receive independent exact-target review before a separate
+authenticated prospective grant. The review starts with
+`Source review decision: ACCEPT / RETAIN for prospective qualification.`
+The subsequent unedited grant starts with
+`Authorize one prospective serial-aggregate-budget-v1 invocation.`
+Both bind the exact preparation commitment, source, predecessor, inventory and
+envelope and state:
+`Original timeout, false stock, interrupted child UNKNOWN and all earlier lineage remain unchanged.`
+The grant links the accepted review and explicitly states:
+`Exactly one admitted deciding invocation total; no ordinal two, recovery or unchanged-target retry.`
+`Reservation/interruption consumes the single grant.`
+`Separate fresh-process stock and independent decision remain required.`
+Existing authenticated maintainer permissions, body hashes, target and temporal
+checks remain mandatory. Preparation or an implementation authorization cannot
+substitute for this grant.
+
+The actual exclusive edge reserves only that single invocation. Duplicate or
+interrupted reservations remain consumed; no automatic second ordinal,
+recovery, generic-v7 continuation or route downgrade follows it. A separately
+delegated material-source correction may follow only under the explicit
+exhausted-serial transition below; it does not extend this grant. Ordinary
+admission, planner-selected complete Full, resource policy and fresh-process
+stock still apply to any separately authorized deciding invocation. Receipt and
+stock additionally validate disjoint serial accounting. Historical physical
+replay uses recorded source/input/authority identities; live published-head
+checks belong to current preparation, admission and applicability. Sanitized
+export retains the variant and incident/proof bindings, but validates structure
+only and always reports `deciding=false` and `independent_attestation=false`.
+
 #### Reusable prospective material-source correction
 
 A newly delegated `commission.source_revision = material-source-correction-v1`
@@ -1041,6 +1147,29 @@ the physical append-only edges, detects cycles and is bounded by the physical
 family inventory; it does not reset a root or impose a new cross-commission quota.
 A material-source descendant cannot fall back into a legacy route.
 
+The supported incoming predecessor also includes a completely settled, exhausted
+`serial-aggregate-budget-v1` commission with a natural product failure. Its actual
+latest receipt, original v2 incident, consumed authority and exclusive history
+remain mandatory. Serial provenance is not globally Git-observation provenance.
+The first material descendant records `commission.inherited_serial`: original
+serial route and envelope commitment plus origin family, number, attempt and
+receipt. Every later material descendant must retain it exactly. Omission,
+alteration, unrelated insertion and legacy downgrade refuse. Serial predecessors
+genuinely lack a delegation role; no historical delegation is fabricated. The
+new real delegation must follow completion and cannot reuse the old grant.
+
+The inherited commitment retains four ordered children and their existing
+commands, assertions, natural exits and 360000/60000/180000/60000 ms limits,
+660000 ms execution + 40000 ms natural child settlement + independent 30000 ms
+coordinator = 730000 ms, with parent post-exit settlement separate. Maintenance
+ownership, phase-five/full-workload-twenty Browser records, terminal IPC fault
+retention and synthetic-output quarantine remain unchanged. The proof target,
+commission identity, authenticated review/grant scope, physical replay, receipt,
+fresh stock and sanitized export retain and enforce the inherited obligation.
+Both review and grant state `Inherited serial envelope: <exact commitment>` and
+bind its origin and the original serial history boundary. Export remains
+structural, non-deciding and not independent attestation.
+
 `input_acquisition` is preserved exactly when inherited. It describes acquisition
 provenance, not the new product incident. Current incoming edges require a fully
 supported physical lineage. A retired workload marker anywhere in that chain
@@ -1062,6 +1191,108 @@ may retain the after witness only with the complete exact Git delta and identica
 consumed bytes; executable changes require relevant new evidence. Witness originals
 are never relabeled.
 
+For a compiler defect, the bounded `repository-typecheck-v1` alternative records
+the unchanged `npm run typecheck` (`npm run typegen && tsc --noEmit`) with actual
+natural RED exit 2 and GREEN exit 0. It binds exact clean Git heads/trees and tree
+inventories, unchanged package/lock/tsconfig, compiler version and executable
+hashes, actual npm/tsc/next launchers, exact PATH Node identity, no preload or
+script-shell override, runtime/environment, both configured generated type roots
+including explicit absence, complete raw diagnostics,
+source stability, and cleanup. Both runs begin without an incremental cache;
+cached diagnostic exit 1 is retained separately, never relabeled. Typegen/setup
+failure, a wrapper substituted for the compiler, sparse or changed bindings,
+altered diagnostics and a merely cosmetic source delta refuse. This alternative
+has no new historical driver and does not weaken existing behavioral witnesses.
+
+For the extracted registration consumer, `repository-pure-contracts-v1` binds
+the existing `node --import tsx scripts/test-vnext-operator-pure-contracts-v0-1.ts`
+command and a natural unit failure. It is not a generic TS-driver admission or
+the compiler alternative. RED exit 1 must identify the original registration
+assertion in the exact prior source; GREEN exit 0 must report every unchanged
+responsibility exactly once. Setup failures and substituted wrappers refuse.
+Independent source review must establish that the corrected assertion retains
+the real inventory and suite/parent connection, not merely a passing string.
+
+This witness commits the complete Git tree, including binary file identities,
+sizes and modes, and compares all physical tracked bytes before and after each
+clean run. It does not enlarge the generic witness's 256-entry declaration cap.
+The fixed command's app/components/lib/scripts/types and Native source/public
+scopes refuse untracked or ignored shadow files, nested modules, links and path
+aliases. Root script/config shadows refuse; generated `next-env.d.ts` is bound
+separately, including absence. Exact package/lock/tsconfig, the real tsx loader,
+complete root prepared dependencies, Node/runtime, environment, raw diagnostics,
+ordering after predecessor completion and natural owned settlement are bound.
+The run uses a closed environment and hashes every effective child variable.
+`NODE_OPTIONS`, `NODE_PATH`, `TSX_TSCONFIG_PATH`, `ESBUILD_BINARY_PATH`,
+`NODE_COMPILE_CACHE` and `NODE_V8_COVERAGE` overrides refuse; tsx and Node compile
+caches are disabled. Other ambient transformer settings are not forwarded.
+The existing Git tree reader supplies complete identities; replacement refs
+refuse, and physical reads are bounded to 10000 entries, 128 MiB total and the
+existing 8 MiB per-blob bound. Current preparation
+rereads the physical source closure, loader and dependency inventory. Historical
+proof replay validates the saved observations against their original Git heads;
+it does not claim a current host observation. No incident eligibility, inherited
+serial obligation, authority role, issued limit or spent-grant rule changes.
+
+For a registered development fixture aggregate, the explicit
+`registered-fixture-aggregate-budget-v1` evidence kind represents a measured
+prospective allowance judgment. It is neither a demonstrated cure of an unknown
+historical delay nor qualification PASS. Ordinary natural RED/GREEN, compiler
+and pure-contract evidence retain their own strict discriminators and checks;
+missing legacy bindings never fall through into this kind.
+
+The original receipt, stock and completion must still satisfy the natural
+product-failure and complete-settlement reader. Its untruncated physical
+authority log must identify exactly one registered aggregate overrun, its
+bounded inner termination and natural outer failure, with complete owned
+cleanup. The exact original path, size and bytes are reread at preparation,
+admission and replay. A top-level infrastructure timeout, assertion failure,
+unrelated phase, missing registration or ambiguous interval is ineligible.
+The original classification, cause UNKNOWN and false stock remain unchanged.
+Intermediate exit, signal and settlement observations must agree with the final
+result; a passing summary cannot hide a failed or forced intermediate exit.
+
+The witness parses the existing finite reviewed-fixture registration grammar;
+it never executes historical source. Only the selected aggregate's inner and
+outer allowances may change. Other groups, commands, assertions, child limits,
+the lifecycle owner and product source remain intact. The source partition
+separately commits the exact budget delta and the closed set of evidence-owner
+and control changes for independent review. Version 1 admits newly dedicated
+allowances and freezes existing shared constants. The initial supported owner
+is the `serial-aggregate` reviewed-fixture group, with its substantive completion
+and complete measurement-stage grammar. Both limits remain finite within
+the existing 300-second child-owner bound. The parent leaves the existing
+8-second TERM and 5-second KILL grace plus an explicit remaining allowance.
+This accounting is not a universal wall-clock guarantee or an automatic rule
+that another unexplained timeout deserves another increase.
+
+Clean old-source PASS observations are retained with their actual limitations;
+no new RED is required or sought. The existing diagnostic measurement binds its
+collector, observer, raw output, timing-only patch and original Git preimages.
+Every stage from import start through final cleanup must be present in order;
+overlapping I/O costs are not added to the complete elapsed interval. A separate
+explicit development capture runs
+the final published direct control and actual registered parent. Each retains
+collector bytes, exact command/loader, all Git and physical tracked source,
+JSON/config inputs, prepared dependencies, runtime and complete effective
+environment before/after, raw final-tail output, lifecycle and owned cleanup.
+Both observations also bind the complete current production input inventory.
+The actual parent inventory is derived from source. A changed final source/input
+closure needs a new observation. Neither witness readers nor preparation run
+these commands, collect authority or reserve an invocation. Controlled checker
+fixtures may replay synthetic records; they are not historical incidents,
+product Browser evidence or substitutes for the final real captures.
+
+Material and observations precede successful read-only preparation. That exact
+published source, general evidence semantics, measured allowance, current input
+commitment and physical lineage then require independent acceptance. Both the
+authenticated review and separate prospective grant bind the explicit evidence
+kind and its limited claim. The kind remains committed through commission
+identity, original proof replay, receipt/stock and the sanitized export, whose
+structural status still supplies no independent attestation or deciding stock.
+Inherited serial accounting, exclusive successor and one-shot consumption are
+unchanged. No acceptance/grant is required to produce a non-reserving target.
+
 The production reader owns the four-paragraph material-source delegation. It must
 be unedited, genuinely new and later than the physical predecessor's completion.
 Real non-reserving preparation precedes separate independent acceptance of the
@@ -1076,6 +1307,14 @@ unchanged-target retry/extra recovery, separate fresh-process stock and independ
 result audit. Preparation, source acceptance and synthetic controls grant no
 execution authority. Fresh current-main, published-source, runtime/header,
 complete input, Companion, ownership and capacity admission still precede Full.
+
+`node scripts/prepare-local-canonical-material-source.mjs <material.json>` is a
+thin read-only caller of the existing preparation owner. It checks the current
+authenticated Draft PR, genuine unedited conditional delegation and permission,
+completion ordering, physical latest tip, source/runtime/inventory, Companion
+and current compiler bytes when applicable. Its material has no execution
+authorization or accepted-review field; it acquires no capability, lease,
+reservation, successor or consumption.
 
 Rollback removes prospective admission; it never deletes historical proofs,
 markers, grant identities, consumed reservations or failed receipts. Older readers
@@ -1152,6 +1391,10 @@ and cleanup owners; the additional negative controls do not enlarge a deadline.
 `node scripts/run-canonical-test-suite.mjs authority
 --reviewed-revision-only` selects these actual registrations with their normal
 resource and cleanup owners. The aggregate has no additional registration.
+The serial-material registration additionally executes three actual compiler
+children and serial incident/lineage controls in its own disposable root. Its
+60-second nested owner and 75-second outer natural-exit limit are focused-test
+bounds only; all production serial limits and other registrations stay fixed.
 
 The new commission's initial ordinal binds its latest tip as its root. All old
 grant IDs and consumption are reconstructed from the existing exclusive chain.
