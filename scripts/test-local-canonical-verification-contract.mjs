@@ -7,7 +7,7 @@ import { RESEARCH_REGISTRATION_PATH, RESEARCH_SOURCE_PATHS, RESEARCH_OWNER_ID,
 import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { assertVerificationDocumentation } from "./validate-canonical-docs-change.mjs";
 import { buildPhasePlan, OPERATING_POLICY_PHASE_IDS } from "./run-local-canonical-verification.mjs";
-import { integrationBudgetRegistration, REGISTERED_INTEGRATION_BUDGET } from "./local-canonical-fixture-budget-witness.mjs";
+import { integrationBudgetRegistration, REGISTERED_INTEGRATION_BUDGET, verifyIntegrationBudgetAdoptedEntries } from "./local-canonical-fixture-budget-witness.mjs";
 import { integrationBudgetAuthorityBindings, integrationBudgetAuthorityScope, INTEGRATION_BUDGET_GRANT,
   INTEGRATION_BUDGET_LIMIT, MATERIAL_HISTORY_BOUNDARY } from "./local-canonical-git-observation.mjs";
 import { spawnSync } from "node:child_process";
@@ -67,6 +67,16 @@ assert.throws(() => registration(canonicalSuite.replace(
 assert.throws(() => registration(canonicalSuite,readRepositoryFile("scripts/run-local-canonical-verification.mjs")
   .replace("4_200_000","100_000")), /revision_fixture_budget_invalid/u);
 assert(actualIntegration.parentMs > actualIntegration.childMs + 13000);
+const quotedPath = 'scripts/복구 "probe".ts';
+const blob = {mode:"100644",type:"blob",oid:"1".repeat(40)};
+const unusualEntry = new Map([[quotedPath,blob]]);
+assert.throws(() => verifyIntegrationBudgetAdoptedEntries(new Map(),unusualEntry,new Map(),new Set()), /revision_fixture_budget_invalid/u);
+verifyIntegrationBudgetAdoptedEntries(new Map(),unusualEntry,unusualEntry,new Set());
+const renamedEntry = new Map([["scripts/replacement-probe.ts",blob]]);
+assert.throws(() => verifyIntegrationBudgetAdoptedEntries(unusualEntry,renamedEntry,
+  new Map([...unusualEntry,...renamedEntry]),new Set()), /revision_fixture_budget_invalid/u);
+assert.throws(() => verifyIntegrationBudgetAdoptedEntries(unusualEntry,
+  new Map([[quotedPath,{...blob,mode:"100755"}]]),unusualEntry,new Set()), /revision_fixture_budget_invalid/u);
 
 // Binding-only fixtures. The production authentication owner separately
 // verifies maintainer identity, publication, chronology and the physical tip.

@@ -6,6 +6,7 @@ import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
 import { observePureContractSource, observePureContractLoader, pureContractGitSource } from "./local-canonical-pure-contract-witness.mjs";
 import { gitRevisionInventory } from "./local-canonical-git-observation.mjs";
+import { createCanonicalRevisionReader } from "./canonical-revision-reader.mjs";
 
 export const REGISTERED_FIXTURE_BUDGET = "registered-fixture-aggregate-budget-v1";
 export const FIXTURE_BUDGET_CLAIM = "Measured prospective development-fixture allowance; historical cause remains UNKNOWN; neither demonstrated cure nor qualification PASS.";
@@ -389,6 +390,18 @@ const withdrawalCheckpoint = "withdrawn_binding_original_receipt_fresh_read_chec
 const recoveryCheckpoint = "nonempty_older_store_recovery_and_suspension";
 const terminationGraceMs = 13000;
 
+const sameGitEntry = (a,b) => a === b || !!a && !!b && a.mode === b.mode && a.type === b.type && a.oid === b.oid;
+function changedGitFiles(from,to) {
+  const files = new Set();
+  for (const tree of [from,to]) for (const [file,entry] of tree) if (entry.type !== "tree") files.add(file);
+  return [...files].filter(file => !sameGitEntry(from.get(file),to.get(file))).sort();
+}
+
+export function verifyIntegrationBudgetAdoptedEntries(accepted,candidate,main,allowed) {
+  for (const file of changedGitFiles(accepted,candidate))
+    if (!allowed.has(file) && !sameGitEntry(candidate.get(file),main.get(file))) fail();
+}
+
 // A measured run may add only this reversible instrumentation. The entire
 // reconstructed source must equal the accepted Git blob. These substitutions
 // name the test and suite owners, not any branch, incident, or commit.
@@ -562,13 +575,15 @@ function databaseState(database = db) {
 
 export function verifyIntegrationBudgetMeasurementSource(git, accepted, measured) {
   for (const [file, edits] of Object.entries(integrationObservationEdits)) {
-    let source = sourceAt(git, measured, file);
+    const originalBlob = git(["show",accepted+":"+file]), measuredBlob = git(["show",measured+":"+file]);
+    let source = measuredBlob.toString("utf8");
+    if (!Buffer.from(source).equals(measuredBlob)) fail();
     for (const [original, observed] of edits) {
       const first = source.indexOf(observed);
       if (first < 0 || first !== source.lastIndexOf(observed)) fail();
       source = source.slice(0, first) + original + source.slice(first + observed.length);
     }
-    if (source !== sourceAt(git, accepted, file)) fail();
+    if (!Buffer.from(source).equals(originalBlob)) fail();
   }
 }
 
@@ -747,7 +762,7 @@ function integrationCapture(ref, head, registration, p, {git,parse,bytes}) {
 }
 
 export function verifyRegisteredIntegrationBudget(p,prior,focused,options) {
-  const {git,parse,completedAt} = options, reg = focused.regression, baseline = reg.accepted_baseline;
+  const {git,parse,completedAt,repositoryRoot} = options, reg = focused.regression, baseline = reg.accepted_baseline;
   if (!keys(reg,["kind","claim","owner","incident","accepted_baseline","before","after"]) ||
       reg.kind !== REGISTERED_INTEGRATION_BUDGET || p.commission.evidence_kind !== reg.kind || reg.claim !== INTEGRATION_BUDGET_CLAIM ||
       !equal(reg.owner,integrationOwner) || focused.failed_phase !== "integration" || !equal(focused.input_remedy_resources,[]) ||
@@ -761,13 +776,18 @@ export function verifyRegisteredIntegrationBudget(p,prior,focused,options) {
   const measuredBase = git(["merge-base",p.base,measuredHead]).toString().trim();
   for (const [a,b] of [[prior.head,baseline.head],[baseline.base,measuredBase],[p.base,p.head],[baseline.head,measuredHead],[measuredHead,p.head]])
     git(["merge-base","--is-ancestor",a,b]);
-  const changed = (a,b) => git(["diff","--name-only",a,b,"--"]).toString().trim().split("\n").filter(Boolean);
-  const entry = (head,file) => git(["ls-tree",head,"--",file]);
+  // Exact decoded path keys and modes from the shared NUL-framed tree owner.
+  // Additions and deletions remain separate even if Git would show a rename.
+  const reader = createCanonicalRevisionReader(repositoryRoot);
+  const trees = new Map([...new Set([baseline.head,measuredBase,measuredHead,p.base,p.head])].map(head => [head,reader.tree(head)]));
+  const changed = (a,b) => changedGitFiles(trees.get(a),trees.get(b));
+  const entry = (head,file) => trees.get(head).get(file);
   const adoptedProse = file => {
     const main = entry(p.base,file), measured = entry(measuredHead,file), ancestor = entry(measuredBase,file), candidate = entry(p.head,file);
-    if (candidate.equals(main) && (measured.equals(ancestor) || measured.equals(main))) return true;
-    const blobs = [measured,ancestor,main,candidate].map(value => value.toString().match(/^100644 blob ([a-f0-9]{40})\t/u)?.[1]);
-    if (blobs.some(id => !id)) return false;
+    if (sameGitEntry(candidate,main) && (sameGitEntry(measured,ancestor) || sameGitEntry(measured,main))) return true;
+    const entries = [measured,ancestor,main,candidate];
+    if (entries.some(value => value?.mode !== "100644" || value.type !== "blob")) return false;
+    const blobs = entries.map(value => value.oid);
     // A disjoint change in a shared prose file keeps the already accepted
     // task paragraphs. Compare a read-only three-way merge of Git blobs.
     return git(["merge-file","--stdout","--object-id",...blobs.slice(0,3)]).equals(git(["cat-file","blob",blobs[3]]));
@@ -778,23 +798,24 @@ export function verifyRegisteredIntegrationBudget(p,prior,focused,options) {
   const laterMain = changed(measuredBase,p.base);
   if (laterMain.some(file => !/^(?:(?:AGENTS|README)\.md|docs\/[A-Za-z0-9_./-]+\.md)$/u.test(file) ||
       !adoptedProse(file))) fail();
+  for (const file of [FIXTURE_BUDGET_PATHS.suite,integrationChild]) {
+    const accepted = entry(baseline.head,file);
+    if (accepted?.type !== "blob" || [measuredHead,p.head].some(head => entry(head,file)?.mode !== accepted.mode)) fail();
+  }
   verifyIntegrationBudgetMeasurementSource(git,baseline.head,measuredHead);
   const original = integrationBudgetRegistration(git,measuredHead), final = integrationBudgetRegistration(git,p.head);
   const {normalized,...historical} = incident.registration;
   const {normalized:measuredSyntax,...measuredRegistration} = original;
   if (!equal(historical,measuredRegistration) || measuredSyntax !== final.normalized ||
       original.parentMs !== final.parentMs || final.childMs <= original.childMs ||
-      !git(["ls-tree",p.head,"--",integrationChild]).equals(git(["ls-tree",baseline.head,"--",integrationChild])) ||
+      !sameGitEntry(entry(p.head,integrationChild),entry(baseline.head,integrationChild)) ||
       !equal(changed(measuredHead,p.head)
         .filter(file => !integrationEvidencePaths.has(file) && file !== integrationChild && !laterMain.includes(file)),[FIXTURE_BUDGET_PATHS.suite])) fail();
   // Changes outside the workload, diagnostics and evidence owners must be
   // exact adopted-main entries, including their Git modes and deletions.
-  for (const [head,adopted] of [[measuredHead,measuredBase],[p.head,p.base]]) {
-    const paths = changed(baseline.head,head);
-    for (const file of paths.filter(file => !integrationEvidencePaths.has(file) && file !== integrationChild &&
-        file !== FIXTURE_BUDGET_PATHS.suite && (head !== p.head || !laterMain.includes(file))))
-      if (!entry(head,file).equals(entry(adopted,file))) fail();
-  }
+  const allowed = [...integrationEvidencePaths,integrationChild,FIXTURE_BUDGET_PATHS.suite];
+  verifyIntegrationBudgetAdoptedEntries(trees.get(baseline.head),trees.get(measuredHead),trees.get(measuredBase),new Set(allowed));
+  verifyIntegrationBudgetAdoptedEntries(trees.get(baseline.head),trees.get(p.head),trees.get(p.base),new Set([...allowed,...laterMain]));
   const before = integrationCapture(reg.before,measuredHead,original,p,options);
   const after = integrationCapture(reg.after,p.head,final,p,options);
   const measure = integrationBudgetMeasurement(before.log,before.child.duration_ms);
