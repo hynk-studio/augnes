@@ -111,7 +111,12 @@ export function registeredFixtureBudget(git,head,group) {
 }
 
 export function fixtureBudgetSourceDelta(git,before,after,group) {
-  const old=registeredFixtureBudget(git,before,group),next=registeredFixtureBudget(git,after,group);
+  return compareFixtureBudgetSource(git,before,after,
+    registeredFixtureBudget(git,before,group),registeredFixtureBudget(git,after,group));
+}
+
+function compareFixtureBudgetSource(git,before,after,old,next) {
+  const group=old.group;
   if(!equal(old.normalized,next.normalized)||!equal(old.groups,next.groups))fail();
   for(const name of old.groups)if(name!==group&&!equal(old.limits[name],next.limits[name]))fail();
   const a=old.limits[group],b=next.limits[group];
@@ -275,7 +280,7 @@ export function fixtureBudgetIncident(p,prior,focused,{git,bytes,original,comple
   const cleanup=one(jsonLines(text).filter(v=>v.suite==="authority"&&Array.isArray(v.resource_cleanup)));
   if(!equal(failed,[outer])||!cleanup.resource_cleanup.length||cleanup.resource_cleanup.some(v=>v.completed!==true||v.failure_count!==0||v.failures.length)||
       !text.includes("assertReviewChildLifecycle")||!text.includes("canonical child failed: suite=authority label=reviewed revision controls: "+reg.owner.group+" exit_code=1 signal=null"))fail();
-  return {inner,limit};
+  return {inner,limit,registration};
 }
 
 export function fixtureBudgetEnvironment(root,ambient=process.env) { return buildCanonicalChildEnvironment({temporaryRoot:root,ambientEnvironment:ambient}); }
@@ -289,8 +294,11 @@ export function verifyRegisteredFixtureBudget(p,prior,focused,options) {
   const {git,parse,bytes,completedAt}=options,reg=focused.regression;
   if(!keys(reg,["kind","claim","owner","incident","source_partition","rationale","after","registration"])||reg.kind!==REGISTERED_FIXTURE_BUDGET||
       p.commission.evidence_kind!==reg.kind||reg.claim!==FIXTURE_BUDGET_CLAIM||!equal(focused.input_remedy_resources,[]))fail();
-  fixtureBudgetIncident(p,prior,focused,options);
-  const delta=fixtureBudgetSourceDelta(git,prior.head,p.head,reg.owner.group);
+  const {registration:historical}=fixtureBudgetIncident(p,prior,focused,options);
+  // Each registration is pinned to its Git commit. Share these observations
+  // within this verification and reread them on the next invocation.
+  const candidate=registeredFixtureBudget(git,p.head,reg.owner.group);
+  const delta=compareFixtureBudgetSource(git,prior.head,p.head,historical,candidate);
   if(!equal(reg.source_partition,delta)||!keys(reg.rationale,["execution_reserve_ms","termination_grace_ms","parent_remaining_ms","judgment","contradictory_observations","measurement"])||
       reg.rationale.execution_reserve_ms!==delta.after.inner-delta.before.inner||reg.rationale.termination_grace_ms!==13000||
       reg.rationale.parent_remaining_ms!==delta.after.outer-delta.after.inner-13000||reg.rationale.parent_remaining_ms<0||
@@ -351,13 +359,12 @@ export function verifyRegisteredFixtureBudget(p,prior,focused,options) {
       const lines=output.split("\n"),starts=lines.filter(line=>line.startsWith("[canonical:authority] child_start "));
       const results=lines.filter(line=>line.startsWith("[canonical:authority] child_result "));
       if(starts.length!==delta.groups.length||results.length!==delta.groups.length)fail();
-      const inventory=registeredFixtureBudget(git,p.head,reg.owner.group);
       for(const [i,group]of delta.groups.entries()) {
         const label=JSON.stringify("reviewed revision controls: "+group),result=tail.results[i];
-        if(starts[i]!==`[canonical:authority] child_start label=${label} timeout_ms=${inventory.limits[group].outer}`||
+        if(starts[i]!==`[canonical:authority] child_start label=${label} timeout_ms=${candidate.limits[group].outer}`||
           results[i]!==`[canonical:authority] child_result label=${label} duration_ms=${result.duration_ms} exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit`||
           lines.indexOf(starts[i])>=lines.indexOf(results[i])||i&&lines.indexOf(results[i-1])>=lines.indexOf(starts[i]))fail();
-        naturalLifecycle(output,{suite:"authority",label:"reviewed revision controls: "+group,timeout:inventory.limits[group].outer,duration:result.duration_ms});
+        naturalLifecycle(output,{suite:"authority",label:"reviewed revision controls: "+group,timeout:candidate.limits[group].outer,duration:result.duration_ms});
       }
       if(lines.some(line=>line.startsWith("[canonical:authority] ")&&!delta.groups.some(group=>line.includes(" label="+JSON.stringify("reviewed revision controls: "+group)+" "))))fail();
     }

@@ -98,8 +98,21 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
       rationale:{measurement,execution_reserve_ms:5000,termination_grace_ms:13000,parent_remaining_ms:7000,judgment:"Controlled checker data tests the measured prospective allowance without claiming an original incident reproduction or product Browser execution.",
         contradictory_observations:[{record:ref("old-pass.json",{tested_source_head:oldHead,command:"node "+FIXTURE_BUDGET_PATHS.wrapper+" --reviewed-revision-controls serial-aggregate",stdout:ref("old-pass.log","controlled pass"),source_files:[{path:workloadFile,byte_size:Buffer.byteLength(workloadSource),sha256:digest(workloadSource)}],result:normal,finished_at:new Date().toISOString()}),limitations:"Controlled protocol data only; this is not an original incident or a new historical RED."}]},after,registration},
     commands:[after,registration].map(record=>{const w=parse(record);return{command:w.command,tested_source_head:head,record,stdout:w.stdout};})};
-  const verify=(q=p,f=focused,r=original,c=completion)=>verifyGitSourceRepair(q,prior,f,{git,parse,bytes,completedAt,original:r,completion:c,repositoryRoot:root});
-  assert.equal(verify(),head);inspectCurrentFixtureBudgetInputs(root,parse(after));
+  const verify=(q=p,f=focused,r=original,c=completion,readGit=git)=>verifyGitSourceRepair(q,prior,f,{
+    git:readGit,parse,bytes,completedAt,original:r,completion:c,repositoryRoot:root
+  });
+  // The incident, source delta and captured inventory must use one observation
+  // of each exact registration per verification. Separate calls still reread.
+  const registrationReads=new Map([oldHead,head].flatMap(commit=>
+    Object.values(FIXTURE_BUDGET_PATHS).map(file=>[commit+":"+file,0])));
+  const countRegistrationReads=args=>{
+    const [command,object]=args;
+    if(command==="show"&&registrationReads.has(object)) registrationReads.set(object,registrationReads.get(object)+1);
+    return git(args);
+  };
+  assert.equal(verify(p,focused,original,completion,countRegistrationReads),head);
+  for(const count of registrationReads.values()) assert.equal(count,1,"each exact registration blob is read once per verification");
+  inspectCurrentFixtureBudgetInputs(root,parse(after));
   let negatives=0;
   for(const mutate of [f=>f.failed_phase="unit",f=>f.regression.owner.phase="unit",f=>f.regression.owner.group="serial-material",f=>f.regression.claim="cured",
     f=>f.regression.source_partition.after.inner++,f=>f.regression.rationale.termination_grace_ms=0,f=>f.regression.rationale.contradictory_observations=[],
