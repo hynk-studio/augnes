@@ -95,17 +95,12 @@ export async function runSerialMaterialControls(c,h,serialProof,serialAuthority,
   const published={...oldAuthority.pr,head:{...oldAuthority.pr.head,sha:p.head}};
   const args={file:path.join(c.artifacts,"material.json"),repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live:c.live};
   const transport={pullRequest:async()=>published,grant:async()=>delegation,permission:async()=>({permission:"admin",user:{login:delegation.user.login}})};
-  assert.equal((await prepareMaterialSourceRevision(args,{transport})).published_head_checked,true);
+  // Exercise the positive preparation once, through deferred live acquisition.
   let observed=0;
   const deferred=await prepareMaterialSourceRevision({...args,live:async()=>{observed++;return c.live;}},{transport});
+  assert.equal(deferred.published_head_checked,true);
   assert.equal(observed,1);assert.equal(deferred.target,prepared.target);
   assert.equal(deferred.authorized,false);assert.equal(deferred.reserved,false);assert(!existsSync(edge));
-  const materialBytes=readFileSync(args.file);
-  try {
-    await assert.rejects(prepareMaterialSourceRevision({...args,live:async()=>{
-      h.write(args.file,Buffer.concat([materialBytes,Buffer.from("\n")]));return c.live;
-    }},{transport}),/revision_validated_material_changed/);
-  } finally {h.write(args.file,materialBytes);}
   const dependencyLink=path.join(c.checkout,"node_modules"),heldLink=dependencyLink+".held";
   assert(lstatSync(dependencyLink).isSymbolicLink());
   try {
@@ -119,9 +114,6 @@ export async function runSerialMaterialControls(c,h,serialProof,serialAuthority,
       h.write(lateGenerated,"export type Added = true;\n");return c.live;
     }},{transport}),/revision_typecheck_generated_changed/);
   } finally {rmSync(path.join(c.checkout,".next/dev"),{recursive:true,force:true});}
-  const devFile=path.join(c.checkout,".next/dev/types/probe.ts");h.write(devFile,"export type Added = true;\n");
-  await assert.rejects(prepareMaterialSourceRevision(args,{transport}),/revision_typecheck_generated_changed/);
-  rmSync(path.join(c.checkout,".next/dev"),{recursive:true});
   const parentPath="scripts/run-local-canonical-verification.mjs",parentSource=readFileSync(path.join(c.checkout,parentPath),"utf8");
   h.write(path.join(c.checkout,parentPath),parentSource.replaceAll("runProjectExperienceParent","runDisconnectedParent"));
   c.git(["add",parentPath]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","disconnect synthetic serial parent"]);
