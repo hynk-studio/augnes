@@ -126,14 +126,31 @@ the resulting corpus.
 
 ## Integrity and attribution
 
-Only `web_planning_export.v0.3`, schema `1`, compatibility `web-planning/3` is
-admitted. The unchanged Web validator checks the full bounded revision chain,
+Candidate file exports are `web_planning_export.v0.3`, `.v0.4`, `.v0.5`, `.v0.7`,
+`.v0.8` and `.v0.9`, each with schema `1` and its matching `web-planning/N`
+compatibility value. The shared Web validator also recognizes `.v0.6`, but the
+Native admission owner explicitly excludes that large exchange format. A
+recognized format is only the first admission condition, not proof that any
+export of that version will fit or be accepted end to end. No other or future
+version is implicitly supported.
+
+The unchanged Web validator checks the full bounded revision chain,
 all historical bodies, exact closed shapes, identities, predecessors,
 revision/request/export fingerprints, file names/roles, membership, sizes,
 digests, canonical base64 and version compatibility. Mixed historical revisions
 retain existing meaning. There is no second interpretation of the export.
+The format/compatibility pair must match the format derived from the complete
+chain, including its retained relations, exchanges, participation, return-use
+or reassessment records. The caller's expected export fingerprint, work ID,
+latest revision and revision fingerprint must all match. Selection consists of
+exact, unique name/role/byte-count/digest tuples from that latest revision's
+ordinary file selection. Exchange payloads or historical files are not additional
+selectable materials merely because they appear in the validated export.
+
 Direction bundles, legacy exports without files and non-text files are unsupported.
 The command does not interpret reserved Story metadata or adopt fictional state.
+This is an explicit transfer of selected material into a checked Native project,
+not automatic Web/Native synchronization or a credential-bearing workspace backup.
 
 Each experience source retains Web workspace/project/author declarations, work,
 revision/fingerprint, export fingerprint, recorded time and the original file

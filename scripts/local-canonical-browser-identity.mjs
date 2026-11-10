@@ -10,11 +10,11 @@ export const BROWSER_IDENTITY_PREFIX = "[local-canonical-browser-use] ";
 const role = Object.freeze({ classification: "execution", readOnlyExecutable: true });
 const versionPattern = /^[A-Za-z][A-Za-z0-9 ._/-]{1,127}$/u;
 
-// Actual launch counts in the accepted Mac workload, including nested children.
+// Actual launch counts in the registered Mac workload, including nested children.
 // This is evidence coverage, not a new phase, launch owner or test allowance.
 const consumers = Object.freeze({
   integration: { "durable-work-surface": 3, "cumulative-work-surface": 2 },
-  "e2e-project-experience": { "project-experience": 1, "project-client": 2, "web-planning": 1 },
+  "e2e-project-experience": { "project-experience": 1, "project-client": 2, "web-planning": 2 },
   "e2e-operator-review-control": { "operator-review-control": 5 },
   "e2e-operator-native-host-execution": { "operator-native-host-execution": 1 },
   "e2e-operator-work-expectation": { "operator-work-expectation": 1 },

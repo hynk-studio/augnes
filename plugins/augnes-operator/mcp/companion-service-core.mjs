@@ -1578,6 +1578,7 @@ export async function acquireCompanionServiceMaintenance({
   ttlMs = DEFAULT_MAINTENANCE_TTL_MS,
   waitMs = MAINTENANCE_WAIT_MS,
   joinAncestorLease = false,
+  allowAcquire = true,
 } = {}) {
   if (!validOperationId(operationId)) {
     throw new PublicCompanionServiceError(
@@ -1660,6 +1661,9 @@ export async function acquireCompanionServiceMaintenance({
       reason: "companion_service_maintenance_not_required",
     };
   }
+  // A bounded nested suite may observe or join its ancestor, but must not
+  // acquire a new restoration obligation that outlives its coordinator budget.
+  if (!allowAcquire) throw new PublicCompanionServiceError("companion_service_maintenance_ancestor_required");
   const ownerIdentity = readProcessBirthIdentity(process.pid);
   if (ownerIdentity.state !== "present") {
     throw new PublicCompanionServiceError(

@@ -2,6 +2,7 @@ import { selectBrowserPath, strictNetworkSandboxLaunch } from "./local-canonical
 // One disposable workspace, one ordinary browser profile, two independently
 // authenticated tabs. Production components and route handlers own all writes.
 import assert from "node:assert/strict";
+import { checkControlBoundaryContrast } from "./browser-control-contrast.mjs";
 import { nativePreparationBrowser, checkPreparationPreviewResponse, checkPreparationSaveResponse } from "./native-work-preparation-browser-checks.mjs";
 import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { browserEvaluationDiagnostic } from "./browser-evaluation-diagnostic.mjs";
@@ -299,6 +300,7 @@ async function main(semanticOnly = false) {
       const priorB = current(b)!.packet_id;
       await clickText(tabB, "Prepare a different task");
       await set(tabB, "#new-work-goal", "B different new work"); await set(tabB, "#new-work-success-criteria", "A history remains separate");
+      await checkControlBoundaryContrast((expression: string) => tabB.eval(expression), '#new-work-goal');
       await tabB.eval("document.querySelector('[data-selected-work-sources]').open=true");
       await set(tabB, 'input[maxlength="500"]', 'B prior note does not support the different task');
       // Keep the genuine comparison response pending. A real user cannot
@@ -333,6 +335,17 @@ async function main(semanticOnly = false) {
       await previewCheck;
       assert.equal(disabledPreviewClicks, 0, 'The driver waits for the ordinary preview action instead of losing a disabled click');
       await until(() => tabB.eval("!!document.querySelector('[data-new-work-preview]')"), "B_new_work_preview");
+      // Keyboard activation removes the clicked control while its composer stays
+      // mounted. Verify the real React handoff and retained draft before saving.
+      await tabB.eval("[...document.querySelectorAll('[data-new-work-preview] button')].find(b=>b.textContent==='Edit preparation').focus()");
+      await tabB.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' });
+      await tabB.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+      await until(() => tabB.eval("!document.querySelector('[data-new-work-preview]')"), 'return_to_preparation');
+      console.log(JSON.stringify({different_task_focus: await tabB.eval("({active:document.activeElement.id,visible:document.activeElement.getClientRects().length>0,goal:document.querySelector('#new-work-goal').value})")}));
+      assert.equal(await tabB.eval("document.activeElement.id"), 'new-work-goal', 'H11 keyboard focus returns to the visible retained draft');
+      assert.equal(await tabB.eval("document.querySelector('#new-work-goal').value"), 'B different new work');
+      await click(tabB, '[data-augnes-primary-action="preview-new-work"]');
+      await until(() => tabB.eval("!!document.querySelector('[data-new-work-preview]')"), 'B_preview_after_edit');
       const newWorkConflict = await tabB.eval(`(async()=>{const h={'Augnes-Project-Id':${JSON.stringify(b.project_id)},'content-type':'application/json'};const r=await fetch('/api/vnext/operator/project-continuity',{headers:h});const w=(await r.json()).work_initialization;return(await fetch('/api/vnext/operator/project-continuity',{method:'POST',headers:h,body:JSON.stringify({action:'revise_pre_execution_project_work',workspace_id:w.workspace_id,project_id:w.project_id,expected_active_project_id:w.project_id,expected_active_selection_revision:w.active_selection_revision,expected_project_work_binding:w.project_work_binding,expected_current_packet_id:w.current_packet.packet_id,expected_current_packet_fingerprint:w.current_packet.packet_fingerprint,expected_current_lineage_kind:w.current_packet.lineage_kind,...w.current_work,goal:'B competing preparation'})})).status})()`);
       assert.equal(newWorkConflict, 201); await click(tabB, '[data-new-work-action="save"]');
       await until(() => tabB.eval("!!document.querySelector('[data-work-draft-conflict]')"), "new_work_conflict");

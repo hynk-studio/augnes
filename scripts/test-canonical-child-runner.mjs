@@ -59,6 +59,7 @@ const summaries = [];
 const groupResourceOwners = [];
 
 try {
+  await assertOptionalMessageContract();
   await assertCanonicalSuiteFailureOutput();
   await assertParentResourceCleanup();
   const maximumSafeLabel = "a".repeat(160);
@@ -557,6 +558,41 @@ async function runFixture(
     },
   });
   return { ...result, pid };
+}
+
+async function assertOptionalMessageContract() {
+  const ts = (await import("typescript")).default;
+  const entry = path.join(temporaryRoot, "message-contract.mts");
+  const prefix = `import { runCanonicalChild } from ${JSON.stringify(path.join(repositoryRoot, "scripts/canonical-child-runner.mjs"))};
+import type { Serializable, SendHandle } from "node:child_process";
+const options = {suite:"typing",label:"typing",command:"node",args:[],cwd:".",env:{},resourceOwner:undefined};\n`;
+  for (const [name, call, valid] of [
+    ["omitted", "runCanonicalChild(options);", true],
+    ["undefined", "runCanonicalChild({...options,onMessage:undefined});", true],
+    ["callback", "runCanonicalChild({...options,onMessage:(message:Serializable,handle:SendHandle)=>{void message;void handle;}});", true],
+    ["invalid", "runCanonicalChild({...options,onMessage:(message:symbol,handle:string)=>{void message;void handle;}});", false],
+  ]) {
+    writeFileSync(entry, prefix + call);
+    const program = ts.createProgram([entry], { noEmit:true, strict:true, allowJs:true, skipLibCheck:true,
+      target:ts.ScriptTarget.ESNext,module:ts.ModuleKind.NodeNext,moduleResolution:ts.ModuleResolutionKind.NodeNext,
+      types:["node"],typeRoots:[path.join(repositoryRoot,"node_modules/@types")] });
+    const diagnostics = ts.getPreEmitDiagnostics(program);
+    assert.deepEqual(diagnostics.map(d=>d.code), valid ? [] : [2322], `optional message typing: ${name}`);
+  }
+  const controls=[];
+  for (const kind of ["omitted", "undefined", "callback"]) {
+    const messages=[], capture={text:"",write(chunk){this.text+=chunk;}};
+    const result=await runCanonicalChild({suite:"runner-regression",label:"optional message "+kind,
+      command:process.execPath,args:["-e",'console.log(JSON.stringify({send:typeof process.send,channel:!!process.channel,connected:!!process.connected}));if(process.send)process.send({kind:"actual-message"});'],
+      cwd:repositoryRoot,env:process.env,timeoutMs:2000,stdout:capture,stderr:capture,log(){},
+      ...(kind === "omitted" ? {} : {onMessage:kind === "undefined" ? undefined : (message,handle)=>messages.push({message,handle})})});
+    assert.equal(canonicalChildAcceptanceFailure(result,{suite:"runner-regression",timeoutMs:2000,requireNaturalExit:true}),null);
+    const ipc=kind==="callback";
+    assert.deepEqual(JSON.parse(capture.text),{send:ipc?"function":"undefined",channel:ipc,connected:ipc});
+    assert.deepEqual(messages,ipc?[{message:{kind:"actual-message"},handle:undefined}]:[]);
+    controls.push({kind,exit_code:result.exit_code,termination_reason:result.termination_reason,cleanup_completed:result.cleanup_completed,remaining_owned_processes:result.remaining_owned_processes});
+  }
+  summaries.push({optional_message_contract:{typing:["omitted","undefined","callback","invalid"],processes:controls}});
 }
 
 function groupFixture(label, mode, timeoutMs, statePath = path.join(

@@ -1,3 +1,5 @@
+import { hasSerialAccounting } from "./local-canonical-serial-aggregate.mjs";
+import { validProjectExperienceAccounting } from "./project-experience-serial-budget.mjs";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { CANONICAL_REPOSITORY_ID } from "./canonical-repository-identity.mjs";
@@ -10,7 +12,7 @@ import { HISTORICAL_INPUT_CONTRACT } from "./local-canonical-historical-inputs.m
 import { supportedInputContract, digest, deriveOperationalDisposition, nonFaultInputChange, classifyInputChange, effectiveInputObservation, inputEventIdentity, validObservationDiagnostic, validInputFailureDiagnostics, validCanonicalRuntimeInputs, preparedDependencyIdentity, comparePreparedDependencyInputs } from "./local-canonical-inputs.mjs";
 import { ATTEMPT_CONTRACT, REVIEWED_REVISION_SCHEMA, REVIEWED_REVISION_PHASES, isReviewedRevision, validReviewedRevisionAttempt, hasRetiredQualificationMarker, supportsSourceCorrection } from "./local-canonical-attempts.mjs";
 import { isBrowserRevision, browserBindingMatches } from "./local-canonical-browser-revision.mjs";
-import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
+import { validBrowserUse, validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 
 export const LOCAL_CANONICAL_RECEIPT_SCHEMA =
   "augnes.local-canonical-receipt.v1";
@@ -630,7 +632,9 @@ export function inspectReceiptForDecision(receipt, options = {}) {
   };
 }
 
-function inspectClassifiedEvidence(receipt, issues) {
+// Incident readers may explain exact missing coverage after independently proving
+// interruption. The ordinary stock caller supplies no explanation and stays strict.
+export function inspectClassifiedEvidence(receipt, issues, incomplete = null) {
   const input = receipt.inputs;
   if (!input || !supportedInputContract(input.contract) || !Array.isArray(input.resources) || !Array.isArray(input.events) ||
       !input.resources.every(r => r && typeof r === "object") || !input.events.every(e => e && typeof e === "object") ||
@@ -666,7 +670,7 @@ function inspectClassifiedEvidence(receipt, issues) {
   const environments = input.binding?.phase_environment_fingerprints;
   if (!Array.isArray(environments) || !environments.every(e => e && typeof e === "object") || environments.length !== receipt.phases.length ||
       new Set(environments.map(e => e.id)).size !== environments.length || receipt.phases.some(p => !environments.some(e =>
-        e.id === p.id && SHA256_PATTERN.test(e.fingerprint ?? "") && e.fingerprint === p.environment_fingerprint)))
+        e.id === p.id && SHA256_PATTERN.test(e.fingerprint ?? "") && (e.fingerprint === p.environment_fingerprint || incomplete && p.status === "not_run" && !Object.hasOwn(p, "environment_fingerprint")))))
     issues.push("receipt_phase_environment_binding_invalid");
   if (input.resources.some(r => r.excludePreferences && (input.path_kind !== "isolated-model-free-v1" || r.classification !== "ambient"))) issues.push("receipt_input_exclusion_invalid");
   if (new Set(input.resources.map(r => r.id)).size !== input.resources.length ||
@@ -713,6 +717,8 @@ function inspectClassifiedEvidence(receipt, issues) {
       attempt.contract_fingerprint !== input.fingerprint || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== (isReviewedRevision(attempt.source_correction) ? 0 : 1) ||
       (attempt.number === 1 && (attempt.prior_attempt_id !== null || attempt.recovery !== null)) ||
       (attempt.number === 2 && (!SHA256_PATTERN.test(attempt.prior_receipt_fingerprint ?? "") || !attempt.recovery)))) issues.push("receipt_attempt_lineage_invalid");
+  if (hasSerialAccounting(attempt?.source_correction) && receipt.phases.some(p => p.id === "e2e-project-experience" && p.status === "pass" && !validProjectExperienceAccounting(p.serial_budget)))
+    issues.push("receipt_serial_budget_invalid");
   const expectedBrowser = input.resources.find(r => r.id === "browser-executable");
   let actualVersion = browserRevision ? browser?.actual_version : null;
   for (const phase of receipt.phases) {
@@ -720,13 +726,21 @@ function inspectClassifiedEvidence(receipt, issues) {
       if (phase.browser_use?.length) issues.push(`receipt_browser_identity_invalid:${safeIdentifier(phase.id)}`);
       continue;
     }
-    if (!validPhaseBrowserUse(phase, phase.browser_use ?? [], expectedBrowser ? { ...expectedBrowser, actual_version: actualVersion } : null))
+    const expected = expectedBrowser ? { ...expectedBrowser, actual_version: actualVersion } : null;
+    const records = phase.browser_use ?? [];
+    const partial = incomplete && phase.id === incomplete.phase;
+    const valid = partial ? expected && Array.isArray(records) &&
+      records.length === Object.values(incomplete.consumers).reduce((a,b) => a+b,0) &&
+      records.every(r => Object.hasOwn(incomplete.consumers,r.consumer) && validBrowserUse(r,expected)) &&
+      Object.entries(incomplete.consumers).every(([c,n]) => records.filter(r => r.consumer === c).length === n) &&
+      new Set(records.map(r => r.actual_version)).size <= 1 : validPhaseBrowserUse(phase, records, expected);
+    if (!valid)
       issues.push(`receipt_browser_identity_invalid:${safeIdentifier(phase.id)}`);
     actualVersion ??= phase.browser_use?.[0]?.actual_version ?? null;
   }
   const disposition = deriveOperationalDisposition({ phases: receipt.phases, admitted: true,
     fault: input.first_fault, cleanup: receipt.cleanup.completed });
-  if (receipt.outcome?.disposition !== disposition || disposition !== "completed_success" ||
+  if (receipt.outcome?.disposition !== disposition || disposition !== (incomplete ? "unclassified_timeout" : "completed_success") ||
       receipt.outcome?.validity !== "valid_within_observed_scope" || receipt.outcome?.safety !== "preserved_within_observed_scope") issues.push("receipt_classified_outcome_not_passing");
 }
 

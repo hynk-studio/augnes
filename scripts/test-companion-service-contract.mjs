@@ -325,6 +325,7 @@ async function assertServiceLifecycle() {
   const maintenance = await acquireCompanionServiceMaintenance({
     ...options,
     operationId: "contract:no-service",
+    allowAcquire: false,
   });
   assert.equal(maintenance.acquired, false);
   assert.equal(maintenance.before.status, "not_installed");
@@ -402,6 +403,7 @@ async function assertServiceLifecycle() {
     ...options,
     launchctl,
     operationId: "contract:stopped-service",
+    allowAcquire: false,
   });
   assert.equal(stoppedMaintenance.acquired, false);
   assert.equal(stoppedMaintenance.reason, "companion_service_maintenance_not_required");
@@ -3248,6 +3250,27 @@ async function assertPreservationObservation() {
     assert.equal(stable.state.preservation_valid, true, JSON.stringify(stable));
     assert.equal(requests, 4);
     assert.equal(launchCalls.length, 3);
+    const preservationRequests=requests, preservationLaunchCalls=[...launchCalls];
+    const beforeBudgetGate=serviceMaterialFingerprint(fixture.layout);
+    await assert.rejects(acquireCompanionServiceMaintenance({...fixtureOptions,launchctl,
+      operationId:"contract:serial-no-acquisition",joinAncestorLease:true,allowAcquire:false}),
+      error=>error.code==="companion_service_maintenance_ancestor_required");
+    assert.equal(serviceMaterialFingerprint(fixture.layout),beforeBudgetGate);
+    assert.equal(existsSync(fixture.layout.maintenance_lease_path),false);
+    const joinedLease={contract:COMPANION_SERVICE_CONTRACT,schema_version:1,
+      service_identity:fixture.configuration.service_identity,repository_fingerprint:fixture.configuration.repository_fingerprint,
+      operation_id:"contract:serial-ancestor",owner_pid:process.ppid,owner_process_identity:currentProcessIdentity(process.ppid),
+      pre_maintenance_desired_state:"running",acquired_at:new Date().toISOString(),expires_at:new Date(Date.now()+60000).toISOString()};
+    writeJson(fixture.layout.maintenance_lease_path,joinedLease);
+    try {
+      const joined=await acquireCompanionServiceMaintenance({...fixtureOptions,launchctl,
+        operationId:"contract:serial-join",joinAncestorLease:true,allowAcquire:false});
+      assert.equal(joined.joined,true);assert.equal(joined.acquired,false);assert.equal(joined.lease,null);
+      assert.deepEqual(JSON.parse(readFileSync(fixture.layout.maintenance_lease_path,"utf8")),joinedLease);
+    } finally {rmSync(fixture.layout.maintenance_lease_path);}
+    assert.equal(serviceMaterialFingerprint(fixture.layout),beforeBudgetGate);
+    // Subsequent four-request preservation samples retain their existing cadence.
+    requests=preservationRequests;launchCalls=preservationLaunchCalls;
     // An ordinary heartbeat is the same state, not another lifecycle sample.
     manager.updated_at = new Date(Date.now() + 1000).toISOString();
     saveManager();

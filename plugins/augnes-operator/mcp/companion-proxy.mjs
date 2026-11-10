@@ -17,6 +17,7 @@ import {
   startCompanionService,
 } from "./companion-service-core.mjs";
 
+const LEGACY_MCP_PROTOCOL_VERSION = "2025-06-18";
 const TOOL_NAME = "augnes_resume_repository";
 const SOURCES_TOOL_NAME = "augnes_read_repository_work_sources";
 const OUTLOOK_TOOL_NAME = "augnes_read_repository_method_outlook";
@@ -1826,22 +1827,41 @@ function reviewWorkToolDescriptionV01() {
   };
 }
 
+function advertisedToolsV01() {
+  return [...lifecycleToolDescriptionsV01(), toolDescriptionV01(), sourceReadToolDescriptionV01(), methodOutlookToolDescriptionV01(), retainedSourceLookupToolDescriptionV01(), ...initialWorkToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(true), ...resultWorkToolDescriptionsV01(), executionChoiceToolDescription(), externalToolDescription(), reviewWorkToolDescriptionV01(), ...repositoryExecutionToolDescriptionsV01()];
+}
+
 export async function handleMessageV01(message) {
+  const object = message !== null && typeof message === "object" && !Array.isArray(message);
+  const hasId = object && Object.hasOwn(message, "id");
+  const validId = hasId && (typeof message.id === "string" || Number.isSafeInteger(message.id));
+  if (!object || message.jsonrpc !== "2.0" || typeof message.method !== "string" ||
+      (hasId && !validId) || (message.params !== undefined &&
+        (message.params === null || typeof message.params !== "object" || Array.isArray(message.params)))) {
+    return { jsonrpc: "2.0", id: validId ? message.id : null, error: { code: -32600, message: "invalid_request" } };
+  }
+  // This synchronous server has no cancellable request registry. Initialized
+  // and cancellation notifications need no action; no notification dispatches
+  // tools or lifecycle operations, and unknown notifications receive no reply.
+  if (!hasId) return null;
   if (message.method === "initialize") {
     return { jsonrpc: "2.0", id: message.id, result: {
-      protocolVersion: message.params?.protocolVersion ?? "2025-06-18",
+      protocolVersion: LEGACY_MCP_PROTOCOL_VERSION,
       capabilities: { tools: { listChanged: false } },
       serverInfo: { name: "augnes-live-companion-proxy", version: "0.2.0" },
     } };
   }
-  if (message.method === "notifications/initialized" || message.method === "notifications/cancelled") return null;
   if (message.method === "ping") return { jsonrpc: "2.0", id: message.id, result: {} };
   if (message.method === "tools/list") {
-    return { jsonrpc: "2.0", id: message.id, result: { tools: [...lifecycleToolDescriptionsV01(), toolDescriptionV01(), sourceReadToolDescriptionV01(), methodOutlookToolDescriptionV01(), retainedSourceLookupToolDescriptionV01(), ...initialWorkToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(true), ...resultWorkToolDescriptionsV01(), executionChoiceToolDescription(), externalToolDescription(), reviewWorkToolDescriptionV01(), ...repositoryExecutionToolDescriptionsV01()] } };
+    return { jsonrpc: "2.0", id: message.id, result: { tools: advertisedToolsV01() } };
   }
   if (message.method === "tools/call") {
     const args = message.params?.arguments;
     const toolName = message.params?.name;
+    // Reject an unadvertised name before any Companion discovery or repair guidance.
+    if (!advertisedToolsV01().some(tool => tool.name === toolName)) {
+      return { jsonrpc: "2.0", id: message.id, error: { code: -32602, message: "unknown_tool_name" } };
+    }
     if (!args || typeof args !== "object" || Array.isArray(args)) {
       return { jsonrpc: "2.0", id: message.id, error: { code: -32602, message: "invalid_repository_tool_request" } };
     }
@@ -2213,11 +2233,16 @@ export async function runStdioV01(handleMessage = handleMessageV01) {
       const line = buffered.slice(0, newline).trim();
       buffered = buffered.slice(newline + 1);
       if (!line) continue;
-      let response;
+      let response, message;
       try {
-        response = await handleMessage(JSON.parse(line));
+        message = JSON.parse(line);
       } catch {
         response = { jsonrpc: "2.0", id: null, error: { code: -32700, message: "parse_error" } };
+      }
+      if (!response) {
+        try { response = await handleMessage(message); }
+        catch { response = { jsonrpc: "2.0", id: typeof message?.id === "string" || Number.isSafeInteger(message?.id) ? message.id : null,
+          error: { code: -32603, message: "internal_error" } }; }
       }
       if (response) process.stdout.write(`${JSON.stringify(response)}\n`);
     }

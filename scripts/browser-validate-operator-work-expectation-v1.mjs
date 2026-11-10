@@ -142,6 +142,44 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   await clickSelector(lifecycle, '[data-reviewed-outcome-action="author"]');
   assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('#selected-note-source').value.startsWith('New authored note based on ')`), true, 'Edited reuse is authored material, not an unchanged saved report');
   await clickSelector(lifecycle, '[data-selected-source-action="clear-draft"]');
+  const unfinished = { source: 'Unadded source and revision', time: '2026-11-09T09:30', provenance: 'derived_interpretation', kind: 'Open question', text: 'Complete unfinished note, including its attribution and time.' };
+  for (const [field, value] of Object.entries(unfinished)) await lifecycle.setFormControlValue('#selected-note-' + field, value);
+  const noteFields = `Object.fromEntries(['source','time','provenance','kind','text'].map(field=>[field,document.querySelector('#selected-note-'+field).value]))`;
+  // Confirmation is owned here; the pinned preparation probes remain strictly
+  // beforeunload-only. This listener is inert outside an explicit expectation.
+  const noteDialogs = [];
+  let pendingConfirmation = null;
+  lifecycle.cdp().on(event => {
+    if (!pendingConfirmation || event.method !== "Page.javascriptDialogOpening") return;
+    const pending = pendingConfirmation; pendingConfirmation = null;
+    noteDialogs.push(event.params);
+    void lifecycle.cdp().send("Page.handleJavaScriptDialog", { accept: pending.accept })
+      .then(() => pending.resolve(event.params), pending.reject);
+  });
+  async function expectNoteConfirmation(accept) {
+    assert.equal(pendingConfirmation, null);
+    let timer;
+    const dialog = new Promise((resolve, reject) => {
+      pendingConfirmation = { accept, resolve, reject };
+      timer = setTimeout(() => reject(new Error("Note replacement confirmation missing")), 10000);
+    });
+    try {
+      const [, event] = await Promise.all([clickSelector(lifecycle, '[data-reviewed-outcome-action="author"]'), dialog]);
+      assert.equal(event.type, "confirm");
+    } finally { clearTimeout(timer); pendingConfirmation = null; }
+  }
+  try {
+    await expectNoteConfirmation(false);
+    assert.deepEqual(await lifecycle.evaluate(noteFields), unfinished, 'H8 cancellation preserves every unfinished React field');
+    await expectNoteConfirmation(true);
+    const replacement = await lifecycle.evaluate(noteFields);
+    assert.match(replacement.source, /^New authored note based on /);
+    assert.equal(replacement.time, '');assert.equal(replacement.provenance, 'user_declaration');
+    assert.notEqual(replacement.text, unfinished.text);
+    assert.equal(noteDialogs.length, 2);
+    console.log(JSON.stringify({ native_unfinished_note: { cancelled_fields_preserved: Object.keys(unfinished), explicit_replacement: true, empty_draft_use: true, actual_react: true, actual_browser_dialogs: noteDialogs.length } }));
+  } finally { pendingConfirmation = null; }
+  await clickSelector(lifecycle, '[data-selected-source-action="clear-draft"]');
   const preparationBrowser = { cdp: lifecycle.cdp(), evaluate: lifecycle.evaluate, waitForCondition: lifecycle.waitForCondition, projectId };
   await checkPreparationStay(preparationBrowser);
   await checkPreparationPreviewResponse(preparationBrowser, "result");
