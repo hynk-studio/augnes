@@ -169,6 +169,10 @@ research form for ordinary fixes or documentation or universal search counts.
 - Ordinary explanatory documentation needs exact diff review and appropriate
   content checks, not Local Canonical execution or a receipt. Authority/contracts and
   dispositions follow the documentation responsibilities in the policy below.
+- Do not make explanatory wording, heading style, or PR-template length a test
+  contract. Test executable behavior and actual machine-consumed interfaces;
+  review document meaning directly. A documentation link alone does not require
+  runtime verification or tests of unrelated implementation.
 - For changes requiring deciding pull-request verification, ask the Local
   Canonical planner for the final exact head and follow the
   [Local Canonical verification policy](.github/LOCAL_CANONICAL_VERIFICATION.md).

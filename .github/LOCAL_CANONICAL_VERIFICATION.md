@@ -251,29 +251,36 @@ Document responsibilities are distinct from runtime qualification:
 | Responsibility | Selected scope and review |
 |---|---|
 | Ordinary explanatory documentation | `documentation-only`; exact diff and content review, optional standalone validator, no deciding run or receipt. Source search is a refusal screen, not proof of absent consumers. |
-| Registered authority/contract documentation | `operating-policy-only`; exact-tree validator and the affected static policy contract. Review material authority changes explicitly. No runtime Full Canonical merely for wording or file count. |
+| Authority/contract documentation | `operating-policy-only`; exact-tree references and actual machine-consumed interfaces. Review material authority changes explicitly. No runtime Full Canonical merely for wording, file count, or delegation from another document. |
 | Proven documentation disposition (path or anchor) | Incoming-reference validation against the proposed tree, plus owner/consumer/retention review. An anchor removal is reported even in an otherwise ordinary edit. No runtime PASS is claimed. |
 | Unknown or unsupported consumers/disposition | No cheap exemption. Preserve the conservative plan and resolve the material obligation in review; Full Canonical alone cannot prove safe deletion. |
 
-The existing change-owner manifest records the audited documentation owners and
+The existing change-owner manifest records audited documentation consumers and
 one reference-safe supporting-analysis disposition family. Root `AGENTS.md`,
-README, verification/reduction policy, and PR-template combinations retain their
-bounded static coverage. The root agent-instruction marker has real hook/installer
-consumers and must remain intact; harmless headings are not machine contracts.
-Registered vNext owners retain meaning review and reference checks. vNext `02`
-remains excluded from this narrow admission because the managed-delegation
-security test consumes it; no runtime or security consumer is silently exempted.
+README, verification/reduction policy, and PR-template combinations retain
+reference and interface checks. The root agent-instruction marker has real
+hook/installer consumers and must remain intact. Document wording, heading style,
+historical identifiers, and template length are not machine contracts. Tests
+must exercise implemented security and authority behavior rather than assert
+that explanatory prose contains prescribed phrases. vNext owners, including
+the architecture owner, retain meaning review and reference checks.
+An in-place edit to a document delegated by an authority owner receives static
+authority-documentation review even without a separate manifest entry. This
+does not exempt executable readers, package inputs, or unknown consumers.
 Nested agent instructions, executable/package Markdown, unknown test consumers,
 unsafe modes/statuses and unregistered path dispositions remain conservative.
 
-For a registered authority/contract edit, run the standalone validator with
-`--plan operating-policy-only`; for the verification-policy family also run
-`node scripts/test-local-canonical-verification-contract.mjs --head <exact-head-sha>`
-(the documentation is read from that Git tree). This is bounded
-static feedback, available without dependency installation or canonical-machine
-availability. The existing optional Local Canonical operating-policy executor
-still runs its five dependency-light contracts when explicitly invoked; its
-receipt describes only those contracts, not product runtime qualification.
+For an authority/contract edit, run the standalone validator with
+`--plan operating-policy-only`. It reads the exact Git tree and checks links,
+anchors, private-path additions, and the documented commands and instruction
+marker with actual consumers. Document meaning remains a review responsibility.
+Do not require the repository-wide verification-code contract or unrelated
+runtime tests for this static document edit. These checks need neither dependency
+installation nor canonical-machine availability. If the optional Local Canonical
+operating-policy executor is explicitly invoked, it runs only this document
+validator. Its receipt describes static document feedback, not product runtime
+qualification. Tests of the planner, executor, receipt, and verification code
+remain in their own behavioral verification owners.
 
 For a `documentation-only` path/anchor disposition, run the standalone validator
 and record the owner/consumer findings. It checks unchanged incoming Markdown
@@ -318,9 +325,8 @@ single-owner product changes include the corresponding detailed Browser owner;
 multiple Browser owners, shared composition, or unknown Browser ownership fail
 closed to `full-canonical`. Documentation may accompany a targeted owner
 without dropping its behavioral phases; the exact-change validator retains the
-affected Markdown/reference checks. The planner and validator also report any
-required static policy contract; run it separately for mixed changes. A runtime
-receipt does not replace that focused check. Full plans retain the same focused
+affected Markdown/reference and machine-interface checks. A runtime
+receipt does not replace those focused checks. Full plans retain the same focused
 documentation obligations in addition to runtime qualification.
 
 For changed-mode Full plans, Browser selection uses the remaining changes after
@@ -329,9 +335,10 @@ document does not add unrelated Browser owners; its static checks and semantic
 review obligations remain. A path or Markdown extension alone grants no
 exclusion: unknown or unsafe documents and documents whose executable consumers
 are not covered by an admitted responsibility retain conservative selection.
-All nine non-Browser Full phases remain required. Explicit
-`verify:local:full` and main-push verification still select every permanent
-Browser phase.
+All nine non-Browser Full phases remain required. Both pull-request and push
+planner entry points classify their exact base-to-head delta; push does not
+implicitly expand a documentation change. Explicit `verify:local:full` still
+selects every permanent Browser phase.
 
 The exact project-experience verification family has a separate targeted owner:
 its Browser executable, private fixture builder, keyed result contract,

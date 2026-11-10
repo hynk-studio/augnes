@@ -183,10 +183,6 @@ export const QUICK_PHASE_IDS = Object.freeze([
 ]);
 export const OPERATING_POLICY_PHASE_IDS = Object.freeze([
   "operating-policy-validator",
-  "operating-policy-planner-contract",
-  "operating-policy-executor-contract",
-  "operating-policy-receipt-contract",
-  "operating-policy-verification-contract",
 ]);
 export const FULL_PHASE_IDS = Object.freeze([
   "dependencies-root",
@@ -1584,38 +1580,6 @@ function operatingPolicyPhases({ baseSha, headSha }) {
       display:
         `node scripts/validate-canonical-docs-change.mjs --base ${baseSha} --head ${headSha} --plan operating-policy-only`,
       timeoutMs: 120_000,
-    }),
-    phaseDefinition({
-      id: "operating-policy-planner-contract",
-      label: "operating-policy planner contract",
-      command: process.execPath,
-      args: ["scripts/test-canonical-change-planner.mjs"],
-      display: "node scripts/test-canonical-change-planner.mjs",
-      timeoutMs: 60_000,
-    }),
-    phaseDefinition({
-      id: "operating-policy-executor-contract",
-      label: "operating-policy local executor contract",
-      command: process.execPath,
-      args: ["scripts/test-local-canonical-executor.mjs"],
-      display: "node scripts/test-local-canonical-executor.mjs",
-      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.executorHarnessMs,
-    }),
-    phaseDefinition({
-      id: "operating-policy-receipt-contract",
-      label: "operating-policy local receipt contract",
-      command: process.execPath,
-      args: ["scripts/test-local-canonical-receipt.mjs"],
-      display: "node scripts/test-local-canonical-receipt.mjs",
-      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.receiptHarnessMs,
-    }),
-    phaseDefinition({
-      id: "operating-policy-verification-contract",
-      label: "repository operating-policy verification contract",
-      command: process.execPath,
-      args: ["scripts/test-local-canonical-verification-contract.mjs", "--head", headSha],
-      display: `node scripts/test-local-canonical-verification-contract.mjs --head ${headSha}`,
-      timeoutMs: 60_000,
     }),
   ];
 }
