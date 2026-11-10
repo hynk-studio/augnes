@@ -19,7 +19,9 @@ import {MATERIAL_SOURCE_CORRECTION, MATERIAL_HISTORY_BOUNDARY, isMaterialSourceR
 import { REPOSITORY_TYPECHECK, observeTypecheckCompiler, observeGeneratedTypeInputs } from "./local-canonical-typecheck-witness.mjs";
 import { REGISTERED_FIXTURE_BUDGET, REGISTERED_INTEGRATION_BUDGET, fixtureBudgetEvidenceClaim, fixtureBudgetFailurePhase,
   inspectCurrentFixtureBudgetInputs, inspectCurrentIntegrationBudgetInputs } from "./local-canonical-fixture-budget-witness.mjs";
-import { GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM, GENERATED_STOCK_GRANT, GENERATED_STOCK_PHASE } from "./local-canonical-stock-lifecycle-witness.mjs";
+import { GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM, GENERATED_STOCK_GRANT, GENERATED_STOCK_PHASE,
+  inspectGeneratedStockBrowserInputs } from "./local-canonical-stock-lifecycle-witness.mjs";
+import { verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
 import { REPOSITORY_PURE_CONTRACT, inspectCurrentPureContractInputs } from "./local-canonical-pure-contract-witness.mjs";
 import {GIT_INPUT_REVISION, GIT_INPUT_HISTORY_BOUNDARY, isGitInputRevision, verifyGitInputRemedy, verifyGitInputPublication} from "./local-canonical-git-observation.mjs";
 
@@ -282,6 +284,7 @@ export function readRecoveryProof(file) {
 }
 
 export function inspectAttemptRecords(options) {
+  if (usesGeneratedStockWitness(options.receipt?.attempt?.source_correction) && !verifyReceiptIntegrity(options.receipt)) return false;
   try {
     const result = afterRevisionValidation(options.observeRevision, () => prepareAttemptInspection(options),
       (finish, current, check) => typeof finish === "function" ? finish(current, check) : finish);
@@ -534,6 +537,7 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
       if (comparePreparedDependencyInputs(expected, current) !== "unchanged") throw fail("revision_prospective_dependencies_changed");
     }
     if (evidence.integrationBudget) inspectCurrentIntegrationBudgetInputs(repositoryRoot, evidence.integrationBudget, stockReceipt);
+    if (evidence.generatedStockBrowser) inspectGeneratedStockBrowserInputs(repositoryRoot, evidence.generatedStockBrowser);
     // Mutable tree/ownership/input checks may block. Freshness is evaluated
     // after them, immediately before the exclusive append, never before them.
     if (assertCurrent?.()?.then) throw fail("revision_boundary_must_be_synchronous");
@@ -1214,6 +1218,7 @@ function assertRevisionPublication(p,pr) {
 
 const measuredIntegrationEvidence = p => p.commission?.evidence_kind === REGISTERED_INTEGRATION_BUDGET;
 const generatedStockEvidence = p => p.commission?.evidence_kind === GENERATED_STOCK_REPAIR;
+const usesGeneratedStockWitness = p => measuredIntegrationEvidence(p) || generatedStockEvidence(p);
 const materialEvidenceClaim = kind => kind === GENERATED_STOCK_REPAIR ? GENERATED_STOCK_CLAIM : fixtureBudgetEvidenceClaim(kind);
 async function verifyIntegrationBudgetDelegation(p,delegation,evidence,repositoryRoot,transport) {
   const scope = readIntegrationBudgetDelegation(delegation.body,p), prior = evidence.prior.source_correction;
@@ -1254,7 +1259,7 @@ async function verifyGeneratedStockDelegation(p, delegation, evidence, repositor
 
   const received = await transport.review(scope.reviewId);
   if (received?.commit_id !== baseline.head || !["COMMENTED", "APPROVED"].includes(received.state) ||
-      !/^## R[1-9]\d* receiving audit — source revision required; failed evidence retained\r?\n/u.test(received.body ?? "") ||
+      received.body?.split(/\r?\n/u)[0] !== `## R${scope.precedingRevision} receiving audit — source revision required; failed evidence retained` ||
       !received.body.includes(p.prior_receipt_fingerprint) ||
       !(Date.parse(evidence.completion.finished_at) < Date.parse(received.submitted_at) &&
         Date.parse(received.submitted_at) < Date.parse(delegation.created_at)))
@@ -1349,6 +1354,7 @@ function prepareRevisionInspection({ file, repositoryRoot, predecessorRoot, anch
   if (!revisionEqual(runtimeInputs, evidence.inputs)) throw fail("revision_preparation_target_changed");
   if (evidence.retainedObservation) verifyRetainedWebInput(repositoryRoot,evidence.retainedObservation);
   if (evidence.integrationBudget) inspectCurrentIntegrationBudgetInputs(repositoryRoot,evidence.integrationBudget);
+  if (evidence.generatedStockBrowser) inspectGeneratedStockBrowserInputs(repositoryRoot, evidence.generatedStockBrowser);
   if (isBrowserSuccessor(p) || usesRevisionInventory(p)) {
     const git = args => execFileSync("git", args, { cwd: repositoryRoot, encoding: "utf8", timeout: 10000 }).trim();
     verifyGitInputPublication(p,evidence.original,git);
@@ -1603,7 +1609,8 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
       !["scripts/project-experience-serial-budget.mjs","scripts/run-canonical-test-suite.mjs","scripts/run-local-canonical-verification.mjs"].every(name => focused.implicated_paths.includes(name)) ||
       focused.serial_envelope_sha256 !== PROJECT_EXPERIENCE_COMMITMENT || focused.failed_phase !== "e2e-project-experience"))
     throw fail("serial_focused_contract_invalid");
+  const integrationBudget = usesGeneratedStockWitness(p) ? parse(focused.regression.after) : null;
   return { serialIncident, original, prior, completion, stock, inputs, source, focused, dependencySafety, externalSettlement, browserIncident, postPass, acquisitionIncident,
-    integrationBudget: measuredIntegrationEvidence(p) || generatedStockEvidence(p) ? parse(focused.regression.after) : null,
+    integrationBudget, generatedStockBrowser: generatedStockEvidence(p) ? integrationBudget.after.web_dependencies : null,
     retainedObservation: retainedBefore && JSON.parse(bytes(parse(focused.regression.after).stdout)) };
 }

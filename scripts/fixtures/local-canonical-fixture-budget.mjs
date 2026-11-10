@@ -9,6 +9,7 @@ import { REGISTERED_FIXTURE_BUDGET, FIXTURE_BUDGET_CLAIM, FIXTURE_BUDGET_COLLECT
   fixtureBudgetSourceDelta, fixtureBudgetEnvironment, inspectCurrentFixtureBudgetInputs, inspectCurrentIntegrationBudgetInputs,
   fixtureBudgetMeasurementStages } from "../local-canonical-fixture-budget-witness.mjs";
 import { observePureContractSource, observePureContractLoader } from "../local-canonical-pure-contract-witness.mjs";
+import { inspectGeneratedStockBrowserInputs } from "../local-canonical-stock-lifecycle-witness.mjs";
 
 // Controlled reader data, explicitly not an actual historical incident or a
 // qualification witness. Final real capture/preparation exercise the producer
@@ -204,10 +205,12 @@ function generatedDeclarationControls(root, parent, write) {
   const reject = (name, action) => { assert.throws(action); refused.push(name); };
   reject("outside_writer_window", () => stock({ ...receipt, phases: [{ ...phase, finished_at: new Date(Date.parse(started_at) - 1).toISOString() }] }));
   reject("other_phase", () => stock({ ...receipt, phases: [{ ...phase, id: "typecheck", browser: false }] }));
+  reject("other_browser_phase", () => stock({ ...receipt, phases: [{ ...phase, id: "e2e-golden" }] }));
   reject("unsettled_owner", () => stock({ ...receipt, cleanup: { completed: false } }));
   const changed = structuredClone(witness);
   changed.after.source.root_generated[0].sha256 = digest("substituted historical source");
   reject("substituted_frozen_form", () => stock(receipt, changed));
+  write(file, build);
   chmodSync(absolute, 0o666);
   reject("unsafe_declaration_mode", stock);
   chmodSync(absolute, 0o644);
@@ -221,7 +224,6 @@ function generatedDeclarationControls(root, parent, write) {
     writeFileSync(path.join(root, relative), Buffer.concat([original, Buffer.from("\n// changed control input\n")]));
     // Use the unchanged generated form for these controls so the content
     // mutation is the independent reason to refuse.
-    write(file, build);
     reject(name, stock);
     writeFileSync(path.join(root, relative), original);
   }
@@ -229,5 +231,13 @@ function generatedDeclarationControls(root, parent, write) {
   reject("unexpected_declaration", stock);
   rmSync(absolute);
   reject("missing_declaration", stock);
+  write("apps/web_planning/package.json", { name: "controlled-web-planning" });
+  write("apps/web_planning/package-lock.json", { lockfileVersion: 3 });
+  const webDependency = "apps/web_planning/node_modules/fixture/package.json";
+  write(webDependency, { version: "1.0.0" });
+  const web = observePreparedDependencyInputs({ repositoryRoot: root, phaseId: "dependencies-web-planning" });
+  inspectGeneratedStockBrowserInputs(root, web);
+  write(webDependency, { version: "2.0.0" });
+  reject("prepared_web_dependency", () => inspectGeneratedStockBrowserInputs(root, web));
   return { legitimate_owned_output: true, admission_refused_change: true, refusals: refused };
 }

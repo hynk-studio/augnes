@@ -877,7 +877,9 @@ function settledNextDeclarationOutput(receipt, current, frozen) {
       !current?.kind || !Array.isArray(frozen) || frozen.length > 1 ||
       frozen.some(file => file.path !== "next-env.d.ts" || !nextDeclarationKinds.has(file.sha256))) return false;
   return receipt.phases.some(phase => {
-    const ownedWriter = current.kind === "build" ? phase.id === "build" : phase.browser === true;
+    // The project-experience phase owns the root Next dev startup. Other
+    // Browser phases do not extend this declaration's accepted writer window.
+    const ownedWriter = current.kind === "build" ? phase.id === "build" : phase.id === "e2e-project-experience" && phase.browser === true;
     const start = Date.parse(phase.started_at), end = Date.parse(phase.finished_at);
     if (!ownedWriter || phase.status === "not_run" || phase.cleanup?.completed !== true ||
         phase.cleanup.termination_reason !== "natural_exit" || !Number.isFinite(start) || !Number.isFinite(end)) return false;

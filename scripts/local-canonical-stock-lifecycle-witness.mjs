@@ -1,5 +1,5 @@
 import path from "node:path";
-import { digest, comparePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
+import { digest, comparePreparedDependencyInputs, observePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
 import { gitRevisionInventory } from "./local-canonical-git-observation.mjs";
 import { inspectClassifiedEvidence } from "./local-canonical-receipt.mjs";
 import { BROWSER_IDENTITY_PREFIX, parseBrowserUseLine, validBrowserUse } from "./local-canonical-browser-identity.mjs";
@@ -87,11 +87,34 @@ export function verifyGeneratedStockSerialPrefix(original, stock, incident, { by
 }
 
 function functionBytes(file, name) {
-  const start = file.indexOf("\nfunction " + name + "(");
+  const start = file.search(new RegExp("\\n(?:export )?function " + name + "\\(", "u"));
   if (start < 0) fail();
   const end = file.indexOf("\n}", start);
   if (end < 0) fail();
   return file.slice(start, end + 2);
+}
+
+// The final reader keeps the causal overlay's behavior and adds two refusals:
+// receipt tampering before using a writer window, and changed Web dependencies.
+function verifyFinalReader(owner, candidate, corrected) {
+  if (owner === generatedOwner) {
+    const expected = corrected.replace(
+      '    const ownedWriter = current.kind === "build" ? phase.id === "build" : phase.browser === true;',
+      '    // The project-experience phase owns the root Next dev startup. Other\n' +
+      "    // Browser phases do not extend this declaration's accepted writer window.\n" +
+      '    const ownedWriter = current.kind === "build" ? phase.id === "build" : phase.id === "e2e-project-experience" && phase.browser === true;',
+    );
+    if (candidate !== expected) fail();
+    return;
+  }
+  const expectedEntry = functionBytes(corrected, "inspectAttemptRecords").replace("  try {",
+    "  if (usesGeneratedStockWitness(options.receipt?.attempt?.source_correction) && !verifyReceiptIntegrity(options.receipt)) return false;\n  try {");
+  const checked = "    if (evidence.integrationBudget) inspectCurrentIntegrationBudgetInputs(repositoryRoot, evidence.integrationBudget, stockReceipt);";
+  const expectedCorrection = functionBytes(corrected, "prepareSourceCorrection").replace(checked,
+    checked + "\n    if (evidence.generatedStockBrowser) inspectGeneratedStockBrowserInputs(repositoryRoot, evidence.generatedStockBrowser);");
+  if (functionBytes(candidate, "inspectAttemptRecords") !== expectedEntry ||
+      functionBytes(candidate, "prepareSourceCorrection") !== expectedCorrection ||
+      functionBytes(candidate, "prepareAttemptInspection") !== functionBytes(corrected, "prepareAttemptInspection")) fail();
 }
 
 function verifyCausalReader(p, prior, focused, original, stock, { bytes, parse, git, completedAt }) {
@@ -103,10 +126,7 @@ function verifyCausalReader(p, prior, focused, original, stock, { bytes, parse, 
   for (const [key, owner] of [["attempts", attemptOwner], ["witness", generatedOwner]]) {
     const correctedBytes = gitFile(git, corrected, owner);
     if (!correctedBytes.equals(bytes(proof[key])) || correctedBytes.equals(gitFile(git, prior.head, owner))) fail();
-    const candidate = gitFile(git, p.head, owner);
-    if (key === "witness" && !candidate.equals(correctedBytes)) fail();
-    if (key === "attempts" && ["prepareAttemptInspection", "prepareSourceCorrection"].some(name =>
-        functionBytes(candidate.toString(), name) !== functionBytes(correctedBytes.toString(), name))) fail();
+    verifyFinalReader(owner, gitFile(git, p.head, owner).toString(), correctedBytes.toString());
   }
 
   const before = parse(proof.before), after = parse(proof.after), replay = parse(proof.stock_replay);
@@ -163,6 +183,8 @@ function verifyFocusedBrowser(p, focused, afterCausal, { parse, bytes, git }) {
       !equal(before?.runtime, after?.runtime) || digest(after.runtime) !== p.inputs.identity_sha256 ||
       comparePreparedDependencyInputs(before.dependencies, after.dependencies) !== "unchanged" ||
       preparedDependencyIdentity(after.dependencies).phase_id !== "dependencies-root" ||
+      comparePreparedDependencyInputs(before.web_dependencies, after.web_dependencies) !== "unchanged" ||
+      preparedDependencyIdentity(after.web_dependencies).phase_id !== "dependencies-web-planning" ||
       ![before, after].every(value => gitRevisionInventory(value.target.inputInventory) === value.target.inventory &&
         value.target.inventory === p.inputs.inventory_sha256 && value.target.service.state.preservation_valid === true &&
         value.target.service.diagnostics.coherent === true) ||
@@ -186,6 +208,12 @@ function verifyFocusedBrowser(p, focused, afterCausal, { parse, bytes, git }) {
       !equal(lines.filter(line => line.startsWith(prefix + "child_result ")),
       [`${prefix}child_result label=${label} duration_ms=${capture.result.duration_ms} exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit`])) fail();
   verifyHistoryTouch(bytes(capture.stdout, 2 * 1024 * 1024), capture);
+}
+
+export function inspectGeneratedStockBrowserInputs(root, expected) {
+  if (comparePreparedDependencyInputs(expected, observePreparedDependencyInputs({
+    repositoryRoot: root, phaseId: "dependencies-web-planning",
+  })) !== "unchanged") fail();
 }
 
 export function verifyGeneratedStockRepair(p, prior, focused, options) {

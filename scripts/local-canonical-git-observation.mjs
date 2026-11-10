@@ -583,23 +583,25 @@ const generatedStockSections = [
   [2, "### Received baseline and task ownership"],
   [5, "### One correction objective with two evidence obligations"],
   [11, "### Bounded common-owner and admission support"],
-  [12, "Necessary narrow, reusable corrections to the existing evidence, attempt, stock, admission owners and their policy are included in this approved scope. Review the actual predecessor and supported material-correction route rather than forcing this task into an old grammar. The existing product-defect delegation grammar and R11's measured-integration-budget grammar do not already authorize or truthfully describe this combined task."],
+  [12, "Necessary narrow, reusable corrections to the existing evidence, attempt, stock, admission owners and their policy are included in this approved scope. Review the actual predecessor and supported material-correction route rather than forcing this task into an old grammar. The existing product-defect delegation grammar and R{previous}'s measured-integration-budget grammar do not already authorize or truthfully describe this combined task."],
   [15, "### Conditional recording and prospective execution"],
   [16, "After a genuinely separate read-only reviewer accepts the actual final published source, relevant evidence and policy, refusal controls, real exact-target preparation commitment and complete input inventory, the implementation operator is authorized to record that independent decision faithfully and publish a separate new exact-target commission/execution grant through the existing authenticated maintainer identity. Identify the actual reviewer separately from the operator recording the decision. Resolve material findings first, then authenticate the actual author/permission, bodies and timestamps and read back the records before reservation."],
   [17, "This task delegation is not an execution grant for the received head or a future unspecified candidate. A supported substantive correction and accepted final preparation must exist first. The new grant must bind repository, branch, base, head, tree, preparation, input/runtime identities and the actual predecessor lineage under the independently reviewed common-owner contract. The applicable material-source commission permits one deciding invocation total: reservation or interruption consumes it, with no ordinal two, recovery or unchanged-candidate retry. This task authorizes that new prospective commission after the conditions above; it does not authorize replacement commissions merely because a run fails."],
   [18, "Run the unchanged planner for the exact final candidate and execute its applicable actual Mac qualification, including the selected Full and Browser phases. Then run stock in a separate fresh process, obtain an independent read-only result audit, finish owned cleanup and return the result. Preserve refusals, failures, cancellations and NOT_RUN phases. An unsuccessful deciding run remains HOLD and proceeds to truthful closeout without a blind retry. These authorized review, publication and conditional recording steps do not require a new permission roundtrip merely because a prerequisite has been completed."],
   [19, "### Immutable accounting and completion boundary"],
-  [23, "Keep PR #1612 Draft with auto-merge off and QUALIFICATION HOLD / DO NOT MERGE pending independent receiving judgment. This assignment grants no merge, Ready transition, deployment, installed adoption or final product-adoption authority."],
+  [23, "Keep PR #{pull} Draft with auto-merge off and QUALIFICATION HOLD / DO NOT MERGE pending independent receiving judgment. This assignment grants no merge, Ready transition, deployment, installed adoption or final product-adoption authority."],
 ];
 export function readGeneratedStockDelegation(body, p) {
   const sections = visibleDelegationParagraphs(body);
-  if (sections.length !== 24 ||
-      !/^## R[1-9]\d* cohesive Browser and stock lifecycle correction delegation$/u.test(sections[0]) ||
-      generatedStockSections.some(([index, expected]) => sections[index] !== expected)) return null;
+  const revision = Number(sections[0]?.match(/^## R([1-9]\d*) cohesive Browser and stock lifecycle correction delegation$/u)?.[1]);
+  const precedingRevision = revision - 1;
+  if (sections.length !== 24 || !Number.isSafeInteger(revision) || precedingRevision < 1 ||
+      generatedStockSections.some(([index, expected]) =>
+        sections[index] !== expected.replace("{previous}", String(precedingRevision)).replace("{pull}", String(p.pull_request)))) return null;
   const assignment = sections[1].match(/^The user has approved one complete follow-up assignment for issue #([1-9]\d*) on `([^`\n]+)` and Draft PR #([1-9]\d*)\. Continue with the existing implementation owner, worktree and PR through diagnosis, justified corrections, focused verification, independent source and preparation review, conditional public authority recording, actual qualification, separate stock, independent result audit, owned cleanup and one consolidated handoff\. Routine work within this scope does not require another intermediate user approval\.$/u);
   if (assignment?.[2] !== p.branch || assignment[3] !== String(p.pull_request) ||
       !sections[6].startsWith("**Web Planning touch failure.** Determine which real touch command was sent,") ||
-      !/^\*\*R[1-9]\d*-F1 generated-input lifecycle\.\*\* Correct the distinction between frozen focused evidence, current admission inputs and generated output after deciding execution\./u.test(sections[8]))
+      !sections[8].startsWith(`**R${precedingRevision}-F1 generated-input lifecycle.** Correct the distinction between frozen focused evidence, current admission inputs and generated output after deciding execution.`))
     return null;
 
   const lines = sections[3].split("\n");
@@ -610,12 +612,12 @@ export function readGeneratedStockDelegation(body, p) {
   if (lines.length !== 6 ||
       lines[0] !== "- Repository: `hynk-studio/augnes`; origin: `https://github.com/hynk-studio/augnes.git`." ||
       !worktree || worktree.slice(1).split("/").some(part => !part || part === "." || part === "..") ||
-      !source || !base || review?.[2] !== String(p.pull_request) || !Number.isSafeInteger(Number(review[1]))) return null;
+      !source || !base || review?.[2] !== String(p.pull_request) || Number(review[3]) !== precedingRevision || !Number.isSafeInteger(Number(review[1]))) return null;
   const history = sections[20].match(/^Preserve the original commission `([a-f0-9]{64})`: ordinary 1 \+ reviewed 2 \/ recovery 0, original reviewed maximum 2 spent\. Preserve R([1-9]\d*) commission `([a-f0-9]{64})` at 1\/1 consumed, remaining 0, and its physical family `([a-f0-9]{64})`\. Any authorized successor must retain that lineage without resetting, relabeling or reusing spent grants\.$/u);
   const failed = sections[21].match(/^R([1-9]\d*) receipt `([a-f0-9]{64})` remains (\d+) PASS \/ (\d+) FAIL \/ (\d+) NOT_RUN, fresh stock false \/ (\d+) issues\./u);
   if (history?.[2] !== review[3] || history[4] !== p.prior_family_id ||
       failed?.[1] !== history[2] || failed[2] !== p.prior_receipt_fingerprint) return null;
-  return { worktree, base, head: source[1], tree: source[2], reviewId: Number(review[1]),
+  return { worktree, base, head: source[1], tree: source[2], reviewId: Number(review[1]), precedingRevision,
     originalCommission: history[1], previousCommission: history[3], counts: failed.slice(3).map(Number) };
 }
 

@@ -1394,8 +1394,9 @@ witness and physical attempt. Its live source comparison keeps tracked bytes,
 loader, prepared dependencies and effective inputs fixed. A changed
 `next-env.d.ts` can be accepted as generated output only when its complete
 bytes are a supported Next build or dev declaration and its modification and
-change times fall inside an actual naturally settled writer phase in the
-receipt. File ownership, permissions, link count and read stability are
+change times fall inside a naturally settled root build or project-experience
+dev phase in the receipt. The attempt reader verifies the canonical receipt
+fingerprint before using these time windows. File ownership, permissions, link count and read stability are
 checked. Missing, unexpected, linked, unsafe and out-of-window files refuse.
 Stock leaves the file and the original receipt untouched.
 
@@ -1412,7 +1413,8 @@ subtype, generated-file writer or underlying Browser cause.
 
 The actual final-source development capture must exercise the real D1 history
 touch path with both command acknowledgements, same-document and viewport
-checks, original assertions, and owned natural cleanup. The typed delegation
+checks, original assertions, unchanged root and Web Planning prepared inputs,
+and owned natural cleanup. The typed delegation
 binds the receiving review and both spent commissions. Preparation
 authenticates these records without reserving. Independent exact-source and
 preparation acceptance must precede a separate grant that begins
