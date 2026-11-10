@@ -1023,7 +1023,11 @@ const suites = {
       requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
       label: "scoped experience, real local interaction, checked byte use and fresh reconstruction",
       ...rootNode("scripts/test-external-response.ts"),
-      timeoutMs: 90_000,
+      // The registered child completed in 79.044s with 27.218s of progressing
+      // recovery. Add one measured recovery interval to the former 90s and
+      // round up to 120s. The integration phase and other children keep their
+      // bounds. This prospective reserve does not explain the old timeout.
+      timeoutMs: 120_000,
       requireNaturalExit: true,
     },
     {

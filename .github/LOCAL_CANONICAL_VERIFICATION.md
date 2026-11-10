@@ -1328,6 +1328,58 @@ markers, grant identities, consumed reservations or failed receipts. Older reade
 may refuse the new discriminator. Retain each admitted reader and originals for
 historical reconstruction instead of editing receipts or claiming compatible stock.
 
+##### Measured external-response integration allowance
+
+`registered-integration-child-budget-v1` is a distinct evidence kind in the
+one-use, inventory-bound material-source lineage. It covers the registered
+external-response child in the integration supporting lane. The exhausted
+predecessor must have a settled natural integration-parent failure and separate
+false stock. Its original untruncated physical log must show the registered
+child's sole bounded timeout, a completed withdrawal checkpoint, no recovery
+completion, and settled owned cleanup. The other integration lane must have
+settled naturally before that child started. Earlier outcomes and the historical
+UNKNOWN cause are retained.
+
+The explicit development collector runs
+`npm run test:integration -- --external-response-only` through the existing
+registration, child environment, resource ownership and concurrent-group
+runner. That selection reports one focused child. Complete integration still
+selects all registered children with both lanes. The old-bound and final
+observations bind complete clean Git and physical source, the real loader,
+prepared dependency identities, runtime, isolated environment, owned lifecycle
+and both complete input inventories. The original diagnostic observation
+reports the fixture size, monotonic operation intervals and main-thread CPU,
+completed canonical inspections, journal progress, startup and cleanup.
+The complete original parent log and all raw observations are retained.
+
+The selected child's new deadline is the old deadline plus one measured
+recovery interval, rounded up to the next 10 seconds, within 300 seconds.
+The parent phase bound remains fixed and must retain the existing 8-second TERM
+and 5-second KILL settlement allowance beyond the adjusted child at the
+observed historical prefix. The final focused capture must pass naturally.
+The exact accepted external-response test bytes are restored after diagnostic
+capture. No other suite registration or parent executor can change between
+measurement and final capture, apart from the selected deadline and separately
+reviewed evidence owners. Changes outside that closure must match adopted main.
+This decision records measured progress in development and leaves the complete
+planner-selected qualification to the subsequently authorized invocation.
+
+For this kind the owner reads the visible cohesive external-response completion
+delegation format with an accepted starting point, an operative finite
+workload allowance, conditional publication of one prospective commission,
+and preserved physical predecessor and consumed authority. It authenticates
+the linked receiving review of the starting source, exact worktree, unedited
+delegation, maintainer permissions and order. The product-defect delegation
+format remains separate. Non-reserving preparation checks the final source,
+inventory and current prepared inputs before independent review. The subsequent
+review and grant bind the exact repository, branch, proof schema, source,
+commitment, inventory, runtime, predecessor, delegation and explicit measured
+claim. The distinct grant begins
+`Authorize one NEW prospective v7 reviewed_revision commission for the measured registered integration allowance.`
+It permits one invocation and retains the same reservation, settlement,
+authentication, freshness, history, separate fresh-process stock and independent
+result audit requirements. Reservation or interruption consumes that invocation.
+
 An inventory-bound ordinal two may also follow a settled ordinal one whose Full
 and Browser phases all passed naturally but whose only fault occurred in the final
 Web dependency observation. The v2 Web record must have the cache-safety error

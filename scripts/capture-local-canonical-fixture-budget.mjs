@@ -76,15 +76,20 @@ async function captureIntegration() {
   } finally {
     const consumersSettled = !result || result.exit_observed && result.streams_closed &&
       result.cleanup_completed && result.remaining_owned_processes === 0;
-    if (resources) cleanup = cleanupIsolatedInvocationResources(resources, { consumersSettled });
+    const finalize = action => {
+      try { return action(); }
+      catch (cause) { error ??= cause; return null; }
+    };
+    if (resources) cleanup = finalize(() => cleanupIsolatedInvocationResources(resources, { consumersSettled }));
     ownership = {
-      checkout: owner ? releaseCheckoutVerificationOwnership(owner, root, { consumersSettled }) : null,
-      capacity: lease ? releaseVerificationCapacity(lease, { consumersSettled }) : null,
+      checkout: owner ? finalize(() => releaseCheckoutVerificationOwnership(owner, root, { consumersSettled })) : null,
+      capacity: lease ? finalize(() => releaseVerificationCapacity(lease, { consumersSettled })) : null,
     };
   }
   const record = {
     contract: "augnes.registered-integration-budget-witness.v1",
     basis: "actual-owned-development-invocation", group, command: ["npm", ...args].join(" "),
+    tested_source_head: before?.source.head, tree: before?.source.tree,
     started_at, finished_at: new Date().toISOString(), result, before, after, environment,
     cleanup, ownership, truncated, host: host.public, capacity: lease, checkout: owner?.metadata,
     stdout: artifact(role + ".log", output),

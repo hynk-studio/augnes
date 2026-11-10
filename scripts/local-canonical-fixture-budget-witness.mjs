@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { readFileSync, lstatSync, realpathSync, existsSync } from "node:fs";
 import path from "node:path";
-import { digest, observePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
+import { comparePreparedDependencyInputs, digest, observePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
 import { observePureContractSource, observePureContractLoader, pureContractGitSource } from "./local-canonical-pure-contract-witness.mjs";
@@ -9,6 +9,12 @@ import { gitRevisionInventory } from "./local-canonical-git-observation.mjs";
 
 export const REGISTERED_FIXTURE_BUDGET = "registered-fixture-aggregate-budget-v1";
 export const FIXTURE_BUDGET_CLAIM = "Measured prospective development-fixture allowance; historical cause remains UNKNOWN; neither demonstrated cure nor qualification PASS.";
+export const REGISTERED_INTEGRATION_BUDGET = "registered-integration-child-budget-v1";
+export const INTEGRATION_BUDGET_CLAIM = "Measured prospective external-response workload allowance. The historical timeout cause remains UNKNOWN.";
+export const fixtureBudgetEvidenceClaim = kind => kind === REGISTERED_FIXTURE_BUDGET ? FIXTURE_BUDGET_CLAIM :
+  kind === REGISTERED_INTEGRATION_BUDGET ? INTEGRATION_BUDGET_CLAIM : null;
+export const fixtureBudgetFailurePhase = kind => kind === REGISTERED_FIXTURE_BUDGET ? "authority" :
+  kind === REGISTERED_INTEGRATION_BUDGET ? "integration" : null;
 export const FIXTURE_BUDGET_COLLECTOR = "scripts/capture-local-canonical-fixture-budget.mjs";
 export const FIXTURE_BUDGET_PATHS = Object.freeze({
   wrapper: "scripts/test-local-canonical-review-corrections.mjs",
@@ -364,4 +370,246 @@ export function verifyRegisteredFixtureBudget(p,prior,focused,options) {
     if(!focused.commands.some(c=>c.command===w.command&&c.tested_source_head===p.head&&equal(c.record,ref)&&equal(c.stdout,w.stdout)))fail();
   }
   return p.head;
+}
+
+const integrationChild = "scripts/test-external-response.ts";
+const integrationExecutor = "scripts/run-local-canonical-verification.mjs";
+const integrationCommand = "npm run test:integration -- --external-response-only";
+const integrationOwner = { phase: "integration", suite: "integration", group: "external-response" };
+const integrationEvidencePaths = new Set([
+  "scripts/local-canonical-fixture-budget-witness.mjs", FIXTURE_BUDGET_COLLECTOR,
+  "scripts/local-canonical-git-observation.mjs", "scripts/local-canonical-attempts.mjs",
+  "scripts/test-local-canonical-verification-contract.mjs", ".github/LOCAL_CANONICAL_VERIFICATION.md",
+]);
+const recoveryOperations = [
+  "populated_store_copy", "older_store_setup", "staged_migration_rollback", "rollback_and_migration_assertions",
+  "recovery_backup", "recovery_restore", "restored_store_preparation", "restored_store_invariants", "restored_suspension_and_history",
+];
+const withdrawalCheckpoint = "withdrawn_binding_original_receipt_fresh_read_check_use_and_scoped_authority";
+const recoveryCheckpoint = "nonempty_older_store_recovery_and_suspension";
+const terminationGraceMs = 13000;
+
+// Historical registration is data. Never import or run the predecessor's
+// executable. Normalizing the one literal leaves all other suite behavior in
+// the source comparison, including the command and complete group inventory.
+export function integrationBudgetRegistration(git, head) {
+  const file = FIXTURE_BUDGET_PATHS.suite, source = sourceAt(git, head, file), tree = ast(source);
+  const prop = (node, name) => node.properties.find(v => ts().isPropertyAssignment(v) && v.name.getText(tree) === name)?.initializer;
+  const suites = variable(tree, "suites"), steps = prop(suites, "integration");
+  if (!steps || !ts().isArrayLiteralExpression(steps) || steps.elements.some(v => !ts().isObjectLiteralExpression(v))) fail();
+  const child = one(steps.elements.filter(v => prop(v,"id")?.getText(tree) === '"external-response"'));
+  const operator = one(steps.elements.filter(v => prop(v,"group")?.getText(tree) === '"operator-process"'));
+  const timeout = prop(child,"timeoutMs");
+  if (!timeout || !ts().isNumericLiteral(timeout) || !equal(child.properties.filter(ts().isSpreadAssignment).map(n => n.expression.getText(tree)),
+      ['rootNode("' + integrationChild + '")']) || prop(child,"group")?.getText(tree) !== '"supporting-serial"' ||
+      prop(child,"requireNaturalExit")?.kind !== ts().SyntaxKind.TrueKeyword ||
+      !equal(child.properties.filter(ts().isPropertyAssignment).map(n => n.name.getText(tree)).sort(),
+        ["group", "id", "label", "requireNaturalExit", "requirements", "timeoutMs"]) ||
+      variable(tree,"rootNode").getText(tree).replace(/\s+/gu,"") !== '(...args)=>({command:process.execPath,args:["--import","tsx",...args],cwd:repoRoot,})' ||
+      JSON.parse(sourceAt(git,head,"package.json")).scripts["test:integration"] !== "node " + file + " integration") fail();
+  const executor = ast(sourceAt(git,head,integrationExecutor));
+  const outer = nodes(executor,n => ts().isCallExpression(n) && n.expression.getText(executor) === "npmPhase" &&
+    n.arguments[0]?.getText(executor) === '"integration"');
+  if (outer.length !== 2 || outer.some(n => n.arguments.length !== 4 ||
+      !equal(value(n.arguments[2],executor,null,{}),["run","test:integration"]) || !ts().isNumericLiteral(n.arguments[3]))) fail();
+  const childMs = Number(timeout.text), parentMs = Number(outer[0].arguments[3].text);
+  if (!integer(childMs) || childMs > 300000 || !integer(parentMs) ||
+      Number(outer[1].arguments[3].text) !== parentMs || parentMs <= childMs + terminationGraceMs) fail();
+  return {
+    childMs, parentMs, label: value(prop(child,"label"),tree,null,{}), requirements: value(prop(child,"requirements"),tree,null,{}),
+    operatorLabel: value(prop(operator,"label"),tree,null,{}), operatorMs: value(prop(operator,"timeoutMs"),tree,null,{}),
+    normalized: syntax(replaceNode(source,tree,timeout,"0")),
+  };
+}
+
+const childResultLine = (label, duration) => `[canonical:integration] child_result label=${JSON.stringify(label)} duration_ms=${duration} exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit`;
+const cleanupComplete = entries => Array.isArray(entries) && entries.length > 0 &&
+  entries.every(v => v.completed === true && v.failure_count === 0 && equal(v.failures,[]));
+const integrationLifecycle = (lines, label, event) => lines.filter(l =>
+  l.startsWith(`[canonical:integration] ${event} label=${JSON.stringify(label)} `));
+
+export function integrationBudgetIncident(p,prior,reg,{git,bytes,original,completion}) {
+  const phase = original.phases.find(v => v.id === "integration"), incident = reg.incident;
+  if (original.outcome.disposition !== "product_failure" || completion.disposition !== "product_failure" ||
+      completion.cleanup_complete !== true || completion.infrastructure_code !== null ||
+      phase?.status !== "failure" || phase.exit_status !== 1 || phase.timed_out !== false ||
+      phase.cleanup?.termination_reason !== "natural_exit" || phase.command !== "npm run test:integration" ||
+      phase.log?.truncated !== false || !keys(incident,["receipt","log","log_identity","cause"]) ||
+      incident.receipt !== p.prior_receipt_fingerprint || incident.cause !== "UNKNOWN") fail();
+  const log = bytes(incident.log,2 * 1024 * 1024), relative = `.augnes-local-verification/logs/${prior.attempt_id}/integration.log`;
+  if (phase.log.relative_path !== relative || phase.log.bytes !== log.length ||
+      !equal(incident.log_identity,{relative_path:relative,bytes:log.length,sha256:digest(log)})) fail();
+  const registration = integrationBudgetRegistration(git,prior.head), {label,childMs,operatorLabel,operatorMs} = registration;
+  const text = log.toString(), lines = text.split("\n"), event = kind => one(integrationLifecycle(lines,label,kind));
+  const start = event("child_start"), spawn = event("child_spawn"), stop = event("child_cleanup_start");
+  const end = event("child_cleanup_result"), result = event("child_result");
+  const stopMs = Number(stop.match(/ elapsed_ms=(\d+) reason=bounded_timeout exit_observed=false stdout_closed=false stderr_closed=false$/u)?.[1]);
+  const endMs = Number(end.match(/ elapsed_ms=(\d+) reason=bounded_timeout streams_closed=true remaining_owned_processes=0$/u)?.[1]);
+  if (!start.endsWith(" timeout_ms="+childMs) || !/ pid=[1-9]\d* wait=process_exit$/u.test(spawn) ||
+      !(childMs <= stopMs && stopMs <= endMs && endMs <= childMs + terminationGraceMs) ||
+      !["SIGTERM","SIGKILL"].some(signal => result === `[canonical:integration] child_result label=${JSON.stringify(label)} duration_ms=${endMs} exit_code=null signal=${signal} timed_out=true exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=bounded_timeout`) ||
+      [start,spawn,stop,end,result].some((line,i,all) => i && lines.indexOf(line) <= lines.indexOf(all[i-1])) ||
+      integrationLifecycle(lines,label,"child_exit").length ||
+      !equal(lines.filter(l => l.startsWith("[canonical:integration] child_result ") && !l.includes(" exit_code=0 ")),[result])) fail();
+  const operatorResult = one(integrationLifecycle(lines,operatorLabel,"child_result"));
+  const operatorDuration = Number(operatorResult.match(/ duration_ms=(\d+) /u)?.[1]);
+  naturalLifecycle(text,{suite:"integration",label:operatorLabel,timeout:operatorMs,duration:operatorDuration});
+  if (lines.indexOf(operatorResult) >= lines.indexOf(start)) fail();
+  const selected = lines.slice(lines.indexOf(spawn)+1,lines.indexOf(stop)).join("\n");
+  const checkpoint = one(jsonLines(selected).filter(v => v.label === withdrawalCheckpoint));
+  const inventory = JSON.parse(one(lines.filter(l => l.startsWith("[canonical:integration] group_inventory "))).slice("[canonical:integration] group_inventory ".length));
+  const cleanup = one(jsonLines(text).filter(v => v.suite === "integration" && Array.isArray(v.resource_cleanup)));
+  if (!integer(checkpoint.elapsed_ms) || checkpoint.elapsed_ms >= childMs ||
+      jsonLines(selected).some(v => v.label === recoveryCheckpoint || v.test === "external-response" || v.recovery_operation && v.event === "failed") ||
+      inventory.failed_count !== 1 || inventory.started_count !== inventory.settled_count ||
+      !equal(inventory.children.filter(v => v.outcome === "failed"),[{group:"supporting-serial",label,started:true,settled:true,completed:true,outcome:"failed"}]) ||
+      !cleanupComplete(cleanup.resource_cleanup) ||
+      !text.includes("child_timed_out:supporting-serial:" + label)) fail();
+  return { registration, child_duration_ms:endMs, checkpoint_ms:checkpoint.elapsed_ms, phase_duration_ms:phase.duration_ms };
+}
+
+export function integrationBudgetMeasurement(log, duration) {
+  const rows = jsonLines(log).filter(v => v.process_elapsed_ms !== undefined);
+  const lifecycle = rows.filter(v => v.external_response_lifecycle);
+  const bounds = rows.filter(v => v.recovery_operation && v.event);
+  if (!equal(lifecycle.map(v => v.external_response_lifecycle),["main_start","setup_complete","cleanup_start","cleanup_complete"]) ||
+      !equal(bounds.map(v => [v.recovery_operation,v.event]), recoveryOperations.flatMap(op => [[op,"start"],[op,"finish"]])) ||
+      rows.some((v,i) => !integer(v.process_elapsed_ms) || v.process_elapsed_ms > duration || !integer(v.thread_cpu_us) ||
+        i && (v.process_elapsed_ms < rows[i-1].process_elapsed_ms || v.thread_cpu_us < rows[i-1].thread_cpu_us))) fail();
+  const first = bounds[0], last = bounds.at(-1), fixture = one(rows.filter(v => v.recovery_fixture));
+  const wall = last.process_elapsed_ms - first.process_elapsed_ms, cpu = last.thread_cpu_us - first.thread_cpu_us;
+  if (!(rows.indexOf(lifecycle[1]) < rows.indexOf(fixture) && rows.indexOf(fixture) < rows.indexOf(first) &&
+      rows.indexOf(last) < rows.indexOf(lifecycle[2])) || !integer(wall) || cpu < wall * 800 || cpu > (wall+1)*1000 ||
+      !keys(fixture.recovery_fixture,["core_records","external_records"]) ||
+      ![...Object.values(fixture.recovery_fixture),fixture.page_count,fixture.page_size].every(integer)) fail();
+  const journal = rows.filter(v => v.journal_phase);
+  for (const [op,checkpoints] of [
+    ["staged_migration_rollback",["acquired","backup_ready","staging_ready"]],
+    ["recovery_restore",["acquired","backup_ready","staging_ready","published_verified","cleanup_complete"]],
+    ["restored_store_preparation",["acquired"]],
+  ]) {
+    const [a,b] = bounds.filter(v => v.recovery_operation === op);
+    const steps = journal.filter(v => v.recovery_operation === op);
+    let seen = 0;
+    for (const step of steps) {
+      if (rows.indexOf(step) <= rows.indexOf(a) || rows.indexOf(step) >= rows.indexOf(b)) fail();
+      if (step.journal_phase === checkpoints[seen]) seen++;
+    }
+    if (seen !== checkpoints.length) fail();
+  }
+  const validation = rows.filter(v => v.recovery_validation);
+  const backup = validation.filter(v => v.recovery_validation === "backup");
+  const restored = validation.filter(v => v.recovery_validation === "restored");
+  if (!backup.length || backup.length%2 || backup.length > 32 ||
+      !equal(restored.map(v => v.event),["start","finish"]) || restored[1].records !== fixture.recovery_fixture.core_records ||
+      backup.some((v,i) => v.ordinal !== Math.floor(i/2)+1 || v.event !== (i%2?"finish":"start") ||
+        i%2 && v.records !== fixture.recovery_fixture.core_records)) fail();
+  return {wall_ms:wall,thread_cpu_us:cpu,fixture:fixture.recovery_fixture,backup_inspections:backup.length/2};
+}
+
+function integrationCapture(ref, head, registration, p, {git,parse,bytes}) {
+  const w = parse(ref), {before,after,environment} = w, root = environment?.AUGNES_CANONICAL_TEMP_ROOT;
+  if (w.contract !== "augnes.registered-integration-budget-witness.v1" || w.basis !== "actual-owned-development-invocation" ||
+      w.synthetic_only !== undefined || w.capture_error !== undefined || w.truncated !== false ||
+      w.group !== integrationOwner.group || w.command !== integrationCommand || !natural(w.result) ||
+      !cleanupComplete([w.cleanup]) || w.ownership?.capacity?.released !== true || w.ownership?.checkout?.released !== true ||
+      !integer(w.result.duration_ms) || !path.isAbsolute(root ?? "") || !equal(before?.source,after?.source) ||
+      !equal(before?.loader,after?.loader) || !equal(before?.runtime,after?.runtime) ||
+      comparePreparedDependencyInputs(before?.dependencies,after?.dependencies) !== "unchanged" ||
+      preparedDependencyIdentity(before.dependencies).phase_id !== "dependencies-root") fail();
+  const expected = pureContractGitSource(git,head).summary, {root_generated,...source} = before.source;
+  if (!equal(source,expected) || !Array.isArray(root_generated) || root_generated.length > 1 ||
+      root_generated.some(v => !keys(v,["path","sha256"]) || v.path !== "next-env.d.ts" || !/^[a-f0-9]{64}$/u.test(v.sha256)) ||
+      before.loader.path !== "node_modules/tsx/dist/loader.mjs" ||
+      before.loader.version !== JSON.parse(sourceAt(git,head,"package-lock.json")).packages["node_modules/tsx"].version ||
+      digest(before.runtime) !== p.inputs.identity_sha256 ||
+      ![before,after].every(v => v.target.inventory === gitRevisionInventory(v.target.inputInventory) &&
+        v.target.service.state.preservation_valid === true && v.target.service.diagnostics.coherent === true) ||
+      before.target.inventory !== after.target.inventory ||
+      !equal(before.target.service.state,after.target.service.state)) fail();
+  const expectedEnvironment = fixtureBudgetEnvironment(root,environment);
+  delete expectedEnvironment.NODE_ENV;
+  Object.assign(expectedEnvironment,{npm_config_cache:path.join(root,"npm-cache"),npm_config_devdir:path.join(root,"node-gyp")});
+  if (!equal(environment,expectedEnvironment) ||
+      environment.AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT !== digest(before.runtime.headers.observation) ||
+      bytes(w.collector,128*1024).toString() !== sourceAt(git,head,FIXTURE_BUDGET_COLLECTOR)) fail();
+  const lifecycle = bytes(w.lifecycle,128*1024).toString(), log = bytes(w.stdout,2*1024*1024).toString();
+  naturalLifecycle(lifecycle,{suite:"fixture-budget-capture",label:"integration registered fixture allowance",timeout:300000,duration:w.result.duration_ms});
+  const summaryStart = log.lastIndexOf('\n{\n  "suite":');
+  if (summaryStart < 0) fail();
+  const tail = JSON.parse(log.slice(summaryStart+1).split("\n}",1)[0]+"\n}");
+  const child = one(tail.results);
+  const owned = jsonLines(log).filter(v => v.suite_resource_owned === "integration" || v.child_resource_owned === integrationOwner.group);
+  const cleanup = one(jsonLines(log).filter(v => v.suite === "integration" && v.resource_cleanup));
+  if (tail.suite !== "integration" || tail.coverage !== "focused_external_response_child_only" ||
+      tail.status !== "pass" || tail.environment_isolation_verified !== true || tail.forbidden_environment_keys_forwarded !== 0 ||
+      tail.canonical_children_checked !== 1 || tail.concurrency_bound !== 1 || !equal(tail.integration_groups,["supporting-serial"]) ||
+      tail.companion_service_maintenance?.acquired !== false || tail.companion_service_maintenance?.release_completed !== true ||
+      child.id !== integrationOwner.group || child.label !== registration.label || !equal(child.requirements,registration.requirements) ||
+      child.group !== "supporting-serial" || child.status !== 0 || child.timed_out !== false || child.signal !== null || !clean(child) ||
+      child.termination_reason !== "natural_exit" || !integer(child.duration_ms) || child.duration_ms >= registration.childMs ||
+      !equal(log.split("\n").filter(l => l.startsWith("[canonical:integration] child_result ")),[childResultLine(child.label,child.duration_ms)]) ||
+      owned.length !== 2 || new Set(owned.map(v => v.root)).size !== 2 ||
+      owned.some(v => typeof v.root !== "string" || path.dirname(v.root) !== root) ||
+      !cleanupComplete(cleanup.resource_cleanup) ||
+      !equal(cleanup.resource_cleanup.map(v => v.root).sort(),owned.map(v => v.root).sort())) fail();
+  naturalLifecycle(log,{suite:"integration",label:child.label,timeout:registration.childMs,duration:child.duration_ms});
+  const completed = one(jsonLines(log).filter(v => v.test === "external-response"));
+  if (completed.status !== "PASS" || completed.phases?.at(-1) !== recoveryCheckpoint || !completed.phases.includes(withdrawalCheckpoint) ||
+      !equal(jsonLines(log).filter(v => v.recovery_operation && v.event).map(v => [v.recovery_operation,v.event]),
+        recoveryOperations.flatMap(op => [[op,"start"],[op,"finish"]])) ||
+      log.split("\n").some(l => l.startsWith("[local-canonical-browser-use] "))) fail();
+  return {w,log,child};
+}
+
+export function verifyRegisteredIntegrationBudget(p,prior,focused,options) {
+  const {git,parse,completedAt} = options, reg = focused.regression, baseline = reg.accepted_baseline;
+  if (!keys(reg,["kind","claim","owner","incident","accepted_baseline","before","after"]) ||
+      reg.kind !== REGISTERED_INTEGRATION_BUDGET || p.commission.evidence_kind !== reg.kind || reg.claim !== INTEGRATION_BUDGET_CLAIM ||
+      !equal(reg.owner,integrationOwner) || focused.failed_phase !== "integration" || !equal(focused.input_remedy_resources,[]) ||
+      !keys(baseline,["base","head","tree","receiving_review"]) || !keys(baseline.receiving_review,["id","sha256"]) ||
+      !integer(baseline.receiving_review.id) || !/^[a-f0-9]{64}$/u.test(baseline.receiving_review.sha256) ||
+      ![baseline.base,baseline.head,baseline.tree].every(s => /^[a-f0-9]{40}$/u.test(s)) ||
+      git(["rev-parse",baseline.head+"^{tree}"]).toString().trim() !== baseline.tree) fail();
+  const incident = integrationBudgetIncident(p,prior,reg,options);
+  const measuredHead = parse(reg.before).before?.source.head;
+  if (!/^[a-f0-9]{40}$/u.test(measuredHead ?? "") || measuredHead === p.head) fail();
+  for (const [a,b] of [[prior.head,baseline.head],[baseline.base,p.base],[p.base,measuredHead],[baseline.head,measuredHead],[measuredHead,p.head]])
+    git(["merge-base","--is-ancestor",a,b]);
+  const original = integrationBudgetRegistration(git,measuredHead), final = integrationBudgetRegistration(git,p.head);
+  const {normalized,...historical} = incident.registration;
+  const {normalized:measuredSyntax,...measuredRegistration} = original;
+  if (!equal(historical,measuredRegistration) || measuredSyntax !== final.normalized ||
+      original.parentMs !== final.parentMs || final.childMs <= original.childMs ||
+      !git(["ls-tree",p.head,"--",integrationChild]).equals(git(["ls-tree",baseline.head,"--",integrationChild])) ||
+      !equal(git(["diff","--name-only",measuredHead,p.head,"--"]).toString().trim().split("\n").filter(Boolean)
+        .filter(file => !integrationEvidencePaths.has(file) && file !== integrationChild),[FIXTURE_BUDGET_PATHS.suite])) fail();
+  // Changes outside the workload, diagnostics and evidence owners must be
+  // exact adopted-main entries, including their Git modes and deletions.
+  for (const head of [measuredHead,p.head]) {
+    const paths = git(["diff","--name-only",baseline.head,head,"--"]).toString().trim().split("\n").filter(Boolean);
+    for (const file of paths.filter(file => !integrationEvidencePaths.has(file) && file !== integrationChild && file !== FIXTURE_BUDGET_PATHS.suite))
+      if (!git(["ls-tree",head,"--",file]).equals(git(["ls-tree",p.base,"--",file]))) fail();
+  }
+  const before = integrationCapture(reg.before,measuredHead,original,p,options);
+  const after = integrationCapture(reg.after,p.head,final,p,options);
+  const measure = integrationBudgetMeasurement(before.log,before.child.duration_ms);
+  if (final.childMs !== Math.ceil((original.childMs+measure.wall_ms)/10000)*10000 ||
+      !integer(incident.phase_duration_ms) || incident.phase_duration_ms-incident.child_duration_ms+final.childMs+terminationGraceMs >= final.parentMs ||
+      comparePreparedDependencyInputs(before.w.after.dependencies,after.w.before.dependencies) !== "unchanged" ||
+      !equal(before.w.after.loader,after.w.before.loader) || after.w.after.target.inventory !== p.inputs.inventory_sha256 ||
+      after.w.tested_source_head !== p.head || after.w.tree !== p.tree ||
+      !(Date.parse(completedAt) < Date.parse(before.w.started_at) && Date.parse(before.w.started_at) < Date.parse(before.w.finished_at) &&
+        Date.parse(before.w.finished_at) < Date.parse(after.w.started_at) && Date.parse(after.w.started_at) < Date.parse(after.w.finished_at) &&
+        Date.parse(after.w.finished_at) <= Date.parse(focused.finished_at)) ||
+      !focused.commands.some(c => c.command === integrationCommand && c.tested_source_head === p.head &&
+        equal(c.record,reg.after) && equal(c.stdout,after.w.stdout))) fail();
+  return p.head;
+}
+
+export function inspectCurrentIntegrationBudgetInputs(root, witness) {
+  if (!equal(observePureContractSource(root),witness.after.source) ||
+      !equal(observePureContractLoader(root),witness.after.loader) ||
+      comparePreparedDependencyInputs(observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"}),
+        witness.after.dependencies) !== "unchanged" || existsSync(witness.environment.AUGNES_CANONICAL_TEMP_ROOT)) fail();
 }

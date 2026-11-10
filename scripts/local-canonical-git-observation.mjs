@@ -4,7 +4,8 @@ import { digest, classifyInputChange, effectiveInputObservation, inputEventIdent
 import { settledIsolatedResources, cancelledPhase, verifySettledPhaseFailure } from "./local-canonical-browser-revision.mjs";
 import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
-import { REGISTERED_FIXTURE_BUDGET, verifyRegisteredFixtureBudget } from "./local-canonical-fixture-budget-witness.mjs";
+import { REGISTERED_FIXTURE_BUDGET, verifyRegisteredFixtureBudget,
+  REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM, verifyRegisteredIntegrationBudget } from "./local-canonical-fixture-budget-witness.mjs";
 import { REPOSITORY_TYPECHECK, verifyRepositoryTypecheck } from "./local-canonical-typecheck-witness.mjs";
 import { REPOSITORY_PURE_CONTRACT, verifyRepositoryPureContract } from "./local-canonical-pure-contract-witness.mjs";
 
@@ -414,6 +415,7 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
   if (regression?.kind!==undefined) {
     if (!material) fail("revision_git_regression_invalid");
     if (regression.kind===REGISTERED_FIXTURE_BUDGET) return verifyRegisteredFixtureBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
+    if (regression.kind===REGISTERED_INTEGRATION_BUDGET) return verifyRegisteredIntegrationBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
     if (p.commission.evidence_kind!==undefined) fail("revision_git_regression_invalid");
     if (regression.kind===REPOSITORY_TYPECHECK) return verifyRepositoryTypecheck(p,prior,focused,{git,parse,bytes,completedAt});
     if (regression.kind===REPOSITORY_PURE_CONTRACT) return verifyRepositoryPureContract(p,prior,focused,{git,parse,bytes,completedAt});
@@ -511,11 +513,85 @@ function visibleDelegationParagraphs(body) {
 }
 
 export function delegatesMaterialSourceCommission(body,p) {
+  if (p.commission.evidence_kind === REGISTERED_INTEGRATION_BUDGET)
+    return !!readIntegrationBudgetDelegation(body,p);
   const paragraphs=visibleDelegationParagraphs(body);
   return paragraphs.length===4 && paragraphs[0] === "Authorize one materially corrected-source qualification assignment on " + p.branch + " in Draft PR #" + p.pull_request + ". Adopt the reusable material-source-correction-v1 transition within the existing inventory-bound v7 owners for the observed in-scope product defect." &&
     paragraphs[1] === "Predecessor: " + p.prior_family_id + " / " + p.prior_attempt_id + " / " + p.prior_receipt_fingerprint + "." &&
     paragraphs[2] === MATERIAL_HISTORY_BOUNDARY &&
     paragraphs[3] === "After separate independent acceptance of the actual correction, policy controls, exact published source and real preparation commitment, authorize the operator to record that decision faithfully and publish a separate new prospective commission through the authenticated maintainer identity. Each commission permits exactly one deciding invocation total; reservation or interruption consumes it. No ordinal two, recovery or unchanged-target retry under that commission. A further in-scope material correction requires fresh evidence, independent acceptance and new authenticated authority. Complete planner-selected qualification, separate fresh-process stock, owned cleanup and independent result audit remain required.";
+}
+
+export const INTEGRATION_BUDGET_GRANT = "Authorize one NEW prospective v7 reviewed_revision commission for the measured registered integration allowance.";
+export const INTEGRATION_BUDGET_LIMIT = "Old commission remains spent. Exactly one admitted deciding invocation total. Reservation/interruption consumes it. No ordinal two, recovery or unchanged-target retry under this commission. Separate fresh-process stock and independent result audit are required.";
+
+// This distinct visible delegation format recognizes the measured-workload
+// decision, without borrowing the four-paragraph product-defect decision.
+// Exact operative paragraphs and single labeled bindings avoid accepting
+// quotations, templates, qualifications or a different commission's record.
+export function readIntegrationBudgetDelegation(body,p) {
+  const paragraphs = visibleDelegationParagraphs(body);
+  if (paragraphs.length !== 20 ||
+      !/^## R[1-9]\d* cohesive external-response completion delegation$/u.test(paragraphs[0]) ||
+      paragraphs[2] !== "### Accepted starting point" ||
+      paragraphs[5] !== "### Development objective and authorized correction" ||
+      paragraphs[9] !== "### Narrow common-owner and policy support" ||
+      paragraphs[12] !== "### Conditional public recording and one prospective deciding execution" ||
+      paragraphs[16] !== "### Historical and final acceptance boundaries") return null;
+  const scope = paragraphs[1].match(/^Authorize one cohesive correction and qualification assignment for issue #([1-9]\d*) on `([^`\n]+)` in Draft PR #([1-9]\d*)\. Continue with the existing implementation owner, worktree and PR\. This is the user's newly approved development and conditional recording scope after the completed r([1-9]\d*) receiving audit; the completed development-only delegation remains an immutable historical record\.$/u);
+  if (scope?.[2] !== p.branch || scope[3] !== String(p.pull_request)) return null;
+  if (paragraphs[4] !== "Authenticate the current task records, published source and ownership before changing anything. Reconcile concurrent main changes according to their actual conflicts and risks; a main movement alone is not a reason to create a duplicate assignment or stop routine work." ||
+      paragraphs[6].replace(/R[1-9]\d*'s natural development passes of \d+\.\d{3} seconds and \d+\.\d{3} seconds under the existing \d+-second child bound/gu,"The preceding development passes").replace(/r[1-9]\d* failure/gu,"historical failure") !== "Resolve the remaining external-response qualification blocker. Determine whether recovery is doing bounded, progressing canonical database validation over the accumulated fixture or is affected by an abnormal wait, lock or lifecycle stall. The preceding development passes establish limited observed headroom, not the cause of the historical failure or a demonstrated cure." ||
+      paragraphs[7] !== "Choose the implementation and measurements from the source. Profile the actual recovery operations and relevant fixture workload with bounded, sanitized diagnostics. Capture enough of the registered execution, including startup and cleanup, to support the decision; retain the actual source, inputs, runtime, dependency observations and every result. Use focused development checks while investigating rather than repeated Full runs." ||
+      paragraphs[11] !== "The current material-source delegation reader requires an observed product defect in an exact four-paragraph format. This truthful delegation does not claim that unproved defect and must not be silently treated as already accepted by that reader. Any required semantic support for this approved scope must be an explicit, independently reviewed source and policy change. Preserve authenticated authorship and permission checks, immutable task and grant records, exact candidate/preparation/input binding, historical lineage, single-use accounting, the existing freshness limit and the final ownership/concurrency checks. Do not add PR-, comment-, hash- or path-specific admission bypasses, reinterpret an old record as new authority, or let a permissive reader create authority by itself." ||
+      paragraphs[19].replace(/\(https:\/\/chatgpt\.com\/space\/page_[a-z0-9]+\)/gu,"(Augnes Space)") !== "Complete one consolidated handoff covering the exact final source and diff, measured decision and limitations, focused checks and independent source/preparation review, authenticated delegation/review/grant records, actual qualification and stock results, physical accounting, independent result audit, preservation and owned cleanup. Update the same PR and existing [current-work Page](Augnes Space) and [handoff Page](Augnes Space), verify the saved source artifacts, and state the remaining receiving decision. Do not create a duplicate branch, PR, workstream or ceremonial approval cycle.") return null;
+  const starting = paragraphs[3].split("\n");
+  const worktree = starting[1]?.match(/^- Worktree: `(\/[A-Za-z0-9_./-]+)`\.$/u)?.[1];
+  const head = starting[2]?.match(/^- Accepted head: `([a-f0-9]{40})`\.$/u)?.[1];
+  const tree = starting[3]?.match(/^- Tree: `([a-f0-9]{40})`\.$/u)?.[1];
+  const base = starting[4]?.match(/^- Integrated base and main observed at delegation intake: `([a-f0-9]{40})`\.$/u)?.[1];
+  const receiving = starting[5]?.match(/^- \[R([1-9]\d*) receiving decision\]\(https:\/\/github\.com\/hynk-studio\/augnes\/pull\/([1-9]\d*)#pullrequestreview-([1-9]\d*)\): SOURCE \/ DEVELOPMENT EVIDENCE ACCEPT \/ RETAIN; QUALIFICATION HOLD \/ DO NOT MERGE\.$/u);
+  if (starting.length !== 6 ||
+      starting[0] !== "- Repository: `hynk-studio/augnes`; origin: `https://github.com/hynk-studio/augnes.git`." ||
+      !worktree || worktree.slice(1).split("/").some(part => !part || part === "." || part === "..") ||
+      !head || !tree || !base || receiving?.[1] !== scope[4] || receiving[2] !== String(p.pull_request) ||
+      !Number.isSafeInteger(Number(receiving[3]))) return null;
+  if (paragraphs[8].replace(/assert the r[1-9]\d* cause/u,"assert the historical cause") !== "Apply the smallest justified in-scope product or fixture correction if a defect is demonstrated. If the evidence instead supports a finite prospective allowance for the legitimate registered external-response workload, a measured adjustment of that specific budget and any necessary enclosing bound is authorized. Justify the bound and lifecycle reserve from the evidence, preserving assertions, canonical recovery validation, timeout settlement, cleanup and unrelated groups. Do not remove safety checks to gain time or inflate timeouts globally. A naturally passing original source must remain a PASS; do not manufacture a RED or retroactively assert the historical cause to fit a witness format." ||
+      paragraphs[10] !== "Where necessary, reconcile the existing common verification, evidence and admission owners and their documented policy with the actual accepted correction or measured-workload case. The existing typed prospective fixture-budget approach is a precedent, not evidence that its current serial-authority scope already admits external-response integration. A narrow reusable extension for this measured registered workload, including corresponding rejection controls, is within this task." ||
+      paragraphs[13] !== "After a separate read-only reviewer accepts the actual final published source, evidence, policy and controls, and the real exact-target preparation commitment and complete input inventory, the implementation operator is explicitly authorized under this task delegation to record that independent decision faithfully and publish a separate new prospective commission/execution grant through the existing authenticated maintainer identity. Identify the actual reviewer and distinguish that reviewer from the operator recording the decision. Resolve material findings before acceptance. Authenticate and read back the actual records before reservation." ||
+      paragraphs[14] !== "This authorizes one new prospective commission after those conditions are met; it is not an execution grant for the starting head or any as-yet nonexistent target. The separate grant must bind the accepted repository, branch, base, head, tree, preparation commitment, input/runtime identity and predecessor lineage according to the applicable reviewed common-owner contract. Each commission permits exactly one deciding invocation total; reservation or interruption consumes it. No ordinal two, recovery or unchanged-target retry under that commission. This delegation does not authorize additional deciding commissions merely because a run fails." ||
+      paragraphs[15] !== "Execute the actual planner-selected qualification, including its selected Full and Browser phases, then separate fresh-process stock and an independent read-only result audit. Retain refusal, failure, cancellation and NOT_RUN results faithfully. If the deciding execution is unsuccessful, keep HOLD and finish the evidence, owned cleanup and handoff without blind retry. Ordinary in-scope development, validation, review fixes, publishing and these conditional recording steps do not need another intermediate user permission roundtrip." ||
+      paragraphs[18] !== "Reuse unaffected accepted evidence with exact attribution. Preserve the accepted #" + scope[1] + " behavior, GREEN-helper behavior, installed Companion, other owners' resources and existing Git settings. Keep this PR Draft with auto-merge off. This task grants no merge, Ready-for-review, deployment or final product-adoption authority; receiving and merge judgment remain with ChatGPT/the user.")
+    return null;
+  const history = paragraphs[17].match(/^Preserve r\d+(?:\/r\d+)* failures and refusals, false stock, all UNKNOWN intervals, r\d+(?:\/r\d+)* development evidence and their original attribution\. In particular, preserve r\d+ receipt fingerprint `([a-f0-9]{64})`, predecessor physical family `([a-f0-9]{64})`, and the original exhausted commission `([a-f0-9]{64})`: ordinary 1 \+ reviewed ([12]) \/ recovery 0, original reviewed maximum \4, remaining 0\. A new prospective commission must retain that spent history and its explicit lineage; it must not reset or relabel it\. No later diagnosis resolves the historical r\d+ UNKNOWN by implication\.$/u);
+  if (history?.[1] !== p.prior_receipt_fingerprint || history[2] !== p.prior_family_id) return null;
+  return { worktree, base, head, tree, reviewId:Number(receiving[3]), previousCommission:history[3], spent:Number(history[4]) };
+}
+
+export function integrationBudgetAuthorityBindings(p) {
+  return [
+    "Repository: hynk-studio/augnes", "Proof schema: " + p.schema, "Branch: " + p.branch,
+    "Base: " + p.base, "Head: " + p.head, "Tree: " + p.tree,
+    "Preparation commitment: " + gitReviewTarget(p),
+    "Current inventory: " + p.inputs.inventory_sha256, "Runtime inputs: " + p.inputs.identity_sha256,
+    "Predecessor family: " + p.prior_family_id, "Predecessor attempt: " + p.prior_attempt_id,
+    "Predecessor receipt: " + p.prior_receipt_fingerprint, "Original root receipt: " + p.commission.root_receipt_fingerprint,
+    "Task delegation: https://github.com/hynk-studio/augnes/pull/" + p.pull_request + "#issuecomment-" + p.commission.delegation.id,
+    "Evidence kind: " + REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM,
+  ].join("\n");
+}
+
+export function integrationBudgetAuthorityScope(p,review,grant) {
+  const accepted = visibleDelegationParagraphs(review.body);
+  const commission = visibleDelegationParagraphs(grant.body);
+  const bindings = integrationBudgetAuthorityBindings(p);
+  return accepted[0] === "Source review decision: ACCEPT / RETAIN for prospective qualification." &&
+    accepted[1] === bindings && accepted[2] === MATERIAL_HISTORY_BOUNDARY &&
+    equal(commission,[
+      INTEGRATION_BUDGET_GRANT, bindings,
+      "Accepted review: https://github.com/hynk-studio/augnes/pull/" + p.pull_request + "#pullrequestreview-" + p.accepted.review.id,
+      MATERIAL_HISTORY_BOUNDARY, INTEGRATION_BUDGET_LIMIT,
+    ]);
 }
 
 function operativeAuthoritySections(body) {
