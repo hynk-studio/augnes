@@ -36,9 +36,11 @@ const repoRoot = path.resolve(
 const nestedAppRoot = path.join(repoRoot, "apps/augnes_apps");
 const suiteName = process.argv[2];
 const projectWorkFocus = process.argv[3] === "--project-work-only";
+const externalResponseFocus = process.argv[3] === "--external-response-only";
+const integrationFocus = projectWorkFocus || externalResponseFocus;
 const revisionFocus = process.argv[3] === "--reviewed-revision-only";
 if (process.argv.length > 3 && (process.argv.length !== 4 ||
-    !(projectWorkFocus && suiteName === "integration" || revisionFocus && suiteName === "authority")))
+    !(integrationFocus && suiteName === "integration" || revisionFocus && suiteName === "authority")))
   throw new Error("unsupported canonical suite focus");
 const rootNode = (...args) => ({
   command: process.execPath,
@@ -1910,7 +1912,10 @@ try {
   );
   const selectedSteps = projectWorkFocus
     ? suites[suiteName].filter(step => ["project-work-initialization", "project-work-scoped-host"].includes(step.id))
+    : externalResponseFocus ? integrationInventory.filter(step => step.id === "external-response")
     : revisionFocus ? suites.authority.filter(step => reviewedRevisionSteps.includes(step)) : suites[suiteName];
+  if (externalResponseFocus && selectedSteps.length !== 1)
+    throw new Error("external-response integration registration is incomplete");
   const preparedSteps = selectedSteps.map((step, index) => {
     const resourceOwner = createCanonicalTestResourceRoot(`ag-c${String(index + 1).padStart(2, "0")}-`);
     const resourceRoot = resourceOwner.root;
@@ -2007,7 +2012,7 @@ try {
       (step) => step.group === "supporting-serial",
     );
     if (
-      operator.length !== (projectWorkFocus ? 0 : 1) ||
+      operator.length !== (integrationFocus ? 0 : 1) ||
       supporting.length !== preparedSteps.length - operator.length
     ) {
       throw new Error(
@@ -2016,9 +2021,9 @@ try {
     }
     completedResults = await runCanonicalChildGroups({
       suite: suiteName,
-      maxConcurrency: projectWorkFocus ? 1 : 2,
+      maxConcurrency: integrationFocus ? 1 : 2,
       groups: [
-        ...(projectWorkFocus ? [] : [{ id: "operator-process", children: operator }]),
+        ...(integrationFocus ? [] : [{ id: "operator-process", children: operator }]),
         { id: "supporting-serial", children: supporting },
       ],
     });
@@ -2076,15 +2081,16 @@ try {
 
   summary = {
         suite: suiteName,
-        coverage: projectWorkFocus ? "focused_project_work_children_only" : revisionFocus ? "focused_reviewed_revision_children_only" : "complete_suite",
+        coverage: projectWorkFocus ? "focused_project_work_children_only" : externalResponseFocus ? "focused_external_response_child_only"
+          : revisionFocus ? "focused_reviewed_revision_children_only" : "complete_suite",
         status: "pass",
         environment_isolation_verified: forbiddenEnvironmentKeysForwarded === 0,
         forbidden_environment_keys_forwarded: forbiddenEnvironmentKeysForwarded,
         canonical_children_checked: canonicalChildrenChecked,
         ...(suiteName === "integration"
           ? {
-              concurrency_bound: projectWorkFocus ? 1 : 2,
-              integration_groups: projectWorkFocus ? ["supporting-serial"] : ["operator-process", "supporting-serial"],
+              concurrency_bound: integrationFocus ? 1 : 2,
+              integration_groups: integrationFocus ? ["supporting-serial"] : ["operator-process", "supporting-serial"],
               child_resource_isolation: [
                 "HOME",
                 "USERPROFILE",
