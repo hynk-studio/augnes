@@ -1837,6 +1837,23 @@ When an increment actually changes or claims harness capability, retain the
 affected qualification below. This is not a live-run gate on the preparation
 above, a mandate to replace every layer, or a blanket test campaign for every PR.
 
+For the [BOXBOX-motivated in-task review](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#non-model-harness-capability-readiness--2026-10-31),
+state the intended user/task outcome and acceptance basis before judging benefit.
+Distinguish successful activation/context transfer, the best historical score and
+the checked result actually usable at the observation cutoff. Measure time to a
+checked result when its evidence becomes available, not merely the start of a
+retrospectively successful trial. A method revision cannot silently change the
+criteria used to declare its own success; an authorized criteria change has a
+different evaluation basis.
+
+For a continuation claim, observe a meaningful next action using preserved reasons
+and unfinished work after the change: successful resume can still repeat a
+previously ruled-out approach under unchanged conditions. Retain failed revisions
+and uncertain effects; restoring harness code does not undo completed effects.
+Use the existing total-burden and strong-comparison rules, including diagnosis,
+review, verification, switching and recovery. These are claim-specific questions
+within assigned work, not a new acceptance ladder or mandatory live experiment.
+
 | Claim or invariant | Required observation and refusal boundary |
 |---|---|
 | Policy/configuration control | Identify policy origin, authorized owner, scope and control coverage. Compare intended settings with observable application; unavailable fields and uncertain refusal origin stay explicit. Configuration acceptance is not application proof, and conflict permits no hidden override or boundary relaxation. |
