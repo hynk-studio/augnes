@@ -265,6 +265,28 @@ Do not invent accepted follow-up where ownership or delivery remains unknown.
 Include missed issues, false alerts, unnecessary interference and primary-task
 delay, not only correctly noticed problems.
 
+When authority-ambiguity or policy-conflict behavior is changed or claimed,
+exercise a bounded interrupted-work case through supported entry, result and
+continuation owners. Separate the observed notice, its asserted source and
+actually verified authority and scope; unknown provenance or scope stays unknown.
+Distinguish an affected-action hold, recipient's adoption rejection,
+provider/executor refusal and actual grant revocation. None by itself proves user
+fault or a project-wide prohibition, or permits bypassing a genuine restriction.
+
+Observe which work must remain held, whether unaffected independently authorized
+work actually continues, and the next authorized recipient and resumption
+condition where known. An applicable wider restriction or revoked authority
+requires continued non-execution within that scope, not a workaround rewarded as
+completion. Keep diagnosis within the existing approved resource limits and ask
+whether another permitted check can change the next decision; repeated
+restatement without new evidence is not resolution.
+Preserve unresolved ambiguity through the existing hold/escalation path.
+Supported resumption rechecks current authority and unresolved effects;
+escalation does not renew a grant or authorize replay. Report checked outcomes,
+remaining responsibility, diagnostic/coordination cost and primary-task delay.
+A scripted case establishes only its exercised path, not general enforcement or
+autonomous judgment.
+
 Where negotiating or challenging a counterpart matters, contrast unsupported
 pressure with valid new evidence or a change made by the authority responsible
 for the terms. Separate current hard acceptance/authority boundaries from
