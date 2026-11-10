@@ -37,6 +37,48 @@ record validation and recovery admission around that same orchestrator.
 before launching children. Backup/restore continues through
 `scripts/recovery-backup.mjs` and `scripts/runtime-database-bootstrap.mjs`.
 
+## Canonical migration ownership
+
+`scripts/canonical-database-migrations.mjs` remains the synchronous public
+preparation entry. It loads the canonical schema, invokes the fixed
+`scripts/database-migrations/canonical-compatibility.mjs` composition, normalizes
+recovery private material and writes the migration ledger last. The composition
+always includes every supported family; it has no selectable profile or registry.
+`scripts/db-migrations.mjs` remains a compatibility facade for the existing
+migration functions and SQL/constants.
+
+The implementation owners under `scripts/database-migrations/` contain each
+family's SQL, necessary helpers, ordered calls and public result assembly:
+
+| Owner | Responsibility |
+| --- | --- |
+| `historical-compatibility.mjs` | Proposal scoring before and after schema preparation, mailbox rebuilding, session bindings and delivery artifacts. |
+| `native-product.mjs` | Durable semantic records, local operator sessions, project identity, repository execution, lifecycle, controls and continuity pins. |
+| `review-evidence.mjs` | Verification evidence and temporal review artifacts/idempotency. |
+| `research-candidate.mjs` | Manual note previews, result records and global dogfood research migrations. |
+| `autonomy-autohunt.mjs` | Delegation grants and historical Autohunt preparation. |
+| `perspective-memory.mjs` | Perspective persistence boundaries and items. |
+
+The closed composition owns the ordering between these families, including
+conditional proposal work before schema application, native preparation, main
+schema, review schema, the external-response transaction, review callback
+generation and the later families. Mailbox rebuilding still causes conditional
+main-schema reapplication before session/delivery preparation. Each migration
+retains its own transaction, refusal and failure behavior; there is no enclosing
+transaction. A failure can retain the same earlier progress and cannot silently
+complete later families or the ledger. Ordinary access still calls none of these
+preparation owners.
+
+Portable-project semantic validation and disposable fixture builders call the
+same public preparation entry. Bootstrap and recovery retain their staged
+publication, validation and rollback ownership. New distributables copy the
+fixed migration module closure listed in `DISTRIBUTABLE_DATABASE_MIGRATION_FILES`;
+the verified supervisor bundle includes that closure and still embeds
+`__AUGNES_BUNDLED_SCHEMA_SQL__`. The package contract, migration IDs/versions and
+schema signatures are unchanged. Historical v2 package manifests retain their
+original required-file contract; their pre-split source and bundle do not acquire
+a dependency on new support files.
+
 `getDatabasePath()` retains the existing environment/default resolution and build
 isolation guard. A missing intended store never redirects to a default store.
 `database_missing`, `database_unprepared` (empty or recognized predecessor),

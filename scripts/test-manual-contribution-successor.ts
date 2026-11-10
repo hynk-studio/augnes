@@ -3,25 +3,26 @@ import { existsSync, mkdirSync, readFileSync, cpSync } from "node:fs";
 import path from "node:path";
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
 import { createCanonicalTestResourceRoot, beginCanonicalTestResourceUse, settleCanonicalTestResourceUse, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
-const destination=process.argv[2], reproduction=process.argv.includes("--reproduce");
+assert(!process.argv.includes("--reproduce"), "historical_reproduction_retired");
+const destination=process.argv[2];
 assert(!destination||(path.isAbsolute(destination)&&!existsSync(destination)));
 const owner=createCanonicalTestResourceRoot("ag-suite-",{shortSocketPaths:true});
 async function main(){
   beginCanonicalTestResourceUse(owner);let settled=true;
   try{
-    for(const role of reproduction?["successor"]:["successor","consumer"]){
+    for(const role of ["successor","consumer"]){
       settled=false;
       // Only the disposable runtime's scope/config is passed to the fresh reader;
       // no request, return, decision, expected result or producer memory is input.
       const env=role==="consumer"?{...process.env,...JSON.parse(readFileSync(path.join(owner.root,"artifacts","fixture-operator-environment.json"),"utf8"))}:process.env;
       const result=await runCanonicalChild({suite:"manual-contribution-successor",label:role,command:process.execPath,
-        args:["--import","tsx",role==="successor"?"scripts/manual-contribution-successor.ts":"scripts/manual-contribution-followup.ts",role,owner.root,...(reproduction?["--reproduce"]:[])],
+        args:["--import","tsx",role==="successor"?"scripts/manual-contribution-successor.ts":"scripts/manual-contribution-followup.ts",role,owner.root],
         cwd:process.cwd(),env,timeoutMs:60_000,heartbeatMs:5000,resourceOwner:undefined});
       settled=result.exit_observed&&result.streams_closed&&result.cleanup_completed&&result.remaining_owned_processes===0;
       assert.equal(canonicalChildAcceptanceFailure(result,{suite:"manual-contribution-successor",timeoutMs:60_000,requireNaturalExit:true}),null);
     }
     const read=(name:string)=>JSON.parse(readFileSync(path.join(owner.root,"artifacts",name+".json"),"utf8"));
-    if(!reproduction){
+    {
       const fresh=read("fresh-read"),m=fresh.manual_contribution,original=read("original-return"),creation=read("successor-creation");
       assert.equal(m.task_identity,creation.origin);assert.notEqual(m.task_identity,creation.initialIdentity);
       assert.equal(m.decision_currentness,"saved_basis_retained");assert.equal(m.original.selection,"historical_not_selected");
@@ -41,7 +42,7 @@ async function main(){
       }
       assert(read("successor-identities").length>=8);
     }
-    console.log(JSON.stringify({test:"manual-contribution-successor",status:"PASS",reproduction,actual_supported_writers:true,fresh_process:!reproduction,provider_observations:0}));
+    console.log(JSON.stringify({test:"manual-contribution-successor",status:"PASS",actual_supported_writers:true,fresh_process:true,provider_observations:0}));
   }finally{
     let exportError;try{if(destination&&existsSync(path.join(owner.root,"artifacts"))){mkdirSync(destination);cpSync(path.join(owner.root,"artifacts"),destination,{recursive:true,errorOnExist:true});}}catch(e){exportError=e;}
     if(settled)settleCanonicalTestResourceUse(owner,{exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0});

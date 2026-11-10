@@ -1,0 +1,51 @@
+{
+  "version": "OperatingProfile.v0.1",
+  "name": "Synthetic CI credential event: Observe/Recommend",
+  "mode": "observe_recommend",
+  "work": {
+    "goal": "Identify the next observation needed to distinguish an expected CI job from possible credential misuse.",
+    "success_criteria": ["Retain both supplied explanations and the missing discriminating observation.", "Return a recommendation with its uncertainty and human use responsibility."],
+    "non_goals": ["No incident determination, credential change, containment or production action."]
+  },
+  "scope": {
+    "environment": "Synthetic repository and CI event; no live assets are selected.",
+    "targets": ["fixture repository", "fixture CI job metadata"],
+    "conditions": ["The event and explanations are authored fixture data.", "No source freshness, access, identity or applicability has been checked."]
+  },
+  "accountability": {"owner_role": "owner", "sponsor_role": null},
+  "roles": [
+    {"id": "observer", "responsibility": "Request and describe relevant event and job metadata.", "executor": null, "principal": null, "counterpart_assumptions": ["A later authorized source owner can provide the selected job manifest."]},
+    {"id": "checker", "responsibility": "Check whether returned metadata supports either explanation.", "executor": null, "principal": null, "counterpart_assumptions": ["Independent checking requires a distinct actual principal, not another role label."]},
+    {"id": "owner", "responsibility": "Use the checked recommendation and decide whether any separately authorized next work is appropriate.", "executor": null, "principal": null, "counterpart_assumptions": []}
+  ],
+  "inputs": [
+    {
+      "id": "credential_event", "purpose": "Describe the unusual event without declaring an incident.", "required": true, "availability": "observed",
+      "source": {"identity": "fixture:ci-event", "revision": "event-v1", "observed_at": "2026-10-22T07:00:00.000Z", "event_time": "2026-10-22T06:58:00.000Z"},
+      "content": "A fixture CI credential was used by an unfamiliar job label outside the usual fixture schedule.",
+      "limitations": "Synthetic supplied statement; authenticity, actual source availability and event meaning are unverified."
+    },
+    {
+      "id": "job_manifest", "purpose": "Determine whether an authorized automation change explains the job identity and timing.", "required": true, "availability": "not_supplied",
+      "source": {"identity": "fixture:job-manifest", "revision": null, "observed_at": null, "event_time": null},
+      "content": null, "limitations": "No manifest, source access or permission is available to this preview."
+    }
+  ],
+  "explanations": [
+    {"id": "legitimate_automation", "description": "An authorized automation change may explain the unfamiliar job and schedule.", "basis_inputs": ["credential_event"], "uncertainties": ["The current authorized job manifest has not been supplied."]},
+    {"id": "credential_misuse", "description": "Unauthorized credential use may explain the same event.", "basis_inputs": ["credential_event"], "uncertainties": ["The event alone cannot distinguish misuse from an authorized change."]}
+  ],
+  "steps": [
+    {"id": "inspect_manifest", "kind": "observe", "purpose": "Ask the source owner for the relevant authorized job manifest and change record.", "role": "observer", "requires_inputs": ["credential_event"], "depends_on": [], "returns": "Selected source-labelled job metadata or an explicit unavailable result.", "check_role": "checker", "use_role": "owner"},
+    {"id": "recommend_next_work", "kind": "recommend", "purpose": "Compare the supplied explanations against the checked result and preserve remaining unknowns.", "role": "observer", "requires_inputs": ["credential_event", "job_manifest"], "depends_on": ["inspect_manifest"], "returns": "A recommendation, original basis, counterevidence and unresolved next observation.", "check_role": "checker", "use_role": "owner"}
+  ],
+  "arrangements": [
+    {"id": "existing_sources", "kind": "existing_asset", "description": "Use the source owner's existing selected metadata and current review process.", "roles": ["observer", "checker", "owner"], "assumptions": ["These roles and permissions still require actual bindings."]},
+    {"id": "defer", "kind": "non_use", "description": "Keep the unknown explicit and defer this profile when the required source is unavailable.", "roles": ["owner"], "assumptions": ["Deferral is not a declaration that the event is harmless."]}
+  ],
+  "separation": [{"roles": ["observer", "checker"], "reason": "The proposed independent check requires distinct actual principals."}],
+  "requested_permissions": [{"id": "read_manifest", "description": "Read only the selected fixture job manifest through a later authorized source owner.", "for_steps": ["inspect_manifest"]}],
+  "budget": {"max_steps": 8, "max_observations": 4, "max_rounds": 2, "max_minutes": 30},
+  "reconsider_when": ["The missing manifest arrives or conflicts with the event.", "A source correction or changed permission affects the proposed observation."],
+  "revision_basis": {"previous_fingerprint": null, "reason": "First synthetic demonstration; no live observation or prior operational success."}
+}

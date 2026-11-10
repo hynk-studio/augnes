@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
+
 
 import { createHash, randomBytes } from "node:crypto";
 import {
@@ -15,6 +17,14 @@ import {
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
+import os from "node:os";
+import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, createInputReader, classifyInputChange, nonFaultInputChange, inputReadOptions, supportedInputContract, createGitTrackingResource, observeCanonicalRuntimeInputs, canonicalRuntimeInputEnvironment, observePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
+import { beginAttempt, finishAttempt, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords, hasRetiredQualificationMarker, isReviewedRevision, isWebPlanningClientRevision, authorizeReviewedRevision, REVIEWED_REVISION_PHASES } from "./local-canonical-attempts.mjs";
+import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-evidence-retention.mjs";
+import { isGitObservationRevision, isInventoryBoundRevision, gitRevisionInventory } from "./local-canonical-git-observation.mjs";
+import { isBrowserRevision, browserBindingMatches } from "./local-canonical-browser-revision.mjs";
+import { browserInstallationRoot } from "./local-canonical-inputs.mjs";
+import { BROWSER_IDENTITY_PREFIX, validPhaseBrowserUse, browserConsumersForPhase, MAX_BROWSER_USE_RECORDS, parseBrowserUseLine } from "./local-canonical-browser-identity.mjs";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -27,9 +37,11 @@ import {
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { admitIntegrationBase } from "./local-canonical-integration-base.mjs";
-import { admitVerificationContext, assertVerificationContext, verificationAnchorRoot } from "./local-canonical-verification-context.mjs";
+import { admitVerificationContext, assertVerificationContext, verificationAnchorRoot, inspectVerificationCompanionPreservation, observeReviewedRevisionSettlementState } from "./local-canonical-verification-context.mjs";
 import { acquireVerificationCapacity, assertVerificationCapacity, releaseVerificationCapacity } from "./local-canonical-capacity.mjs";
 import { createIsolatedInvocationResources, isolatedInvocationEnvironment, cleanupIsolatedInvocationResources } from "./local-canonical-isolated-resources.mjs";
+import { R8A_PROVISION_MANIFEST, readPreparedR8ADependencies } from "./merged-r8a-dependency-provision.mjs";
+import { DURABLE_PROVISION_MANIFEST, readPreparedDurableDependencies } from "./durable-work-dependency-provision.mjs";
 import { prepareHistoricalInputs, finishHistoricalInputs } from "./local-canonical-historical-inputs.mjs";
 import {
   acquireCheckoutVerificationOwnership,
@@ -56,6 +68,7 @@ import {
   collectRepositoryIdentity,
   ensureBoundedLocalDirectory,
   ensureMachineFingerprint,
+  readMachineFingerprint,
   evaluateNodePolicy,
   hashFile,
   runGit,
@@ -73,7 +86,6 @@ import {
   acquireCompanionServiceMaintenance,
   boundedLifecycleState,
   inspectCompanionService,
-  inspectCompanionPreservation,
   releaseCompanionServiceMaintenance,
 } from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 
@@ -94,6 +106,10 @@ const generatedWindowsHelperRoot = path.join(
 );
 const GENERATED_NEXT_DIRECTORY = ".next";
 const EXECUTOR_SOURCE_FILES = Object.freeze([
+  "scripts/local-canonical-browser-bundle.mjs",
+  "scripts/local-canonical-browser-revision.mjs",
+  "scripts/local-canonical-git-observation.mjs",
+  "scripts/local-canonical-browser-input.mjs",
   "scripts/browser-verification-owners.v1.json",
   "scripts/canonical-change-planner.mjs",
   "scripts/codex-reuse-verification-ownership.mjs",
@@ -104,8 +120,30 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/canonical-test-environment.mjs",
   "scripts/canonical-repository-identity.mjs",
   "scripts/local-canonical-environment.mjs",
+  "scripts/merged-r8a-dependency-provision.mjs",
+  "scripts/durable-work-dependency-provision.mjs",
+  "scripts/merged-r8a-fixture-dependencies.mjs",
+  "scripts/prepare-merged-r8a-dependencies.mjs",
+  "plugins/augnes-operator/mcp/node-runtime-policy.mjs",
   "scripts/local-canonical-change-owners.v1.json",
   "scripts/local-canonical-receipt.mjs",
+  "scripts/local-canonical-inputs.mjs",
+  "scripts/local-canonical-attempts.mjs",
+  "scripts/local-canonical-closeout-budgets.mjs",
+  "scripts/local-canonical-evidence-retention.mjs",
+  "scripts/local-canonical-review-export.mjs",
+  "scripts/export-local-canonical-review.mjs",
+  "scripts/local-canonical-browser-identity.mjs",
+  "scripts/browser-validate-project-experience-v1.mjs",
+  "scripts/browser-validate-continuity-v1.mjs",
+  "scripts/operator-execution-browser-lifecycle-v1.mjs",
+  "scripts/operator-project-home-readiness-observation-v1.mjs",
+  "scripts/test-durable-work-surfaces.ts",
+  "scripts/test-durable-work-resumption.ts",
+  "scripts/test-cumulative-work-history.ts",
+  "scripts/test-project-client-browser.ts",
+  "scripts/browser-validate-web-planning.mjs",
+  "scripts/test-operator-browser-navigation-diagnostics-v1.mjs",
   "scripts/local-canonical-integration-base.mjs",
   "scripts/github-main-branch-transport.mjs",
   "scripts/local-canonical-checkout-ownership.mjs",
@@ -405,6 +443,7 @@ export async function runPhasesSequentially({
   for (const phase of phases) {
     if (signal?.aborted) break;
     onStart(phase);
+    if (signal?.aborted) break;
     const result = await execute(phase);
     results.push(result);
     onResult(phase, result);
@@ -432,8 +471,17 @@ export async function executeLocalCanonicalVerification({
   baseSha: requestedBaseSha = null,
   headSha: requestedHeadSha = null,
   checkoutContext = "canonical",
-  signal,
+  signal: externalSignal,
+  recoveryProofPath = null,
+  sourceCorrectionProofPath = null,
+  ...retiredOptions
 }) {
+  if (Object.hasOwn(retiredOptions, "browserReplacementProofPath")) throw Object.assign(new Error("qualification_route_retired"), { code: "qualification_route_retired" });
+  const controller = new AbortController();
+  const forwardCancellation = () => controller.abort({ disposition: "user_cancellation" });
+  externalSignal?.addEventListener("abort", forwardCancellation, { once: true });
+  if (externalSignal?.aborted) forwardCancellation();
+  const signal = controller.signal;
   const startedMs = Date.now();
   const startedAt = new Date(startedMs).toISOString();
   const verificationContext = admitVerificationContext({ repositoryRoot, kind: checkoutContext });
@@ -454,7 +502,12 @@ export async function executeLocalCanonicalVerification({
     mode, baseSha, headSha,
   });
 
+  const sourceCorrection = sourceCorrectionProofPath ? readSourceCorrectionProof(resolveArtifactPath(sourceCorrectionProofPath), repositoryRoot) : null;
+  if (isReviewedRevision(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || plan.selected_plan !== "full-canonical"))
+    throw Object.assign(new Error("reviewed_revision_full_route_required"), { code: "reviewed_revision_full_route_required" });
   const hostResult = collectHostEnvironment(repositoryRoot);
+  const runtimeInputs = isReviewedRevision(sourceCorrection) ? observeRevisionInputs(sourceCorrection, hostResult) : null;
+  assertRuntimeInputSelection(runtimeInputs);
   const host = hostResult.public;
   const nodePolicy = evaluateNodePolicy();
   const locks = collectLockFingerprints();
@@ -543,9 +596,10 @@ export async function executeLocalCanonicalVerification({
   }
 
   const generatedNextManaged = managesGeneratedNextState(plan.selected_plan);
+  let inputs = null, inputMonitor = null, attempt = null;
   let checkoutOwner = null;
   const checkoutOwnership = {
-    required: requiresCheckoutVerificationOwnership(plan.selected_plan) || checkoutContext === "isolated-worktree",
+    required: requiresCheckoutVerificationOwnership(plan.selected_plan) || checkoutContext === "isolated-worktree" || (mode !== "quick" && phaseDefinitions.length > 0),
     acquired: false,
     released: false,
     checkout_fingerprint: null,
@@ -578,6 +632,11 @@ export async function executeLocalCanonicalVerification({
   let executionFailure = preflightIssues.length > 0;
   let cleanupComplete = true;
   let cleanupReason = null;
+  let executionReason = null;
+  const cleanupErrors = [];
+  const recordCleanupFailure = code => {
+    cleanupComplete = false; cleanupReason ??= code; cleanupErrors.push(code);
+  };
   // A selected plan is not ownership. Acquisition must return successfully
   // before this invocation may mutate (or finally remove) shared build state.
   let sharedGeneratedStateOwned = false;
@@ -606,14 +665,19 @@ export async function executeLocalCanonicalVerification({
           acquired_at: checkoutOwner.metadata.acquired_at,
         });
       }
+      // Required historical graphs are separate explicit preparation inputs.
+      // Validate with their existing readers before service/build mutation or
+      // attempt consumption, rather than discovering a missing graph in a child.
+      if (phaseDefinitions.some(phase => ["unit", "operability"].includes(phase.id)))
+        readPreparedR8ADependencies(repositoryRoot);
+      if (phaseDefinitions.some(phase => phase.id === "integration"))
+        readPreparedDurableDependencies(repositoryRoot);
       if (checkoutContext === "isolated-worktree") {
         isolatedResources = createIsolatedInvocationResources(invocationId);
         if (historicalInputsRequired) historicalInputs = prepareHistoricalInputs({
           context: verificationContext, repositoryRoot, checkoutOwner, invocationId,
         });
-        const observed = await inspectCompanionPreservation({
-          repositoryRoot: verificationAnchorRoot(verificationContext),
-        });
+        const observed = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: isBrowserRevision(sourceCorrection) || isGitObservationRevision(sourceCorrection) || isInventoryBoundRevision(sourceCorrection) });
         serviceLifecycleBefore = observed.state;
         serviceObservations.before = observed.diagnostics;
         if (!observed.state.preservation_valid) throw Object.assign(
@@ -663,6 +727,15 @@ export async function executeLocalCanonicalVerification({
       }
       // Refused checkout contenders need a receipt, but have no phase logs.
       ensureBoundedLocalDirectory(repositoryRoot, runLogRoot);
+      inputs = prepareInvocationInputs({ verificationContext, isolatedResources, browserExecutablePath: hostResult.browserExecutablePath, runtimeInputs, headSha, executorFingerprint, phaseDefinitions });
+      const assertOwnedInputs = () => {
+        if (checkoutOwner) assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
+        if (capacityLease) assertVerificationCapacity(capacityLease, verificationContext);
+        if (mode !== "quick") assertFrozenSource(identityBefore, verificationContext);
+      };
+      inputMonitor = monitorInputContract(inputs, controller, { assertOwner: assertOwnedInputs });
+      if (inputMonitor.check()) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
+      let actualBrowserVersion = runtimeInputs?.browser?.actual_version ?? null;
       const completed = await runPhasesSequentially({
         phases: phaseDefinitions,
         signal,
@@ -670,13 +743,42 @@ export async function executeLocalCanonicalVerification({
           if (checkoutOwnership.required) assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
           if (capacityLease) assertVerificationCapacity(capacityLease);
           assertVerificationContext(verificationContext, repositoryRoot);
+          if (runtimeInputs) inputs.check({ force: true });
+          if (inputMonitor.check() || signal.aborted) throw Object.assign(new Error("input_invalidation"), { code: "input_invalidation" });
+          if (mode !== "quick") assertFrozenSource(identityBefore, verificationContext);
+          if (!attempt && mode !== "quick" && plan.selected_plan !== "documentation-only" && phaseDefinitions.length > 0 && checkoutOwner) {
+            const revisionAuthorization = isReviewedRevision(sourceCorrection) ? await authorizeReviewedRevision(sourceCorrection) : null;
+            let revisionLive = sourceCorrection?.settlement ? await observeReviewedRevisionSettlementState(verificationContext) :
+              isBrowserRevision(sourceCorrection) ? await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: true }) : null;
+            if (revisionAuthorization && (mode !== "full" || checkoutContext !== "isolated-worktree" || plan.selected_plan !== "full-canonical" ||
+                digest(phaseDefinitions.map(p => p.id)) !== digest(REVIEWED_REVISION_PHASES))) throw Object.assign(new Error("reviewed_revision_workload_invalid"), { code: "reviewed_revision_workload_invalid" });
+            if (isGitObservationRevision(sourceCorrection) || isInventoryBoundRevision(sourceCorrection)) {
+              revisionLive = await observeGitRevisionTarget(verificationContext, hostResult.browserExecutablePath, runtimeInputs);
+              if (gitRevisionInventory(inputs.snapshot()) !== revisionLive.inventory) throw Object.assign(new Error("revision_git_inputs_changed"), {code:"revision_git_inputs_changed"});
+            }
+            if (revisionAuthorization) inputs.check({ force: true });
+            if (revisionAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
+            attempt = beginAttempt({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, checkoutOwner,
+              branch: identityBefore.branch, head: headSha, tree: inputs.snapshot().binding.tree, runId,
+              contractFingerprint: inputs.snapshot().fingerprint, acceptedMain: baseSha,
+              recoveryProof: recoveryProofPath ? readRecoveryProof(resolveArtifactPath(recoveryProofPath)) : null,
+              sourceCorrection, revisionAuthorization, revisionInputs: runtimeInputs, revisionLive });
+            pinVerificationEvidence({ root: repositoryRoot, checkoutOwner, runId, reason: "attempt_family" });
+          }
           checkoutConsumersSettled = false;
           const result = await executePhase({
-            phase, mode, runLogRoot, isolatedResources, signal, invocationId,
+            phase, mode, runLogRoot, isolatedResources, signal, invocationId, runtimeInputs,
             browserExecutablePath: hostResult.browserExecutablePath,
+            expectedBrowser: { ...inputs.snapshot().resources.find(r => r.id === "browser-executable"), actual_version: actualBrowserVersion },
           });
+          actualBrowserVersion ??= result.browser_use?.[0]?.actual_version ?? null;
           checkoutConsumersSettled = result.cleanup?.completed === true &&
+            result.cleanup?.exit_observed === true && result.cleanup?.streams_closed === true &&
             result.cleanup?.remaining_owned_processes === 0;
+          if (runtimeInputs && result.status === "pass" && ["dependencies-root", "dependencies-nested", "dependencies-web-planning"].includes(phase.id)) {
+            try { inputs.prepareDependencies({ repositoryRoot, phaseId: phase.id }); }
+            catch (error) { result.status = "failure"; result.failure_code = safeErrorCode(error); }
+          }
           return result;
         },
         onStart: (phase) => {
@@ -705,17 +807,16 @@ export async function executeLocalCanonicalVerification({
     }
   } catch (error) {
     executionFailure = true;
-    cleanupComplete = false;
-    cleanupReason = safeErrorCode(error);
+    executionReason = safeErrorCode(error);
+    if (executionReason === "revision_current_preservation_unsafe" && error.revisionPreservation)
+      serviceObservations.rejected_admission = error.revisionPreservation;
     if (error.isolatedResourceCleanup) isolatedResourceCleanup = error.isolatedResourceCleanup;
     if (error.historicalInputCleanup) historicalInputCleanup = error.historicalInputCleanup;
     if (checkoutOwnership.required && !checkoutOwnership.acquired) {
-      checkoutOwnership.failure_code = cleanupReason;
+      checkoutOwnership.failure_code = executionReason;
     }
-    if (capacityOwnership.required && !capacityOwnership.acquired) capacityOwnership.failure_code = cleanupReason;
-    console.error(
-      `[local-canonical] failure phase=executor code=${cleanupReason}`,
-    );
+    if (capacityOwnership.required && !capacityOwnership.acquired) capacityOwnership.failure_code = executionReason;
+    console.error(`[local-canonical] failure phase=executor code=${executionReason}`);
   } finally {
     console.log("[local-canonical] cleanup_start");
     try {
@@ -724,8 +825,7 @@ export async function executeLocalCanonicalVerification({
           nextState.removed_after_execution =
             removeBoundedGeneratedNextState({ checkoutOwner });
         } catch (error) {
-          cleanupComplete = false;
-          cleanupReason = safeErrorCode(error);
+          recordCleanupFailure(safeErrorCode(error));
         }
       }
       if (sharedGeneratedStateOwned) {
@@ -733,8 +833,7 @@ export async function executeLocalCanonicalVerification({
         generatedNextPresentAfterExecutionCleanup = generatedNextEntryPresent();
       }
       if (sharedGeneratedStateOwned && generatedNextManaged && generatedNextPresentAfterExecutionCleanup) {
-        cleanupComplete = false;
-        cleanupReason ??= "generated_next_cleanup_incomplete";
+        recordCleanupFailure("generated_next_cleanup_incomplete");
       }
       if (
         sharedGeneratedStateOwned &&
@@ -748,8 +847,7 @@ export async function executeLocalCanonicalVerification({
           rmSync(generatedWindowsHelperRoot, { recursive: true, force: true });
           windowsHelperState.removed_after_execution = true;
         } catch (error) {
-          cleanupComplete = false;
-          cleanupReason = safeErrorCode(error);
+          recordCleanupFailure(safeErrorCode(error));
         }
       }
       if (checkoutConsumersSettled && dependencyMaintenance && !dependencyMaintenanceRelease) {
@@ -759,8 +857,7 @@ export async function executeLocalCanonicalVerification({
             lease: dependencyMaintenance.lease,
           });
         } catch (error) {
-          cleanupComplete = false;
-          cleanupReason = safeErrorCode(error);
+          recordCleanupFailure(safeErrorCode(error));
         }
       }
       try {
@@ -776,12 +873,11 @@ export async function executeLocalCanonicalVerification({
           });
         }
       } catch (error) {
-        cleanupComplete = false;
-        cleanupReason = safeErrorCode(error);
+        recordCleanupFailure(safeErrorCode(error));
       }
       if (serviceLifecycleBefore !== null) {
         if (checkoutContext === "isolated-worktree") {
-          const observed = await inspectCompanionPreservation({ repositoryRoot: verificationAnchorRoot(verificationContext) });
+          const observed = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: isBrowserRevision(sourceCorrection) || isGitObservationRevision(sourceCorrection) || isInventoryBoundRevision(sourceCorrection) });
           serviceLifecycleAfter = observed.state;
           serviceObservations.after = observed.diagnostics;
         } else {
@@ -796,36 +892,38 @@ export async function executeLocalCanonicalVerification({
         generatedWindowsHelperPresentAfter = existsSync(generatedWindowsHelperRoot);
       }
     } catch (error) {
-      cleanupComplete = false;
-      cleanupReason = safeErrorCode(error);
+      recordCleanupFailure(safeErrorCode(error));
     } finally {
       if (historicalInputs) {
         try {
           historicalInputCleanup = finishHistoricalInputs(historicalInputs, { consumersSettled: checkoutConsumersSettled });
           if (!historicalInputCleanup.completed || !historicalInputCleanup.unchanged) {
-            cleanupComplete = false;
-            cleanupReason ??= "historical_inputs_not_preserved";
+            recordCleanupFailure("historical_inputs_not_preserved");
           }
-        } catch (error) { cleanupComplete = false; cleanupReason = safeErrorCode(error); }
+        } catch (error) { recordCleanupFailure(safeErrorCode(error)); }
       }
       if (isolatedResources) {
         try {
           isolatedResourceCleanup = cleanupIsolatedInvocationResources(isolatedResources, { consumersSettled: checkoutConsumersSettled });
           if (!isolatedResourceCleanup.completed) {
-            cleanupComplete = false;
-            cleanupReason ??= "isolated_resources_cleanup_incomplete";
+            recordCleanupFailure("isolated_resources_cleanup_incomplete");
           }
-        } catch (error) { cleanupComplete = false; cleanupReason = safeErrorCode(error); }
+        } catch (error) { recordCleanupFailure(safeErrorCode(error)); }
       }
+      if (runtimeInputs && inputs) {
+        try { inputs.checkPreparedDependencies(); }
+        catch (error) { executionFailure = true; cleanupReason ??= safeErrorCode(error); }
+      }
+      inputMonitor?.stop();
+      if (inputMonitor?.fault()) executionFailure = true;
       if (checkoutOwner) {
         try {
           Object.assign(checkoutOwnership, releaseCheckoutVerificationOwnership(checkoutOwner, repositoryRoot, {
             consumersSettled: checkoutConsumersSettled && (!historicalInputs || historicalInputCleanup?.completed === true),
           }));
         } catch (error) {
-          cleanupComplete = false;
-          cleanupReason = safeErrorCode(error);
-          checkoutOwnership.failure_code = cleanupReason;
+          recordCleanupFailure(safeErrorCode(error));
+          checkoutOwnership.failure_code = safeErrorCode(error);
         }
       }
       if (capacityLease) {
@@ -835,12 +933,27 @@ export async function executeLocalCanonicalVerification({
               (!historicalInputs || historicalInputCleanup?.completed === true),
           }));
         } catch (error) {
-          cleanupComplete = false; cleanupReason = safeErrorCode(error);
-          capacityOwnership.failure_code = cleanupReason;
+          recordCleanupFailure(safeErrorCode(error));
+          capacityOwnership.failure_code = safeErrorCode(error);
         }
       }
     }
   }
+
+  // Execution exceptions do not prove a cleanup failure. Every acquired
+  // obligation must nevertheless have a positive settlement observation.
+  if (!checkoutConsumersSettled || phaseReceipts.some(phase => phase.status !== "not_run" &&
+      (phase.cleanup?.completed !== true || phase.cleanup?.exit_observed !== true ||
+       phase.cleanup?.streams_closed !== true || phase.cleanup?.remaining_owned_processes !== 0)))
+    recordCleanupFailure("executor_consumers_unsettled");
+  if ((checkoutOwnership.acquired && checkoutOwnership.released !== true) ||
+      (capacityOwnership.acquired && capacityOwnership.released !== true) ||
+      (dependencyMaintenance?.acquired && dependencyMaintenanceRelease?.released !== true))
+    recordCleanupFailure("executor_lease_settlement_unobserved");
+  if ((isolatedResources && isolatedResourceCleanup?.completed !== true) ||
+      (isolatedResourceCleanup && (isolatedResourceCleanup.completed !== true || isolatedResourceCleanup.failure_count !== 0)) ||
+      (historicalInputs && (historicalInputCleanup?.completed !== true || historicalInputCleanup?.unchanged !== true)))
+    recordCleanupFailure("executor_resource_settlement_unobserved");
 
   const serviceLifecycleRestored = checkoutContext === "isolated-worktree"
     ? serviceLifecycleBefore?.preservation_valid === true && serviceLifecycleAfter?.preservation_valid === true && JSON.stringify(serviceLifecycleBefore) === JSON.stringify(serviceLifecycleAfter)
@@ -849,9 +962,9 @@ export async function executeLocalCanonicalVerification({
     serviceLifecycleAfter,
   );
   if (!serviceLifecycleRestored) {
+    inputs?.reportSafetyEvent("installed_service_change");
     executionFailure = true;
-    cleanupComplete = false;
-    cleanupReason ??= "companion_service_not_restored";
+    recordCleanupFailure("companion_service_not_restored");
   }
   const cleanupRemaining = !checkoutConsumersSettled || phaseReceipts.some(
     (phase) =>
@@ -922,7 +1035,8 @@ export async function executeLocalCanonicalVerification({
   const reasonCodes = [
     ...(signal?.aborted ? ["verification_cancelled"] : []),
     ...preflightIssues,
-    ...(cleanupReason ? [cleanupReason] : []),
+    ...(executionReason ? [executionReason] : []),
+    ...cleanupErrors,
     ...phaseReceipts
       .filter((phase) => phase.status === "failure")
       .map((phase) => phase.failure_code),
@@ -931,6 +1045,9 @@ export async function executeLocalCanonicalVerification({
     ...(plan.selected_plan === "documentation-only" ? ["documentation_feedback_not_deciding"] : []),
     ...(!nodePolicy.canonical_match ? ["canonical_node_mismatch"] : []),
   ];
+  const observedDisposition = deriveOperationalDisposition({ phases: phaseReceipts, admitted: preflightIssues.length === 0,
+    fault: inputMonitor?.fault(), cancelled: signal.aborted && !inputMonitor?.fault(), cleanup: cleanupComplete && remainingOwnedProcesses === 0 });
+  const disposition = executionReason && observedDisposition === "completed_success" ? "product_failure" : observedDisposition;
   const receipt = finalizeReceipt({
     schema: LOCAL_CANONICAL_RECEIPT_SCHEMA,
     receipt_version: LOCAL_CANONICAL_RECEIPT_VERSION,
@@ -939,11 +1056,18 @@ export async function executeLocalCanonicalVerification({
       origin: identityBefore.origin,
       base_sha: baseSha,
       head_sha: headSha,
+      tree_sha: runGit(repositoryRoot, ["rev-parse", `${headSha}^{tree}`]).trim(),
       branch: identityBefore.branch,
       detached: identityBefore.detached,
       worktree_before: identityBefore.worktree_dirty ? "dirty" : "clean",
       worktree_after: identityAfter.worktree_dirty ? "dirty" : "clean",
     },
+    inputs: inputs?.snapshot() ?? null,
+    attempt: attempt ? { ...attempt } : null,
+    outcome: { disposition, first_fault: inputMonitor?.fault() ?? null, execution: !executionFailure && allSelectedPhasesPassed ? "complete_pass" : "incomplete_or_failed",
+      validity: inputs && !executionReason && !inputMonitor?.fault() && cleanupComplete ? "valid_within_observed_scope" : "invalid_or_unknown",
+      safety: inputMonitor?.fault() ? "blocked" : cleanupComplete ? "preserved_within_observed_scope" : "unknown",
+      applicability_at_admission: integrationBase?.status === "admitted" ? "current_base" : "blocked" },
     integration_base: integrationBase,
     verification_context: verificationContext,
     checkout_ownership: checkoutOwnership,
@@ -1045,6 +1169,7 @@ export async function executeLocalCanonicalVerification({
     },
     cleanup: {
       completed: cleanupComplete && remainingOwnedProcesses === 0,
+      failure_codes: [...new Set(cleanupErrors)],
       remaining_owned_processes: remainingOwnedProcesses,
       isolated_resources: {
         required: checkoutContext === "isolated-worktree",
@@ -1095,6 +1220,10 @@ export async function executeLocalCanonicalVerification({
   });
 
   const receiptRelativePath = writeReceipt(receipt, { runId });
+  if (attempt) finishAttempt(attempt, { receiptFingerprint: receipt.integrity.content_fingerprint,
+    disposition, cleanupComplete: receipt.cleanup.completed,
+    infrastructureCode: phaseReceipts.find(p => p.spawn_error_code)?.spawn_error_code ?? null });
+  externalSignal?.removeEventListener("abort", forwardCancellation);
   console.log(
     `[local-canonical] receipt=${receiptRelativePath} fingerprint=${receipt.integrity.content_fingerprint}`,
   );
@@ -1106,6 +1235,125 @@ export async function executeLocalCanonicalVerification({
     receiptRelativePath,
     exitCode: receipt.final.exit_status,
   };
+}
+
+export function observeRevisionInputs(proof, host) {
+  if (!isBrowserRevision(proof)) return observeCanonicalRuntimeInputs();
+  if (!host.browserExecutablePath || host.public.browser?.source !== "operator_selected" ||
+      host.browserExecutablePath !== process.env.AUGNES_BROWSER_EXECUTABLE_PATH) throw Object.assign(new Error("browser_installation_selection_required"), { code: "browser_installation_selection_required" });
+  return observeCanonicalRuntimeInputs({ browserExecutable: host.browserExecutablePath });
+}
+
+export function prepareInvocationInputs({ verificationContext, isolatedResources, browserExecutablePath, runtimeInputs = null, headSha, executorFingerprint, phaseDefinitions }) {
+  if ((verificationContext.kind === "isolated-worktree") !== Boolean(isolatedResources))
+    throw Object.assign(new Error("input_isolation_context_mismatch"), { code: "input_isolation_context_mismatch" });
+  const environments = phaseDefinitions.map(phase => ({ id: phase.id, values: phaseEnvironment({ phase, isolatedResources, browserExecutablePath, runtimeInputs }) }));
+  const resources = invocationInputResources({ verificationContext, browserExecutablePath, runtimeInputs });
+  const frozen = freezeInputContract({ resources, pathKind: isolatedResources ? "isolated-model-free-v1" : "canonical-conservative-v1",
+    binding: { head: headSha, tree: runGit(repositoryRoot, ["rev-parse", `${headSha}^{tree}`]).trim(),
+      executor_fingerprint: executorFingerprint, phase_inventory: digest(phaseDefinitions),
+      phase_environment_fingerprints: environments.map(e => ({ id: e.id, fingerprint: digest(e.values) })),
+      environment_keys: [...new Set(environments.flatMap(e => Object.keys(e.values)))].sort(), authenticated_transport: "github_authenticated_main_branch_get",
+      provider_policy: "no_live_model_calls;private_fixture_adapters_only", ...(runtimeInputs ? { runtime_inputs: runtimeInputs } : {}) } });
+  if (runtimeInputs?.browser && !browserBindingMatches(frozen.snapshot(), runtimeInputs.browser))
+    throw Object.assign(new Error("browser_installation_changed_before_admission"), { code: "browser_installation_changed_before_admission" });
+  if (runtimeInputs) {
+    for (const [role, id] of [["node", "node-executable"], ["headers", "node-headers"]]) {
+      const resource = frozen.snapshot().resources.find(r => r.id === id);
+      if (resource?.location_fingerprint !== runtimeInputs[role].location_fingerprint || digest(resource.before) !== digest(runtimeInputs[role].observation))
+        throw Object.assign(new Error("runtime_input_changed_before_admission"), { code: "runtime_input_changed_before_admission" });
+    }
+  }
+  return frozen;
+}
+
+// The preflight, admission and separate stock process re-read the very same inventory.
+export async function observeGitRevisionTarget(verificationContext, browserExecutablePath, runtimeInputs) {
+  assertVerificationContext(verificationContext, repositoryRoot);
+  if (verificationContext.kind !== "isolated-worktree" || !browserExecutablePath || !runtimeInputs) throw new Error("revision_git_current_inputs_invalid");
+  const snapshot = () => freezeInputContract({
+    resources:invocationInputResources({verificationContext,browserExecutablePath,runtimeInputs}),
+    pathKind:"isolated-model-free-v1",binding:{}
+  }).snapshot();
+  const inputInventory = snapshot();
+  const inventory = gitRevisionInventory(inputInventory);
+  const service = await inspectVerificationCompanionPreservation(verificationContext,{freshTransport:true});
+  if (gitRevisionInventory(snapshot()) !== inventory) throw new Error("revision_git_inputs_changed");
+  return {inventory,service,inputInventory};
+}
+
+function invocationInputResources({ verificationContext, browserExecutablePath, runtimeInputs = null }) {
+  const isolated = verificationContext.kind === "isolated-worktree";
+  const userHome = os.userInfo().homedir;
+  return [
+    { id: "codex-preferences", file: path.join(userHome, ".codex", "config.toml"), classification: isolated ? "ambient" : "unknown", excludePreferences: isolated },
+    { id: "user-instructions", file: path.join(userHome, ".codex", "AGENTS.md"), classification: "safety" },
+    { id: "auth-location", file: path.join(userHome, ".codex", "auth.json"), classification: "safety", metadataOnly: true },
+    { id: "github-auth-location", file: path.join(process.env.GH_CONFIG_DIR ?? path.join(process.env.XDG_CONFIG_HOME ?? path.join(userHome, ".config"), "gh"), "hosts.yml"), classification: "safety", metadataOnly: true },
+    { id: "git-user-config", file: path.join(userHome, ".gitconfig"), classification: "execution", metadataOnly: true },
+    ...(isolated ? [createGitTrackingResource(path.join(verificationAnchorRoot(verificationContext), ".git", "config"), [repositoryRoot, verificationAnchorRoot(verificationContext)])]
+      : [{ id: "git-config", file: path.join(verificationAnchorRoot(verificationContext), ".git", "config"), classification: "execution" }]),
+    { id: "node-executable", file: realpathSync(process.execPath), classification: "execution", ...(runtimeInputs ? { readOnlyExecutable: true } : {}) },
+    ...(runtimeInputs ? [{ id: "node-headers", file: path.join(path.dirname(path.dirname(realpathSync(process.execPath))), "include", "node"), classification: "execution", nodeHeaders: true }] : []),
+    ...["npm", "git", "gh"].map(name => ({ id: `${name}-executable`, file: resolveExecutionTool(name), classification: "execution" })),
+    ...[".npmrc", "apps/augnes_apps/.npmrc", "apps/web_planning/.npmrc", "AGENTS.md", ".github/LOCAL_CANONICAL_VERIFICATION.md"].map((file, i) => ({ id: `declared-config-${i}`, file: path.join(repositoryRoot, file), classification: "execution" })),
+    { id: "npm-prefix-config", file: path.join(path.dirname(path.dirname(process.execPath)), "etc", "npmrc"), classification: "execution" },
+    { id: "historical-r8a-provision", file: path.join(repositoryRoot, R8A_PROVISION_MANIFEST), classification: "execution" },
+    { id: "historical-durable-provision", file: path.join(repositoryRoot, DURABLE_PROVISION_MANIFEST), classification: "execution" },
+    ...["package-lock.json", "apps/augnes_apps/package-lock.json", "apps/web_planning/package-lock.json", ...EXECUTOR_SOURCE_FILES].map((file, i) => ({ id: `source-${i}`, file: path.join(repositoryRoot, file), classification: "execution" })),
+    ...(runtimeInputs?.browser ? [{ id: "installation-flags-walker", file: "/usr/bin/find", classification: "execution", readOnlyExecutable: true },
+      { id: "installation-plist-reader", file: "/usr/bin/plutil", classification: "execution", readOnlyExecutable: true },
+      { id: "browser-installation", file: browserInstallationRoot(browserExecutablePath), classification: "execution", protectedInstallation: true }] : []),
+    ...(browserExecutablePath ? [{ id: "executable-permissions-reader", file: "/bin/ls", classification: "execution", readOnlyExecutable: true },
+      ...(process.platform === "darwin" ? [{ id: "executable-flags-reader", file: "/usr/bin/stat", classification: "execution", readOnlyExecutable: true }, { id: "executable-attributes-reader", file: "/usr/bin/xattr", classification: "execution", readOnlyExecutable: true }] : []),
+      { id: "browser-executable", file: browserExecutablePath, classification: "execution", readOnlyExecutable: true }] : []),
+  ];
+}
+
+function currentInputEvidenceValid(receipt, verificationContext, browserExecutablePath, runtimeInputs = null) {
+  try {
+    if (digest(runtimeInputs) !== digest(receipt.inputs?.binding?.runtime_inputs ?? null)) return false;
+    const resources = invocationInputResources({ verificationContext, browserExecutablePath, runtimeInputs });
+    const readInput = createInputReader();
+    const declared = receipt.inputs?.resources;
+    if (!supportedInputContract(receipt.inputs?.contract) || !Array.isArray(declared) || resources.length !== declared.length) return false;
+    if (runtimeInputs) {
+      const prepared = receipt.inputs?.prepared_dependencies;
+      const expected = receipt.phases.filter(phase => ["dependencies-root", "dependencies-nested", "dependencies-web-planning"].includes(phase.id) && phase.status === "pass").map(phase => phase.id);
+      if (!Array.isArray(prepared) || digest(prepared.map(record => record.phase_id)) !== digest(expected) || prepared.some(record =>
+          record.error || record.unchanged !== true || digest(preparedDependencyIdentity(record.before)) !== digest(preparedDependencyIdentity(record.after)) ||
+          digest(preparedDependencyIdentity(record.before)) !== digest(preparedDependencyIdentity(observePreparedDependencyInputs({ repositoryRoot, phaseId: record.phase_id, contract: record.before.contract }))))) return false;
+    }
+    return resources.every(resource => {
+      const prior = declared.find(r => r.id === resource.id);
+      if (!prior || prior.location_fingerprint !== digest(resource.file) || prior.classification !== resource.classification ||
+          prior.excludePreferences !== resource.excludePreferences || prior.metadataOnly !== resource.metadataOnly || prior.readOnlyExecutable !== resource.readOnlyExecutable || prior.browserBundle !== resource.browserBundle || prior.protectedInstallation !== resource.protectedInstallation || prior.nodeHeaders !== resource.nodeHeaders) return false;
+      if (prior.gitTracking && digest(prior.gitTracking) !== digest(resource.gitTracking)) return false;
+      // An old declaration keeps its original reader and whole-file meaning.
+      const interpreted = { ...resource, gitTracking: prior.gitTracking };
+      const current = readInput(resource.file, { ...inputReadOptions(interpreted, receipt.inputs), force: true });
+      return nonFaultInputChange(classifyInputChange(prior.before, current, interpreted, receipt.inputs));
+    });
+  } catch { return false; }
+}
+
+function resolveExecutionTool(name) {
+  const extensions = process.platform === "win32" ? [".exe", ".cmd", ""] : [""];
+  for (const directory of (process.env.PATH ?? process.env.Path ?? "").split(path.delimiter)) {
+    for (const extension of extensions) {
+      const candidate = path.resolve(directory, name + extension);
+      if (existsSync(candidate) && statSync(candidate).isFile()) return realpathSync(candidate);
+    }
+  }
+  throw Object.assign(new Error("declared_tool_unavailable"), { code: "declared_tool_unavailable" });
+}
+
+function assertFrozenSource(identityBefore, verificationContext) {
+  // The full physical-context admission remains at each phase boundary. This
+  // small poll covers tracked/untracked source without rescanning node_modules.
+  const head = runGit(repositoryRoot, ["rev-parse", "HEAD"]).trim();
+  const dirty = runGit(repositoryRoot, ["status", "--porcelain", "--untracked-files=normal"]).trim();
+  if (head !== identityBefore.head_sha || dirty) throw Object.assign(new Error("source_input_changed"), { code: "source_input_changed" });
 }
 
 function lifecycleStateRestored(before, after) {
@@ -1121,17 +1369,37 @@ function lifecycleStateRestored(before, after) {
     before.service_identity === after.service_identity;
 }
 
+export function assertStockReceiptSupported(receipt) {
+  if (hasRetiredQualificationMarker(receipt)) throw Object.assign(new Error("qualification_route_retired"), { code: "qualification_route_retired" });
+  if (![3, 4].includes(receipt?.receipt_version)) throw Object.assign(new Error("stock_receipt_version_unsupported"), { code: "stock_receipt_version_unsupported" });
+}
+
+export function readStockMachineIdentity(receipt, machineRoot) {
+  if (hasRetiredQualificationMarker(receipt)) throw Object.assign(new Error("qualification_route_retired"), { code: "qualification_route_retired" });
+  // These revisions replay existing machine identity without creating or repairing it.
+  const attempt = receipt.attempt;
+  const revision = isWebPlanningClientRevision(attempt?.source_correction) ||
+    (attempt?.source_correction?.schema === "augnes.local-canonical-source-correction.v7") ||
+    attempt?.source_correction?.kind === "reviewed_revision" || attempt?.revision_authority || attempt?.reviewed_revision_consumed;
+  return revision
+    ? readMachineFingerprint(machineRoot) : ensureMachineFingerprint(machineRoot);
+}
+
 export async function validateReceiptAgainstCurrentRepository(relativeReceiptPath, { checkoutContext = "canonical" } = {}) {
   const verificationContext = admitVerificationContext({ repositoryRoot, kind: checkoutContext });
   const receiptPath = resolveArtifactPath(relativeReceiptPath);
   const receipt = readReceiptFile(receiptPath);
+  assertStockReceiptSupported(receipt);
   const identity = collectRepositoryIdentity(repositoryRoot, { verificationContext });
   const locks = collectLockFingerprints();
   const executorFingerprint = computeExecutorSourceFingerprint();
-  ensureBoundedLocalDirectory(repositoryRoot, artifactRoot);
-  const host = collectHostEnvironment(repositoryRoot).public;
+  // Reviewed revisions reconstruct existing identity without claiming or
+  // repairing a successor during stock validation.
+  const validationHost = collectHostEnvironment(repositoryRoot);
+  const host = validationHost.public;
   const nodePolicy = evaluateNodePolicy();
-  const machineFingerprint = ensureMachineFingerprint(path.join(verificationAnchorRoot(verificationContext), LOCAL_ARTIFACT_DIRECTORY));
+  const machineRoot = path.join(verificationAnchorRoot(verificationContext), LOCAL_ARTIFACT_DIRECTORY);
+  const machineFingerprint = readStockMachineIdentity(receipt, machineRoot);
   let currentIntegrationBase = null;
   if (["changed", "full"].includes(receipt?.evidence?.mode)) {
     try {
@@ -1183,7 +1451,21 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
       targetedPhaseIds: expectedTargetedPhaseIds,
     }).map((phase) => phase.id);
   }
+  let revisionAuthorization = null, revisionLive = null;
+  let runtimeInputs = null;
+  if (isReviewedRevision(receipt.attempt?.source_correction)) {
+    try { revisionAuthorization = await authorizeReviewedRevision(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
+    try { runtimeInputs = observeRevisionInputs(receipt.attempt.source_correction, validationHost); } catch { /* stock refuses unavailable runtime input */ }
+    if (isBrowserRevision(receipt.attempt.source_correction)) try { revisionLive = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: true }); } catch { /* stock requires coherent current preservation */ }
+    if (isGitObservationRevision(receipt.attempt.source_correction) || isInventoryBoundRevision(receipt.attempt.source_correction)) try {
+      revisionLive = await observeGitRevisionTarget(verificationContext, validationHost.browserExecutablePath, runtimeInputs);
+      if (gitRevisionInventory(receipt.inputs) !== revisionLive.inventory) revisionLive = null;
+    } catch { /* stock refuses incomplete or changed current observations */ }
+    if (receipt.attempt.source_correction.settlement) try { revisionLive = await observeReviewedRevisionSettlementState(verificationContext); } catch { /* stock refuses unsafe or unavailable current settlement */ }
+  }
   return inspectReceiptForDecision(receipt, {
+    currentInputStateValid: receipt.receipt_version === 4 ? currentInputEvidenceValid(receipt, verificationContext, validationHost.browserExecutablePath, runtimeInputs) : null,
+    currentAttemptRecordsValid: receipt.receipt_version === 4 ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, revisionAuthorization, revisionInputs: runtimeInputs, revisionLive }) : null,
     currentVerificationContext: verificationContext,
     expectedRunId: path.basename(receiptPath, ".json"),
     currentIntegrationBase,
@@ -1221,7 +1503,7 @@ function quickPhases() {
       command: process.execPath,
       args: ["scripts/test-local-canonical-executor.mjs"],
       display: "node scripts/test-local-canonical-executor.mjs",
-      timeoutMs: 60_000,
+      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.executorHarnessMs,
     }),
     phaseDefinition({
       id: "local-receipt-contract",
@@ -1229,7 +1511,7 @@ function quickPhases() {
       command: process.execPath,
       args: ["scripts/test-local-canonical-receipt.mjs"],
       display: "node scripts/test-local-canonical-receipt.mjs",
-      timeoutMs: 60_000,
+      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.receiptHarnessMs,
     }),
     phaseDefinition({
       id: "local-canonical-contract",
@@ -1275,7 +1557,7 @@ function operatingPolicyPhases({ baseSha, headSha }) {
       command: process.execPath,
       args: ["scripts/test-local-canonical-executor.mjs"],
       display: "node scripts/test-local-canonical-executor.mjs",
-      timeoutMs: 60_000,
+      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.executorHarnessMs,
     }),
     phaseDefinition({
       id: "operating-policy-receipt-contract",
@@ -1283,7 +1565,7 @@ function operatingPolicyPhases({ baseSha, headSha }) {
       command: process.execPath,
       args: ["scripts/test-local-canonical-receipt.mjs"],
       display: "node scripts/test-local-canonical-receipt.mjs",
-      timeoutMs: 60_000,
+      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.receiptHarnessMs,
     }),
     phaseDefinition({
       id: "operating-policy-verification-contract",
@@ -1575,16 +1857,19 @@ function phaseDefinition({
     cwdScope,
     exclusive: RESOURCE_EXCLUSIVE_PHASE_IDS.includes(id),
     browser,
+    browser_consumers: browserConsumersForPhase(id),
     base_sha: baseSha,
     head_sha: headSha,
   };
 }
 
-async function executePhase({
+export async function executePhase({
   phase,
   mode,
   runLogRoot,
   browserExecutablePath = null,
+  runtimeInputs = null,
+  expectedBrowser = null,
   isolatedResources = null,
   signal,
   invocationId,
@@ -1598,7 +1883,13 @@ async function executePhase({
     `${phase.id}.log`,
   );
   const logPath = path.join(repositoryRoot, logRelativePath);
-  const capture = createBoundedCapture(logPath);
+  const browserUse = [];
+  const environment = phaseEnvironment({ phase, isolatedResources, browserExecutablePath, runtimeInputs });
+  const environmentFingerprint = digest(environment);
+  const capture = createBoundedCapture(logPath, record => {
+    // One overflow entry preserves refusal without unbounded capture.
+    if (browserUse.length <= MAX_BROWSER_USE_RECORDS) browserUse.push(record);
+  });
   let result;
   try {
     result = await runCanonicalChild({
@@ -1608,12 +1899,7 @@ async function executePhase({
       args: phase.args,
       cwd: phase.cwdScope === "nested-app" ? nestedAppRoot :
         phase.cwdScope === "web-planning-app" ? webPlanningRoot : repositoryRoot,
-      env: isolatedResources ? {
-        ...isolatedInvocationEnvironment(isolatedResources),
-        ...(browserExecutablePath ? { AUGNES_BROWSER_EXECUTABLE_PATH: browserExecutablePath } : {}),
-      } : buildLocalPhaseEnvironment(process.env, {
-        browserExecutablePath: phase.browser ? browserExecutablePath : null,
-      }),
+      env: environment,
       timeoutMs: phase.timeoutMs,
       signal,
       stdout: capture.stdout,
@@ -1623,6 +1909,7 @@ async function executePhase({
     capture.close();
     const finishedMs = Date.now();
     return {
+      environment_fingerprint: environmentFingerprint,
       invocation_id: invocationId,
       id: phase.id,
       label: phase.label,
@@ -1649,7 +1936,7 @@ async function executePhase({
   capture.close();
   const finishedMs = Date.now();
   const lifecyclePassed =
-    (phase.browser !== true && !CODEX_REUSE_PHASE_IDS.includes(phase.id)) ||
+    (Object.keys(browserConsumersForPhase(phase.id)).length === 0 && phase.browser !== true && !CODEX_REUSE_PHASE_IDS.includes(phase.id)) ||
     (result.termination_reason === "natural_exit" &&
       result.exit_observed === true &&
       result.streams_closed === true);
@@ -1659,8 +1946,9 @@ async function executePhase({
     result.timed_out === false &&
     result.cleanup_completed === true &&
     result.remaining_owned_processes === 0 &&
-    lifecyclePassed;
+    lifecyclePassed && validPhaseBrowserUse(phase, browserUse, expectedBrowser);
   return {
+    environment_fingerprint: environmentFingerprint,
     invocation_id: invocationId,
     id: phase.id,
     label: phase.label,
@@ -1676,6 +1964,8 @@ async function executePhase({
     duration_ms: result.duration_ms,
     exit_status: result.exit_code,
     timed_out: result.timed_out,
+    spawn_error_code: result.spawn_error_code ?? null,
+    browser_use: browserUse,
     failure_code: passed
       ? null
       : result.cancelled
@@ -1684,6 +1974,8 @@ async function executePhase({
         ? "phase_timed_out"
         : result.exit_code !== 0
           ? "phase_failed"
+        : !validPhaseBrowserUse(phase, browserUse, expectedBrowser)
+          ? "browser_identity_invalid"
           : "phase_cleanup_incomplete",
     cleanup: {
       completed: result.cleanup_completed,
@@ -1695,6 +1987,31 @@ async function executePhase({
     },
     log: capture.summary(logRelativePath),
   };
+}
+
+export function assertRuntimeInputSelection(runtimeInputs, ambient = process.env) {
+  const expected = runtimeInputs ? {
+    AUGNES_CANONICAL_NODE_HEADERS: path.join(path.dirname(path.dirname(realpathSync(process.execPath))), "include", "node"),
+    AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT: digest(runtimeInputs.headers.observation),
+  } : {};
+  for (const key of ["AUGNES_CANONICAL_NODE_HEADERS", "AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT"]) {
+    if (ambient[key] !== undefined && (!runtimeInputs || ambient[key] !== expected[key]))
+      throw Object.assign(new Error("runtime_input_selection_unbound"), { code: "runtime_input_selection_unbound" });
+  }
+}
+
+export function phaseEnvironment({ phase, isolatedResources, browserExecutablePath, runtimeInputs = null }) {
+  const environment = isolatedResources ? {
+    ...isolatedInvocationEnvironment(isolatedResources),
+    ...(browserExecutablePath ? { AUGNES_BROWSER_EXECUTABLE_PATH: browserExecutablePath } : {}),
+  } : buildLocalPhaseEnvironment(process.env, {
+    browserExecutablePath,
+  });
+  if (runtimeInputs) Object.assign(environment, canonicalRuntimeInputEnvironment({
+    AUGNES_CANONICAL_NODE_HEADERS: path.join(path.dirname(path.dirname(realpathSync(process.execPath))), "include", "node"),
+    AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT: digest(runtimeInputs.headers.observation),
+  }));
+  return environment;
 }
 
 function notRunPhaseReceipt(phase) {
@@ -1730,15 +2047,26 @@ function notRunPhaseReceipt(phase) {
   };
 }
 
-function createBoundedCapture(logPath) {
+function createBoundedCapture(logPath, onBrowserUse = () => {}) {
   ensureBoundedLocalDirectory(repositoryRoot, path.dirname(logPath));
   const descriptor = openSync(logPath, "wx", 0o600);
   let bytes = 0;
   let truncated = false;
   let closed = false;
-  const write = (destination, chunk) => {
+  const pendingLines = { stdout: "", stderr: "" };
+  const write = (stream, destination, chunk) => {
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
     destination.write(buffer);
+    let pendingLine = pendingLines[stream];
+    pendingLine += buffer.toString("utf8");
+    for (let newline; (newline = pendingLine.indexOf("\n")) >= 0;) {
+      const line = pendingLine.slice(0, newline); pendingLine = pendingLine.slice(newline + 1);
+      if (line.startsWith(BROWSER_IDENTITY_PREFIX)) {
+        onBrowserUse(parseBrowserUseLine(line));
+      }
+    }
+    if (pendingLine.length > 65536) pendingLine = "";
+    pendingLines[stream] = pendingLine;
     const remaining = MAX_PHASE_LOG_BYTES - bytes;
     if (remaining > 0) {
       const bounded = buffer.subarray(0, remaining);
@@ -1748,8 +2076,8 @@ function createBoundedCapture(logPath) {
     if (buffer.length > remaining) truncated = true;
   };
   return {
-    stdout: { write: (chunk) => write(process.stdout, chunk) },
-    stderr: { write: (chunk) => write(process.stderr, chunk) },
+    stdout: { write: (chunk) => write("stdout", process.stdout, chunk) },
+    stderr: { write: (chunk) => write("stderr", process.stderr, chunk) },
     close() {
       if (!closed) {
         closeSync(descriptor);
@@ -1880,15 +2208,18 @@ export function enforceArtifactRetention({
   const logs = path.join(root, LOCAL_ARTIFACT_DIRECTORY, "logs");
   ensureBoundedLocalDirectory(root, receipts);
   ensureBoundedLocalDirectory(root, logs);
+  const pinned = readPinnedEvidence(root);
+  pinned.add(currentRunId);
   retainNewestFiles(receipts, receiptMaximum, (entry) =>
     entry.isFile() && entry.name.endsWith(".json"),
+    { protectedEntries: new Set([...pinned].map(id => path.join(receipts, `${id}.json`))) },
   );
   retainNewestFiles(logs, logMaximum, (entry) => entry.isDirectory(), {
-    protectedEntry: path.join(logs, currentRunId),
+    protectedEntries: new Set([...pinned].map(id => path.join(logs, id))),
   });
 }
 
-function retainNewestFiles(root, maximum, include, { protectedEntry = null } = {}) {
+function retainNewestFiles(root, maximum, include, { protectedEntries = new Set() } = {}) {
   if (!existsSync(root)) return;
   const ownedEntries = readdirSync(root, { withFileTypes: true })
     .filter(include)
@@ -1902,9 +2233,9 @@ function retainNewestFiles(root, maximum, include, { protectedEntry = null } = {
     .sort((left, right) => right.modified - left.modified);
   // The current run counts toward the bound, regardless of mtime. Newer
   // feedback/failed attempts must never evict the logs its receipt references.
-  const protectedCount = ownedEntries.filter((entry) => entry.entryPath === protectedEntry).length;
-  const eligible = ownedEntries.filter((entry) => entry.entryPath !== protectedEntry);
-  for (const entry of eligible.slice(maximum - protectedCount)) {
+  const protectedCount = ownedEntries.filter((entry) => protectedEntries.has(entry.entryPath)).length;
+  const eligible = ownedEntries.filter((entry) => !protectedEntries.has(entry.entryPath));
+  for (const entry of eligible.slice(Math.max(0, maximum - protectedCount))) {
     rmSync(entry.entryPath, { recursive: true, force: true });
   }
 }
@@ -1957,8 +2288,9 @@ function parseCli(argv) {
     options.set(normalized, value);
   }
   const allowed =
-    mode === "validate" ? new Set(["receipt", "checkout-context"]) : new Set(["base", "head", "checkout-context"]);
+    mode === "validate" ? new Set(["receipt", "checkout-context"]) : new Set(["base", "head", "checkout-context", "recovery-proof", "source-correction-proof"]);
   for (const key of options.keys()) {
+    if (key === "browser-replacement-proof") throw Object.assign(new Error("qualification_route_retired"), { code: "qualification_route_retired" });
     if (!allowed.has(key)) {
       const error = new Error("unknown local canonical argument");
       error.code = "unknown_local_canonical_argument";
@@ -1986,6 +2318,8 @@ function parseCli(argv) {
     headSha: options.get("head") ?? null,
     receipt: options.get("receipt") ?? null,
     checkoutContext: options.get("checkout-context") ?? "canonical",
+    recoveryProofPath: options.get("recovery-proof") ?? null,
+    sourceCorrectionProofPath: options.get("source-correction-proof") ?? null,
   };
 }
 

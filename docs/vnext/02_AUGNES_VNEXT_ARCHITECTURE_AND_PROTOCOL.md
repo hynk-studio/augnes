@@ -342,6 +342,34 @@ source comparison. Unavailable authorization hides the draft until the same
 project/operator is authenticated again. Drafts are not persisted across closing
 or reloading a tab. Execution already in progress still forbids ordinary edits.
 
+Native work preparation (#1599) locks accepted definition, source-note and omission
+inputs during its pending preview/save. An acknowledgement applies only to the
+submitted editor and its owner; it cannot clear later accepted authorship, label
+it saved or authorize it with an older preview. Unfinished note fields must be
+added to the selection or explicitly cleared before preview/save. Disposed-editor
+responses cannot mutate or revoke access for a replacement editor/project.
+Starting a source selection or comparison invalidates the enclosing preparation's
+previous comparison immediately. Preview/save waits for the accepted selection
+and its explicit current comparison; an earlier save cannot overtake that input.
+
+Meaningful unsaved preparation is compared with its initial values in that same
+memory-only editor. Destructive Native document navigation and browser-supported
+reload/close use the browser's stay/leave dialog; client-router departures ask
+before replacing the editor. Staying retains the exact draft, including unfinished
+notes, selections and omission reasons. Clean/unchanged editors, same-document
+navigation, confirmed saves and explicit discard do not add redundant prompts.
+Leaving discards only local authorship: it neither saves nor cancels or rolls back
+a pending writer. Unknown/malformed save responses retain uncertainty and use
+existing current-state readers, with no automatic resubmission, replacement
+revision or execution. Fresh-basis/source comparison remains explicit.
+
+The lifetime remains workspace/project/operator-bound memory in one document.
+No draft browser storage, cookie, file, log, export, record or cross-tab channel is
+introduced. Access loss hides private material while a generic departure guard
+may still protect it. No durable autosave, crash recovery or browser-forced-exit
+guarantee follows; retained text grants no authority and changes no writer,
+project/root, packet, lineage, source, preview or execution-state enforcement.
+
 Existing interactive and policy-run controllers retain project/run targeting,
 physical-root, packet, grant and control-revision checks. Display selection is
 not execution permission and does not cancel another project's run. Opening an
@@ -839,10 +867,61 @@ and deadline, and is not accepted until the counterpart acknowledges exact terms
 A sent reservation commits before egress. A crash, timeout, lost response or
 failed response commit leaves an unresolved obligation. Query the same request
 receipt before repetition; only explicit absence from the same receipt owner
-permits retransmission. No local transaction claims exactly-once external
+removes that reconciliation prerequisite; retransmission still needs independent
+current send authority and every existing send condition. No local transaction claims exactly-once external
 execution. Late material retains original identity and requires deliberate
 current applicability review. Local closure retains unfinished reconciliation
 and neither confirms external cancellation nor revokes a credential.
+
+For the expiry/exhaustion increment (#1597), an operator may add
+`receipt_observations` to the **unchanged original envelope**. Each entry has
+exact `work_ref`, `attempt_ref`, finite `expires_at` and `max_queries` (1–16).
+The content-addressed work and attempt bind the original workspace/project,
+input, immutable terms and envelope binding; the latter still binds the exact
+endpoint, counterpart incarnation, credential and project admission. Only a
+previously sent attempt is eligible. A prepared attempt, tool argument, copied
+history, local closure or missing receipt cannot supply authority. Configuration
+must remain present and relevant bindings unchanged; only send expiry or its
+consumed allowance is bypassed for this specific receipt GET. Removal/rebinding,
+project/authentication loss, recovery suspension, expired/exhausted/withdrawn
+observation permission and changed original material refuse. Unrelated valid
+configuration edits do not revoke this exact binding. An otherwise authorized
+local reader retains the obligation and current confirmation eligibility/reason
+without egress or consumption.
+
+Each query atomically appends an ordinary `sent` reservation with its exact
+`receipt_observation` snapshot before egress. That append is its consumption,
+including timeout, lost reply, invalid response or failed response commit. The
+allowance is counted across all reservations for that original attempt, never by
+session, operation-key or authorization label. After its first reservation the
+permission's expiry and ceiling cannot be replaced to reset or enlarge usage.
+Withdrawal remains effective; re-presenting the identical permission retains
+all consumption. Exact operation replay makes no query, concurrent admission
+uses the existing stream CAS, and current project, envelope, suspension, input
+and observation bindings are checked again before egress and response commit.
+Expiry during a query leaves the reservation unresolved. These are bounded
+observations at the enforcing boundaries, not detection of transient changes
+between them or exactly-once remote execution.
+
+Legacy sends and envelope-authorized queries retain their original aggregate
+`calls`/`input_bytes` accounting. Separate observation reservations do not change
+those counters; their retained journal snapshots reconstruct their own usage.
+No schema migration or rewriting of old record identities is introduced. Offline
+recovery validates both forms and their original issued-attempt lineage, then
+suspends the same envelope owner, including observation. Historical snapshots
+never become live permission. A reader predating this increment rejects the new
+reservation payload during recovery; live downgrade of a store containing it
+is unsupported. Preserve the full backup and newer journal when rolling source
+back, and use a pre-increment backup for an older runtime.
+
+Observation cannot send, amend, replace work, change input/terms, renew the
+original deadline, reopen work or reset an allowance. An absent receipt is
+evidence only. Returned material retains its original identity/basis and existing
+late-result reconsideration/check/use requirements. Confirmation after local
+closure preserves closure and check/use refusal. The positive GET claim applies
+only to the supported owned receipt-query contract; GET is not generally free
+or effectless. Post-withdrawal cleanup, cancellation and settlement remain
+unsupported, separately authorized responsibilities.
 
 Checks and use are attributed consumer statements. The consumer must actually
 read bytes and independently verify identity, scope, correctness and limitations;
@@ -864,6 +943,99 @@ persisted Core semantics. Direct `affected_work` remains direct. A dependency
 arrow confers neither logical sufficiency nor access; independent invoice support
 is a consumer-specific premise. Read-time coherence is not an atomic observation
 across projects or permission for an external effect.
+
+#### Read-only operating-profile input and preview (#1518)
+
+`OperatingProfile.v0.1` is a provisional local JSON input contract. The supported
+source entry is `node scripts/operating-profile.mjs <profile.json>` with optional
+`--format text|json` (text by default). It validates one explicitly selected
+regular file and emits `OperatingProfilePreview.v0.1`; it adds no Core kind,
+store, source reader, role registry or execution owner. The synthetic
+`examples/operating-profiles/defensive-observe-recommend.json` and
+`direct-work.json` are complete authoring examples, not deployment presets.
+The source module re-exports the same pure validator shipped inside the Operator
+plugin, so standalone and installed-plugin consumers share one implementation.
+
+The input has these required, closed fields; unknown fields are refused:
+
+| Field | Declared meaning |
+| --- | --- |
+| `version`, `name`, `mode` | Exact version, display name, and `observe_recommend` only. |
+| `work` | Existing goal/success-criteria/non-goals shape and bounds, retaining authored list order; no work admission or persistence normalization. |
+| `scope` | Environment, selected target descriptions and authored applicability conditions. No condition is inferred true. |
+| `accountability`, `roles` | Nullable owner/sponsor role references; role responsibilities, nullable executor/principal labels and counterpart assumptions. These are separate concepts, not authenticated bindings. |
+| `inputs` | Local ID, purpose, required flag, declared availability, source identity/revision/observation and event times, supplied content and limitations. Locators remain opaque strings. |
+| `explanations` | Authored alternatives, local input references and uncertainties. No inference or probability assignment occurs. |
+| `steps` | Observe/recommend purpose, contribution role, required input IDs, prerequisite step IDs, return description and nullable check/use roles. |
+| `arrangements`, `separation` | Direct, existing-asset, delegated or non-use alternatives with assumptions; explicitly required principal separation and its reason. No alternative is selected. |
+| `requested_permissions` | Inert permission descriptions linked to local step IDs. No permission availability, grant or lease is established. |
+| `budget`, `reconsider_when`, `revision_basis` | Finite declared step/observation/round/minute ceilings, reasons to reconsider, and nullable prior input fingerprint plus revision reason. No execution counter or policy activation. |
+
+IDs are unique within their local collection and references must resolve inside
+this document. They are never project, grant, receipt or retained-evidence IDs.
+The preview reuses the current canonical JSON/digest primitives; its fingerprint
+covers the entire validated input, including version, conditions and revision
+basis. Object keys are sorted, while array order and exact string values remain
+meaningful. This binding proves neither authorship, freshness nor operational
+trust. JSON formatting and object-key order do not change it. Existing project
+work, selected-source/material/correction, execution-choice, external-response
+and save/authority owners retain their meanings and behavior; this entry does
+not invoke them or manufacture a current authenticated packet.
+
+All availability states are **supplied declarations**: `observed` (including
+successful empty content), `checked_absent`, `channel_unavailable`, `conflicting`
+or `not_supplied`. `checked_absent`, `channel_unavailable` and `not_supplied`
+carry null content; conflicting input carries an authored account
+of the disagreement. Source identity, revision and canonical UTC ISO timestamps
+may independently be null. The preview retains these fields, lists null
+provenance fields, distinguishes declared absence/conflict from unavailable or
+unsupplied input, and leaves actual availability, requirement satisfaction and
+current applicability `not_checked`. A successful negative observation can
+answer a task; absence is not automatically a missing or inadequate observation.
+Null provenance does not imply every timestamp is required for every input.
+
+Executor and principal labels are nullable and unverified. Same declared
+principal strings do not satisfy a separation requirement; a null principal
+remains unresolved. Different strings yield `declared_distinct_unverified`,
+never established independence. Owner/sponsor references do not create authority.
+One executor may fill compatible contribution/check/use responsibilities; the
+direct-work example claims no independent checking. Requested permissions remain
+`not_granted_or_checked`, and `execution_ready` is always false.
+
+Prerequisite steps must be acyclic, with no unknown or duplicate references.
+Bounded investigation is represented separately by `max_rounds` and explicit
+reconsideration conditions; it is not an executable edge back into the graph.
+The preview executes no investigation or recovery loop. Budgets permit at most
+128 steps, 128 observations, 8 rounds and 1,440 minutes, and must at least cover
+the declared single-round steps/observations. Later execution and recovery would
+need their own supported current owners and limits. Defend/Incident Command,
+command/import/include fields and fabricated authority fields are refused.
+Instruction-like text in ordinary content remains data.
+
+The byte boundary is 65,536 input bytes and 196,608 output bytes. Parsing allows
+depth 12 from the root, 4,096 values, at most 32 members/items per object/array and
+4,096 Unicode characters per string; narrower field/work limits are enforced by
+the contract implementation. Duplicate keys (including escaped aliases), invalid
+Unicode/UTF-8, noncanonical integer numeric lexemes, unsafe integers, unsupported
+versions/modes and unsupported fields refuse explicitly. Numeric fields are
+integer budgets; fraction/exponent and negative-zero spellings are rejected
+before numeric conversion can round them. Nothing is silently truncated or
+filled with an invented default. Invalid input yields exit 2 and a bounded JSON
+reason on stderr, with no preview on stdout. Successful text starts with a
+decision-oriented overview and then includes every field of the same machine
+projection; rendered authored strings stay quoted.
+
+File reading requires `O_NOFOLLOW`, refuses a final-component symlink and
+non-regular file, bounds the read, and checks the opened file's identity/size/
+timestamps before and after. This is a local Linux/macOS source entry, not an
+arbitrary-host or hostile-filesystem isolation guarantee; Windows support is not
+claimed. Only stdout/stderr are written. No provider/model, remote include,
+reference fetch, dynamic payload loading, application write, worker, grant,
+schedule or accepted-state effect occurs. Do not put secrets in a profile.
+Focused fresh-process/instrumented checks concern this exercised parser/CLI
+boundary, not live security, model understanding, semantic succession, usefulness,
+installed adoption or exact-source Mac Canonical qualification. Status and
+evaluation remain owned by 03/04.
 
 #### Execution-choice preparation and result-linked assessment (#1443)
 
@@ -918,6 +1090,66 @@ Unavailable/ambiguous history refuses; deselection is never proof of no prior us
 All notes retain existing 2,000-character/eight-note bounds, preview/save atomicity
 and replay ownership; overflow refuses without truncation or eviction. The configured
 review and #1453 aggregate-service domains retain their original semantics.
+
+For #1523, manual `participation` may explicitly include
+`operating_profile: {json, step_id}`. The raw JSON string uses the standalone
+duplicate-key, integer-lexeme, Unicode and structural validator before any
+canonicalization. Exactly one existing step is selected. The **complete validated
+profile**, canonicalized with unchanged array order and exact strings, must fit
+one ordinary 2,000-character note. This is a smaller consumer domain than the
+standalone 65,536-byte input allowance. Over-budget profiles refuse; no digest,
+external locator, truncated input, shared-limit increase or unrelated-note
+eviction substitutes for the original context. Request-envelope and aggregate
+eight-note/native-byte limits still apply independently.
+
+Preparation adds the request and full imported/unverified profile to the same
+ordinary preview/save revision, or reuses an already selected exact canonical
+profile note. The request binds its whole-profile semantic fingerprint and step
+ID alongside the existing actual task, definition, choice and permitted material.
+The profile's goal never replaces actual work. Local input IDs, evidence claims,
+roles, principals and requested permissions remain declarations. Missing input
+can be the object of a request; preparation does not assert prerequisite
+satisfaction, independent checking, available capability or granted authority.
+
+Manual delivery includes the entire profile and selected step, including authored
+source claims and conditions, separately from the actual permitted excerpts.
+All this text requires disclosure review. Nothing resolves or executes its
+instruction-like text, paths or URLs. The exact request/return/decision linkage
+continues to own later use. The ordinary reader recovers that pinned full profile
+from current selection or one exact eligible retained-note lookup; unavailable,
+ambiguous, malformed or fingerprint-mismatched originals refuse. No latest-file
+selection, recursive lookup or cross-task history expansion is added. A later
+profile/step revision needs a new explicit request selection and preview; it
+cannot rewrite the earlier request or return. Deliberate deselection retains
+the original under the existing history owner and is reported on read. Profile
+notes cannot count as downstream result material. Direct/asset/non-use and
+non-profile manual/configured-review workflows remain available unchanged.
+
+For a different registered project in the same workspace, the existing external
+`put_material`/`publish` and selected-source corpus owners provide a distinct
+explicit route. Share selected complete bytes to a configured target and recheck
+current access/binding before use; native task-local source bindings are not
+portable input to that project's writer. The consumer creates its own source
+notes and current judgment. [The #1595 example](../../examples/native-method-use/README.md)
+exercises this composition without adding semantics: restriction scope,
+commissioning, compensation and method applicability remain source-bound authored
+terms, not enforced policy or settlement. Withdrawal stops new shared reads,
+without recalling earlier copies or transferring authority.
+
+The #1532 same-project continuation composes these owners without a new contract.
+An eligible origin explicitly resolves and reselects the linked choice, complete
+profile, request, return, decision and selected feedback before the existing
+different-task writer keeps those exact source entries. `keep` preserves their
+bytes and provenance; no imported judgment is promoted to local authorship.
+Explicit omissions and the new purpose/inputs belong to that writer's ordinary
+preview/save. The recipient cannot retrieve origin-only deselected dependencies:
+retained lookup is scoped to its own task segment. Copied historical decisions
+retain the origin task binding and cannot count as current. A separate recipient
+assessment requires explicit reassessment and current downstream material; prior
+obligations remain historical unless deliberately adopted. Ordinary revision
+preserves recipient task identity, while all eight-note, per-note and aggregate
+limits remain intact. This composition does not use or broaden receipt-backed
+WorkHandoff eligibility, authenticate an actor or grant execution authority.
 
 Configured-review participation preparation checks the retained definition/support and horizon,
 resolves that project's currently permitted connection, and pins the existing
@@ -1403,6 +1635,17 @@ status. A committed withdrawal whose response read fails is explicitly reported
 as committed with unavailable readback, not rolled back; a fresh authorized read
 resolves an uncertain acknowledgement. See the detailed
 [accounting and recovery contract](../DATABASE_ACCESS_LIFECYCLE.md#accumulated-native-history-refusal-and-preservation-1439).
+
+Direction projection, packet interpretation, parent traversal and direction-history
+recovery reuse validated rows only inside their synchronous read invocation and
+SQLite snapshot. They retain caller-owned transactions and otherwise open a read
+transaction; human and agent GET authenticate and read in the same transaction.
+Complete row and overflow checks still precede historical filtering, while
+decision-chain checks use the requested inclusive cutoff. The private reader
+loads only histories required by the existing traversal and does not memoize its
+visited set. It is discarded before returning: another read, including withdrawal
+readback after commit, reads fresh state. No persisted checkpoint or cross-request
+cache is introduced, and the existing history limits remain unchanged.
 
 The issuer can also explicitly renew selected existing projects for
 the same logical role. Renewal ends the old capability, retains history, specifies
@@ -2125,6 +2368,17 @@ every omitted predecessor note has an explicit reason. Existing accepted-state
 context retains its independent semantic lineage. Selection does not accept a
 judgment, apply a Transition or create a grant. The existing fresh source reader
 and native-host request consume the saved selection.
+
+The private Companion result-work ingress (#1561) connects these same owners
+to repository-bound read, compare, preview and explicit save. It resolves the
+latest local result and exact project/work/root bindings server-side from the
+Resume snapshot. Preparation and preview bindings identify material; they are
+not authentication. The existing runtime channel and Companion admission owner
+record actual Companion authorship in the same transaction as the canonical
+successor append. The Browser wrapper retains its separate authentication.
+Protected source locators remain projected through the existing disclosure owner.
+An uncertain save is reconciled by explicit Resume and definition/source readback;
+this path adds no replay acknowledgement, automatic retry or persistence ledger.
 
 This profile uses the normal task definition with no scoped file inventory or
 approved-instruction hashes. The older authored read-only profile still requires
@@ -3543,6 +3797,12 @@ ModelInvocationEnvelope:
 
 Gateway는 호출 후 usage, cost, latency, failure와 fallback을 RunReceipt의 model subrecord로 반환한다.
 
+The [implementation ownership map](../../lib/vnext/model-gateway/README.md)
+separates common invocation enforcement and Responses transport from the closed
+purpose-specific codec composition. Existing public Gateway and adapter exports,
+synchronous projections, method identities and receipt meaning remain compatible;
+the internal composition seam grants no execution or semantic authority.
+
 첫 production shape은 하나의 bounded semantic-assessment capability에 required
 criterion-review와 optional strategic-advantage-transfer profile을 둔다. Core는 provider-neutral하고,
 Gateway는 exact bounded input refs, normalized output, provider/model provenance, timeout,
@@ -3838,6 +4098,109 @@ word overlap before stable identity. It exposes query interpretation and the sam
 whole-group/output bounds; literal query semantics are unchanged. Neither ranking,
 recency nor similarity declares applicability, supersession or absence beyond the
 selection. Unresolved statements/corrections remain consumer review material.
+
+### Project-scoped file requests and returns
+
+A receiving Web owner can separately judge a particular file occurrence in a
+return. A positive decision binds the original request basis, request, return,
+file position and manifest, observed source head, and the destination revision’s
+actual selected output. An unchanged copy retains the original bytes; an
+adaptation retains newly authored bytes. A recorded check is an attributed
+report, not verification. Deferral or non-use records reasons on the original
+without manufacturing downstream work. Source inspection and previews are
+read-only. The source view of use derives from committed destination revisions;
+unknown saves do not constitute use. A destination retains its own bytes and
+attribution when its source is unavailable. These are scoped Web revision
+semantics, not a new Core kind or execution grant.
+
+Within the existing private Web workspace, a file request binds the exact task
+revision, selected original bytes and author-attributed question. A return
+binds the request's immutable work/revision/fingerprint and retains the edited
+file, response and next action. A later save or task switch cannot substitute a
+different basis. Web revision history owns both events and their file bodies.
+A Web read, an attributed review, local use and an applied native decision have
+different writers and evidence. Local execution and the existing selected-source
+admission remain independently scoped. The [Web contract](../../apps/web_planning/README.md#ask-for-work-on-files-and-collect-the-return)
+owns wire formats, replay, retention, erasure and recovery.
+
+#### Consumer-current return reassessment (#1593)
+
+An existing positive returned-file use can acquire an independent current judgment
+in its consuming work. The author explicitly selects an exact saved evidence
+occurrence and reads it alongside the original use/request basis/output and current
+consumer context. Recency, names and similarity never establish correction or
+supersession. A missing original remains unavailable while the destination owns
+its saved history; unavailable selected evidence cannot authorize a fresh save.
+
+The consumer may retain, update/adapt, defer judgment or end current use, with
+reason, limits, current context and next action. An update changes actual output
+bytes or current context; judgment alone needs no new file. The current projection
+selects this use's latest judgment and distinguishes selected, ended and no-longer-
+selected output. Earlier bytes/decisions, unrelated useful material and other
+consumers remain independent. The original request owner's defer/decline contract
+is unchanged. No private destination context or new disposition enters participant
+feedback through this writer.
+
+A v0.9 record on the committing revision binds the existing use, prior current
+judgment, exact evidence/observed source head and resulting output selection.
+Browser and authenticated owner client share the existing scoped, CAS/atomic
+revision/file writer. Reads/previews are read-only; exact operation reconciliation
+precedes replacement after unknown saves, and late results cannot clear another
+operation's recovery body. Ordinary editor replacement locks consumer authoring
+through acknowledgement or exact unknown-save settlement, including failed
+resolution reads. Unsaved edited/prepared consumer decisions participate in the
+existing browser unload warning; this is not durable tab-session recovery.
+Access loss disposes the private view while non-DOM operation flags still settle;
+cleanup cannot replace the primary access denial or reactivate removed controls.
+Authoring stays locked while the exact reassessment body enters its durable
+journal. A late journal completion checks the current access/work/view lifetime
+before dispatch; its original bytes remain available only through explicit
+authenticated recovery.
+Earlier formats/exports, attribution, one-answer and
+restricted participant scope remain intact. Reconstruction preserves destination
+history without reactivating grants. These are Web consumer semantics, not global
+rejection, a dependency graph, native acceptance or execution authority. The
+[ordinary Web guide](../../apps/web_planning/README.md#reconsider-an-existing-returned-file-use-1593)
+owns bounded API/client use, compatibility and rollback.
+
+#### Request-scoped Web participation (#1589)
+
+An opt-in operational grant binds a separately verified ingress email to one
+immutable Web request, selected original file occurrences, disclosed brief and
+return conditions, observed save base and finite expiry. Possession of a link or
+setup is not authorization. Every participant operation rechecks identity,
+request/material/action scope and current access; the atomic return INSERT also
+checks grant expiry/revocation and the frozen base. Later revisions never
+substitute a newly selected basis. Stale writes refuse; permitted original reads
+remain historical. The existing exchange writer owns one-answer, idempotency,
+exact bytes and atomic persistence, independently of native stores.
+
+The Web storage author and contributor are distinct: new return revisions retain
+a grant ID, hashed normalized email reference and actual authentication class.
+Email control does not establish a named human, model identity or independent
+judgment. Deliberate downstream use retains the contributor attestation and
+exact source identities. New attributed returns/use and optional shared feedback
+use v0.8; earlier revision/export bytes remain unchanged.
+
+A return-use decision may include a deliberately shared explanation and next
+action. The participant projection derives disposition and these fields only
+from the authoritative committed decision, including a private destination's
+commit. It excludes destination identifiers/titles/files, private reasons,
+reported checks and unrelated notes; pagination must not disclose these either.
+Unshared or unavailable feedback is not rejection. Feedback reads write no
+readback, use or acceptance state. Revocation/expiry preserves committed history
+while stopping server access. Source erasure does not erase a separate
+destination's output and attribution. Exports omit access grants and credentials;
+supported reconstruction revokes any retained grants atomically and never
+reactivates them. Imported attribution is attestation, not renewed access or
+independent verification. The [Web operational contract](../../apps/web_planning/README.md#request-scoped-participants-and-shared-feedback-1589)
+owns activation, local recovery, ingress and rollback details.
+
+
+An authenticated original recipient may use a recovery-only entry after expiry,
+revocation or source erasure to download an existing browser-local pending return.
+This exposes no server request, file, feedback or save outcome, performs no write,
+and grants no renewed access. Unknown submission status remains unknown.
 
 ### 13.6 Explicit portable Web source admission (#1475)
 

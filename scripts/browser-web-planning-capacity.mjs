@@ -6,6 +6,37 @@ import { validateExport } from '../apps/web_planning/src/contract.ts';
 import { fixtureScope } from './web-planning-local-runtime.mjs';
 import { capacityDefinition, capacityNotes, subsequentObservation, revisedCapacityNote, essentialNotes } from './web-planning-capacity-fixture.mjs';
 
+// The existing real Browser owner holds one normal advisory request. Its
+// release must succeed before the harness destroys that document; no save is
+// made and the ordinary strict interception-error accounting remains active.
+export async function browserNavigationCapacity({c,click,set,wait,navigate,origin,checks}) {
+ const before=await c.eval("api('/api/works')");
+ await click(c,'new-work');await set(c,'goal','Navigation with a pending capacity read');await set(c,'criteria','Preserve the request lifecycle');
+ await wait(()=>c.eval("!capacityInFlight&&['fits','blocked','unavailable'].includes($('draft-capacity').dataset.state)"),'navigation initial capacity');
+ c.holdCapacity=true;await click(c,'check-capacity');await wait(()=>!!c.heldCapacity,'navigation held capacity');
+ assert.equal(await c.eval('capacityInFlight'),true);
+ await browserNavigateWithCapacity({c,wait,navigate,label:'visible editor with in-flight read'});
+ await navigate(c,origin+'/');await wait(()=>c.eval("$('list-state').textContent!=='Reading saved work…'"),'navigation fresh entry');
+ assert.deepEqual(await c.eval("api('/api/works')"),before);
+ checks.push('harness navigation settles a held real capacity read, binds the destination document and saves nothing');
+}
+
+export async function browserNavigateWithCapacity({c,wait,navigate,label}) {
+ const events=[];let releaseError;
+ const release=(async()=>{
+   try{await new Promise(resolve=>setTimeout(resolve,250));await wait(()=>!!c.heldCapacity,'navigation scheduled capacity');
+     await c.send('Fetch.continueRequest',{requestId:c.heldCapacity.requestId});events.push('capacity released');}
+   catch(error){releaseError=error;}finally{c.heldCapacity=null;}
+ })();
+ const navigation=navigate(c,'about:blank').then(()=>events.push('navigation complete'));
+ const outcomes=await Promise.allSettled([navigation,release]);
+ console.log(JSON.stringify({navigation_capacity_browser:{label,events,release_error:releaseError?.message??null,real_browser:true,navigation_saved:false}}));
+ if(releaseError)throw releaseError;
+ for(const result of outcomes)if(result.status==='rejected')throw result.reason;
+ assert.deepEqual(events,['capacity released','navigation complete']);
+ assert.equal(await c.eval('location.href'),'about:blank');
+}
+
 export async function browserCapacityJourney({a,click,set,settled,saved,wait,navigate,origin,downloads,requests,responses,checks}) {
  // Submit with keyboard activation so Chrome's native constraint validation runs.
  async function pressSave(){await a.send('Page.bringToFront');await a.eval("$('save').scrollIntoView({block:'center'});$('save').focus()");

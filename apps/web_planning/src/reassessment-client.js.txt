@@ -1,0 +1,136 @@
+// Reuse the operation-specific browser journal. The scope prefix keeps owner
+// reassessments separate from participant drafts without changing their bytes.
+let reassessmentView=null,reassessmentPrepared=null,reassessmentEdited=false,reassessmentRows=[],reassessmentPending=null,reassessmentCursor=null;
+let reassessmentEpoch=0,reassessmentJournalActive=false;
+const reassessmentKey=id=>'consumer:'+scope.workspace_id+':'+scope.project_id+':'+id;
+const reassessmentJournal=(id,action,value)=>participantJournal(reassessmentKey(id),action,value);
+function reassessmentBlocks(){return reassessmentRows.length>0||reassessmentEdited||!!reassessmentPrepared;}
+// Editor replacement and unknown ordinary saves cannot accept a new consumer
+// draft. Reset/journal readback must preserve this lock until exact settlement.
+function lockReassessmentFields(){
+  $('reassessment-fields').disabled=!!(accessLost||workChangeActive||reassessmentJournalActive||pending||relationPending||sceneReviewPending||exchangePending||reassessmentRows.length);
+}
+function resetReassessment(){
+  reassessmentEpoch++;reassessmentView=reassessmentPrepared=reassessmentPending=null;reassessmentRows=[];reassessmentEdited=false;reassessmentCursor=null;
+  if(!$('reassessment-panel'))return;
+  $('reassessment-panel').hidden=$('reassessment-recovery').hidden=$('reassessment-save').hidden=true;
+  $('reassessment-basis').replaceChildren();$('reassessment-selected').replaceChildren();$('reassessment-preview').textContent=$('reassessment-status').textContent='';
+  $('reassessment-work').replaceChildren(new Option('Choose saved work',''));$('reassessment-evidence').replaceChildren(new Option('Choose a saved file',''));
+  for(const id of ['context','reason','limits','checks','next','name','text'])$('reassessment-'+id).value='';
+  lockReassessmentFields();$('reassessment-list').hidden=false;
+}
+function chooseReassessment(rows,key){
+  reassessmentRows=rows;reassessmentPending=rows.find(r=>r.request_key===key)??null;
+  const box=$('reassessment-pending');box.replaceChildren(new Option('Choose pending decision',''));
+  for(const p of rows)box.add(new Option(p.intent.decision+' · '+p.request_key,p.request_key));
+  box.value=reassessmentPending?.request_key??'';
+  $('reassessment-recovery').hidden=!rows.length;lockReassessmentFields();
+  $('reassessment-retry').hidden=$('reassessment-release').hidden=true;
+}
+async function restoreReassessments(id){
+  const epoch=reassessmentEpoch,rows=await reassessmentJournal(id,'get');
+  if(accessLost||work!==id||epoch!==reassessmentEpoch)return;
+  chooseReassessment(rows,rows.length===1?rows[0].request_key:null);
+}
+function showCurrentUse(parent,d){
+  const c=d.current;if(!c)return;
+  const section=document.createElement('div');section.dataset.currentUse=d.destination.revision;
+  returnText(section,'Current use: '+c.status.replaceAll('_',' ')+(c.judgment?' · '+c.judgment.decision+' · '+c.judgment.recorded_at:' · original decision'));
+  if(c.judgment)returnText(section,c.judgment.context+' · Reason: '+c.judgment.rationale+' · Limits: '+(c.judgment.limits||'none reported')+' · Next: '+c.judgment.next_action);
+  if(c.output){const f={...c.output,download:c.download};returnText(section,'Current output: '+f.name+' · '+f.digest);section.append(returnButton('Download current output',()=>downloadExchangeFile(f)));addTextReader(section,f,null);}
+  parent.append(section);
+}
+function drawReassessmentBasis(view){
+  const box=$('reassessment-basis');box.replaceChildren();
+  returnText(box,'Consumer now: '+view.consumer.definition.goal+' · '+returnRef(view.consumer.ref)+' · '+[...view.consumer.definition.success_criteria,...view.consumer.definition.non_goals,...view.consumer.notes].join(' / '));
+  drawReturnDecision(box,{...view.original_use,current:view.current},false,false);
+  if(view.origin.status==='available'){
+    const o=view.origin;returnText(box,'Old request basis: '+o.basis.definition.goal+' · '+returnRef(o.basis.ref)+' · '+[...o.basis.definition.success_criteria,...o.basis.definition.non_goals,...o.basis.notes].join(' / '));
+    returnText(box,'Original request: '+o.request.message+' · Return: '+o.returned.message);
+    for(const f of o.basis.files){returnText(box,'Saved basis file: '+f.name+' · '+f.digest);addTextReader(box,f,null);box.append(returnButton('Download basis '+f.name,()=>downloadExchangeFile(f)));}
+    for(const f of [...o.request.files,o.returned.files[view.original_use.index]]){returnText(box,'Original: '+f.name+' · '+f.digest);addTextReader(box,f,null);box.append(returnButton('Download original '+f.name,()=>downloadExchangeFile(f)));}
+  }else returnText(box,'Original source unavailable: '+view.origin.reason+'. Historical destination output remains readable.');
+}
+async function beginReassessment(ref){
+  if(reassessmentBlocks()||returnMarker||returnEdited||returnPrepared){status('Finish the current decision or check its pending save first.');return;}
+  if(work!==ref.work_id){await openWork(ref.work_id);if(work!==ref.work_id)return;}
+  if(returnDraftBusy()){status('Finish the consumer draft first. Your edits remain unchanged.');return;}
+  const edits=inputEpoch,epoch=reassessmentEpoch,view=await api('/api/work/'+ref.work_id+'/inspect-use',{use:ref,evidence:null});
+  if(returnInputsChanged(edits)||epoch!==reassessmentEpoch||work!==ref.work_id)return;
+  reassessmentView=view;drawReassessmentBasis(view);$('reassessment-panel').hidden=false;$('reassessment-heading').focus();$('reassessment-heading').scrollIntoView({block:'nearest'});
+  $('reassessment-context').value=view.current.judgment?.context??'';$('reassessment-next').value=view.current.judgment?.next_action??view.original_use.next_action;
+}
+$('reassessment-list').onclick=()=>run(async()=>{
+  const epoch=reassessmentEpoch,p=await api('/api/works'+(reassessmentCursor?'?cursor='+reassessmentCursor:''));if(epoch!==reassessmentEpoch||accessLost)return;
+  for(const w of p.items)$('reassessment-work').add(new Option(w.goal+' · revision '+w.revision+' · '+w.work_id,w.work_id));
+  reassessmentCursor=p.next;$('reassessment-list').hidden=!p.next;
+});
+$('reassessment-files').onclick=()=>run(async()=>{
+  const id=$('reassessment-work').value;if(!id)return;const epoch=reassessmentEpoch,p=await api('/api/work/'+id+'/history');if(epoch!==reassessmentEpoch||accessLost||$('reassessment-work').value!==id)return;
+  const box=$('reassessment-evidence');box.replaceChildren(new Option('Choose a saved file',''));
+  for(const r of p.revisions)for(const kind of ['file','return']){
+    const files=kind==='file'?r.files??[]:r.exchange?.kind==='return'?r.exchange.artifacts.map(a=>a.file):[];
+    for(const [index,f] of files.entries())box.add(new Option('Revision '+r.revision+' · '+kind+' · '+f.name+' · '+f.digest,JSON.stringify({ref:{work_id:id,revision:r.revision,fingerprint:r.fingerprint},kind,index})));
+  }
+});
+$('reassessment-inspect').onclick=()=>run(async()=>{
+  if(!reassessmentView||!$('reassessment-evidence').value)return;
+  const edits=inputEpoch,epoch=reassessmentEpoch,view=await api('/api/work/'+work+'/inspect-use',{use:reassessmentView.original_use.destination,evidence:JSON.parse($('reassessment-evidence').value)});
+  if(returnInputsChanged(edits)||epoch!==reassessmentEpoch)return;
+  reassessmentView=view;reassessmentPrepared=null;$('reassessment-save').hidden=true;drawReassessmentBasis(view);
+  const box=$('reassessment-selected');box.replaceChildren();
+  if(!view.selection){returnText(box,'Selected evidence unavailable: '+view.evidence.reason+'. No replacement decision can be saved from this observation.');return;}
+  const e=view.evidence;returnText(box,'Selected evidence: '+returnRef(e.selection.ref)+' · '+e.file.name+' · '+e.file.digest);
+  returnText(box,'Evidence context: '+e.basis.definition.goal+' · '+[...e.basis.definition.success_criteria,...e.basis.definition.non_goals,...e.basis.notes].join(' / '));
+  returnText(box,e.file.digest===view.original_use.original.file.digest?'Selected bytes are unchanged from the old return. Relevance remains your judgment.':'Selected bytes differ. This alone does not establish correction or supersession.');
+  addTextReader(box,e.file,null);box.append(returnButton('Download selected evidence',()=>downloadExchangeFile(e.file)));
+});
+$('reassessment-fields').addEventListener('input',()=>{reassessmentEdited=true;reassessmentPrepared=null;$('reassessment-save').hidden=true;$('reassessment-preview').textContent='';$('reassessment-output').hidden=$('reassessment-decision').value!=='updated';});
+$('reassessment-evidence').onchange=$('reassessment-work').onchange=()=>{if(reassessmentView)reassessmentView.selection=null;};
+$('reassessment-preview-button').onclick=()=>run(async()=>{
+  if(!reassessmentView?.selection||reassessmentRows.length||returnDraftBusy()){status('Read the selected evidence and finish other drafts before previewing.');return;}
+  const edits=inputEpoch,epoch=reassessmentEpoch,updated=$('reassessment-decision').value==='updated',name=$('reassessment-name').value,text=$('reassessment-text').value;
+  const intent={selection:reassessmentView.selection,decision:$('reassessment-decision').value,rationale:$('reassessment-reason').value,context:$('reassessment-context').value,
+    limits:$('reassessment-limits').value,reported_check:$('reassessment-checks').value,next_action:$('reassessment-next').value,
+    name:updated&&(name||text)?name:null,text:updated&&(name||text)?text:null};
+  const p=await api('/api/work/'+work+'/reassessment-preview',{intent});if(returnInputsChanged(edits)||epoch!==reassessmentEpoch)return;
+  reassessmentPrepared=p;$('reassessment-preview').textContent='Prepared, not saved\n'+JSON.stringify(p.payload.return_reassessment,null,2);$('reassessment-save').hidden=false;
+});
+async function finishReassessment(p,result){
+  const id=p.work_id;
+  if(result.outcome==='saved'){
+    const rows=await reassessmentJournal(id,'delete',p);
+    // Delete only the exact acknowledged body. A late A response cannot clear B.
+    if(accessLost||work!==id||reassessmentPending?.request_key!==p.request_key)return;
+    chooseReassessment(rows,null);reassessmentPrepared=null;reassessmentEdited=false;
+    const notice='Saved current '+result.saved.return_reassessment.decision+' decision. Next: '+result.saved.return_reassessment.next_action;
+    if(!returnDraftBusy()&&!rows.length){const edits=inputEpoch,v=await api('/api/work/'+id);if(!returnInputsChanged(edits)&&work===id&&!returnDraftBusy())await show(v.saved,v.exchanges);}
+    if(!accessLost)$('reassessment-status').textContent=notice;
+  }else if(!accessLost&&work===id&&reassessmentPending?.request_key===p.request_key){
+    $('reassessment-retry').hidden=result.outcome!=='unknown';$('reassessment-release').hidden=result.outcome!=='not_saved';
+    $('reassessment-status').textContent=result.outcome==='not_saved'?'This operation was not saved and its exact basis is no longer current. Preserve a download before releasing it.':'Save remains unknown. Preserve the pending bytes; only retry this exact operation.';
+  }
+}
+$('reassessment-save').onclick=()=>run(async()=>{
+  const p=reassessmentPrepared,epoch=reassessmentEpoch;if(!p||reassessmentRows.length||returnDraftBusy())return;
+  reassessmentJournalActive=true;lockReassessmentFields();
+  try{
+    const rows=await reassessmentJournal(p.work_id,'put',p);
+    // The durable exact body remains available to authenticated recovery even
+    // when this view was disposed while its journal transaction was pending.
+    if(accessLost||work!==p.work_id||epoch!==reassessmentEpoch)return;
+    chooseReassessment(rows,p.request_key);$('reassessment-save').hidden=true;
+    if(reassessmentPrepared!==p){$('reassessment-status').textContent='Prepared decision changed. Check the exact pending operation before replacing it.';return;}
+    try{await finishReassessment(p,await api('/api/work/'+p.work_id+'/reassessment-save',{ticket:p.ticket,intent:p.intent}));}
+    catch(e){if(!accessLost)$('reassessment-status').textContent='Decision save not confirmed. Exact pending bytes are retained; check before replacing.';throw e;}
+  }finally{reassessmentJournalActive=false;if(!accessLost)lockReassessmentFields();}
+});
+$('reassessment-pending').onchange=()=>chooseReassessment(reassessmentRows,$('reassessment-pending').value);
+$('reassessment-check').onclick=()=>run(async()=>{const p=reassessmentPending;if(p)await finishReassessment(p,await api('/api/work/'+p.work_id+'/reassessment-resolve',{ticket:p.ticket}));});
+$('reassessment-retry').onclick=()=>run(async()=>{const p=reassessmentPending;if(p&&!$('reassessment-retry').hidden)await finishReassessment(p,await api('/api/work/'+p.work_id+'/reassessment-save',{ticket:p.ticket,intent:p.intent}));});
+$('reassessment-release').onclick=()=>run(async()=>{const p=reassessmentPending;if(!p||$('reassessment-release').hidden)return;
+  const r=await api('/api/work/'+p.work_id+'/reassessment-resolve',{ticket:p.ticket});if(r.outcome!=='not_saved'){await finishReassessment(p,r);return;}
+  const rows=await reassessmentJournal(p.work_id,'delete',p);if(!accessLost&&work===p.work_id&&reassessmentPending?.request_key===p.request_key){chooseReassessment(rows,null);reassessmentPrepared=null;reassessmentEdited=false;$('reassessment-status').textContent='Unrecorded operation released. Inspect current evidence before another decision.';}
+});
+$('reassessment-download').onclick=()=>{const p=reassessmentPending;if(!p)return;const u=URL.createObjectURL(new Blob([JSON.stringify(p,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='pending-consumer-decision-'+p.request_key+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);};
+$('reassessment-close').onclick=()=>{if(!busy&&!reassessmentRows.length&&(!reassessmentEdited||confirm('Discard the unsaved consumer decision?')))resetReassessment();};

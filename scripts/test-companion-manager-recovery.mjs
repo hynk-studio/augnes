@@ -13,7 +13,7 @@ const sourceRoot = process.cwd();
 const [only] = process.argv.slice(2);
 const mode = 'candidate';
 const { registerOwnedChild, cleanupOwnedProcesses } = await import(pathToFileURL(path.join(sourceRoot, 'scripts/test-harness-process-lifecycle.mjs')));
-const sources = ['scripts/augnes-companion-service.mjs', 'plugins/augnes-operator/mcp/companion-service-core.mjs', 'plugins/augnes-operator/mcp/checkout-identity.mjs', 'plugins/augnes-operator/mcp/checkout-identity-darwin.py'];
+const sources = ['scripts/augnes-companion-service.mjs', 'plugins/augnes-operator/mcp/companion-service-core.mjs', 'plugins/augnes-operator/mcp/checkout-identity.mjs', 'plugins/augnes-operator/mcp/checkout-identity-darwin.py', 'plugins/augnes-operator/mcp/node-runtime-policy.mjs'];
 const digest = x => createHash('sha256').update(x).digest('hex');
 let failed = 0;
 const stoppedScenarios = [

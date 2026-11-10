@@ -23,6 +23,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { isSupportedCompanionNodeVersion } from "./node-runtime-policy.mjs";
+
 import { observeCheckoutIdentity, observeCurrentCheckoutIdentity, currentCheckoutObservationBinding,
   compareCompanionCheckoutIdentity, checkoutObservationBinding, validDurableCheckoutIdentity } from "./checkout-identity.mjs";
 
@@ -58,6 +60,7 @@ const SERVICE_SOURCE_FILES = Object.freeze([
   "scripts/augnes-companion-service.mjs",
   "plugins/augnes-operator/mcp/companion-service-core.mjs",
   "plugins/augnes-operator/mcp/checkout-identity.mjs",
+  "plugins/augnes-operator/mcp/node-runtime-policy.mjs",
   "plugins/augnes-operator/mcp/checkout-identity-darwin.py",
 ]);
 const RUNTIME_CONTRACT = "augnes-local-runtime-supervisor-v1";
@@ -5965,7 +5968,7 @@ function inspectNodeBinary(nodePath) {
       env: {},
     });
     const version = result.status === 0 ? result.stdout.trim() : "";
-    if (!new RegExp(`^v${COMPANION_SERVICE_NODE_MAJOR}\\.\\d+\\.\\d+$`, "u").test(version)) {
+    if (!isSupportedCompanionNodeVersion(version)) {
       return { valid: false, path: resolved, version };
     }
     return { valid: true, path: resolved, version };

@@ -97,6 +97,15 @@ visible together; consumers must not ignore them after choosing a snippet.
 
 ## Bounds and lifecycle
 
+The [scoped contribution and permitted-method example](../examples/native-method-use/README.md)
+exercises this route with two registered projects and empty envelopes. A checked
+negative package-declaration report feeds a deliberately shared conditional method;
+a fresh consumer reads its own saved task and corpus, checks applicability and
+current binding, and saves a new artifact and judgment. Withheld material, source
+ID transplantation, stale binding and withdrawn shares refuse through actual
+owners. Earlier delivered copies remain readable. Authored policy/compensation
+and declaration fit are distinct from enforced access and live compatibility.
+
 | Resource | Ceiling |
 | --- | --- |
 | Existing material / workspace bodies | 65,536 bytes each / 8 MiB |

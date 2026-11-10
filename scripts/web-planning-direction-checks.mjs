@@ -1,3 +1,4 @@
+import { migrationPrefix } from "./web-planning-local-runtime.mjs";
 import { predecessorCode } from "./web-planning-branch-checks.mjs";
 import { checkRetainedRevisions } from './web-planning-retained-revision-checks.mjs';
 import { digestBytes } from "../apps/web_planning/src/files.ts";
@@ -73,9 +74,21 @@ export async function checkDirections({start,client,newWork,save,passed}){
  assert.deepEqual((await ok(dc.request(route(primary,'direction-export'),{expected:headBinding(primary),source:reference(alternate)}))).recovery,bundle.recovery);
  assert.deepEqual(bundle.recovery.works[0].revisions.slice(0,4),originalExport.revisions);
  await checkRetainedRevisions({start,client,bundle:bundle.recovery,passed});
- await dest.setOptions({script:await predecessorCode('5c5c2cc89e2871b7cd2379927610275cae9cc1c0')});
- for(const r of [primary,alternate]){const oldRead=await dc.request(`/api/work/${r.work_id}`);assert.equal(oldRead.status,422);assert.equal(oldRead.data.error,'invalid_fields');}
+ const oldCode=await predecessorCode('5c5c2cc89e2871b7cd2379927610275cae9cc1c0');
+ const legacy=await start('directions-legacy-reader',{code:await predecessorCode('a986e236d19871937f98e3153ea4aa29fbe07623'),migrationsFolder:await migrationPrefix(process.env.AUGNES_CANONICAL_TEMP_ROOT,3)}),lc=await client(legacy);
+ await ok(lc.request('/api/reconstruct-files',{export:bundle.recovery,confirm:'reconstruct-empty-store'}));
+ await legacy.setOptions({script:oldCode});
+ for(const r of [primary,alternate]){const oldRead=await lc.request('/api/work/'+r.work_id);assert.equal(oldRead.status,422);assert.equal(oldRead.data.error,'invalid_fields');}
+ await dest.setOptions({script:oldCode});assert.equal((await dc.request('/api/work/'+primary.work_id)).data.error,'incompatible_schema');
  await dest.setOptions({script:dest.code});assert.deepEqual((await ok(dc.request(`/api/work/${primary.work_id}`))).saved,primary);
+ // A large exchange does not change scene ownership or strand the direction pair.
+ const large=Buffer.alloc(2400000,0x63),digest=digestBytes(large);
+ const exchanged=await ok(dc.request(route(primary,'exchanges/save'),{expected:headBinding(primary),request_key:randomUUID(),kind:'request',basis:null,message:'Review the original log.',next_action:'',files:[{name:'large.log',media_type:'text/plain',bytes:large.length,digest,data:large.toString('base64')}]}));
+ const extended=await ok(dc.request(route(primary,'direction-export'),{expected:exchanged.head,source:reference(alternate)}));
+ assert.equal(extended.recovery.works[0].format,'web_planning_export.v0.6');assert(extended.recovery.works[0].files.some(f=>f.digest===digest));
+ const replacement=await start('extended-direction-pair'),rc=await client(replacement);
+ await ok(rc.request('/api/reconstruct-directions',{export:extended.recovery,confirm:'reconstruct-empty-store'}));
+ assert.deepEqual((await ok(rc.request(route(primary,'direction-export'),{expected:exchanged.head,source:reference(alternate)}))).recovery,extended.recovery);
  passed('directions: real D1 branch copies originals with inherited attribution; explicit retcon; selected-only target adoption; stale source/target, foreign and altered replay refusal; atomic fault, exact unknown/replay/no-op; independent successors and two-scope recovery closure');
  // A declared dependency on alternate-only knowledge cannot be taken alone.
  const dependent={id:randomUUID(),...parameters,draft:'必要な背景を伴う提案。',proposals:[{kind:'fact',subject:'記録',text:'하린의 비밀 답장 보관함',event_time:3,reveal_order:2,revises:[],requires:[{work_id:alternate.work_id,scene_id:altScene.id,proposal:0}]}]};

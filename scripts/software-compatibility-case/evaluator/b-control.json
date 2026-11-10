@@ -1,0 +1,433 @@
+{
+  "revision": "b",
+  "results": [
+    {
+      "id": "release-01",
+      "accepted": true,
+      "packet": {
+        "result_version": "native_host_result.v0.1",
+        "request_id": "request-synthetic-17",
+        "run_id": "run-synthetic-17",
+        "outcome": "completed",
+        "public_stop_reason": null,
+        "started_at": "2026-10-20T10:00:00.000Z",
+        "finished_at": "2026-10-20T10:00:10.000Z",
+        "host_refs": [],
+        "adapter_version": "synthetic-adapter.v1",
+        "capability_version": "synthetic-capability.v1",
+        "changed_files": [
+          {
+            "repository_relative_path": "src/status.ts",
+            "change_kind": "modified",
+            "before_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "after_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          }
+        ],
+        "artifacts": [
+          {
+            "artifact_ref": {
+              "ref_version": "external_ref.v0.1",
+              "ref_type": "repository_relative_artifact",
+              "external_id": "reports/status.json",
+              "trust_class": "direct_local_observation"
+            },
+            "summary": "Status report contains the bounded local observations."
+          }
+        ],
+        "observed_actions": [
+          "Inspected the synthetic checkout and prepared a status report."
+        ],
+        "commands": [
+          {
+            "command_id": "unit",
+            "summary": "Local unit suite completed.",
+            "command_fingerprint": null,
+            "started_at": "2026-10-20T10:00:01.000Z",
+            "finished_at": "2026-10-20T10:00:06.000Z",
+            "exit_code": 0,
+            "status": "completed"
+          }
+        ],
+        "checks": [
+          {
+            "check_id": "unit",
+            "required": true,
+            "status": "passed",
+            "summary": "Unit suite passed 12 checks."
+          }
+        ],
+        "skipped_checks": [
+          {
+            "check_id": "browser",
+            "required": true,
+            "reason": "Browser check was skipped because the disposable browser was unavailable."
+          }
+        ],
+        "model_invocation_receipt_refs": [],
+        "summary": "Build completed and local status report was saved.",
+        "uncertainty": [
+          "Remote deployment state is unknown."
+        ],
+        "gaps": [
+          "Required browser verification remains incomplete."
+        ],
+        "proposed_next_steps": [
+          "Arrange disposable browser verification before claiming complete verification."
+        ],
+        "capability_coverage": [
+          {
+            "capability": "local-check",
+            "coverage": "observed",
+            "source_ref": null,
+            "notes": [
+              "Only the supplied local execution facts are represented."
+            ]
+          }
+        ],
+        "adapter_extension": {
+          "extension_version": "synthetic.v1",
+          "adapter_kind": "synthetic-local",
+          "bounded_metadata": {
+            "constructed": true
+          }
+        }
+      }
+    },
+    {
+      "id": "release-02",
+      "accepted": true,
+      "packet": {
+        "result_version": "native_host_result.v0.1",
+        "request_id": "request-synthetic-17",
+        "run_id": "run-synthetic-17",
+        "outcome": "completed",
+        "public_stop_reason": null,
+        "started_at": "2026-10-20T10:00:00.000Z",
+        "finished_at": "2026-10-20T10:00:10.000Z",
+        "host_refs": [],
+        "adapter_version": "synthetic-adapter.v1",
+        "capability_version": "synthetic-capability.v1",
+        "changed_files": [
+          {
+            "repository_relative_path": "src/status.ts",
+            "change_kind": "modified",
+            "before_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "after_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          }
+        ],
+        "artifacts": [
+          {
+            "artifact_ref": {
+              "ref_version": "external_ref.v0.1",
+              "ref_type": "repository_relative_artifact",
+              "external_id": "reports/status.json",
+              "trust_class": "direct_local_observation"
+            },
+            "summary": "Status report contains the bounded local observations."
+          }
+        ],
+        "observed_actions": [
+          "Inspected the synthetic checkout and prepared a status report."
+        ],
+        "commands": [
+          {
+            "command_id": "unit",
+            "summary": "Local unit suite completed.",
+            "command_fingerprint": null,
+            "started_at": "2026-10-20T10:00:01.000Z",
+            "finished_at": "2026-10-20T10:00:06.000Z",
+            "exit_code": 0,
+            "status": "completed"
+          }
+        ],
+        "checks": [
+          {
+            "check_id": "unit",
+            "required": true,
+            "status": "passed",
+            "summary": "Q: Unit suite passed 12 checks."
+          }
+        ],
+        "skipped_checks": [
+          {
+            "check_id": "browser",
+            "required": true,
+            "reason": "R: Browser check was skipped because the disposable browser was unavailable."
+          }
+        ],
+        "model_invocation_receipt_refs": [],
+        "summary": "C: Build completed and local status report was saved.",
+        "uncertainty": [
+          "Remote deployment state is unknown."
+        ],
+        "gaps": [
+          "Required browser verification remains incomplete."
+        ],
+        "proposed_next_steps": [
+          "Arrange disposable browser verification before claiming complete verification."
+        ],
+        "capability_coverage": [
+          {
+            "capability": "local-check",
+            "coverage": "observed",
+            "source_ref": null,
+            "notes": [
+              "Only the supplied local execution facts are represented."
+            ]
+          }
+        ],
+        "adapter_extension": {
+          "extension_version": "synthetic.v1",
+          "adapter_kind": "synthetic-local",
+          "bounded_metadata": {
+            "constructed": true
+          }
+        }
+      }
+    },
+    {
+      "id": "release-03",
+      "accepted": true,
+      "packet": {
+        "result_version": "native_host_result.v0.1",
+        "request_id": "request-synthetic-17",
+        "run_id": "run-synthetic-17",
+        "outcome": "completed",
+        "public_stop_reason": null,
+        "started_at": "2026-10-20T10:00:00.000Z",
+        "finished_at": "2026-10-20T10:00:10.000Z",
+        "host_refs": [],
+        "adapter_version": "synthetic-adapter.v1",
+        "capability_version": "synthetic-capability.v1",
+        "changed_files": [
+          {
+            "repository_relative_path": "src/status.ts",
+            "change_kind": "modified",
+            "before_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "after_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          }
+        ],
+        "artifacts": [
+          {
+            "artifact_ref": {
+              "ref_version": "external_ref.v0.1",
+              "ref_type": "repository_relative_artifact",
+              "external_id": "reports/status.json",
+              "trust_class": "direct_local_observation"
+            },
+            "summary": "Status report contains the bounded local observations."
+          }
+        ],
+        "observed_actions": [
+          "Inspected the synthetic checkout and prepared a status report."
+        ],
+        "commands": [
+          {
+            "command_id": "unit",
+            "summary": "D: Local unit suite completed.",
+            "command_fingerprint": null,
+            "started_at": "2026-10-20T10:00:01.000Z",
+            "finished_at": "2026-10-20T10:00:06.000Z",
+            "exit_code": 0,
+            "status": "completed"
+          }
+        ],
+        "checks": [
+          {
+            "check_id": "unit",
+            "required": true,
+            "status": "passed",
+            "summary": "Unit suite passed 12 checks."
+          }
+        ],
+        "skipped_checks": [
+          {
+            "check_id": "browser",
+            "required": true,
+            "reason": "Browser check was skipped because the disposable browser was unavailable."
+          }
+        ],
+        "model_invocation_receipt_refs": [],
+        "summary": "Build completed and local status report was saved.",
+        "uncertainty": [
+          "U: Remote deployment state is unknown."
+        ],
+        "gaps": [
+          "Required browser verification remains incomplete."
+        ],
+        "proposed_next_steps": [
+          "Arrange disposable browser verification before claiming complete verification."
+        ],
+        "capability_coverage": [
+          {
+            "capability": "local-check",
+            "coverage": "observed",
+            "source_ref": null,
+            "notes": [
+              "Only the supplied local execution facts are represented."
+            ]
+          }
+        ],
+        "adapter_extension": {
+          "extension_version": "synthetic.v1",
+          "adapter_kind": "synthetic-local",
+          "bounded_metadata": {
+            "constructed": true
+          }
+        }
+      }
+    },
+    {
+      "id": "release-04",
+      "accepted": false,
+      "error_code": "native_host_result_absolute_path_forbidden"
+    },
+    {
+      "id": "release-05",
+      "accepted": false,
+      "error_code": "native_host_result_raw_material_forbidden"
+    },
+    {
+      "id": "release-06",
+      "accepted": false,
+      "error_code": "native_host_result_file_scope_invalid"
+    },
+    {
+      "id": "release-07",
+      "accepted": false,
+      "error_code": "native_host_result_file_scope_invalid"
+    },
+    {
+      "id": "release-08",
+      "accepted": false,
+      "error_code": "native_host_result_file_scope_invalid"
+    },
+    {
+      "id": "release-09",
+      "accepted": false,
+      "error_code": "native_host_result_file_scope_invalid"
+    },
+    {
+      "id": "release-10",
+      "accepted": false,
+      "error_code": "native_host_result_binding_invalid"
+    },
+    {
+      "id": "release-11",
+      "accepted": false,
+      "error_code": "native_host_result_timing_invalid"
+    },
+    {
+      "id": "release-12",
+      "accepted": false,
+      "error_code": "native_host_result_bound_exceeded"
+    },
+    {
+      "id": "release-13",
+      "accepted": false,
+      "error_code": "native_host_result_byte_bound_exceeded"
+    },
+    {
+      "id": "release-14",
+      "accepted": false,
+      "error_code": "native_host_result_file_scope_invalid"
+    },
+    {
+      "id": "release-15",
+      "accepted": true,
+      "packet": {
+        "result_version": "native_host_result.v0.1",
+        "request_id": "request-synthetic-17",
+        "run_id": "run-synthetic-17",
+        "outcome": "completed",
+        "public_stop_reason": null,
+        "started_at": "2026-10-20T10:00:00.000Z",
+        "finished_at": "2026-10-20T10:00:10.000Z",
+        "host_refs": [],
+        "adapter_version": "synthetic-adapter.v1",
+        "capability_version": "synthetic-capability.v1",
+        "changed_files": [
+          {
+            "repository_relative_path": "src/status.ts",
+            "change_kind": "modified",
+            "before_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "after_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          }
+        ],
+        "artifacts": [
+          {
+            "artifact_ref": {
+              "ref_version": "external_ref.v0.1",
+              "ref_type": "repository_relative_artifact",
+              "external_id": "reports/status.json",
+              "trust_class": "direct_local_observation"
+            },
+            "summary": "Status report contains the bounded local observations."
+          }
+        ],
+        "observed_actions": [
+          "Inspected the synthetic checkout and prepared a status report."
+        ],
+        "commands": [
+          {
+            "command_id": "unit",
+            "summary": "Local unit suite completed.",
+            "command_fingerprint": null,
+            "started_at": "2026-10-20T10:00:01.000Z",
+            "finished_at": "2026-10-20T10:00:06.000Z",
+            "exit_code": 0,
+            "status": "completed"
+          }
+        ],
+        "checks": [
+          {
+            "check_id": "unit",
+            "required": true,
+            "status": "passed",
+            "summary": "Unit suite passed 12 checks."
+          }
+        ],
+        "skipped_checks": [
+          {
+            "check_id": "browser",
+            "required": true,
+            "reason": "Browser check was skipped because the disposable browser was unavailable."
+          }
+        ],
+        "model_invocation_receipt_refs": [],
+        "summary": "Status recorded; secret=[redacted]",
+        "uncertainty": [
+          "Remote deployment state is unknown."
+        ],
+        "gaps": [
+          "Required browser verification remains incomplete."
+        ],
+        "proposed_next_steps": [
+          "Arrange disposable browser verification before claiming complete verification."
+        ],
+        "capability_coverage": [
+          {
+            "capability": "local-check",
+            "coverage": "observed",
+            "source_ref": null,
+            "notes": [
+              "Only the supplied local execution facts are represented."
+            ]
+          }
+        ],
+        "adapter_extension": {
+          "extension_version": "synthetic.v1",
+          "adapter_kind": "synthetic-local",
+          "bounded_metadata": {
+            "constructed": true
+          }
+        }
+      }
+    },
+    {
+      "id": "release-16",
+      "accepted": false,
+      "error_code": "native_host_result_raw_material_forbidden"
+    }
+  ]
+}

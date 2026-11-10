@@ -30,6 +30,15 @@ const NEW_WORK_SAVE_TOOL_NAME = "augnes_prepare_repository_new_work";
 const INITIAL_WORK_PREVIEW_TOOL_NAME = "augnes_preview_repository_initial_work";
 const INITIAL_WORK_SAVE_TOOL_NAME = "augnes_define_repository_initial_work";
 const INITIAL_WORK_TOOLS = [INITIAL_WORK_PREVIEW_TOOL_NAME, INITIAL_WORK_SAVE_TOOL_NAME];
+const RESULT_WORK_READ_TOOL_NAME = "augnes_read_repository_result_work";
+const RESULT_WORK_COMPARE_TOOL_NAME = "augnes_compare_repository_result_work_sources";
+const RESULT_WORK_PREVIEW_TOOL_NAME = "augnes_preview_repository_result_work";
+const RESULT_WORK_SAVE_TOOL_NAME = "augnes_prepare_repository_result_work";
+const RESULT_WORK_ACTIONS = new Map([
+  [RESULT_WORK_READ_TOOL_NAME, "read"], [RESULT_WORK_COMPARE_TOOL_NAME, "compare"],
+  [RESULT_WORK_PREVIEW_TOOL_NAME, "preview"], [RESULT_WORK_SAVE_TOOL_NAME, "save"],
+]);
+const RESULT_WORK_MARKER = "codex-repository-result-work-v0.1";
 const WORK_PREPARATION_TOOLS = [WORK_PREVIEW_TOOL_NAME, WORK_SAVE_TOOL_NAME, NEW_WORK_PREVIEW_TOOL_NAME, NEW_WORK_SAVE_TOOL_NAME, ...INITIAL_WORK_TOOLS];
 const WORK_SAVE_TOOLS = [WORK_SAVE_TOOL_NAME, NEW_WORK_SAVE_TOOL_NAME, INITIAL_WORK_SAVE_TOOL_NAME];
 const WORK_REVISION_MARKER = "codex-repository-work-revision-v0.1";
@@ -549,6 +558,202 @@ function unknownWorkSaveResultV01() {
     structuredContent: { status: "outcome_unknown", reason: "save_outcome_unknown" },
     content: [{ type: "text", text: "The save outcome could not be confirmed; a preparation may have committed. No automatic retry was performed. Explicitly Resume and read the current sources before deciding any further action." }],
   };
+}
+
+export async function callRepositoryResultWorkV01(companion, args, action) {
+  const response = await fetch(new URL("/api/augnes/repository-result-work?scope=repository:local", `${companion.ui_url}/`), {
+    method: "POST", redirect: "error",
+    headers: { "content-type": "application/json", accept: "application/json",
+      "x-augnes-local-result-work": RESULT_WORK_MARKER,
+      "x-augnes-companion-proxy": companion.proxy_token,
+      "x-augnes-runtime-instance": companion.instance_id,
+      "x-augnes-runtime-generation": companion.generation_id,
+      "x-augnes-runtime-repository": companion.repository_fingerprint },
+    body: JSON.stringify({ action, repository_root: args.repositoryRoot,
+      expected_snapshot_binding: args.expectedSnapshotBinding,
+      ...(action !== "read" ? { preparation_binding: args.preparationBinding, sources: args.sources } : {}),
+      ...(["preview", "save"].includes(action) ? { definition: args.definition, expected_source_comparison: args.expectedSourceComparison } : {}),
+      ...(action === "save" ? { preview_binding: args.previewBinding } : {}) }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (response.headers.get("x-augnes-local-result-work") !== RESULT_WORK_MARKER) invalidContractV01();
+  const value = await readBoundedResultWorkResponseV01(response);
+  if (!response.ok) {
+    const statuses = {
+      invalid_query: 400, malformed_request: 400, missing_scope: 400, invalid_json: 400,
+      invalid_result_work_input: 400, invalid_content_type: 415, request_too_large: 413,
+      unauthorized_scope: 403, local_authorization_required: 403, disallowed_forwarded_host: 403,
+      companion_channel_refused: 403, companion_identity_changed: 409, companion_unavailable: 503,
+      refresh_required: 409, repository_unresolved: 409, result_preparation_unavailable: 409,
+      result_root_changed: 409, preparation_changed: 409, source_binding_changed: 409,
+      result_source_unavailable: 409, reviewed_outcome_unavailable: 409, source_comparison_changed: 409,
+      preview_changed: 409, result_work_transaction_conflict: 409,
+      invalid_source_selection: 422, source_omissions_invalid: 422,
+      selected_source_context_invalid: 422, selected_source_context_budget_exceeded: 422,
+      task_context_mandatory_selection_budget_exceeded: 422,
+      first_work_goal_invalid: 422, first_work_success_criteria_invalid: 422,
+      first_work_non_goals_invalid: 422, first_work_definition_too_large: 422,
+      successor_task_preparation_unavailable: 409, successor_task_preparation_changed: 409,
+      successor_task_source_selection_invalid: 409, successor_task_reviewed_outcome_changed: 409,
+      successor_task_source_comparison_changed: 409, successor_task_conflicting_run: 409,
+      successor_task_local_predecessor_binding: 409, successor_task_local_predecessor_required: 409,
+      successor_task_latest_run_changed: 409, successor_task_root_changed: 409,
+      successor_task_project_binding_changed: 409, successor_task_selection_changed: 409,
+      successor_task_packet_max_characters_exceeded: 409, successor_task_packet_max_estimated_tokens_exceeded: 409,
+      successor_task_packet_max_selected_entries_exceeded: 409, successor_task_packet_max_projection_items_exceeded: 409,
+    };
+    const known = value && typeof value === "object" && !Array.isArray(value) && exactKeysV01(value, ["error"]) &&
+      value.error && typeof value.error === "object" && !Array.isArray(value.error) && exactKeysV01(value.error, ["code", "status"]) &&
+      Object.hasOwn(statuses, value.error.code) && statuses[value.error.code] === response.status && value.error.status === response.status;
+    // An unrecognized/failed response may have followed a commit. Only a known
+    // pre-commit refusal can be reported as refused; never automatically retry.
+    if (!known && action === "save") throw new Error("work_save_outcome_unknown");
+    return { status: "refused", reason: known ? value.error.code : "result_work_refused", http_status: response.status };
+  }
+  if (response.headers.get("x-augnes-runtime-instance") !== companion.instance_id ||
+      response.headers.get("x-augnes-runtime-generation") !== companion.generation_id ||
+      response.headers.get("x-augnes-runtime-repository") !== companion.repository_fingerprint) invalidContractV01();
+  const result = parseRepositoryResultWorkResponseV01(value);
+  if (result.status !== ({ read: "read", compare: "compared", preview: "previewed", save: "saved" })[action] ||
+      result.expected_snapshot_binding !== args.expectedSnapshotBinding ||
+      (action !== "read" && result.preparation_binding !== args.preparationBinding) ||
+      (["preview", "save"].includes(action) && result.expected_source_comparison !== args.expectedSourceComparison) ||
+      (action === "save" && result.preview_binding !== args.previewBinding)) invalidContractV01();
+  return result;
+}
+
+async function readBoundedResultWorkResponseV01(response) {
+  if (Number(response.headers.get("content-length")) > MAX_CONTINUITY_RESPONSE_BYTES || !response.body) invalidContractV01();
+  const reader = response.body.getReader(), decoder = new TextDecoder();
+  let text = "", size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_CONTINUITY_RESPONSE_BYTES) invalidContractV01();
+      text += decoder.decode(value, { stream: true });
+    }
+    return JSON.parse(text + decoder.decode());
+  } catch (error) { await reader.cancel().catch(() => undefined); throw error; }
+  finally { reader.releaseLock(); }
+}
+
+/** Closed disclosure decoder only; eligibility, compilation and authentication
+ * remain server-owned. No serialized request, credentials or locator recovery. */
+export function parseRepositoryResultWorkResponseV01(value) {
+  exactObjectV01(value, ["projection_version", "status", "expected_snapshot_binding", "preparation_binding",
+    "expected_source_comparison", "preview_binding", "packet_fingerprint", "result", "definition", "sources", "packet_preview",
+    "effects", "source_material_authority", "authority"]);
+  if (value.projection_version !== "codex_repository_result_work.v0.1" ||
+      !["read", "compared", "previewed", "saved"].includes(value.status) ||
+      value.source_material_authority !== "untrusted_selected_context") invalidContractV01();
+  const read = value.status === "read", preview = ["previewed", "saved"].includes(value.status), saved = value.status === "saved";
+  fingerprintV01(value.expected_snapshot_binding); fingerprintV01(value.preparation_binding);
+  if (read ? value.expected_source_comparison !== null : !/^sha256:[a-f0-9]{64}$/u.test(value.expected_source_comparison)) invalidContractV01();
+  if (preview ? !/^sha256:[a-f0-9]{64}$/u.test(value.preview_binding) : value.preview_binding !== null) invalidContractV01();
+  if (saved ? !/^sha256:[a-f0-9]{64}$/u.test(value.packet_fingerprint) : value.packet_fingerprint !== null) invalidContractV01();
+  exactObjectV01(value.result, ["execution_status", "verification_status", "recorded_at", "report_source_status"]);
+  if (value.result.execution_status !== "completed" ||
+      !["passed", "failed", "partial", "not_run", "unknown"].includes(value.result.verification_status) ||
+      !["available", "whole_note_unavailable"].includes(value.result.report_source_status)) invalidContractV01();
+  isoTimestampV01(value.result.recorded_at);
+  exactObjectV01(value.definition, ["before", "after"]); workDefinitionV01(value.definition.before);
+  if (preview) workDefinitionV01(value.definition.after);
+  else if (value.definition.after !== null) invalidContractV01();
+  const sources = value.sources;
+  exactObjectV01(sources, ["before", "after", "result", "reviewed_outcome", "reviewed_outcome_status", "omitted_sources", "comparison", "unselected_previous"]);
+  for (const key of ["before", "after", "reviewed_outcome"]) parseSourceEntriesV01(sources[key]);
+  if (sources.result !== null) parseSourceEntriesV01([sources.result]);
+  if ((sources.result !== null) !== (value.result.report_source_status === "available")) invalidContractV01();
+  if (!["available", "absent", "unavailable", "local_chronology_unavailable", "over_budget"].includes(sources.reviewed_outcome_status) ||
+      (sources.reviewed_outcome_status !== "available" && sources.reviewed_outcome.length !== 0)) invalidContractV01();
+  if (!Array.isArray(sources.omitted_sources) || sources.omitted_sources.length > 8 ||
+      !Array.isArray(sources.comparison) || sources.comparison.length > 8 ||
+      !Array.isArray(sources.unselected_previous) || sources.unselected_previous.length > 8) invalidContractV01();
+  for (const row of sources.omitted_sources) {
+    exactObjectV01(row, ["source_binding", "reason"]); fingerprintV01(row.source_binding); stringV01(row.reason);
+    if (!row.reason.trim() || [...row.reason].length > 500) invalidContractV01();
+  }
+  for (const row of sources.comparison) {
+    exactObjectV01(row, ["source_binding", "comparison", "user_correction"]); fingerprintV01(row.source_binding); booleanV01(row.user_correction);
+    if (!["reconfirmed_selected_material", "reconfirmed_work_text", "changed_source_material_review_needed", "new_source_material_review_needed"].includes(row.comparison)) invalidContractV01();
+  }
+  sources.unselected_previous.forEach(fingerprintV01);
+  if (read && [sources.after, sources.omitted_sources, sources.comparison, sources.unselected_previous].some(rows => rows.length)) invalidContractV01();
+  if (!read && (JSON.stringify(sources.comparison.map(row => row.source_binding).sort()) !== JSON.stringify(sources.after.map(row => row.source_binding).sort()) ||
+      JSON.stringify(sources.omitted_sources.map(row => row.source_binding).sort()) !== JSON.stringify([...sources.unselected_previous].sort()))) invalidContractV01();
+  if (preview) parseResultPacketPreviewV01(value.packet_preview);
+  else if (value.packet_preview !== null) invalidContractV01();
+  exactObjectV01(value.effects, ["successor_work_created", "authorization_record_created"]);
+  if (value.effects.successor_work_created !== saved || value.effects.authorization_record_created !== saved) invalidContractV01();
+  exactObjectV01(value.authority, AUTHORITY_KEYS);
+  for (const key of AUTHORITY_KEYS)
+    if (value.authority[key] !== (saved && ["writes_database", "changes_operator_session"].includes(key))) invalidContractV01();
+  if (Buffer.byteLength(JSON.stringify(value), "utf8") > MAX_CONTINUITY_RESPONSE_BYTES) invalidContractV01();
+  return value;
+}
+
+function resultCurrentnessV01(value) {
+  exactObjectV01(value, ["status", "as_of", "basis"]);
+  if (!["fresh", "stale", "partial", "unknown"].includes(value.status)) invalidContractV01();
+  if (value.as_of !== null) isoTimestampV01(value.as_of);
+  stringV01(value.basis);
+}
+
+function parseResultPacketPreviewV01(value) {
+  exactObjectV01(value, ["current_projection", "tensions", "risks", "gaps", "criterion_verification_plan", "selected_context", "excluded_context", "constraints", "return_contract", "source_status", "capability_grant"]);
+  if (!Array.isArray(value.selected_context) || !Array.isArray(value.excluded_context) ||
+      value.capability_grant !== null || value.criterion_verification_plan !== null) invalidContractV01();
+  if (value.current_projection !== null) {
+    const projection = value.current_projection;
+    exactObjectV01(projection, ["bounded_summary", "as_of", "currentness", "warnings", "items"]);
+    stringV01(projection.bounded_summary); stringArrayV01(projection.warnings); resultCurrentnessV01(projection.currentness);
+    if (projection.as_of !== null) isoTimestampV01(projection.as_of);
+    if (!Array.isArray(projection.items)) invalidContractV01();
+    for (const item of projection.items) {
+      exactObjectV01(item, ["item_kind", "summary", "currentness"]);
+      if (!["frame", "thesis", "active_goal", "risk", "open_question", "gap", "source_ref", "other"].includes(item.item_kind)) invalidContractV01();
+      stringV01(item.summary); resultCurrentnessV01(item.currentness);
+    }
+  }
+  for (const key of ["tensions", "risks", "gaps"]) {
+    if (!Array.isArray(value[key])) invalidContractV01();
+    for (const issue of value[key]) {
+      exactObjectV01(issue, key === "gaps" ? ["code", "summary", "severity", "missing_fields"] : ["summary", "severity", "currentness"]);
+      stringV01(issue.summary);
+      if (!["low", "medium", "high", "blocking", "unknown"].includes(issue.severity)) invalidContractV01();
+      if (key === "gaps") { stringV01(issue.code); stringArrayV01(issue.missing_fields); }
+      else resultCurrentnessV01(issue.currentness);
+    }
+  }
+  for (const entry of value.selected_context) {
+    exactObjectV01(entry, ["entry_kind", "source_binding", "text", "content_status", "reason", "trust_class", "currentness"]);
+    if (!["accepted_state_ref", "memory_ref", "evidence_ref", "claim_ref", "artifact_ref", "proof_ref", "action_ref", "legacy_state_key_ref", "source_ref", "work_ref", "other_ref"].includes(entry.entry_kind) ||
+        !["direct_local_observation", "verified_external_observation", "host_attestation", "provider_report", "user_declaration", "imported_unverified", "derived_interpretation"].includes(entry.trust_class) ||
+        !["included", "withheld_authorship_material"].includes(entry.content_status) ||
+        (entry.content_status === "withheld_authorship_material" && entry.text !== null)) invalidContractV01();
+    if (entry.source_binding !== null) fingerprintV01(entry.source_binding);
+    nullableStringV01(entry.text); stringV01(entry.reason); resultCurrentnessV01(entry.currentness);
+  }
+  for (const entry of value.excluded_context) {
+    exactObjectV01(entry, ["source_binding", "reason", "currentness"]);
+    if (entry.source_binding !== null) fingerprintV01(entry.source_binding);
+    stringV01(entry.reason); resultCurrentnessV01(entry.currentness);
+  }
+  const constraints = value.constraints, budget = constraints?.context_budget, contract = value.return_contract;
+  exactObjectV01(constraints, ["required_checks", "forbidden_actions", "data_classification", "context_budget"]);
+  stringArrayV01(constraints.required_checks); stringArrayV01(constraints.forbidden_actions);
+  if (!["public_safe", "private", "local_only", "secret"].includes(constraints.data_classification)) invalidContractV01();
+  exactObjectV01(budget, ["bounded", "max_selected_entries", "max_projection_items", "max_characters", "max_estimated_tokens", "estimated_tokens", "truncation_applied"]);
+  if (budget.bounded !== true || budget.truncation_applied !== false) invalidContractV01();
+  for (const key of ["max_selected_entries", "max_projection_items", "max_characters", "max_estimated_tokens", "estimated_tokens"]) nullableIntegerV01(budget[key]);
+  exactObjectV01(contract, ["return_kind", "required_fields", "expected_artifacts", "required_checks", "return_ref", "compatibility_only"]);
+  if (contract.return_kind !== "bounded_result" || contract.return_ref !== null || contract.compatibility_only !== false) invalidContractV01();
+  for (const key of ["required_fields", "expected_artifacts", "required_checks"]) stringArrayV01(contract[key]);
+  exactObjectV01(value.source_status, ["status", "currentness", "warnings"]);
+  if (!["complete", "partial", "unknown"].includes(value.source_status.status)) invalidContractV01();
+  resultCurrentnessV01(value.source_status.currentness); stringArrayV01(value.source_status.warnings);
 }
 
 async function callRepositoryWorkRevisionV01(companion, args, save, newTask = false, initialWork = false) {
@@ -1250,6 +1455,82 @@ function workRevisionToolDescriptionsV01(newTask = false) {
   }));
 }
 
+function resultWorkToolDescriptionsV01() {
+  const binding = { type: "string", pattern: "^sha256:[a-f0-9]{64}$" };
+  const note = workRevisionToolDescriptionsV01()[0].inputSchema.properties.changes.properties.sources.properties.add.items;
+  const definition = { type: "object", additionalProperties: false, required: ["goal", "success_criteria", "non_goals"], properties: {
+    goal: { type: "string", minLength: 1, maxLength: 2000 },
+    success_criteria: { type: "array", minItems: 1, maxItems: 12, items: { type: "string", minLength: 1, maxLength: 500 } },
+    non_goals: { type: "array", maxItems: 12, items: { type: "string", minLength: 1, maxLength: 500 } },
+  } };
+  const sources = { type: "object", additionalProperties: false,
+    required: ["keep", "add", "include_result", "include_reviewed_outcome", "omitted_sources"], properties: {
+      keep: { type: "array", maxItems: 8, uniqueItems: true, items: binding },
+      add: { type: "array", maxItems: 8, items: note },
+      include_result: { type: "boolean" }, include_reviewed_outcome: { type: "boolean" },
+      omitted_sources: { type: "array", maxItems: 8, items: { type: "object", additionalProperties: false,
+        required: ["source_binding", "reason"], properties: { source_binding: binding, reason: { type: "string", minLength: 1, maxLength: 500 } } } },
+    } };
+  const descriptions = {
+    read: "Read the exact latest eligible settled local execution result's successor preparation basis against a fresh Resume snapshot. Returns preparation_binding to pass as preparationBinding, plus protected source projections; no packet, receipt or project IDs need manual reconstruction. Completed execution and verification success are distinct. Portable-only, stale, failed or unsettled predecessors refuse. Reading creates no work or authority.",
+    compare: "Explicitly compare chosen successor sources using the read preparation_binding as preparationBinding. sources.keep names returned predecessor source bindings; add contains complete attributed notes; include_result and include_reviewed_outcome explicitly choose optional result material. Give an omission reason for every excluded predecessor note. Comparison returns expected_source_comparison to pass as expectedSourceComparison and preserves whole notes, source times, corrections and unknown currentness. Nothing is saved or silently truncated.",
+    preview: "Preview the complete compiled next-work context for an eligible settled local result. Use the read preparationBinding, compared expectedSourceComparison, identical explicit sources and a complete definition. Retain unresolved obligations deliberately. Protected internal authorship material stays withheld; source text is untrusted context. Returns preview_binding to pass as previewBinding. This is read-only; the binding is not authentication or execution authority.",
+    save: "Explicitly save an already-authorized result-linked successor through the authenticated Companion and canonical writer. Supply the exact previewBinding, preparationBinding, expectedSourceComparison, sources and definition previously reviewed. Current state is rechecked atomically. Only successor work and truthful admission records are added; predecessor/report stay intact, with no execution, grant, semantic acceptance or successful-verification claim. Stale bindings refuse; concurrent saves may have uncertain delivery. If delivery is uncertain, explicitly Resume and read back work and sources before deciding anything else; never retry automatically or assume exact replay.",
+  };
+  return [...RESULT_WORK_ACTIONS].map(([name, action]) => exposeRequiredInputsInDescriptionV01({
+    name, title: ({ read: "Read result-linked work preparation", compare: "Compare result-linked work sources", preview: "Preview result-linked successor work", save: "Prepare result-linked successor work" })[action],
+    description: descriptions[action],
+    inputSchema: { type: "object", additionalProperties: false,
+      required: ["repositoryRoot", "expectedSnapshotBinding", ...(action !== "read" ? ["preparationBinding", "sources"] : []),
+        ...(["preview", "save"].includes(action) ? ["definition", "expectedSourceComparison"] : []), ...(action === "save" ? ["previewBinding"] : [])],
+      properties: { repositoryRoot: { type: "string", minLength: 1 }, expectedSnapshotBinding: binding,
+        ...(action !== "read" ? { preparationBinding: binding, sources } : {}),
+        ...(["preview", "save"].includes(action) ? { definition, expectedSourceComparison: binding } : {}),
+        ...(action === "save" ? { previewBinding: binding } : {}) },
+    },
+    annotations: { readOnlyHint: action !== "save", destructiveHint: false, idempotentHint: action !== "save", openWorldHint: false },
+  }));
+}
+
+function validResultWorkArgumentsV01(args, action) {
+  try {
+    exactObjectV01(args, ["repositoryRoot", "expectedSnapshotBinding", ...(action !== "read" ? ["preparationBinding", "sources"] : []),
+      ...(["preview", "save"].includes(action) ? ["definition", "expectedSourceComparison"] : []), ...(action === "save" ? ["previewBinding"] : [])]);
+    if (typeof args.repositoryRoot !== "string" || !path.isAbsolute(args.repositoryRoot) || args.repositoryRoot.includes("\0")) return false;
+    fingerprintV01(args.expectedSnapshotBinding);
+    if (action !== "read") {
+      fingerprintV01(args.preparationBinding);
+      exactObjectV01(args.sources, ["keep", "add", "include_result", "include_reviewed_outcome", "omitted_sources"]);
+      for (const key of ["keep", "add", "omitted_sources"]) if (!Array.isArray(args.sources[key]) || args.sources[key].length > 8) return false;
+      args.sources.keep.forEach(fingerprintV01);
+      if (new Set(args.sources.keep).size !== args.sources.keep.length) return false;
+      booleanV01(args.sources.include_result); booleanV01(args.sources.include_reviewed_outcome);
+      for (const row of args.sources.omitted_sources) {
+        exactObjectV01(row, ["source_binding", "reason"]); fingerprintV01(row.source_binding); stringV01(row.reason);
+        if (!row.reason.trim() || [...row.reason].length > 500) return false;
+      }
+      // Validate the closed note envelope here; canonical source normalization
+      // and budget decisions remain in the existing server-side owner.
+      for (const note of args.sources.add) {
+        exactObjectV01(note, ["source", "text", "observed_at", "provenance", "label"]);
+        for (const key of ["source", "text", "provenance", "label"]) stringV01(note[key]);
+        if (note.observed_at !== null) isoTimestampV01(note.observed_at);
+      }
+    }
+    if (["preview", "save"].includes(action)) { workDefinitionV01(args.definition); fingerprintV01(args.expectedSourceComparison); }
+    if (action === "save") fingerprintV01(args.previewBinding);
+    return Buffer.byteLength(JSON.stringify(args), "utf8") <= 64_000;
+  } catch { return false; }
+}
+
+function resultWorkTextV01(projection) {
+  if (projection.status === "read") return "Eligible settled result preparation read. Select or omit sources explicitly; the recorded report is attributed material, not independently verified truth. Nothing was saved.";
+  if (projection.status === "compared") return "Source comparison only. Review selection, corrections and omission reasons, then preview the complete next-work definition. Nothing was saved.";
+  if (projection.status === "previewed") return "Complete compiled successor context previewed with protected internal material withheld. Inspect the definition, sources, remaining obligations and omissions. Save explicitly within existing user authorization.";
+  if (projection.status === "saved") return "Successor work saved. No execution, grant or semantic action was created. Explicitly Resume and read the saved definition and sources through the normal entry path.";
+  return `Result-linked preparation refused (${projection.reason}). Keep the draft and explicitly Resume/read back current work before another decision. No automatic retry or exact replay.`;
+}
+
 function retainedSourceLookupToolDescriptionV01() {
   return exposeRequiredInputsInDescriptionV01({
     name: RETAINED_SOURCES_TOOL_NAME, title: "Find retained notes for this repository work",
@@ -1556,7 +1837,7 @@ export async function handleMessageV01(message) {
   if (message.method === "notifications/initialized" || message.method === "notifications/cancelled") return null;
   if (message.method === "ping") return { jsonrpc: "2.0", id: message.id, result: {} };
   if (message.method === "tools/list") {
-    return { jsonrpc: "2.0", id: message.id, result: { tools: [...lifecycleToolDescriptionsV01(), toolDescriptionV01(), sourceReadToolDescriptionV01(), methodOutlookToolDescriptionV01(), retainedSourceLookupToolDescriptionV01(), ...initialWorkToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(true), executionChoiceToolDescription(), externalToolDescription(), reviewWorkToolDescriptionV01(), ...repositoryExecutionToolDescriptionsV01()] } };
+    return { jsonrpc: "2.0", id: message.id, result: { tools: [...lifecycleToolDescriptionsV01(), toolDescriptionV01(), sourceReadToolDescriptionV01(), methodOutlookToolDescriptionV01(), retainedSourceLookupToolDescriptionV01(), ...initialWorkToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(true), ...resultWorkToolDescriptionsV01(), executionChoiceToolDescription(), externalToolDescription(), reviewWorkToolDescriptionV01(), ...repositoryExecutionToolDescriptionsV01()] } };
   }
   if (message.method === "tools/call") {
     const args = message.params?.arguments;
@@ -1615,7 +1896,9 @@ export async function handleMessageV01(message) {
       !args.changes || typeof args.changes !== "object" || Array.isArray(args.changes) ||
       (WORK_SAVE_TOOLS.includes(toolName) && !/^sha256:[a-f0-9]{64}$/u.test(args.previewBinding))
     )) return { jsonrpc: "2.0", id: message.id, error: { code: -32602, message: "invalid_repository_tool_request" } };
-    const discovery = [TOOL_NAME, SOURCES_TOOL_NAME, OUTLOOK_TOOL_NAME, RETAINED_SOURCES_TOOL_NAME].includes(toolName)
+    if (RESULT_WORK_ACTIONS.has(toolName) && !validResultWorkArgumentsV01(args, RESULT_WORK_ACTIONS.get(toolName)))
+      return { jsonrpc: "2.0", id: message.id, error: { code: -32602, message: "invalid_repository_tool_request" } };
+    const discovery = [TOOL_NAME, SOURCES_TOOL_NAME, OUTLOOK_TOOL_NAME, RETAINED_SOURCES_TOOL_NAME, ...RESULT_WORK_ACTIONS.keys()].includes(toolName)
       ? await selectCompanionForReadonlyRouteV01()
       : await discoverVerifiedCompanionV01();
     if (discovery.status !== "resolved") {
@@ -1625,6 +1908,14 @@ export async function handleMessageV01(message) {
       return { jsonrpc: "2.0", id: message.id, result: unavailableToolResultV01(reason) };
     }
     try {
+      if (RESULT_WORK_ACTIONS.has(toolName)) {
+        const projection = await callRepositoryResultWorkV01(discovery.companion, args, RESULT_WORK_ACTIONS.get(toolName));
+        return { jsonrpc: "2.0", id: message.id, result: {
+          isError: projection.status === "refused",
+          structuredContent: { companion: { status: "live", mode: "http", binding: discovery.companion.binding }, ...projection },
+          content: [{ type: "text", text: resultWorkTextV01(projection) }],
+        } };
+      }
       if (toolName === OUTLOOK_TOOL_NAME) {
         const projection = await readRepositoryMethodOutlookV01(discovery.companion, args);
         return { jsonrpc: "2.0", id: message.id, result: {
@@ -1777,7 +2068,7 @@ export async function handleMessageV01(message) {
         },
       };
     } catch (error) {
-      if (WORK_SAVE_TOOLS.includes(toolName)) return { jsonrpc: "2.0", id: message.id, result: unknownWorkSaveResultV01() };
+      if (WORK_SAVE_TOOLS.includes(toolName) || toolName === RESULT_WORK_SAVE_TOOL_NAME) return { jsonrpc: "2.0", id: message.id, result: unknownWorkSaveResultV01() };
       const reason = ["companion_channel_refused", "companion_identity_changed", "companion_unavailable",
         "live_companion_route_identity_invalid", "live_companion_sources_refused", "live_companion_route_contract_invalid"].includes(error?.message)
         ? error.message : "The verified Companion became unavailable before the continuity read completed; the cause is unknown.";

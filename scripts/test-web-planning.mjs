@@ -1,10 +1,19 @@
+import { checkParticipation } from './web-planning-participation-checks.mjs';
+import { checkLargeExchanges } from './web-planning-large-exchange-checks.mjs';
+import { checkWorkSearch } from './web-planning-search-checks.mjs';
+import { checkReturnReassessment } from './web-planning-reassessment-checks.mjs';
+import { checkReturnContinuation } from './web-planning-return-checks.mjs';
+import { checkFileExchanges } from './web-planning-exchange-checks.mjs';
 import { checkDirections } from "./web-planning-direction-checks.mjs";
 import { checkWebPlanningInterceptionDiagnostics } from './test-web-planning-interception.mjs';
 import { checkSceneContinuity } from "./web-planning-scene-checks.mjs";
 import { checkFiles } from './web-planning-file-checks.mjs';
 import { checkOrdinaryFiles } from './web-planning-ordinary-file-checks.mjs';
 import { checkStoryWriting } from './web-planning-story-checks.mjs';
-import { checkCumulativeHistory } from './web-planning-history-checks.mjs';
+import { checkCumulativeHistory, checkRetainedNotes } from './web-planning-history-checks.mjs';
+import { checkIncomingOccurrences } from './web-planning-note-occurrence-checks.mjs';
+import { checkCrossWorkNotes } from './web-planning-cross-work-notes.mjs';
+import { checkHistoricalIncorporation } from './web-planning-historical-incorporation-checks.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -49,6 +58,7 @@ async function edit(c,saved,goal){const t=await c.request('/api/work/'+saved.wor
 async function start(name,options={}){const dir=path.join(root,name);await mkdir(dir,{recursive:true});const s=await startLocal({root:dir,...options});open.push(s);return s;}
 try {
  new Script(await readFile(path.join(webRoot,'src/client.js.txt'),'utf8'));
+ new Script(await readFile(path.join(webRoot,'src/participation-client.js.txt'),'utf8'));
  const artifact=path.join(root,'artifact');
  process.env.OWNER_EMAIL='web-planning-artifact-secret-sentinel';
  process.env.REQUEST_SECRET='web-planning-artifact-secret-sentinel';
@@ -181,8 +191,18 @@ try {
  const p1=await c.request('/api/works');assert.equal(p1.data.items.length,10);assert(p1.data.next);const p2=await c.request('/api/works?cursor='+p1.data.next);assert(p2.data.items.length>0);assert(!p2.data.items.some(i=>p1.data.items.some(j=>i.work_id===j.work_id)));
  passed('ordinary revision 33 and retained ten-item list paging have exact effects');
  await checkCapacity({c,scope:fixtureScope,passed});
+ await checkRetainedNotes({c,passed});
+ await checkCrossWorkNotes({start,client,passed});
+ await checkWorkSearch({start,client,newWork,save,root,passed});
+ await checkIncomingOccurrences({start,client,passed});
+ await checkHistoricalIncorporation({start,client,passed,root,open});
  await checkBranching({start,client,newWork,save,edit,passed,open});
  await checkFiles({start,client,newWork,save,passed,root,open});
+ await checkFileExchanges({start,client,newWork,save,root,passed});
+ await checkReturnContinuation({start,client,newWork,save,passed});
+ await checkReturnReassessment({start,client,newWork,save,passed});
+ await checkParticipation({start,client,newWork,save,passed});
+ await checkLargeExchanges({start,client,newWork,save,passed});
  await checkOrdinaryFiles({start,client,newWork,save,passed,open});
  await checkStoryWriting({start,client,newWork,save,passed});
  await checkSceneContinuity({start,client,newWork,save,passed});

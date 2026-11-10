@@ -62,8 +62,25 @@ function fixture(options = {}, factory = createProjectExperienceRequestVerdictV1
   const observer = portal.consumer({});
   let dispose;
   if (!options.actualLifecycle) {
-    dispose = observer.mount(); observer.effectActive(false); observer.auth('checking');
-    observer.auth('authenticated'); observer.effectActive(true);
+    dispose = observer.mount(); observer.effectActive(false);
+    for (let replay = 0; replay < Number(options.preAuthReplay ?? 0); replay++) {
+      if (options.preAuthSilentRead) observer.beginRead(new AbortController());
+      if (options.preAuthProbe) portal.probe();
+      if (options.preAuthRead) {
+        const earlyController = new AbortController();
+        observer.initialReadInvocation(true);
+        const earlyRead = observer.beginRead(earlyController);
+        earlyRead.fetch(route, { method: 'GET', signal: earlyController.signal });
+        earlyRead.event('consumer_returned'); observer.initialReadInvocation(false);
+      }
+      if (options.preAuthAuthenticated) observer.auth('authenticated');
+      dispose(); observer.cleanup(null); observer.cleanupFinished();
+      dispose = observer.mount(); observer.effectActive(false);
+    }
+    observer.auth('checking');
+    observer.auth('authenticated');
+    if (options.preAuthReplay) { observer.cleanup(null); observer.cleanupFinished(); }
+    observer.effectActive(true);
   }
   const start = () => {
     controller = new AbortController();
@@ -191,6 +208,77 @@ negative('duplicate authenticated event alone', { mutate: e => e.kind==='auth_tr
 for (const kind of ['refusal_delivered','effect_active','signal_aborted','read_aborted','consumer_returned']) negative(`wrong state:${kind}`, {
   mutate: e => [{...e,...(e.kind===kind ? {auth:'unavailable'} : {})}],
 });
+const preservedNegativeCases = rejects.length;
+assert.equal(preservedNegativeCases, 194, 'all pre-correction rejection controls remain covered');
+
+// Only a complete, initially disabled passive-effect replay before authentication
+// may precede the active lifetime. These remain two observed mounts, not deduped
+// transport events or a reason to ignore an active lifetime's disposal.
+const replayPositiveCases = [];
+for (const options of [{}, { responseMissing: true }, { bodyAfterAbort: true }]) {
+  const { outcome, f, entry } = exercise({ ...options, preAuthReplay: true });
+  assert.deepEqual(outcome, { ...accepted.outcome,
+    response_observed: !options.responseMissing, response_status: options.responseMissing ? null : 404,
+    body_settlement: options.bodyAfterAbort ? 'failed' : 'unknown' });
+  assert.equal(f.verdict.expectedUnavailableExecutionAbort(entry), false, 'passive replay is not a marked probe');
+  assert.equal(f.classify({ ...entry }).expected, false, 'passive replay still requires private evidence');
+  assert.deepEqual(f.pin().effect_and_auth_events.slice(0, 6).map(({ kind, effect, auth, enabled }) => ({ kind, effect, auth, enabled })), [
+    { kind: 'consumer_mounted', effect: 0, auth: 'unknown', enabled: null },
+    { kind: 'effect_active', effect: 1, auth: 'unknown', enabled: false },
+    { kind: 'consumer_disposed', effect: 1, auth: 'unknown', enabled: null },
+    { kind: 'effect_cleanup', effect: 1, auth: 'unknown', enabled: null },
+    { kind: 'consumer_mounted', effect: 1, auth: 'unknown', enabled: null },
+    { kind: 'effect_active', effect: 2, auth: 'unknown', enabled: false },
+  ]);
+  replayPositiveCases.push(options);
+}
+for (const [kind, effect] of [['consumer_mounted',0],['effect_active',1],['consumer_disposed',1],
+  ['effect_cleanup',1],['consumer_mounted',1],['effect_active',2]]) {
+  const matches = event => event.kind === kind && event.effect === effect;
+  negative(`passive replay missing ${kind}:${effect}`, { preAuthReplay: true, mutate: e => matches(e) ? [] : [e] });
+  negative(`passive replay duplicated ${kind}:${effect}`, { preAuthReplay: true, mutate: e => matches(e) ? [e,{...e}] : [e] });
+}
+negative('passive replay cleanup precedes disposal', { preAuthReplay: true,
+  mutate: e => [{ ...e, kind: e.effect === 1 && e.kind === 'consumer_disposed' ? 'effect_cleanup'
+    : e.effect === 1 && e.kind === 'effect_cleanup' ? 'consumer_disposed' : e.kind }] });
+negative('second passive replay', { preAuthReplay: 2 });
+negative('passive replay was enabled', { preAuthReplay: true,
+  mutate: e => [{...e, ...(e.kind === 'effect_active' && e.effect === 1 ? {enabled:true} : {})}] });
+negative('passive replay after authentication', { preAuthReplay: true, preAuthAuthenticated: true });
+negative('passive replay after a read', { preAuthReplay: true, preAuthRead: true });
+negative('passive replay after an unmarked generation without fetch', { preAuthReplay: true, preAuthSilentRead: true });
+negative('passive replay after a probe generation without fetch', { preAuthReplay: true, preAuthProbe: true });
+for (const auth of ['authenticated', 'unavailable', 'locked_or_refused']) {
+  negative(`passive replay prefix auth:${auth}`, { preAuthReplay: true,
+    mutate: e => [{...e, ...(e.kind === 'consumer_disposed' && e.effect === 1 ? {auth} : {})}] });
+}
+for (const name of ['ordinalGap','prefixMissing','wrongController','unbranded']) {
+  negative(`passive replay preserves ${name} refusal`, { preAuthReplay: true, [name]: true });
+}
+negative('active lifetime disposal after passive replay', { preAuthReplay: true }, f => f.dispose());
+negative('active lifetime remount after passive replay', { preAuthReplay: true }, f => f.observer.mount());
+negative('active lifetime duplicate authenticated event after passive replay', { preAuthReplay: true }, f => f.observer.auth('authenticated'));
+for (const duplicate of [false, true]) {
+  negative(`passive replay ${duplicate ? 'duplicate' : 'missing'} disabled cleanup after auth`, { preAuthReplay: true,
+    mutate: e => e.kind === 'effect_cleanup' && e.effect === 2 ? (duplicate ? [e,{...e}] : []) : [e] });
+}
+negative('passive replay disabled cleanup before authentication', { preAuthReplay: true, mutate: e => {
+  if (e.kind === 'effect_cleanup' && e.effect === 2) return [];
+  if (e.kind === 'auth_transition_requested' && e.auth === 'authenticated' && e.effect === 2) {
+    return [{...e,kind:'effect_cleanup'},e];
+  }
+  return [e];
+} });
+negative('passive replay duplicate unknown auth in prefix tail', { preAuthReplay: true,
+  mutate: e => e.kind === 'auth_transition_requested' && e.auth === 'unknown' && e.effect === 2 ? [e,{...e}] : [e] });
+negative('passive replay unknown auth after authenticated transition', { preAuthReplay: true, mutate: e => {
+  if (e.kind === 'auth_transition_requested' && e.auth === 'unknown' && e.effect === 2) return [];
+  if (e.kind === 'auth_transition_requested' && e.auth === 'authenticated' && e.effect === 2) return [e,{...e,auth:'unknown'}];
+  return [e];
+} });
+negative('passive replay late lower-effect cleanup', { preAuthReplay: true,
+  mutate: e => e.kind === 'effect_active' && e.effect === 3
+    ? [e,{...e,kind:'effect_cleanup',effect:2,enabled:null}] : [e] });
 
 // Execute the Browser owner's actual completion block with a terminal CDP
 // event delivered after the locked UI has settled. Sealing at the UI assertion
@@ -266,11 +354,12 @@ const actualCases = [];
   const guardExports = {};
   vm.runInNewContext(compile(readFileSync(new URL('../components/workbench/semantic-review/semantic-review-read-guard.ts', import.meta.url), 'utf8')), { exports: guardExports });
   const hookCode = compile(readFileSync(new URL('../components/delegated-work/use-delegated-codex-work-v0-1.ts', import.meta.url), 'utf8'));
-  for (const headersObserved of [false, true]) {
+  for (const passiveReplay of [false, true]) {
+   for (const headersObserved of [false, true]) {
     for (const mode of ['delivered', 'stale', 'bad-json', '403', 'copy', 'unbranded', 'independent-failure']) {
       const settlement = Promise.withResolvers(), bodyStarted = Promise.withResolvers();
       const pending = Promise.withResolvers();
-      let failure, sessionState = { status: 'checking', session: null };
+      let failure, actualFetchCount = 0, sessionState = { status: 'checking', session: null };
       const f = fixture({ actualLifecycle: true,
         mutate: event => {
           if (event.kind === 'consumer_returned') settlement.resolve();
@@ -278,6 +367,7 @@ const actualCases = [];
           return [event];
         },
         fetchImpl(_path, options) {
+          actualFetchCount++;
           assert.equal(new Headers(options.headers).get('Augnes-Project-Id'), 'project:refusal-scope');
           options.signal.addEventListener('abort', () => {
             pending.reject(new DOMException('controlled cancellation', 'AbortError'));
@@ -310,9 +400,14 @@ const actualCases = [];
       const render = () => {
         index = 0; exports.useDelegatedCodexWorkV01(sessionState.status === 'authenticated', f.observer);
         for (const { i } of effects) slots[i]?.cleanup?.();
-        for (const { i, callback, deps } of effects.splice(0)) slots[i] = { deps, cleanup: callback() };
+        for (const { i, callback, deps } of effects.splice(0)) slots[i] = { deps, callback, cleanup: callback() };
       };
       const unmount = () => { for (const slot of slots) slot.cleanup?.(); };
+      const replayPassiveEffects = () => {
+        const committed = slots.filter(slot => typeof slot.callback === 'function');
+        for (const slot of committed) slot.cleanup?.();
+        for (const slot of committed) slot.cleanup = slot.callback();
+      };
       const guard = new guardExports.SemanticReviewReadGuardV01();
       const response = mode === 'bad-json' ? new Response('invalid json', { status: 401 })
         : Response.json({ error_code: 'operator_session_cookie_invalid' }, { status: mode === '403' ? 403 : 401 });
@@ -324,10 +419,14 @@ const actualCases = [];
         fetch: async () => { if (mode === 'stale') guard.beginRead(); return mode === 'copy' ? response.clone() : response; }, Error };
       vm.runInNewContext(compile(`globalThis.updateSessionState = ${callbacks.updateSessionState};
         globalThis.loadPrivateView = ${callbacks.loadPrivateView};`), context);
-      render(); context.updateSessionState(sessionState);
+      render();
+      if (passiveReplay) replayPassiveEffects();
+      assert.equal(actualFetchCount, 0, 'disabled passive setup/replay must not invoke a read');
+      context.updateSessionState(sessionState);
       context.updateSessionState({ status: 'authenticated', session: {
         session_id: 'disposable', workspace_id: 'fixture', project_id: 'fixture', operator_id: 'fixture' } });
       render();
+      assert.equal(actualFetchCount, 1, 'one authenticated initial read follows the passive prefix');
       if (headersObserved) await bodyStarted.promise;
       if (mode === 'independent-failure') {
         pending.reject(new TypeError('independent fetch or body failure'));
@@ -349,10 +448,12 @@ const actualCases = [];
           response_status: headersObserved ? 404 : null, body_settlement: headersObserved ? 'failed' : 'unknown' });
         assert.deepEqual(states, ['loading']);
       } else assert.equal(outcome.expected, false, `${mode}: ${JSON.stringify(outcome)}`);
-      actualCases.push({ headersObserved, mode });
+      actualCases.push({ headersObserved, mode, passiveReplay });
       if (sessionState.status === 'locked') unmount();
     }
+   }
   }
 }
 console.log(JSON.stringify({test:'project-experience-session-refusal-v1',status:'pass',prospective_acceptance_expansion:true,
-  negative_cases:rejects.length,body_unknown_preserved:true,synthetic_contract_schedule:true,controlled_actual_hook:true,actual_hook_guard_cases:actualCases.length,browser_completion_cases:completionCases.length,browser_execution:false}));
+  negative_cases:rejects.length,preserved_negative_cases:preservedNegativeCases,passive_replay_positive_cases:replayPositiveCases.length,
+  body_unknown_preserved:true,synthetic_contract_schedule:true,controlled_actual_hook:true,actual_hook_guard_cases:actualCases.length,browser_completion_cases:completionCases.length,browser_execution:false}));

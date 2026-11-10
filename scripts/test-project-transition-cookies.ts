@@ -118,20 +118,10 @@ function persisted(f: Fixture, applied: any[]) {
 }
 
 async function main() {
+  assert(!process.argv.includes("--reproduce"), "historical_reproduction_retired");
   const guard = installZeroNetworkGuard({ allowLoopback: false });
   try {
-    if (process.argv.includes("--reproduce")) await fixture(async f => {
-      const pa = await f.preview(f.a), pb = await f.preview(f.b);
-      assert.equal(pa.status, 200); assert.equal(pb.status, 200);
-      const before = f.snapshot(), ca = await f.confirm(f.a, pa);
-      assert.equal(ca.status, 409); assert.equal(ca.body.error_code, "operator_pilot_preview_binding_invalid"); assert.equal(f.snapshot(), before);
-      assert.equal((await f.confirm(f.b, pb)).status, 201);
-      const afterB = f.snapshot(), againA = await f.confirm(f.a, pa);
-      assert.equal(againA.status, 409); assert.equal(againA.body.error_code, "operator_pilot_preview_binding_missing"); assert.equal(f.snapshot(), afterB);
-      console.log(JSON.stringify({ actual_route_reproduction: "PASS", A_after_B_preview: "409 operator_pilot_preview_binding_invalid",
-        A_after_B_confirmation: "409 operator_pilot_preview_binding_missing", refusal_writes: 0, preview_cookie_header_bytes: f.jar.header().length }));
-    });
-    else {
+    {
       for (const reverse of [false, true]) await fixture(async f => {
         // Requests share one jar with both actual authenticated project sessions.
         // Deliver preview responses in reverse completion order; hold the first

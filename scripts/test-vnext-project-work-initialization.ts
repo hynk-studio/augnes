@@ -1,3 +1,4 @@
+import { assertIssuedSessionIdentityCompatibilityV01 } from "./local-operator-session-identity-checks";
 import { assertCompilerBudgetDiagnostics, assertExplicitArtifactPreservingRepair } from "./successor-budget-diagnostics-checks";
 import { differentSelectionRevision } from "./test-selection-observation";
 import { readVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store";
@@ -34,7 +35,7 @@ import { listAutonomyRunLedgerRecords, readAutonomyRunLedgerRecord, updateAutono
 import { AUTONOMY_RUNNER_TERMINAL_STATUSES } from "../lib/autonomy/runner-state";
 import { LiveNativeHostRunServiceV01 } from "../lib/vnext/runtime/live-native-host-run-service";
 import { createCodexAppServerAdapterV01 } from "../lib/vnext/native-host/codex-app-server-adapter";
-import { createCodexScopedTaskV01, createCodexFeasibilityWindowV01, createPersistedCodexFeasibilityContinuationV01, readCodexScopedSnapshotV01, releaseCodexScopedTaskV01 } from "../lib/vnext/native-host/codex-scoped-task";
+import { createCodexScopedTaskV01, createCodexFeasibilityWindowV01, createPersistedCodexFeasibilityContinuationV01, readCodexScopedSnapshotV01, readCodexScopedRequestBindingV01, releaseCodexScopedTaskV01 } from "../lib/vnext/native-host/codex-scoped-task";
 import { buildTaskStartGuideBriefCodexProjectionV02 } from "../lib/vnext/guide-brief/project-guide-brief";
 import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, normalizeNativeSelectedWorkSources, readSelectedWorkSources } from "../lib/intake/selected-work-source-comparison";
 import { SELECTED_WORK_SOURCE_LABELS } from "../types/vnext/project-work-revision";
@@ -206,6 +207,7 @@ async function main(): Promise<void> {
       await assertPersistedScopedContinuationV01();
       return;
     }
+    assertIssuedSessionIdentityCompatibilityV01();
     assertNormalizationAndCompilerV01();
     assertHistoricalNumericSelectionLineageV01();
     assertNativeHostRunIdentityCompatibilityV01();
@@ -1968,8 +1970,16 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
         const successorTrace = path.join(ROOT, `${name}-successor-trace.jsonl`);
         const successorHome = path.join(ROOT, `${name}-successor-home`); mkdirSync(successorHome);
         let successorFakeLaunches = 0, successorNativeCompleted = false;
+        const callbackOrder: string[] = [];
         const successorAdapter = createCodexAppServerAdapterV01({ scoped_task: successor.scope,
-          observe: observation => { if (observation.kind === "terminal_observed" && observation.public_reason === "completed") successorNativeCompleted = true; if (observation.kind === "spawned" && observation.process_id) { successorFakeLaunches += 1; processes.add(observation.process_id); } },
+          observe: observation => {
+            if (observation.kind === "terminal_observed" && observation.public_reason === "completed") successorNativeCompleted = true;
+            if (observation.kind === "spawned" && observation.process_id) {
+              assert.deepEqual(callbackOrder, ["admitted", "before_invoke"], "Scoped binding and caller callbacks precede host startup");
+              callbackOrder.push("spawned");
+              successorFakeLaunches += 1; processes.add(observation.process_id);
+            }
+          },
           launch: { command: process.execPath, prefix_args: [path.join(process.cwd(), "scripts/fixtures/fake-codex-app-server.mjs")],
             environment: { NODE_ENV: "test", HOME: successorHome, CODEX_HOME: successorHome, PATH: process.env.PATH,
               FAKE_CODEX_SCENARIO: "scoped_command_cwd", FAKE_CODEX_COMMAND_CWD: successorSnapshot.root, FAKE_CODEX_SCOPED_RESULT_KIND: expiredScenario ? "rejected_result" : "x_only",
@@ -1990,8 +2000,20 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
         // not a B-looking fake answer, is the positive handoff evidence.
         const next = await runDirectNativeHostRoundTripV01(fixture.db, { config: fixture.config, mode: "interactive",
           operator_mutation: { credential, clock: { now: () => new Date().toISOString() } } }, { adapter: successorAdapter, scoped_task: successor.scope,
-          before_adapter_invoke: async request => { finalRequest = structuredClone(request); }, now: () => new Date().toISOString(), timeout_ms: 10_000, stop_settle_timeout_ms: 3_000 });
+          on_invocation_admitted: ({ request }) => {
+            assert.equal(callbackOrder.length, 0);
+            assert.match(readCodexScopedRequestBindingV01(successor.scope, request), /^sha256:[a-f0-9]{64}$/u,
+              "The fixed scope owner binds the actual admitted request before caller callbacks");
+            callbackOrder.push("admitted");
+          },
+          before_adapter_invoke: async request => {
+            assert.deepEqual(callbackOrder, ["admitted"]);
+            assert.match(readCodexScopedRequestBindingV01(successor.scope, request), /^sha256:[a-f0-9]{64}$/u);
+            callbackOrder.push("before_invoke");
+            finalRequest = structuredClone(request);
+          }, now: () => new Date().toISOString(), timeout_ms: 10_000, stop_settle_timeout_ms: 3_000 });
         credential = credentialFromCookieV01(next.session_admission!.cookie_value);
+        assert.deepEqual(callbackOrder, ["admitted", "before_invoke", "spawned"]);
         assert(finalRequest); assert.deepEqual(finalRequest.packet, successor.admission.packet);
         assert.deepEqual(finalRequest.guide_brief, successor.guide);
         const sent = readFileSync(successorTrace, "utf8").trim().split("\n").map(line => JSON.parse(line)).find(row => row.kind === "received" && row.value.method === "turn/start")!.value;
@@ -2068,6 +2090,24 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
                 return;
               }
 
+              const sourceRefusal = async (request: unknown, error: RegExp) => {
+                const before = fixture.db.serialize(), prepare = fixture.db.prepare;
+                let historyQueries = 0;
+                fixture.db.prepare = ((sql: string) => {
+                  const statement = prepare.call(fixture.db, sql);
+                  if (/SELECT \* FROM vnext_core_records[\s\S]*ORDER BY/u.test(sql)) {
+                    const all = statement.all;
+                    statement.all = function(...values: any[]) { historyQueries++; return all.apply(this, values); };
+                  }
+                  return statement;
+                }) as typeof prepare;
+                try {
+                  await assert.rejects(author(request), error);
+                  assert(before.equals(fixture.db.serialize()), "Source refusal preserves the database");
+                  assert.equal(historyQueries, 0, "An invalid predecessor/material binding must refuse before enumerating unrelated semantic history");
+                  console.log(JSON.stringify({ source_refusal_history_queries: historyQueries }));
+                } finally { fixture.db.prepare = prepare; }
+              };
               for (const expires_at of [null, expiredAt, "invalid", new Date(Date.parse(expiredAt) + 8 * 3_600_000 + 1).toISOString()])
                 await assert.rejects(author({ ...revalidated, revalidation: { ...revalidated.revalidation, expires_at } }), /revalidation_invalid|lifetime_invalid/);
               const shortBootstrap = issueVNextLocalOperatorBootstrapV01(fixture.db, { config: fixture.config, clock });
@@ -2077,13 +2117,14 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
                 credential: shortSession.credential, request: revalidated, clock, approved_instruction_files: approvedInstructionFiles }), /lifetime_invalid/); }
               finally { revokeVNextLocalOperatorSessionByIdV01(fixture.db, { config: fixture.config, session_id: shortSession.credential.session_id, clock }); }
               await assert.rejects(author({ ...revalidated, revalidation: { ...revalidated.revalidation, profile: "unsupported.v9" } }), /revalidation_invalid/);
-              await assert.rejects(author({ ...revalidated, expected_latest_receipt_id: laterReceipt.receipt_id,
-                expected_latest_receipt_fingerprint: laterReceipt.integrity.fingerprint }), /predecessor_unsettled_or_mismatched/);
+              await sourceRefusal({ ...revalidated, expected_latest_receipt_id: laterReceipt.receipt_id,
+                expected_latest_receipt_fingerprint: laterReceipt.integrity.fingerprint }, /predecessor_unsettled_or_mismatched/);
               await assert.rejects(author({ ...revalidated, expected_active_selection_revision: differentSelectionRevision(revalidated.expected_active_selection_revision) }), /selection_changed/);
               await assert.rejects(author({ ...revalidated, expected_root_fingerprint: `sha256:${"0".repeat(64)}` }), /root_changed/);
-              await assert.rejects(author({ ...revalidated, definition: { ...revalidated.definition,
-                materials: revalidated.definition.materials.map(m => ({ ...m, sha256: "0".repeat(64) })) } }), /reviewed_inputs_changed/);
-              await assert.rejects(author({ ...revalidated, definition: { ...revalidated.definition, approved_instruction_hashes: ["0".repeat(64)] } }), /reviewed_inputs_changed/);
+              const changedMaterials = { ...revalidated, definition: { ...revalidated.definition,
+                materials: revalidated.definition.materials.map(m => ({ ...m, sha256: "0".repeat(64) })) } };
+              await sourceRefusal(changedMaterials, /reviewed_inputs_changed/);
+              await sourceRefusal({ ...revalidated, definition: { ...revalidated.definition, approved_instruction_hashes: ["0".repeat(64)] } }, /reviewed_inputs_changed/);
               await assert.rejects(defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential: freshCredential,
                 request: revalidated, clock, approved_instruction_files: [{ path: file, sha256: files[0]!.sha256 }] }), /instruction_hashes_changed/);
               for (const bad of [{ status: "paused" as const }, { status: "running" as const }, { status: "completed" as const },
@@ -2113,6 +2154,45 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
               try { await assert.rejects(author(), /root|inventory/); } finally { rmSync(fixture.root, { recursive: true }); renameSync(replaced, fixture.root); }
               assert.deepEqual(listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: [...VNEXT_CORE_RECORD_KINDS_V01], limit: 100 }), history, "Refusals do not persist a task or mutate history");
               assert.equal(readFileSync(oldDispositionPath, "utf8"), consumedDisposition);
+              // Preflight work is never cached as write authority. Change the
+              // live predecessor after its second exact read, at the following
+              // filesystem await, and require the transaction to reject it.
+              const prepare = fixture.db.prepare, exec = fixture.db.exec;
+              let receiptReads = 0, changedAfterPreflight = false, transactionRechecked = false;
+              fixture.db.exec = function(sql: string) {
+                if (sql === "BEGIN IMMEDIATE") {
+                  assert(changedAfterPreflight, "The changed predecessor precedes transactional revalidation");
+                  transactionRechecked = true;
+                }
+                return exec.call(this, sql);
+              };
+              fixture.db.prepare = ((sql: string) => {
+                if (/SELECT \* FROM vnext_core_records\s+WHERE record_kind = \? AND record_id = \?/u.test(sql)) {
+                  const statement = prepare.call(fixture.db, sql), get = statement.get;
+                  statement.get = function(...values: any[]) {
+                    const row = get.apply(this, values);
+                    if (values[0] === "run_receipt" && values[1] === next.receipt.receipt_id && ++receiptReads === 2) {
+                      queueMicrotask(() => {
+                        assert.equal(fixture.db.inTransaction, false);
+                        updateAutonomyRunLedgerFields(failedRun.run_id, { finished_at: null }, { db: fixture.db });
+                        changedAfterPreflight = true;
+                      });
+                    }
+                    return row;
+                  };
+                  return statement;
+                }
+                return prepare.call(fixture.db, sql);
+              }) as typeof prepare;
+              try {
+                await assert.rejects(author(), /local_predecessor_binding/);
+                assert(changedAfterPreflight && transactionRechecked);
+              } finally {
+                fixture.db.prepare = prepare;
+                fixture.db.exec = exec;
+                updateAutonomyRunLedgerFields(failedRun.run_id, { finished_at: failedRun.finished_at }, { db: fixture.db });
+              }
+              assert.deepEqual(listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: [...VNEXT_CORE_RECORD_KINDS_V01], limit: 100 }), history);
               // Only after preservation assertions, independently change accepted
               // context through its normal synthetic review/Transition owners.
               assert(laterProposal.status === "available");
@@ -2143,6 +2223,9 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
               const stale = inspectVNextOperatorPilotPacketLineageV01(fixture.db, packetBinding);
               assert(stale.lineage_kind === "authored_successor_task"); assert.equal(stale.inherited_context_current, false);
               await assert.rejects(author(), /historical_context_stale_or_invalid/);
+              // Both invalid conditions still refuse; source binding has
+              // diagnostic precedence over unrelated stale semantic context.
+              await sourceRefusal(changedMaterials, /reviewed_inputs_changed/);
               console.log(JSON.stringify({ settled_expired_refusals: "passed", cases: authorCalls, history_preserved_before_separate_semantic_drift: true, stale_context_refused: true, new_task_worker_launches: 0 }));
               continue;
             }

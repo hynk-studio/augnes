@@ -149,6 +149,7 @@ async function main(): Promise<void> {
     await assertManagedLiveSourceCoherenceV01();
     await assertCurrentWorkResolutionStatesV01();
     await assertSemanticContinuityOwnerPathsV01();
+    await assertCompanionReviewIdentityV01();
     assertPureClassificationMatrixV01();
     assertSnapshotMaterialMatrixV01();
     await assertRouteAndCliAdaptersV01();
@@ -1222,21 +1223,76 @@ async function assertSemanticContinuityOwnerPathsV01(): Promise<void> {
   }
 }
 
+/** The ordinary supervisor profile must read the actual local-review issuer's
+ * decisions without a legacy pilot config or an authenticated Browser session. */
+async function assertCompanionReviewIdentityV01(): Promise<void> {
+  const environment = { ...process.env };
+  const source = createSemanticOwnerFixtureV01("companion-review-identity",
+    "30000000-0000-4000-8000-000000000045", "operator:local-review");
+  try {
+    delete process.env.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED;
+    delete process.env.AUGNES_RECOVERY_MODE;
+    Object.assign(process.env, {
+      AUGNES_LOCAL_REVIEW_PROFILE: "companion_first_work_v1",
+      AUGNES_RUNTIME_CONTRACT: "augnes-local-runtime-supervisor-v1",
+      AUGNES_RUNTIME_CHILD_ROLE: "ui", AUGNES_DISTRIBUTION_MODE: "source",
+    });
+    insertRunReceiptV01(source); insertProposalV01(source);
+    const dependencies = { ...dependenciesV01(source.fixture.config), read_operator_config: () => null };
+    const read = () => readCodexCurrentContinuityV01(source.fixture.db,
+      { generated_at: "2026-07-10T13:30:00.000Z" }, dependencies);
+    let before = source.fixture.db.serialize();
+    const pending = await read();
+    assert.equal(pending.snapshot.status, "exact");
+    assert.equal(pending.review_continuity.state, "proposal_present_decision_pending");
+    assert.equal(pending.current_work.start_eligible, false, "Read identity is not operator availability");
+    assert(Object.values(pending.authority).every(value => value === false));
+    assert(before.equals(source.fixture.db.serialize()), "Read-only review creates no admission");
+
+    recordPilotDecisionV01(source, "reject", "2026-07-10T13:00:00.000Z");
+    before = source.fixture.db.serialize();
+    const rejected = await read();
+    assert.equal(rejected.snapshot.status, "exact");
+    assert.equal(rejected.review_continuity.state, "decision_recorded");
+    assert.equal(rejected.review_continuity.decision_kind, "reject");
+    assert.notEqual(rejected.review_continuity.state, "transition_applied");
+    assert(Object.values(rejected.authority).every(value => value === false));
+    assert(before.equals(source.fixture.db.serialize()));
+
+    const legacy = createSemanticOwnerFixtureV01("companion-foreign-review-identity",
+      "30000000-0000-4000-8000-000000000046");
+    try {
+      insertRunReceiptV01(legacy);
+      recordPilotDecisionV01(legacy, "reject", "2026-07-10T13:00:00.000Z");
+      const legitimate = await readCodexCurrentContinuityV01(legacy.fixture.db,
+        { generated_at: "2026-07-10T13:30:00.000Z" }, dependenciesV01(legacy.fixture.config));
+      assert.equal(legitimate.review_continuity.decision_kind, "reject");
+      const legacyBefore = legacy.fixture.db.serialize();
+      const foreign = await readCodexCurrentContinuityV01(legacy.fixture.db,
+        { generated_at: "2026-07-10T13:30:00.000Z" },
+        { ...dependenciesV01(legacy.fixture.config), read_operator_config: () => null });
+      assert.equal(foreign.review_continuity.state, "review_source_unavailable_or_inconsistent");
+      assert.equal(foreign.snapshot.status, "unavailable");
+      assert(legacyBefore.equals(legacy.fixture.db.serialize()));
+    } finally { legacy.fixture.db.close(); }
+
+  } finally { source.fixture.db.close(); process.env = environment; }
+}
+
 function createSemanticOwnerFixtureV01(
   name: string,
   uuid: string,
+  operatorId?: string,
 ): SemanticOwnerFixtureV01 {
   const fixture = createFixtureV01(name, uuid);
+  if (operatorId) fixture.config.operator_id = operatorId;
   const selection = readActiveProjectSelectionV01(
     fixture.db,
     fixture.workspace_id,
   )!;
-  const credential = authenticatedSessionAtV01(
-    fixture,
-    `${name}-initial`,
-    "2026-07-10T00:00:00.000Z",
-    "2026-07-10T00:01:00.000Z",
-  );
+  const credential = operatorId
+    ? authenticatedSessionForCurrentOperatorAtV01(fixture, "2026-07-10T00:00:00.000Z", "2026-07-10T00:01:00.000Z")
+    : authenticatedSessionAtV01(fixture, `${name}-initial`, "2026-07-10T00:00:00.000Z", "2026-07-10T00:01:00.000Z");
   const initial = buildInitialProjectWorkTaskContextPacketV01({
     workspace_id: fixture.workspace_id,
     project_id: fixture.project_id,

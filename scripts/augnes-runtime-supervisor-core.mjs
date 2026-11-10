@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { isSupportedNodeVersion } from "../plugins/augnes-operator/mcp/node-runtime-policy.mjs";
 import {
   createHash,
   randomBytes,
@@ -4992,7 +4993,8 @@ function validatePackageManifest(manifest) {
   if (Number(process.versions.napi) < Number(manifest.runtime.node_napi)) {
     throw new PublicRuntimeError("package_node_napi_unsupported");
   }
-  if (!runtimeMeetsMinimum(process.versions.node, manifest.runtime.node_minimum)) {
+  if (!isSupportedNodeVersion(process.versions.node) ||
+      !runtimeMeetsMinimum(process.versions.node, manifest.runtime.node_minimum)) {
     throw new PublicRuntimeError("package_node_version_unsupported");
   }
 }

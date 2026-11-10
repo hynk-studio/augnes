@@ -7,6 +7,26 @@ const DEFAULT_MANIFEST_URL = new URL(
   import.meta.url,
 );
 
+// First-failure output is bounded and contains no request text, paths or values
+// from arrays/objects. Default result counters are not failure observations.
+export function projectExperienceGlobalFailureV1(assertion, error) {
+  const compact = (value) => {
+    if (Array.isArray(value)) return { type: "array", count: value.length };
+    if (value instanceof Set) return { type: "set", count: value.size };
+    if (value === null) return { type: "null" };
+    if (typeof value === "boolean" || (typeof value === "number" && Number.isFinite(value)))
+      return { type: typeof value, value };
+    if (typeof value === "string") return { type: "string", length: value.length };
+    if (typeof value === "object") return { type: "object", count: Object.keys(value).length };
+    return { type: typeof value };
+  };
+  return {
+    assertion: /^[a-z_]{1,64}$/u.test(assertion ?? "") ? assertion : "unidentified_global_assertion",
+    code: error?.code === "ERR_ASSERTION" ? "ERR_ASSERTION" : "global_boundary_error",
+    actual: compact(error?.actual), expected: compact(error?.expected),
+  };
+}
+
 export function loadProjectExperienceResultContractV1({
   manifest_url = DEFAULT_MANIFEST_URL,
 } = {}) {

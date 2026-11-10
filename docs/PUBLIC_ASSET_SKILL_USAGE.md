@@ -94,6 +94,53 @@ material files together. A simple direct recurrence may be preferable.
 Public delivery, plugin availability, installation, actual model choice/use,
 later reuse and comparative benefit are separate observations.
 
+## Software-change verification source preview
+
+The [verify-software-change candidate](../skills/verify-software-change/SKILL.md)
+supports a concrete installation, delivery or version-change investigation with
+the consumer's existing tools. It includes a single Python standard-library
+input observer and a small result/handoff reference. It needs no Augnes runtime,
+account or MCP connection. Read the candidate directly from its pinned source
+revision; it is not in the public workflow-cost ZIP, a registered host catalog,
+an installed user profile or an Agensi listing.
+
+The [first free listing preparation](SOFTWARE_CHANGE_SKILL_DISTRIBUTION.md)
+selects this candidate as **Augnes Software Change Check 0.1.0**, one Skill with
+four delivered files. It includes individual-file execution guidance, a bounded
+request/result example and a deterministic create-only ZIP builder. Source and
+local packaging checks are prepared for review; this does not establish an
+Agensi submission, approval, installed connection or live consumer execution.
+
+Its first development cases are the corrected Augnes setup/root-routing
+instructions and the existing workflow-cost package's compatibility with a
+different delivery contract. Keep source-only routing review and an isolated
+simulation of delivery separate from a real installed client or hosted
+marketplace observation. There is no claimed comparative productivity gain or
+independently discovered demand. The candidate's selected-input snapshots do not
+replace project-required tests or Local Canonical receipts.
+
+### Additional distribution channels
+
+Preserve GitHub's current immutable workflow-cost release and project-free file
+path. Adding a channel is useful only if the actual consumer receives all
+necessary material and can use it under that channel's current execution rules.
+Do not repair an incomplete delivery by silently importing a local checkout.
+
+As checked on 2026-11-03, Agensi's [packaging guide](https://www.agensi.io/docs/packaging)
+and [loading guide](https://www.agensi.io/docs/how-agents-load-skills) describe
+unchanged scripts run individually from temporary files, without sibling
+package-file access. The existing workflow-cost skill requires a physical
+five-file release directory, and `workflow_cost.py` imports `exact_linear.py`.
+Therefore the current package is not an unchanged executable-channel match.
+Text delivery or upload acceptance alone would not establish calculation support.
+
+Any additional listing needs a working exact package and its actual host path.
+Record submission/review/live status separately from actual use. A new source
+preview does not inherit the old calculator's qualification or public-release evidence.
+If a channel needs a separately maintained implementation, reconsider its value
+before creating a platform-specific fork. Do not create a marketplace or
+automatic publishing service for this experiment.
+
 ## Historical development observation (not a consumer prerequisite)
 
 ### Candidate and intended observation

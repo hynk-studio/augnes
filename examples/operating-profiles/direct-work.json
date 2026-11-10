@@ -1,0 +1,22 @@
+{
+  "version": "OperatingProfile.v0.1",
+  "name": "Direct work with one executor",
+  "mode": "observe_recommend",
+  "work": {
+    "goal": "Recommend a short title for a supplied project note.",
+    "success_criteria": ["The proposed title preserves the note's stated purpose."],
+    "non_goals": ["No team recruitment, source lookup or saved project change."]
+  },
+  "scope": {"environment": "Local synthetic note", "targets": ["supplied note"], "conditions": ["Self-checking is sufficient for this illustrative low-impact task."]},
+  "accountability": {"owner_role": "worker", "sponsor_role": null},
+  "roles": [{"id": "worker", "responsibility": "Read the note, propose a title, check its meaning and use the result.", "executor": "fixture person", "principal": "fixture principal", "counterpart_assumptions": []}],
+  "inputs": [{"id": "note", "purpose": "Provide the title's subject.", "required": true, "availability": "observed", "source": {"identity": "fixture:note", "revision": "note-v1", "observed_at": "2026-10-22T07:00:00.000Z", "event_time": null}, "content": "Keep the original evidence and unfinished questions when work resumes.", "limitations": "Supplied fixture text, with no external source verification."}],
+  "explanations": [],
+  "steps": [{"id": "propose_title", "kind": "recommend", "purpose": "Propose and self-check one concise title.", "role": "worker", "requires_inputs": ["note"], "depends_on": [], "returns": "A proposed title and why it fits the supplied note.", "check_role": "worker", "use_role": "worker"}],
+  "arrangements": [{"id": "direct", "kind": "direct", "description": "One executor performs the compatible contribution, check and use roles.", "roles": ["worker"], "assumptions": ["No independent verification is claimed or required."]}],
+  "separation": [],
+  "requested_permissions": [],
+  "budget": {"max_steps": 1, "max_observations": 0, "max_rounds": 1, "max_minutes": 5},
+  "reconsider_when": ["The note's purpose changes or the proposed title omits its meaning."],
+  "revision_basis": {"previous_fingerprint": null, "reason": "Direct-work compatibility example."}
+}

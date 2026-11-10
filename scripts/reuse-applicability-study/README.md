@@ -45,7 +45,7 @@ counted separately. There is no claim of learned transformation or identity logi
 
 ## Runnable walkthrough
 
-Use repository-supported Node 24.18.0 and a **new physical absolute directory**
+Use the exact Node version in the repository's `.node-version` and a **new physical absolute directory**
 whose parent already exists. On macOS resolve `/tmp` to `/private/tmp` first.
 These commands need no npm installation, model credential or runtime service:
 

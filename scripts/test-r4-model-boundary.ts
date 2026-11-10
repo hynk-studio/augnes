@@ -16,7 +16,16 @@ const repositoryRoot = path.resolve(
   "..",
 );
 const approvedTransportConfigurationOwner =
-  "lib/vnext/model-gateway/openai/responses-adapter.ts";
+  "lib/vnext/model-gateway/openai/responses-transport.ts";
+const approvedDiagnosticConfigurationOwner =
+  "lib/vnext/model-gateway/openai/local-configuration.ts";
+const localCapabilityOwner = "lib/vnext/model-gateway/local-capability.ts";
+const localCapabilityReadOwners = new Set([
+  approvedDiagnosticConfigurationOwner,
+  localCapabilityOwner,
+]);
+const approvedLocalCapabilityImport =
+  "@/lib/vnext/model-gateway/openai/local-configuration";
 const approvedChatGptIdentityClaimNamespaceOwner =
   "lib/vnext/native-host/codex-credential-broker.ts";
 const approvedChatGptIdentityClaimNamespaceParser =
@@ -24,6 +33,7 @@ const approvedChatGptIdentityClaimNamespaceParser =
 const chatGptIdentityClaimNamespace = "https://api.openai.com/auth";
 const sharedGatewayOwner = "lib/vnext/model-gateway/model-gateway.ts";
 const approvedPurposeCodecOwners = new Set([
+  "lib/vnext/model-gateway/openai/responses-method-bindings.ts",
   "lib/vnext/model-gateway/openai/observe-codec.ts",
   "lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-2-codec.ts",
   "lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-3-codec.ts",
@@ -36,6 +46,9 @@ const approvedPurposeCodecOwners = new Set([
 const approvedOpenAIBoundaryImporters = new Set([
   approvedTransportConfigurationOwner,
   sharedGatewayOwner,
+  "lib/vnext/model-gateway/method-bindings.ts",
+  "lib/vnext/model-gateway/method-routes.ts",
+  "lib/vnext/model-gateway/openai/responses-method-bindings.ts",
 ]);
 const runtimeEnvironmentPropagationOwner =
   "scripts/augnes-runtime-supervisor.mjs";
@@ -95,12 +108,14 @@ const currentModelInvocationEntryMarkers = new Set([
 ]);
 
 type BoundaryViolationKind =
+  | "generic_method_implementation_coupling"
   | "provider_transport_owner"
   | "provider_configuration_owner"
   | "provider_authorization_owner"
   | "provider_response_parser_owner"
   | "provider_purpose_codec_owner"
   | "direct_openai_boundary_import"
+  | "local_capability_dependency"
   | "legacy_run_receipt_model_summary_writer";
 
 interface BoundaryViolation {
@@ -157,6 +172,9 @@ process.stdout.write(
       production_files_scanned: files.length,
       approved_transport_configuration_owner:
         approvedTransportConfigurationOwner,
+      approved_diagnostic_configuration_owner:
+        approvedDiagnosticConfigurationOwner,
+      local_capability_read_owner: localCapabilityOwner,
       approved_purpose_codec_owners: [...approvedPurposeCodecOwners].sort(),
       normal_callers_import_openai_boundary: 0,
       production_boundary_violations: violations.length,
@@ -213,6 +231,8 @@ function classifyBoundaryViolations(
   source: string,
 ): BoundaryViolation[] {
   const found = new Set<BoundaryViolationKind>();
+  if (genericMethodCoupling(relativePath, source)) found.add("generic_method_implementation_coupling");
+  const localCapabilityBoundary = inspectLocalCapabilityBoundary(relativePath, source);
   const providerTransportSource = sourceForProviderTransportScan(
     relativePath,
     source,
@@ -220,7 +240,8 @@ function classifyBoundaryViolations(
   const transportOwned =
     providerDomainPattern.test(providerTransportSource) ||
     responsesEndpointPattern.test(providerTransportSource) ||
-    providerSdkPattern.test(providerTransportSource);
+    providerSdkPattern.test(providerTransportSource) ||
+    localCapabilityBoundary.transport;
   if (
     transportOwned &&
     relativePath !== approvedTransportConfigurationOwner
@@ -231,13 +252,15 @@ function classifyBoundaryViolations(
   if (
     providerConfigurationAccessPattern.test(source) &&
     relativePath !== approvedTransportConfigurationOwner &&
+    relativePath !== approvedDiagnosticConfigurationOwner &&
     !isReviewedRuntimeEnvironmentPropagation(relativePath, source)
   ) {
     found.add("provider_configuration_owner");
   }
 
   if (
-    isProviderAuthorizationOwnerSource(providerTransportSource) &&
+    (isProviderAuthorizationOwnerSource(providerTransportSource) ||
+      localCapabilityReadOwners.has(relativePath)) &&
     providerAuthorizationPattern.test(source) &&
     relativePath !== approvedTransportConfigurationOwner
   ) {
@@ -261,9 +284,13 @@ function classifyBoundaryViolations(
 
   if (
     openAIBoundaryImportPattern.test(source) &&
-    !approvedOpenAIBoundaryImporters.has(relativePath)
+    !approvedOpenAIBoundaryImporters.has(relativePath) &&
+    !(relativePath === localCapabilityOwner && !localCapabilityBoundary.dependency)
   ) {
     found.add("direct_openai_boundary_import");
+  }
+  if (localCapabilityBoundary.dependency) {
+    found.add("local_capability_dependency");
   }
 
   const legacySummaryWriters = findLegacySummaryWriterCandidates(
@@ -283,6 +310,71 @@ function classifyBoundaryViolations(
   return [...found]
     .sort()
     .map((kind) => ({ file: relativePath, kind }));
+}
+
+/** The local reader gets one named diagnostic import; its private configuration
+ * owner has no dependencies. Neither gains transport, codecs or invocation. */
+function inspectLocalCapabilityBoundary(relativePath: string, source: string) {
+  const result = { dependency: false, transport: false };
+  if (!localCapabilityReadOwners.has(relativePath)) return result;
+  const sourceFile = ts.createSourceFile(
+    relativePath, source, ts.ScriptTarget.Latest, true, scriptKindFor(relativePath),
+  );
+  const visit = (node: ts.Node) => {
+    if (ts.isImportDeclaration(node)) {
+      const clause = node.importClause;
+      const bindings = clause?.namedBindings;
+      const namedImport = bindings && ts.isNamedImports(bindings) &&
+        bindings.elements.length === 1 &&
+        bindings.elements[0]?.name.text === "readOpenAILocalCapabilityDiagnosticV01" &&
+        !bindings.elements[0]?.propertyName && !bindings.elements[0]?.isTypeOnly;
+      if (!(relativePath === localCapabilityOwner &&
+        ts.isStringLiteralLike(node.moduleSpecifier) &&
+        node.moduleSpecifier.text === approvedLocalCapabilityImport &&
+        clause && !clause.isTypeOnly && !clause.name && namedImport)) {
+        result.dependency = true;
+      }
+    } else if ((ts.isExportDeclaration(node) && node.moduleSpecifier) ||
+      ts.isImportEqualsDeclaration(node) || ts.isImportTypeNode(node)) {
+      result.dependency = true;
+    } else if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
+      const expression = node.expression;
+      const name = ts.isIdentifier(expression) ? expression.text :
+        ts.isPropertyAccessExpression(expression) ? expression.name.text : null;
+      if (expression.kind === ts.SyntaxKind.ImportKeyword || name === "require") {
+        result.dependency = true;
+      }
+      if (name && ["fetch", "WebSocket", "XMLHttpRequest", "EventSource"].includes(name)) {
+        result.transport = true;
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return result;
+}
+
+/** Generic owners may consume the closed public union but cannot select a
+ * production codec, method implementation, or purpose-specific runtime branch. */
+function genericMethodCoupling(relativePath: string, source: string): boolean {
+  if (!["lib/vnext/model-gateway/invocation-core.ts", approvedTransportConfigurationOwner].includes(relativePath)) return false;
+  const file = ts.createSourceFile(relativePath, source, ts.ScriptTarget.Latest, true);
+  let coupled = false;
+  const forbiddenModule = /(?:-codec|method-bindings|method-routes|responses-adapter)(?:\.[cm]?[jt]s)?$/;
+  const purposeLiteral = /^(?:observe_delta_compile|planner_plan|temporal_interpretation|strategic_advantage_transfer|guidebrief_interpretation|governed_actor_lab|operational_reentry_matched_cohort(?:_v0[234])?|operational_reentry_stale_reset_cross_case_replication)$/;
+  const visit = (node: ts.Node) => {
+    if (ts.isImportDeclaration(node) && !node.importClause?.isTypeOnly) {
+      const named = node.importClause?.namedBindings;
+      if (ts.isStringLiteralLike(node.moduleSpecifier) && forbiddenModule.test(node.moduleSpecifier.text)) coupled = true;
+      if (named && ts.isNamedImports(named) && named.elements.some(item => !item.isTypeOnly && /_MODEL_GATEWAY_PURPOSE_V01$/.test(item.propertyName?.text ?? item.name.text))) coupled = true;
+    }
+    if (ts.isExportDeclaration(node) && !node.isTypeOnly && node.moduleSpecifier && ts.isStringLiteralLike(node.moduleSpecifier) && forbiddenModule.test(node.moduleSpecifier.text)) coupled = true;
+    if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(node.expression) && node.expression.text === "require")) && node.arguments.some(item => ts.isStringLiteralLike(item) && forbiddenModule.test(item.text))) coupled = true;
+    if (ts.isStringLiteralLike(node) && purposeLiteral.test(node.text) && !ts.isLiteralTypeNode(node.parent)) coupled = true;
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return coupled;
 }
 
 function findLegacySummaryWriterCandidates(
@@ -511,10 +603,123 @@ function assertSyntheticDetectionMatrix() {
       expected: "provider_purpose_codec_owner",
     },
     {
+      name: "generic_transport_codec_import",
+      source: 'import { parseObserveOutput } from "./observe-codec";',
+      relativePath: approvedTransportConfigurationOwner,
+      expected: "generic_method_implementation_coupling",
+    },
+    {
+      name: "generic_core_dynamic_method_import",
+      source: 'const methods = import("./method-bindings");',
+      relativePath: "lib/vnext/model-gateway/invocation-core.ts",
+      expected: "generic_method_implementation_coupling",
+    },
+    {
+      name: "generic_core_purpose_branch",
+      source: 'if (purpose === "operational_reentry_matched_cohort_v04") {}',
+      relativePath: "lib/vnext/model-gateway/invocation-core.ts",
+      expected: "generic_method_implementation_coupling",
+    },
+    {
       name: "direct_adapter_import",
       source:
         'import { createOpenAIResponsesAdapterV01 } from "@/lib/vnext/model-gateway/openai/responses-adapter";',
       expected: "direct_openai_boundary_import",
+    },
+    {
+      name: "local_configuration_environment_read",
+      source: "const key = process.env.OPENAI_API_KEY;",
+      expected: null,
+      relativePath: approvedDiagnosticConfigurationOwner,
+    },
+    {
+      name: "local_capability_exact_diagnostic_import",
+      source: `import { readOpenAILocalCapabilityDiagnosticV01 } from "${approvedLocalCapabilityImport}";`,
+      expected: null,
+      relativePath: localCapabilityOwner,
+    },
+    {
+      name: "normal_caller_private_configuration_import",
+      source: `import { readOpenAILocalCapabilityDiagnosticV01 } from "${approvedLocalCapabilityImport}";`,
+      expected: "direct_openai_boundary_import",
+    },
+    {
+      name: "local_capability_direct_configuration_read",
+      source: "const key = process.env.OPENAI_API_KEY;",
+      expected: "provider_configuration_owner",
+      relativePath: localCapabilityOwner,
+    },
+    {
+      name: "local_capability_adapter_import",
+      source: 'import { createOpenAIResponsesAdapterV01 } from "@/lib/vnext/model-gateway/openai/responses-adapter";',
+      expected: "direct_openai_boundary_import",
+      relativePath: localCapabilityOwner,
+    },
+    {
+      name: "local_capability_broad_configuration_import",
+      source: `import * as configuration from "${approvedLocalCapabilityImport}";`,
+      expected: "local_capability_dependency",
+      relativePath: localCapabilityOwner,
+    },
+    {
+      name: "local_capability_private_helper_import",
+      source: `import { optionalConfigurationText } from "${approvedLocalCapabilityImport}";`,
+      expected: "local_capability_dependency",
+      relativePath: localCapabilityOwner,
+    },
+    {
+      name: "local_capability_relative_gateway_import",
+      source: 'import { invokePlannerModelGatewayV01 } from "./model-gateway";',
+      expected: "local_capability_dependency",
+      relativePath: localCapabilityOwner,
+    },
+    {
+      name: "local_capability_dynamic_import",
+      source: 'const gateway = await import("./model-gateway");',
+      expected: "local_capability_dependency",
+      relativePath: localCapabilityOwner,
+    },
+    {
+      name: "local_configuration_dependency",
+      source: 'import { createOpenAIResponsesAdapterV01 } from "./responses-adapter";',
+      expected: "local_capability_dependency",
+      relativePath: approvedDiagnosticConfigurationOwner,
+    },
+    {
+      name: "local_configuration_require",
+      source: 'const transport = require("node:https");',
+      expected: "local_capability_dependency",
+      relativePath: approvedDiagnosticConfigurationOwner,
+    },
+    {
+      name: "local_configuration_transport",
+      source: "fetch(endpoint);",
+      expected: "provider_transport_owner",
+      relativePath: approvedDiagnosticConfigurationOwner,
+    },
+    {
+      name: "local_capability_transport",
+      source: "globalThis.fetch(endpoint);",
+      expected: "provider_transport_owner",
+      relativePath: localCapabilityOwner,
+    },
+    {
+      name: "local_configuration_authorization",
+      source: 'const headers = { Authorization: `Bearer ${token}` };',
+      expected: "provider_authorization_owner",
+      relativePath: approvedDiagnosticConfigurationOwner,
+    },
+    {
+      name: "local_configuration_response_parser",
+      source: "const answer = response.output_text;",
+      expected: "provider_response_parser_owner",
+      relativePath: approvedDiagnosticConfigurationOwner,
+    },
+    {
+      name: "local_configuration_codec",
+      source: "function parsePlannerOutput(output) { return output; }",
+      expected: "provider_purpose_codec_owner",
+      relativePath: approvedDiagnosticConfigurationOwner,
     },
     {
       name: "direct_legacy_summary_assignment",
@@ -657,7 +862,7 @@ function assertCurrentOwnershipInventory(files: SourceFile[]) {
     ownersMatching(files, providerConfigurationAccessPattern).filter(
       (owner) => owner !== runtimeEnvironmentPropagationOwner,
     ),
-    [approvedTransportConfigurationOwner],
+    [approvedDiagnosticConfigurationOwner, approvedTransportConfigurationOwner].sort(),
   );
   assert(
     isReviewedRuntimeEnvironmentPropagation(
@@ -694,6 +899,10 @@ function assertCallerGatewayBoundary(files: SourceFile[]) {
     projectHomeSource.includes("readDefaultModelGatewayLocalCapabilityV01"),
   );
   assert.equal(openAIBoundaryImportPattern.test(projectHomeSource), false);
+  const localCapabilitySource = sourceFor(files, localCapabilityOwner);
+  assert(localCapabilitySource.includes(approvedLocalCapabilityImport));
+  assert.deepEqual(inspectLocalCapabilityBoundary(localCapabilityOwner, localCapabilitySource),
+    { dependency: false, transport: false });
 
   const strategicRuntimeSource = sourceFor(
     files,

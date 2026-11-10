@@ -1,4 +1,4 @@
-// Diagnostic seam for the disposable project-experience Browser only. No observer
+// Diagnostic seam for the disposable model-free Browser owners only. No observer
 // is installed by the application. Production builds cannot use the portal;
 // development also requires the disposable Browser's CDP binding and portal.
 export interface ProjectExperienceReadObserverV1 {
@@ -32,5 +32,59 @@ export function projectExperienceTestObserverV1(instance: object): ProjectExperi
     if (typeof testWindow.__augnesProjectExperienceDiagnosticEventV1 !== "function") return null;
     const portal = testWindow.__augnesProjectExperienceDiagnosticsV1;
     return portal?.consumer(instance) ?? null;
+  } catch { return null; }
+}
+
+export interface ProjectExperienceGuideReadObserverV1 {
+  fetch: typeof fetch;
+  event(kind: string, value?: boolean | number): void;
+  apply(value: object): void;
+}
+
+export interface ProjectExperienceGuideObserverV1 {
+  setup(projectId: string | null | undefined): void;
+  initial(active: boolean): void;
+  abort(controller: AbortController | null, cause: "cleanup" | "supersede"): void;
+  abortReturned(controller: AbortController | null): void;
+  read(controller: AbortController, projectId: string | null | undefined): ProjectExperienceGuideReadObserverV1 | null;
+  commit(guide: object | null, controller: AbortController | null, projectId: string | null | undefined): void;
+}
+
+export function projectExperienceGuideObserverV1(instance: object): ProjectExperienceGuideObserverV1 | null {
+  if (process.env.NODE_ENV !== "development" || typeof window === "undefined") return null;
+  try {
+    const testWindow = window as unknown as {
+      __augnesGuideLifecycleEventV1?: unknown;
+      __augnesGuideLifecycleV1?: { consumer(instance: object): ProjectExperienceGuideObserverV1 | null };
+    };
+    if (typeof testWindow.__augnesGuideLifecycleEventV1 !== "function") return null;
+    return testWindow.__augnesGuideLifecycleV1?.consumer(instance) ?? null;
+  } catch { return null; }
+}
+
+export interface ProjectExperienceInspectorReadObserverV1 {
+  fetch: typeof fetch;
+  event(kind: string, value?: boolean | number): void;
+  applySession(value: object): void;
+  applyInspector(value: object): void;
+  applyInspectorRefusal(errorCode: string): void;
+  cleanup(active: boolean): void;
+}
+
+export interface ProjectExperienceInspectorObserverV1 {
+  effect(controller: AbortController, projectId: string | null, query: string,
+    fetch: typeof globalThis.fetch): ProjectExperienceInspectorReadObserverV1 | null;
+  commit(session: object, inspector: object | null, errorCode: string | null): void;
+}
+
+export function projectExperienceInspectorObserverV1(instance: object): ProjectExperienceInspectorObserverV1 | null {
+  if (process.env.NODE_ENV !== "development" || typeof window === "undefined") return null;
+  try {
+    const testWindow = window as unknown as {
+      __augnesInspectorLifecycleEventV1?: unknown;
+      __augnesInspectorLifecycleV1?: { consumer(instance: object): ProjectExperienceInspectorObserverV1 | null };
+    };
+    if (typeof testWindow.__augnesInspectorLifecycleEventV1 !== "function") return null;
+    return testWindow.__augnesInspectorLifecycleV1?.consumer(instance) ?? null;
   } catch { return null; }
 }

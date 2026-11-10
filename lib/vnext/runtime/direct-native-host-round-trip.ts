@@ -5,8 +5,6 @@ import { assertPacketDirectionCurrent, readPacketDirectionInterpretation } from 
 import { bindWorkExpectationToAttempt } from "@/lib/vnext/persistence/work-expectation-store";
 import { AUTHORED_SUCCESSOR_TASK_V01 } from "@/lib/vnext/authored-successor-task";
 import { AUTHORED_SUCCESSOR_CONTEXT_V01 } from "@/types/vnext/project-work-initialization";
-import { assertCodexScopedAdapterV01 } from "@/lib/vnext/native-host/codex-app-server-adapter";
-import { assertCodexAuthoredSuccessorScopeV01 } from "@/lib/vnext/native-host/codex-scoped-task";
 import { createHash } from "node:crypto";
 import { lstat } from "node:fs/promises";
 
@@ -86,8 +84,12 @@ import {
   type VNextLocalOperatorSessionMutationAdmissionV01,
 } from "@/lib/vnext/runtime/local-operator-session";
 import type { VNextLocalRuntimeClockV01 } from "@/lib/vnext/runtime/local-runtime-clock";
-import { bindCodexScopedRequestV01, assertCodexScopedSourceCurrentV01, assertCodexScopedSnapshotCurrentV01,
-  readCodexScopedSnapshotV01, readCodexScopedRequestBindingV01, type CodexScopedTaskV01 } from "@/lib/vnext/native-host/codex-scoped-task";
+import type { CodexScopedTaskV01 } from "@/lib/vnext/native-host/codex-scoped-task";
+import {
+  buildNativeHostBoundaryTerminalResultV01 as buildBoundaryTerminalResult,
+  type NativeHostInputSnapshotValidationV01,
+} from "@/lib/vnext/native-host/native-host-boundary-result";
+import { bindNativeHostRoundTripExecutionV01 } from "@/lib/vnext/native-host/native-host-execution-composition";
 import {
   buildTaskStartGuideBriefCodexProjectionV02,
   unavailableGuideBriefCodexProjectionV02,
@@ -830,14 +832,14 @@ export async function runDirectNativeHostRoundTripV01(
       repository_delegation_context: input.repository_delegation_context ?? null,
     });
   }
+  const scopedBinding = bindNativeHostRoundTripExecutionV01(dependencies.scoped_task);
   if (admitted.packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_TASK_V01) &&
     !admitted.packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_CONTEXT_V01)) {
     // This explicit read-only task profile must not silently take the desktop's
     // whole-root route. Authoring and readiness never manufacture an allowance.
     if (!dependencies.scoped_task || input.mode !== "interactive" || dependencies.resume_existing_run)
       refuse("direct_host_authored_successor_scope_required", 403);
-    assertCodexScopedAdapterV01(adapter, dependencies.scoped_task);
-    await assertCodexAuthoredSuccessorScopeV01(dependencies.scoped_task, admitted.packet, admitted.root_scope);
+    await scopedBinding!.assertAuthoredSuccessor(adapter, admitted.packet, admitted.root_scope);
   }
   let taskStartGuide: NativeHostRequestV01["guide_brief"];
   if (shouldAttachNativeHostTaskStartGuideV01({
@@ -1030,11 +1032,11 @@ export async function runDirectNativeHostRoundTripV01(
     adapter,
     guide_brief: taskStartGuide,
   });
-  let snapshotValidation: ScopedSnapshotValidationV01 | undefined;
-  if (dependencies.scoped_task) {
+  let snapshotValidation: NativeHostInputSnapshotValidationV01 | undefined;
+  if (scopedBinding) {
     // Construct the source-to-execution binding from the real admitted request.
     // The source root and packet are not rewritten to impersonate the snapshot.
-    try { await bindCodexScopedRequestV01(dependencies.scoped_task, request); }
+    try { await scopedBinding.bindRequest(request); }
     catch {
       markRunLaunchGateBlockedV01(db, { run_id: identity.run_id, admission: admitted,
         observed_at: strictTimestamp(now()), reason: "scoped_snapshot_admission_changed" });
@@ -1115,37 +1117,10 @@ export async function runDirectNativeHostRoundTripV01(
       }),
     );
   }
-  if (dependencies.scoped_task) {
-    const scope = dependencies.scoped_task, snapshot = readCodexScopedSnapshotV01(scope);
-    let snapshotValid = true, sourceCurrent = true;
-    try { await assertCodexScopedSnapshotCurrentV01(scope); } catch { snapshotValid = false; }
-    try { await assertCodexScopedSourceCurrentV01(scope, request); } catch { sourceCurrent = false; }
-    const nativeOutcome = hostResult.outcome;
-    snapshotValidation = {
-      profile: snapshot.profile, fingerprint: snapshot.fingerprint,
-      request_binding: readCodexScopedRequestBindingV01(scope, request),
-      valid: snapshotValid, source_current: sourceCurrent, native_outcome: nativeOutcome,
-    };
-    if (!snapshotValid) {
-      hostResult = buildBoundaryTerminalResult({ request, adapter, outcome: "failed",
-        reason: "scoped_snapshot_integrity_invalid", prior_result: hostResult, now });
-    } else if (!sourceCurrent) {
-      // Preserve valid bounded observations about the frozen input, but prevent
-      // this result from being accepted as completed/current-source evidence.
-      hostResult = { ...hostResult,
-        outcome: hostResult.outcome === "completed" ? "blocked" : hostResult.outcome,
-        public_stop_reason: "scoped_snapshot_source_changed",
-        uncertainty: [...hostResult.uncertainty, "The result concerns the approved input snapshot; original source currentness changed."],
-      };
-    }
-    hostResult = assertNativeHostResultV01(request, { ...hostResult, adapter_extension: {
-      ...hostResult.adapter_extension, bounded_metadata: { ...hostResult.adapter_extension.bounded_metadata,
-        input_profile: snapshot.profile, input_snapshot_fingerprint: snapshot.fingerprint,
-        source_snapshot_request_binding: readCodexScopedRequestBindingV01(scope, request),
-        input_snapshot_valid: snapshotValid, original_source_current_at_return: sourceCurrent,
-        host_outcome_before_input_validation: nativeOutcome,
-      },
-    } });
+  if (scopedBinding) {
+    const normalized = await scopedBinding.normalizeResult({ request, adapter, result: hostResult, now });
+    hostResult = normalized.result;
+    snapshotValidation = normalized.snapshot_validation;
   }
   let synthesizedSkippedCheckIds = new Set<string>();
   try {
@@ -2422,16 +2397,8 @@ export function materializeValidatedPacketDeliveryCheckV01(input: {
   };
 }
 
-interface ScopedSnapshotValidationV01 {
-  profile: string;
-  fingerprint: string;
-  request_binding: string;
-  valid: boolean;
-  source_current: boolean;
-  native_outcome: NativeHostTerminalOutcomeV01;
-}
 function buildDirectHostRunReceipt(input: {
-  snapshot_validation?: ScopedSnapshotValidationV01;
+  snapshot_validation?: NativeHostInputSnapshotValidationV01;
   request: NativeHostRequestV01;
   result: NativeHostResultV01;
   admission: PersistedHostPacketAdmissionV01;
@@ -3204,92 +3171,6 @@ async function confirmInvocationStopSettledV01(input: {
   }
 }
 
-function buildBoundaryTerminalResult(input: {
-  request: NativeHostRequestV01;
-  adapter: NativeHostAdapterV01;
-  outcome: Exclude<NativeHostTerminalOutcomeV01, "completed" | "blocked" | "unavailable">;
-  reason: string;
-  prior_result?: NativeHostResultV01;
-  now: () => string;
-}): NativeHostResultV01 {
-  const observedAt = boundedFinishedAt(
-    input.request,
-    input.request.packet.generated_at,
-    input.now,
-  );
-  const hostRef = localRef(
-    "native_host_adapter",
-    input.adapter.adapter_version,
-    observedAt,
-    null,
-    DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
-  );
-  return {
-    result_version: NATIVE_HOST_RESULT_VERSION_V01,
-    request_id: input.request.request_id,
-    run_id: input.request.run_id,
-    outcome: input.outcome,
-    public_stop_reason: input.reason,
-    started_at: observedAt,
-    finished_at: observedAt,
-    host_refs: uniqueRefs([...(input.prior_result?.host_refs ?? []), hostRef]),
-    adapter_version: input.adapter.adapter_version,
-    capability_version: input.adapter.capability_version,
-    changed_files: [],
-    artifacts: [],
-    observed_actions: ["host_boundary_terminal_control_applied"],
-    commands: [],
-    checks: [],
-    skipped_checks: input.request.packet.constraints.required_checks.map(
-      (checkId) => ({
-        check_id: checkId,
-        required: true,
-        reason: `Check was not run because ${input.reason}.`,
-      }),
-    ),
-    model_invocation_receipt_refs: [],
-    summary: "The native-host boundary returned a bounded failure result.",
-    uncertainty: [],
-    gaps: ["The requested deterministic host round trip did not complete."],
-    proposed_next_steps: ["Review the public stop reason before retrying."],
-    capability_coverage: [
-      {
-        capability: HOST_CAPABILITY,
-        coverage: "observed",
-        source_ref: hostRef,
-        notes: ["The orchestration boundary observed the terminal control outcome."],
-      },
-      ...(input.adapter.provider_egress === "native_host_managed" &&
-      input.prior_result?.adapter_extension.bounded_metadata
-        .packet_delivery_initiated === true
-        ? [
-            {
-              capability: "native_host_internal_model_activity",
-              coverage: "unsupported" as const,
-              source_ref: input.prior_result.host_refs[0] ?? hostRef,
-              notes: [
-                "Native-host-internal model activity remains outside Augnes-owned R4 Model Gateway coverage.",
-              ],
-            },
-          ]
-        : []),
-    ],
-    adapter_extension: {
-      extension_version: "native_host_boundary_extension.v0.1",
-      adapter_kind: input.adapter.adapter_version,
-      bounded_metadata: {
-        live_host_invoked:
-          input.prior_result?.adapter_extension.bounded_metadata
-            .live_host_invoked === true,
-        packet_delivery_initiated:
-          input.prior_result?.adapter_extension.bounded_metadata
-            .packet_delivery_initiated === true,
-        raw_provider_payload_included: false,
-      },
-    },
-  };
-}
-
 export function shouldAttachNativeHostTaskStartGuideV01(input: {
   adapter: Pick<NativeHostAdapterV01, "provider_egress">;
   resume_existing_run: boolean;
@@ -4028,17 +3909,6 @@ function strictTimestamp(value: string): string {
     refuse("direct_host_clock_invalid", 500);
   }
   return value;
-}
-
-function boundedFinishedAt(
-  request: NativeHostRequestV01,
-  fallback: string,
-  now: () => string,
-): string {
-  const candidate = parseStrictIsoTimestampV01(now());
-  if (candidate !== null) return new Date(candidate).toISOString();
-  const generated = parseStrictIsoTimestampV01(fallback);
-  return new Date(generated ?? 0).toISOString();
 }
 
 function refuse(

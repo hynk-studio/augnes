@@ -66,7 +66,7 @@ Cost comparisons are invalid for incomplete/incorrect batches.
 
 ## Run and inspect actual files
 
-Use Node 24.18.0 from the repository-supported toolchain. No npm installation,
+Use the exact Node version in the repository's `.node-version`. No npm installation,
 Companion, server, database or model credential is needed for these commands.
 From the checkout root, select a **new** absolute output directory:
 

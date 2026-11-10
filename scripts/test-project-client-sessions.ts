@@ -13,6 +13,7 @@ import { resolveProjectClientEntryProjectV01 } from "../lib/vnext/runtime/projec
 import { readProjectSelectionStateV02, selectActiveProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 
 async function main() {
+  assert(!process.argv.includes("--reproduce"), "historical_reproduction_retired");
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-project-sessions-")));
   const databasePath = path.join(root, "workspace.db"), db = new Database(databasePath);
   try {
@@ -77,12 +78,6 @@ async function main() {
     assert.equal((await call(sessions.GET, a.project_id)).value.session.project_id, a.project_id);
     await bootstrap(b);
     const afterB = await call(sessions.GET, a.project_id);
-    if (process.argv.includes("--reproduce")) {
-      assert.equal(afterB.status, 200);
-      assert.equal(afterB.value.session.project_id, b.project_id);
-      console.log("REPRODUCED: authenticating B replaces the shared cookie; tab A session read silently returns B.");
-      return;
-    }
     assert.equal(afterB.status, 200);
     assert.equal(afterB.value.session.project_id, a.project_id, "Authenticating B must not retarget A");
     assert.equal((await call(sessions.GET, b.project_id)).value.session.project_id, b.project_id);
