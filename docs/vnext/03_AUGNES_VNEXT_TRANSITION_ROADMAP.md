@@ -523,6 +523,25 @@ Current/Next assignments, #1561/#1562 successor work, #1545 security work,
 verification/authority boundaries remain unchanged. This section assigns none
 of the follow-up candidates below to those tasks.
 
+**Research reference — BOXBOX (2026-11-10; unexecuted Augnes hypothesis).**
+[BOXBOX v1](https://arxiv.org/abs/2611.09218v1) motivates task-triggered method
+review within these existing owners. For an assigned ongoing task, identify the
+intended useful outcome and observed execution bottleneck before choosing direct
+progress or bounded harness review. Prefer an existing capability or the smallest
+task-local change whose expected benefit in the remaining work justifies diagnosis,
+validation and transition costs; retaining the current method is valid. An
+independently authorized helper improvement need not wait for a second executor
+or runtime hot reloading.
+
+When repeated checks on unchanged evidence add no information, inspect the
+checker's actual input, working directory and bindings before repeating task-side
+repairs. Preserve required checks and continue independently permitted work.
+Connect any selected method/version change to subsequent checked work through
+existing source/result owners; use [harness-specific evidence](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#subsequent-harness-specific-qualification)
+to distinguish technical update success from usable progress. This refinement
+adds no standing review schedule, runtime implementation, study allocation or
+dependency for Current/Next work, and reopens no historical disposition.
+
 #### Existing owners and exact limits
 
 The following source map joins existing responsibilities, not new Core records
