@@ -270,10 +270,33 @@ const phase = (label: string) => {
 };
 // Operation boundaries survive a parent timeout without exporting store bytes.
 let recoveryOperation: string | null = null;
+function recoveryObservation(fields: Record<string, unknown>) {
+  const { user, system } = process.threadCpuUsage();
+  console.log(JSON.stringify({
+    ...fields,
+    process_elapsed_ms: Math.floor(performance.now()),
+    thread_cpu_us: user + system,
+  }));
+}
 const recoveryProgress = (operation: string, event: "start" | "finish") => {
   recoveryOperation = event === "start" ? operation : null;
-  console.log(JSON.stringify({ recovery_operation: operation, event, elapsed_ms: Date.now() - started }));
+  recoveryObservation({ recovery_operation: operation, event, elapsed_ms: Date.now() - started });
 };
+let journalObservations = 0;
+function observeRecoveryJournal({ phase }: { phase: string }) {
+  if (++journalObservations > 32 || !/^[a-z_]{1,48}$/u.test(phase)) return;
+  recoveryObservation({ recovery_operation: recoveryOperation, journal_phase: phase });
+}
+let backupInspections = 0;
+function observeRecoveryBackupInspection(...args: Parameters<typeof inspectRecoveryDatabaseFile>) {
+  const ordinal = ++backupInspections;
+  if (ordinal <= 16) recoveryObservation({ recovery_validation: "backup", ordinal, event: "start" });
+  const result = inspectRecoveryDatabaseFile(...args);
+  if (ordinal <= 16) {
+    recoveryObservation({ recovery_validation: "backup", ordinal, event: "finish", records: result.canonical_record_count });
+  }
+  return result;
+}
 function databaseState(database = db) {
   return database
     .prepare(
@@ -515,6 +538,7 @@ async function main() {
       writeFileSync(configPath, JSON.stringify(config), { mode: 0o600 });
   configure();
   process.env.AUGNES_EXTERNAL_CONFIG_FILE = configPath;
+  recoveryObservation({ external_response_lifecycle: "setup_complete" });
   for (const p of projects) {
     const population = p === a ? "success" : "all";
     await p.api.write("initial", await p.api.read(), {
@@ -1836,6 +1860,15 @@ async function main() {
   const withdrawalEvidence = await verifyWithdrawnReceipt({ ...receiptHarness, configPath, temporary });
   // Unsupported readers refuse an additive new schema; the old nonempty store
   // remains byte-preserved until the explicit staged lifecycle prepares it.
+  const cardinality = db.prepare(
+    `SELECT (SELECT count(*) FROM vnext_core_records) AS core_records,
+            (SELECT count(*) FROM vnext_external_records) AS external_records`,
+  ).get() as { core_records: number; external_records: number };
+  recoveryObservation({
+    recovery_fixture: cardinality,
+    page_count: db.pragma("page_count", { simple: true }),
+    page_size: db.pragma("page_size", { simple: true }),
+  });
   recoveryProgress("populated_store_copy", "start");
   await db.backup(path.join(temporary, "migration-source.db"));
   recoveryProgress("populated_store_copy", "finish");
@@ -1868,6 +1901,7 @@ async function main() {
       repositoryFingerprint: repository,
       databaseOverrideActive: true,
       dependencies: {
+        afterJournalPhase: observeRecoveryJournal,
         beforeReplacement() {
           throw new Error("owned_prepublication_fault");
         },
@@ -1903,6 +1937,7 @@ async function main() {
     instanceId: instance,
     repositoryFingerprint: repository,
     databaseOverrideActive: true,
+    dependencies: { afterJournalPhase: observeRecoveryJournal },
   };
   recoveryProgress("recovery_backup", "start");
   const backup = await createRecoveryBackup({
@@ -1918,7 +1953,7 @@ async function main() {
       runtime_schema_version: null,
     },
     reason: "manual_recovery",
-    inspectDatabase: inspectRecoveryDatabaseFile,
+    inspectDatabase: observeRecoveryBackupInspection,
   } as any);
   recoveryProgress("recovery_backup", "finish");
   recoveryProgress("recovery_restore", "start");
@@ -1955,7 +1990,10 @@ async function main() {
     restoredAdmission.dependencies[1].corrections[0].ref,
     admissionCorrection,
   );
-  assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
+  recoveryObservation({ recovery_validation: "restored", event: "start" });
+  const validation = validateRecoveryCanonicalDatabaseV01(db);
+  assert.equal(validation.status, "valid");
+  recoveryObservation({ recovery_validation: "restored", event: "finish", records: validation.record_count });
   recoveryProgress("restored_store_invariants", "finish");
   recoveryProgress("restored_suspension_and_history", "start");
   const restoredUnknown = await reread(unknown);
@@ -2021,6 +2059,7 @@ async function main() {
 }
 async function run() {
   try {
+    recoveryObservation({ external_response_lifecycle: "main_start" });
     await main();
     console.log(
       JSON.stringify({
@@ -2031,6 +2070,7 @@ async function run() {
       }),
     );
   } finally {
+    recoveryObservation({ external_response_lifecycle: "cleanup_start" });
     Database.prototype.prepare = prepare;
     await closeTrackedServer(server);
     await closeTrackedServer(processor.server);
@@ -2044,6 +2084,7 @@ async function run() {
       cleanup.every((r: any) => r.completed),
       JSON.stringify(cleanup),
     );
+    recoveryObservation({ external_response_lifecycle: "cleanup_complete" });
   }
 }
 run().catch((error) => {
