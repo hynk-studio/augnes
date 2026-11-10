@@ -183,7 +183,7 @@ const baseReceipt = {
   },
 };
 
-const policyPhaseIds = ["operating-policy-validator", "operating-policy-planner-contract", "operating-policy-executor-contract", "operating-policy-receipt-contract", "operating-policy-verification-contract"];
+const policyPhaseIds = ["operating-policy-validator"];
 baseReceipt.verification_context = {
   contract: "augnes.local-canonical-verification-context.v1", kind: "canonical",
   repository_id: "hynk-studio/augnes", admission: "fixed_canonical_root",

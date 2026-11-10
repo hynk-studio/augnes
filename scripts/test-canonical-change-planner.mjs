@@ -31,6 +31,7 @@ import {
   validateChangeOwnerManifest,
 } from "./canonical-change-planner.mjs";
 import {
+  assertVerificationDocumentation,
   validateCanonicalDocumentationChange,
   validateCanonicalOperatingPolicyChange,
   validateCanonicalOwnerTargetedChange,
@@ -59,6 +60,7 @@ const targetedPhaseIds = (...ownerPhaseIds) => [
 ];
 
 try {
+  runDocumentationScopeCases();
   runSameNameMarkdownConsumerCases();
   runContinuationDocumentationCases();
   // Optional read-only audit: replay the same exact fixture commits through a
@@ -87,6 +89,19 @@ try {
   runPlanCase("README-only", "operating-policy-only", ({ write }) => {
     write("README.md", "# Updated\n");
   });
+  runPlanCase("README-prose-with-unrelated-publication-reader", "operating-policy-only", (repo) => {
+    repo.write("scripts/build-workflow-cost-publication.mjs", 'const files = ["README.md"];\n');
+    repo.write("apps/augnes_apps/README.md", "# App\n\nSee `../web_planning/README.md`.\n");
+    commitAll(repo.cwd, "existing artifact-local names");
+    repo.baseSha = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+    repo.write("README.md", "# Updated product explanation\n");
+  });
+  runPlanCase("README-prose-with-unknown-reader", "full-canonical", (repo) => {
+    repo.write("scripts/unknown-readme-reader.mjs", 'readFileSync("README.md");\n');
+    commitAll(repo.cwd, "existing unknown root README reader");
+    repo.baseSha = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+    repo.write("README.md", "# Changed executable input\n");
+  });
   runPlanCase("docs-only", "documentation-only", ({ write }) => {
     write("docs/guide.md", "# Guide\n");
   });
@@ -111,6 +126,15 @@ try {
   runPlanCase("authority-map", "operating-policy-only", ({ write }) => {
     write("docs/vnext/00_AUGNES_VNEXT_DOCUMENT_INDEX.md", "# Owners\n");
   });
+  runPlanCase("architecture-prose-with-reference-fixture", "operating-policy-only", (repo) => {
+    const file = "docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md";
+    repo.write(file, "# Architecture\n\nOriginal explanation.\n");
+    repo.write("fixtures/vnext/protocol/task-context-packet-v0-1.ts", `export const docs = ["${file}"];\n`);
+    repo.write("apps/augnes_apps/README.md", `# App\n\n[Protocol](../../${file}#architecture)\n`);
+    commitAll(repo.cwd, "reference metadata does not consume document contents");
+    repo.baseSha = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+    repo.write(file, "# Architecture\n\nReworded explanation.\n");
+  }, { documentationChecks: ["references"] });
   runPlanCase("known-test-consumed-document", "full-canonical", ({ write }) => {
     write("docs/contract.md", "# Executable contract\n");
     write("scripts/check-contract.mjs", 'readFileSync("docs/contract.md");\n');
@@ -430,9 +454,9 @@ try {
   );
   for (const [name, documentPath, content, checks] of [
     ["ordinary", "docs/guide.md", "# Guide\n", []],
-    ["registered-readme", "README.md", "# Fixture\n\nUpdated guidance.\n", ["references", "verification-policy"]],
+    ["registered-readme", "README.md", "# Fixture\n\nUpdated guidance.\n", ["references"]],
     ["registered-roadmap", "docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md", "# Roadmap\n", ["references"]],
-    ["registered-policy", ".github/LOCAL_CANONICAL_VERIFICATION.md", "# Fixture policy\n\nClarified guidance.\n", ["references", "verification-policy"]],
+    ["registered-policy", ".github/LOCAL_CANONICAL_VERIFICATION.md", "# Fixture policy\n\nClarified guidance.\n", ["references"]],
   ]) {
     runPlanCase(`full-owner-with-${name}-documentation`, "full-canonical", (repository) => {
       changeNativeHost(repository);
@@ -624,15 +648,13 @@ try {
   );
   results.push("malformed-or-missing-base-head");
 
-  const pushPlan = planCanonicalChange({
+  assert.throws(() => planCanonicalChange({
     eventName: "push",
     baseSha: "",
     headSha: malformedRepo.baseSha,
     cwd: malformedRepo.cwd,
-  });
-  assert.equal(pushPlan.plan, "full-canonical");
-  assert.equal(pushPlan.reason, "main_push_always_full");
-  results.push("main-push-always-full");
+  }), /base SHA/u);
+  results.push("push-requires-exact-base-and-head");
   assert.deepEqual(selectCanonicalBrowserPhasesForChanges([{ oldPath: null, newPath: "scripts/browser-validate-operator-work-expectation-v1.mjs" }]), ["e2e-operator-work-expectation"]);
   assert.deepEqual(selectCanonicalBrowserPhasesForChanges([
     { oldPath: null, newPath: "lib/vnext/native-host/credential-broker.ts" },
@@ -786,6 +808,47 @@ try {
   rmSync(temporaryRoot, { recursive: true, force: true });
 }
 
+function runDocumentationScopeCases() {
+  for (const eventName of ["pull_request", "push"]) {
+    const repo = createRepository(`linked-prose-${eventName}`, false);
+    repo.write("README.md", "# Fixture\n\n[Contract](docs/delegated.md)\n");
+    repo.write("docs/delegated.md", "# Contract\n\nOriginal explanation.\n");
+    commitAll(repo.cwd, "existing documentation delegation");
+    const baseSha = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+    repo.write("docs/delegated.md", "# Contract\n\nReworded explanation.\n");
+    commitAll(repo.cwd, "prose only");
+    const headSha = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+    const request = { eventName, cwd: repo.cwd, baseSha, headSha };
+    const plan = planCanonicalChange(request);
+    assert.equal(plan.plan, "operating-policy-only", `${eventName}: a documentation link is not an executable consumer`);
+    assert.equal(plan.event, eventName);
+    assert.deepEqual(plan.browser_phase_ids, []);
+    assert.deepEqual(plan.documentation_checks, ["references"]);
+    assert.equal(validateCanonicalOperatingPolicyChange(request).status, "pass");
+    results.push(`linked-authority-prose-without-runtime-consumer:${eventName}`);
+
+    repo.write("scripts/reader.mjs", 'readFileSync("docs/delegated.md");\n');
+    commitAll(repo.cwd, "actual executable consumer");
+    const consumedBase = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+    repo.write("docs/delegated.md", "# Contract\n\nChanged executable input.\n");
+    commitAll(repo.cwd, "executable input change");
+    const consumed = planCanonicalChange({ ...request, baseSha: consumedBase, headSha: git(repo.cwd, ["rev-parse", "HEAD"]).trim() });
+    assert.equal(consumed.plan, "full-canonical");
+    assert(consumed.full_reasons.some(reason => reason.startsWith("unproven_documentation_consumer:")));
+    results.push(`linked-authority-executable-consumer-retained:${eventName}`);
+  }
+  const sources = {
+    "AGENTS.md": "# Freely edited instructions\nsmall, durable repository constitution for Augnes\n[Verification](.github/LOCAL_CANONICAL_VERIFICATION.md)\n",
+    "README.md": "# Freely edited entry\n" + ["quick", "changed", "full", "receipt"].map(command => `npm run verify:local:${command}`).join("\n"),
+    ".github/pull_request_template.md": "# Different review layout\n[Policy](https://github.com/hynk-studio/augnes/blob/main/.github/LOCAL_CANONICAL_VERIFICATION.md)\n" + "Useful review context.\n".repeat(45),
+  };
+  assert.doesNotThrow(() => assertVerificationDocumentation(sources));
+  assert.throws(() => assertVerificationDocumentation({ "README.md": sources["README.md"].replace("verify:local:changed", "verify:local:guessed") }), /missing documented executable command/u);
+  assert.throws(() => assertVerificationDocumentation({ "AGENTS.md": sources["AGENTS.md"].replace(".github/LOCAL_CANONICAL_VERIFICATION.md", "docs/retired.md") }), /delegate verification/u);
+  assert.throws(() => assertVerificationDocumentation({ "AGENTS.md": sources["AGENTS.md"].replace("small, durable repository constitution for Augnes", "unidentified repository") }), /instruction marker/u);
+  results.push("prose-and-layout-free-executable-documentation-interfaces-retained");
+}
+
 function runPlanCase(name, expectedPlan, mutate, expected = {}) {
   const repository = createRepository(name, expected.seedProjectVerification ?? true);
   mutate(repository);
@@ -864,7 +927,7 @@ function runPlanCase(name, expectedPlan, mutate, expected = {}) {
     }
   }
   if (expectedPlan === "operating-policy-only") {
-    assert.equal(plan.reason, "registered_documentation_responsibilities", name);
+    assert.equal(plan.reason, "documentation_responsibilities", name);
     assert.deepEqual(plan.full_reasons, [], name);
     assert.deepEqual(plan.browser_phase_ids, [], name);
   }
