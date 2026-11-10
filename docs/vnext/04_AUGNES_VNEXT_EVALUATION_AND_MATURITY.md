@@ -1829,6 +1829,53 @@ Reuse, augmentation, owned replacement and justified non-use are valid outcomes;
 the replaced-layer count is not success. Return retain/augment/replace/simplify/defer/stop
 with its bounded evidence. No result grants broader use, live runs, spending or deployment.
 
+#### Pi reference and worker evidence
+
+For the [Pi reference and second-executor plan](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#pi-reference-implementation-and-second-executor-candidate),
+select affected cases for each increment rather than requiring every comparison
+before any useful change. Keep source inspection, focused development feedback,
+exact-source qualification and fixed usefulness evaluation distinct under
+[method-improvement evidence](#method-improvement-evidence).
+
+| Question | Discriminating observation |
+|---|---|
+| Does context preparation preserve meaning? | A matching whole group omitted by budget remains distinguishable from no match and unavailable material at the actual consumer. Current corrections, criteria and unfinished work survive the supported re-entry path; source access and disclosure do not widen. Existing passing behavior supports retain, not a mandatory new memory system. |
+| Does the reference method help? | Compare existing and revised preparation on the same executor where possible, including selection/curation cost. Inspect later actions and checked outcomes, rediscovery, unnecessary calls and user explanation; token reduction alone is insufficient. |
+| Is Pi a useful executor? | Use comparable task/source basis, model where supported, tools, budgets and independent acceptance criteria against the current Codex path. Record host instructions, model-setting, cache, environment and assistance differences. Separate API-equivalent price, actual added spend and subscription use. |
+| Does Augnes help succession? | Compare a good ordinary artifact/handoff account with the existing Augnes source/work/result path. A fresh executor handles an actual changed condition, preserves unresolved work and rechecks current authority without copying the whole old conversation or silently refreshing resources. |
+
+Begin with a small representative set: a reproducible bug, a bounded multi-file
+change, and changed-condition continuation. This screens suitability; it is not
+a general performance ranking or statistical superiority claim. Development-exposed
+cases remain exposed. Freeze comparison conditions and a finite resource envelope
+before deciding live observations; no live-call budget is allocated by this plan.
+
+Affected negative cases include reordered/duplicate/malformed or absent results;
+accepted/handled commands without completed work; compaction/queued work after
+`agent_end`; cancellation with remaining queues or children; changed files before
+return-channel loss; and stale or withdrawn source/authority. Retain partial,
+failed and unknown outcomes. A synthesized protocol stream tests the consumer,
+an actual subprocess tests lifecycle, and a model task tests capability; none
+substitutes for the others or for actual Mac qualification where required.
+
+Trace authority and provenance through actual producers and readers. Renaming a
+managed adapter or its result cannot convert its work claims into direct local
+observations. Distinguish orchestration/delivery checks, host assertions,
+independently checked artifacts, and adopted results. Use existing predeclared
+acceptance tests where possible; model-authored tests are supplementary evidence.
+Exercise containment and credential/egress boundaries outside prompt instructions,
+and confirm queue/child settlement before declaring cancellation. Limit failure
+blocking to the affected work/effects while independent permitted work continues.
+
+Adoption is scoped to the exercised harness/configuration/model/environment/task
+profile. Require useful accepted output, correct failure and settlement behavior,
+preserved authority/evidence meaning and maintenance burden the user can support.
+An independently useful control or alternative route can justify adoption without
+winning every task. Record retain/augment/adopt-for-profile/defer/stop with its
+reason; do not automatically install, route, publish, merge or expand a grant.
+All reference improvements need not finish before a sufficient worker profile is
+usable, and worker adoption is not a prerequisite for useful reference improvements.
+
 ### Cost and user burden
 
 Distinguish method-development, setup and preparation cost; reusable asset
