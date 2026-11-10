@@ -863,6 +863,17 @@ organization engine or model-selection rule. These are unexecuted Augnes
 hypotheses, not demonstrated benefit or long-horizon organizational reliability.
 Current priorities, frozen findings and resource limits remain unchanged.
 
+The [s³ study (v1)](https://arxiv.org/abs/2611.08615v1) motivates a narrower,
+unexecuted question under #1443/#1453: does a finding shared during unfinished
+work improve another contribution's next action and the checked joint result?
+Use the [during-work communication contrast](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#conditional-case-useful-communication-during-unfinished-work)
+when an actual task needs that distinction, through supported host delegation
+or contribution paths. Carry any useful conditional coordination method into
+the existing [#1373 successor-use path](#next-p4p5--executable-capability-reuse-from-experience-1373).
+The paper's shared-policy training is not evidence of Augnes benefit or external
+participant incentives. This refinement adds no training, swarm runtime,
+standing observer, mandatory comparison campaign or new allocation.
+
 For a real counterpart that supports it, [A2A 1.0.0](https://a2a-protocol.org/v1.0.0/specification/)
 (sections 4.1, 4.4 and 4.6) remains an optional, version-pinned reference:
 AgentCard/AgentSkill for declared interfaces and skills, Task/Message/Artifact
