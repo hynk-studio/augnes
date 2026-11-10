@@ -680,6 +680,15 @@ strict contract. In-scope automatic commissioning is a permitted normal target
 under [01](./01_AUGNES_VNEXT_MASTERPLAN.md#non-model-harness-responsibility), not a
 claim that the present preparation/review paths already implement it.
 
+When authority-conflict behavior is next changed or claimed, select a bounded
+interrupted-work case under existing execution-choice and continuation owners.
+Use [04's role-aware response criteria](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#role-aware-collaborative-response-and-outcome-evidence)
+to observe scoped hold/escalation, independently authorized continuation and
+supported resumption, or justified non-continuation. Reuse sufficient current
+owners; unsupported relations stay explicit. This follow-up candidate neither
+reassigns current work nor adds an organization engine, approval gate or mandatory
+test campaign.
+
 #### Same-project independent contributions and integration
 
 [Conductor's workflow](https://www.conductor.build/docs/concepts/workflow) and
