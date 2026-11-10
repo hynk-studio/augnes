@@ -60,6 +60,10 @@ assert.throws(() => registration(canonicalSuite.replace(
 assert.throws(() => registration(canonicalSuite.replace(
   /(...rootNode\("scripts\/test-external-response\.ts"\),[\s\S]*?requireNaturalExit:) true/u, "$1 false",
 )), /revision_fixture_budget_invalid/u);
+assert.throws(() => registration(canonicalSuite.replace(
+  '...rootNode("scripts/test-external-response.ts"),',
+  '...rootNode("scripts/test-external-response.ts"), get timeoutMs() { return 600000; },',
+)), /revision_fixture_budget_invalid/u);
 assert.throws(() => registration(canonicalSuite,readRepositoryFile("scripts/run-local-canonical-verification.mjs")
   .replace("4_200_000","100_000")), /revision_fixture_budget_invalid/u);
 assert(actualIntegration.parentMs > actualIntegration.childMs + 13000);

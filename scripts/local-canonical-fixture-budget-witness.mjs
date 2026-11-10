@@ -389,6 +389,189 @@ const withdrawalCheckpoint = "withdrawn_binding_original_receipt_fresh_read_chec
 const recoveryCheckpoint = "nonempty_older_store_recovery_and_suspension";
 const terminationGraceMs = 13000;
 
+// A measured run may add only this reversible instrumentation. The entire
+// reconstructed source must equal the accepted Git blob. These substitutions
+// name the test and suite owners, not any branch, incident, or commit.
+const integrationObservationEdits = {
+  [FIXTURE_BUDGET_PATHS.suite]: [
+    [`const projectWorkFocus = process.argv[3] === "--project-work-only";
+const revisionFocus = process.argv[3] === "--reviewed-revision-only";
+if (process.argv.length > 3 && (process.argv.length !== 4 ||
+    !(projectWorkFocus && suiteName === "integration" || revisionFocus && suiteName === "authority")))
+  throw new Error("unsupported canonical suite focus");
+`, `const projectWorkFocus = process.argv[3] === "--project-work-only";
+const externalResponseFocus = process.argv[3] === "--external-response-only";
+const integrationFocus = projectWorkFocus || externalResponseFocus;
+const revisionFocus = process.argv[3] === "--reviewed-revision-only";
+if (process.argv.length > 3 && (process.argv.length !== 4 ||
+    !(integrationFocus && suiteName === "integration" || revisionFocus && suiteName === "authority")))
+  throw new Error("unsupported canonical suite focus");
+`],
+    [`    ? suites[suiteName].filter(step => ["project-work-initialization", "project-work-scoped-host"].includes(step.id))
+    : revisionFocus ? suites.authority.filter(step => reviewedRevisionSteps.includes(step)) : suites[suiteName];
+  const preparedSteps = selectedSteps.map((step, index) => {
+`, `    ? suites[suiteName].filter(step => ["project-work-initialization", "project-work-scoped-host"].includes(step.id))
+    : externalResponseFocus ? integrationInventory.filter(step => step.id === "external-response")
+    : revisionFocus ? suites.authority.filter(step => reviewedRevisionSteps.includes(step)) : suites[suiteName];
+  if (externalResponseFocus && selectedSteps.length !== 1)
+    throw new Error("external-response integration registration is incomplete");
+  const preparedSteps = selectedSteps.map((step, index) => {
+`],
+    [`    if (
+      operator.length !== (projectWorkFocus ? 0 : 1) ||
+      supporting.length !== preparedSteps.length - operator.length
+`, `    if (
+      operator.length !== (integrationFocus ? 0 : 1) ||
+      supporting.length !== preparedSteps.length - operator.length
+`],
+    [`      suite: suiteName,
+      maxConcurrency: projectWorkFocus ? 1 : 2,
+      groups: [
+        ...(projectWorkFocus ? [] : [{ id: "operator-process", children: operator }]),
+        { id: "supporting-serial", children: supporting },
+`, `      suite: suiteName,
+      maxConcurrency: integrationFocus ? 1 : 2,
+      groups: [
+        ...(integrationFocus ? [] : [{ id: "operator-process", children: operator }]),
+        { id: "supporting-serial", children: supporting },
+`],
+    [`        suite: suiteName,
+        coverage: projectWorkFocus ? "focused_project_work_children_only" : revisionFocus ? "focused_reviewed_revision_children_only" : "complete_suite",
+        status: "pass",
+`, `        suite: suiteName,
+        coverage: projectWorkFocus ? "focused_project_work_children_only" : externalResponseFocus ? "focused_external_response_child_only"
+          : revisionFocus ? "focused_reviewed_revision_children_only" : "complete_suite",
+        status: "pass",
+`],
+    [`          ? {
+              concurrency_bound: projectWorkFocus ? 1 : 2,
+              integration_groups: projectWorkFocus ? ["supporting-serial"] : ["operator-process", "supporting-serial"],
+              child_resource_isolation: [
+`, `          ? {
+              concurrency_bound: integrationFocus ? 1 : 2,
+              integration_groups: integrationFocus ? ["supporting-serial"] : ["operator-process", "supporting-serial"],
+              child_resource_isolation: [
+`],
+  ],
+  [integrationChild]: [
+    [`let recoveryOperation: string | null = null;
+const recoveryProgress = (operation: string, event: "start" | "finish") => {
+  recoveryOperation = event === "start" ? operation : null;
+  console.log(JSON.stringify({ recovery_operation: operation, event, elapsed_ms: Date.now() - started }));
+};
+function databaseState(database = db) {
+`, `let recoveryOperation: string | null = null;
+function recoveryObservation(fields: Record<string, unknown>) {
+  const { user, system } = process.threadCpuUsage();
+  console.log(JSON.stringify({
+    ...fields,
+    process_elapsed_ms: Math.floor(performance.now()),
+    thread_cpu_us: user + system,
+  }));
+}
+const recoveryProgress = (operation: string, event: "start" | "finish") => {
+  recoveryOperation = event === "start" ? operation : null;
+  recoveryObservation({ recovery_operation: operation, event, elapsed_ms: Date.now() - started });
+};
+let journalObservations = 0;
+function observeRecoveryJournal({ phase }: { phase: string }) {
+  if (++journalObservations > 32 || !/^[a-z_]{1,48}$/u.test(phase)) return;
+  recoveryObservation({ recovery_operation: recoveryOperation, journal_phase: phase });
+}
+let backupInspections = 0;
+function observeRecoveryBackupInspection(...args: Parameters<typeof inspectRecoveryDatabaseFile>) {
+  const ordinal = ++backupInspections;
+  if (ordinal <= 16) recoveryObservation({ recovery_validation: "backup", ordinal, event: "start" });
+  const result = inspectRecoveryDatabaseFile(...args);
+  if (ordinal <= 16) {
+    recoveryObservation({ recovery_validation: "backup", ordinal, event: "finish", records: result.canonical_record_count });
+  }
+  return result;
+}
+function databaseState(database = db) {
+`],
+    [`  process.env.AUGNES_EXTERNAL_CONFIG_FILE = configPath;
+  for (const p of projects) {
+`, `  process.env.AUGNES_EXTERNAL_CONFIG_FILE = configPath;
+  recoveryObservation({ external_response_lifecycle: "setup_complete" });
+  for (const p of projects) {
+`],
+    [`  // remains byte-preserved until the explicit staged lifecycle prepares it.
+  recoveryProgress("populated_store_copy", "start");
+`, `  // remains byte-preserved until the explicit staged lifecycle prepares it.
+  const cardinality = db.prepare(
+    \`SELECT (SELECT count(*) FROM vnext_core_records) AS core_records,
+            (SELECT count(*) FROM vnext_external_records) AS external_records\`,
+  ).get() as { core_records: number; external_records: number };
+  recoveryObservation({
+    recovery_fixture: cardinality,
+    page_count: db.pragma("page_count", { simple: true }),
+    page_size: db.pragma("page_size", { simple: true }),
+  });
+  recoveryProgress("populated_store_copy", "start");
+`],
+    [`      dependencies: {
+        beforeReplacement() {
+`, `      dependencies: {
+        afterJournalPhase: observeRecoveryJournal,
+        beforeReplacement() {
+`],
+    [`    databaseOverrideActive: true,
+  };
+`, `    databaseOverrideActive: true,
+    dependencies: { afterJournalPhase: observeRecoveryJournal },
+  };
+`],
+    [`    reason: "manual_recovery",
+    inspectDatabase: inspectRecoveryDatabaseFile,
+  } as any);
+`, `    reason: "manual_recovery",
+    inspectDatabase: observeRecoveryBackupInspection,
+  } as any);
+`],
+    [`  );
+  assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
+  recoveryProgress("restored_store_invariants", "finish");
+`, `  );
+  recoveryObservation({ recovery_validation: "restored", event: "start" });
+  const validation = validateRecoveryCanonicalDatabaseV01(db);
+  assert.equal(validation.status, "valid");
+  recoveryObservation({ recovery_validation: "restored", event: "finish", records: validation.record_count });
+  recoveryProgress("restored_store_invariants", "finish");
+`],
+    [`  try {
+    await main();
+`, `  try {
+    recoveryObservation({ external_response_lifecycle: "main_start" });
+    await main();
+`],
+    [`  } finally {
+    Database.prototype.prepare = prepare;
+`, `  } finally {
+    recoveryObservation({ external_response_lifecycle: "cleanup_start" });
+    Database.prototype.prepare = prepare;
+`],
+    [`    );
+  }
+`, `    );
+    recoveryObservation({ external_response_lifecycle: "cleanup_complete" });
+  }
+`],
+  ],
+};
+
+export function verifyIntegrationBudgetMeasurementSource(git, accepted, measured) {
+  for (const [file, edits] of Object.entries(integrationObservationEdits)) {
+    let source = sourceAt(git, measured, file);
+    for (const [original, observed] of edits) {
+      const first = source.indexOf(observed);
+      if (first < 0 || first !== source.lastIndexOf(observed)) fail();
+      source = source.slice(0, first) + original + source.slice(first + observed.length);
+    }
+    if (source !== sourceAt(git, accepted, file)) fail();
+  }
+}
+
 // Historical registration is data. Never import or run the predecessor's
 // executable. Normalizing the one literal leaves all other suite behavior in
 // the source comparison, including the command and complete group inventory.
@@ -400,7 +583,8 @@ export function integrationBudgetRegistration(git, head) {
   const child = one(steps.elements.filter(v => prop(v,"id")?.getText(tree) === '"external-response"'));
   const operator = one(steps.elements.filter(v => prop(v,"group")?.getText(tree) === '"operator-process"'));
   const timeout = prop(child,"timeoutMs");
-  if (!timeout || !ts().isNumericLiteral(timeout) || !equal(child.properties.filter(ts().isSpreadAssignment).map(n => n.expression.getText(tree)),
+  if (!timeout || !ts().isNumericLiteral(timeout) || child.properties.some(v => !ts().isPropertyAssignment(v) && !ts().isSpreadAssignment(v)) ||
+      !equal(child.properties.filter(ts().isSpreadAssignment).map(n => n.expression.getText(tree)),
       ['rootNode("' + integrationChild + '")']) || prop(child,"group")?.getText(tree) !== '"supporting-serial"' ||
       prop(child,"requireNaturalExit")?.kind !== ts().SyntaxKind.TrueKeyword ||
       !equal(child.properties.filter(ts().isPropertyAssignment).map(n => n.name.getText(tree)).sort(),
@@ -576,6 +760,7 @@ export function verifyRegisteredIntegrationBudget(p,prior,focused,options) {
   if (!/^[a-f0-9]{40}$/u.test(measuredHead ?? "") || measuredHead === p.head) fail();
   for (const [a,b] of [[prior.head,baseline.head],[baseline.base,p.base],[p.base,measuredHead],[baseline.head,measuredHead],[measuredHead,p.head]])
     git(["merge-base","--is-ancestor",a,b]);
+  verifyIntegrationBudgetMeasurementSource(git,baseline.head,measuredHead);
   const original = integrationBudgetRegistration(git,measuredHead), final = integrationBudgetRegistration(git,p.head);
   const {normalized,...historical} = incident.registration;
   const {normalized:measuredSyntax,...measuredRegistration} = original;
