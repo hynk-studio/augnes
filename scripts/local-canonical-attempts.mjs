@@ -1,4 +1,5 @@
 import { mkdirSync, lstatSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
+import { AsyncLocalStorage } from "node:async_hooks";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { digest, validNodeHeaders, classifyInputChange, nonFaultInputChange, inputEventIdentity, comparePreparedDependencyInputs, preparedDependencyIdentity, observePreparedDependencyInputs, PREPARED_DEPENDENCY_CONTRACT } from "./local-canonical-inputs.mjs";
@@ -21,6 +22,63 @@ export const REVIEWED_REVISION_SCHEMA = "augnes.local-canonical-source-correctio
 export const REVIEWED_REVISION_PHASES = Object.freeze(["dependencies-root", "dependencies-nested", "dependencies-web-planning", "typecheck", "build", "unit", "authority", "integration", "operability", "e2e-project-experience", "e2e-operator-review-control", "e2e-operator-native-host-execution", "e2e-operator-work-expectation", "e2e-operator-multi-candidate", "e2e-continuity", "e2e-golden"]);
 export const isReviewedRevision = proof => (proof?.schema === REVIEWED_REVISION_SCHEMA && proof.kind === "reviewed_revision") || isBrowserRevision(proof) || isGitObservationRevision(proof);
 const revisionCapabilities = new WeakMap();
+
+// One call owns its validation and continuation. Nothing validated is exported
+// as a reusable token or cached across calls. The transitive material/lineage
+// reads are sealed before awaiting the real current observer and reread at use.
+const revisionReadScope = new AsyncLocalStorage();
+const fileIdentity = s => [s.dev, s.ino, s.mode, s.uid, s.gid, s.nlink, s.size, s.mtimeNs, s.ctimeNs].map(String);
+function pathPresent(file) {
+  try { lstatSync(file); return true; } catch (e) { if (e.code === "ENOENT") return false; throw e; }
+}
+function rememberRevisionFile(file, bytes) {
+  const scope = revisionReadScope.getStore();
+  if (!scope) return;
+  const s = lstatSync(file, { bigint: true });
+  if (!s.isFile() || s.isSymbolicLink() || s.nlink !== 1n || (s.mode & 0o022n) || realpathSync(file) !== file)
+    throw fail("revision_validated_material_unsafe");
+  const identity = { path: file, stat: fileIdentity(s), sha256: digest(bytes) };
+  if (scope.files.has(file) && digest(scope.files.get(file)) !== digest(identity)) throw fail("revision_material_changed_during_validation");
+  scope.files.set(file, identity);
+}
+function revisionDirectoryEntries(root) {
+  const s = lstatSync(root, { bigint: true });
+  if (!s.isDirectory() || s.isSymbolicLink() || realpathSync(root) !== root || (s.mode & 0o022n)) throw fail("attempt_unsafe_directory");
+  const entries = readdirSync(root).sort(), scope = revisionReadScope.getStore();
+  if (scope) {
+    const identity = { path: realpathSync(root), stat: [s.dev, s.ino, s.mode, s.uid, s.gid].map(String), entries };
+    if (scope.directories.has(root) && digest(scope.directories.get(root)) !== digest(identity)) throw fail("revision_material_changed_during_validation");
+    scope.directories.set(root, identity);
+  }
+  return entries;
+}
+function afterRevisionValidation(observe, validate, finish) {
+  const scope = { files: new Map(), directories: new Map(), absent: new Set(), evidence: new Map() };
+  const prepared = revisionReadScope.run(scope, validate);
+  if (prepared === false) return false;
+  let consumed = false;
+  const assertUnchanged = () => {
+    for (const [file, expected] of scope.files) {
+      const s = lstatSync(file, { bigint: true });
+      if (!s.isFile() || s.isSymbolicLink() || s.nlink !== 1n || realpathSync(file) !== expected.path ||
+          digest(fileIdentity(s)) !== digest(expected.stat) || digest(readFileSync(file)) !== expected.sha256)
+        throw fail("revision_validated_material_changed");
+    }
+    for (const [root, expected] of scope.directories) {
+      const s = lstatSync(root, { bigint: true });
+      if (!s.isDirectory() || s.isSymbolicLink() || realpathSync(root) !== expected.path ||
+          digest([s.dev,s.ino,s.mode,s.uid,s.gid].map(String)) !== digest(expected.stat) ||
+          digest(readdirSync(root).sort()) !== digest(expected.entries)) throw fail("revision_validated_lineage_changed");
+    }
+    if ([...scope.absent].some(pathPresent)) throw fail("revision_validated_lineage_changed");
+  };
+  const complete = current => {
+    if (consumed) throw fail("revision_validation_already_used");
+    consumed = true;
+    return finish(prepared, current, assertUnchanged);
+  };
+  return typeof observe === "function" ? Promise.resolve().then(observe).then(complete) : complete(null);
+}
 
 // Closed qualification routes are historical evidence, never fresh authority.
 // The pinned pre-retirement revision owns historical interpretation; this guard
@@ -85,13 +143,19 @@ function directory(parent, name) {
 function read(file, maximum = 64 * 1024) {
   const s = lstatSync(file);
   if (!s.isFile() || s.isSymbolicLink() || s.nlink !== 1 || s.size > maximum) throw fail("attempt_unsafe_record");
-  return JSON.parse(readFileSync(file, "utf8"));
+  const bytes = readFileSync(file);
+  rememberRevisionFile(file, bytes);
+  return JSON.parse(bytes.toString("utf8"));
 }
 function append(root, name, value) { writeFileSync(path.join(root, name), `${JSON.stringify(value)}\n`, { flag: "wx", mode: 0o600 }); }
 
 // Family lives at the physical anchor, keyed by repository and branch (not
 // commit, wrapper process or checkout). There is no CLI family-id reset knob.
-export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, head, tree, runId, contractFingerprint, recoveryProof = null, sourceCorrection = null, acceptedMain = null, revisionAuthorization = null, revisionInputs = null, revisionLive = null, ...retiredOptions }) {
+export function beginAttempt(options) {
+  return afterRevisionValidation(options.observeRevision, () => prepareAttempt(options), (finish, current, check) => finish(current, check));
+}
+
+function prepareAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, head, tree, runId, contractFingerprint, recoveryProof = null, sourceCorrection = null, acceptedMain = null, revisionAuthorization = null, revisionInputs = null, revisionLive = null, observeRevision = null, assertCurrent = null, ...retiredOptions }) {
   if (["browserReplacement", "browserAuthorization", "browserLive", "observerAuthorization", "timeoutAuthorization", "conditionAuthorization", "guideAuthorization"].some(key => Object.hasOwn(retiredOptions, key))) throw fail("qualification_route_retired");
   assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
   if (hasRetiredQualificationMarker(sourceCorrection) || hasRetiredQualificationMarker(recoveryProof)) throw fail("qualification_route_retired");
@@ -109,7 +173,31 @@ export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch
             read(path.join(anchorRoot,".augnes-local-verification/families",tip.family_id,`attempt-${tip.number}.json`)).source_correction?.commission?.maximum_invocations) :
           tip.reviewed_revision_consumed)) throw fail("attempt_latest_tip_required");
   }
-  if (sourceCorrection) admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof: sourceCorrection, acceptedMain, revisionAuthorization, revisionInputs, revisionLive, reserve: true });
+  if (observeRevision && (!isReviewedRevision(sourceCorrection) || typeof observeRevision !== "function" || typeof assertCurrent !== "function")) throw fail("revision_observer_invalid");
+  const binding = digest({ sourceCorrection, branch, head, tree, acceptedMain, revisionInputs });
+  const correction = sourceCorrection ? prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof: sourceCorrection, acceptedMain, reserve: true }) : null;
+  if (isReviewedRevision(sourceCorrection)) {
+    const candidate = path.join(artifact,"families",familyId);
+    if (pathPresent(candidate)) {
+      if (revisionDirectoryEntries(candidate).length) throw fail("attempt_candidate_superseded");
+    } else revisionReadScope.getStore()?.absent.add(candidate);
+  }
+  return (current, assertUnchanged) => {
+  if (digest({ sourceCorrection, branch, head, tree, acceptedMain, revisionInputs }) !== binding) throw fail("source_correction_identity_invalid");
+  assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
+  if (observeRevision) {
+    if (!current || !Object.hasOwn(current,"authorization") || !Object.hasOwn(current,"live")) throw fail("revision_observer_invalid");
+    revisionAuthorization = current.authorization;
+    revisionLive = current.live;
+  }
+  const boundary = () => {
+    assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
+    if (assertCurrent?.()?.then) throw fail("revision_boundary_must_be_synchronous");
+    assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
+    assertUnchanged();
+  };
+  if (correction) correction({ revisionAuthorization, revisionInputs, revisionLive, assertCurrent: boundary });
+  else boundary();
   const root = directory(directory(artifact, "families"), familyId);
   const entries = readdirSync(root);
   if (entries.some(name => !/^(attempt|completion)-[12]\.json$/u.test(name) && name !== "correction-successor.json")) throw fail("attempt_unknown_record");
@@ -136,6 +224,7 @@ export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch
   const capability = Object.freeze({ ...record });
   capabilities.set(capability, { root, repositoryRoot, checkoutOwner, record });
   return capability;
+  };
 }
 
 export function validRecoveryProof(proof, prior) {
@@ -182,22 +271,31 @@ export function readRecoveryProof(file) {
   return proof;
 }
 
-export function inspectAttemptRecords({ anchorRoot, repositoryRoot = anchorRoot, receipt, revisionAuthorization = null, revisionInputs = null, revisionLive = null }) {
+export function inspectAttemptRecords(options) {
   try {
+    const result = afterRevisionValidation(options.observeRevision, () => prepareAttemptInspection(options),
+      (finish, current, check) => typeof finish === "function" ? finish(current, check) : finish);
+    return result?.then ? result.catch(() => false) : result;
+  } catch { return false; }
+}
+
+function prepareAttemptInspection({ anchorRoot, repositoryRoot = anchorRoot, receipt, revisionAuthorization = null, revisionInputs = null, revisionLive = null, observeRevision = null, assertCurrent = null }) {
+    const binding = digest(receipt);
     const attempt = receipt.attempt;
     if (hasRetiredQualificationMarker(receipt)) return false;
     const familyId = candidateFamilyId(receipt.repository.branch, attempt.source_correction);
     if (attempt.family_id !== familyId || ![1, 2].includes(attempt.number)) return false;
+    let correction = null;
     if (attempt.source_correction) {
       const lineage = { anchorRoot, repositoryRoot, branch: receipt.repository.branch };
       // Check the immutable history up to this receipt before reading source artifacts.
       // A later successor does not invalidate an ordinary historical receipt.
       const prefix = readAttemptLineage(lineage, attempt);
       if (prefix.family_id !== familyId || prefix.attempt_id !== attempt.attempt_id || prefix.number !== attempt.number) return false;
-      admitSourceCorrection({ anchorRoot, repositoryRoot, branch: receipt.repository.branch,
-        head: attempt.head, tree: attempt.tree, proof: attempt.source_correction, acceptedMain: receipt.repository.base_sha, revisionAuthorization, revisionInputs, revisionLive, reserve: false });
+      correction = prepareSourceCorrection({ anchorRoot, repositoryRoot, branch: receipt.repository.branch,
+        head: attempt.head, tree: attempt.tree, proof: attempt.source_correction, acceptedMain: receipt.repository.base_sha, reserve: false });
       if (isReviewedRevision(attempt.source_correction)) {
-        if (receipt.receipt_version !== 4 || !validReviewedRevisionAttempt(attempt) || digest(attempt.revision_authority) !== digest(revisionAuthorization?.observations)) return false;
+        if (receipt.receipt_version !== 4 || !validReviewedRevisionAttempt(attempt)) return false;
         const tip = reconstructAttemptTip(lineage);
         if (tip.family_id !== familyId || tip.attempt_id !== attempt.attempt_id || tip.reviewed_revision_consumed !== attempt.source_correction.commission.ordinal) return false;
       }
@@ -215,8 +313,23 @@ export function inspectAttemptRecords({ anchorRoot, repositoryRoot = anchorRoot,
       const prior = read(path.join(root, "completion-1.json"));
       if (prior.disposition !== "infrastructure_interruption" || !validRecoveryProof(attempt.recovery, prior)) return false;
     }
-    return true;
-  } catch { return false; }
+    return (current, assertUnchanged) => {
+      if (digest(receipt) !== binding) return false;
+      if (observeRevision) {
+        if (!current || !Object.hasOwn(current,"authorization") || !Object.hasOwn(current,"live")) return false;
+        revisionAuthorization = current.authorization;
+        revisionLive = current.live;
+      }
+      if (isReviewedRevision(attempt.source_correction) && digest(attempt.revision_authority) !== digest(revisionAuthorization?.observations)) return false;
+      const boundary = () => {
+        if (assertCurrent?.()?.then) throw fail("revision_boundary_must_be_synchronous");
+        if (digest(receipt) !== binding) throw fail("revision_stock_receipt_changed");
+        assertUnchanged();
+      };
+      if (correction) correction({revisionAuthorization,revisionInputs,revisionLive,assertCurrent:boundary});
+      else boundary();
+      return true;
+    };
 }
 
 function candidateFamilyId(branch, correction) {
@@ -239,7 +352,7 @@ function readAttemptLineage({ anchorRoot, repositoryRoot = null, branch }, throu
     seen.add(familyId);
     const root = path.join(anchorRoot, ".augnes-local-verification", "families", familyId);
     if (realpathSync(root) !== root) throw fail("attempt_unsafe_directory");
-    const entries = readdirSync(root);
+    const entries = revisionDirectoryEntries(root);
     if (entries.some(name => !/^(attempt|completion)-[12]\.json$/u.test(name) && name !== "correction-successor.json")) throw fail("attempt_unknown_record");
     const reachedReceipt = throughAttempt?.family_id === familyId;
     const number = reachedReceipt ? throughAttempt.number : entries.includes("attempt-2.json") ? 2 : 1;
@@ -324,18 +437,22 @@ export function isWebPlanningClientRevision(proof) {
 // the corrected module. Proof artifacts and Git objects remain independently
 // inspectable. This is local evidence, not independent attestation.
 export function readSourceCorrectionProof(file, repositoryRoot) {
+  return readSourceCorrectionMaterial(file, repositoryRoot).proof;
+}
+
+function readSourceCorrectionMaterial(file, repositoryRoot) {
   const relative = path.relative(repositoryRoot, file).split(path.sep).join("/");
   if (!/^\.augnes-local-verification\/[a-zA-Z0-9_./-]+\.json$/u.test(relative) || relative.split("/").includes("..") || realpathSync(file) !== file)
     throw fail("source_correction_unsafe_path");
   const proof = read(file);
   if (hasRetiredQualificationMarker(proof)) throw fail("qualification_route_retired");
   if (isReviewedRevision(proof)) {
-    readReviewedRevisionEvidence(file, proof, repositoryRoot);
-    return { ...proof, local_relative_path: relative };
+    const evidence = readReviewedRevisionEvidence(file, proof, repositoryRoot);
+    return { proof: { ...proof, local_relative_path: relative }, evidence };
   }
   const version2 = proof.schema === "augnes.local-canonical-source-correction.v2";
   const review = version2 ? readCandidateReview(file, proof) : null;
-  if (version2 && proof.kind === "accepted_main_integration") return { ...proof, local_relative_path: relative };
+  if (version2 && proof.kind === "accepted_main_integration") return { proof: { ...proof, local_relative_path: relative } };
   const sourceModule = proof.source_module ?? "";
   const nativePreparationRevision = version2 && proof.kind === "source_revision" &&
     sourceModule === "components/workbench/semantic-review/selected-work-source-editor.tsx";
@@ -361,15 +478,19 @@ export function readSourceCorrectionProof(file, repositoryRoot) {
     if (key === "after" && Date.parse(record.finished_at) <= Date.parse(read(path.join(path.dirname(file), proof.before.artifact)).finished_at)) throw fail("source_correction_witness_order_invalid");
   }
   if (proof.before.source_sha256 === proof.after.source_sha256) throw fail("source_correction_no_functional_delta");
-  return { ...proof, local_relative_path: relative.split(path.sep).join("/") };
+  return { proof: { ...proof, local_relative_path: relative.split(path.sep).join("/") } };
 }
 
-function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, acceptedMain, revisionAuthorization, revisionInputs, revisionLive, reserve }) {
-  const reread = readSourceCorrectionProof(path.join(repositoryRoot, proof.local_relative_path ?? ""), repositoryRoot);
+function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, acceptedMain, reserve }) {
+  const { proof: reread, evidence } = readSourceCorrectionMaterial(path.join(repositoryRoot, proof.local_relative_path ?? ""), repositoryRoot);
   if (digest(reread) !== digest(proof) || proof.branch !== branch || proof.head !== head || proof.tree !== tree ||
       !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree)) throw fail("source_correction_identity_invalid");
   if (isReviewedRevision(proof)) {
-    const evidence = readReviewedRevisionEvidence(path.join(repositoryRoot, proof.local_relative_path), proof, repositoryRoot);
+    const priorRoot = verifyRevisionOriginals(anchorRoot, repositoryRoot, proof);
+    const successor = { contract: "augnes.local-canonical-successor.v2", kind: "reviewed_revision",
+      family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
+    return ({ revisionAuthorization, revisionInputs, revisionLive, assertCurrent = null }) => {
+    if (digest(reread) !== digest(proof)) throw fail("source_correction_identity_invalid");
     verifyGitInputPublication(proof,evidence.original,args=>execFileSync("git",["--no-replace-objects",...args],{cwd:repositoryRoot,timeout:10000,stdio:["ignore","pipe","pipe"]}));
     const capability = revisionCapabilities.get(revisionAuthorization);
     if (!capability || capability.proof !== digest(proof) || capability.observations !== digest(revisionAuthorization.observations) ||
@@ -383,6 +504,7 @@ function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree,
         evidence.externalSettlement && (!capability.prospectiveSettlement ||
           Date.parse(revisionAuthorization.observations.settlement_review.timestamp) <= Date.parse(evidence.externalSettlement.restored.diagnostics.finished_at)))
       throw fail("revision_authenticated_authority_required");
+    const liveBinding = digest(revisionLive);
     if (usesGitInventory(proof)) {
       const sourceDecision = isInventoryBoundRevision(proof) && proof.commission.ordinal === 2
         ? revisionAuthorization.observations.contract_review : revisionAuthorization.observations.accepted_revision;
@@ -391,13 +513,7 @@ function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree,
           isGitObservationSuccessor(proof) && Date.parse(revisionAuthorization.observations.task_delegation.timestamp) <= Date.parse(evidence.completion.finished_at) ||
           Date.parse(sourceDecision.timestamp) <= Math.max(Date.parse(evidence.source.reviewed_at), Date.parse(evidence.focused.finished_at)))
         throw fail("revision_git_target_unverified");
-      verifyBrowserRevisionPreservation(evidence.original.cleanup.companion_service.after, revisionLive.service, {requireSameBinding:isInventoryBoundRevision(proof)});
     }
-    if (isBrowserRevision(proof)) verifyBrowserRevisionPreservation(evidence.original.cleanup.companion_service.after, revisionLive);
-    if (evidence.externalSettlement) assertReviewedRevisionLiveSettlement(evidence.externalSettlement, revisionLive);
-    const priorRoot = verifyRevisionOriginals(anchorRoot, repositoryRoot, proof);
-    const successor = { contract: "augnes.local-canonical-successor.v2", kind: "reviewed_revision",
-      family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
     // The historical blocked receipt is never reclassified. Admission after it
     // requires fresh, physically safe preparation under the corrected owner.
     // This is a current-input gate, not a pre-install dependency freeze.
@@ -406,10 +522,20 @@ function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree,
       const current = observePreparedDependencyInputs({ repositoryRoot, phaseId: expected.phase_id });
       if (comparePreparedDependencyInputs(expected, current) !== "unchanged") throw fail("revision_prospective_dependencies_changed");
     }
+    // Mutable tree/ownership/input checks may block. Freshness is evaluated
+    // after them, immediately before the exclusive append, never before them.
+    if (assertCurrent?.()?.then) throw fail("revision_boundary_must_be_synchronous");
+    if (capability.proof !== digest(proof) || capability.observations !== digest(revisionAuthorization.observations) ||
+        !revisionEqual(revisionInputs,evidence.inputs) || digest(revisionLive) !== liveBinding) throw fail("revision_authenticated_authority_required");
+    if (evidence.externalSettlement) assertReviewedRevisionLiveSettlement(evidence.externalSettlement, revisionLive);
+    if (usesGitInventory(proof) || isBrowserRevision(proof))
+      verifyBrowserRevisionPreservation(evidence.original.cleanup.companion_service.after, usesGitInventory(proof) ? revisionLive?.service : revisionLive, {requireSameBinding:isInventoryBoundRevision(proof)});
     if (reserve) append(priorRoot, "correction-successor.json", successor);
     if (!revisionEqual(read(path.join(priorRoot, "correction-successor.json")), successor)) throw fail("revision_successor_already_bound");
     return;
+    };
   }
+  return ({ assertCurrent = null }) => {
   const priorRoot = path.join(anchorRoot, ".augnes-local-verification", "families", proof.prior_family_id);
   if (realpathSync(priorRoot) !== priorRoot) throw fail("source_correction_unsafe_predecessor");
   const prior = read(path.join(priorRoot, `attempt-${proof.prior_number}.json`));
@@ -460,10 +586,12 @@ function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree,
   }
   const successor = { family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
   const reservation = path.join(priorRoot, "correction-successor.json");
+  if (assertCurrent?.()?.then) throw fail("revision_boundary_must_be_synchronous");
   if (reserve) {
     append(priorRoot, "correction-successor.json", successor);
   }
   if (digest(read(reservation)) !== digest(successor)) throw fail("source_correction_successor_already_bound");
+  };
 }
 
 const VERIFIER_MODULES = Object.freeze([
@@ -477,7 +605,7 @@ const VERIFIER_MODULES = Object.freeze([
 // All actual permission still comes from the task. No hash-only reset exists.
 function verifyRevisionOriginals(anchorRoot, repositoryRoot, proof) {
   const priorRoot = path.join(anchorRoot, ".augnes-local-verification", "families", proof.prior_family_id);
-  if (realpathSync(priorRoot) !== priorRoot || readdirSync(priorRoot).includes(`attempt-${proof.prior_number + 1}.json`)) throw fail("revision_latest_settled_required");
+  if (realpathSync(priorRoot) !== priorRoot || revisionDirectoryEntries(priorRoot).includes(`attempt-${proof.prior_number + 1}.json`)) throw fail("revision_latest_settled_required");
   for (const kind of ["attempt", "completion"]) {
     const actual = path.join(priorRoot, `${kind}-${proof.prior_number}.json`); read(actual);
     if (digest(readFileSync(actual)) !== proof.originals[kind].sha256) throw fail("revision_original_ledger_changed");
@@ -854,6 +982,7 @@ export function revisionArtifact(folder, reference, maximum = 512 * 1024) {
   if (realpathSync(file) !== file || !s.isFile() || s.isSymbolicLink() || s.nlink !== 1 || s.size > maximum || (s.mode & 0o022)) throw fail("revision_artifact_unsafe");
   const bytes = readFileSync(file);
   if (digest(bytes) !== reference.sha256) throw fail("revision_artifact_changed");
+  rememberRevisionFile(file, bytes);
   return bytes;
 }
 
@@ -995,16 +1124,24 @@ function verifyRetainedWebInput(repositoryRoot, expected) {
 // material, never mint the authenticated capability required by beginAttempt.
 export const inspectBrowserRevisionPreparation = args => inspectRevisionPreparation(args, isBrowserRevision);
 export const inspectGitRevisionPreparation = args => inspectRevisionPreparation(args, usesGitInventory);
-function inspectRevisionPreparation({ file, repositoryRoot, predecessorRoot, anchorRoot, runtimeInputs, live }, accepts) {
+function inspectRevisionPreparation(options, accepts) {
+  return afterRevisionValidation(typeof options.live === "function" ? options.live : null,
+    () => prepareRevisionInspection(options, accepts), (finish, current, check) => finish(current, check));
+}
+function prepareRevisionInspection({ file, repositoryRoot, predecessorRoot, anchorRoot, runtimeInputs, live }, accepts) {
   const p = read(file);
   if (!accepts(p) || Object.hasOwn(p, "authorization") || !revisionMaterialShape(p, true)) throw fail("revision_preparation_invalid");
   const evidence = readRevisionMaterials(file, p, repositoryRoot, false);
-  if (evidence.retainedObservation) verifyRetainedWebInput(repositoryRoot,evidence.retainedObservation);
   const tip = reconstructAttemptTip({ anchorRoot, repositoryRoot: predecessorRoot, branch: p.branch });
   if (tip.family_id !== p.prior_family_id || tip.number !== p.prior_number || tip.attempt_id !== p.prior_attempt_id ||
       (tip.reviewed_revision_consumed ?? 0) !== (isMaterialSourceRevision(p) ? evidence.prior.source_correction.commission.maximum_invocations : isInventoryBoundRevision(p) && p.commission.ordinal === 1 ? 2 : p.commission.ordinal - 1) ||
       (usesFreshRevisionGrant(p) && tip.revision_commission !== revisionCommissionIdentity(p)) ||
       !revisionEqual(runtimeInputs, evidence.inputs)) throw fail("revision_preparation_target_changed");
+  verifyRevisionOriginals(anchorRoot, predecessorRoot, p);
+  return (current, assertUnchanged) => {
+  if (typeof live === "function") live = current;
+  if (!revisionEqual(runtimeInputs, evidence.inputs)) throw fail("revision_preparation_target_changed");
+  if (evidence.retainedObservation) verifyRetainedWebInput(repositoryRoot,evidence.retainedObservation);
   if (isBrowserSuccessor(p) || usesGitInventory(p)) {
     const git = args => execFileSync("git", args, { cwd: repositoryRoot, encoding: "utf8", timeout: 10000 }).trim();
     verifyGitInputPublication(p,evidence.original,git);
@@ -1013,7 +1150,7 @@ function inspectRevisionPreparation({ file, repositoryRoot, predecessorRoot, anc
           git(["status", "--porcelain=v1"]) || live?.inventory !== p.inputs.inventory_sha256)))
       throw fail("revision_preparation_target_changed");
   }
-  verifyRevisionOriginals(anchorRoot, predecessorRoot, p);
+  assertUnchanged();
   verifyBrowserRevisionPreservation(evidence.original.cleanup.companion_service.after, usesGitInventory(p) ? live?.service : live, {requireSameBinding:isInventoryBoundRevision(p)});
   return { target: usesGitInventory(p) ? gitReviewTarget(p) : browserReviewTarget(p), predecessor: p.prior_receipt_fingerprint, runtime_inputs: p.inputs.identity_sha256,
     head: p.head, tree: p.tree, authorized: false, reserved: false,
@@ -1021,6 +1158,7 @@ function inspectRevisionPreparation({ file, repositoryRoot, predecessorRoot, anc
       predecessor_commission: tip.revision_commission, ordinal: p.commission.ordinal } : {}),
     ...(usesFreshRevisionGrant(p) ? { root_receipt: p.commission.root_receipt_fingerprint, consumed: tip.reviewed_revision_consumed,
       ordinal: p.commission.ordinal, initial_grant_comment_id: p.commission.initial_authorization.grant_comment_id } : {}) };
+  };
 }
 
 export function readReviewedRevisionEvidence(file, p, repositoryRoot) {
@@ -1029,6 +1167,15 @@ export function readReviewedRevisionEvidence(file, p, repositoryRoot) {
 }
 
 function readRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
+  const scope = revisionReadScope.getStore(), proof = {...p}; delete proof.local_relative_path;
+  const key = digest({file,repositoryRoot,proof,authorizedShape});
+  if (scope?.evidence.has(key)) return scope.evidence.get(key);
+  const evidence = validateRevisionMaterials(file,p,repositoryRoot,authorizedShape);
+  scope?.evidence.set(key,evidence);
+  return evidence;
+}
+
+function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
   const stored = { ...p }; delete stored.local_relative_path;
   const boundedV7 = isInventoryBoundRevision(p);
   const reviewPending = !authorizedShape && (isGitObservationRevision(p) || boundedV7 && p.commission.ordinal === 1);

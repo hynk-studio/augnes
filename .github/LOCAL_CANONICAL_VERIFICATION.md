@@ -1329,6 +1329,22 @@ capacity checks apply throughout. The read-only preparation
 any authority exists. It checks the latest ledger tip, current main, clean
 branch, source, witnesses and fresh stable inputs without reserving an attempt.
 
+Preparation, admission and separate stock finish immutable material and physical
+lineage validation before acquiring their final current observation. One call may
+reuse its exact validated material only within that operation: bind every read
+to its bytes, file identity, safe path/permissions and physical lineage entries,
+and reject mutation before use. No reusable validation token, cross-call cache,
+new authority or accounting allowance is created. Admission freshly authenticates
+authority, then uses the production observer's complete input inventories around
+the coherent Companion read. Current publication, source, dependencies, input
+faults, cancellation and ownership checks still apply. Evaluate the unchanged
+60,000ms real-clock preservation bound after all remaining blocking checks,
+immediately before exclusive successor append. Missing, future, stale or
+incoherent observations refuse without a reservation. Preparation remains
+non-reserving; stock independently rereads current inputs and repository identity
+and checks freshness at its final assessment boundary. Delayed validation never
+renews an observation or repairs an earlier refused receipt.
+
 The authenticated commit-anchored review covers the **published corrected
 source**, commitment and predecessor fingerprint. It starts with the standalone
 line `Source review decision: ACCEPT / RETAIN for prospective qualification.`

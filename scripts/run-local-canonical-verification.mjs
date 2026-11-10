@@ -747,22 +747,30 @@ export async function executeLocalCanonicalVerification({
           if (inputMonitor.check() || signal.aborted) throw Object.assign(new Error("input_invalidation"), { code: "input_invalidation" });
           if (mode !== "quick") assertFrozenSource(identityBefore, verificationContext);
           if (!attempt && mode !== "quick" && plan.selected_plan !== "documentation-only" && phaseDefinitions.length > 0 && checkoutOwner) {
-            const revisionAuthorization = isReviewedRevision(sourceCorrection) ? await authorizeReviewedRevision(sourceCorrection) : null;
-            let revisionLive = sourceCorrection?.settlement ? await observeReviewedRevisionSettlementState(verificationContext) :
-              isBrowserRevision(sourceCorrection) ? await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: true }) : null;
-            if (revisionAuthorization && (mode !== "full" || checkoutContext !== "isolated-worktree" || plan.selected_plan !== "full-canonical" ||
+            const reviewed = isReviewedRevision(sourceCorrection);
+            if (reviewed && (mode !== "full" || checkoutContext !== "isolated-worktree" || plan.selected_plan !== "full-canonical" ||
                 digest(phaseDefinitions.map(p => p.id)) !== digest(REVIEWED_REVISION_PHASES))) throw Object.assign(new Error("reviewed_revision_workload_invalid"), { code: "reviewed_revision_workload_invalid" });
-            if (isGitObservationRevision(sourceCorrection) || isInventoryBoundRevision(sourceCorrection)) {
-              revisionLive = await observeGitRevisionTarget(verificationContext, hostResult.browserExecutablePath, runtimeInputs);
-              if (gitRevisionInventory(inputs.snapshot()) !== revisionLive.inventory) throw Object.assign(new Error("revision_git_inputs_changed"), {code:"revision_git_inputs_changed"});
-            }
-            if (revisionAuthorization) inputs.check({ force: true });
-            if (revisionAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
-            attempt = beginAttempt({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, checkoutOwner,
+            attempt = await beginAttempt({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, checkoutOwner,
               branch: identityBefore.branch, head: headSha, tree: inputs.snapshot().binding.tree, runId,
               contractFingerprint: inputs.snapshot().fingerprint, acceptedMain: baseSha,
               recoveryProof: recoveryProofPath ? readRecoveryProof(resolveArtifactPath(recoveryProofPath)) : null,
-              sourceCorrection, revisionAuthorization, revisionInputs: runtimeInputs, revisionLive });
+              sourceCorrection, revisionInputs: runtimeInputs,
+              observeRevision: reviewed ? async () => {
+                const authorization = await authorizeReviewedRevision(sourceCorrection);
+                let live = sourceCorrection?.settlement ? await observeReviewedRevisionSettlementState(verificationContext) :
+                  isBrowserRevision(sourceCorrection) ? await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: true }) : null;
+                if (isGitObservationRevision(sourceCorrection) || isInventoryBoundRevision(sourceCorrection)) {
+                  live = await observeGitRevisionTarget(verificationContext, hostResult.browserExecutablePath, runtimeInputs);
+                  if (gitRevisionInventory(inputs.snapshot()) !== live.inventory) throw Object.assign(new Error("revision_git_inputs_changed"), {code:"revision_git_inputs_changed"});
+                }
+                return { authorization, live };
+              } : null,
+              assertCurrent: () => {
+                assertOwnedInputs();
+                assertVerificationContext(verificationContext, repositoryRoot);
+                inputs.check({ force: true });
+                if (inputMonitor.check() || signal.aborted) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
+              } });
             pinVerificationEvidence({ root: repositoryRoot, checkoutOwner, runId, reason: "attempt_family" });
           }
           checkoutConsumersSettled = false;
@@ -1390,7 +1398,8 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   const receiptPath = resolveArtifactPath(relativeReceiptPath);
   const receipt = readReceiptFile(receiptPath);
   assertStockReceiptSupported(receipt);
-  const identity = collectRepositoryIdentity(repositoryRoot, { verificationContext });
+  let identity = collectRepositoryIdentity(repositoryRoot, { verificationContext });
+  const stockSourceBinding = digest(identity);
   const locks = collectLockFingerprints();
   const executorFingerprint = computeExecutorSourceFingerprint();
   // Reviewed revisions reconstruct existing identity without claiming or
@@ -1451,21 +1460,42 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
       targetedPhaseIds: expectedTargetedPhaseIds,
     }).map((phase) => phase.id);
   }
-  let revisionAuthorization = null, revisionLive = null;
   let runtimeInputs = null;
-  if (isReviewedRevision(receipt.attempt?.source_correction)) {
-    try { revisionAuthorization = await authorizeReviewedRevision(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
+  const reviewed = isReviewedRevision(receipt.attempt?.source_correction);
+  if (reviewed) {
     try { runtimeInputs = observeRevisionInputs(receipt.attempt.source_correction, validationHost); } catch { /* stock refuses unavailable runtime input */ }
-    if (isBrowserRevision(receipt.attempt.source_correction)) try { revisionLive = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: true }); } catch { /* stock requires coherent current preservation */ }
-    if (isGitObservationRevision(receipt.attempt.source_correction) || isInventoryBoundRevision(receipt.attempt.source_correction)) try {
-      revisionLive = await observeGitRevisionTarget(verificationContext, validationHost.browserExecutablePath, runtimeInputs);
-      if (gitRevisionInventory(receipt.inputs) !== revisionLive.inventory) revisionLive = null;
-    } catch { /* stock refuses incomplete or changed current observations */ }
-    if (receipt.attempt.source_correction.settlement) try { revisionLive = await observeReviewedRevisionSettlementState(verificationContext); } catch { /* stock refuses unsafe or unavailable current settlement */ }
+  }
+  let currentInputStateValid = null;
+  const checkCurrentInputs = () => {
+    assertVerificationContext(verificationContext, repositoryRoot);
+    currentInputStateValid = currentInputEvidenceValid(receipt, verificationContext, validationHost.browserExecutablePath, runtimeInputs);
+    identity = collectRepositoryIdentity(repositoryRoot, { verificationContext });
+    if (identity.worktree_dirty || digest(identity) !== stockSourceBinding)
+      throw Object.assign(new Error("revision_stock_source_changed"), {code:"revision_stock_source_changed"});
+    if (!currentInputStateValid) throw Object.assign(new Error("revision_stock_inputs_changed"), {code:"revision_stock_inputs_changed"});
+  };
+  const currentAttemptRecordsValid = receipt.receipt_version === 4 ? await inspectAttemptRecords({
+    anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, revisionInputs: runtimeInputs,
+    observeRevision: reviewed ? async () => {
+      const proof = receipt.attempt.source_correction;
+      const authorization = await authorizeReviewedRevision(proof);
+      let live = isBrowserRevision(proof) ? await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: true }) : null;
+      if (isGitObservationRevision(proof) || isInventoryBoundRevision(proof)) {
+        live = await observeGitRevisionTarget(verificationContext, validationHost.browserExecutablePath, runtimeInputs);
+        if (gitRevisionInventory(receipt.inputs) !== live.inventory) live = null;
+      }
+      if (proof.settlement) live = await observeReviewedRevisionSettlementState(verificationContext);
+      return {authorization,live};
+    } : null,
+    assertCurrent: checkCurrentInputs,
+  }) : null;
+  // Invalid/absent attempts still receive independent current-input stock.
+  if (receipt.receipt_version === 4 && currentInputStateValid === null) {
+    try { checkCurrentInputs(); } catch { currentInputStateValid = false; }
   }
   return inspectReceiptForDecision(receipt, {
-    currentInputStateValid: receipt.receipt_version === 4 ? currentInputEvidenceValid(receipt, verificationContext, validationHost.browserExecutablePath, runtimeInputs) : null,
-    currentAttemptRecordsValid: receipt.receipt_version === 4 ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, revisionAuthorization, revisionInputs: runtimeInputs, revisionLive }) : null,
+    currentInputStateValid,
+    currentAttemptRecordsValid,
     currentVerificationContext: verificationContext,
     expectedRunId: path.basename(receiptPath, ".json"),
     currentIntegrationBase,

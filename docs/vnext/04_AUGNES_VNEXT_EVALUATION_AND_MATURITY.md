@@ -55,6 +55,21 @@ failures, false stocks and consumed ordinals intact. Focused evidence and this
 amended reader cannot qualify their own implementation; Full, fresh stock and
 receiving acceptance remain distinct later decisions under existing authority.
 
+### Current observation at reviewed admission
+
+Exercise delayed immutable validation through the production reader and native
+clock: a previously acquired observation can expire, while acquisition after
+that validation reaches the reservation boundary. Synthetic near-deadline
+observations are structural controls, not actual Companion or causal product
+evidence. Also delay later blocking checks to prove they cannot escape the same
+60-second guard. Cover failed/future/stale/incoherent observations, changed
+proof/material/source/runtime/authority, unsafe candidate paths, lost ownership,
+changed physical tip, cancellation, exclusive reservation and replay. Preparation
+must remain non-reserving. Stock must independently reject current dependency or
+source changes and expired observations. Retain the r8 pre-reservation refusal,
+false stock and all earlier consumed history; passing these controls cannot
+retroactively validate any earlier run or grant another invocation.
+
 ## Maturity model
 
 | Level | Name | Required evidence |

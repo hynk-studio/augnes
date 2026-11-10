@@ -351,9 +351,9 @@ if(process.argv[2]==="--cold"){
 }else if(process.argv[2]==="--race"){
   const c=read(process.argv[3]);c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});
   try{const p=proof(c),a=await auth(c,p);write(c.ready,"ready");while(!existsSync(c.go))await new Promise(r=>setTimeout(r,5));
-    try{begin(c,p,a);console.log("admitted");}catch(e){assert(["EEXIST","ENOENT","attempt_latest_tip_required"].includes(e.code),e.message);console.log("refused");}
+    try{begin(c,p,a);console.log("admitted");}catch(e){assert(["EEXIST","ENOENT","attempt_latest_tip_required","revision_validated_lineage_changed","revision_material_changed_during_validation"].includes(e.code),e.message);console.log("refused");}
   }finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
-}else if (["git","git-input","git-input-successor","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor","material-source","material-controls","material-successor","material-final","material-reservation"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
+}else if (["git","git-input","git-input-lifecycle","git-input-successor","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor","material-source","material-controls","material-successor","material-final","material-reservation"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
   const group = process.argv[2].slice(6,-9), handoff = JSON.parse(process.argv[3]);
   const outer = process.env.AUGNES_CANONICAL_TEMP_ROOT, physical = lstatSync(handoff.root);
   assert(handoff.root === outer || path.dirname(handoff.root) === path.dirname(path.dirname(outer)) &&
@@ -365,7 +365,7 @@ if(process.argv[2]==="--cold"){
   const runOwned=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);
   let c;
   try {
-    if (["git","git-input","git-input-successor"].includes(group)) {mkdirSync(dir,{mode:0o700}); c=setup(dir,group);}
+    if (["git","git-input","git-input-lifecycle","git-input-successor"].includes(group)) {mkdirSync(dir,{mode:0o700}); c=setup(dir,group === "git-input-lifecycle" ? "git-input" : group);}
     else {
       assert.equal(realpathSync(dir),dir);
       c = read(path.join(dir,"context.json")); c.root=dir;
@@ -380,7 +380,7 @@ if(process.argv[2]==="--cold"){
       run:runOwned,behavior:(subject,syntaxOnly=false)=>behavior(subject,syntaxOnly,runOwned),fresh:packet=>freshReader(c,packet,runOwned),
       snapshot:path.join(handoff.root,"prospective-fixture"),fork:path.join(handoff.root,"final-case"),positive:path.join(handoff.root,"post-pass-case")};
     if (group==="git") await runGitRevisionControls(c,helpers);
-    else if (group.startsWith("git-input")) await runGitInputRevisionControls(c,helpers,group==="git-input-successor");
+    else if (group.startsWith("git-input")) await runGitInputRevisionControls(c,helpers,group==="git-input-successor",group==="git-input-lifecycle");
     else if (group==="git-successor") await completeGitRevisionControls(c,helpers);
     else if (group.startsWith("material-")) await runMaterialSourceControls(c,helpers,group);
     else if (group.startsWith("final")) await checkFinalDependency(c,helpers,group);

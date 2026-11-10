@@ -86,6 +86,20 @@ qualify or validate stock. Its implementation and focused evidence require
 independent review. Full responsibility and separate exact-target authority
 remain; #1612 stays Draft and qualification HOLD / DO NOT MERGE.
 
+### Branch-local reviewed admission observation lifecycle (#1612)
+
+The r8 invocation refused before reservation because its coherent observation
+aged beyond the existing 60-second bound. Its exact subcall latency and foreign
+load causation remain UNKNOWN. The r9 correction stages immutable material and
+lineage validation before current authority/input/Companion acquisition, removes
+duplicate semantic replay within one call, and seals the validated reads against
+mutation. Remaining mutable checks precede the final freshness decision and
+exclusive successor append. Preparation and separate stock use the same ordering;
+stock refreshes the actual source identity. This changes no product behavior,
+clock bound, commission, ordinal or historical result. Focused controls, final
+published-source review, exact-target authority, Full and separate stock remain
+distinct requirements; no qualification result is claimed by this implementation.
+
 ### Native pending preparation and deliberate departure candidate (#1599)
 
 [#1599](https://github.com/hynk-studio/augnes/issues/1599) adds consistent pending
