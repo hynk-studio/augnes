@@ -10,6 +10,54 @@ Checked-in code and runtime behavior remain the source of truth for what is
 implemented. A target named here is not implemented merely because it appears
 in the roadmap.
 
+## Current status and next decisions — 2026-11-10
+
+This reading guide reconciles the dated sections below with source main
+`80b1591892a23c276700668a564ba5687beab387`. The linked issue/PR owns its latest
+candidate and evidence; older present-tense descriptions retain their original
+context. Source integration, recorded execution, current qualification and
+installed or published adoption remain distinct.
+
+| Existing owner | Current bounded result | Next decision |
+|---|---|---|
+| [#1599](https://github.com/hynk-studio/augnes/issues/1599) / [#1601](https://github.com/hynk-studio/augnes/pull/1601) | Native pending-authoring and departure protection merged. | Use that implementation as the baseline; keep subsequent navigation and QA findings with #1608/#1609. |
+| [#1561](https://github.com/hynk-studio/augnes/issues/1561) / [#1562](https://github.com/hynk-studio/augnes/pull/1562) | Bounded Companion result-linked successor preparation merged. | Observe necessary ordinary follow-up under L1; broader usefulness and installed adoption are separate. |
+| [#1559](https://github.com/hynk-studio/augnes/issues/1559) / [#1560](https://github.com/hynk-studio/augnes/pull/1560), [#1613](https://github.com/hynk-studio/augnes/pull/1613) | Direction-history verification work and the later protected Git-input maintenance merged. | Preserve their own evidence and remaining owners; neither merge qualifies another candidate. |
+| [#1608](https://github.com/hynk-studio/augnes/issues/1608) / [Draft #1614](https://github.com/hynk-studio/augnes/pull/1614) | Native navigation candidate remains open; receiving r4 source decision is REVISE and qualification is HOLD. | Complete the existing synthetic-output isolation correction and its applicable review/qualification. |
+| [#1609](https://github.com/hynk-studio/augnes/issues/1609) / [Draft #1611](https://github.com/hynk-studio/augnes/pull/1611) | r11 records Full 16/16 and Browser 7/7 PASS at `0f818e85`; separate stock is false solely for `receipt_stale_integration_base`. Current applicability remains HOLD. | Resolve current-main applicability under its existing owner. Preserve recorded PASS and consumed 1/1 lineage; this update creates no rerun or successor authority. |
+| [#1610](https://github.com/hynk-studio/augnes/issues/1610) / [Draft #1612](https://github.com/hynk-studio/augnes/pull/1612) | Candidate advanced to `601ccf21`; qualification remains HOLD. The r8 admission refusal belongs to `4eb40f66`. | Finish the existing correction and return for its actual candidate; do not transfer the old result or grant to a new target by this summary. |
+| [#1615](https://github.com/hynk-studio/augnes/issues/1615) / [merged plan #1616](https://github.com/hynk-studio/augnes/pull/1616) | Pi plan merged; source diagnosis identifies the managed-host evidence attribution gap. | The existing bounded provenance assignment owns implementation; no Pi execution or provider spending is dispatched here. |
+| [#1447](https://github.com/hynk-studio/augnes/issues/1447) / [#1606](https://github.com/hynk-studio/augnes/pull/1606) | Software Change Check source and delivery preparation merged. | Confirm actual listing, delivery and consumer use through the approved public-asset owner; those outcomes are not established by the merge. |
+
+### Consolidation follow-through within existing owners
+
+- Treat roadmap/issue status and Space entry maintenance as one coherent outcome.
+  Keep one current task summary, a readable evidence original and dated history;
+  verify destination access before replacing necessary copies with links.
+  Private source material stays private. Stable handoff rules change only when
+  the operating procedure changes.
+- Compare shared verifier changes by behavior, callers and compatibility under
+  #1430/#1530. Coordinate adoption only where those changes depend on each other;
+  independent product work continues. File overlap alone creates neither a global
+  sequencing gate nor transferable PASS evidence.
+- Use the next already-needed Augnes development handoff as a concrete ordinary-use
+  candidate: read current sources, produce/check/save the actual result, and use a
+  fresh executor only for necessary remaining work. Reuse the accepted observations
+  of [#1544](https://github.com/hynk-studio/augnes/issues/1544) and
+  [#1526](https://github.com/hynk-studio/augnes/issues/1526) at their original scope.
+  This candidate dispatches no new study, run or mandatory successor.
+- Preserve evidence identity, provenance, isolation, actual execution and cleanup.
+  Existing verification mechanisms remain in force; measured unnecessary burden
+  can justify a separate bounded mechanism correction without rewriting history.
+  Documentation classification and current-main receipt applicability stay with
+  their existing verification owners, outside this status-only change.
+- End review of old [#1542](https://github.com/hynk-studio/augnes/pull/1542),
+  [#1536](https://github.com/hynk-studio/augnes/pull/1536) and
+  [#1533](https://github.com/hynk-studio/augnes/pull/1533) with an explicit disposition
+  of the remaining independent contribution: retain as history, transfer a needed
+  bounded contribution, or close after its obligations are accounted for. Retained
+  HOLD/STOP and consumed allocations do not restart; no repeated audit is implied.
+
 ## Phase-state rule
 
 - **Completed** means the implementation or documentation outcome was reviewed
@@ -54,6 +102,11 @@ implementation and its qualification are not included.
 
 ### Proposed qualification after a protected Git-input interruption
 
+**Current state, 2026-11-10:** the maintenance proposal was merged in
+[#1613](https://github.com/hynk-studio/augnes/pull/1613). Its original proposal
+description below is retained as history; #1612's later candidate, admission
+refusal and qualification remain separately owned.
+
 The maintenance proposal related to [#1612](https://github.com/hynk-studio/augnes/pull/1612)
 extends existing v10 owners with an explicit stable protected Git-input target.
 It preserves the independently accepted #1610 product source and the invalid
@@ -69,6 +122,12 @@ RETAIN and qualification HOLD. The [verification policy](../../.github/LOCAL_CAN
 owns the proposed admission and compatibility boundary.
 
 ### Native pending preparation and deliberate departure candidate (#1599)
+
+**Current state, 2026-11-10:** [#1601](https://github.com/hynk-studio/augnes/pull/1601)
+merged the bounded #1599 implementation. The following implementation and
+pre-merge qualification description is preserved in its original context.
+Later Native navigation and MCP/Web QA work belongs to #1608/#1609; this merge
+does not establish their completion, broader P2/P5 usefulness or installed adoption.
 
 [#1599](https://github.com/hynk-studio/augnes/issues/1599) adds consistent pending
 authoring locks and memory-only departure protection to first work, eligible
@@ -1328,6 +1387,11 @@ return to their applicable decision owner unless the existing delegation already
 covers the action. Missing information requires a question only when it materially
 changes that decision; ordinary implementation choices stay with the executor.
 
+**Current state, 2026-11-10:** [#1562](https://github.com/hynk-studio/augnes/pull/1562)
+merged the bounded #1561 increment. Its implementation description and original
+qualification wording below are retained as history. General L1 usefulness and
+installed adoption remain separate questions.
+
 The current [#1561](https://github.com/hynk-studio/augnes/issues/1561) increment
 connects native Companion result reading, explicit source comparison, full-packet
 preview and successor preparation to the existing canonical result-successor
@@ -1483,6 +1547,9 @@ Its v0.2 integration targets current-source reading, actual authorized work,
 result interpretation and necessary fresh-executor use in one assignment, with
 guidance, implementation, checks and return together. Do not make the continuity
 case a requirement that one-time public use acquire state or invent follow-up.
+
+**Current state, 2026-11-10:** the linked #1562 is merged; the following paragraph
+preserves the original narrower assignment and its then-pending status.
 
 Related partial work is assigned in
 [#1561](https://github.com/hynk-studio/augnes/issues/1561) /
@@ -1753,6 +1820,11 @@ workflow-cost release, prior RETAIN observations and their limits. The existing
 package's multi-file dependency is incompatible with Agensi's documented
 single-temporary-script delivery. [Channel preparation and disposition](../PUBLIC_ASSET_SKILL_USAGE.md#additional-distribution-channels)
 record this mismatch and the next check.
+
+**Current state, 2026-11-10:** [#1606](https://github.com/hynk-studio/augnes/pull/1606)
+merged the source, packaging and listing preparation described below. The
+historical candidate wording does not mean the PR remains open. Actual marketplace
+submission, publication and consumption have not been established by this update.
 
 The 2026-11-09 selected implementation prepares `verify-software-change` as
 **Augnes Software Change Check 0.1.0**, one free four-file Skill under #1447.

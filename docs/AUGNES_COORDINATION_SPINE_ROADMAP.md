@@ -1,5 +1,12 @@
 # Augnes Coordination Spine Roadmap
 
+**Historical coordination design.** Current implementation status and sequence
+belong to the [active roadmap](./vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md);
+the [authority map](./vnext/00_AUGNES_VNEXT_DOCUMENT_INDEX.md) identifies the
+other current owners. The original plan and anchors below retain their historical
+and compatibility context. Their present-tense wording does not dispatch work or
+override current product, protocol, verification or authority contracts.
+
 This roadmap defines the current implementation plan for making Augnes a practical coordination spine between ChatGPT, Codex, GitHub, Browser/Chrome, MCP surfaces, and Augnes Core without turning ChatGPT Apps into an autonomous execution controller.
 
 ## Purpose

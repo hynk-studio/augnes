@@ -8,11 +8,13 @@ component and the installed Augnes Operator.
 
 ## Current disposition
 
-Source, four-file packaging, isolated delivery checks, reproducible development
-examples and the listing text below are prepared for review. This is not a live listing
-or a new GitHub release. Local development checks do not establish Mac Local
-Canonical qualification or actual Agensi consumption. Keep the PR Draft until
-the repository's required verification and review are complete.
+**Source preparation merged:** [#1606](https://github.com/hynk-studio/augnes/pull/1606)
+integrated the source, four-file packaging, isolated delivery checks, reproducible
+development examples and listing text. The merge records repository integration;
+it does not establish a live listing, a new GitHub release or actual Agensi
+consumption. Current marketplace publication and delivery remain unverified in
+this 2026-11-10 status update. The original preparation observation is preserved
+below; local development checks retain their original scope.
 
 The approved direction is one **free** listing. No payout setup, subscription,
 outreach, support commitment, automatic publisher or new runtime is needed.

@@ -1,5 +1,12 @@
 # Augnes Local Project Upload Pack — SSOT Layout (r20.1p4p23)
 
+**Historical upload-pack index.** For current repository authority, start with
+the [active authority map](./vnext/00_AUGNES_VNEXT_DOCUMENT_INDEX.md) and
+[implementation roadmap](./vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md).
+The upload layout, earlier SSOT labels, links and dated records below are retained
+for historical and compatibility use; this index is not a competing current plan
+or authority grant. Existing historical text and anchors remain unchanged.
+
 이 세트는 **ChatGPT 프로젝트 폴더에 바로 업로드**하기 좋게, 핵심 문서들을 **폴더 없이(플랫)** 정리한 묶음이야.
 
 ---
