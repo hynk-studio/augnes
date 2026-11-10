@@ -1216,8 +1216,8 @@ function assertRevisionPublication(p,pr) {
     throw fail("revision_published_source_invalid");
 }
 
-const measuredIntegrationEvidence = p => p.commission?.evidence_kind === REGISTERED_INTEGRATION_BUDGET;
-const generatedStockEvidence = p => p.commission?.evidence_kind === GENERATED_STOCK_REPAIR;
+const measuredIntegrationEvidence = p => p?.commission?.evidence_kind === REGISTERED_INTEGRATION_BUDGET;
+const generatedStockEvidence = p => p?.commission?.evidence_kind === GENERATED_STOCK_REPAIR;
 const usesGeneratedStockWitness = p => measuredIntegrationEvidence(p) || generatedStockEvidence(p);
 const materialEvidenceClaim = kind => kind === GENERATED_STOCK_REPAIR ? GENERATED_STOCK_CLAIM : fixtureBudgetEvidenceClaim(kind);
 async function verifyIntegrationBudgetDelegation(p,delegation,evidence,repositoryRoot,transport) {
