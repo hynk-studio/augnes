@@ -8,35 +8,39 @@ verification principles. Product doctrine, Core/protocol meaning,
 implementation status, and evaluation belong to their active owners;
 temporary program history belongs to supporting historical records.
 
-- ChatGPT and the user own the goal, scope, invariants, authority, non-goals,
-  and deciding-evidence requirements. ChatGPT and the user also own
-  post-implementation audit and evidence review.
-- Codex owns current-source inspection, implementation search, file, function,
-  and test choice, implementation, verification, and Draft pull-request
-  creation.
+- Task owners define the goal, scope, invariants, authority, non-goals, and
+  deciding-evidence requirements. Reviewers independently audit the resulting
+  source and evidence.
+- Contributors own current-source inspection, implementation search, file,
+  function, and test choice, implementation, verification, and Draft
+  pull-request creation within their authorized scope.
 - Issues and pull requests constrain outcomes and invariants. They do not force
   stale preselected mechanisms unless a current compatibility or authority
   boundary fixes the mechanism.
-- Codex does not claim user judgments, repository approval, or merge authority.
+- Implementation and verification do not grant user-decision, repository
+  approval, or merge authority.
+
+These responsibilities apply to human and automated contributors. Versioned
+repository contracts remain the reference for development and review.
 
 ## Repository and workspace identity
 
-- The sole current repository is `hynk-studio/augnes`. The actual Mac
-  installed runtime and Local Canonical host remain rooted at
-  `/Users/hynk/code/augnes`. Verification-only linked worktrees on that Mac require
-  explicit admission under the Local Canonical policy; they do not change
-  installed-production identity or grant adoption authority.
-- Explicitly user-authorized isolated Codex Cloud checkouts of this repository
-  may inspect source, implement changes, run focused development tests, and
-  create branches, commits, pushes, and Draft pull requests within task scope.
-  Resolve the authorized checkout root rather than requiring the Mac root for
-  that development work. Cloud feedback is not actual Mac integration evidence
-  or a Mac Local Canonical receipt; checkout access grants no additional
-  production, provider, deployment, or merge authority.
-- `hynk-studio/augnes-perspective-lab` and
-  `/Users/hynk/code/augnes-temp` are historical provenance and rollback
-  material only. They grant no current development, project, execution,
-  verification, provider, or GitHub-write authority.
+- The sole current repository is `hynk-studio/augnes`. The registered reference
+  installation and deciding verification host are defined by the
+  [Local Canonical policy](.github/LOCAL_CANONICAL_VERIFICATION.md).
+  Verification-only linked worktrees require explicit admission under that
+  policy; they do not change installed-production identity or grant adoption
+  authority.
+- Use the checkout authorized for the task. Isolated development, including
+  authorized Codex Cloud work, may inspect source, implement changes, run
+  focused development tests, and create branches, commits, pushes, and Draft
+  pull requests within scope. Development feedback is not actual reference-host
+  integration evidence or a Local Canonical receipt; checkout access grants no
+  additional production, provider, deployment, or merge authority.
+- Historical repositories and retired workspaces, including
+  `hynk-studio/augnes-perspective-lab`, remain provenance and rollback material
+  only. They grant no current development, project, execution, verification,
+  provider, or GitHub-write authority.
 - Before repository work and again before deciding verification, resolve the
   exact repository root, origin, branch, `HEAD`, base, and clean/dirty
   worktree state. Stop on a mismatch.
@@ -103,19 +107,20 @@ capability or simpler path can justify improvement without inventing a defect;
 vague possibility alone cannot expand scope. Scale this to the task, without a
 research form for ordinary fixes or documentation or universal search counts.
 
-- ChatGPT refines the target, separates observation from interpretation, offers
-  falsifiable or discriminable hypotheses and expected behavior, interprets
-  returned evidence, and recommends the next concrete direction with a reason
-  to continue or stop. It distinguishes implementation failure, method failure,
-  insufficient observation, and negative evidence; pass/fail alone is not enough.
-- Codex diagnoses current source and the actual execution path, challenges a
-  contradicted cause or layer, and chooses files, functions, tests, and methods
-  from that evidence. It may propose a simpler approach, find the requirement
+- Task owners and reviewers refine the target, separate observation from
+  interpretation, offer falsifiable or discriminable hypotheses and expected
+  behavior, interpret returned evidence, and recommend the next direction with
+  a reason to continue or stop. They distinguish implementation failure, method
+  failure, insufficient observation, and negative evidence; pass/fail alone is
+  not enough.
+- Contributors diagnose current source and the actual execution path, challenge
+  a contradicted cause or layer, and choose files, functions, tests, and methods
+  from that evidence. They may propose a simpler approach, find the requirement
   already satisfied, or conclude that observation or no implementation is
-  justified. Within approved scope and budget it implements the smallest
-  sufficient change, runs focused checks, revises when observations warrant it,
-  and explains why the change should affect the target behavior.
-- These are model-neutral roles, not permanent model or subscription choices.
+  justified. Within approved scope and budget they implement the smallest
+  sufficient change, run focused checks, revise when observations warrant it,
+  and explain why the change should affect the target behavior.
+- Apply these responsibilities to the assigned contributors and reviewers.
   Method exploration never expands goal, authority, tools, data, provider use,
   cost ceilings, or external effects. A failure alone need not stop a supported
   bounded attempt; lack of evidence for further investment forbids indefinite

@@ -16,9 +16,9 @@
 
 Provide a reusable task handoff shape for Codex work.
 
-This template supports ChatGPT review and a PR-centered workflow. It is guidance,
-not runtime policy, and it does not create implementation, evaluation, evidence,
-or proof authority.
+This template supports independent review and a PR-centered workflow. It is
+guidance, not runtime policy, and it does not create implementation, evaluation,
+evidence, or proof authority.
 
 ## Handoff Template Fields
 
@@ -53,7 +53,11 @@ runtime policy, or a required project-state contract.
 
 ## PR-Centered Workflow
 
-Codex codes, tests, and opens PRs. ChatGPT reviews. The user decides merge.
+The implementation contributor codes, tests, and opens a Draft PR. A reviewer
+independently checks the source and evidence. The user retains the merge decision;
+an explicitly authorized maintainer may execute it. This template prepares work
+for Codex as the implementation contributor; the assigned reviewer checks the
+returned changes and evidence.
 
 This workflow description is a review aid for dogfooding. It does not grant
 merge authority, commit/reject authority, or runtime authority.
