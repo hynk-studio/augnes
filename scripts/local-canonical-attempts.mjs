@@ -301,7 +301,7 @@ function prepareAttemptInspection({ anchorRoot, repositoryRoot = anchorRoot, rec
       const prefix = readAttemptLineage(lineage, attempt);
       if (prefix.family_id !== familyId || prefix.attempt_id !== attempt.attempt_id || prefix.number !== attempt.number) return false;
       correction = prepareSourceCorrection({ anchorRoot, repositoryRoot, branch: receipt.repository.branch,
-        head: attempt.head, tree: attempt.tree, proof: attempt.source_correction, acceptedMain: receipt.repository.base_sha, reserve: false });
+        head: attempt.head, tree: attempt.tree, proof: attempt.source_correction, acceptedMain: receipt.repository.base_sha, reserve: false, stockReceipt: receipt });
       if (isReviewedRevision(attempt.source_correction)) {
         if (receipt.receipt_version !== 4 || !validReviewedRevisionAttempt(attempt)) return false;
         const tip = reconstructAttemptTip(lineage);
@@ -490,7 +490,7 @@ function readSourceCorrectionMaterial(file, repositoryRoot) {
   return { proof: { ...proof, local_relative_path: relative.split(path.sep).join("/") } };
 }
 
-function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, acceptedMain, reserve }) {
+function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, acceptedMain, reserve, stockReceipt = null }) {
   const { proof: reread, evidence } = readSourceCorrectionMaterial(path.join(repositoryRoot, proof.local_relative_path ?? ""), repositoryRoot);
   if (digest(reread) !== digest(proof) || proof.branch !== branch || proof.head !== head || proof.tree !== tree ||
       !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree)) throw fail("source_correction_identity_invalid");
@@ -531,7 +531,7 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
       const current = observePreparedDependencyInputs({ repositoryRoot, phaseId: expected.phase_id });
       if (comparePreparedDependencyInputs(expected, current) !== "unchanged") throw fail("revision_prospective_dependencies_changed");
     }
-    if (evidence.integrationBudget) inspectCurrentIntegrationBudgetInputs(repositoryRoot,evidence.integrationBudget);
+    if (evidence.integrationBudget) inspectCurrentIntegrationBudgetInputs(repositoryRoot, evidence.integrationBudget, stockReceipt);
     // Mutable tree/ownership/input checks may block. Freshness is evaluated
     // after them, immediately before the exclusive append, never before them.
     if (assertCurrent?.()?.then) throw fail("revision_boundary_must_be_synchronous");

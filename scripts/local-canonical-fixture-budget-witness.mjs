@@ -840,9 +840,58 @@ export function verifyRegisteredIntegrationBudget(p,prior,focused,options) {
   return p.head;
 }
 
-export function inspectCurrentIntegrationBudgetInputs(root, witness) {
-  if (!equal(observePureContractSource(root),witness.after.source) ||
-      !equal(observePureContractLoader(root),witness.after.loader) ||
-      comparePreparedDependencyInputs(observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"}),
+// Next writes this declaration at the root during build and dev startup. The
+// pinned dependency and Git observations still apply. Only these complete
+// declaration forms can be a changed output of an owned, settled phase.
+const nextDeclarationKinds = new Map();
+for (const [kind, directory] of [["build", ".next"], ["dev", ".next/dev"]]) {
+  const lines = [
+    '/// <reference types="next" />',
+    '/// <reference types="next/image-types/global" />',
+    `import "./${directory}/types/routes.d.ts";`,
+    `import "./${directory}/types/root-params.d.ts";`,
+    "",
+    "// NOTE: This file should not be edited",
+    "// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.",
+    "",
+  ];
+  for (const eol of ["\n", "\r\n"]) nextDeclarationKinds.set(digest(Buffer.from(lines.join(eol))), kind);
+}
+
+function readNextDeclaration(root, observed) {
+  if (!Array.isArray(observed) || observed.length > 1) fail();
+  const file = path.join(root, "next-env.d.ts");
+  const before = lstatSync(file, { bigint: true, throwIfNoEntry: false });
+  if (!before && observed.length === 0) return null;
+  if (observed[0]?.path !== "next-env.d.ts" || !before?.isFile() || before.nlink !== 1n ||
+      before.uid !== BigInt(process.getuid()) || (before.mode & 0o022n) !== 0n ||
+      before.size > 1024n || realpathSync(file) !== file) fail();
+  const raw = readFileSync(file), after = lstatSync(file, { bigint: true });
+  if (["dev", "ino", "mode", "uid", "gid", "size", "nlink", "ctimeNs", "mtimeNs"].some(key => before[key] !== after[key]) ||
+      BigInt(raw.length) !== after.size || digest(raw) !== observed[0].sha256) fail();
+  return { kind: nextDeclarationKinds.get(observed[0].sha256), mtime: after.mtimeNs, ctime: after.ctimeNs };
+}
+
+function settledNextDeclarationOutput(receipt, current, frozen) {
+  if (receipt?.verification_context?.kind !== "isolated-worktree" || receipt.cleanup?.completed !== true ||
+      !current?.kind || !Array.isArray(frozen) || frozen.length > 1 ||
+      frozen.some(file => file.path !== "next-env.d.ts" || !nextDeclarationKinds.has(file.sha256))) return false;
+  return receipt.phases.some(phase => {
+    const ownedWriter = current.kind === "build" ? phase.id === "build" : phase.browser === true;
+    const start = Date.parse(phase.started_at), end = Date.parse(phase.finished_at);
+    if (!ownedWriter || phase.status === "not_run" || phase.cleanup?.completed !== true ||
+        phase.cleanup.termination_reason !== "natural_exit" || !Number.isFinite(start) || !Number.isFinite(end)) return false;
+    const first = BigInt(start) * 1_000_000n, last = BigInt(end + 1) * 1_000_000n;
+    return [current.mtime, current.ctime].every(time => first <= time && time < last);
+  });
+}
+
+export function inspectCurrentIntegrationBudgetInputs(root, witness, stockReceipt = null) {
+  const { root_generated: generated, ...current } = observePureContractSource(root);
+  const { root_generated: frozen, ...source } = witness.after.source;
+  const declaration = readNextDeclaration(root, generated);
+  if (!equal(current, source) || (!equal(generated, frozen) && !settledNextDeclarationOutput(stockReceipt, declaration, frozen)) ||
+      !equal(observePureContractLoader(root), witness.after.loader) ||
+      comparePreparedDependencyInputs(observePreparedDependencyInputs({ repositoryRoot: root, phaseId: "dependencies-root" }),
         witness.after.dependencies) !== "unchanged" || existsSync(witness.environment.AUGNES_CANONICAL_TEMP_ROOT)) fail();
 }
