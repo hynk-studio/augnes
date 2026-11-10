@@ -153,6 +153,16 @@ export async function runSerialAggregateControls(c,h,materialMode=false) {
   const prep=(q=p,live=c.live)=>{q=clone(q);delete q.authorization;delete q.accepted.review;write(prepFile,q);return inspectSerialAggregatePreparation({file:prepFile,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live});};
   assert.equal(c.git(["status","--porcelain=v1"]).toString().trim(),"","fixture must be clean before preparation");
   const preparation=prep();assert.equal(preparation.consumed,0);assert.equal(preparation.reserved,false);assert(!existsSync(edge));
+  const material={...clone(p)};delete material.authorization;delete material.accepted.review;write(prepFile,material);
+  const prepArgs={file:prepFile,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live:c.live};
+  assert.equal((await prepareSerialAggregateRevision(prepArgs,{transport:{pullRequest:async()=>clone(c.authority.pr)}})).published_head_checked,true);
+  c.gitDeclaration=declared;
+  // Material controls inherit the positive serial predecessor. The registered
+  // serial-aggregate owner alone exercises its preparation and capture refusals.
+  if (materialMode) {
+    const proof=h.proof(c), authority=await h.auth(c,proof);
+    return runSerialMaterialControls(c,h,proof,authority,sourceRoot,use);
+  }
   const originalHashes=[completion,path.join(priorRoot,"attempt-1.json")].map(f=>digest(readFileSync(f)));
   for(const mutate of [q=>q.prior_attempt_id="wrong-tip",q=>q.commission.envelope_sha256=digest("changed inventory"),q=>q.head=c.base,q=>q.commission.ordinal=2,q=>q.commission.maximum_invocations=2]) {
     const q=clone(p);mutate(q);assert.throws(()=>prep(q));assert(!existsSync(edge));
@@ -200,9 +210,6 @@ export async function runSerialAggregateControls(c,h,materialMode=false) {
   p.incident=artifact(c,'uncapped-incident.json',uncapped);assert.equal(incidentRead().completed_children,2);
   p.incident=originalIncidentRef;c.prior=retained;
 
-  const material={...clone(p)};delete material.authorization;delete material.accepted.review;write(prepFile,material);
-  const prepArgs={file:prepFile,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live:c.live};
-  assert.equal((await prepareSerialAggregateRevision(prepArgs,{transport:{pullRequest:async()=>clone(c.authority.pr)}})).published_head_checked,true);
   for(const mutate of [v=>v.head.sha=c.base,v=>v.draft=false,v=>v.auto_merge={}]) {
     const published=clone(c.authority.pr);mutate(published);
     await assert.rejects(prepareSerialAggregateRevision(prepArgs,{transport:{pullRequest:async()=>published}}),/revision_published_source_invalid/u);
@@ -232,8 +239,6 @@ export async function runSerialAggregateControls(c,h,materialMode=false) {
     await assert.rejects(h.auth(c,proof,(v,e)=>{if(e.includes("/comments/")) mutate(v);return v;}));
   assert.throws(()=>h.begin(c,proof,{}));assert(!existsSync(edge));
   // Existing complete receipt/stock fixture uses the actual reservation owner.
-  c.gitDeclaration=declared;
-  if (materialMode) return runSerialMaterialControls(c,h,proof,authority,sourceRoot,use);
   const execution=await executeFixture(c,h,proof,authority,use,dependencyRecords(c));
   assert.equal(execution.stock.valid_deciding_evidence,true);
   // Reuse actual parent IPC accounting from the source-bound focused driver.

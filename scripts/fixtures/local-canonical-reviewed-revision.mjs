@@ -401,8 +401,17 @@ if(process.argv[2]==="--cold"){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
   const lifecycle={pendingChildren:0}, run=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);
   const c=setup(owner.root);
-  try { await runSerialAggregateControls(c,{prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,run,
-    fresh:packet=>freshReader(c,packet,run),behavior:(subject)=>behavior(subject,false,run)},process.argv[2]==="--run-serial-material-fixtures"); }
+  const material=process.argv[2]==="--run-serial-material-fixtures";
+  const capture=path.join(c.checkout,".augnes-local-verification/full-output.log");
+  const writePredecessor=(file,value)=>{
+    // A material successor consumes an intact aggregate predecessor. Mutating
+    // that capture to test aggregate refusals belongs to the aggregate owner.
+    if(material && file===capture && existsSync(file))
+      assert(readFileSync(file).equals(Buffer.from(value)),"material_predecessor_capture_mutation");
+    write(file,value);
+  };
+  try { await runSerialAggregateControls(c,{prepare,artifact,read,write:writePredecessor,proof,auth,begin,stock,receipt,storeReceipt,run,
+    fresh:packet=>freshReader(c,packet,run),behavior:(subject)=>behavior(subject,false,run)},material); }
   finally {releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});assert(cleanupCanonicalTestResources([owner])[0].completed);}
 }else if(process.argv[2]==="--run-browser-fixtures"){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
