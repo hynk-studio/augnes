@@ -25,6 +25,12 @@ import {baseReceipt} from "./local-canonical-receipt-v3.mjs";
 import {runMaterialSourceControls,seedMaterialSourceFiles,prepareMaterialSourcePredecessor} from "./local-canonical-material-source.mjs";
 
 const self=fileURLToPath(import.meta.url), quiet={write(){}}, clone=v=>structuredClone(v);
+// Fixed, value-free development diagnostics. performance.now includes this
+// process's startup/import time; the outer child owner reports its full lifetime.
+const browserProgress = process.argv[2] === "--run-browser-fixtures"
+  ? stage => console.error("AUGNES_REVIEW_FIXTURE_STAGE " + JSON.stringify({ stage, at: performance.now() }))
+  : () => {};
+browserProgress("imports_complete");
 const write=(f,v)=>{mkdirSync(path.dirname(f),{recursive:true,mode:0o700});writeFileSync(f,typeof v==="string"||Buffer.isBuffer(v)?v:JSON.stringify(v),{mode:0o600});};
 const read=f=>JSON.parse(readFileSync(f,"utf8")), time=n=>new Date(fixtureNow()+n).toISOString();
 // A handoff retains synthetic service identity, not a reusable current observation.
@@ -405,12 +411,15 @@ if(process.argv[2]==="--cold"){
     fresh:packet=>freshReader(c,packet,run),behavior:(subject)=>behavior(subject,false,run)},process.argv[2]==="--run-serial-material-fixtures"); }
   finally {releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});assert(cleanupCanonicalTestResources([owner])[0].completed);}
 }else if(process.argv[2]==="--run-browser-fixtures"){
+  browserProgress("setup_start");
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
   const c=setup(owner.root,true);
+  browserProgress("setup_complete");
   try {
     await runBrowserRevisionControls(c,{prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,baseReceipt,
-      fresh:packet=>freshReader(c,packet)});
-  }finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0});assert(cleanupCanonicalTestResources([owner])[0].completed);}
+      fresh:packet=>freshReader(c,packet),progress:browserProgress});
+    browserProgress("controls_complete");
+  }finally{browserProgress("cleanup_start");releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0});assert(cleanupCanonicalTestResources([owner])[0].completed);browserProgress("cleanup_complete");}
 }else if(process.argv[2]==="--run-settlement-fixtures"){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
   const c=setup(owner.root);let children=0;
