@@ -1495,7 +1495,10 @@ Development receipts remain non-deciding; physical attempt/completion controls
 separately establish authentic binding. Full source/catalogue, effective input
 inventory, runtime, loader, root/Web dependencies, launch umask and owned cleanup
 are retained. Preparation/admission keeps the early prerequisite gate and later
-integrity checks. Naturally passing measurements stay PASS and do not identify
+integrity checks. Retained input events must reclassify through the existing input
+owner with their bound identity, role and observation interval; supported non-fault
+metadata changes remain observations, while content, permission or ownership
+changes still refuse. Naturally passing measurements stay PASS and do not identify
 a historical timeout cause or justify an arbitrary allowance increase.
 
 The visible verifier delegation is distinct from the product-defect format.

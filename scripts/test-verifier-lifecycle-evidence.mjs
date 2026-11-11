@@ -4,10 +4,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { digest } from "./local-canonical-inputs.mjs";
+import { digest, inputEventIdentity } from "./local-canonical-inputs.mjs";
 import { readVerifierLifecycleDelegation, delegatesMaterialSourceCommission, verifierLifecycleAuthorityBindings,
   verifierLifecycleAuthorityScope, MATERIAL_HISTORY_BOUNDARY, INTEGRATION_BUDGET_LIMIT, verifyGitRevisionFailure } from "./local-canonical-git-observation.mjs";
-import { VERIFIER_LIFECYCLE_REPAIR, VERIFIER_LIFECYCLE_GRANT, verifierLifecycleReaderGraph, verifyVerifierLifecyclePredecessor, verifyVerifierLifecycleRepair } from "./local-canonical-verifier-lifecycle-witness.mjs";
+import { VERIFIER_LIFECYCLE_REPAIR, VERIFIER_LIFECYCLE_GRANT, verifierLifecycleReaderGraph, validVerifierLifecycleInputs, verifyVerifierLifecyclePredecessor, verifyVerifierLifecycleRepair } from "./local-canonical-verifier-lifecycle-witness.mjs";
 import { REVIEWED_REVISION_PHASES, validateReviewedRevisionAuthorityRecords, reviewedRevisionAuthorityObservation } from "./local-canonical-attempts.mjs";
 
 const [delegationFile, receiptFile, materialFile, ...extra] = process.argv.slice(2);
@@ -107,6 +107,28 @@ if (materialFile) {
     const changed = structuredClone(stock); mutate(changed); assert.throws(() => predecessor({ stock: changed }), undefined, label); cases.push(label);
   }
   const capture = parse(focused.regression.after);
+  assert(validVerifierLifecycleInputs(capture, p));
+  // Explicit structural mutations reuse the existing production comparator.
+  // They do not create observations or replace the retained capture's events.
+  const inputControl = structuredClone(capture), resource = inputControl.inputs.resources.find(value => value.id === "browser-executable");
+  const incidental = { resource: resource.id, classification: resource.classification, disposition: "incidental_executable_metadata",
+    observed_at: inputControl.started_at, monotonic_ns: "1", after: structuredClone(resource.before) };
+  incidental.after.metadata.links = String(BigInt(incidental.after.metadata.links) + 1n);
+  incidental.after.metadata.ctime_ns = String(BigInt(incidental.after.metadata.ctime_ns) + 1n);
+  incidental.identity = inputEventIdentity(incidental); inputControl.inputs.events = [incidental];
+  assert(validVerifierLifecycleInputs(inputControl, p));
+  for (const [label, mutate] of [
+    ["hidden executable bytes", e => { e.after.sha256 = "f".repeat(64); }],
+    ["hidden executable permissions", e => { e.after.permission_identity = "f".repeat(64); }],
+    ["substituted executable inode", e => { e.after.metadata.inode = "1"; }],
+    ["wrong role", e => { e.classification = "ambient"; }],
+    ["stale event", e => { e.observed_at = "2000-01-01T00:00:00Z"; }],
+    ["unknown input", e => { e.resource = "unknown"; }],
+  ]) {
+    const changed = structuredClone(inputControl); mutate(changed.inputs.events[0]); changed.inputs.events[0].identity = inputEventIdentity(changed.inputs.events[0]);
+    assert.equal(validVerifierLifecycleInputs(changed, p), false, label); cases.push(label);
+  }
+  cases.push("production non-fault comparison retains incidental metadata");
   for (const [label, mutate] of [
     ["catalogue substitution", c => { c.after.source.inventory_sha256 = "f".repeat(64); }],
     ["dependency substitution", c => { c.after.dependencies.content_sha256 = "f".repeat(64); }],

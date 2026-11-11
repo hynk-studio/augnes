@@ -1,6 +1,6 @@
 import path from "node:path";
 import { createRequire } from "node:module";
-import { digest, comparePreparedDependencyInputs } from "./local-canonical-inputs.mjs";
+import { digest, comparePreparedDependencyInputs, classifyInputChange, nonFaultInputChange, inputEventIdentity } from "./local-canonical-inputs.mjs";
 import { pureContractGitSource } from "./local-canonical-pure-contract-witness.mjs";
 import { gitRevisionInventory } from "./local-canonical-git-observation.mjs";
 import { fixtureBudgetEnvironment, settledNextDeclarationOutput, nextDeclarationKind } from "./local-canonical-fixture-budget-witness.mjs";
@@ -20,6 +20,25 @@ const settled = r => r?.completed === true && r.failure_count === 0 && equal(r.f
 const sourceWithoutGenerated = ({ root_generated, ...source }) => source;
 const interval = (start, end, first, last) => [start, end, first, last].every(v => Number.isFinite(Date.parse(v))) &&
   Date.parse(first) <= Date.parse(start) && Date.parse(start) <= Date.parse(end) && Date.parse(end) <= Date.parse(last);
+
+export function validVerifierLifecycleInputs(c, p) {
+  const input = c.inputs, { contract, path_kind, binding, resources } = input ?? {};
+  if (!input || input.first_fault !== null || !equal(input.secondary_faults, []) ||
+      input.fingerprint !== digest({ contract, path_kind, binding, resources }) ||
+      binding?.head !== p.head || binding?.tree !== p.tree || !Number.isSafeInteger(input.checks) || input.checks < 1 ||
+      gitRevisionInventory(input) !== p.inputs.inventory_sha256 ||
+      !Array.isArray(input.events) || input.events.length > 64 || new Set(input.events.map(event => event.identity)).size !== input.events.length) return false;
+  let last = -1n;
+  return input.events.every(event => {
+    const resource = resources.find(value => value.id === event.resource);
+    if (!resource || event.classification !== resource.classification || event.diagnostic !== undefined || event.prerequisite_sha256 !== undefined ||
+        event.identity !== inputEventIdentity(event) || !/^\d+$/u.test(event.monotonic_ns) || BigInt(event.monotonic_ns) <= last ||
+        !interval(event.observed_at, event.observed_at, c.started_at, c.finished_at) ||
+        !nonFaultInputChange(event.disposition) || event.disposition === "unchanged" ||
+        classifyInputChange(resource.before, event.after, resource, input) !== event.disposition) return false;
+    last = BigInt(event.monotonic_ns); return true;
+  });
+}
 
 // Parse actual declarations/literal dynamic imports, never import-looking
 // text inside comments, templates or child-program strings.
@@ -121,7 +140,7 @@ export function verifyVerifierLifecycleRepair(p, prior, focused, { git, parse, b
         value.target.inventory === p.inputs.inventory_sha256 && gitRevisionInventory(value.target.inputInventory) === p.inputs.inventory_sha256 &&
         value.target.service.state.preservation_valid === true && value.target.service.diagnostics.coherent === true) ||
       !equal(c.before.loader, c.after.loader) || !equal(c.before.target.service.state, c.after.target.service.state) ||
-      c.inputs.first_fault !== null || c.inputs.events.length !== 0 ||
+      !validVerifierLifecycleInputs(c, p) ||
       !equal(c.preparations.map(value => value.phase), ["dependencies-root", "dependencies-nested", "dependencies-web-planning"]) ||
       !equal(c.cases.map(value => value.name), ["stopped-before-build", "through-build", "registered-authority"])) fail();
   for (const prepared of c.preparations) {
