@@ -294,6 +294,23 @@ export function inspectCurrentFixtureBudgetInputs(root,w) {
 }
 
 export function verifyRegisteredFixtureBudget(p,prior,focused,options) {
+  // One verification repeatedly inspects the same immutable source blobs.
+  // Reuse their raw bytes only within this call; every mutable Git query,
+  // physical observation and subsequent verification still reads afresh.
+  const sourceGit=options.git, blobs=new Map();let retainedBytes=0;
+  const gitOnce=(args,...rest)=>{
+    const spec=args.length===2&&args[0]==="show"?args[1]:null;
+    const head=typeof spec==="string"?spec.slice(0,40):"";
+    if(!/^[a-f0-9]{40}$/u.test(head)||![prior.head,p.head].includes(head)||spec[40]!==":"||spec.length===41)
+      return sourceGit(args,...rest);
+    if(blobs.has(spec))return Buffer.from(blobs.get(spec));
+    const bytes=sourceGit(args,...rest);
+    if(Buffer.isBuffer(bytes)&&blobs.size<128&&retainedBytes+bytes.length<=16*1024*1024){
+      blobs.set(spec,Buffer.from(bytes));retainedBytes+=bytes.length;
+    }
+    return bytes;
+  };
+  options={...options,git:gitOnce};
   const {git,parse,bytes,completedAt}=options,reg=focused.regression;
   if(!keys(reg,["kind","claim","owner","incident","source_partition","rationale","after","registration"])||reg.kind!==REGISTERED_FIXTURE_BUDGET||
       p.commission.evidence_kind!==reg.kind||reg.claim!==FIXTURE_BUDGET_CLAIM||!equal(focused.input_remedy_resources,[]))fail();
