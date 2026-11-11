@@ -1211,6 +1211,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "project-work-semantic-state-read",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "mutable-module-state"],
+      label: "packet-history shared state validation and fresh-read corruption refusals",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--semantic-state-read-only"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "unexecuted-successor-revision",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "mutable-module-state"],

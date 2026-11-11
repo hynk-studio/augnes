@@ -1052,6 +1052,7 @@ const integrationChildren = [
   "ordinary-successor-expectation-final-slot",
   "project-work-scoped-host",
     "executed-reviewed-follow-up",
+  "project-work-semantic-state-read",
   "unexecuted-successor-revision",
   "authored-successor-handoff",
   "settled-expired-successor",
@@ -1245,6 +1246,9 @@ for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 120_000', 'req
   requireText(successorExpectationLimitRegistration.block, fragment, "the final ordinary revision boundary has a separate bounded owner");
 assert.equal(countOccurrences(firstWorkFixture, "await assertSuccessorExpectationV01(true);"), 1);
 const successorRevisionRegistration = readCanonicalChildRegistration(integrationSource, "unexecuted-successor-revision");
+const semanticStateReadRegistration = readCanonicalChildRegistration(integrationSource, "project-work-semantic-state-read");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--semantic-state-read-only"'])
+  requireText(semanticStateReadRegistration.block, fragment, "shared-state read regressions retain a separate bounded owner");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--successor-revision-only"'])
   requireText(successorRevisionRegistration.block, fragment, "saved successor revision retains one bounded complete owner");
 assert.equal(countOccurrences(firstWorkFixture, "await assertUnexecutedSuccessorRevisionV01();"), 3,

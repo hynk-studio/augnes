@@ -1,4 +1,5 @@
 import { assertOptionalExpectationDeparture } from "./work-expectation-departure-checks";
+import { assertFreshProjectWorkSemanticStateReadsV01 } from "./project-work-semantic-state-read-checks";
 import { assertIssuedSessionIdentityCompatibilityV01 } from "./local-operator-session-identity-checks";
 import { assertCompilerBudgetDiagnostics, assertExplicitArtifactPreservingRepair } from "./successor-budget-diagnostics-checks";
 import { differentSelectionRevision } from "./test-selection-observation";
@@ -151,6 +152,7 @@ async function main(): Promise<void> {
   const initializationStarted = performance.now();
   const cumulativeNetwork = process.argv.some(a => a.startsWith("--cumulative-")) ? installZeroNetworkGuard({ allowLoopback: true }) : null;
   try {
+    if (process.argv.includes("--semantic-state-read-only")) { await assertExecutedReviewedFollowUpV01(true); return; }
     if (process.argv.includes("--cumulative-budgets-only")) {
       const { cumulativeReadBudgets } = await import("./test-cumulative-work-history");
       cumulativeReadBudgets({ createFixtureV01 }); return;
@@ -1115,7 +1117,7 @@ async function assertScopedNativeHostConnectionV01(): Promise<void> {
   console.log("scoped disposable service: fake App Server command items exercise the real adapter/service, authenticated synthetic admission, receipt/proposal and source/snapshot lineage; cwd aliases/default parity/replay pass; source/foreign snapshot/outside/traversal/forged binding/conflict refuse; checkpoints retained; source drift blocks and snapshot corruption invalidates; processes/sessions/DBs/snapshots settled; model calls=0; no actual task-command execution claimed");
 }
 
-async function assertExecutedReviewedFollowUpV01(): Promise<void> {
+async function assertExecutedReviewedFollowUpV01(checkSemanticStateReads = false): Promise<void> {
   const fixture = createFixtureV01("executed-reviewed-follow-up", false, true);
   const originalFetch = globalThis.fetch;
   let fetchCalls = 0;
@@ -1363,6 +1365,7 @@ async function assertExecutedReviewedFollowUpV01(): Promise<void> {
       { record_kind: "semantic_state", count: 1 }, { record_kind: "state_transition_receipt", count: 1 },
       { record_kind: "task_context_packet", count: 3 },
     ]);
+    if (checkSemanticStateReads) assertFreshProjectWorkSemanticStateReadsV01(fixture.db, fixture.config);
     const recovery = validateRecoveryCanonicalDatabaseV01(fixture.db);
     assert.equal(recovery.status, "valid", recovery.code);
     assert.equal(fetchCalls, 0);
