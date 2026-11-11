@@ -125,7 +125,7 @@ import { inspectVNextOperatorPilotPacketLineageV01, projectVNextOperatorPilotCon
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage";
 import { readSharedProjectInspectorV01 } from "../lib/vnext/runtime/shared-project-inspector";
 import type { EpisodeDeltaProposalV01 } from "../types/vnext/episode-delta-proposal";
-import type { NativeHostRequestV01 } from "../types/vnext/native-host-adapter";
+import type { NativeHostLifecycleEventV01, NativeHostRequestV01 } from "../types/vnext/native-host-adapter";
 import type { TaskContextPacketV01 } from "../types/vnext/task-context-packet";
 import type { RunReceiptV01 } from "../types/vnext/run-receipt";
 import {
@@ -189,6 +189,14 @@ async function main(): Promise<void> {
     if (process.argv.includes("--minimum-discriminating-check-only")) { await assertMinimumDiscriminatingCheckV01(); return; }
     if (process.argv.includes("--new-work-admission-only")) { await assertNewWorkAdmissionV01(); return; }
     if (process.argv.includes("--expectation-only")) { await assertWorkExpectationMechanics(); return; }
+    if (process.argv.includes("--capture-failure-ordering-only")) {
+      // Retain both permitted orderings and the old scheduling-sensitive
+      // boundary as controls. They do not run inside the full product owner.
+      for (const boundary of ["turn_started", "thread_started"] as const)
+        for (const order of ["turn_first", "terminal_first"] as const)
+          await assertResultAdmissionV01({ order, boundary });
+      return;
+    }
     if (process.argv.includes("--result-admission-only")) { await assertResultAdmissionV01(); return; }
     if (process.argv.includes("--scoped-host-only") || scopedInterruptionPoint()) {
       await assertScopedNativeHostConnectionV01();
@@ -770,16 +778,26 @@ async function assertOutcomeReuseV01(): Promise<void> {
 
 // Fixed credential-free App Server transport; the adapter parser, direct
 // executor, result validator and durable receipt/proposal producers are real.
-async function assertResultAdmissionV01(): Promise<void> {
+async function assertResultAdmissionV01(control?: {
+  order: "turn_first" | "terminal_first";
+  boundary: "thread_started" | "turn_started";
+}): Promise<void> {
   for (const scenario of ["label_free", "labels", "labels_skipped", "private_summary", "private_check", "private_command", "private_skipped",
     "private_array", "credential", "final_root", "unknown_field", "capture_failure", "observer_failure"] as const) {
-    const fixture = createFixtureV01(`result-admission-${scenario}`);
-    const output = path.join(ROOT, `capture-${scenario}`); mkdirSync(output);
+    if (control && scenario !== "capture_failure") continue;
+    const suffix = control ? `-${control.boundary}-${control.order}` : "";
+    const fixture = createFixtureV01(`result-admission-${scenario}${suffix}`);
+    const output = path.join(ROOT, `capture-${scenario}${suffix}`); mkdirSync(output);
     const home = path.join(output, "home"); mkdirSync(home);
     const trace = path.join(output, "trace.jsonl"), cleanup = path.join(output, "cleanup"), network = path.join(output, "network");
     const pids = new Set<number>();
     let sessionId: string | undefined;
     const observations: import("../lib/vnext/native-host/codex-app-server-adapter").CodexAppServerAdapterObservationV01[] = [];
+    const appendAccounting: { kind: string; written: number; failure: string | null }[] = [];
+    const captureBoundary: { prefix: string[] | null } = { prefix: null };
+    let releaseTerminal!: () => void;
+    const terminalObserved = new Promise<void>(resolve => { releaseTerminal = resolve; });
+    const terminalRelease = path.join(output, "terminal.release");
     let request: NativeHostRequestV01 | undefined;
     const now = timestampSequenceV01("2026-08-01T00:00:04.000Z");
     const recorded = createRecordedCodexAppServerAdapterV01({ directory: output, stage: 2,
@@ -787,13 +805,37 @@ async function assertResultAdmissionV01(): Promise<void> {
         launch: { command: process.execPath, prefix_args: [path.resolve("scripts/fixtures/fake-codex-app-server.mjs")],
           environment: { NODE_ENV: "test", HOME: home, CODEX_HOME: home, TMPDIR: output, PATH: process.env.PATH,
             FAKE_CODEX_SCENARIO: "result_admission", FAKE_CODEX_RESULT_CASE: scenario,
-            FAKE_CODEX_TRACE_PATH: trace, FAKE_CODEX_CLEANUP_MARKER_PATH: cleanup, FAKE_CODEX_NETWORK_COUNT_PATH: network } },
+            FAKE_CODEX_TRACE_PATH: trace, FAKE_CODEX_CLEANUP_MARKER_PATH: cleanup, FAKE_CODEX_NETWORK_COUNT_PATH: network,
+            ...(control?.order === "turn_first" ? { FAKE_CODEX_RESULT_TERMINAL_RELEASE_PATH: terminalRelease } : {}) } },
         observe: event => {
           observations.push(event);
           if (event.kind === "spawned" && event.process_id) pids.add(event.process_id);
-          if (event.kind === "turn_started" && scenario === "capture_failure") {
+          if (scenario === "capture_failure") {
+            const status = recorded.readCaptureStatus();
+            appendAccounting.push({ kind: event.kind, written: status.observations_written, failure: status.capture_failure });
+            if (captureBoundary.prefix === null) {
+              const rows = readFileSync(path.join(output, "events.jsonl"), "utf8").trim().split("\n").map(line => JSON.parse(line));
+              assert.equal(rows.length, status.observations_written);
+              assert.deepEqual(rows.map(row => row.kind), observations.map(row => row.kind));
+              assert.equal(status.capture_failure, null);
+            } else {
+              assert.equal(status.observations_written, captureBoundary.prefix.length);
+              assert.equal(status.capture_failure, "artifact_write_failed");
+            }
+          }
+          // The response continuation awaits the lifecycle sink before it
+          // observes turn_started; terminal notification may overtake it.
+          // thread_started is synchronous and precedes sending turn/start.
+          // Fail the real writer at that stable boundary, preserving both
+          // production orderings and the exact successful-append counter.
+          if (event.kind === (control?.boundary ?? "thread_started") && scenario === "capture_failure") {
+            assert.equal(captureBoundary.prefix, null);
+            captureBoundary.prefix = observations.map(row => row.kind);
             rmSync(path.join(output, "events.jsonl")); mkdirSync(path.join(output, "events.jsonl"));
           }
+          if (event.kind === "terminal_observed") releaseTerminal();
+          if (event.kind === "turn_started" && control?.order === "turn_first")
+            writeFileSync(terminalRelease, "released\n", { flag: "wx", mode: 0o600 });
           if (event.kind === "result_admission_rejected" && scenario === "observer_failure")
             throw new Error("SYNTHETIC_ADMISSION_OBSERVER_FAILURE");
         },
@@ -810,6 +852,13 @@ async function assertResultAdmissionV01(): Promise<void> {
         adapter: recorded.adapter, now, lifecycle_mode: "managed_live", live_host_egress_authorized: true,
         timeout_ms: 10_000, stop_settle_timeout_ms: 3_000,
         on_invocation_admitted: observed => { request = observed.request; },
+        ...(control ? { lifecycle_sink: {
+          async report_event(event: NativeHostLifecycleEventV01) {
+            if (control.order === "terminal_first" && event.event_kind === "turn_started" && !event.bounded_metadata.host_notification)
+              await terminalObserved;
+          },
+          async request_approval() { throw new Error("unexpected_capture_ordering_approval"); },
+        } } : {}),
       });
       if (scenario === "observer_failure") {
         await assert.rejects(invoke(), errorCode("direct_host_stop_unconfirmed"));
@@ -858,6 +907,18 @@ async function assertResultAdmissionV01(): Promise<void> {
       if (scenario === "capture_failure") {
         assert.equal(recorded.readCaptureStatus().capture_failure, "artifact_write_failed");
         assert.equal(recorded.readCaptureStatus().result_admission_diagnostic_written, false);
+        assert(captureBoundary.prefix);
+        assert.equal(recorded.readCaptureStatus().observations_written, captureBoundary.prefix.length);
+        if ((control?.boundary ?? "thread_started") === "thread_started")
+          assert.deepEqual(captureBoundary.prefix, ["invocation_created", "spawned", "initialized", "account_available", "thread_started"]);
+        for (const kind of ["turn_started", "terminal_observed", "result_admission_rejected", "settled"])
+          assert.equal(observations.filter(event => event.kind === kind).length, 1);
+        if (control) {
+          const kinds = observations.map(event => event.kind);
+          assert.equal(kinds.indexOf("turn_started") < kinds.indexOf("terminal_observed"), control.order === "turn_first");
+          console.log(JSON.stringify({ capture_ordering: { ...control, captured_prefix: captureBoundary.prefix, events: appendAccounting,
+            observations_written: recorded.readCaptureStatus().observations_written } }));
+        }
       } else if (expectedCompleted) {
         assert.equal(diagnostic, undefined);
         assert.equal(result.host_result!.checks.find(check => check.check_id === "calibration_b_comparison")?.status, "passed");
