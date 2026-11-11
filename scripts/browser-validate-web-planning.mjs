@@ -49,7 +49,9 @@ async function page(debug,origin,isolated=false){
      target=(await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find(t=>t.id===targetId);assert(target,'isolated_browser_target');
    }finally{await browser.close();}
  }else target=await (await fetch(`http://127.0.0.1:${debug}/json/new?about:blank`,{method:'PUT'})).json();
- const c=await new CDP(target.webSocketDebuggerUrl).open();clients.push(c);
+ const c=await new CDP(target.webSocketDebuggerUrl,{observeTouch:command=>{
+   console.log(JSON.stringify({web_planning_touch_command:{target_id:target.id,...command}}));
+ }}).open();clients.push(c);
  c.targetId=target.id;c.origin=origin;c.browserContextId=browserContextId;
  c.interceptions=observeWebPlanningInterceptions(c,{targetId:target.id,origin});
  c.direct=origin.startsWith('https://127.0.0.1:');

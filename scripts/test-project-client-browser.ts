@@ -5,8 +5,10 @@ import assert from "node:assert/strict";
 import { checkControlBoundaryContrast } from "./browser-control-contrast.mjs";
 import { nativePreparationBrowser, checkPreparationPreviewResponse, checkPreparationSaveResponse } from "./native-work-preparation-browser-checks.mjs";
 import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
+import { browserEvaluationDiagnostic } from "./browser-evaluation-diagnostic.mjs";
 import { checkAncillaryWorkDraftRecovery } from "./ancillary-work-draft-browser-checks";
 import { checkResultWorkDraftRecovery } from "./result-work-draft-browser-checks";
+import { withResultDraftCapture } from "./result-draft-capture-scheduler.mjs";
 import { checkWorkExpectationDraftRecovery } from "./work-expectation-draft-browser-checks";
 import { seedProjectTransition } from "./project-transition-fixture";
 import { createServer } from "node:http";
@@ -42,7 +44,11 @@ class CDP {
     this.ws.addEventListener("message", event => { const m = JSON.parse(String(event.data)); if (m.id) { const p = this.pending.get(m.id); if (p) { clearTimeout(p.timer); this.pending.delete(m.id); m.error ? p.no(new Error("browser_protocol_error")) : p.ok(m.result); } } else this.handlers.forEach(f => f(m)); });
   }
   send(method: string, params: object = {}): Promise<any> { return new Promise((ok, no) => { const id = ++this.next, timer = setTimeout(() => { this.pending.delete(id); no(new Error(`browser_timeout:${method}`)); }, 10000); this.pending.set(id, { ok, no, timer }); this.ws.send(JSON.stringify({ id, method, params })); }); }
-  async eval(expression: string) { const r = await this.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }); assert.ok(!r.exceptionDetails, "browser_evaluation_failed"); return r.result.value; }
+  async eval(expression: string) {
+    const r = await this.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
+    if (r.exceptionDetails) throw new Error(`browser_evaluation_failed:${JSON.stringify(browserEvaluationDiagnostic(r.exceptionDetails))}`);
+    return r.result.value;
+  }
   close() { for (const p of this.pending.values()) { clearTimeout(p.timer); p.no(new Error("browser_closed")); } this.pending.clear(); this.ws.close(); }
 }
 async function until(fn: () => Promise<unknown>, label: string) { const end = performance.now() + 15000; while (performance.now() < end) { if (await fn()) return; await delay(50); } throw new Error(`browser_wait:${label}`); }
@@ -420,7 +426,7 @@ async function main(semanticOnly = false) {
       }
       assert.equal(readActiveProjectSelectionV01(db, workspace.workspace_id)!.project_id, b.project_id, "Opening an inactive A URL cannot switch the workspace selection");
       assert.equal(await freshB.eval("document.body.textContent.includes('Retain A exception exactly')"), false);
-      const resultDraftComponent = await checkResultWorkDraftRecovery(tabA);
+      const resultDraftComponent = await withResultDraftCapture(tabA, checkResultWorkDraftRecovery);
       const expectationDraftComponent = await checkWorkExpectationDraftRecovery(tabA);
       const ancillaryDraftComponent = await checkAncillaryWorkDraftRecovery(tabA);
       assert.equal(errors, 0, JSON.stringify(responseLog)); assert.equal(external, 0); assert.equal(guard.attempts.length, 0);

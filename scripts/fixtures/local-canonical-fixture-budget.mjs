@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
-import { cpSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { chmodSync, cpSync, linkSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { digest, observeCanonicalRuntimeInputs, observePreparedDependencyInputs } from "../local-canonical-inputs.mjs";
 import { gitFixtureDeclaration } from "./local-canonical-git-observation.mjs";
 import { verifyGitSourceRepair, MATERIAL_SOURCE_CORRECTION, gitRevisionInventory } from "../local-canonical-git-observation.mjs";
 import { REGISTERED_FIXTURE_BUDGET, FIXTURE_BUDGET_CLAIM, FIXTURE_BUDGET_COLLECTOR, FIXTURE_BUDGET_PATHS,
-  fixtureBudgetSourceDelta, fixtureBudgetEnvironment, inspectCurrentFixtureBudgetInputs, fixtureBudgetMeasurementStages } from "../local-canonical-fixture-budget-witness.mjs";
+  fixtureBudgetSourceDelta, fixtureBudgetEnvironment, inspectCurrentFixtureBudgetInputs, inspectCurrentIntegrationBudgetInputs,
+  fixtureBudgetMeasurementStages } from "../local-canonical-fixture-budget-witness.mjs";
 import { observePureContractSource, observePureContractLoader } from "../local-canonical-pure-contract-witness.mjs";
+import { inspectGeneratedStockBrowserInputs } from "../local-canonical-stock-lifecycle-witness.mjs";
+import { finalizeReceipt } from "../local-canonical-receipt.mjs";
 
 // Controlled reader data, explicitly not an actual historical incident or a
 // qualification witness. Final real capture/preparation exercise the producer
@@ -18,7 +21,7 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
   const git=args=>execFileSync("git",["--no-replace-objects",...args],{cwd:root,timeout:10000,maxBuffer:16*1024*1024});
   git(["init","--quiet"]);
   for(const dir of ["app","components","lib","scripts","types","apps/augnes_apps/src","apps/augnes_apps/public"])write(dir+"/placeholder.ts","export {};\n");
-  write(".gitignore","node_modules/\n.augnes-local-verification/\n");
+  write(".gitignore","node_modules/\n.augnes-local-verification/\nnext-env.d.ts\n");
   const version=JSON.parse(readFileSync(path.join(sourceRoot,"node_modules/tsx/package.json"))).version;
   write("package.json",{type:"module",dependencies:{tsx:version}});write("package-lock.json",{packages:{"node_modules/tsx":{version}}});write("tsconfig.json",{compilerOptions:{target:"ES2022"}});
   for(const name of ["browser-verification-owners.v1.json","local-canonical-change-owners.v1.json","canonical-research-tests.v1.json"])write("scripts/"+name,{});
@@ -165,6 +168,86 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
     assert.throws(()=>verify(p,f,r));write(relative,log);negatives++;
   }
   assert.equal(verify(),head);
+  const generatedControls = generatedDeclarationControls(root, parent, write);
   rmSync(root,{recursive:true});
-  return {contract:REGISTERED_FIXTURE_BUDGET,synthetic_only:true,deciding:false,negative_controls:negatives,original_incident_reproduction:false,recursive_parent_execution:false};
+  return {contract:REGISTERED_FIXTURE_BUDGET,synthetic_only:true,deciding:false,negative_controls:negatives,
+    generated_stock_controls:generatedControls,original_incident_reproduction:false,recursive_parent_execution:false};
+}
+
+// Disposable Git/loader/dependency fixture. The actual historical attempt and
+// stock replays are separate evidence and their originals are immutable.
+function generatedDeclarationControls(root, parent, write) {
+  const file = "next-env.d.ts", absolute = path.join(root, file);
+  const nextDeclaration = directory => [
+    '/// <reference types="next" />',
+    '/// <reference types="next/image-types/global" />',
+    'import "./' + directory + '/types/routes.d.ts";',
+    'import "./' + directory + '/types/root-params.d.ts";',
+    "",
+    "// NOTE: This file should not be edited",
+    "// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.",
+    "",
+  ].join("\n");
+  const build = nextDeclaration(".next"), dev = nextDeclaration(".next/dev");
+  write(file, build);
+  const witness = { after: { source: observePureContractSource(root), loader: observePureContractLoader(root),
+    dependencies: observePreparedDependencyInputs({ repositoryRoot: root, phaseId: "dependencies-root" }) },
+    environment: { AUGNES_CANONICAL_TEMP_ROOT: path.join(parent, "already-settled-generated-source") } };
+  inspectCurrentIntegrationBudgetInputs(root, witness);
+  const started_at = new Date().toISOString();
+  write(file, dev);
+  // Complete registered fields in explicitly synthetic records. Checksums
+  // provide integrity, never physical attempt authority for this fixture.
+  const invocation = "a".repeat(32), environment = digest("synthetic generated declaration environment"), source = witness.after.source;
+  const phase = { id: "e2e-project-experience", command: "node scripts/run-canonical-test-suite.mjs e2e-project-experience",
+    cwd_scope: "root", exclusive: true, browser: true, base_sha: source.head, head_sha: source.head,
+    invocation_id: invocation, environment_fingerprint: environment, status: "pass", exit_status: 0,
+    timed_out: false, spawn_error_code: null, failure_code: null, started_at, finished_at: new Date().toISOString(),
+    cleanup: { completed: true, exit_observed: true, streams_closed: true, remaining_owned_processes: 0, listener_residue_count: null, termination_reason: "natural_exit" } };
+  const receipt = { verification_context: { kind: "isolated-worktree" }, cleanup: { completed: true },
+    repository: { head_sha: source.head, tree_sha: source.tree, base_sha: source.head },
+    run: { invocation_id: invocation, started_at, finished_at: phase.finished_at },
+    inputs: { binding: { head: source.head, tree: source.tree, phase_environment_fingerprints: [{ id: phase.id, fingerprint: environment }] } }, phases: [phase] };
+  const stock = (copy = receipt, focused = witness) => inspectCurrentIntegrationBudgetInputs(root, focused, finalizeReceipt(copy));
+  assert.throws(() => inspectCurrentIntegrationBudgetInputs(root, witness), /revision_fixture_budget_invalid/u);
+  stock();
+  const refused = [];
+  const reject = (name, action) => { assert.throws(action); refused.push(name); };
+  reject("outside_writer_window", () => stock({ ...receipt, phases: [{ ...phase, finished_at: new Date(Date.parse(started_at) - 1).toISOString() }] }));
+  reject("other_phase", () => stock({ ...receipt, phases: [{ ...phase, id: "typecheck", browser: false }] }));
+  reject("other_browser_phase", () => stock({ ...receipt, phases: [{ ...phase, id: "e2e-golden" }] }));
+  reject("unsettled_owner", () => stock({ ...receipt, cleanup: { completed: false } }));
+  const changed = structuredClone(witness);
+  changed.after.source.root_generated[0].sha256 = digest("substituted historical source");
+  reject("substituted_frozen_form", () => stock(receipt, changed));
+  write(file, build);
+  chmodSync(absolute, 0o666);
+  reject("unsafe_declaration_mode", stock);
+  chmodSync(absolute, 0o644);
+  const link = path.join(parent, "declaration-link");
+  linkSync(absolute, link);
+  reject("linked_declaration", stock);
+  rmSync(link);
+  for (const [name, relative] of [["tracked_source", "lib/placeholder.ts"], ["loader", "node_modules/tsx/dist/loader.mjs"],
+    ["prepared_dependency", "node_modules/esbuild/package.json"]]) {
+    const original = readFileSync(path.join(root, relative));
+    writeFileSync(path.join(root, relative), Buffer.concat([original, Buffer.from("\n// changed control input\n")]));
+    // Use the unchanged generated form for these controls so the content
+    // mutation is the independent reason to refuse.
+    reject(name, stock);
+    writeFileSync(path.join(root, relative), original);
+  }
+  write(file, dev + "declare const unexpected: string;\n");
+  reject("unexpected_declaration", stock);
+  rmSync(absolute);
+  reject("missing_declaration", stock);
+  write("apps/web_planning/package.json", { name: "controlled-web-planning" });
+  write("apps/web_planning/package-lock.json", { lockfileVersion: 3 });
+  const webDependency = "apps/web_planning/node_modules/fixture/package.json";
+  write(webDependency, { version: "1.0.0" });
+  const web = observePreparedDependencyInputs({ repositoryRoot: root, phaseId: "dependencies-web-planning" });
+  inspectGeneratedStockBrowserInputs(root, web);
+  write(webDependency, { version: "2.0.0" });
+  reject("prepared_web_dependency", () => inspectGeneratedStockBrowserInputs(root, web));
+  return { legitimate_owned_output: true, admission_refused_change: true, refusals: refused };
 }

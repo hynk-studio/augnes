@@ -254,6 +254,9 @@ export async function continueExternalReport(repositoryRoot, directory) {
       };
     }
     if (s.unresolved) {
+      if (!view.receipt_confirmation.eligible)
+        return { status: "unresolved", work_ref: workRef, receipt_confirmation: view.receipt_confirmation,
+          actions, process: process.pid, runtime: process.version };
       const r = await op("act", {
         key: `reconcile:${s.head}`,
         work_ref: workRef,

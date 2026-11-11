@@ -2,6 +2,8 @@
 // No production family, reservation, service, browser or GitHub write is used.
 import assert from "node:assert/strict";
 import path from "node:path";
+import fs from "node:fs";
+import {syncBuiltinESMExports} from "node:module";
 import {fileURLToPath} from "node:url";
 import { existsSync, readFileSync, rmSync, chmodSync, symlinkSync } from "node:fs";
 import { digest } from "../local-canonical-inputs.mjs";
@@ -208,6 +210,27 @@ export async function runSerialAggregateControls(c,h,materialMode=false) {
     await assert.rejects(prepareSerialAggregateRevision(prepArgs,{transport:{pullRequest:async()=>published}}),/revision_published_source_invalid/u);
   }
   const originalFile=path.join(c.checkout,logPath), originalBytes=readFileSync(originalFile);
+  const serialTransport={pullRequest:async()=>clone(c.authority.pr)};
+  let observed=0;
+  const deferred=await prepareSerialAggregateRevision({...prepArgs,live:async()=>{observed++;return c.live;}},{transport:serialTransport});
+  assert.equal(observed,1);assert.equal(deferred.target,prep().target);
+  assert.equal(deferred.authorized,false);assert.equal(deferred.reserved,false);assert(!existsSync(edge));
+  try {
+    await assert.rejects(prepareSerialAggregateRevision({...prepArgs,live:async()=>{
+      write(originalFile,Buffer.from("!"+originalBytes.toString().slice(1)));return c.live;
+    }},{transport:serialTransport}),/revision_validated_material_changed/u);
+  } finally {write(originalFile,originalBytes);}
+  // Seal precisely the bytes just validated, even if the original changes
+  // after that read. No host files or real attempt lineage are involved.
+  const originalRead=fs.readFileSync;let injected=false;
+  fs.readFileSync=(file,...args)=>{
+    const bytes=originalRead(file,...args);
+    if(file===originalFile && !injected){injected=true;write(originalFile,Buffer.from("!"+originalBytes.toString().slice(1)));}
+    return bytes;
+  };
+  syncBuiltinESMExports();
+  try {assert.throws(()=>prep(),/revision_validated_material_changed/u);assert(injected);}
+  finally {fs.readFileSync=originalRead;syncBuiltinESMExports();write(originalFile,originalBytes);}
   try {write(originalFile,Buffer.from("!"+originalBytes.toString().slice(1)));assert.throws(()=>prep(),/serial_original_log_changed/u);}
   finally {write(originalFile,originalBytes);}
   try {write(capturePath,capture+'changed');assert.throws(()=>prep(),/serial_original_capture_changed/u);}

@@ -188,4 +188,26 @@ for (const settings of [{ ready: false, observationError: true }, { predicateErr
   assert.deepEqual(capture.snapshot(), frozen); checks++;
 }
 
+{
+  const capture = observer(), page = browser();
+  await lifecycle(capture, page.send).wait();
+  const first = capture.snapshot();
+  capture.navigationStarted({ epoch: 4, url: `http://127.0.0.1/projects/${projectId}` });
+  capture.navigationExpected({ frameId: "second-frame", loaderId: "second-loader" });
+  capture.observe({ method: "Page.frameNavigated", params: { frame: { id: "second-frame", loaderId: "second-loader" } } });
+  capture.observe({ method: "Runtime.executionContextCreated", params: { context: { id: 8, auxData: { isDefault: true, frameId: "second-frame" } } } });
+  await lifecycle(capture, page.send).wait();
+  assert.deepEqual(capture.snapshot().previous_observations, [first]);
+  assert.equal(capture.snapshot().last_sample.navigation.epoch, 4);
+  checks++;
+}
+{
+  const capture = createOperatorProjectHomeReadinessObservationV1({ project_id: projectId });
+  capture.begin({ expression, timeout_ms: 45000 });
+  await capture.evaluate(browser().send, { expression, awaitPromise: true, returnByValue: true });
+  capture.finish("passed");
+  assert.equal(capture.snapshot().status, "incomplete");
+  assert.ok(capture.snapshot().observation_error_codes.includes("navigation_evidence_unavailable"));
+  checks++;
+}
 console.log(JSON.stringify({ ok: true, checks, scope: "same-evaluation readiness observation and actual bounded wait; no Browser execution" }));

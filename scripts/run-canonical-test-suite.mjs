@@ -36,9 +36,11 @@ const repoRoot = path.resolve(
 const nestedAppRoot = path.join(repoRoot, "apps/augnes_apps");
 const suiteName = process.argv[2];
 const projectWorkFocus = process.argv[3] === "--project-work-only";
+const externalResponseFocus = process.argv[3] === "--external-response-only";
+const integrationFocus = projectWorkFocus || externalResponseFocus;
 const revisionFocus = process.argv[3] === "--reviewed-revision-only";
 if (process.argv.length > 3 && (process.argv.length !== 4 ||
-    !(projectWorkFocus && suiteName === "integration" || revisionFocus && suiteName === "authority")))
+    !(integrationFocus && suiteName === "integration" || revisionFocus && suiteName === "authority")))
   throw new Error("unsupported canonical suite focus");
 const rootNode = (...args) => ({
   command: process.execPath,
@@ -135,7 +137,7 @@ const goldenStep = {
   requireNaturalExit: true,
 };
 
-const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-input", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation", "serial-aggregate", "serial-material"].map(group => ({
+const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-input", "git-input-lifecycle", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation", "serial-aggregate", "serial-material"].map(group => ({
   id: "local-canonical-reviewed-revision-" + group,
   label: "reviewed revision controls: " + group,
   sharedFixture: !["revision", "settlement", "browser", "serial-aggregate", "serial-material"].includes(group),
@@ -151,6 +153,30 @@ const suites = {
     { id:"project-experience-serial-budget", label:"project experience serial budget and cleanup controls",
       requirements:["filesystem","process-owning"], ...rootNode("scripts/test-project-experience-serial-budget.mjs"),
       timeoutMs:30000, requireNaturalExit:true },
+    {
+      id: "result-draft-capture-scheduler",
+      label: "common result-draft fixture scheduling and native exception fidelity",
+      requirements: ["filesystem", "process-owning", "immutable-fixture-input"],
+      ...rootNode("scripts/test-result-draft-capture-scheduler.mjs"),
+      timeoutMs: 10_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "canonical-ts-repair-evidence",
+      label: "complete TS repair catalogue, dependency and capture refusals",
+      requirements: ["filesystem", "immutable-fixture-input"],
+      ...rootNode("scripts/test-canonical-ts-repair-evidence.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "browser-evaluation-diagnostic",
+      label: "bounded browser evaluation exception without private payload",
+      requirements: ["immutable-fixture-input"],
+      ...rootNode("scripts/test-browser-evaluation-diagnostic.mjs"),
+      timeoutMs: 10_000,
+      requireNaturalExit: true,
+    },
     {
       id: "operating-profile-contribution-input",
       label: "complete bounded profile input, selected step and manual use refusals",
@@ -997,7 +1023,11 @@ const suites = {
       requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
       label: "scoped experience, real local interaction, checked byte use and fresh reconstruction",
       ...rootNode("scripts/test-external-response.ts"),
-      timeoutMs: 90_000,
+      // The registered child completed in 79.044s with 27.218s of progressing
+      // recovery. Add one measured recovery interval to the former 90s and
+      // round up to 120s. The integration phase and other children keep their
+      // bounds. This prospective reserve does not explain the old timeout.
+      timeoutMs: 120_000,
       requireNaturalExit: true,
     },
     {
@@ -1473,6 +1503,16 @@ const suites = {
     },
     ...reviewedRevisionSteps,
     {
+      label: "prepared dependency eligibility before consumers",
+      ...rootNode("scripts/test-prepared-dependency-eligibility.mjs"),
+      timeoutMs: 120_000,
+    },
+    {
+      label: "operator Browser control observation",
+      ...rootNode("scripts/test-operator-browser-control-observation.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
       id: "operator-project-home-readiness-observation",
       label: "bounded Project Home observations preserve the original condition result",
       ...rootNode("scripts/test-operator-project-home-readiness-observation-v1.mjs"),
@@ -1886,7 +1926,10 @@ try {
   );
   const selectedSteps = projectWorkFocus
     ? suites[suiteName].filter(step => ["project-work-initialization", "project-work-scoped-host"].includes(step.id))
+    : externalResponseFocus ? integrationInventory.filter(step => step.id === "external-response")
     : revisionFocus ? suites.authority.filter(step => reviewedRevisionSteps.includes(step)) : suites[suiteName];
+  if (externalResponseFocus && selectedSteps.length !== 1)
+    throw new Error("external-response integration registration is incomplete");
   const preparedSteps = selectedSteps.map((step, index) => {
     const resourceOwner = createCanonicalTestResourceRoot(`ag-c${String(index + 1).padStart(2, "0")}-`);
     const resourceRoot = resourceOwner.root;
@@ -1983,7 +2026,7 @@ try {
       (step) => step.group === "supporting-serial",
     );
     if (
-      operator.length !== (projectWorkFocus ? 0 : 1) ||
+      operator.length !== (integrationFocus ? 0 : 1) ||
       supporting.length !== preparedSteps.length - operator.length
     ) {
       throw new Error(
@@ -1992,9 +2035,9 @@ try {
     }
     completedResults = await runCanonicalChildGroups({
       suite: suiteName,
-      maxConcurrency: projectWorkFocus ? 1 : 2,
+      maxConcurrency: integrationFocus ? 1 : 2,
       groups: [
-        ...(projectWorkFocus ? [] : [{ id: "operator-process", children: operator }]),
+        ...(integrationFocus ? [] : [{ id: "operator-process", children: operator }]),
         { id: "supporting-serial", children: supporting },
       ],
     });
@@ -2052,15 +2095,16 @@ try {
 
   summary = {
         suite: suiteName,
-        coverage: projectWorkFocus ? "focused_project_work_children_only" : revisionFocus ? "focused_reviewed_revision_children_only" : "complete_suite",
+        coverage: projectWorkFocus ? "focused_project_work_children_only" : externalResponseFocus ? "focused_external_response_child_only"
+          : revisionFocus ? "focused_reviewed_revision_children_only" : "complete_suite",
         status: "pass",
         environment_isolation_verified: forbiddenEnvironmentKeysForwarded === 0,
         forbidden_environment_keys_forwarded: forbiddenEnvironmentKeysForwarded,
         canonical_children_checked: canonicalChildrenChecked,
         ...(suiteName === "integration"
           ? {
-              concurrency_bound: projectWorkFocus ? 1 : 2,
-              integration_groups: projectWorkFocus ? ["supporting-serial"] : ["operator-process", "supporting-serial"],
+              concurrency_bound: integrationFocus ? 1 : 2,
+              integration_groups: integrationFocus ? ["supporting-serial"] : ["operator-process", "supporting-serial"],
               child_resource_isolation: [
                 "HOME",
                 "USERPROFILE",

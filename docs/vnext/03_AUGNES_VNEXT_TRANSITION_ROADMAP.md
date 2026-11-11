@@ -25,7 +25,7 @@ installed or published adoption remain distinct.
 | [#1559](https://github.com/hynk-studio/augnes/issues/1559) / [#1560](https://github.com/hynk-studio/augnes/pull/1560), [#1613](https://github.com/hynk-studio/augnes/pull/1613) | Direction-history verification work and the later protected Git-input maintenance merged. | Preserve their own evidence and remaining owners; neither merge qualifies another candidate. |
 | [#1608](https://github.com/hynk-studio/augnes/issues/1608) / [Draft #1614](https://github.com/hynk-studio/augnes/pull/1614) | Native navigation candidate remains open; receiving r4 source decision is REVISE and qualification is HOLD. | Complete the existing synthetic-output isolation correction and its applicable review/qualification. |
 | [#1609](https://github.com/hynk-studio/augnes/issues/1609) / [Draft #1611](https://github.com/hynk-studio/augnes/pull/1611) | r11 records Full 16/16 and Browser 7/7 PASS at `0f818e85`; separate stock is false solely for `receipt_stale_integration_base`. Current applicability remains HOLD. | Resolve current-main applicability under its existing owner. Preserve recorded PASS and consumed 1/1 lineage; this update creates no rerun or successor authority. |
-| [#1610](https://github.com/hynk-studio/augnes/issues/1610) / [Draft #1612](https://github.com/hynk-studio/augnes/pull/1612) | Candidate advanced to `601ccf21`; qualification remains HOLD. The r8 admission refusal belongs to `4eb40f66`. | Finish the existing correction and return for its actual candidate; do not transfer the old result or grant to a new target by this summary. |
+| [#1610](https://github.com/hynk-studio/augnes/issues/1610) / [Draft #1612](https://github.com/hynk-studio/augnes/pull/1612) | R14 measures the complete synthetic authority fixture and corrects registered generated-declaration eligibility from received `86e0648c`. Accepted product/B1 behavior and the early dependency gate are retained. R13 remains 6 PASS / 1 FAIL / 9 NOT_RUN with false stock/15 and UNKNOWN timeout cause; qualification remains HOLD. | Complete connected production-owner controls, independent exact-source/preparation review, distinct subsequent authority, one prospective deciding invocation and separate fresh stock under [the actual R14 delegation](https://github.com/hynk-studio/augnes/pull/1612#issuecomment-6782612663). Preserve every spent commission and earlier target; this summary supplies no grant. |
 | [#1615](https://github.com/hynk-studio/augnes/issues/1615) / [merged plan #1616](https://github.com/hynk-studio/augnes/pull/1616) | Pi plan merged; source diagnosis identifies the managed-host evidence attribution gap. | The existing bounded provenance assignment owns implementation; no Pi execution or provider spending is dispatched here. |
 | [#1447](https://github.com/hynk-studio/augnes/issues/1447) / [#1606](https://github.com/hynk-studio/augnes/pull/1606) | Software Change Check source and delivery preparation merged. | Confirm actual listing, delivery and consumer use through the approved public-asset owner; those outcomes are not established by the merge. |
 
@@ -120,6 +120,49 @@ This is reviewable verification maintenance, not adopted renewal authority for
 The final adoption/execution decision remains open; #1612 stays SOURCE ACCEPT /
 RETAIN and qualification HOLD. The [verification policy](../../.github/LOCAL_CANONICAL_VERIFICATION.md#proposed-stable-protected-git-input-target-within-v10)
 owns the proposed admission and compatibility boundary.
+
+### Branch-local TS correction compatibility and focused capture (#1612)
+
+The adopted stable-input maintenance (#1613) does not qualify this later
+compatibility amendment. The #1612 branch implements the reviewed v10-only
+partial-failure interpretation and exact TypeScript causal-source predicate,
+including the full literal Git catalogue and four contemporaneous v2 root
+prepared-dependency identities. Existing mjs evidence and all outer authority,
+lineage, stock and accounting owners retain their contracts.
+
+A shared disposable result-draft transport/scheduler exercises entire genuine
+prior and corrected helpers through the existing project-client command. The
+tracked focused collector uses the production child/resource owners, one
+canonical environment, physical source checks and direct bounded artifacts.
+It records development evidence only; it does not prepare, reserve, grant,
+qualify or validate stock. Its implementation and focused evidence require
+independent review. Full responsibility and separate exact-target authority
+remain; #1612 stays Draft and qualification HOLD / DO NOT MERGE.
+
+### Branch-local reviewed admission observation lifecycle (#1612)
+
+The r8 invocation refused before reservation because its coherent observation
+aged beyond the existing 60-second bound. Its exact subcall latency and foreign
+load causation remain UNKNOWN. The r9 correction stages immutable material and
+lineage validation before current authority/input/Companion acquisition, removes
+duplicate semantic replay within one call, and seals the validated reads against
+mutation. Remaining mutable checks precede the final freshness decision and
+exclusive successor append. Preparation and separate stock use the same ordering;
+stock refreshes the actual source identity. This changes no product behavior,
+clock bound, commission, ordinal or historical result. Focused controls, final
+published-source review, exact-target authority, Full and separate stock remain
+distinct requirements; no qualification result is claimed by this implementation.
+
+The r9 Full stopped at the external-response integration child's unchanged
+90-second bound (7 PASS / 1 FAIL / 8 NOT_RUN); separate stock remained false.
+The r10 development diagnostic adds bounded recovery-operation boundaries and
+sanitized failure identifiers. Its D-plus-diagnostic child passed naturally,
+including rollback, restore, suspended authority and retained history assertions;
+that observation does not identify the earlier interrupted operation or cause.
+No product repair is inferred from this isolated pass. Adopted main integration
+preserves the r9 deferred observation and material seals across the existing
+serial and material-source owners. Both reviewed invocations remain consumed;
+diagnostic evidence and integration create no further execution allowance.
 
 ### Native pending preparation and deliberate departure candidate (#1599)
 
@@ -614,7 +657,7 @@ synthetic observation and actual deployment evidence remain separate.
 | [OperatingProfile](../../plugins/augnes-operator/mcp/operating-profile.mjs) | Declared roles/executors/principals, inputs, dependencies, return/check/use responsibilities, direct/asset/delegated/non-use alternatives, requested permissions and budgets. | `observe_recommend` only. Preview establishes neither identity, capability, applicability, permission, arrangement selection nor execution. A declared budget is not a reservation. |
 | [Execution choice](../../plugins/augnes-operator/mcp/execution-choice.mjs) and [manual contribution](../../plugins/augnes-operator/mcp/manual-contribution.mjs) | Ordinary source notes link expectation and explicit choice to bounded request, preserved return, attributed checking and use/partial use/retention/deferral/decline judgments, and follow-up. One profile step may be pinned to a manual request. | Preparation is not dispatch or a correctness oracle. Manual attribution is not authenticated identity; role closure is not credential withdrawal. The one-note profile bound remains smaller than standalone profile input. |
 | [Request-bound review](../../plugins/augnes-operator/mcp/request-bound-review.mjs) and existing review/use writers | Configured scoped request/read/reply and returned material feed attributable use under their current bindings. | A configured connection is not verified competence, capacity or commitment. These bounded review and manual paths do not establish general automatic subcontracting. |
-| [Scoped external response](../../lib/vnext/external-response.ts), [terms](../../lib/vnext/external-response-rules.mjs), [transport](../../lib/vnext/external-response-transport.mjs) | Exact work/input/terms, proposed or acknowledged conditions, returned material, distinct check/use, shared experience/correction and envelope accounting/reconciliation. | The contract supports an aggregate operation at loopback, not general outsourcing, redelegation, payment or settlement. Checks/use are attributed consumer statements. Legacy reconciliation shares send expiry/call limits. #1597 adds finite exact-attempt receipt observation after expiry/exhaustion only while the original bindings remain configured; confirmation after binding withdrawal, remote cancellation and settlement remain unsupported. |
+| [Scoped external response](../../lib/vnext/external-response.ts), [terms](../../lib/vnext/external-response-rules.mjs), [transport](../../lib/vnext/external-response-transport.mjs) | Exact work/input/terms, proposed or acknowledged conditions, returned material, distinct check/use, shared experience/correction and envelope accounting/reconciliation. | The contract supports an aggregate operation at loopback, not general outsourcing, redelegation, payment or settlement. Checks/use are attributed consumer statements. Legacy reconciliation shares send expiry/call limits. #1597 adds finite exact-attempt receipt observation after expiry/exhaustion only while the original bindings remain configured; #1610 adds prospective original-receipt confirmation after binding withdrawal under separate finite receipt-only authority. Legacy work without original-owner evidence, remote cancellation and settlement remain unsupported. |
 | [Conditional methods](../../lib/vnext/prospective-agenda.ts), [composition cases](../../types/vnext/strategy-composition-case.ts), [ordinary later-task use](#current-first-execution-choice-and-participation-loop-1443) | Conditional applicability, supporting/conflicting material, actor-free research components and explicitly selected contribution use in a distinct same-project task. | No general method/offer registry or automatic cross-project transfer follows. Research composition is not actor deployment, an accepted strategy or causal superiority. |
 | [NativeHostAdapter](../../types/vnext/native-host-adapter.ts), [static composition](../../lib/vnext/native-host/native-host-execution-composition.ts), [execution envelope](../../lib/vnext/repository-execution/repository-execution-envelope.ts), [same-run resume](../../lib/vnext/repository-execution/repository-managed-resume.ts) | Trusted adapter seam, bounded host lifecycle and repository execution under current admission owners. | Production defaults to Codex; scoped binding is Codex-specific. No runtime-selectable registry, qualified alternative coding executor or inherited replacement authority is established. |
 
@@ -667,7 +710,7 @@ for the governing principles; use the following gaps to select bounded work.
 | Connection to make explicit in an affected case | Existing foothold and narrow unresolved relation |
 |---|---|
 | Restriction scope and commissioning right | Direction constraints, requested permissions and execution grants supply separate footholds. Distinguish who issued a restriction, whose action/resource it covers, direct performance versus commissioning, and conditions that travel with data or a subcontract. Do not infer a global veto or commissioning permission from a direct-performance limit. |
-| Contribution commitment, redelegation and unfinished work | Existing request/return/use and scoped external-response owners preserve bounded terms, results and unfinished work. Model original delivery responsibility, allowed subcontract/data scope and resource accounting separately from a new participant's agreement. #1597 implements explicit finite receipt confirmation after send expiry/exhaustion with unchanged original bindings, durable separate query reservations and ordinary eligibility reads. Confirmation after binding withdrawal, general cleanup, remote cancellation and settlement remain gaps. Neither closure nor replacement discharges obligations or revives an expired grant. |
+| Contribution commitment, redelegation and unfinished work | Existing request/return/use and scoped external-response owners preserve bounded terms, results and unfinished work. Model original delivery responsibility, allowed subcontract/data scope and resource accounting separately from a new participant's agreement. #1597 implements explicit finite receipt confirmation after send expiry/exhaustion with unchanged original bindings, durable separate query reservations and ordinary eligibility reads. #1610 implements prospective confirmation after binding withdrawal through separate finite receipt-only permission, with shared attempt accounting and restored suspension. Legacy evidence reconstruction, general cleanup, remote cancellation and settlement remain gaps. Neither closure nor replacement discharges obligations or revives an expired grant. |
 | Visibility and acceptance | Keep discovering a capability, receiving requests, accepting this task, publishing its result and disclosing internal methods independent. Existing selected-source/manual disclosure controls are a foothold, not a public-offer service or proof of availability. |
 | Agreed return and attribution | Describe the proposed benefit, contributor/beneficiary, applicable condition and who may accept it. Money, resources, reciprocal contribution and attributable reputation need not wait for platform monetization; a description proves neither entitlement, reservation, payment nor fulfillment. |
 | Episode → method → current offer → new use | Bind the original work/result/judgment separately from a reusable conditional method, a participant's current terms/capacity, and a new task's actual use and judgment. Preserve versions and contrary cases; success does not copy actors, permission, private material, availability or superiority into a new use. |

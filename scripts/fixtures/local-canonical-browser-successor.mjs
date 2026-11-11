@@ -196,6 +196,7 @@ export async function executeFixture(c, h, proof, cap, browserRecord, dependenci
 }
 
 export async function checkBrowserSourceSuccessor(c, h, firstProof, firstAuthority, browserRecord) {
+  h.progress?.("successor_start");
   const preparation = candidate => {
     const material = clone(candidate);
     delete material.authorization;
@@ -209,7 +210,9 @@ export async function checkBrowserSourceSuccessor(c, h, firstProof, firstAuthori
   const tip = () => reconstructAttemptTip({ anchorRoot: c.anchor, repositoryRoot: c.checkout, branch: c.branch });
   const packages = dependencyRecords(c);
   const firstFile = c.file;
+  h.progress?.("first_execution_start");
   const first = await executeFixture(c, h, firstProof, firstAuthority, browserRecord, packages);
+  h.progress?.("first_execution_complete");
   assert.equal(first.child.result.exit_code, 1);
   assert.match(first.child.output, /3 !== 4/);
   assert.equal(first.stock.dimensions.historical_integrity, "intact");
@@ -221,6 +224,7 @@ export async function checkBrowserSourceSuccessor(c, h, firstProof, firstAuthori
   const rootCompletion = path.join(c.legacyRoot, "completion-1.json");
   const historic = [rootReceipt, rootCompletion, rootStock].map(file => [file, readFileSync(file)]);
   c.prior = first.receipt;
+  h.progress?.("second_material_start");
   c.grantId = 12;
   c.commit(4);
   h.prepare(c, 2);
@@ -232,7 +236,7 @@ export async function checkBrowserSourceSuccessor(c, h, firstProof, firstAuthori
   const source = h.read(path.join(c.artifacts, p.source.artifact));
   source.reviewed_at = now();
   p.source = h.artifact(c, "source.json", source);
-  const corrected = await behavior(c);
+  const corrected = await (h.behavior ? h.behavior(c) : behavior(c));
   assert.equal(corrected.result.exit_code, 0);
   const focused = h.read(path.join(c.artifacts, p.focused.artifact));
   Object.assign(focused, {
@@ -243,6 +247,7 @@ export async function checkBrowserSourceSuccessor(c, h, firstProof, firstAuthori
     }]
   });
   p.focused = h.artifact(c, "focused.json", focused);
+  h.progress?.("second_material_complete");
   const target = browserReviewTarget(p), prepared = preparation(p);
   assert.equal(prepared.target, target);
   assert.equal(prepared.predecessor, first.receipt.integrity.content_fingerprint);
@@ -313,6 +318,7 @@ export async function checkBrowserSourceSuccessor(c, h, firstProof, firstAuthori
   assert.throws(() => preparation(q), /revision_browser_failure_invalid/);
   assert(!browserBindingMatches(first.receipt.inputs, changed.browser));
 
+  h.progress?.("preparation_controls_complete");
   // Independent commit review and subsequent linked grant are fixture records only.
   await delay(5);
   const originalReview = firstProof.authorization.contract_review;
@@ -358,7 +364,10 @@ export async function checkBrowserSourceSuccessor(c, h, firstProof, firstAuthori
   assert.throws(() => h.begin(c, proof, cap, { revisionInputs: changed }), /revision_authenticated_authority_required/);
   assert.throws(() => h.begin(c, proof, cap, { revisionLive: null }), /revision_current_preservation_unsafe/);
   assert.equal(tip().reviewed_revision_consumed, 1);
+  h.progress?.("authority_refusals_complete");
+  h.progress?.("second_execution_start");
   const second = await executeFixture(c, h, proof, cap, browserRecord, packages);
+  h.progress?.("second_execution_complete");
   assert.equal(second.child.result.exit_code, 0);
   assert.equal(second.stock.valid_deciding_evidence, true);
   assert.deepEqual(second.stock.issues, []);
@@ -372,6 +381,7 @@ export async function checkBrowserSourceSuccessor(c, h, firstProof, firstAuthori
   for (const [file, bytes] of historic) assert.deepEqual(readFileSync(file), bytes);
   withChangedBytes(rootCompletion, () => { assert.throws(tip, /revision_original_ledger_changed/); assert(!h.stock(c, second.receipt, cap)); });
   withChangedBytes(path.join(c.artifacts, p.originals.stock.artifact), () => assert(!h.stock(c, second.receipt, cap)));
+  h.progress?.("tail_refusals_complete");
   const exported = createPrivateReviewExport(second.receipt);
   assert(validReviewedRevisionAttempt(exported.attempt));
   assert(inspectPrivateReviewExport(exported).structurally_valid);
@@ -382,6 +392,7 @@ export async function checkBrowserSourceSuccessor(c, h, firstProof, firstAuthori
   altered.inputs.resources.find(r => r.protectedInstallation).before = changed.browser.installation;
   assert(inspectReceiptForDecision(finalizeReceipt(altered)).issues.includes("receipt_browser_installation_invalid"));
   assert.throws(() => createPrivateReviewExport(finalizeReceipt(altered)), /browser_installation_invalid/);
+  h.progress?.("export_complete");
   // A new grant, root and family cannot open a third slot via the generic route.
   c.prior = second.receipt; c.grantId = 13; c.commit(5); h.prepare(c);
   assert.throws(() => h.proof(c), /revision_browser_lineage_invalid/);

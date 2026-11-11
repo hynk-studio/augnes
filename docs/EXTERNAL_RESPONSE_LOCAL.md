@@ -87,7 +87,8 @@ or a tool argument can mint.
 The current file is checked at discovery, reads, writes and effect boundaries.
 Withdrawing a share denies new metadata/byte reads. It cannot recall bytes already
 copied into another legitimate scope. Removing configuration or a project denies
-new access; removing or changing an envelope blocks effects. Recovery suspends
+new access; removing or changing an envelope blocks its effects. The separately
+authorized original-receipt path below does not restore that envelope. Recovery suspends
 restored envelopes even if an old configuration file remains. Re-enabling an old
 journal grant is unsupported; preserve reconciliation obligations and obtain a
 separate operator decision, never edit counters or deserialize ownership tokens.
@@ -148,6 +149,75 @@ original envelope. Older recovery validators refuse these new payloads. Do not
 run an older writer on such a store: retain the complete current backup/evidence
 and use a pre-increment backup if rolling the runtime back. Old configurations,
 record hashes, legacy counters and recovery suspension retain their meaning.
+
+### Original receipt after execution-binding withdrawal (#1610)
+
+New preparations retain only a nonsecret `receipt_owner` (the exact loopback
+endpoint and live counterpart incarnation) on the immutable work. The work and
+issued attempt bind project, original input/terms and material basis. The real
+POST passes that identity to the owned processor, which retains it with its
+receipt. No execution secret or private configuration is copied into history.
+A prepared attempt without a send is ineligible. Legacy work without this
+original evidence stays readable but cannot acquire this new capability;
+there is no metadata backfill or inference from a replacement envelope.
+
+After actual receipt retention, the operator can explicitly call the owned
+processor's `grantReceipt({request_ref, expires_at, max_queries})`. This returns
+a newly generated receipt-only secret and the original receipt identity.
+It requires a future UTC expiry, 1–16 queries and an existing original receipt;
+it does not send work. Put that return, plus `timeout_ms` (50–10000), in the
+optional top-level `receipt_permissions` array of the same private configuration:
+
+```text
+receipt_permissions: [{
+  receipt: {
+    endpoint, instance, project_key, work_ref, attempt_ref,
+    input_ref, terms_ref, material_basis
+  },
+  expires_at, max_queries, secret: <new receipt-only credential>, timeout_ms: 1000
+}]
+```
+
+Keep the reader's exact `projects` admission configured. The original sending
+envelope may be absent; neither its old secret nor an envelope with the old name
+is needed or accepted as original-owner evidence. At most 32 permissions are
+accepted. This setup is an explicit operator/counterpart action, never a tool
+argument, timeout response or automatic reaction to missing authority.
+Local removal alone proves neither remote secret revocation nor cancellation.
+
+Use the existing `read` and `act(mode:"reconcile")` entries. A read exposes
+`receipt_confirmation.authority:"separate_receipt_permission"` when eligible,
+or its refusal reason while retaining unresolved work. It contacts nothing and
+consumes nothing. The ordinary report consumer returns `unresolved` when this
+read refuses confirmation. Current root/project and authenticated runtime access
+are still required, including rechecks before contact and response commit.
+The counterpart accepts the new credential only for GET of the exact original
+request and identity, with its own finite expiry/query limit; POST, another
+request, changed identity and a new incarnation refuse.
+
+Both observation routes use the existing attempt's `receipt_observation`
+reservations. The first reservation fixes the expiry and ceiling across routes,
+processes, credential rotation and configuration relocation. Matching permission
+can spend only the remainder. Withdrawal, failure, timeout or failed commit never
+refunds it; no fallback to legacy envelope calls is available after reservation.
+In-flight credential/permission changes refuse, even if the replacement would
+otherwise allow another later query. Restored envelope suspension blocks this
+route as well. Returned bytes retain the ordinary deliberate late-result
+`reconsider`, independent `check` and output-dependent `use` requirements.
+Closed work stays closed. Absence cannot restore send/amendment authority.
+
+This is an additive journal/configuration representation without a schema
+migration. Existing hashes and legacy behavior are preserved, including exact
+preparation replay without backfilling an old work. Older configuration readers
+reject `receipt_permissions`; older recovery validators reject
+`work.receipt_owner`. Live downgrade on a store containing these records is
+unsupported. Preserve its complete newer backup and use a pre-increment backup
+with an older runtime; deleting evidence or copying configuration cannot make a
+restored snapshot live. General cleanup, cancellation, settlement and arbitrary
+provider credential schemes remain unsupported.
+New preparations also require the updated owned counterpart: its previous strict
+POST reader rejects the additive `receipt_identity`. Existing legacy work keeps
+its original request shape. Source rollback does not restore counterpart state.
 
 ## Ordinary workflow
 
