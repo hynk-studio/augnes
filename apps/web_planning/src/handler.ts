@@ -5,6 +5,9 @@ import { participantPage, participantRecoveryPage } from "./participation-page";
 import participantRecoveryClient from "./participation-recovery.js.txt?raw";
 import participantJournal from "./participation-journal.js.txt?raw";
 import participantClient from "./participation-client.js.txt?raw";
+import projectsClient from './projects-client.js.txt?raw';
+import { projectEntryPage } from './project-entry';
+import { createProject, listProjects } from './projects';
 import { applyReturn, inspectReturn } from "./return-continuation";
 import { inspectUse, previewReassessment, saveReassessment } from "./return-reassessment-ops";
 import { REASSESSMENT_EXPORT } from "./return-reassessment";
@@ -19,7 +22,7 @@ import { hasSceneFile } from "./file-relations";
 import { DIRECTION_EXPORT, directionExport, validateDirectionExport } from "./direction-recovery";
 import { prepareSceneContext, prepareSceneDraft, previewSceneReview, saveSceneReview } from "./scenes";
 import { type FileBody, FILE_EXPORT_REQUEST_BYTES, LARGE_EXPORT_REQUEST_BYTES, LARGE_PAIR_REQUEST_BYTES, EXCHANGE_REQUEST_BYTES, historyFiles, selectedFiles, validateFileExport } from "./files";
-import { authorize, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, type Environment, type Principal } from "./access";
+import { authorize, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, projectEntryEnabled, selectedProject, type Environment, type Principal } from "./access";
 import { binding, canonical, exact, exportWork, fail, hash, makeRevision, normalizePayload, reference, Refusal, REQUEST_BYTES, requestFingerprint, sameBinding, UUID, validateExport, validateRetainedIncorporations, type Revision } from "./contract";
 import { inspectDraftCapacity } from "./capacity";
 import { append, completeExport, downloadFile, eraseWork, headBinding, headsCurrent, listWork, readNoteHistory, readWork, reconstruct, reconstructWorks, requestRevision } from "./store";
@@ -76,7 +79,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
     const url=new URL(request.url), path=url.pathname;
     const participant=path.match(/^\/(participate|api\/participation)\/([a-f0-9-]{36})(.*)$/);
     if(participant && UUID.test(participant[2])){
-      const access=await authorize(request,env,principal,true),id=participant[2],suffix=participant[3];
+      const access=await authorize(request,env,principal,participant[2]),id=participant[2],suffix=participant[3];
       // Ended/erased grants can recover only a draft already in this browser.
       // Reauthentication still binds the exact original recipient; no server
       // request, file, feedback or acknowledgement is exposed through this shell.
@@ -128,10 +131,26 @@ export async function handle(request:Request,env:Environment,principal:Principal
       await activeGrant(access,id); // Readback/authorization loss never becomes an empty result.
       return result;
     }
-    const access=await authorize(request,env,principal);
+    const accountEntry=projectEntryEnabled(env)&&(path==='/projects'||path==='/api/projects'||path==='/projects.js'||
+      path==='/'&&!url.search&&!request.headers.has('x-web-planning-project')||['/style.css','/client.js','/exchange-text.mjs','/planning-notes.mjs','/favicon.ico'].includes(path));
+    const access=await authorize(request,env,principal,undefined,accountEntry);
+    if(accountEntry){
+      if(request.method==='GET'&&!url.search&&(path==='/'||path==='/projects')){
+        const csrf=csrfToken(access,request);return html(projectEntryPage(csrf,access),{'Set-Cookie':csrfCookie(access,csrf)});
+      }
+      if(path==='/api/projects'){
+        if(request.method==='GET'){
+          if([...url.searchParams.keys()].some(k=>k!=='cursor')||url.searchParams.getAll('cursor').length>1)fail('scope_denied',403);
+          return json(await listProjects(access,url.searchParams.get('cursor')??''));
+        }
+        if(request.method!=='POST'||url.search)fail('method_not_allowed',405);
+        requireCsrf(access,request);return json(await createProject(access,await body(request)));
+      }
+      if(path==='/projects.js'&&request.method==='GET'&&!url.search)return new Response(projectsClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
+    }
     if(request.method==="GET") {
       if(path==="/favicon.ico" && !url.search)return new Response(null,{status:204,headers});
-      if(path==="/" && !url.search) {
+      if(path==="/" && (!url.search || selectedProject(request))) {
         const csrf=csrfToken(access,request);
         return html(page(csrf,access),{"Set-Cookie":csrfCookie(access,csrf)});
       }
@@ -140,7 +159,12 @@ export async function handle(request:Request,env:Environment,principal:Principal
       if(path==="/planning-notes.mjs" && !url.search) return new Response(planningNotes,{headers:{...headers,"Content-Type":"text/javascript; charset=utf-8"}});
       if(path==="/style.css" && !url.search) return new Response(style,{headers:{...headers,"Content-Type":"text/css; charset=utf-8"}});
       if(path==="/api/project" && !url.search) return json({workspace_id:access.workspace_id,project_id:access.project_id,
-        name:env.PROJECT_NAME || "Private planning workspace",tasks:"/api/works"});
+        author_ref:access.author_ref,name:access.projectName || "Private planning workspace",continuation_work_id:access.continuationWork??null,tasks:"/api/works"});
+      if(path==='/api/project/continuation'&&!url.search){
+        if(!access.continuationWork)fail('project_continuation_unavailable',404);
+        const chain=await readWork(access,access.continuationWork);if(!chain.length)fail('project_continuation_unavailable',404);
+        return json({saved:chain.at(-1)});
+      }
       if(path==="/api/works/search") {
         if([...url.searchParams.keys()].some(k=>k!=="q"&&k!=="cursor") || url.searchParams.getAll("q").length!==1 ||
           url.searchParams.getAll("cursor").length>1)fail("scope_denied",403);

@@ -157,7 +157,7 @@ export async function reconstruct(s: Store, chain: Revision[], bodies:FileBody[]
 export async function reconstructWorks(s:Store,works:{chain:Revision[];bodies:FileBody[]}[]):Promise<void>{
   if(works.length<1||works.length>2)fail("reconstruction_budget_exceeded");
   const chain=works.flatMap(w=>w.chain);assertHistoryBudget(chain);
-  for(const w of works)validateSceneHistory(w.chain,w.bodies);
+  for(const w of works){validateChain(s,w.chain[0]?.work_id,w.chain);validateSceneHistory(w.chain,w.bodies);}
   // json_each avoids eight parameters and one query per revision. Chunk by
   // actual canonical bytes and rows, keeping every bound string below D1's
   // 2 MB limit. All chunks still commit or roll back in one D1 transaction.
@@ -173,10 +173,13 @@ export async function reconstructWorks(s:Store,works:{chain:Revision[];bodies:Fi
   // Emptiness includes erased IDs: reconstruction cannot resurrect erased work.
   const grants=await s.DB.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='web_planning_participation'").first();
   await s.DB.batch([
-    ...(grants?[s.DB.prepare("UPDATE web_planning_participation SET revoked_at=COALESCE(revoked_at,?)").bind(new Date().toISOString())]:[]),
     s.DB.prepare(`UPDATE web_planning_workspace SET singleton = CASE WHEN
-      EXISTS(SELECT 1 FROM web_planning_revision) OR EXISTS(SELECT 1 FROM web_planning_erased) OR EXISTS(SELECT 1 FROM web_planning_file)
-      THEN 0 ELSE 1 END WHERE singleton=1`),
+      EXISTS(SELECT 1 FROM web_planning_revision WHERE workspace_id=? AND project_id=?)
+      OR EXISTS(SELECT 1 FROM web_planning_erased WHERE workspace_id=? AND project_id=?)
+      OR EXISTS(SELECT 1 FROM web_planning_file WHERE workspace_id=? AND project_id=?)
+      THEN 0 ELSE singleton END WHERE workspace_id=? AND project_id=?`)
+      .bind(...Array(4).fill([s.workspace_id,s.project_id]).flat()),
+    ...(grants?[s.DB.prepare("UPDATE web_planning_participation SET revoked_at=COALESCE(revoked_at,?) WHERE workspace_id=? AND project_id=?").bind(new Date().toISOString(),s.workspace_id,s.project_id)]:[]),
     ...chunks.map(rows => s.DB.prepare(`INSERT INTO web_planning_revision
       (workspace_id,project_id,work_id,revision,fingerprint,request_key,request_fingerprint,envelope)
       SELECT json_extract(value,'$.workspace_id'),json_extract(value,'$.project_id'),json_extract(value,'$.work_id'),

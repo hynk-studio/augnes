@@ -4246,6 +4246,45 @@ revocation or source erasure to download an existing browser-local pending retur
 This exposes no server request, file, feedback or save outcome, performs no write,
 and grants no renewed access. Unknown submission status remains unknown.
 
+#### Independent private Web projects (#1627)
+
+An explicitly enabled admitted-principal entry separates the installation's
+configured legacy owner from ownership of newly created private Web projects.
+Verified ingress identity and an admission list precede creation/selection;
+the default remains the legacy owner-only deployment. Each mapping retains its
+own stable author reference and immutable scope. The authenticated principal
+must own the selected project on every ordinary read/write. A page/client carries
+an explicit project selection, while CSRF, signed tickets and downloaded task
+setups bind the same scope; selection cannot retarget a pending operation.
+
+Project creation commits its mapping and an ordinary initial planning work in
+one transaction. Its purpose, source-attributed interpretation, unresolved work
+and next action use existing definition/selected-note owners. The mapping's
+continuation pointer opens that work's current revision; subsequent edits,
+history, source reuse, exports and uncertainty reconciliation remain ordinary
+Web operations. No parallel current-state record, new Core kind, accepted-state
+semantics or native synchronization is introduced. An erased continuation stays
+unavailable. Initial source labels are authored attribution, not proof that an
+external source was inspected or verified.
+
+Fresh sessions of the same currently admitted authenticated principal use the
+stored project author reference, never a new executor identity. Historical
+authors are not rewritten. A different principal's delegated succession remains
+outside this slice. W1 separately resolves the exact request grant and verified
+recipient to its source project; that grant, return or decline does not own the
+recipient's independent project lifecycle.
+
+Schema 5 preserves the existing mapping and every sealed revision/file byte
+while admitting multiple mappings. Reconstruction's atomic empty-store guard and
+retained-grant revocation are now selected-project scoped; populated unrelated
+projects neither prevent recovery nor lose data/access. Erasure tombstones still
+prevent resurrection. Exports retain their formats and exclude the operational
+directory and grants; recovery also needs the independently retained matching
+mapping/author. The [Web guide](../../apps/web_planning/README.md#independent-private-projects-opt-in)
+owns entry/API/client limits, quiesced migration, backup requirements and the
+non-destructive owner-only rollback posture. This is the first W2 entry slice,
+not whole-W2, delegated succession or independently hosted adoption acceptance.
+
 ### 13.6 Explicit portable Web source admission (#1475)
 
 The [local handoff](../WEB_EXPORT_NATIVE_HANDOFF.md) directly reuses the Web v0.3

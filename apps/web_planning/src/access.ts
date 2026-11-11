@@ -6,9 +6,11 @@ export interface Environment {
   DB: Database; APP_ORIGIN: string; OWNER_EMAIL: string; WORKSPACE_ID: string;
   PROJECT_ID: string; PROJECT_NAME?: string; AUTHOR_REF: string; REQUEST_SECRET: string;
   SITES_INGRESS_MODE?: string; RECONSTRUCTION_MODE?: string; PARTICIPATION_MODE?: string;
+  PROJECT_ENTRY_MODE?: string; PROJECT_ADMITTED_EMAILS?: string;
 }
 export type Principal = { login: string | null; localFixture?: true; ingress?: "sites" | "cloudflare-access" };
-export type Access = Store & { env: Environment; local: boolean; signout: string; recipientHash?: string };
+export type Access = Store & { env: Environment; local: boolean; signout: string; recipientHash?: string;
+  principalHash: string; ownerHash?: string; projectEntry?: true; projectName?: string; continuationWork?: string | null };
 export interface Ticket { kind: "save"; workspace_id: string; project_id: string; author_ref: string;
   work_id: string; request_key: string; expected: Binding; expires: number; payload_fingerprint?: string; draft_fingerprint?: string }
 const loginPattern = /^[^\s,@]+@[^\s,@]+\.[^\s,@]+$/;
@@ -19,10 +21,20 @@ export function sitesPrincipal(request: Request, env: Environment): Principal {
   if (env.SITES_INGRESS_MODE !== "verified-private-sites" || !env.APP_ORIGIN?.startsWith("https://")) return {login:null};
   return {login:login(request.headers.get("oai-authenticated-user-email")),ingress:"sites"};
 }
-export async function authorize(request: Request, env: Environment, principal: Principal, participant=false): Promise<Access> {
+export function projectEntryEnabled(env:Environment) { return env.PROJECT_ENTRY_MODE==='admitted-private-v1'; }
+export function selectedProject(request:Request):string|null {
+  const url=new URL(request.url),query=url.pathname==='/'?url.searchParams.get('project'):null,header=request.headers.get('x-web-planning-project');
+  if(url.pathname==='/' && url.search && (url.searchParams.getAll('project').length!==1 || [...url.searchParams.keys()].some(k=>k!=='project')) ||
+    query!==null && header!==null && query!==header || [query,header].some(v=>v!==null&&!UUID.test(v)))fail('scope_denied',403);
+  return header??query;
+}
+export async function authorize(request: Request, env: Environment, principal: Principal, participant?:string, projectEntry=false): Promise<Access> {
   env={...env,DB:boundedDatabase(env.DB)};
   const url=new URL(request.url);
-  const entry=request.method==='GET' && (url.pathname==='/' || (participant && /^\/participate\/[a-f0-9-]{36}$/.test(url.pathname))) && !url.search;
+  const multi=projectEntryEnabled(env);
+  const projectNavigation=url.searchParams.getAll('project').length===1 && [...url.searchParams.keys()].every(k=>k==='project') &&
+    UUID.test(url.searchParams.get('project')??'') && (!request.headers.has('x-web-planning-project') || request.headers.get('x-web-planning-project')===url.searchParams.get('project'));
+  const entry=request.method==='GET' && ((url.pathname==='/' && (!url.search || projectNavigation)) || (multi&&url.pathname==='/projects'&&!url.search) || (participant && /^\/participate\/[a-f0-9-]{36}$/.test(url.pathname)&&!url.search));
   // One fixed classification per refused entry; never serialize a request,
   // identity, environment value, or exception into production logs.
   function refuse(reason:string,code:string,status:number):never {
@@ -40,14 +52,45 @@ export async function authorize(request: Request, env: Environment, principal: P
   // exact entry page gets this exception, never APIs, subresources or frames.
   const navigation=entry && request.headers.get('sec-fetch-mode')==='navigate' && request.headers.get('sec-fetch-dest')==='document';
   if (["cross-site","same-site"].includes(request.headers.get("sec-fetch-site")??"") && !navigation) refuse('fetch_metadata','same_origin_required',403);
+  const selection=selectedProject(request);
   if (!principal.localFixture && (origin.protocol!=="https:" || request.headers.has("x-web-planning-local-owner"))) refuse('untrusted_transport_or_local_identity','access_denied',403);
   if (!login(principal.login)) refuse(principal.ingress==='cloudflare-access'?'access_identity_unavailable':env.SITES_INGRESS_MODE!=='verified-private-sites'?'ingress_disabled':
     request.headers.has('oai-authenticated-user-email')?'identity_invalid':'identity_absent','access_denied',403);
   if(participant){if(!principal.localFixture&&!principal.ingress)refuse('ingress_unverified','access_denied',403);if(env.PARTICIPATION_MODE!=='verified-recipient-v1')refuse('participation_disabled','access_denied',403);}
-  else if (login(principal.login)!==login(env.OWNER_EMAIL)) refuse('owner_mismatch','access_denied',403);
+  else if(multi){
+    if(!principal.localFixture&&!principal.ingress)refuse('ingress_unverified','access_denied',403);
+    let admitted:unknown;
+    try{admitted=JSON.parse(env.PROJECT_ADMITTED_EMAILS??'[]');}catch{refuse('admission_configuration','workspace_not_configured',503);}
+    if(!Array.isArray(admitted)||admitted.length>100||admitted.some(v=>!login(v)))refuse('admission_configuration','workspace_not_configured',503);
+    if(login(principal.login)!==login(env.OWNER_EMAIL)&&!admitted.some(v=>login(v)===login(principal.login)))refuse('principal_not_admitted','access_denied',403);
+  } else if (login(principal.login)!==login(env.OWNER_EMAIL)) refuse('owner_mismatch','access_denied',403);
   const schema=await env.DB.prepare("SELECT version,(SELECT sql FROM sqlite_master WHERE name='web_planning_revision' AND type='table') AS revision_sql,EXISTS (SELECT 1 FROM sqlite_master WHERE type='table' AND name='web_planning_file_part' AND instr(sql,'web_planning_part_ordinal')>0) AS parts FROM web_planning_schema").all<{version:number;revision_sql:string;parts:number}>();
-  if (schema.results.length!==1 || schema.results[0].version!==4 || schema.results[0].parts!==1 || !schema.results[0].revision_sql?.includes('web_planning_revision_positive')) refuse('schema','incompatible_schema',503);
-  let owners=await env.DB.prepare("SELECT * FROM web_planning_workspace").all<Record<string,unknown>>();
+  if (schema.results.length!==1 || ![4,5].includes(schema.results[0].version) || multi&&schema.results[0].version!==5 || schema.results[0].parts!==1 || !schema.results[0].revision_sql?.includes('web_planning_revision_positive')) refuse('schema','incompatible_schema',503);
+  const common={DB:env.DB,historyRead:{rows:0,bytes:0},env,local:principal.localFixture===true,principalHash:hash(login(principal.login)!),
+    signout:principal.ingress==='cloudflare-access'?'/cdn-cgi/access/logout':'/signout-with-chatgpt'};
+  if(projectEntry){
+    if(!multi)refuse('entry_disabled','access_denied',403);
+    return {...common,workspace_id:env.WORKSPACE_ID,project_id:env.PROJECT_ID,author_ref:env.AUTHOR_REF,projectEntry:true};
+  }
+  if(participant){
+    if(!UUID.test(participant))fail('participation_unavailable',403);
+    const {results}=await env.DB.prepare(`SELECT w.* FROM web_planning_workspace w JOIN web_planning_participation g
+      ON g.workspace_id=w.workspace_id AND g.project_id=w.project_id WHERE g.grant_id=? AND g.recipient_hash=? LIMIT 2`)
+      .bind(participant,common.principalHash).all<Record<string,any>>();
+    if(results.length!==1 || results[0].workspace_id!==env.WORKSPACE_ID || !multi && results[0].project_id!==env.PROJECT_ID ||
+      selection && selection!==results[0].project_id)fail('participation_unavailable',403);
+    const row=results[0];
+    if(row.singleton!==1)return {...common,workspace_id:row.workspace_id,project_id:row.project_id,author_ref:row.author_ref,ownerHash:row.owner_login_hash,recipientHash:common.principalHash};
+  }
+  if(multi && selection && selection!==env.PROJECT_ID){
+    const row=await env.DB.prepare('SELECT * FROM web_planning_workspace WHERE workspace_id=? AND project_id=? AND owner_login_hash=?')
+      .bind(env.WORKSPACE_ID,selection,common.principalHash).first<Record<string,any>>();
+    if(!row)refuse('project_scope','access_denied',403);
+    return {...common,workspace_id:row.workspace_id,project_id:row.project_id,author_ref:row.author_ref,ownerHash:row.owner_login_hash,
+      projectName:row.name,continuationWork:row.continuation_work_id};
+  }
+  if(!participant && (selection&&selection!==env.PROJECT_ID || login(principal.login)!==login(env.OWNER_EMAIL)))refuse('project_scope','access_denied',403);
+  let owners=await env.DB.prepare("SELECT singleton,workspace_id,project_id,author_ref,owner_login_hash FROM web_planning_workspace WHERE singleton=1").all<Record<string,unknown>>();
   const expected={ singleton:1, workspace_id:env.WORKSPACE_ID, project_id:env.PROJECT_ID,
     author_ref:env.AUTHOR_REF, owner_login_hash:hash(login(env.OWNER_EMAIL)!) };
   // A normal authenticated owner page may initialize an empty hosted store.
@@ -55,22 +98,22 @@ export async function authorize(request: Request, env: Environment, principal: P
   // choose/repair ownership. The single statement settles concurrent requests;
   // an exact reread admits only the configured mapping (including a race winner).
   if(owners.results.length===0 && !participant && !principal.localFixture &&
-    principal.ingress && request.method==='GET' && url.pathname==='/' && !url.search) {
+    principal.ingress && request.method==='GET' && url.pathname==='/' && (!url.search || selection===env.PROJECT_ID)) {
     await env.DB.prepare(`INSERT INTO web_planning_workspace(singleton,workspace_id,project_id,author_ref,owner_login_hash)
-      SELECT 1,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM web_planning_workspace)
-        AND NOT EXISTS(SELECT 1 FROM web_planning_revision)
-        AND NOT EXISTS(SELECT 1 FROM web_planning_erased)
+      SELECT 1,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM web_planning_workspace WHERE singleton=1)
+        AND NOT EXISTS(SELECT 1 FROM web_planning_revision WHERE workspace_id=? AND project_id=?)
+        AND NOT EXISTS(SELECT 1 FROM web_planning_erased WHERE workspace_id=? AND project_id=?)
         AND (SELECT count(*) FROM web_planning_schema)=1
-        AND EXISTS(SELECT 1 FROM web_planning_schema WHERE version=4)
-        AND NOT EXISTS(SELECT 1 FROM web_planning_file)
+        AND EXISTS(SELECT 1 FROM web_planning_schema WHERE version IN (4,5))
+        AND NOT EXISTS(SELECT 1 FROM web_planning_file WHERE workspace_id=? AND project_id=?)
       ON CONFLICT DO NOTHING`)
-      .bind(expected.workspace_id,expected.project_id,expected.author_ref,expected.owner_login_hash).run();
-    owners=await env.DB.prepare("SELECT * FROM web_planning_workspace").all<Record<string,unknown>>();
+      .bind(expected.workspace_id,expected.project_id,expected.author_ref,expected.owner_login_hash,...Array(3).fill([expected.workspace_id,expected.project_id]).flat()).run();
+    owners=await env.DB.prepare("SELECT singleton,workspace_id,project_id,author_ref,owner_login_hash FROM web_planning_workspace WHERE singleton=1").all<Record<string,unknown>>();
   }
   if(owners.results.length!==1 || canonical(owners.results[0])!==canonical(expected)) refuse(
     owners.results.length===0?'mapping_absent':'mapping_mismatch','workspace_mapping_mismatch',403);
-  return {DB:env.DB,historyRead:{rows:0,bytes:0},workspace_id:env.WORKSPACE_ID,project_id:env.PROJECT_ID,author_ref:env.AUTHOR_REF,env,local:principal.localFixture===true,
-    ...(participant?{recipientHash:hash(login(principal.login)!)}:{}),signout:principal.ingress==='cloudflare-access'?'/cdn-cgi/access/logout':'/signout-with-chatgpt'};
+  return {...common,workspace_id:env.WORKSPACE_ID,project_id:env.PROJECT_ID,author_ref:env.AUTHOR_REF,ownerHash:expected.owner_login_hash,
+    projectName:env.PROJECT_NAME,...(participant?{recipientHash:common.principalHash}:{})};
 }
 export function seal(access: Access, material: unknown): string {
   const text=Buffer.from(canonical(material)).toString("base64url");
@@ -101,26 +144,33 @@ export function readTicket(access: Access, value: unknown, work_id: string, allo
   return t as Ticket;
 }
 const COOKIE="web_planning_csrf";
-function cookie(request:Request):string|null {
-  const values=(request.headers.get("cookie")??"").split(";").map(v=>v.trim()).filter(v=>v.startsWith(COOKIE+"="));
-  return values.length===1? values[0].slice(COOKIE.length+1):null;
+function csrfCookieName(access:Access):string {
+  if(!projectEntryEnabled(access.env))return COOKIE;
+  if(access.projectEntry)return COOKIE+'_account_'+access.principalHash.slice(7);
+  return COOKIE+'_project_'+access.project_id+(access.recipientHash?'_recipient_'+access.recipientHash.slice(7):'');
+}
+function cookie(access:Access,request:Request):string|null {
+  const name=csrfCookieName(access);
+  const values=(request.headers.get("cookie")??"").split(";").map(v=>v.trim()).filter(v=>v.startsWith(name+"="));
+  return values.length===1? values[0].slice(name.length+1):null;
 }
 export function csrfToken(access: Access, request: Request): string {
-  const existing=cookie(request);
+  const existing=cookie(access,request);
   try { if(existing) { validateCsrf(access,existing); return existing; } } catch { /* New page explicitly rebinds an expired CSRF token. */ }
-  return seal(access,{kind:"csrf",...identity(access),...(access.recipientHash?{recipient:access.recipientHash}:{}),nonce:crypto.randomUUID(),expires:Date.now()+86_400_000});
+  return seal(access,{kind:"csrf",...identity(access),...(access.recipientHash?{recipient:access.recipientHash}:{}),...(access.projectEntry?{account:access.principalHash}:{}),nonce:crypto.randomUUID(),expires:Date.now()+86_400_000});
 }
 function validateCsrf(access:Access,value:unknown) {
   const t=unseal(access,value);
-  exact(t,"kind,workspace_id,project_id,author_ref,nonce,expires"+(access.recipientHash?",recipient":""));
+  exact(t,"kind,workspace_id,project_id,author_ref,nonce,expires"+(access.recipientHash?",recipient":"")+(access.projectEntry?",account":""));
   if(access.recipientHash && t.recipient!==access.recipientHash)fail("csrf_required",403);
+  if(access.projectEntry && t.account!==access.principalHash)fail('csrf_required',403);
   if(t.kind!=="csrf" || t.workspace_id!==access.workspace_id || t.project_id!==access.project_id || t.author_ref!==access.author_ref ||
     !UUID.test(t.nonce) || !Number.isSafeInteger(t.expires) || t.expires<Date.now()) fail("csrf_required",403);
 }
-export function csrfCookie(access:Access,token:string) { return `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict${access.local?"":"; Secure"}`; }
+export function csrfCookie(access:Access,token:string) { return `${csrfCookieName(access)}=${token}; Path=/; HttpOnly; SameSite=Strict${access.local?"":"; Secure"}`; }
 export function requireCsrf(access:Access,request:Request) {
-  if(request.headers.get("origin")!==access.env.APP_ORIGIN || !cookie(request) || request.headers.get("x-csrf-token")!==cookie(request)) fail("csrf_required",403);
-  validateCsrf(access,cookie(request));
+  if(request.headers.get("origin")!==access.env.APP_ORIGIN || !cookie(access,request) || request.headers.get("x-csrf-token")!==cookie(access,request)) fail("csrf_required",403);
+  validateCsrf(access,cookie(access,request));
 }
 export function requireScope(access:Access,body:Record<string,any>) {
   if(body.workspace_id!==access.workspace_id || body.project_id!==access.project_id) fail("scope_denied",403);

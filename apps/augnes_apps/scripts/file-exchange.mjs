@@ -2,7 +2,7 @@ import { constants as fs } from 'node:fs';
 import { open, readFile, unlink, link, mkdir, readdir, lstat, rmdir } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { digest, openFileTask, openFileProject } from './web-file-client.mjs';
+import { digest, openFileTask, openFileProject, openFileProjects } from './web-file-client.mjs';
 
 const [setup, action, ...args] = process.argv.slice(2);
 const pendingDir = setup + '.pending';
@@ -69,6 +69,21 @@ async function recoverDraft(directory, {work_id, setup_digest, body}) {
 }
 async function newJson(path,value){const out=await open(path,'wx',0o600);try{await out.writeFile(JSON.stringify(value,null,2));await out.sync();}finally{await out.close();}}
 async function run() {
+  if(setup==='projects'){
+    if(args.length)throw Error('Use projects [CURSOR].');
+    return (await openFileProjects()).list(action);
+  }
+  if(setup==='create-project'){
+    if(!action||args.length)throw Error('Use create-project EXACT_REQUEST.json. Retain its request_key for an uncertain acknowledgement.');
+    return (await openFileProjects()).create(JSON.parse(await readFile(action,'utf8')));
+  }
+  if(setup==='continue-project'){
+    if(!action||args.length!==1)throw Error('Use continue-project PROJECT_ID NEW_TASK_SETUP.json.');
+    const c=await openFileProject(process.env.AUGNES_WEB_ORIGIN,action),continuing=await c.continuation();
+    if(!continuing.saved||continuing.saved.project_id!==c.project.project_id)throw Error('Project continuation unavailable.');
+    await newJson(args[0],{format:'augnes_web_file_task.v1',origin:process.env.AUGNES_WEB_ORIGIN,workspace_id:c.project.workspace_id,project_id:c.project.project_id,work_id:continuing.saved.work_id});
+    return {project:c.project,saved:continuing.saved};
+  }
   if(['search','inspect-match','select-match'].includes(setup)) {
     const {project,search,inspectMatch}=await openFileProject();
     if(setup==='search') {
