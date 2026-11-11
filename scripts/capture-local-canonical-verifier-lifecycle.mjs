@@ -106,7 +106,7 @@ async function capture() {
     activeInputs = inputs; activeResources = resources;
     const expected = new Map(phases.filter(p => p.id.startsWith("dependencies-")).map(p => [p.id, observePreparedDependencyInputs({ repositoryRoot: root, phaseId: p.id })]));
     const execute = async (phase, suffix) => {
-      assert.equal(activeInputs.check({ force: true }), null); assert.equal(activeInputs.checkPreparedDependencies(), null);
+      assert.equal(activeInputs.check({ force: true }), null);
       const previousSettlement = settled; settled = false;
       const result = await executePhase({ phase, mode: "development", runLogRoot: path.join(root, ".augnes-local-verification/logs", `verifier-${invocationId}-${suffix}`),
         browserExecutablePath: host.browserExecutablePath, runtimeInputs: runtime, isolatedResources: activeResources, signal: controller.signal, invocationId });
@@ -186,9 +186,10 @@ async function capture() {
         prior_inspection: priorPacket, current_result: inspect, prior_result: prior, phases: results, cleanup: caseCleanup, environment: caseEnvironment,
         setup_child: setupChild, current_child: currentChild, prior_child: children.at(-1).id, build_executed: name === "through-build" });
     }
-    assert.equal(inputs.checkPreparedDependencies(), null); assert.equal(inputs.check({ force: true }), null);
+    assert.equal(inputs.check({ force: true }), null);
     const authority = await child("complete registered reviewed revision fixtures", ["scripts/run-canonical-test-suite.mjs", "authority", "--reviewed-revision-only"], { timeoutMs: AUXILIARY_EXECUTION_BUDGETS.reviewHarnessMs });
     assert(natural(authority)); cases.push({ name: "registered-authority", result: authority, child: children.at(-1).id });
+    assert.equal(inputs.checkPreparedDependencies(), null); assert.equal(inputs.check({ force: true }), null);
     after = await observe();
   } catch (cause) { error = cause; }
   finally {
