@@ -10,6 +10,49 @@ Checked-in code and runtime behavior remain the source of truth for what is
 implemented. A target named here is not implemented merely because it appears
 in the roadmap.
 
+## Web undertaking implementation commission — 2026-11-11
+
+Independent Web project operation is now commissioned implementation under the
+existing #1443/#1212/#1453 owners, coordinated through #1426. It is not merely
+a later consequence of public-asset distribution or a replica of the local UI.
+The following outcomes advance the existing W2 direction without adding a new
+roadmap, organization engine or research phase. Source baseline is
+`5e2bc6c57dddd9b070c9ca371ec362e37339d2d9`; issue and PR evidence owns subsequent
+progress. Registration and implementation activity are not completed capability.
+
+| Delivery | Concrete outcome | Dependency and completion boundary |
+|---|---|---|
+| First implementation: [#1627](https://github.com/hynk-studio/augnes/issues/1627) | Admitted independent principals create/select private projects and continue their own purpose, source-grounded authored judgments, unfinished work and next action through ordinary browser and agent paths. | Enforce server-owned namespace selection and project-scoped recovery; preserve existing private deployments and history. Fresh-session continuation is required, not a new dashboard or another work ID in the installation owner's project. |
+| Commissioned cooperation: [#1630](https://github.com/hynk-studio/augnes/issues/1630) | Connect independently owned projects through permitted request, return, checked use/non-use and deliberately shared feedback; the contributor retains its own later work. | Consume the usable #1627 boundary and reuse completed #1589/merged #1591. Do not rebuild W1 or require the recipient to adopt a contribution before the contributor can continue. |
+| Commissioned succession: [#1628](https://github.com/hynk-studio/augnes/issues/1628) | A separately authorized successor resumes relevant purpose, judgments, methods, unfinished work and obligations within a scoped delegation. | Consume the project/identity boundary, not a universal hierarchy. Preserve historical authorship, scope/lifetime, revoked-access refusal and reconciliation of uncertain effects. |
+| Commissioned bounded derivation: [#1629](https://github.com/hynk-studio/augnes/issues/1629) | Selected permitted methods and conditions enter a separately operated undertaking, serve a different task/consumer and remain usable after executor replacement. | Build when its actual ownership/material dependencies are available; not a prerequisite for the first W2 delivery. Lineage does not automatically transfer credentials, budgets, customer material or live authority. |
+
+The #1627 candidate implements admitted private project creation/selection,
+stable project attribution and fresh-session continuation using ordinary Web
+work. Its schema-5 migration preserves legacy mapping/export bytes and scopes
+reconstruction to the selected project. Browser and client entry share enforcing
+owners. This is proposed source pending the Draft PR review and applicable
+Local Canonical qualification, not a merged, deployed or independently adopted
+capability. See the [Web entry guide](../../apps/web_planning/README.md#independent-private-projects-opt-in)
+for the implemented boundary; #1628, #1629 and #1630 remain follow-through.
+
+The first W2 product result is independently owned continuing work, useful
+cross-project cooperation and an authorized successor's meaningful next step.
+Direct project entry does not require earlier W1 participation. Prepare later
+slices against available interfaces; unrelated native qualification, organic
+demand, positive comparative results and all-host parity are not common gates.
+Keep each implementation bounded and use the existing verification policy;
+this commission neither rewrites historical failures nor renews spent grants.
+
+[#1447](https://github.com/hynk-studio/augnes/issues/1447) retains public entry
+and operational activation ownership. Prepare the human/agent entry and a
+bounded hosted pilot alongside implementation, using the established deployment
+path and only opted-in material. Code readiness, exact-source qualification,
+deployment and actual independent adoption remain separate. The implementation
+commission does not itself authorize production/audience changes, invitations,
+paid provider use, deployment or repository merge. Existing Web authored state
+does not become native Core accepted state or synchronized execution authority.
+
 ## Current status and next decisions — 2026-11-10
 
 This reading guide reconciles the dated sections below with source main
@@ -1032,8 +1075,10 @@ mandatory stages for every PR or authorization to recruit, publish or execute.
 
 This direction from [#1504](https://github.com/hynk-studio/augnes/pull/1504) is
 reconciled here with the current source and the 2026-10-31 non-model readiness
-plan. #1426 retains allocation ownership; the entries below are candidate
-follow-through, not new assignments. The merged #1496/#1499 and bounded
+plan. #1426 retains allocation ownership. The
+[2026-11-11 implementation commission](#web-undertaking-implementation-commission--2026-11-11)
+now activates the named independent-project follow-through; other candidates
+retain their original scope. The merged #1496/#1499 and bounded
 [contribution/continuation increments](#current-first-execution-choice-and-participation-loop-1443)
 remain source footholds with their original qualification and observation limits.
 Preserve the L1 current-understanding and result-informed choice owner rather
@@ -1044,9 +1089,9 @@ unrelated work; a consumer must resolve dependencies it actually uses.
 |---|---|---|
 | Candidate: participation preparation | #1447 / public entry and supported host guidance | Prepare a concrete task, useful example, permitted input, expected deliverable, checking/use responsibility and participant benefit. Human and agent guidance describe the same current request and return route. Reuse the completed component distribution. |
 | Existing Web entry/incorporation capability | [#1501](https://github.com/hynk-studio/augnes/issues/1501), [#1502](https://github.com/hynk-studio/augnes/issues/1502), [#1503](https://github.com/hynk-studio/augnes/issues/1503) / merged [#1505](https://github.com/hynk-studio/augnes/pull/1505), [#1507](https://github.com/hynk-studio/augnes/pull/1507) | Reuse required-criteria/disposition guidance and the owner's retention/deselection of current judgments during correction incorporation, with preview, fresh readback and history. The old Next labels are superseded by those source merges, not by a new adoption or external-demand claim; do not requeue their implementation. |
-| Candidate: complete W1 | #1443 / P2 #1212, contribution and selective use | Connect one source-bound request or useful unsolicited contribution to checked current use/non-use and permitted feedback. Selective public reading and bounded cross-owner submission need explicit supported boundaries. |
-| Following capability: independent W2 operation | #1443 / #1453 / P5 #1215 | Let an actor start its own or delegated undertaking, request and use a contribution, and continue through an authorized successor with goals, judgments and obligations intact. Existing controlled same-project continuation is narrower. Direct W2 entry does not require prior W1 participation. |
-| Later bounded derivation (working label W3) | #1443 / #1453 / existing P4/P5 capability reuse | Select a reusable method and its conditions into a separately operated undertaking; use it for a distinct consumer/task and continue after executor replacement. A later increment may add one level of subdelegation. This adds no phase or W1/W2 prerequisite. |
+| Completed bounded W1 implementation | #1443 / P2 #1212; #1589 / merged #1591 | Reuse request-scoped separately verified participation, checked use/non-use and deliberately shared feedback. Hosted outsider adoption and broader public discovery remain distinct from this source completion. |
+| Commissioned independent W2 operation | #1627 / #1630 / #1628 under #1443 / #1453 / P2/P5 | Deliver independent project entry, cross-project contribution continuity and scoped succession. Existing same-project continuation is narrower. Direct W2 entry does not require prior W1 participation. |
+| Commissioned bounded derivation (working label W3) | #1629 under #1443 / #1453 / existing P4/P5 reuse | Carry a selected method and its conditions into a separately operated undertaking; use it for a distinct consumer/task and continue after executor replacement. This is not a new phase or first-W2 prerequisite; broader subdelegation remains later. |
 
 Public software installation/version-change verification remains the first
 proposed public task family: one exact version, environment and user journey,
@@ -1068,15 +1113,15 @@ outcomes; optional continuation can carry selected material into the contributor
 own work. A universal catalog, MCP/A2A rollout, marketplace, reputation or
 settlement service is not the first step.
 
-Current [Web access](../../apps/web_planning/src/access.ts) admits one configured
-owner; [private branching/incorporation](../../apps/web_planning/src/relations.ts)
-does not establish cross-owner participation. For W1 inspect selected public
-revision access and request-bound submission; for W2 inspect independent ownership
-and workspace isolation, including an agent-usable supported operation path to
-the same work. Compare separate owner deployments and tenant isolation when
-choosing the smallest implementation; no auth topology or new schema is chosen
-here. An existing GitHub/HTTP bridge may suffice, but label manual relay honestly
-and never substitute shared owner credentials for access.
+At the commissioning baseline, ordinary [Web access](../../apps/web_planning/src/access.ts)
+admits one configured owner; #1589 separately supports request-scoped recipients,
+not independent project ownership. [Private branching/incorporation](../../apps/web_planning/src/relations.ts)
+remains same-project work. #1627 now owns independent authenticated entry and
+workspace isolation, including the same supported browser/agent operation path.
+Choose the smallest sufficient scoped service or isolated-store design while
+preserving existing private use. Manual relay or a separately hand-built
+deployment for each actor does not complete the new project-creation experience;
+never substitute shared owner credentials for access.
 
 Under #1443/#1453, connect selected counterpart experience to current-work,
 execution-choice and contribution readers. Reuse scoped conditions, associations,
@@ -3523,7 +3568,7 @@ The next operational decision remains separately authorized deployment/migration
 and intended-recipient access; none is executed or made a gate for implementation.
 Earlier failures, accepted scopes, unknown usage and unrelated owners are preserved.
 
-### Current P2/P5 candidate — Request-scoped Web participation (#1589)
+### Completed bounded P2/P5 implementation — Request-scoped Web participation (#1589)
 
 The [request-scoped flow](../../apps/web_planning/README.md#request-scoped-participants-and-shared-feedback-1589)
 connects owner-selected originals/brief, a separately verified recipient,
@@ -3533,8 +3578,11 @@ use the same enforced scope. Private destination work is not disclosed.
 The additive operational grant is separate from portable contribution history;
 existing deployments stay owner-only unless explicitly activated.
 
-This completes the bounded implementation target for a requested Web W1 path,
-subject to exact-candidate qualification and independent review. Controlled
+[#1591](https://github.com/hynk-studio/augnes/pull/1591) merged on 2026-11-07 and
+[#1589](https://github.com/hynk-studio/augnes/issues/1589) is closed. This completes
+the bounded source implementation for the requested Web W1 path; preserve the
+PR's exact qualification, review and merge evidence rather than requeueing it.
+Controlled
 separate-principal D1/Chrome/client observations belong to the PR evidence;
 they do not establish hosted outsider adoption, organic demand, W2 operation or
 native-store synchronization. #1587 and the completed native review/status,

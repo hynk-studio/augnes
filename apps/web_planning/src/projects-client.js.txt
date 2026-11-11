@@ -1,0 +1,36 @@
+'use strict';
+const p=id=>document.getElementById(id),csrf=document.querySelector('meta[name=csrf-token]').content;
+let pending=null,busy=false,next=null,denied=false;
+async function projectRequest(path,body){
+  if(denied)throw Error('Access unavailable');
+  const r=await fetch(path,{method:body===undefined?'GET':'POST',credentials:'same-origin',cache:'no-store',redirect:'manual',signal:AbortSignal.timeout(15000),
+    headers:body===undefined?{}:{'Content-Type':'application/json','X-CSRF-Token':csrf},...(body===undefined?{}:{body:JSON.stringify(body)})});
+  if(r.status===401||r.status===403||r.type==='opaqueredirect'||r.headers.get('X-Web-Planning-Response')!=='1'){
+    denied=true;pending=null;p('project-entry').replaceChildren();const note=document.createElement('p');note.textContent='Access unavailable. Sign in again to reopen your projects.';p('project-entry').append(note);throw Error('Access unavailable');
+  }
+  const data=await r.json();if(!r.ok){const e=Error(data.error??'Project request unavailable');e.status=r.status;throw e;}return data;
+}
+async function projects(more=false){
+  const data=await projectRequest('/api/projects'+(more&&next?'?cursor='+next:''));
+  if(denied)return;if(!more)p('projects').replaceChildren();
+  for(const project of data.projects){const li=document.createElement('li'),a=document.createElement('a');a.href='/?project='+project.project_id;a.textContent=project.name;li.append(a);p('projects').append(li);}
+  next=data.next;p('projects-more').hidden=!next;p('project-status').textContent=p('projects').children.length?'Choose a project to reopen its current work.':'No projects yet. Create one to retain your purpose and next step.';
+}
+function report(e){if(!denied)p('project-status').textContent=String(e.message);}
+p('projects-refresh').onclick=()=>projects().catch(report);
+p('projects-more').onclick=()=>projects(true).catch(report);
+p('project-create').onsubmit=async e=>{
+  e.preventDefault();if(busy||denied)return;
+  pending??={request_key:crypto.randomUUID(),name:p('project-name').value,purpose:p('project-purpose').value,
+    judgment:{text:p('project-judgment').value,source:p('project-source').value},unfinished:p('project-unfinished').value,next_action:p('project-next').value};
+  busy=true;p('project-fields').disabled=true;p('project-submit').disabled=true;
+  try{const result=await projectRequest('/api/projects',pending);pending=null;location.assign('/?project='+result.project.project_id);}
+  catch(e){report(e);if(!denied){
+    if(e.status===422||e.status===413){pending=null;p('project-fields').disabled=false;p('project-submit').textContent='Create private project';p('project-status').textContent+=' Nothing was created. Correct the fields and submit again.';}
+    else{p('project-status').textContent+=' Creation is unconfirmed. Retry the same request, or refresh the list to inspect what was saved. Do not create a replacement blindly.';p('project-submit').textContent='Retry exact creation';}
+  }}
+  finally{busy=false;if(!denied)p('project-submit').disabled=false;}
+};
+window.addEventListener('beforeunload',e=>{if(pending){e.preventDefault();e.returnValue='';}});
+window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
+projects().catch(report);

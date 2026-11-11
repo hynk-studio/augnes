@@ -695,6 +695,39 @@ Exact final qualification, immutable failures and cleanup belong to the PR and
 private evidence record. Existing native and #1587 observations are preserved,
 not repeated or promoted into evidence for this new permission boundary.
 
+### Independent private Web project entry evidence (#1627)
+
+The bounded entry claim requires two separately authenticated, explicitly admitted
+principals to create/select private projects before any request participation.
+A fresh session must recover its project's purpose, source-attributed current
+judgment, unresolved work and next action, then save a meaningful later step
+through the ordinary revision owner. A separate request owner's declined return
+must not alter the contributor's project lifecycle or history. Stable stored
+authorship is distinguished from the current executor; a different principal's
+delegated succession is not inferred from session replacement.
+
+The focused [D1/client checks](../../scripts/web-planning-project-checks.mjs)
+exercise creation/replay, explicit selection, project/account CSRF, read/file/
+history/search/export boundaries, wrong-scope tickets, stale/concurrent writes,
+unknown acknowledgements, W1 source scope and global request-locator uniqueness.
+The recovery case leaves A populated and authorized while B reconstructs or
+erases its own work; A's exact export and active grant stay unchanged. A legacy
+schema-4 migration case compares complete export bytes, original mapping fields
+and foreign-key integrity. These are controlled fixture identities, not hosted
+independent-user admission or organic adoption.
+
+The [ordinary-browser journey](../../scripts/browser-web-planning-projects.mjs)
+covers form creation, private selection, fresh-session continuation, later save
+and cross-project refusal. Report its actual environment/result separately from
+the deterministic [entry state-machine check](../../scripts/test-web-planning-project-entry-client.mjs)
+and D1/client result; a blocked browser launch is not a passed browser journey.
+The state-machine check distinguishes correctable prewrite validation from an
+uncertain creation, whose exact request must remain frozen for reconciliation.
+Development feedback does not substitute for the planner's final-target Local
+Canonical evidence, establish whole-W2 completion, or promote authored Web state
+to native accepted semantics. Keep actual command failures, limitations, burden
+and cleanup with the candidate's PR evidence.
+
 ## Economic activity and participation evidence
 
 Apply these criteria to the claims made by the

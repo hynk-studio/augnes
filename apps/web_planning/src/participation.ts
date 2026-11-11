@@ -52,7 +52,7 @@ export async function createGrant(s:Access,id:string,input:Record<string,unknown
   await participationAvailable(s);
   exact(input,'workspace_id,project_id,grant_id,request,expected,recipient,brief,next_action,indices,expires');
   const ref=workRef(input.request),expected=binding(input.expected),recipient=login(input.recipient);
-  if(!UUID.test(String(input.grant_id))||ref.work_id!==id||!recipient||recipient===login(s.env.OWNER_EMAIL))fail('invalid_participant');
+  if(!UUID.test(String(input.grant_id))||ref.work_id!==id||!recipient||hash(recipient)===s.ownerHash)fail('invalid_participant');
   if(!Number.isSafeInteger(input.expires)||Number(input.expires)<=Date.now()||Number(input.expires)>Date.now()+90*86400000)fail('invalid_participation_expiry');
   const chain=await readWork(s,id),r=chain[ref.revision-1];
   if(!r||r.exchange?.kind!=='request'||canonical(reference(r))!==canonical(ref))fail('exchange_request_unavailable',409);

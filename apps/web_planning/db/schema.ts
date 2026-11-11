@@ -4,7 +4,7 @@ import { blob, check, foreignKey, index, integer, primaryKey, sqliteTable, text,
 // Hosted planning schema only. No installed native Augnes database imports.
 export const schemaVersion=sqliteTable('web_planning_schema',{
   version:integer('version').primaryKey(),
-},t=>[check('web_planning_schema_version',sql`${t.version} = 4`)]);
+},t=>[check('web_planning_schema_version',sql`${t.version} = 5`)]);
 
 export const workspace=sqliteTable('web_planning_workspace',{
   singleton:integer('singleton').primaryKey(),
@@ -12,9 +12,15 @@ export const workspace=sqliteTable('web_planning_workspace',{
   project_id:text('project_id').notNull(),
   author_ref:text('author_ref').notNull(),
   owner_login_hash:text('owner_login_hash').notNull(),
+  name:text('name'),
+  continuation_work_id:text('continuation_work_id'),
+  creation_key:text('creation_key'),
+  creation_fingerprint:text('creation_fingerprint'),
 },t=>[
-  check('web_planning_workspace_singleton',sql`${t.singleton} = 1`),
+  check('web_planning_workspace_positive',sql`${t.singleton} >= 1`),
   unique('web_planning_workspace_scope').on(t.workspace_id,t.project_id),
+  unique('web_planning_workspace_creation').on(t.owner_login_hash,t.creation_key),
+  index('web_planning_workspace_owner').on(t.owner_login_hash,t.project_id),
 ]);
 
 export const revision=sqliteTable('web_planning_revision',{
@@ -56,6 +62,7 @@ export const participation=sqliteTable('web_planning_participation',{
   primaryKey({columns:[t.workspace_id,t.project_id,t.grant_id]}),
   foreignKey({columns:[t.workspace_id,t.project_id],foreignColumns:[workspace.workspace_id,workspace.project_id]}),
   index('web_planning_participation_request').on(t.workspace_id,t.project_id,t.work_id),
+  unique('web_planning_participation_identity').on(t.grant_id),
   check('web_planning_participation_disclosure',sql`json_valid(${t.disclosure})`),
 ]);
 

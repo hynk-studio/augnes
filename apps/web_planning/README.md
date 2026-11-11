@@ -1,13 +1,125 @@
 # Web Augnes planning workspace
 
-One configured owner keeps independent planning work, its attributed context and
-explicitly selected small files. Web work neither reads the installed Augnes
+By default, one configured owner keeps independent planning work, its attributed context and
+explicitly selected small files. An optional admitted-principal entry also supports
+private continuing projects, as described below. Web work neither reads the installed Augnes
 database nor creates native work, results or accepted state.
 
 An explicitly downloaded complete export can be admitted by the separate native
 [local selected-source handoff](../../docs/WEB_EXPORT_NATIVE_HANDOFF.md). It
 requires selected current-revision text and an exact authorized native target;
 Web/native stores and Web reconstruction remain independent.
+
+## Independent private projects (opt-in)
+
+With `PROJECT_ENTRY_MODE=admitted-private-v1` and `PROJECT_ADMITTED_EMAILS` set to
+a JSON array of at most 100 verified-ingress email addresses, `/projects` (also
+the unselected `/` entry) lets each admitted sign-in create and select its own
+private projects. The configured owner remains admitted. Authentication still
+comes from the existing verified Sites or Cloudflare Access ingress; headers,
+project IDs, links and task setup files do not authenticate a caller. This is an
+invited-cohort mechanism, not anonymous signup, an identity registry or billing.
+Activation requires a separately authorized ingress/audience/configuration change;
+the checked-in default does not enable it or invite anyone.
+
+Creating a project requires a name, continuing purpose, a current judgment and
+its source attribution, unfinished work and the next meaningful action. The
+mapping and an ordinary initial planning work commit atomically. Purpose is its
+goal; the initial next action is its first success criterion. The selected notes
+retain the authored interpretation/source, open question and next check. Opening
+the project opens this work, and **Open project continuation** reopens its current
+head. Continue through the ordinary editor, source-selection/history, ticket,
+save and resolve operations. Standalone tasks within the project remain supported.
+There is no second mutable summary or dashboard truth. Retained interpretation is
+authored context, not verified source content, native Core accepted state, project
+completion or an execution grant. If this work is erased, its continuation is
+explicitly unavailable; a fresh session does not recreate it.
+
+`GET /api/projects` lists only the caller's projects, in bounded 20-item pages
+(`cursor` is the returned `next`). `POST /api/projects` uses an entry-page CSRF
+session and the exact fields `request_key`, `name`, `purpose`, `judgment`
+(`text`, `source`), `unfinished`, `next_action`. Retain the exact request and UUID
+key until acknowledged: identical replay returns the same project and first
+revision; altered replay refuses. An uncertain browser creation freezes its form
+for exact retry and offers list refresh; do not blindly create a replacement.
+
+`GET /?project=PROJECT_ID` selects an owned project. Every browser API call binds
+that page's fixed `X-Web-Planning-Project` header. The same header selects a project
+for authenticated clients; `/api/project` returns its name, scope, stable author
+reference and `continuation_work_id`, and `/api/project/continuation` reads the
+ordinary current work. Scope is reauthorized server-side on every operation,
+including files, search, history, exports, erasure and recovery. CSRF tokens and
+signed work tickets bind the exact project. Switching projects cannot retarget a
+prepared write. Entry, project and recipient CSRF cookies have separate scopes;
+opening another project or the project chooser does not invalidate a pending
+write in the original tab. Different tabs never imply shared write authority.
+
+Each project retains a randomly assigned stable author reference. A fresh browser
+or client using the same currently admitted authenticated principal can continue
+without rewriting prior authors. Email control does not identify a particular
+human, model or executor. A different principal's delegation/succession is not
+implemented by this entry. W1 requests still derive scope from their exact grant
+and authenticated recipient, independently of the recipient's own project.
+Grant IDs are globally unique for their existing unscoped request URLs; a second
+project cannot reuse an ID to make the original recipient's entry ambiguous.
+Declining a return cannot erase or govern its contributor's independent project.
+Removing entry admission stops own-project access; existing W1 access remains
+governed by its separate grant/expiry/revocation boundary.
+
+The ordinary local client exposes `openFileProjects(origin).list(cursor)`,
+`.create(exactRequest)` and `.open(projectId)`. `openFileProject(origin, projectId)`
+adds `.continuation()` to the existing scoped task/search operations. Downloaded
+task setups select their recorded project, never an ambient browser selection.
+The same existing Access session mechanism applies; credentials are not exported.
+
+```sh
+FILE_CLIENT=apps/augnes_apps/scripts/file-exchange.mjs
+node "$FILE_CLIENT" projects
+node "$FILE_CLIENT" create-project ./exact-project-request.json
+node "$FILE_CLIENT" continue-project PROJECT_ID ./continuing-task.json
+node "$FILE_CLIENT" ./continuing-task.json context
+```
+
+For project-level task discovery, set `AUGNES_WEB_PROJECT_ID` to a returned project
+ID; task-bound operations always use their exact setup. After reading the current
+continuation, the existing planning draft/ticket/save/resolve methods below record
+the later step. No special agent or scene-specific state path is needed.
+
+### Project mapping migration and rollback
+
+Migration `0007_independent_projects.sql` advances the operational schema from 4
+to 5. Quiesce writers and retain a complete database backup before applying it
+through the existing transactional migration owner. It replaces only the singleton
+mapping table with multiple scoped mappings and nullable project-entry metadata;
+the legacy row retains its exact scope/author/login hash. Revision, request-key,
+file, erasure and W1 grant rows are not rewritten or resealed. The generated
+Drizzle snapshot follows the same schema; deferred foreign-key checks keep existing
+dependants enforced during replacement. A failed migration rolls back as a unit.
+
+The current worker can still read schema 4 in default owner-only mode; enabling
+project entry requires schema 5. Operational rollback disables project entry and
+uses the current worker's legacy owner-only path, retaining new projects in storage.
+Do not run an older schema-4 worker as a writer on schema 5, or downgrade/drop new
+project mappings. A full pre-migration backup restores the old installation only
+after separately preserving all later projects/exports and receiving authority
+for that replacement; no automatic downmigration is supplied.
+
+Existing complete-work exports keep their exact format/bytes and omit access
+grants, credentials and the operational project directory. Recovery requires the
+same independently retained project mapping/author identity in an authorized
+replacement database and `RECONSTRUCTION_MODE=quiesced-empty-store`. Only the
+selected project's revision/file/erasure rows must be empty. The atomic guard
+cannot resurrect erased work; reconstruction revokes only that project's retained
+W1 grants. Other projects may remain populated and their data/history/access are
+not inspected by this guard or revoked. Erasure remains deliberately work-scoped,
+not a project/account deletion operation. New project creation is not recovery and
+must not mint replacement identities for an old export.
+
+Focused fixture tests distinguish two controlled principals, a fresh ordinary
+client, a separate W1 contribution declined by its owner, current-work continuation,
+negative scope/ticket tests, scoped reconstruction/erasure and legacy export-byte
+parity. They do not establish hosted independent-user adoption, delegated succession,
+whole-W2 completion, comparative usefulness or Local Canonical acceptance.
 
 [#1351](https://github.com/hynk-studio/augnes/issues/1351) completed private
 branching/incorporation through merged #1353; [#1356](https://github.com/hynk-studio/augnes/issues/1356)
@@ -98,7 +210,7 @@ The ordinary ten-item work list retains its own behavior and cost.
 This is an ordered traversal of heads observed on each request, not a project
 snapshot. Work created or changed behind the cursor needs a new search. A
 completed no-match applies to that traversal. Continuation binds the query and
-configured owner/project; it cannot be reused for another phrase or scope.
+authenticated owner/selected project; it cannot be reused for another phrase or scope.
 Search and inspection create no work records, revisions, requests or returns.
 
 The authenticated project-owner client uses the same routes and can choose
@@ -125,7 +237,7 @@ file reviewer keeps its existing three tools and gains no project search.
 
 The HTTP routes are `GET /api/works/search?q=...&cursor=...` and
 `GET /api/works/match?selection=...`. Omit the cursor for a new search. Unknown
-or duplicate parameters refuse; configured project authentication is required
+or duplicate parameters refuse; selected-project authentication is required
 on every call. Ordinary exact-title `select` remains available; ambiguous
 titles now point to the deliberate search selection path.
 
@@ -156,7 +268,7 @@ show the proposal; **Save** appends against the reviewed current version.
 
 An unchanged copy retains its original text, source attribution, trust class
 and observation time. An adaptation is a new interpretation attributed to the
-configured current workspace author. Neither choice renews the source or grants
+current project's stored author. Neither choice renews the source or grants
 approval or execution authority. Both use the existing material `from` link
 to the chosen work, revision, fingerprint and note reference. The linked
 revision retains its own origin and earlier adaptation links. B owns its saved
@@ -386,8 +498,8 @@ body remains available to the existing authenticated recovery controls.
 ## Request-scoped participants and shared feedback (#1589)
 
 The optional participant path gives a separately authenticated recipient one
-exact request, selected original files and an owner-written brief. The normal
-workspace remains owner-only. This is a client of the Web store, not native
+exact request, selected original files and an owner-written brief. Ordinary
+project access remains private to its owner. This is a client of the Web store, not native
 workspace access or Web/native synchronization.
 
 After operational activation, open an existing file request and expand
@@ -504,7 +616,7 @@ a separate saved destination retains its own bytes and contributor/source
 attribution. Erasing a destination removes its available feedback; absence is
 not rewritten as a rejection. Work exports contain no grant table, recipient
 login, token, cookie or server secret. Supported empty-store reconstruction
-atomically revokes any retained grants and never imports new ones. Restoring an
+atomically revokes that project's retained grants and never imports new ones. Restoring an
 entire infrastructure/database backup is a separate operational procedure: keep
 participation disabled and retire restored grants before enabling it.
 
@@ -513,8 +625,9 @@ a version supporting v0.8, a verified ingress/audience for the intended recipien
 and explicit deployment/audience authority. No live audience, sharing policy,
 invitation or deployment is changed by this implementation. Disabling the mode
 stops participant entry immediately. Before v0.8 data exists, the additive table
-is compatible with the earlier owner-only binary; afterwards retain a v0.8
-reader for rollback/recovery rather than rewriting or dropping history.
+is compatible with the earlier owner-only binary on schema 4; afterwards retain
+a compatible reader for rollback/recovery rather than rewriting or dropping
+history. Schema 5 additionally follows the project-mapping rollback contract above.
 
 ## Ask for work on files and collect the return
 
@@ -526,8 +639,9 @@ to that task can download those versions and choose **Return edited files**.
 Include what changed and what remains to do. Reopen the task to find the original
 and return together, including same-name files. A later task or ordinary save
 does not retarget a pending request. The configured project can have a friendly
-`PROJECT_NAME`. Each private workspace entry still admits one configured owner
-and project. An assistant can work for that owner.
+`PROJECT_NAME` in default owner-only mode. The optional project entry above
+instead lets an admitted principal select its own named project. An assistant
+can work within that same authenticated project scope.
 
 Choose **Read text** beside a Markdown, text, log, JSON (`.json`), patch
 (`.patch`) or JavaScript module (`.mjs`) file. Logs, JSON, patches, modules
@@ -1399,11 +1513,15 @@ They use disposable synthetic fixtures and do not attest to model reasoning.
 
 The direct entry `src/cloudflare-worker.ts` shares the existing handler, UI,
 store and envelope. It requires Cloudflare's platform `ctx.access`, an exact
-64-hex `ACCESS_AUDIENCE`, and `getIdentity().email` matching `OWNER_EMAIL`.
+64-hex `ACCESS_AUDIENCE`, and a verified `getIdentity().email`. The handler then
+enforces the default `OWNER_EMAIL` boundary, or the explicitly enabled
+project-admission/ownership and separately scoped W1 grant boundaries.
 Missing context, audience mismatch or identity failure refuses before D1 access.
 No request header, Sites mode, fixture cookie or JWT fallback authenticates this
-entry. Only the configured owner entering `GET /` can initialize an empty,
-migrated store; existing mappings and nonempty unmapped stores cannot rebind.
+entry. Only the configured owner at its ordinary entry can initialize the
+reserved legacy mapping in an empty migrated scope; existing mappings and
+nonempty unmapped scopes cannot rebind. New project mappings use the explicit
+admitted-principal creation operation, not first-visitor bootstrap.
 
 The app pins **Wrangler 4.126.0**, whose locked runtime is **Miniflare
 5.20260825.0-alpha / workerd 1.20260825.1**. Its published local Access
@@ -1677,11 +1795,13 @@ remain unchanged. The later direct-host #1351 journey was accepted in #1356; thi
 | --- | --- |
 | `DB` | Sites-provisioned D1 binding; never the local canonical SQLite database. |
 | `APP_ORIGIN` | Exact HTTPS browser/Worker origin, without trailing slash. No inferred Host trust. |
-| `OWNER_EMAIL` | Deliberately configured owner login, checked server-side; never first visitor. |
-| `WORKSPACE_ID`, `PROJECT_ID`, `AUTHOR_REF` | Three stable, newly generated UUID v4 values for this independent web workspace. Keep them across code versions and reconstruction. They are not Sites IDs or native Augnes IDs. |
+| `OWNER_EMAIL` | Deliberately configured legacy owner login, checked server-side; never first visitor. Also admitted when optional project entry is enabled. |
+| `WORKSPACE_ID`, `PROJECT_ID`, `AUTHOR_REF` | Three stable UUID v4 values for the installation and its legacy private project/author. Keep them across code versions and reconstruction. New project/author IDs live in their mappings without replacing these values. None are Sites IDs or native Augnes IDs. |
 | `REQUEST_SECRET` | Random server-only secret of at least 32 characters for scope-bound save/CSRF seals. Store through the separately authorized Sites secret owner, never in Git or prompts. Rotation invalidates outstanding seals and needs deliberate outcome reconciliation. |
 | `SITES_INGRESS_MODE` | Leave unset until hosted trust checks pass. `verified-private-sites` enables the documented identity adapter; it is an operator assertion, not cryptographic verification or authentication by itself. |
-| `RECONSTRUCTION_MODE` | Normally unset. `quiesced-empty-store` admits an explicitly requested reconstruction into an entirely empty store, only after the old writer is quiesced. |
+| `RECONSTRUCTION_MODE` | Normally unset. `quiesced-empty-store` admits an explicitly requested reconstruction into the selected empty project scope, only after the old writer is quiesced. Other projects remain independent. |
+| `PROJECT_ENTRY_MODE` | Normally unset (legacy owner-only). `admitted-private-v1` enables private project entry on schema 5. It does not alter the hosted audience. |
+| `PROJECT_ADMITTED_EMAILS` | JSON array of up to 100 verified-ingress emails allowed to create/select their own projects when entry is enabled. It grants no access to another owner's project. |
 
 Before real data, independently verify owner-private audience, authenticated
 identity forwarding, missing/duplicate/wrong identity refusal, overwrite of
@@ -1692,11 +1812,12 @@ sessions establish application authorization only. They do not qualify this
 platform boundary. Workspace admins/editors remain a platform trust boundary.
 
 Normal top-level entry may follow Sites sign-in or an external link. Only a
-query-free `GET /` with `Sec-Fetch-Mode: navigate` and `Sec-Fetch-Dest: document`
-is exempt from the cross-site/same-site Fetch Metadata refusal. Exact
+supported entry navigation (`GET /`, exact `/?project=UUID`, enabled `/projects`,
+or exact `/participate/UUID`) with `Sec-Fetch-Mode: navigate` and
+`Sec-Fetch-Dest: document` is exempt from the cross-site/same-site Fetch Metadata refusal. Exact
 `Request.url` origin and any present `Origin` must still match `APP_ORIGIN`;
-owner, ingress, schema and mapping checks still apply. The exception includes
-only the existing configured-owner bootstrap, never arbitrary first-visitor
+identity, ingress, schema and applicable admission/mapping/grant checks still apply.
+The exception admits only ordinary entry, never arbitrary first-visitor
 ownership. API reads, exports, context reads, subresources, frames and mutations
 receive no exception; writes retain exact Origin, signed CSRF and request bindings.
 See the [Fetch Metadata destination contract](https://w3c.github.io/webappsec-fetch-metadata/#sec-fetch-dest-header)
@@ -1718,11 +1839,12 @@ not actual Sites identity forwarding or browser-level `ERR_BLOCKED_BY_CLIENT`.
 Sites consumes `.openai/drizzle/**` from the build. The same journal and SQL run
 through Drizzle's D1 migrator in the disposable real local D1 tests; snapshot
 regeneration and negative drift controls prevent schema/SQL divergence. Version,
-JSON, revision bounds, scoped foreign keys and both uniqueness constraints are
+JSON, revision bounds, scoped foreign keys and uniqueness constraints are
 also exercised directly in D1. The original two migrations remain unchanged.
 #1351 used schema 1 with only a JSON-envelope extension; #1372's file implementation
 added 0002/schema 2, and #1397 added 0003/schema 3. The complete-originals
-Worker requires 0004/schema 4. Its migration copies the old file headers and
+Worker requires at least 0004/schema 4; project entry requires 0007/schema 5.
+The 0004 migration copies the old file headers and
 BLOBs, retains every revision, and adds scoped parts with cascading erasure.
 Apply it only through the established migration owner in a separately approved
 transition after a fresh backup. The local compatibility test owners cover nonempty
@@ -1789,7 +1911,7 @@ private material. Change summaries compare trimmed, deduplicated/sorted definiti
 meaning, including empty lists; raw input remains subject to server validation.
 
 The ordinary workspace HTML/assets/list/work/history/export and mutation paths
-authorize the owner and configured scope. The separate participant routes above
+authorize the owner and selected scope. The separate participant routes above
 authorize only the exact recipient/request/material/action grant. Writes and exact-context reads also require same
 origin and a signed, owner-bound CSRF cookie/header. No wildcard CORS, private
 cache, raw-error logging, remote source fetch, inference or active note HTML.
@@ -1800,7 +1922,7 @@ cannot be revoked retroactively. Sign-out and bfcache return discard/reload it.
 
 Export includes the complete chain, format/schema/compatibility markers, original
 scope, fingerprints, observations and recorded times, excluding login/secret/seals.
-Reconstruction validates everything before an atomic D1 batch into an empty store;
+Reconstruction validates everything before an atomic D1 batch into an empty project scope;
 unknown versions, missing parents, altered entries and partial import failures
 refuse/roll back. Hashes detect inconsistent content, not independent authorship
 or a malicious party recomputing every hash. Imported authorship remains an
