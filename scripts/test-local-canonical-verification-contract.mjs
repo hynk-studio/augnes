@@ -735,6 +735,7 @@ for (const authorityChild of [
   "scripts/test-canonical-change-planner.mjs",
   "scripts/test-dependency-lock-compatibility.mjs",
   "scripts/test-local-canonical-executor.mjs",
+  "scripts/test-local-canonical-improvement.mjs",
   "scripts/test-local-canonical-receipt.mjs",
   "scripts/test-local-canonical-isolation.mjs",
   "scripts/test-github-main-branch-transport.mjs",
@@ -745,6 +746,12 @@ for (const authorityChild of [
     `authority suite must own ${authorityChild} exactly once`,
   );
 }
+
+const improvementChildStart = canonicalSuite.indexOf('id: "local-canonical-improvement"');
+assert.notEqual(improvementChildStart,-1);
+const improvementChild=canonicalSuite.slice(improvementChildStart,canonicalSuite.indexOf("    },",improvementChildStart));
+for(const fragment of ['timeoutMs: 90_000','requireNaturalExit: true','"scripts/test-local-canonical-improvement.mjs"'])
+  requireText(improvementChild,fragment,"PASS/PASS contract controls have a separate finite authority owner");
 
 const isolatedChildStart = canonicalSuite.indexOf('id: "local-canonical-isolation"');
 assert.notEqual(isolatedChildStart, -1);

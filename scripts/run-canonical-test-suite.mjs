@@ -1510,6 +1510,13 @@ const suites = {
       timeoutMs: AUXILIARY_EXECUTION_BUDGETS.reviewChildResultHarnessMs,
       requireNaturalExit: true,
     },
+    {
+      id: "local-canonical-improvement",
+      label: "prospective PASS/PASS evidence, authority and terminal accounting",
+      ...rootNode("scripts/test-local-canonical-improvement.mjs"),
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
     ...reviewedRevisionSteps,
     {
       label: "prepared dependency eligibility before consumers",

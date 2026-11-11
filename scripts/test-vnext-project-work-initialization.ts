@@ -1,3 +1,4 @@
+import { captureProjectWorkInput, captureProjectWorkFile, projectWorkSeedBytes } from "./project-work-comparison-capture.mjs";
 import { assertOptionalExpectationDeparture } from "./work-expectation-departure-checks";
 import { assertFreshProjectWorkSemanticStateReadsV01 } from "./project-work-semantic-state-read-checks";
 import { assertIssuedSessionIdentityCompatibilityV01 } from "./local-operator-session-identity-checks";
@@ -27,7 +28,7 @@ import { validateRunReceiptV01 } from "../lib/vnext/run-receipt";
 import { createRecordedCodexAppServerAdapterV01 } from "./codex-app-server-observation-recorder";
 import { assertNativeHostResultV01, assertNativeHostPublicTextV01 } from "../lib/vnext/native-host/native-host-contract";
 import assert from "node:assert/strict";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync as rawReadFileSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync as rawWriteFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
@@ -139,6 +140,12 @@ import { issueVNextLocalReviewAccessV01 } from "./issue-vnext-local-review-acces
 import { localReviewAccessIssuerFailure } from "./augnes-runtime-supervisor-core.mjs";
 
 const ROOT = mkdtempSync(path.join(tmpdir(), "augnes-first-work-"));
+const readFileSync = ((...args: Parameters<typeof rawReadFileSync>) => {
+  const value=rawReadFileSync(...args);captureProjectWorkFile(args[0],ROOT,"read");return value;
+}) as typeof rawReadFileSync;
+const writeFileSync = ((...args: Parameters<typeof rawWriteFileSync>) => {
+  rawWriteFileSync(...args);captureProjectWorkFile(args[0],ROOT,"write");
+}) as typeof rawWriteFileSync;
 const T0 = "2026-08-01T00:00:00.000Z";
 const T1 = "2026-08-01T00:00:01.000Z";
 const T2 = "2026-08-01T00:00:02.000Z";
@@ -600,6 +607,7 @@ async function assertOutcomeReuseV01(): Promise<void> {
       const credential = credentialFromCookieV01(first.session_admission!.cookie_value);
       const clock = fixedClock("2026-08-01T00:00:20.000Z");
       const frozen = listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: [...VNEXT_CORE_RECORD_KINDS_V01], limit: 100 }).map(row => [row.record_id, canonicalizeProtocolValueV01(row.payload)]);
+      captureProjectWorkInput("history-outcome-reuse-"+disposition,fixture.db,fixture.config);
       const beforeSelectionPreparation = readResultWorkPreparationV01(fixture.db, { config: fixture.config, receipt_id: first.receipt.receipt_id, clock });
       const otherRoot = path.join(ROOT, `outcome-other-${disposition}`); mkdirSync(otherRoot);
       const otherProject = getOrCreateCanonicalProjectForLocalRootV01(fixture.db, { workspace_id: fixture.workspace_id,
@@ -1543,11 +1551,13 @@ async function assertMinimumDiscriminatingCheckV01(): Promise<void> {
     // produced entirely by normal writers. Each fresh SQLite copy receives
     // its own normal Start, request, receipt and review; no result is edited
     // or replayed as another result. This is not independent/cold-model data.
+    captureProjectWorkInput("derived-discriminating-base",fixture.db,fixture.config);
     const preCheckState = fixture.db.serialize();
     const preCheckCredential = credential;
     fixture.db.close();
     for (const outcome of outcomes) {
       fixture.db = new Database(preCheckState);
+      captureProjectWorkInput("derived-discriminating-"+outcome.name,fixture.db,fixture.config);
       credential = preCheckCredential;
       requests.splice(1);
       actions.splice(1);
@@ -6018,7 +6028,9 @@ function createFixtureV01(name: string, git = false, disk = false, canonicalRoot
   mkdirSync(root, { recursive: true });
   if (git) mkdirSync(path.join(root, ".git"));
   const databasePath = disk ? path.join(ROOT, `${name}.db`) : ":memory:";
-  const db = new Database(databasePath);
+  const seed=projectWorkSeedBytes();
+  if(seed&&disk)writeFileSync(databasePath,seed,{flag:"wx",mode:0o600});
+  const db = new Database(seed&&!disk?seed:databasePath);
   db.pragma("foreign_keys = ON");
   applyCanonicalDatabaseMigrations(db);
   const workspace = getOrCreateDefaultWorkspaceIdentityV01(db);
@@ -6034,7 +6046,7 @@ function createFixtureV01(name: string, git = false, disk = false, canonicalRoot
     expected_revision: null,
     now: T0,
   });
-  return {
+  const fixture: FixtureV01 = {
     db,
     root,
     workspace_id: workspace.workspace_id,
@@ -6047,6 +6059,8 @@ function createFixtureV01(name: string, git = false, disk = false, canonicalRoot
       database_path: databasePath,
     },
   };
+  captureProjectWorkInput("initial-"+name,db,fixture.config);
+  return fixture;
 }
 
 function authenticatedSessionV01(

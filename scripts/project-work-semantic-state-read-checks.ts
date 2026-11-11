@@ -1,3 +1,4 @@
+import { captureProjectWorkInput, captureProjectWorkObservation, captureProjectWorkTrace } from "./project-work-comparison-capture.mjs";
 import assert from "node:assert/strict";
 import Database from "better-sqlite3";
 import {
@@ -13,13 +14,20 @@ export function assertFreshProjectWorkSemanticStateReadsV01(
   config: VNextLocalOperatorPilotConfigV01,
 ): void {
   const bytes = original.serialize();
-  let projectionReads = 0;
+  let projectionReads = 0, measuringFirstRead = false, traceSequence = 0;
   const db = new Database(bytes, { verbose(sql) {
-    if (typeof sql === "string" && sql.includes("LEFT JOIN vnext_semantic_state_entries AS state")) projectionReads++;
+    if (typeof sql === "string" && sql.includes("LEFT JOIN vnext_semantic_state_entries AS state")) {
+      projectionReads++;
+      if(measuringFirstRead)captureProjectWorkTrace("representative", "projection-presence-select", "readCurrentProjectWorkPacketLineageV01/validateCurrentSemanticState", ++traceSequence);
+    }
   } });
   try {
+    captureProjectWorkInput("read-valid",db,config);
+    measuringFirstRead = true;
     const first = readCurrentProjectWorkPacketLineageV01(db, config);
+    measuringFirstRead = false;
     assert(first);
+    captureProjectWorkObservation("read-valid",{outcome:"available",standalone:"available",result:first});
     const firstReads = projectionReads;
     assert(firstReads > 0, "A populated packet history validates current state");
     const afterFirst = db.serialize();
@@ -57,6 +65,7 @@ export function assertFreshProjectWorkSemanticStateReadsV01(
       assert(copy.prepare(corruption.sql).run(...args).changes > 0);
       if (trigger) copy.exec(trigger.sql);
       const damaged = copy.serialize();
+      captureProjectWorkInput("read-"+corruption.name,copy,config,{selector:{packet_id:current.packet.packet_id,packet_fingerprint:current.packet.integrity.fingerprint}});
       const refuses = () => readCurrentProjectWorkPacketLineageV01(copy, config);
       assert.throws(refuses, /fingerprint|mismatch|conflict|invalid|drift/);
       assert.throws(() => inspectVNextOperatorPilotPacketLineageV01(copy, {
@@ -64,6 +73,7 @@ export function assertFreshProjectWorkSemanticStateReadsV01(
       }), /fingerprint|mismatch|conflict|invalid|drift/);
       assert(damaged.equals(copy.serialize()), "Refusal preserves damaged input, without repair");
       assert.equal(copy.inTransaction, false);
+      captureProjectWorkObservation("read-"+corruption.name,{outcome:"refused",standalone:"refused",result:null});
       console.log(JSON.stringify({ packet_history_state_read: corruption.name, after_prior_success: "refused", standalone: "refused", writes: 0 }));
     } finally { copy.close(); }
   }
@@ -77,7 +87,9 @@ export function assertFreshProjectWorkSemanticStateReadsV01(
     empty.exec(trigger.sql);
     empty.prepare("UPDATE vnext_semantic_state_entries SET bounded_state_summary = 'unrelated to empty packet history' WHERE workspace_id = ? AND project_id = ?")
       .run(config.workspace_id, config.project_id);
+    captureProjectWorkInput("read-empty",empty,config);
     assert.equal(readCurrentProjectWorkPacketLineageV01(empty, config), null,
       "An empty packet history retains its lazy validation behavior");
+    captureProjectWorkObservation("read-empty",{outcome:"empty",standalone:"not_applicable",result:null});
   } finally { empty.close(); }
 }

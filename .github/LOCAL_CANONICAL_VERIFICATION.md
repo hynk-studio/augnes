@@ -914,6 +914,80 @@ historical authorization is preserved at the pinned Git revision in
 [Retired qualification routes](#retired-qualification-routes). No other
 child/phase bound changes.
 
+### Prospective behavior-preserving improvement (source-correction v2)
+
+The separately dispatched `behavior_preserving_improvement` case represents a
+material production improvement with natural PASS/PASS focused evidence. It
+does not repair or reclassify the predecessor's failure. Ordinary
+`source_revision` and `verifier_correction` still require their natural
+RED/GREEN witnesses; `accepted_main_integration` retains its merge-tree rule.
+The production-module predicate is exactly the existing ordinary-v2 predicate.
+Tests, contracts, cosmetic changes or unrelated work cannot substitute for a
+connected, independently reviewed executable production improvement.
+
+The only eligible predecessor is the latest settled ordinary-v2
+`source_revision` with `product_failure`, original false stock and complete
+cleanup. Preserve its physical attempt/completion/receipt bytes, all known
+observations, consumed authority and UNKNOWN inner causes. Read the original
+physical ledger and receipt again at admission and stock; projections cannot
+replace them. Safety/input-invalid, reviewed, unsettled and prior improvement
+predecessors are excluded. No incident, branch or PR-specific exception exists.
+
+The closed evidence commitment binds the exact whole Git delta, partitions and
+any accepted-main integration; production blobs; common executable driver and
+transitive helpers; Canonical runtime, compiler, dependencies and locks; corpus,
+initial database, seeds and scope/history cases; frozen selectors, bounds,
+assertions and measured operation; and both contemporaneous natural witnesses.
+Exactly one purpose-defined old/final pair is collected after freezing the plan.
+Any new harness on old production is an explicit overlay. A failed collection
+plan is retained and stopped, not repeated for a favorable result. Historical
+records cannot acquire missing execution-time observations retrospectively.
+
+Positive and negative behavior, writes, isolation and public/standalone/fresh
+process reads must be preserved, with the complete affected registered owner
+settling under its unchanged bound. Only explicitly reviewed nonsemantic
+ephemeral differences may normalize. Actual per-case work traces must show a
+strict reduction. An arbitrary old count is never a new functional RED.
+Independent review judges semantic materiality and known-campaign completeness;
+hashes prove neither. Adverse samples, authoring failures, refused starts and
+provenance limitations remain. Reduced work is not timeout repair or a latency
+or reliability guarantee, and does not increase a deadline.
+
+Commitments are acyclic: campaign, independent report/review binding, authenticated
+candidate acceptance, distinct prospective grant, final proof, exclusive edge.
+New JSON records and the two operative bodies use closed safe shapes and
+canonical bytes. Candidate acceptance begins exactly with
+`Accept this prospective improvement candidate and its evidence.` followed by
+one canonical JSON object. A grant begins exactly with
+`Authorize one prospective qualification of this behavior-preserving improvement.`
+and one canonical JSON object. Quoted examples, DECLINE, generic acceptance,
+duplicate keys, extra decisions and unknown fields do not authorize anything.
+The existing bounded GET transport authenticates current User/admin-or-maintain
+authority, exact PR/commit/body and chronology. Acceptance binds the independent
+report and claim limits; the later unedited grant binds acceptance, complete
+campaign/review and planner/phase/owner inventory, explicitly choosing
+`proceed_once_under_unchanged_bounds` for the disclosed timing risk.
+
+Only normal admission can create the invocation-local capability and reserve.
+Read-only preparation cannot create either. The physical predecessor's existing
+exclusive `correction-successor.json` consumes one invocation, including a stop
+between edge and attempt. The target must not already exist. The attempt has
+budget initial1/recovery0 and separate `improvement_authority`; it is terminal
+across every old/new source/recovery entry. Orphan, partial or truncated records
+remain blocked and retained; no fabricated completion or reclamation. No global
+grant registry, new execution CLI, expiry protocol or additional recovery exists.
+
+Receipt version4 and the final planner workload are unchanged. Historical
+evidence/authority/ledger replay is separate from fresh current permission and
+PR/main applicability. Later live drift cannot rewrite an earlier execution or
+claim historical corruption; tampered originals remain integrity failures.
+Current authorization must be fetched again, never inferred from a cache. Stock
+reads existing machine identity without creating it or repairing permissions.
+Fresh receipt validation, independent result audit, owned cleanup and installed
+Companion preservation remain mandatory regardless of outcome. A deciding
+failure/interruption stops further execution. The historical lossy private-review
+projection refuses this case; retain the original receipt and private artifacts.
+
 ### Reviewed source and execution-input revision (source-correction v7)
 
 `reviewed_revision` uses the existing `--source-correction-proof`, authenticated

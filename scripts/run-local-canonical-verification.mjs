@@ -21,7 +21,8 @@ import {
 import path from "node:path";
 import os from "node:os";
 import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, createInputReader, classifyInputChange, nonFaultInputChange, inputReadOptions, supportedInputContract, createGitTrackingResource, observeCanonicalRuntimeInputs, canonicalRuntimeInputEnvironment, observePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
-import { beginAttempt, finishAttempt, prepareAttemptDependencies, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords, hasRetiredQualificationMarker, isReviewedRevision, isWebPlanningClientRevision, authorizeReviewedRevision, REVIEWED_REVISION_PHASES } from "./local-canonical-attempts.mjs";
+import { beginAttempt, finishAttempt, prepareAttemptDependencies, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords, hasRetiredQualificationMarker, isReviewedRevision, isWebPlanningClientRevision, authorizeReviewedRevision, REVIEWED_REVISION_PHASES, improvementMaterial } from "./local-canonical-attempts.mjs";
+import { isImprovement, hasImprovementMarker, authorizeImprovement, observeImprovementAuthority } from "./local-canonical-improvement.mjs";
 import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-evidence-retention.mjs";
 import { isGitObservationRevision, isInventoryBoundRevision, gitRevisionInventory } from "./local-canonical-git-observation.mjs";
 import { isBrowserRevision, browserBindingMatches } from "./local-canonical-browser-revision.mjs";
@@ -145,6 +146,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-receipt.mjs",
   "scripts/local-canonical-inputs.mjs",
   "scripts/local-canonical-attempts.mjs",
+  "scripts/local-canonical-improvement.mjs",
   "scripts/local-canonical-closeout-budgets.mjs",
   "scripts/local-canonical-evidence-retention.mjs",
   "scripts/local-canonical-review-export.mjs",
@@ -515,10 +517,10 @@ export async function executeLocalCanonicalVerification({
   });
 
   const sourceCorrection = sourceCorrectionProofPath ? readSourceCorrectionProof(resolveArtifactPath(sourceCorrectionProofPath), repositoryRoot) : null;
-  if (isReviewedRevision(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || plan.selected_plan !== "full-canonical"))
+  if ((isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection)) && ((isImprovement(sourceCorrection) ? !["full","changed"].includes(mode) : mode !== "full") || checkoutContext !== "isolated-worktree" || recoveryProofPath || plan.selected_plan !== "full-canonical"))
     throw Object.assign(new Error("reviewed_revision_full_route_required"), { code: "reviewed_revision_full_route_required" });
   const hostResult = collectHostEnvironment(repositoryRoot);
-  const runtimeInputs = isReviewedRevision(sourceCorrection) ? observeRevisionInputs(sourceCorrection, hostResult) : null;
+  const runtimeInputs = isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) ? observeRevisionInputs(sourceCorrection, hostResult) : null;
   assertRuntimeInputSelection(runtimeInputs);
   const host = hostResult.public;
   const nodePolicy = evaluateNodePolicy();
@@ -759,8 +761,8 @@ export async function executeLocalCanonicalVerification({
           if (inputMonitor.check() || signal.aborted) throw Object.assign(new Error("input_invalidation"), { code: "input_invalidation" });
           if (mode !== "quick") assertFrozenSource(identityBefore, verificationContext);
           if (!attempt && mode !== "quick" && plan.selected_plan !== "documentation-only" && phaseDefinitions.length > 0 && checkoutOwner) {
-            const reviewed = isReviewedRevision(sourceCorrection);
-            if (reviewed && (mode !== "full" || checkoutContext !== "isolated-worktree" || plan.selected_plan !== "full-canonical" ||
+            const reviewed = isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection);
+            if (reviewed && ((isImprovement(sourceCorrection) ? !["full","changed"].includes(mode) : mode !== "full") || checkoutContext !== "isolated-worktree" || plan.selected_plan !== "full-canonical" ||
                 digest(phaseDefinitions.map(p => p.id)) !== digest(REVIEWED_REVISION_PHASES))) throw Object.assign(new Error("reviewed_revision_workload_invalid"), { code: "reviewed_revision_workload_invalid" });
             attempt = await beginAttempt({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, checkoutOwner,
               branch: identityBefore.branch, head: headSha, tree: inputs.snapshot().binding.tree, runId,
@@ -768,6 +770,12 @@ export async function executeLocalCanonicalVerification({
               recoveryProof: recoveryProofPath ? readRecoveryProof(resolveArtifactPath(recoveryProofPath)) : null,
               sourceCorrection, revisionInputs: runtimeInputs,
               observeRevision: reviewed ? async () => {
+                if (isImprovement(sourceCorrection)) {
+                  const material = improvementMaterial(repositoryRoot,sourceCorrection);
+                  const workload = {base:baseSha,head:headSha,selected_plan:plan.selected_plan,phases:phaseDefinitions.map(p=>p.id),owners:[...plan.planner_owner_ids].sort()};
+                  if (digest(workload)!==digest(material.planner)) throw Object.assign(new Error("improvement_planner_changed"),{code:"improvement_planner_changed"});
+                  return {authorization:await authorizeImprovement(sourceCorrection,material),live:null};
+                }
                 const authorization = await authorizeReviewedRevision(sourceCorrection);
                 let live = sourceCorrection?.settlement ? await observeReviewedRevisionSettlementState(verificationContext) :
                   isBrowserRevision(sourceCorrection) ? await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: true }) : null;
@@ -1404,11 +1412,31 @@ export function readStockMachineIdentity(receipt, machineRoot) {
   if (hasRetiredQualificationMarker(receipt)) throw Object.assign(new Error("qualification_route_retired"), { code: "qualification_route_retired" });
   // These revisions replay existing machine identity without creating or repairing it.
   const attempt = receipt.attempt;
-  const revision = isWebPlanningClientRevision(attempt?.source_correction) ||
+  const revision = hasImprovementMarker(receipt) || isWebPlanningClientRevision(attempt?.source_correction) ||
     (attempt?.source_correction?.schema === "augnes.local-canonical-source-correction.v7") ||
     attempt?.source_correction?.kind === "reviewed_revision" || attempt?.revision_authority || attempt?.reviewed_revision_consumed;
   return revision
     ? readMachineFingerprint(machineRoot) : ensureMachineFingerprint(machineRoot);
+}
+
+// Shared by the real stock path and isolated transport controls. This only
+// observes authority; it never mints a capability or reserves an attempt.
+export async function inspectImprovementStock({ anchorRoot, repositoryRoot, receipt, runtimeInputs, assertCurrent, transport }) {
+  let improvementCurrentIssue = null;
+  const currentAttemptRecordsValid = await inspectAttemptRecords({
+    anchorRoot, repositoryRoot, receipt, revisionInputs: runtimeInputs, assertCurrent,
+    observeRevision: async () => {
+      try {
+        const proof=receipt.attempt.source_correction, material=improvementMaterial(repositoryRoot,proof);
+        await observeImprovementAuthority(proof,material,transport);
+        if (digest(runtimeInputs)!==digest(material.runtime)) improvementCurrentIssue="receipt_improvement_current_runtime_invalid";
+      } catch (error) { improvementCurrentIssue=error?.code === "improvement_current_applicability_refused" ? "receipt_improvement_current_applicability_refused" : "receipt_improvement_current_authorization_unverified"; }
+      // inspectAttemptRecords seals and rechecks originals, source, inputs and
+      // tip after this await, including when live authority is unavailable.
+      return {authorization:null,live:null};
+    },
+  });
+  return {currentAttemptRecordsValid,improvementCurrentIssue};
 }
 
 export async function validateReceiptAgainstCurrentRepository(relativeReceiptPath, { checkoutContext = "canonical" } = {}) {
@@ -1480,7 +1508,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   }
   let runtimeInputs = null;
   const reviewed = isReviewedRevision(receipt.attempt?.source_correction);
-  if (reviewed) {
+  if (reviewed || isImprovement(receipt.attempt?.source_correction)) {
     try { runtimeInputs = observeRevisionInputs(receipt.attempt.source_correction, validationHost); } catch { /* stock refuses unavailable runtime input */ }
   }
   let currentInputStateValid = null;
@@ -1492,7 +1520,12 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
       throw Object.assign(new Error("revision_stock_source_changed"), {code:"revision_stock_source_changed"});
     if (!currentInputStateValid) throw Object.assign(new Error("revision_stock_inputs_changed"), {code:"revision_stock_inputs_changed"});
   };
-  const currentAttemptRecordsValid = receipt.receipt_version === 4 ? await inspectAttemptRecords({
+  let improvementCurrentIssue = null, currentAttemptRecordsValid = null;
+  if (receipt.receipt_version === 4 && isImprovement(receipt.attempt?.source_correction)) {
+    ({currentAttemptRecordsValid,improvementCurrentIssue}=await inspectImprovementStock({
+      anchorRoot:verificationAnchorRoot(verificationContext),repositoryRoot,receipt,runtimeInputs,assertCurrent:checkCurrentInputs,
+    }));
+  } else if (receipt.receipt_version === 4) currentAttemptRecordsValid = await inspectAttemptRecords({
     anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, revisionInputs: runtimeInputs,
     observeRevision: reviewed ? async () => {
       const proof = receipt.attempt.source_correction;
@@ -1506,7 +1539,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
       return {authorization,live};
     } : null,
     assertCurrent: checkCurrentInputs,
-  }) : null;
+  });
   // Invalid/absent attempts still receive independent current-input stock.
   if (receipt.receipt_version === 4 && currentInputStateValid === null) {
     try { checkCurrentInputs(); } catch { currentInputStateValid = false; }
@@ -1514,6 +1547,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   return inspectReceiptForDecision(receipt, {
     currentInputStateValid,
     currentAttemptRecordsValid,
+    improvementCurrentIssue,
     currentVerificationContext: verificationContext,
     expectedRunId: path.basename(receiptPath, ".json"),
     currentIntegrationBase,

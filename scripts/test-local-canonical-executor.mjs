@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { isImprovement } from "./local-canonical-improvement.mjs";
 import { hasRetiredQualificationMarker, isReviewedRevision, REVIEWED_REVISION_PHASES, readSourceCorrectionProof as readCorrectionProof } from "./local-canonical-attempts.mjs";
 
 import { isGitObservationRevision, isInventoryBoundRevision } from "./local-canonical-git-observation.mjs";
@@ -182,7 +183,7 @@ const executorSource = readFileSync(
     }
     for (const relative of ["scripts/local-canonical-pure-contract-witness.mjs", "scripts/canonical-revision-reader.mjs",
       "scripts/local-canonical-fixture-budget-witness.mjs", "scripts/capture-local-canonical-fixture-budget.mjs",
-      "scripts/local-canonical-stock-lifecycle-witness.mjs"]) {
+      "scripts/local-canonical-stock-lifecycle-witness.mjs", "scripts/local-canonical-improvement.mjs"]) {
       const file = path.join(owner.root, relative), original = readFileSync(path.join(repositoryRoot, relative));
       writeFileSync(file, original);
       const before = computeExecutorSourceFingerprint(owner.root);
@@ -1050,7 +1051,7 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
     const context = {
       checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
       controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, baseSha: "0".repeat(40), headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
-      isReviewedRevision, isBrowserRevision, isGitObservationRevision, isInventoryBoundRevision, isSerialAggregateRevision, digest, REVIEWED_REVISION_PHASES,
+      isImprovement, isReviewedRevision, isBrowserRevision, isGitObservationRevision, isInventoryBoundRevision, isSerialAggregateRevision, digest, REVIEWED_REVISION_PHASES,
       sourceCorrection: revisionLane ? { schema: browserRefusal ? "augnes.local-canonical-source-correction.v8" : "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", ...(revisionSettlement ? { settlement: { sha256: "c".repeat(64) } } : {}) } : null,
       authorizeReviewedRevision: async () => { authorityObserved = true; if (scenario === "revision_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
       observeReviewedRevisionSettlementState: async () => {
@@ -1305,7 +1306,7 @@ const successionProfiles = [
   { schema: "augnes.local-canonical-source-correction.v8", kind: "reviewed_revision" },
   { schema: "augnes.local-canonical-source-correction.v9", kind: "reviewed_revision" },
 ];
-const dispatchStart = executorSource.indexOf("            const reviewed = isReviewedRevision(sourceCorrection);");
+const dispatchStart = executorSource.indexOf("            const reviewed = isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection);");
 const dispatchEnd = executorSource.indexOf("            pinVerificationEvidence(", dispatchStart);
 assert(dispatchStart > 0 && dispatchEnd > dispatchStart);
 const admissionDispatch = executorSource.slice(dispatchStart, dispatchEnd);
@@ -1325,7 +1326,7 @@ function dispatchContext(candidate, authority, settlement = async () => null) {
   return { get observed() { return observed; }, context: {
     sourceCorrection:candidate, receipt:{receipt_version:4,inputs:frozenInputs,attempt:{source_correction:candidate}},
     inputs:{snapshot:()=>frozenInputs,check(){}}, repositoryRoot:coexistenceRoot,
-    isReviewedRevision,isBrowserRevision,isGitObservationRevision,isInventoryBoundRevision,isSerialAggregateRevision,
+    isImprovement,isReviewedRevision,isBrowserRevision,isGitObservationRevision,isInventoryBoundRevision,isSerialAggregateRevision,
     mode:"full",checkoutContext:"isolated-worktree",plan:{selected_plan:"full-canonical"},
     digest,REVIEWED_REVISION_PHASES,phaseDefinitions:REVIEWED_REVISION_PHASES.map(id=>({id})),
     inputMonitor:{check:()=>null},signal:{aborted:false},runtimeInputs:{},
