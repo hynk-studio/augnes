@@ -8,6 +8,7 @@ import { randomBytes } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { setTimeout as delay } from "node:timers/promises";
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { chooseBrowserPorts } from "./browser-preferred-ports.mjs";
 import { admitVerificationContext } from "./local-canonical-verification-context.mjs";
@@ -18,7 +19,7 @@ import { createIsolatedInvocationResources, cleanupIsolatedInvocationResources }
 import { observeCanonicalRuntimeInputs, observePreparedDependencyInputs, comparePreparedDependencyInputs, digest } from "./local-canonical-inputs.mjs";
 import { observePureContractSource, observePureContractLoader } from "./local-canonical-pure-contract-witness.mjs";
 import { finalizeReceipt } from "./local-canonical-receipt.mjs";
-import { inspectCurrentIntegrationBudgetInputs } from "./local-canonical-fixture-budget-witness.mjs";
+import { inspectCurrentIntegrationBudgetInputs, nextDeclarationKind } from "./local-canonical-fixture-budget-witness.mjs";
 import { inspectGeneratedStockBrowserInputs } from "./local-canonical-stock-lifecycle-witness.mjs";
 import { verifierLifecycleReaderGraph } from "./local-canonical-verifier-lifecycle-witness.mjs";
 import { observeGitRevisionTarget, phaseEnvironment, buildPhasePlan, executePhase, runPhasesSequentially,
@@ -149,11 +150,23 @@ async function capture() {
       controller.signal.addEventListener("abort", abortFromParent, { once: true });
       if (controller.signal.aborted) abortSetup.abort();
       let setupOutput = "";
-      const setupSink = { write(chunk) { sink.write(chunk); setupOutput = (setupOutput + chunk).slice(-65536); if (/Ready in /u.test(setupOutput)) abortSetup.abort(); } };
-      let setup;
-      try { setup = await child("owned Next dev setup", ["node_modules/next/dist/bin/next", "dev", "--webpack", "--hostname", "127.0.0.1", "--port", String(port)],
-        { signal: abortSetup.signal, stdout: setupSink, stderr: setupSink, env: caseEnvironment }); }
-      finally { controller.signal.removeEventListener("abort", abortFromParent); }
+      const setupSink = { write(chunk) { sink.write(chunk); setupOutput = (setupOutput + chunk).slice(-65536); } };
+      let setup, setupFailure, setupSettled = false;
+      const setupRun = child("owned Next dev setup", ["node_modules/next/dist/bin/next", "dev", "--webpack", "--hostname", "127.0.0.1", "--port", String(port)],
+        { signal: abortSetup.signal, stdout: setupSink, stderr: setupSink, env: caseEnvironment })
+        .then(result => { setup = result; }, cause => { setupFailure = cause; }).finally(() => { setupSettled = true; });
+      try {
+        // Next prints Ready before loading configuration and writing types.
+        // Let the genuine writer finish; the child retains its 60-second bound.
+        while (!setupSettled && !abortSetup.signal.aborted) {
+          if (/Ready in /u.test(setupOutput) && nextDeclarationKind(digest(readFileSync(path.join(root, "next-env.d.ts")))) === "dev") {
+            abortSetup.abort(); break;
+          }
+          await delay(50);
+        }
+      }
+      finally { abortSetup.abort(); await setupRun; controller.signal.removeEventListener("abort", abortFromParent); }
+      if (setupFailure) throw setupFailure;
       assert.equal(controller.signal.aborted, false);
       const setupChild = children.at(-1).id;
       assert(setup.cancelled && !setup.timed_out && settled); assert.match(readFileSync(path.join(root, "next-env.d.ts"), "utf8"), /\.next\/dev\/types\/routes\.d\.ts/u);
