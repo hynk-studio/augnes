@@ -26,6 +26,7 @@ export function validVerifierLifecycleInputs(c, p) {
   if (!input || input.first_fault !== null || !equal(input.secondary_faults, []) ||
       input.fingerprint !== digest({ contract, path_kind, binding, resources }) ||
       binding?.head !== p.head || binding?.tree !== p.tree || !Number.isSafeInteger(input.checks) || input.checks < 1 ||
+      digest(binding?.runtime_inputs ?? null) !== p.inputs.identity_sha256 ||
       gitRevisionInventory(input) !== p.inputs.inventory_sha256 ||
       !Array.isArray(input.events) || input.events.length > 64 || new Set(input.events.map(event => event.identity)).size !== input.events.length) return false;
   let last = -1n;
@@ -112,7 +113,7 @@ function validPhase(result, expected, capture) {
 }
 
 export function verifyVerifierLifecycleRepair(p, prior, focused, { git, parse, bytes, completedAt, original, completion, repositoryRoot }) {
-  const reg = focused.regression, baseline = reg.accepted_baseline, c = parse(reg.after);
+  const reg = focused.regression, baseline = reg.accepted_baseline, c = parse(reg.after), outer = parse(reg.controls.capture_command);
   if (!equal(Object.keys(reg).sort(), ["accepted_baseline", "after", "claim", "controls", "incident", "kind"]) ||
       reg.kind !== VERIFIER_LIFECYCLE_REPAIR || p.commission.evidence_kind !== reg.kind || reg.claim !== VERIFIER_LIFECYCLE_CLAIM ||
       focused.failed_phase !== "authority" || !equal(focused.input_remedy_resources, []) ||
@@ -146,6 +147,7 @@ export function verifyVerifierLifecycleRepair(p, prior, focused, { git, parse, b
   for (const prepared of c.preparations) {
     const result = prepared.result;
     if (result.id !== prepared.phase || result.command !== "npm ci --no-audit --no-fund" || result.status !== "pass" || result.exit_status !== 0 ||
+        result.cwd_scope !== ({ "dependencies-root": "root", "dependencies-nested": "nested-app", "dependencies-web-planning": "web-planning-app" })[prepared.phase] ||
         result.timed_out !== false || result.cleanup?.completed !== true || result.cleanup.termination_reason !== "natural_exit" ||
         result.cleanup.exit_observed !== true || result.cleanup.streams_closed !== true || result.cleanup.remaining_owned_processes !== 0 ||
         result.environment_fingerprint !== digest(c.environment) || result.invocation_id !== c.invocation_id ||
@@ -153,6 +155,11 @@ export function verifyVerifierLifecycleRepair(p, prior, focused, { git, parse, b
     const field = prepared.phase === "dependencies-root" ? "dependencies" : prepared.phase === "dependencies-web-planning" ? "web_dependencies" : null;
     if (field && [c.before, c.after].some(value => comparePreparedDependencyInputs(prepared.inputs, value[field]) !== "unchanged")) fail();
   }
+  const validDependencies = records => Array.isArray(records) && equal(records.map(value => value.phase_id), c.preparations.map(value => value.phase)) &&
+    records.every((value, index) => value.unchanged === true && value.error === null && value.prerequisite && value.before && value.after &&
+      comparePreparedDependencyInputs(value.prerequisite, c.preparations[index].inputs) === "unchanged" &&
+      comparePreparedDependencyInputs(value.prerequisite, value.before) === "unchanged" && comparePreparedDependencyInputs(value.before, value.after) === "unchanged");
+  if (!validDependencies(c.inputs.prepared_dependencies) || !Array.isArray(outer.args) || !path.isAbsolute(outer.args[1] ?? "")) fail();
   if (digest(bytes(c.collector, 128 * 1024)) !== digest(git(["show", p.head + ":" + VERIFIER_LIFECYCLE_COLLECTOR]))) fail();
   const overlay = c.source_overlay;
   const closure = verifierLifecycleReaderGraph(git, prior.head);
@@ -164,6 +171,8 @@ export function verifyVerifierLifecycleRepair(p, prior, focused, { git, parse, b
   for (const test of c.cases.slice(0, 2)) {
     const packet = parse(test.inspection), receipt = parse(test.receipt), old = parse(test.prior_inspection), through = test.name === "through-build";
     if (!verifyReceiptIntegrity(receipt) || !equal(packet.receipt, receipt) || receipt.attempt !== null || receipt.evidence?.deciding !== false ||
+        !equal(receipt.repository, { head_sha: p.head, tree_sha: p.tree, base_sha: p.base }) || !validDependencies(receipt.inputs.prepared_dependencies) ||
+        !validVerifierLifecycleInputs({ inputs: receipt.inputs, started_at: c.started_at, finished_at: c.finished_at }, p) ||
         !equal(receipt.phases, test.phases) || !canonicalEnvironment(test.environment) ||
         !equal(packet.witness.environment, test.environment) || !equal(packet.witness.after.loader, c.after.loader) ||
         !equal(sourceWithoutGenerated(packet.witness.after.source), catalogue) ||
@@ -191,7 +200,7 @@ export function verifyVerifierLifecycleRepair(p, prior, focused, { git, parse, b
       if (!child || !equal(child.result, result) || child.cwd_scope !== "root" || child.environment_fingerprint !== digest(c.environment) ||
           child.timeout_ms !== 60000 || args?.length !== (oldReader ? 4 : 3) ||
           args[0] !== path.join(repositoryRoot, VERIFIER_LIFECYCLE_COLLECTOR) || args[1] !== "--inspect" ||
-          path.basename(args[2]) !== ref.artifact || oldReader && args[3] !== path.join(c.environment.AUGNES_CANONICAL_TEMP_ROOT, "prior-reader", generatedOwner) ||
+          args[2] !== path.join(outer.args[1], ref.artifact) || oldReader && args[3] !== path.join(c.environment.AUGNES_CANONICAL_TEMP_ROOT, "prior-reader", generatedOwner) ||
           child.command !== ["node", ...args].join(" ") || !interval(child.started_at, child.finished_at, c.started_at, c.finished_at)) fail();
       const lines = bytes(child.stdout, 2 * 1024 * 1024).toString().trim().split("\n");
       if (lines.length !== 1) fail(); const observed = JSON.parse(lines[0]);
@@ -201,7 +210,8 @@ export function verifyVerifierLifecycleRepair(p, prior, focused, { git, parse, b
     const setup = c.children.find(value => value.id === test.setup_child);
     if (!setup || !equal(setup.result, test.setup) || setup.environment_fingerprint !== digest(test.environment) || setup.timeout_ms !== 60000 ||
         !equal(setup.args.slice(0, 6), ["node_modules/next/dist/bin/next", "dev", "--webpack", "--hostname", "127.0.0.1", "--port"]) ||
-        setup.args.length !== 7 || !/^\d+$/u.test(setup.args[6])) fail();
+        setup.args.length !== 7 || !/^\d+$/u.test(setup.args[6]) || setup.cwd_scope !== "root" || setup.command !== ["node", ...setup.args].join(" ") ||
+        !interval(receipt.run.started_at, receipt.run.finished_at, setup.finished_at, c.children.find(value => value.id === test.current_child).started_at)) fail();
     for (const phase of test.phases) {
       const ref = c.phase_logs.find(value => value.relative_path === phase.log.relative_path);
       if (!ref || phase.log.truncated !== false || bytes(ref.ref, 2 * 1024 * 1024).length !== phase.log.bytes) fail();
@@ -212,10 +222,31 @@ export function verifyVerifierLifecycleRepair(p, prior, focused, { git, parse, b
   if (!natural(authority) || authority.duration_ms <= 0 || authority.duration_ms > 300000 ||
       !authorityChild || !equal(authorityChild.result, authority) || authorityChild.timeout_ms !== 300000 ||
       !equal(authorityChild.args, ["scripts/run-canonical-test-suite.mjs", "authority", "--reviewed-revision-only"]) ||
+      authorityChild.cwd_scope !== "root" || authorityChild.command !== ["node", ...authorityChild.args].join(" ") ||
       authorityChild.environment_fingerprint !== digest(c.environment) ||
       !log.includes('"synthetic_browser_successor"') || !log.includes('"browser_revision_controls"') ||
       !log.includes('"stage":"cleanup_complete"') || !log.includes('"control_id":"reviewed-revision-browser","exit_code":0') ||
       !log.includes('"result":"accepted"') || !log.includes('"result":"revision_fixture_budget_invalid"')) fail();
+  const expectedPhases = [...c.preparations.map(value => ({ sequence: "preparation", result: value.result })),
+    ...c.cases.slice(0, 2).flatMap(test => test.phases.map(result => ({ sequence: test.name, result })))];
+  const expectedChildren = [...c.cases.slice(0, 2).flatMap(test => [test.setup_child, test.current_child, test.prior_child]), c.cases[2].child];
+  if (!equal(c.executed_phases, expectedPhases) || !equal(c.children.map(value => value.id), expectedChildren) ||
+      new Set(expectedChildren).size !== expectedChildren.length || c.phase_logs.length !== expectedPhases.length) fail();
+  const ordered = [...c.preparations.map(value => value.result), ...c.cases.slice(0, 2).flatMap(test => [
+    c.children.find(value => value.id === test.setup_child), ...test.phases,
+    c.children.find(value => value.id === test.current_child), c.children.find(value => value.id === test.prior_child)]), authorityChild];
+  let preceding = c.started_at;
+  for (const record of ordered) {
+    if (!interval(record.started_at, record.finished_at, preceding, c.finished_at)) fail();
+    preceding = record.finished_at;
+  }
+  for (const child of c.children) {
+    bytes(child.stdout, 2 * 1024 * 1024); bytes(child.stderr, 2 * 1024 * 1024); bytes(child.lifecycle, 64 * 1024);
+  }
+  for (const { result } of expectedPhases) {
+    const ref = c.phase_logs.find(value => value.relative_path === result.log.relative_path);
+    if (!ref || result.log.truncated !== false || bytes(ref.ref, 2 * 1024 * 1024).length !== result.log.bytes) fail();
+  }
   const authorityLog = bytes(authorityChild.stdout, 2 * 1024 * 1024).toString() + "\n" + bytes(authorityChild.stderr, 2 * 1024 * 1024).toString();
   const stages = authorityLog.split("\n").filter(line => line.startsWith("AUGNES_REVIEW_FIXTURE_STAGE ")).map(line => JSON.parse(line.slice("AUGNES_REVIEW_FIXTURE_STAGE ".length)));
   const inner = authorityLog.split("\n").filter(line => line.startsWith("AUGNES_REVIEW_CHILD_RESULT ")).map(line => JSON.parse(line.slice("AUGNES_REVIEW_CHILD_RESULT ".length)))
@@ -227,13 +258,21 @@ export function verifyVerifierLifecycleRepair(p, prior, focused, { git, parse, b
     "preparation_controls_complete", "authority_refusals_complete", "second_execution_start", "second_execution_complete",
     "tail_refusals_complete", "export_complete", "controls_complete", "cleanup_start", "cleanup_complete",
   ]) || stages.some((value, index) => !Number.isFinite(value.at) || value.at < 0 || value.at > inner[0].duration_ms || index > 0 && value.at <= stages[index - 1].at)) fail();
-  const controls = parse(reg.controls.record), outer = parse(reg.controls.capture_command);
+  const controls = parse(reg.controls.record), controlsOutput = JSON.parse(bytes(controls.stdout, 2 * 1024 * 1024));
   if (controls.tested_source_head !== p.head || !natural(controls.result) ||
-      !bytes(controls.stdout, 2 * 1024 * 1024).toString().includes('"fresh_stock_generated_window_and_out_of_window_refusal"') ||
+      controls.command !== "node scripts/test-prepared-dependency-eligibility.mjs" || !equal(sourceWithoutGenerated(controls.source), catalogue) ||
+      controls.runtime_inputs_sha256 !== p.inputs.identity_sha256 || controls.node_version !== process.versions.node ||
+      !canonicalEnvironment(controls.environment) || !settled(controls.cleanup) ||
+      controlsOutput.runtime !== p.inputs.identity_sha256 || controlsOutput.process_umask !== c.process_umask ||
+      !["fresh_stock_generated_window_and_out_of_window_refusal", "fresh_physical_attempt_completion_and_receipt_substitution_refused"].every(value => controlsOutput.cases?.includes(value)) ||
+      !interval(controls.started_at, controls.finished_at, completedAt, focused.finished_at) ||
+      !focused.commands.some(command => command.command === controls.command && command.tested_source_head === p.head &&
+        equal(command.result, controls.result) && equal(command.record, reg.controls.record) && equal(command.stdout, controls.stdout)) ||
       outer.tested_source_head !== p.head || !natural(outer.result) || !equal(outer.capture, reg.after) ||
       !interval(c.started_at, c.finished_at, outer.started_at, outer.finished_at) ||
       !Array.isArray(outer.args) || outer.args.length !== 4 || outer.args[0] !== VERIFIER_LIFECYCLE_COLLECTOR ||
       outer.args[2] !== prior.head || outer.args[3] !== p.base || outer.command !== ["node", ...outer.args].join(" ") ||
       !focused.commands.some(command => command.tested_source_head === p.head && equal(command.record, reg.controls.capture_command))) fail();
+  bytes(controls.stderr, 2 * 1024 * 1024); bytes(controls.lifecycle, 64 * 1024);
   return p.head;
 }

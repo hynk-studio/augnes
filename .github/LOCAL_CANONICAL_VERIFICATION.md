@@ -1497,7 +1497,7 @@ inventory, runtime, loader, root/Web dependencies, launch umask and owned cleanu
 are retained. Preparation/admission keeps the early prerequisite gate and later
 integrity checks. Retained input events must reclassify through the existing input
 owner with their bound identity, role and observation interval; supported non-fault
-metadata changes remain observations, while content, permission or ownership
+metadata changes remain observations, while consumed content, permission or ownership
 changes still refuse. Naturally passing measurements stay PASS and do not identify
 a historical timeout cause or justify an arbitrary allowance increase.
 

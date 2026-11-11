@@ -28,8 +28,14 @@ export function seedSerialMaterialCompiler(c,h,sourceRoot) {
 }
 
 export async function runSerialMaterialControls(c,h,serialProof,serialAuthority,sourceRoot,browserRecord) {
+  // Bounded value-free progress for this complete registered fixture. These
+  // observations do not change a deadline or classify a historical timeout.
+  const progress = stage => console.error("AUGNES_SERIAL_MATERIAL_STAGE " + JSON.stringify({ stage, at: performance.now() }));
+  progress("material_start");
   const pureContract = await pureContractWitnessControls(c.root,h,sourceRoot);
+  progress("pure_contract_complete");
   const fixtureBudget = await fixtureBudgetWitnessControls(c.root,h,sourceRoot);
+  progress("fixture_budget_complete");
   const substituted=path.join(c.root,"substituted-compiler");
   h.write(path.join(substituted,"node_modules/.bin/tsc"),'console.log("not the compiler");\n');
   for(const name of ["typescript","next"])symlinkSync(path.join(sourceRoot,"node_modules",name),path.join(substituted,"node_modules",name),"dir");
@@ -59,7 +65,9 @@ export async function runSerialMaterialControls(c,h,serialProof,serialAuthority,
   // Exactly the partial 3 PASS / typecheck FAIL / 12 NOT_RUN shape, using the
   // actual compiler exit. The outer executor still reports failure exit one.
   c.failurePhase="typecheck";
+  progress("compiler_failure_start");
   const failed=await executeFixture(c,{...h,behavior:compiler},serialProof,serialAuthority,null,dependencyRecords(c));
+  progress("compiler_failure_stock_complete");
   assert.equal(failed.child.result.exit_code,2);assert.equal(failed.stock.issues.length,17);
   assert.deepEqual(failed.receipt.phases.map(p=>p.status),[...Array(3).fill("pass"),"failure",...Array(12).fill("not_run")]);
   c.prior=failed.receipt;
@@ -72,6 +80,7 @@ export async function runSerialMaterialControls(c,h,serialProof,serialAuthority,
   c.head=c.git(["rev-parse","HEAD"]).toString().trim();c.tree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();
   c.acceptedHead=c.head;c.acceptedTree=c.tree;c.grantId=73;
   const green=await compiler();assert.equal(green.result.exit_code,0);
+  progress("compiler_pair_complete");
   const oldAuthority=clone(c.authority);h.prepare(c);const p=c.proof,read=r=>h.read(path.join(c.artifacts,r.artifact)),ref=(name,v)=>h.artifact(c,name,v);
   Object.assign(p.commission,{source_revision:MATERIAL_SOURCE_CORRECTION,maximum_invocations:1,inherited_serial:serialInheritanceFrom(serialProof,p)});
   p.inputs.inventory_sha256=serialProof.inputs.inventory_sha256;p.originals.stock=ref("prior-stock.log",JSON.stringify(failed.stock));
@@ -101,6 +110,7 @@ export async function runSerialMaterialControls(c,h,serialProof,serialAuthority,
   assert.equal(deferred.published_head_checked,true);
   assert.equal(observed,1);assert.equal(deferred.target,prepared.target);
   assert.equal(deferred.authorized,false);assert.equal(deferred.reserved,false);assert(!existsSync(edge));
+  progress("preparation_complete");
   const dependencyLink=path.join(c.checkout,"node_modules"),heldLink=dependencyLink+".held";
   assert(lstatSync(dependencyLink).isSymbolicLink());
   try {
@@ -167,8 +177,10 @@ export async function runSerialMaterialControls(c,h,serialProof,serialAuthority,
   assert(!existsSync(edge));for(const [file,hash] of priorFiles)assert.equal(digest(readFileSync(file)),hash);
   // Only this disposable fixture consumes its new synthetic grant.
   delete c.failurePhase;
+  progress("success_stock_start");
   const success=await executeFixture(c,{...h,begin:(subject,proof,authority,extra)=>h.begin(subject,proof,authority,{...extra,runId:"serial-material-new"})},proof,cap,browserRecord,dependencyRecords(c));
   assert(success.stock.valid_deciding_evidence);
+  progress("success_stock_complete");
   const invalid=clone(success.receipt);delete invalid.phases.find(v=>v.id==="e2e-project-experience").serial_budget;
   const issues=[];inspectClassifiedEvidence(invalid,issues);assert(issues.includes("receipt_serial_budget_invalid"));
   const exported=createPrivateReviewExport(success.receipt);assert(inspectPrivateReviewExport(exported).structurally_valid);
@@ -183,6 +195,7 @@ export async function runSerialMaterialControls(c,h,serialProof,serialAuthority,
   try{assert.throws(()=>reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}),/attempt_lineage_edge_invalid/);}
   finally{h.write(currentFile,current);}
   for(const [file,hash] of priorFiles)assert.equal(digest(readFileSync(file)),hash);
+  progress("material_complete");
   console.log(JSON.stringify({pure_contract_witness:pureContract,fixture_budget_witness:fixtureBudget,serial_material_controls:{compiler:[red.result.exit_code,green.result.exit_code],source_before:red.tested_source_head,source_after:green.tested_source_head,
     partial_phases:[3,1,12],stock_issues:failed.stock.issues.length,prior_delegation_absent:true,prepared,negative_controls:count,
     fresh_stock:true,inherited_accounting_enforced:true,originals_unchanged:true},synthetic_only:true,deciding:false}));
