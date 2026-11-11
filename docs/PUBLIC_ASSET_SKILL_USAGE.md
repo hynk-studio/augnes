@@ -96,20 +96,29 @@ later reuse and comparative benefit are separate observations.
 
 ## Software-change verification source preview
 
-The [verify-software-change candidate](../skills/verify-software-change/SKILL.md)
+The [verify-software-change source](../skills/verify-software-change/SKILL.md)
 supports a concrete installation, delivery or version-change investigation with
 the consumer's existing tools. It includes a single Python standard-library
-input observer and a small result/handoff reference. It needs no Augnes runtime,
-account or MCP connection. Read the candidate directly from its pinned source
-revision; it is not in the public workflow-cost ZIP, a registered host catalog,
-an installed user profile or an Agensi listing.
+input observer and a small result/handoff reference. It needs no Augnes runtime
+or account. Direct source use needs no MCP connection; delivery through Agensi
+requires an Agensi connection. It remains separate from the public workflow-cost
+ZIP.
 
-The [first free listing preparation](SOFTWARE_CHANGE_SKILL_DISTRIBUTION.md)
-selects this candidate as **Augnes Software Change Check 0.1.0**, one Skill with
-four delivered files. It includes individual-file execution guidance, a bounded
-request/result example and a deterministic create-only ZIP builder. Source and
-local packaging checks are prepared for review; this does not establish an
-Agensi submission, approval, installed connection or live consumer execution.
+**Historical source-preview status:** The candidate was documented as outside
+the public workflow-cost ZIP, a registered host catalog and an installed user
+profile, and not an Agensi listing. Source and local packaging checks did not
+establish an Agensi submission, approval, installed connection or live consumer
+execution. That preparation record is not a statement of current listing status.
+
+**Distribution update:** An externally supplied public-page observation on
+2026-11-11 at 12:11 UTC reported HTTP 200 for the free **Augnes Software Change
+Check** listing and its example. See the
+[distribution record and result/correction path](SOFTWARE_CHANGE_SKILL_DISTRIBUTION.md)
+for the observation's limits and the retained preparation history. The source
+package is version **0.1.0**, with four files, individual-file execution guidance,
+a bounded request/result example and a deterministic create-only ZIP builder.
+The page observation does not establish delivered-package identity, Agensi MCP
+use, an installed connection or customer outcomes.
 
 Its first development cases are the corrected Augnes setup/root-routing
 instructions and the existing workflow-cost package's compatibility with a
