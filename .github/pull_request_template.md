@@ -1,5 +1,8 @@
 # Summary / outcome
 
+Use the applicable prompts below; omit unrelated fields. Scale the description
+to the change. A template field does not create a new test or approval gate.
+
 - What changed, and what outcome does this PR produce?
 - For material method changes or improvement claims only: target/opportunity → working hypothesis → observed behavioral/result change; burden/cost limits; next decision/uncertainty (including no-change). Distinguish development, correctness, and usefulness evidence.
 
@@ -20,6 +23,8 @@ A shorter description must preserve meaningful authority, safety, data and compa
 ## Verification
 
 - Focused checks and results:
+- For added checks or reruns: concrete uncertainty and the decision they inform;
+  retain applicable prior results and identify invalidated coverage.
 - Local Canonical planner result, when applicable:
 - Deciding exact-head command and result, when applicable:
 - Receipt path/fingerprint; execution/coverage, validity, safety and current-main applicability:
@@ -36,4 +41,9 @@ reproduction, approval, publication authority, or merge authority.
 ## Skipped checks / remaining risks
 
 - Skipped checks with concrete reasons:
-- Remaining risks, limitations, or follow-up work:
+- Required blockers and their resolution conditions, if any:
+- Optional improvements and remaining limitations, if any:
+
+Follow-up review focuses on corrections and their effects. Do not turn optional
+suggestions into completion conditions or automatic follow-up tasks. Use the
+[repository review principles](https://github.com/hynk-studio/augnes/blob/main/AGENTS.md#practical-review-and-closure).
