@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, linkSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createCanonicalTestResourceRoot, beginCanonicalTestResourceUse, settleCanonicalTestResourceUse, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
@@ -13,7 +13,7 @@ import { inspectClassifiedEvidence, finalizeReceipt } from "./local-canonical-re
 import { baseReceipt } from "./fixtures/local-canonical-receipt-v3.mjs";
 import { beginAttempt, finishAttempt, prepareAttemptDependencies, inspectAttemptRecords } from "./local-canonical-attempts.mjs";
 import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
-import { inspectCurrentIntegrationBudgetInputs } from "./local-canonical-fixture-budget-witness.mjs";
+import { inspectCurrentIntegrationBudgetInputs, readCanonicalNextDeclaration } from "./local-canonical-fixture-budget-witness.mjs";
 import { inspectGeneratedStockBrowserInputs } from "./local-canonical-stock-lifecycle-witness.mjs";
 import { observePureContractSource, observePureContractLoader } from "./local-canonical-pure-contract-witness.mjs";
 
@@ -250,6 +250,23 @@ if (process.argv[2] === "--physical-control") {
       write(target, original);
     }
     cases.push("source_lockfile_loader_mutation_refused");
+    const declarationFile = path.join(root, "next-env.d.ts"), heldDeclaration = path.join(owner.root, "held-declaration");
+    assert.equal(readCanonicalNextDeclaration(root).raw.toString(), declaration);
+    rmSync(declarationFile); assert.equal(readCanonicalNextDeclaration(root), null);
+    write(heldDeclaration, declaration);
+    for (const [label, install] of [
+      ["oversized", () => write(declarationFile, "x".repeat(1025))],
+      ["symlink", () => symlinkSync(heldDeclaration, declarationFile)],
+      ["hardlink", () => linkSync(heldDeclaration, declarationFile)],
+      ["directory", () => mkdirSync(declarationFile)],
+      ["fifo", () => execFileSync("mkfifo", [declarationFile], { timeout: 1000 })],
+      ["unsafe mode", () => { write(declarationFile, declaration); chmodSync(declarationFile, 0o666); }],
+    ]) {
+      install(); assert.throws(() => readCanonicalNextDeclaration(root), undefined, label);
+      rmSync(declarationFile, { recursive: true });
+    }
+    write(declarationFile, declaration);
+    cases.push("bounded_no_follow_generated_read_refuses_unsafe_files");
     console.log(JSON.stringify({ basis: "disposable development controls; no deciding authority", cases, prior_head: priorHead, original_sources: originalSources, preparations, process_umask: process.umask(), runtime: digest(runtime) }));
   } finally {
     assert.equal(cleanupIsolatedInvocationResources(isolated, { consumersSettled: settled }).completed, true);

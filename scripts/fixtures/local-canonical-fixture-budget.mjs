@@ -10,6 +10,7 @@ import { REGISTERED_FIXTURE_BUDGET, FIXTURE_BUDGET_CLAIM, FIXTURE_BUDGET_COLLECT
   fixtureBudgetMeasurementStages } from "../local-canonical-fixture-budget-witness.mjs";
 import { observePureContractSource, observePureContractLoader } from "../local-canonical-pure-contract-witness.mjs";
 import { inspectGeneratedStockBrowserInputs } from "../local-canonical-stock-lifecycle-witness.mjs";
+import { finalizeReceipt } from "../local-canonical-receipt.mjs";
 
 // Controlled reader data, explicitly not an actual historical incident or a
 // qualification witness. Final real capture/preparation exercise the producer
@@ -195,10 +196,19 @@ function generatedDeclarationControls(root, parent, write) {
   inspectCurrentIntegrationBudgetInputs(root, witness);
   const started_at = new Date().toISOString();
   write(file, dev);
-  const phase = { id: "e2e-project-experience", browser: true, status: "pass", started_at,
-    finished_at: new Date().toISOString(), cleanup: { completed: true, termination_reason: "natural_exit" } };
-  const receipt = { verification_context: { kind: "isolated-worktree" }, cleanup: { completed: true }, phases: [phase] };
-  const stock = (copy = receipt, focused = witness) => inspectCurrentIntegrationBudgetInputs(root, focused, copy);
+  // Complete registered fields in explicitly synthetic records. Checksums
+  // provide integrity, never physical attempt authority for this fixture.
+  const invocation = "a".repeat(32), environment = digest("synthetic generated declaration environment"), source = witness.after.source;
+  const phase = { id: "e2e-project-experience", command: "node scripts/run-canonical-test-suite.mjs e2e-project-experience",
+    cwd_scope: "root", exclusive: true, browser: true, base_sha: source.head, head_sha: source.head,
+    invocation_id: invocation, environment_fingerprint: environment, status: "pass", exit_status: 0,
+    timed_out: false, spawn_error_code: null, failure_code: null, started_at, finished_at: new Date().toISOString(),
+    cleanup: { completed: true, exit_observed: true, streams_closed: true, remaining_owned_processes: 0, listener_residue_count: null, termination_reason: "natural_exit" } };
+  const receipt = { verification_context: { kind: "isolated-worktree" }, cleanup: { completed: true },
+    repository: { head_sha: source.head, tree_sha: source.tree, base_sha: source.head },
+    run: { invocation_id: invocation, started_at, finished_at: phase.finished_at },
+    inputs: { binding: { head: source.head, tree: source.tree, phase_environment_fingerprints: [{ id: phase.id, fingerprint: environment }] } }, phases: [phase] };
+  const stock = (copy = receipt, focused = witness) => inspectCurrentIntegrationBudgetInputs(root, focused, finalizeReceipt(copy));
   assert.throws(() => inspectCurrentIntegrationBudgetInputs(root, witness), /revision_fixture_budget_invalid/u);
   stock();
   const refused = [];

@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
@@ -19,7 +19,7 @@ import { createIsolatedInvocationResources, cleanupIsolatedInvocationResources }
 import { observeCanonicalRuntimeInputs, observePreparedDependencyInputs, comparePreparedDependencyInputs, digest } from "./local-canonical-inputs.mjs";
 import { observePureContractSource, observePureContractLoader } from "./local-canonical-pure-contract-witness.mjs";
 import { finalizeReceipt } from "./local-canonical-receipt.mjs";
-import { inspectCurrentIntegrationBudgetInputs, nextDeclarationKind } from "./local-canonical-fixture-budget-witness.mjs";
+import { inspectCurrentIntegrationBudgetInputs, nextDeclarationKind, readCanonicalNextDeclaration } from "./local-canonical-fixture-budget-witness.mjs";
 import { inspectGeneratedStockBrowserInputs } from "./local-canonical-stock-lifecycle-witness.mjs";
 import { verifierLifecycleReaderGraph } from "./local-canonical-verifier-lifecycle-witness.mjs";
 import { observeGitRevisionTarget, phaseEnvironment, buildPhasePlan, executePhase, runPhasesSequentially,
@@ -70,10 +70,7 @@ async function capture() {
     web_dependencies: observePreparedDependencyInputs({ repositoryRoot: root, phaseId: "dependencies-web-planning" }),
     target: await observeGitRevisionTarget(context, host.browserExecutablePath, runtime) });
   const declared = name => {
-    const file = path.join(root, "next-env.d.ts"), stat = lstatSync(file, { bigint: true });
-    assert(stat.isFile() && !stat.isSymbolicLink() && stat.nlink === 1n && stat.uid === BigInt(process.getuid()) && (stat.mode & 0o022n) === 0n && stat.size <= 1024n && realpathSync(file) === file);
-    const bytes = readFileSync(file), after = lstatSync(file, { bigint: true });
-    assert(["dev", "ino", "uid", "gid", "mode", "size", "nlink", "mtimeNs", "ctimeNs"].every(key => stat[key] === after[key]));
+    const { raw: bytes, stat } = readCanonicalNextDeclaration(root);
     return { sha256: digest(bytes), bytes: bytes.length, content: save(name + "-declaration.log", bytes),
       mtime_ns: String(stat.mtimeNs), ctime_ns: String(stat.ctimeNs), mode: Number(stat.mode), links: Number(stat.nlink), uid: Number(stat.uid) };
   };
@@ -159,7 +156,8 @@ async function capture() {
         // Next prints Ready before loading configuration and writing types.
         // Let the genuine writer finish; the child retains its 60-second bound.
         while (!setupSettled && !abortSetup.signal.aborted) {
-          if (/Ready in /u.test(setupOutput) && nextDeclarationKind(digest(readFileSync(path.join(root, "next-env.d.ts")))) === "dev") {
+          const declaration = readCanonicalNextDeclaration(root);
+          if (/Ready in /u.test(setupOutput) && declaration && nextDeclarationKind(digest(declaration.raw)) === "dev") {
             abortSetup.abort(); break;
           }
           await delay(50);
@@ -169,7 +167,7 @@ async function capture() {
       if (setupFailure) throw setupFailure;
       assert.equal(controller.signal.aborted, false);
       const setupChild = children.at(-1).id;
-      assert(setup.cancelled && !setup.timed_out && settled); assert.match(readFileSync(path.join(root, "next-env.d.ts"), "utf8"), /\.next\/dev\/types\/routes\.d\.ts/u);
+      assert(setup.cancelled && !setup.timed_out && settled); assert.equal(nextDeclarationKind(digest(readCanonicalNextDeclaration(root).raw)), "dev");
       const initial = { ...before, source: observePureContractSource(root) }, initialDeclaration = declared(name + "-initial");
       const typecheck = phases.find(p => p.id === "typecheck"), build = phases.find(p => p.id === "build");
       const stop = { id: "development-stop", label: "controlled development stop after successful typecheck", display: "node -e process.exit(17)",

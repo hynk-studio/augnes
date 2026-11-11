@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { readFileSync, lstatSync, realpathSync, existsSync } from "node:fs";
+import { constants, closeSync, fstatSync, openSync, readSync, readFileSync, lstatSync, realpathSync, existsSync } from "node:fs";
 import path from "node:path";
 import { comparePreparedDependencyInputs, digest, observePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
@@ -860,18 +860,31 @@ for (const [kind, directory] of [["build", ".next"], ["dev", ".next/dev"]]) {
 }
 export const nextDeclarationKind = sha256 => nextDeclarationKinds.get(sha256);
 
-function readNextDeclaration(root, observed) {
-  if (!Array.isArray(observed) || observed.length > 1) fail();
+export function readCanonicalNextDeclaration(root) {
   const file = path.join(root, "next-env.d.ts");
   const before = lstatSync(file, { bigint: true, throwIfNoEntry: false });
-  if (!before && observed.length === 0) return null;
-  if (observed[0]?.path !== "next-env.d.ts" || !before?.isFile() || before.nlink !== 1n ||
+  if (!before) return null;
+  if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1n ||
       before.uid !== BigInt(process.getuid()) || (before.mode & 0o022n) !== 0n ||
-      before.size > 1024n || realpathSync(file) !== file) fail();
-  const raw = readFileSync(file), after = lstatSync(file, { bigint: true });
-  if (["dev", "ino", "mode", "uid", "gid", "size", "nlink", "ctimeNs", "mtimeNs"].some(key => before[key] !== after[key]) ||
-      BigInt(raw.length) !== after.size || digest(raw) !== observed[0].sha256) fail();
-  return { kind: nextDeclarationKinds.get(observed[0].sha256), mtime: after.mtimeNs, ctime: after.ctimeNs };
+      before.size > 1024n || realpathSync(file) !== file || !constants.O_NOFOLLOW || !constants.O_NONBLOCK) fail();
+  const same = stat => ["dev", "ino", "mode", "uid", "gid", "size", "nlink", "ctimeNs", "mtimeNs"].every(key => before[key] === stat[key]);
+  const fd = openSync(file, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {
+    if (!same(fstatSync(fd, { bigint: true }))) fail();
+    const buffer = Buffer.alloc(1025); let length = 0, count;
+    while (length < buffer.length && (count = readSync(fd, buffer, length, buffer.length - length, null)) > 0) length += count;
+    if (length > 1024 || BigInt(length) !== before.size || !same(fstatSync(fd, { bigint: true })) ||
+        !same(lstatSync(file, { bigint: true }))) fail();
+    return { raw: buffer.subarray(0, length), stat: before };
+  } finally { closeSync(fd); }
+}
+
+function readNextDeclaration(root, observed) {
+  if (!Array.isArray(observed) || observed.length > 1) fail();
+  const current = readCanonicalNextDeclaration(root);
+  if (!current && observed.length === 0) return null;
+  if (!current || observed[0]?.path !== "next-env.d.ts" || digest(current.raw) !== observed[0].sha256) fail();
+  return { kind: nextDeclarationKinds.get(observed[0].sha256), mtime: current.stat.mtimeNs, ctime: current.stat.ctimeNs };
 }
 
 export function settledNextDeclarationOutput(receipt, current, frozen) {
