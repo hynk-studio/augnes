@@ -213,7 +213,7 @@ async function capture() {
   const record = { contract: "augnes.verifier-lifecycle-development.v1", basis: "actual-owned-development-invocation", command: "node scripts/capture-local-canonical-verifier-lifecycle.mjs",
     tested_source_head: head, tree: before?.source.tree, baseline, base, invocation_id: invocationId, started_at, finished_at: new Date().toISOString(), process_umask: process.umask(),
     before, after, environment, preparations, cases, children, phase_logs: phaseLogs, executed_phases: executedPhases, source_overlay: sourceOverlay, inputs: inputs?.snapshot(), cleanup, ownership, truncated,
-    stdout: save("capture.log", Buffer.concat(outputs)), lifecycle: save("capture-lifecycle.log", lifecycle.join("\n") + "\n"), collector: save("collector.mjs", readFileSync(fileURLToPath(import.meta.url))),
+    stdout: save("capture.log", Buffer.concat(outputs)), lifecycle: save("capture-lifecycle.log", lifecycle.join("\n") + "\n"), collector: save("collector-source.log", readFileSync(fileURLToPath(import.meta.url))),
     ...(error ? { capture_error: error.code ?? error.message } : {}) };
   save("capture.json", record); console.log(JSON.stringify({ head, cases: cases.map(c => c.name), cleanup, ownership, error: record.capture_error }));
   if (error || !cleanup?.completed || !ownership.checkout?.released || !ownership.capacity?.released) process.exitCode = 1;

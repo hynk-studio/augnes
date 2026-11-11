@@ -9,7 +9,7 @@ import { finalizeReceipt, verifyReceiptIntegrity } from "./local-canonical-recei
 import { readVerifierLifecycleDelegation, delegatesMaterialSourceCommission, verifierLifecycleAuthorityBindings,
   verifierLifecycleAuthorityScope, MATERIAL_HISTORY_BOUNDARY, INTEGRATION_BUDGET_LIMIT, verifyGitRevisionFailure } from "./local-canonical-git-observation.mjs";
 import { VERIFIER_LIFECYCLE_REPAIR, VERIFIER_LIFECYCLE_GRANT, verifierLifecycleReaderGraph, validVerifierLifecycleInputs, verifyVerifierLifecyclePredecessor, verifyVerifierLifecycleRepair } from "./local-canonical-verifier-lifecycle-witness.mjs";
-import { REVIEWED_REVISION_PHASES, validateReviewedRevisionAuthorityRecords, reviewedRevisionAuthorityObservation } from "./local-canonical-attempts.mjs";
+import { REVIEWED_REVISION_PHASES, validateReviewedRevisionAuthorityRecords, reviewedRevisionAuthorityObservation, revisionArtifact } from "./local-canonical-attempts.mjs";
 
 const [delegationFile, receiptFile, materialFile, ...extra] = process.argv.slice(2);
 if (!delegationFile || !receiptFile || extra.length) throw new Error("usage: test-verifier-lifecycle-evidence.mjs <delegation.json> <predecessor-receipt.json> [preparing-material.json]");
@@ -95,7 +95,9 @@ if (materialFile) {
     cases.push(label);
   }
   const folder = path.dirname(path.resolve(materialFile));
-  const bytes = (ref, limit = 512 * 1024) => { assert.match(ref.artifact, /^[\w.-]+$/u); const raw = readFileSync(path.join(folder, ref.artifact)); assert(raw.length <= limit); assert.equal(digest(raw), ref.sha256); return raw; };
+  // Use the actual bounded artifact owner, including its filename and file
+  // safety rules; a permissive copied adapter conceals packet incompatibility.
+  const bytes = (ref, limit = 512 * 1024) => revisionArtifact(folder, ref, limit);
   const parse = ref => JSON.parse(bytes(ref));
   const prior = parse(p.originals.attempt), completion = parse(p.originals.completion), focused = parse(p.focused), stock = JSON.parse(bytes(p.originals.stock).toString().trim());
   const git = args => execFileSync("git", ["--no-replace-objects", ...args], { timeout: 10000, maxBuffer: 16 * 1024 * 1024 });
@@ -108,6 +110,8 @@ if (materialFile) {
     const changed = structuredClone(stock); mutate(changed); assert.throws(() => predecessor({ stock: changed }), undefined, label); cases.push(label);
   }
   const capture = parse(focused.regression.after);
+  assert.throws(() => bytes({ ...capture.collector, artifact: "collector.mjs" }), /revision_artifact_invalid/u);
+  cases.push("production artifact reader refuses unsupported source extension");
   assert(validVerifierLifecycleInputs(capture, p));
   const substitutedRuntime = structuredClone(capture);
   substitutedRuntime.inputs.binding.runtime_inputs.node.version = "0";
