@@ -1,3 +1,5 @@
+import { checkIndependentProjects } from './web-planning-project-checks.mjs';
+import { checkProjectEntryClient } from './test-web-planning-project-entry-client.mjs';
 import { checkParticipation } from './web-planning-participation-checks.mjs';
 import { checkLargeExchanges } from './web-planning-large-exchange-checks.mjs';
 import { checkWorkSearch } from './web-planning-search-checks.mjs';
@@ -58,6 +60,7 @@ async function save(c,w){return c.request('/api/work/'+w.id+'/save',w.input);}
 async function edit(c,saved,goal){const t=await c.request('/api/work/'+saved.work_id+'/ticket',{expected:headBinding(saved)});assert.equal(t.status,200);return {id:saved.work_id,input:{ticket:t.data.ticket,definition:{...saved.definition,goal},notes:saved.sources.map(s=>({text:s.bounded_summary,source:s.compatibility_source_ref.external_id,observed_at:s.external_ref.observed_at??null,provenance:s.trust_class,label:s.why_included}))}};}
 async function start(name,options={}){const dir=path.join(root,name);await mkdir(dir,{recursive:true});const s=await startLocal({root:dir,...options});open.push(s);return s;}
 try {
+ await checkProjectEntryClient();
  new Script(await readFile(path.join(webRoot,'src/client.js.txt'),'utf8'));
  new Script(await readFile(path.join(webRoot,'src/participation-client.js.txt'),'utf8'));
  const artifact=path.join(root,'artifact');
@@ -203,6 +206,7 @@ try {
  await checkReturnContinuation({start,client,newWork,save,passed});
  await checkReturnReassessment({start,client,newWork,save,passed});
  await checkParticipation({start,client,newWork,save,passed});
+ await checkIndependentProjects({start,root,passed});
  await checkLargeExchanges({start,client,newWork,save,passed});
  await checkOrdinaryFiles({start,client,newWork,save,passed,open});
  await checkStoryWriting({start,client,newWork,save,passed});

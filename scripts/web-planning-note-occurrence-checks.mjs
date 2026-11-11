@@ -2,11 +2,14 @@ import assert from 'node:assert/strict';
 import { headBinding, reference } from '../apps/web_planning/src/contract.ts';
 import { planningDraft, selectHistoricalNote } from '../apps/augnes_apps/scripts/planning-notes.mjs';
 import { predecessorCode } from './web-planning-branch-checks.mjs';
+import { migrationPrefix } from './web-planning-local-runtime.mjs';
 
 // Mint the outstanding tickets with the Worker that could actually accept the
 // incomplete graph, then exercise preview, persistence and replay on the upgrade.
 export async function checkIncomingOccurrences({start,client,passed}) {
-  const server=await start('incoming-occurrences'),current=server.code;
+  // Both pinned predecessors require schema 4. Current owner-only code still
+  // supports that schema; schema-5 migration/isolation has its own real D1 cases.
+  const server=await start('incoming-occurrences',{migrationsFolder:await migrationPrefix(process.env.AUGNES_CANONICAL_TEMP_ROOT,6)}),current=server.code;
   await server.setOptions({script:await predecessorCode('ddc53e87a4c0dfa5dceb9d343376e15be321d23c')});
   let c=await client(server);
   const ok=async req=>{const r=await req;assert.equal(r.status,200,JSON.stringify(r.data));return r.data;};
