@@ -18,7 +18,7 @@ const p=JSON.parse(readFileSync(file,"utf8")),context=admitVerificationContext({
 const host=collectHostEnvironment(repositoryRoot);
 assertDecidingEnvironment({host:host.public,nodePolicy:evaluateNodePolicy(),diskMinimumBytes:FULL_MINIMUM_DISK_BYTES});
 if (!host.browserExecutablePath) throw new Error("revision_preparation_browser_unavailable");
-const runtimeInputs=observeRevisionInputs(p,host),live=await observeGitRevisionTarget(context,host.browserExecutablePath,runtimeInputs);
+const runtimeInputs=observeRevisionInputs(p,host),live=()=>observeGitRevisionTarget(context,host.browserExecutablePath,runtimeInputs);
 const result=await prepareMaterialSourceRevision({file,repositoryRoot,predecessorRoot:repositoryRoot,
   anchorRoot:verificationAnchorRoot(context),runtimeInputs,live});
 console.log(JSON.stringify({...result,context,host:host.public,deciding:false,independent_attestation:false}));

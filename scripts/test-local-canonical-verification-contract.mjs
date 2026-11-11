@@ -7,6 +7,9 @@ import { RESEARCH_REGISTRATION_PATH, RESEARCH_SOURCE_PATHS, RESEARCH_OWNER_ID,
 import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { assertVerificationDocumentation } from "./validate-canonical-docs-change.mjs";
 import { buildPhasePlan, OPERATING_POLICY_PHASE_IDS } from "./run-local-canonical-verification.mjs";
+import { integrationBudgetRegistration, REGISTERED_INTEGRATION_BUDGET, verifyIntegrationBudgetAdoptedEntries } from "./local-canonical-fixture-budget-witness.mjs";
+import { integrationBudgetAuthorityBindings, integrationBudgetAuthorityScope, INTEGRATION_BUDGET_GRANT,
+  INTEGRATION_BUDGET_LIMIT, MATERIAL_HISTORY_BOUNDARY } from "./local-canonical-git-observation.mjs";
 import { spawnSync } from "node:child_process";
 import {
   existsSync,
@@ -44,6 +47,82 @@ const pullRequestTemplate = readRepositoryFile(
 const canonicalSuite = readRepositoryFile(
   "scripts/run-canonical-test-suite.mjs",
 );
+const registration = (suite = canonicalSuite, executor = readRepositoryFile("scripts/run-local-canonical-verification.mjs")) =>
+  integrationBudgetRegistration(([, target]) => {
+    const file = target.split(":")[1];
+    return Buffer.from(file === "scripts/run-canonical-test-suite.mjs" ? suite :
+      file === "scripts/run-local-canonical-verification.mjs" ? executor : readRepositoryFile(file));
+  }, "fixture");
+const actualIntegration = registration();
+assert.throws(() => registration(canonicalSuite.replace(
+  '...rootNode("scripts/test-external-response.ts")', '...rootNode("scripts/test-external-response-selective.ts")',
+)), /revision_fixture_budget_invalid/u);
+assert.throws(() => registration(canonicalSuite.replace(
+  /(...rootNode\("scripts\/test-external-response\.ts"\),[\s\S]*?requireNaturalExit:) true/u, "$1 false",
+)), /revision_fixture_budget_invalid/u);
+assert.throws(() => registration(canonicalSuite.replace(
+  '...rootNode("scripts/test-external-response.ts"),',
+  '...rootNode("scripts/test-external-response.ts"), get timeoutMs() { return 600000; },',
+)), /revision_fixture_budget_invalid/u);
+assert.throws(() => registration(canonicalSuite,readRepositoryFile("scripts/run-local-canonical-verification.mjs")
+  .replace("4_200_000","100_000")), /revision_fixture_budget_invalid/u);
+assert(actualIntegration.parentMs > actualIntegration.childMs + 13000);
+const quotedPath = 'scripts/복구 "probe".ts';
+const blob = {mode:"100644",type:"blob",oid:"1".repeat(40)};
+const unusualEntry = new Map([[quotedPath,blob]]);
+assert.throws(() => verifyIntegrationBudgetAdoptedEntries(new Map(),unusualEntry,new Map(),new Set()), /revision_fixture_budget_invalid/u);
+verifyIntegrationBudgetAdoptedEntries(new Map(),unusualEntry,unusualEntry,new Set());
+const renamedEntry = new Map([["scripts/replacement-probe.ts",blob]]);
+assert.throws(() => verifyIntegrationBudgetAdoptedEntries(unusualEntry,renamedEntry,
+  new Map([...unusualEntry,...renamedEntry]),new Set()), /revision_fixture_budget_invalid/u);
+assert.throws(() => verifyIntegrationBudgetAdoptedEntries(unusualEntry,
+  new Map([[quotedPath,{...blob,mode:"100755"}]]),unusualEntry,new Set()), /revision_fixture_budget_invalid/u);
+const ancestorEntry = new Map([[quotedPath,{...blob,oid:"2".repeat(40)}]]);
+const adoptedEntry = new Map([[quotedPath,{...blob,oid:"3".repeat(40)}]]);
+const integratedEntry = new Map([[quotedPath,{...blob,oid:"4".repeat(40)}]]);
+const observedMerge = args => {
+  if (args[0] === "merge-file") {
+    assert.deepEqual(args,["merge-file","--stdout","--object-id",blob.oid,ancestorEntry.get(quotedPath).oid,adoptedEntry.get(quotedPath).oid]);
+    return Buffer.from("accepted changes and adopted changes\n");
+  }
+  assert.equal(args[0],"cat-file");
+  return Buffer.from(args[2] === integratedEntry.get(quotedPath).oid ? "accepted changes and adopted changes\n" : "extra changes\n");
+};
+const mergeInputs = {ancestor:ancestorEntry,git:observedMerge};
+verifyIntegrationBudgetAdoptedEntries(unusualEntry,integratedEntry,adoptedEntry,new Set(),mergeInputs);
+for (const [candidate,main,inputs] of [
+  [new Map([[quotedPath,{...blob,oid:"5".repeat(40)}]]),adoptedEntry,mergeInputs],
+  [integratedEntry,ancestorEntry,mergeInputs],
+  [new Map([[quotedPath,{...integratedEntry.get(quotedPath),mode:"100755"}]]),adoptedEntry,mergeInputs],
+  [integratedEntry,adoptedEntry,{...mergeInputs,git:()=>{throw new Error("conflict");}}],
+]) assert.throws(() => verifyIntegrationBudgetAdoptedEntries(unusualEntry,candidate,main,new Set(),inputs), /revision_fixture_budget_invalid/u);
+
+// Binding-only fixtures. The production authentication owner separately
+// verifies maintainer identity, publication, chronology and the physical tip.
+const target = {
+  schema:"augnes.local-canonical-source-correction.v7", branch:"codex/integration-budget-controls", pull_request:71,
+  base:"a".repeat(40), head:"b".repeat(40), tree:"c".repeat(40),
+  prior_family_id:"d".repeat(64), prior_number:1, prior_attempt_id:"prior-attempt",
+  prior_receipt_fingerprint:"e".repeat(64),
+  inputs:{inventory_sha256:"f".repeat(64),identity_sha256:"0".repeat(64)},
+  commission:{root_receipt_fingerprint:"1".repeat(64),delegation:{id:42},evidence_kind:REGISTERED_INTEGRATION_BUDGET},
+  accepted:{review:{id:64}},
+};
+const bindings = integrationBudgetAuthorityBindings(target);
+const accepted = {body:["Source review decision: ACCEPT / RETAIN for prospective qualification.",bindings,MATERIAL_HISTORY_BOUNDARY].join("\n\n")};
+const commission = {body:[INTEGRATION_BUDGET_GRANT,bindings,
+  "Accepted review: https://github.com/hynk-studio/augnes/pull/71#pullrequestreview-64",
+  MATERIAL_HISTORY_BOUNDARY,INTEGRATION_BUDGET_LIMIT].join("\n\n")};
+assert(integrationBudgetAuthorityScope(target,accepted,commission));
+for (const body of [
+  commission.body.replace("Exactly one","Exactly two"),
+  commission.body.replace("No ordinal two","Allow ordinal two"),
+  commission.body.replace(target.inputs.inventory_sha256,"2".repeat(64)),
+  commission.body.replace(target.prior_family_id,"3".repeat(64)),
+  commission.body.replace("#pullrequestreview-64","#pullrequestreview-65"),
+  commission.body+"\n\nExample only.",
+]) assert(!integrationBudgetAuthorityScope(target,accepted,{body}));
+assert(!integrationBudgetAuthorityScope(target,{body:"> "+accepted.body},commission));
 const runtimeOperabilityOwnership = readRepositoryFile(
   "scripts/runtime-operability-ownership.mjs",
 );
@@ -674,7 +753,7 @@ for (const fragment of ['timeoutMs: 30_000', 'requireNaturalExit: true', '"scrip
   requireText(isolatedChild, fragment, "isolated verification has a bounded authority child and complete cleanup");
 
 const revisionSteps = canonicalSuite.slice(canonicalSuite.indexOf("const reviewedRevisionSteps ="), canonicalSuite.indexOf("const suites ="));
-for (const fragment of ['["revision", "settlement", "browser", "git", "git-input", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation", "serial-aggregate", "serial-material"].map(group', '"--reviewed-revision-controls", group',
+for (const fragment of ['["revision", "settlement", "browser", "git", "git-input", "git-input-lifecycle", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation", "serial-aggregate", "serial-material"].map(group', '"--reviewed-revision-controls", group',
   'timeoutMs: group === "serial-material" ? 75_000 : group === "serial-aggregate" ? AUXILIARY_EXECUTION_BUDGETS.reviewSerialAggregateControlMs : 30_000', 'requireNaturalExit: true'])
   requireText(revisionSteps, fragment, "each reviewed fixture group has its own bounded natural-exit registration");
 assert.equal(countOccurrences(canonicalSuite, "...reviewedRevisionSteps,"), 1);
@@ -951,7 +1030,7 @@ for (const fragment of [
   `runCanonicalChildGroups,`,
   `assertCanonicalConcurrentChildLabelsV01,`,
   `integrationInventory.map((step) => step.label)`,
-  `maxConcurrency: projectWorkFocus ? 1 : 2`,
+  `maxConcurrency: integrationFocus ? 1 : 2`,
   `{ id: "operator-process", children:`,
   `{ id: "supporting-serial", children:`,
   `new Set(preparedSteps.map((step) => step.resourceRoot)).size`,
@@ -1202,7 +1281,7 @@ const experienceUseRegistration = readCanonicalChildRegistration(integrationSour
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-companion-experience-use.ts"'])
   requireText(experienceUseRegistration.block, fragment, "ordinary experience use owns its authenticated disposable state, listener and natural-exit file consumers");
 const externalResponseRegistration = readCanonicalChildRegistration(integrationSource, "external-response");
-for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 90_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-external-response.ts"'])
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 120_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-external-response.ts"'])
   requireText(externalResponseRegistration.block, fragment, "external response owns disposable stores, loopback service, fresh file consumers and recovery settlement");
 const selectiveResponseRegistration = readCanonicalChildRegistration(integrationSource, "external-response-selective");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 90_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '...rootNode("scripts/test-external-response-selective.ts")'])
@@ -1282,8 +1361,10 @@ for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 45_000', '"pro
   requireText(continuationRegistration.block, fragment, "persisted continuation must retain bounded serial ownership");
 assert.equal(countOccurrences(firstWorkFixture, "await assertPersistedScopedContinuationV01();"), 1,
   "persisted continuation cases run once through their complete child");
-requireText(canonicalSuite, `coverage: projectWorkFocus ? "focused_project_work_children_only" : revisionFocus ? "focused_reviewed_revision_children_only" : "complete_suite"`,
+requireText(canonicalSuite, `externalResponseFocus ? "focused_external_response_child_only"`,
   "focused children cannot impersonate a complete suite");
+requireText(canonicalSuite, `revisionFocus ? "focused_reviewed_revision_children_only" : "complete_suite"`,
+  "reviewed-revision focus remains distinct from the complete suite");
 const qualifiedRuntimeRegistryRegistration = readCanonicalChildRegistration(
   integrationSource,
   "codex-qualified-runtime-registry",

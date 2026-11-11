@@ -658,9 +658,11 @@ export function inspectClassifiedEvidence(receipt, issues, incomplete = null) {
     const observedUnsafeDependency = !resource && prepared && event.disposition === "safety_violation" && event.after === null && event.diagnostic === undefined &&
       ["dependency_input_root_unsafe", "dependency_input_entry_unsafe", "dependency_input_link_escape", "dependency_input_path_alias", "dependency_input_cache_unsafe", "dependency_input_generated_unsafe", "dependency_input_external_hardlink"].includes(prepared.error);
     const classification = resource?.classification ?? (prepared ? "execution" : null);
-    const comparison = observedFailure || observedUnsafeDependency ? null : prepared && !resource ? comparePreparedDependencyInputs(prepared.before, event.after) :
+    const prerequisiteFailure = event.prerequisite_sha256 !== undefined && prepared?.prerequisite &&
+      event.prerequisite_sha256 === digest(prepared.prerequisite) && digest(prepared.before) === digest(event.after);
+    const comparison = observedFailure || observedUnsafeDependency ? null : prepared && !resource ? comparePreparedDependencyInputs(prerequisiteFailure ? prepared.prerequisite : prepared.before, event.after) :
       resource ? classifyInputChange(resource.before, event.after, resource, input) : null;
-    if ((!resource && !prepared) || event.classification !== classification ||
+    if ((!resource && !prepared) || event.prerequisite_sha256 !== undefined && !prerequisiteFailure || event.classification !== classification ||
         (!observedFailure && !observedUnsafeDependency && (!event.after || event.diagnostic !== undefined || comparison !== event.disposition)) ||
         event.identity !== inputEventIdentity(event)) issues.push("receipt_input_event_invalid");
   }
@@ -692,7 +694,8 @@ export function inspectClassifiedEvidence(receipt, issues, incomplete = null) {
     if (valid) for (const record of records) {
       try {
         const before = preparedDependencyIdentity(record.before), after = preparedDependencyIdentity(record.after);
-        valid &&= Object.keys(record).sort().join(",") === "after,before,error,phase_id,unchanged" && record.unchanged === true && record.error === null &&
+        valid &&= Object.keys(record).sort().join(",") === `after,before,error,phase_id,${record.prerequisite === undefined ? "" : "prerequisite,"}unchanged` && record.unchanged === true && record.error === null &&
+          (record.prerequisite === undefined || comparePreparedDependencyInputs(record.prerequisite, record.before) === "unchanged") &&
           before.phase_id === record.phase_id && after.phase_id === record.phase_id && digest(before) === digest(after) &&
           before.sources.find(source => source.name === "package-lock.json").sha256 === receipt.dependencies?.[phaseLocks[record.phase_id]];
       } catch { valid = false; }

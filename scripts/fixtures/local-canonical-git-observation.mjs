@@ -12,6 +12,7 @@ import { GIT_INPUT_REVISION, GIT_INPUT_HISTORY_BOUNDARY, gitObservationIncident,
 import { runCanonicalChild } from "../canonical-child-runner.mjs";
 import { behavior, dependencyRecords, executeFixture } from "./local-canonical-browser-successor.mjs";
 import { fixtureNow } from "./local-canonical-authority-clock.mjs";
+import { runRevisionLifecycleControls } from "./local-canonical-revision-lifecycle.mjs";
 
 const time = offset => new Date(fixtureNow() + offset).toISOString();
 const product = "apps/web_planning/src/client.js.txt", fixture = "scripts/fixture.mjs";
@@ -862,7 +863,7 @@ export async function completeGitRevisionControls(c,h) {
 // Controlled historical interruption; real disposable Git reads/mutations,
 // natural child settlement, authenticated transport and append-only admission.
 // This is not production qualification or authority for any existing PR.
-export async function runGitInputRevisionControls(c,h,sourceSuccessor=false) {
+export async function runGitInputRevisionControls(c,h,sourceSuccessor=false,lifecycleOnly=false) {
   const original=c.prior, ledger=path.join(c.legacyRoot,"completion-1.json"), edge=path.join(c.legacyRoot,"correction-successor.json");
   const historical=[ledger,path.join(c.legacyRoot,"attempt-1.json"),path.join(c.checkout,".augnes-local-verification/receipts",original.run.id+".json")];
   const historicalBytes=historical.map(f=>readFileSync(f));
@@ -904,7 +905,7 @@ export async function runGitInputRevisionControls(c,h,sourceSuccessor=false) {
     return inspectGitRevisionPreparation({file:prep,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live});
   };
   assert.deepEqual(prepare().target,gitReviewTarget(p));assert(!existsSync(edge));
-  if(!sourceSuccessor){
+  if(!sourceSuccessor && !lifecycleOnly){
   // A real Git product delta cannot use the unchanged-product lane.
   h.write(path.join(c.checkout,product),"let decision = changedProduct();\n");c.git(["add",product]);
   const productTree=c.git(["write-tree"]).toString().trim();
@@ -970,7 +971,7 @@ export async function runGitInputRevisionControls(c,h,sourceSuccessor=false) {
   const bind=()=>{p.accepted.review.sha256=digest(reviewedRevisionAuthorityObservation(review,"accepted_revision"));
     p.authorization.grant_sha256=digest(reviewedRevisionAuthorityObservation(grant,"execution_commission"));h.write(c.file,p);};
   const grantBody=grant.body,reviewBody=review.body;
-  if(!sourceSuccessor){
+  if(!sourceSuccessor && !lifecycleOnly){
   for(const object of [review,grant]) {
     const body=object.body;
     for(const bad of [body.replace(GIT_INPUT_HISTORY_BOUNDARY,""),body.replace(GIT_INPUT_REVISION,""),"> "+body,"HOLD\n"+body]){
@@ -988,6 +989,7 @@ export async function runGitInputRevisionControls(c,h,sourceSuccessor=false) {
     for(const [i,file] of historical.entries())assert.deepEqual(readFileSync(file),historicalBytes[i]);
     return;
   }
+  if(lifecycleOnly) return runRevisionLifecycleControls(c,h,proof,cap,prepare);
   // Two ordinary fresh processes race for one existing exclusive successor.
   // The winning reservation is deliberately left incomplete in this isolated
   // fork, so interruption cannot become another allowance.

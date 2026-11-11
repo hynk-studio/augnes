@@ -35,6 +35,53 @@ use current ordinary authority for its own qualification. Adopting this proposal
 or renewing #1612 requires the final separate review decision; no maturity,
 merge or installed-adoption claim follows from preparing the path.
 
+For the verifier-lifecycle continuation, measure the complete registered synthetic
+fixture rather than attributing its timeout to actual Browser work. Natural
+development passes retain that meaning; they do not explain the historical
+interruption. Exercise genuine Next dev setup, registered typegen/typecheck and
+build, including natural failure/stop before build and a fresh-process reader.
+Separate actual producer records from structural refusals and from disposable
+physical attempt/completion controls. A checksum alone is not authentic lineage.
+Generated content, safe file identity, supported writer interval, exact command,
+invocation and environment all remain necessary. A preparation, acceptance or
+grant is not a qualification result, and a new commission cannot erase spent
+history or acquire a retry by failing.
+
+### Branch-local TS capture evidence
+
+For the #1612 compatibility candidate, distinguish structural reader fixtures
+from actual focused execution. RED uses the entire prior helper; GREEN uses
+the accepted corrected helper, with the same candidate driver, scheduler and
+collector. Check the complete effective Git catalogue on disk before and after
+each naturally settled child, and acquire actual v2 root dependency observations
+on both sides of each execution. The four dependency identities must agree and
+trace to successful clean preparation. Later scans cannot backfill old runs.
+
+The fixture must preserve response semantics and native exceptions. Its one
+shared pending response must produce a genuine prior failure and the corrected
+wait/absence/release plus downstream replacement-owner assertions. Cleanup
+release is not successful boundary release. Test traversal, source substitution,
+wrong runtime/command, unsafe artifacts, dependency drift and incomplete natural
+settlement through the actual reader. Keep the original unknown interval,
+failures, false stocks and consumed ordinals intact. Focused evidence and this
+amended reader cannot qualify their own implementation; Full, fresh stock and
+receiving acceptance remain distinct later decisions under existing authority.
+
+### Current observation at reviewed admission
+
+Exercise delayed immutable validation through the production reader and native
+clock: a previously acquired observation can expire, while acquisition after
+that validation reaches the reservation boundary. Synthetic near-deadline
+observations are structural controls, not actual Companion or causal product
+evidence. Also delay later blocking checks to prove they cannot escape the same
+60-second guard. Cover failed/future/stale/incoherent observations, changed
+proof/material/source/runtime/authority, unsafe candidate paths, lost ownership,
+changed physical tip, cancellation, exclusive reservation and replay. Preparation
+must remain non-reserving. Stock must independently reject current dependency or
+source changes and expired observations. Retain the r8 pre-reservation refusal,
+false stock and all earlier consumed history; passing these controls cannot
+retroactively validate any earlier run or grant another invocation.
+
 ## Maturity model
 
 | Level | Name | Required evidence |
@@ -1703,6 +1750,49 @@ human/model usefulness, installed adoption, general post-withdrawal cleanup,
 cancellation, payment and settlement remain NOT_RUN or unsupported. The existing
 #1453/#1527/#1537/#1538 allocations and #1595 RETAIN conclusion are unchanged.
 
+### Original receipt after execution-binding withdrawal (#1610)
+
+The external-response integration extends its existing production owners with
+task-owned withdrawal cases. A real aggregate POST retains a counterpart receipt
+before losing its actual response. After removal of the sending envelope, a
+fresh ordinary consumer reads the unresolved obligation without contact or
+consumption. Explicit finite receipt-only authority then retrieves that original
+receipt with the sending envelope still absent. Complete bytes are read and
+independently checked, a late result is deliberately reconsidered, and a fresh
+consumer checks/uses it in a dependent report followed by separate saved readback.
+Actual POST, GET, processing-effect and reservation counts remain distinct.
+
+The R13 verification development keeps the R12 12 PASS / 1 FAIL / 3 NOT_RUN
+and false stock immutable. New bounded Browser observations distinguish B1
+refresh, explicit review, field updates and Save, including visibility and fast
+waits. A development capture passed those B1 checkpoints then failed at the
+later B2 readiness wait; a subsequent attributed capture passed naturally.
+Neither identifies R12's exact failed control or cause. Current readiness checks
+require visible, enabled controls without retries or longer deadlines.
+
+Dependency regression controls compare accepted focused root/Web inputs with
+actual registered clean-preparation outputs before expensive consumers. Genuine
+prior input-owner bytes demonstrate the missing early check; corrected owner
+controls retain content/layout/permission/location refusals, later mutation,
+capability ownership and fresh-process generated-output stock checks. Disposable
+structural fixtures and passing development journeys do not establish deciding
+qualification. Process settings, runtime/source attribution, complete inventory,
+independent acceptance and single-use authority remain separate obligations.
+
+Affected controls exercise counterpart rejection of POST/other-request/changed
+identity, missing or exhausted permission, never-issued work, original-owner and
+input mismatch, authority loss at effect boundaries, concurrency and replay,
+legacy/separate-route accounting, credential rotation and configuration
+relocation, uncertain/absent replies, closed work and staged restore suspension.
+Successful histories use real writers and transport; malformed negative fixtures
+do not manufacture issuance, permission, receipts or consumer decisions.
+The existing #1597 evidence and controls remain separately attributable.
+
+This establishes a prospective owned-loopback capability, not remote execution
+secret revocation, cancellation, settlement, arbitrary provider compatibility,
+installed adoption or comparative usefulness. Exact-candidate qualification,
+development failures, original artifacts and cleanup are reported separately.
+
 ### Non-model harness qualification evidence
 
 For [non-model harness readiness](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#non-model-harness-capability-readiness--2026-10-31),
@@ -1882,7 +1972,7 @@ hypothetical arrangement is implemented or authorize the described actions.
 | Private know-how service with agreed benefit | A participant returns checkable work while retaining its private method and receives the agreed benefit through the named recipient. Keep deliverable, compensation and actual fulfillment separate; a service return does not imply method publication, project ownership or free labor. | Selected terms/material and contribution decisions; no payment or general rights-enforcement engine is implied. |
 | Permitted redelegation | A scoped downstream contribution preserves commissioning responsibility, disclosed material limits and aggregate outstanding commitments. Changing executor or adding a child must not duplicate budget, transfer project direction or silently authorize further delegation. | Current grants, choice and external-effect journals; unsupported multi-party allocation/redelegation stays an explicit gap. |
 | Paid negative experiment | An agreed, properly performed experiment can return a useful negative or inconclusive result and satisfy its stated compensation condition. Preserve the scientific/task outcome, deliverable acceptance and compensation evidence separately; do not relabel the hypothesis successful or simulated payment real. | Authored terms, original evidence and result-linked assessment. |
-| Timeout, expired task authority and cleanup | A timeout preserves unknown effects and outstanding obligations. Reconcile or clean up only through still-valid authority or a separately authorized limited cleanup path; expiry neither authorizes retry nor erases cleanup responsibility. Missing cleanup authority leaves the obligation unresolved, not an implicitly renewed grant. Silence or local closure is not remote cancellation. | External-response sent-reservation/query/closure and native lifecycle owners; #1597 supplies only explicitly bounded original-receipt observation after send expiry/exhaustion with unchanged bindings, not general cleanup after withdrawal. |
+| Timeout, expired task authority and cleanup | A timeout preserves unknown effects and outstanding obligations. Reconcile or clean up only through still-valid authority or a separately authorized limited cleanup path; expiry neither authorizes retry nor erases cleanup responsibility. Missing cleanup authority leaves the obligation unresolved, not an implicitly renewed grant. Silence or local closure is not remote cancellation. | External-response sent-reservation/query/closure and native lifecycle owners; #1597 supplies bounded original-receipt observation after send expiry/exhaustion with unchanged bindings; #1610 adds prospective confirmation after binding withdrawal with separate receipt-only authority. Neither grants general cleanup, cancellation or settlement. |
 | Partial adoption of a return | Check and use a valid part for the current purpose while declining another part and retaining the complete original and limitations. A returned artifact, passing component or accepted payment must not become wholesale semantic acceptance. | Manual contribution assessment and external-response check/use/material dependency. |
 | Conditional method reuse in another task | Pin the prior method and basis, reconsider changed conditions, select permitted material and validate authority for the new task. Valid non-use is allowed; an earlier success, source link or executor grant is not universal applicability, causal proof or a transferable permission. | Task-bound contribution/profile notes, source selection, material/correction and current grants. |
 | Visibility without willingness | A visible example or asset can be readable while its author declines work or keeps its method private. Change willingness or access independently: no automatic request acceptance, private indexing or competence failure follows from nonresponse. | Access-filtered discovery, explicit shares and per-request response; no global participant directory is assumed. |

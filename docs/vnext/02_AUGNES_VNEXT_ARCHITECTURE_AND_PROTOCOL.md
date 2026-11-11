@@ -923,6 +923,50 @@ only to the supported owned receipt-query contract; GET is not generally free
 or effectless. Post-withdrawal cleanup, cancellation and settlement remain
 unsupported, separately authorized responsibilities.
 
+For prospective confirmation after execution-binding withdrawal (#1610), a new
+work additionally retains `receipt_owner:{endpoint,instance}` from its actual
+configured preparation. Its content address and the original issued attempt
+bind workspace/project, input, terms and native material basis. The production
+POST conveys that nonsecret composite identity to the exact loopback counterpart,
+which stores it with its real receipt. No execution secret is retained or
+reconstructed. Existing record hashes are unchanged; legacy work lacking the
+original owner is unsupported by this route, and preparation replay never
+backfills it. A prepared but never-issued attempt remains ineligible.
+
+An optional top-level private `receipt_permissions` entry carries the complete
+original `receipt` identity, a distinct receipt-only `secret`, finite
+`expires_at`, `max_queries` (1–16) and bounded `timeout_ms`. It must match
+the immutable work/attempt and currently admitted project exactly. It can
+authorize only the original receipt GET while the sending envelope is absent.
+The owned counterpart issues this credential only by explicit operator action
+after retaining the real request, and enforces its request/identity, method,
+expiry and finite query bound. A restarted counterpart, reused endpoint or
+replacement envelope cannot supply the original incarnation or credential.
+Local binding removal makes no claim of remote secret revocation or cancellation.
+
+Both legacy and separate observation permissions use the same original attempt's
+`sent.receipt_observation` ledger and first-reservation expiry/ceiling. Moving
+configuration, replacing a credential or changing routes neither resets nor
+enlarges consumption. An existing explicit reservation cannot fall back to legacy
+call allowance. Admission, egress and commit check the currently selected
+authority, original identity, input integrity, project/root, authentication and
+runtime admission; in-flight authority changes refuse and retain the consumed
+reservation. This route reuses the original retained envelope's suspension owner
+without needing its live execution configuration. Restored history/configuration
+does not become permission. New preparation metadata is recovery-validated;
+older validators/configuration readers refuse the additive representation.
+Live downgrade is unsupported: retain the complete newer backup and use a
+pre-increment backup for an older runtime. No Core kind or tool registry is added.
+New-work POSTs require the updated owned counterpart; its older strict reader
+rejects `receipt_identity`. Legacy work retains its original wire shape.
+
+Ordinary reads retain unresolved responsibility without contact or consumption
+when separate receipt authority is absent. Returned bytes enter the existing
+material/reconsider/check/use owners; closure, deadlines, execution withdrawal
+and remaining obligations preserve their meaning. This bounded receipt path
+does not grant sending, amendment, retransmission, replacement, reopening,
+cancellation or settlement.
+
 Checks and use are attributed consumer statements. The consumer must actually
 read bytes and independently verify identity, scope, correctness and limitations;
 the use record requires a current passing check and an output material dependency.
