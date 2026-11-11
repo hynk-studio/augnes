@@ -121,7 +121,7 @@ export async function completeSyntheticReceipt(c, reserve) {
     {id:"node-executable",classification:"execution",location_fingerprint:c.inputs.node.location_fingerprint,before:c.inputs.node.observation,readOnlyExecutable:true},
     {id:"node-headers",classification:"execution",location_fingerprint:c.inputs.headers.location_fingerprint,before:c.inputs.headers.observation,nodeHeaders:true},
     {id:"browser-executable",classification:"execution",location_fingerprint:digest("synthetic browser"),before:c.inputs.node.observation,readOnlyExecutable:true}]};
-  const a=await reserve({contractFingerprint:digest(input)}), packages=dependencyRecords(c), finish=new Date().toISOString();
+  const a=await reserve({contractFingerprint:digest(input)}), packages=c.syntheticDependencies??dependencyRecords(c), finish=new Date().toISOString();
   Object.assign(r.repository,{head_sha:c.head,tree_sha:c.tree,base_sha:c.base,branch:c.branch});
   Object.assign(r.integration_base,{requested_base_sha:c.base,tested_head_sha:c.head,checked_at:start});Object.assign(r.integration_base.observation,{sha:c.base,observed_at:start});
   Object.assign(r.evidence,{mode:"changed",selected_plan:"full-canonical",planner_plan:"full-canonical",planner_reason:"one_or_more_changes_require_full_canonical",planner_changed_paths:["lib/work.mjs"],planner_owner_ids:["local-canonical-integrity"],planner_full_reasons:["fixture_source_change"],planner_browser_phase_ids:plan.filter(p=>p.browser).map(p=>p.id)});

@@ -972,8 +972,9 @@ Only normal admission can create the invocation-local capability and reserve.
 Read-only preparation cannot create either. The physical predecessor's existing
 exclusive `correction-successor.json` consumes one invocation, including a stop
 between edge and attempt. The target must not already exist. The attempt has
-budget initial1/recovery0 and separate `improvement_authority`; it is terminal
-across every old/new source/recovery entry. Orphan, partial or truncated records
+budget initial1/recovery0 and separate `improvement_authority`; that attempt and
+grant remain terminal. Only the separately commissioned maintenance case below
+can admit a repaired future target. Orphan, partial or truncated records
 remain blocked and retained; no fabricated completion or reclamation. No global
 grant registry, new execution CLI, expiry protocol or additional recovery exists.
 
@@ -987,6 +988,80 @@ Fresh receipt validation, independent result audit, owned cleanup and installed
 Companion preservation remain mandatory regardless of outcome. A deciding
 failure/interruption stops further execution. The historical lossy private-review
 projection refuses this case; retain the original receipt and private artifacts.
+
+### Separately commissioned maintenance (source-correction v2)
+
+`prospective_maintenance` represents a substantive functional or environment
+repair after a settled improvement or maintenance attempt. It does not renew
+that attempt or grant. The original disposition, receipt, false stock, adverse
+observations, UNKNOWN causes and cumulative accounting remain immutable. The
+case accepts only `product_failure`, `input_invalidation` or `safety_violation`
+with completed cleanup, and binds the latest physical tip. Other dispositions,
+unsettled records and unchanged or cosmetic candidates remain refused.
+
+The existing v2 envelope binds exact branch/base/head/tree, PR, predecessor,
+and strict private `evidence` and `review` artifact references. The evidence
+contains original attempt/completion/receipt/false stock bytes, the complete
+committed delta and path inventory, canonical runtime and all three prepared
+dependency observations, and individually attributed repairs. Every failed
+phase and recorded input fault must be addressed. Each repair retains the
+ordinary production-source predicate and natural RED/GREEN requirement, with
+exact old/final blobs, common executable fixture, environment/input artifacts,
+execution-time start/end bindings, chronology, logs and completed cleanup.
+PASS/PASS improvement samples and killed children cannot be relabeled as RED.
+The historical evidence index commits all known adverse observations, their
+limitations, the predecessor's evidence commitment and cumulative cost. A
+separate source/evidence review must accept the complete delta, affected
+consumers, all repairs, preserved checks, history and safe-input order. Review
+and authority are responsible for the completeness of known history; a digest
+alone does not prove an unobserved fact.
+
+Safe setup precedes admission. Normal development preparation may establish
+lockfile-fixed dependencies in an authorized task-owned checkout without an
+attempt capability. It must preserve retained evidence and foreign resources;
+permission to implement this case does not authorize modifying unsafe retained
+stock. The read-only setup observer reports all three actual dependency trees.
+Admission requires them to match the reviewed safe observations before any
+authority await, and rechecks them immediately before the exclusive edge.
+The deciding executor still runs its normal clean `npm ci` phases. Its existing
+prepared-input owner then compares each result with the admitted prerequisite
+and protects it thereafter. No deciding work or capability is needed to make
+the prerequisite safe, and a promise that later installation will fix unsafe
+stock never satisfies admission.
+
+The new operative acceptance begins exactly with
+`Accept this substantively repaired maintenance candidate and its evidence.`
+and one closed canonical JSON object. The later distinct commission begins
+exactly with
+`Commission one prospective maintenance qualification without reopening the terminal attempt.`
+and one closed canonical JSON object. The existing authenticated GitHub GET
+transport verifies current maintainer permission, exact Draft PR/base/head,
+unedited record bytes and chronology. Acceptance binds the complete independent
+report. The commission binds acceptance, evidence, review, planner/phase/owner
+inventory, history and the terminal predecessor; it must explicitly choose
+`accept_once_under_unchanged_bounds` for cumulative cost and timing risk,
+maximum1/recovery0/unchanged_retry0, failure/interruption stop, fresh validation,
+result audit and cleanup. No old grant, generic acceptance or fallback route
+supplies these conditions.
+
+Only the normal executor reserves the existing exclusive physical successor
+edge. Concurrent contenders, replay and preexisting target state refuse. An
+interruption after that edge, even before an attempt file, consumes the
+commission; orphan/truncated state is retained and never reclaimed. The new
+attempt derives initial1/recovery0 and records `maintenance_authority`.
+Ordinary recovery, source_revision, accepted-main and verifier-correction
+cannot bypass a terminal tip. A further repaired target requires another
+explicit maintenance decision and new exact-target commission.
+
+Receipt version4 and the complete final planner workload stay unchanged.
+Stock checks the one-shot budget, physical history, historical authenticated
+records, dependency prerequisites, all phases and natural cleanup. It separately
+fetches current authority and checks current inputs and applicability; later
+drift cannot rewrite historical integrity. Stock never creates machine identity.
+Original receipts and artifacts are required; lossy review export refuses.
+`prepareMaintenanceCandidate` is read-only and accepts `authorization:null`:
+committed-evidence eligibility, live-input readiness and missing prospective
+authority are separate results. It cannot mint a capability or reserve.
 
 ### Reviewed source and execution-input revision (source-correction v7)
 

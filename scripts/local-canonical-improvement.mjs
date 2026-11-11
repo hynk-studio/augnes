@@ -68,7 +68,7 @@ export function parseImprovementJSON(bytes, maximum = 64 * 1024) {
   requireThat(equal(digest(payload), digest(value)), "canonical_bytes_required");
   return value;
 }
-function artifactReader(folder, remember = () => {}) {
+export function artifactReader(folder, remember = () => {}) {
   return (ref, { json = true, maximum = 64 * 1024, canonical = true } = {}) => {
     keys(ref, "artifact sha256");
     requireThat(safePath(ref.artifact) && sha(ref.sha256), "artifact_reference_invalid");

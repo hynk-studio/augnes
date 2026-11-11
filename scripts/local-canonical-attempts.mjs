@@ -1,3 +1,4 @@
+import { isMaintenance, hasMaintenanceMarker, readMaintenanceEvidence, inspectMaintenanceInputs, assertMaintenanceAuthorization, validateMaintenanceAuthorityRecords, validMaintenanceAttempt } from "./local-canonical-maintenance.mjs";
 import { VERIFIER_LIFECYCLE_REPAIR, VERIFIER_LIFECYCLE_CLAIM, VERIFIER_LIFECYCLE_GRANT, verifyVerifierLifecyclePredecessor } from "./local-canonical-verifier-lifecycle-witness.mjs";
 import { readVerifierLifecycleDelegation, verifierLifecycleAuthorityScope } from "./local-canonical-git-observation.mjs";
 import { PREPARED_ELIGIBILITY_REPAIR, PREPARED_ELIGIBILITY_CLAIM, PREPARED_ELIGIBILITY_GRANT, PREPARED_ELIGIBILITY_PHASE, verifyPreparedEligibilityPredecessor } from "./local-canonical-prepared-eligibility-witness.mjs";
@@ -146,9 +147,10 @@ export function hasRetiredQualificationMarker(value) {
 // through to ordinary or legacy receipt handling.
 export function supportsSourceCorrection(proof) {
   return proof !== null && typeof proof === "object" && !Array.isArray(proof) && !hasRetiredQualificationMarker(proof) &&
+    (!hasMaintenanceMarker(proof) || isMaintenance(proof) && !Object.hasOwn(proof,"maintenance_authority") && !Object.hasOwn(proof,"evidence_kind")) &&
     (!hasImprovementMarker(proof) || isImprovement(proof) && !Object.hasOwn(proof,"improvement_authority") && !Object.hasOwn(proof,"evidence_kind")) && (
     proof.schema === "augnes.local-canonical-source-correction.v1" ||
-    (proof.schema === "augnes.local-canonical-source-correction.v2" && ["source_revision", "verifier_correction", "accepted_main_integration", "behavior_preserving_improvement"].includes(proof.kind)) ||
+    (proof.schema === "augnes.local-canonical-source-correction.v2" && ["source_revision", "verifier_correction", "accepted_main_integration", "behavior_preserving_improvement", "prospective_maintenance"].includes(proof.kind)) ||
     isReviewedRevision(proof));
 }
 
@@ -179,6 +181,7 @@ function prepareAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, hea
   if (["browserReplacement", "browserAuthorization", "browserLive", "observerAuthorization", "timeoutAuthorization", "conditionAuthorization", "guideAuthorization"].some(key => Object.hasOwn(retiredOptions, key))) throw fail("qualification_route_retired");
   assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
   if (hasRetiredQualificationMarker(sourceCorrection) || hasRetiredQualificationMarker(recoveryProof)) throw fail("qualification_route_retired");
+  if (hasMaintenanceMarker(sourceCorrection) && !isMaintenance(sourceCorrection) || hasMaintenanceMarker(recoveryProof)) throw fail("maintenance_mixed_route");
   if (hasImprovementMarker(sourceCorrection) && !isImprovement(sourceCorrection) || hasImprovementMarker(recoveryProof)) throw fail("improvement_mixed_route");
   if (!branch || !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree) || !sha(contractFingerprint)) throw fail("attempt_identity_invalid");
   if ([recoveryProof, sourceCorrection].filter(Boolean).length > 1) throw fail("attempt_mixed_successor_kind");
@@ -187,7 +190,8 @@ function prepareAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, hea
   const initialRoot = path.join(artifact,"families",candidateFamilyId(branch));
   if (pathPresent(initialRoot)) {
     const currentTip = reconstructAttemptTip({anchorRoot,repositoryRoot,branch});
-    if (currentTip.improvement_consumed) throw fail("improvement_terminal");
+    if (currentTip.improvement_consumed && !isMaintenance(sourceCorrection)) throw fail("improvement_terminal");
+    if (currentTip.maintenance_consumed && !isMaintenance(sourceCorrection)) throw fail("maintenance_terminal");
   }
   if (sourceCorrection && read(path.join(anchorRoot, ".augnes-local-verification", "families", sourceCorrection.prior_family_id, `attempt-${sourceCorrection.prior_number}.json`)).branch !== branch) throw fail("source_correction_predecessor_invalid");
   if (sourceCorrection) {
@@ -199,17 +203,17 @@ function prepareAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, hea
             read(path.join(anchorRoot,".augnes-local-verification/families",tip.family_id,`attempt-${tip.number}.json`)).source_correction?.commission?.maximum_invocations) :
           tip.reviewed_revision_consumed)) throw fail("attempt_latest_tip_required");
   }
-  if (observeRevision && (!(isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection)) || typeof observeRevision !== "function" || typeof assertCurrent !== "function")) throw fail("revision_observer_invalid");
+  if (observeRevision && (!(isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection)) || typeof observeRevision !== "function" || typeof assertCurrent !== "function")) throw fail("revision_observer_invalid");
   if (requiresPreparedEligibility(sourceCorrection) && inputContract === null) throw fail("input_contract_owner_invalid");
   if (inputContract !== null) assertInputContractBinding(inputContract, contractFingerprint);
   const binding = digest({ sourceCorrection, branch, head, tree, acceptedMain, revisionInputs });
   let dependencyPrerequisites = null;
   const correction = sourceCorrection ? prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof: sourceCorrection, acceptedMain, reserve: true,
     retainDependencyPrerequisites: value => { dependencyPrerequisites = structuredClone(value); } }) : null;
-  if (isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection)) {
+  if (isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection)) {
     const candidate = path.join(artifact,"families",familyId);
     if (pathPresent(candidate)) {
-      if (isImprovement(sourceCorrection) || revisionDirectoryEntries(candidate).length) throw fail("attempt_candidate_superseded");
+      if (isImprovement(sourceCorrection) || isMaintenance(sourceCorrection) || revisionDirectoryEntries(candidate).length) throw fail("attempt_candidate_superseded");
     } else revisionReadScope.getStore()?.absent.add(candidate);
   }
   return (current, assertUnchanged) => {
@@ -226,7 +230,7 @@ function prepareAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, hea
     assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
     assertUnchanged();
   };
-  if (isImprovement(sourceCorrection) && Buffer.byteLength(JSON.stringify({contract:ATTEMPT_CONTRACT,family_id:familyId,attempt_id:runId,number:1,branch,head,tree,
+  if ((isImprovement(sourceCorrection) || isMaintenance(sourceCorrection)) && Buffer.byteLength(JSON.stringify({contract:ATTEMPT_CONTRACT,family_id:familyId,attempt_id:runId,number:1,branch,head,tree,
       contract_fingerprint:contractFingerprint,started_at:new Date().toISOString(),prior_attempt_id:null,prior_receipt_fingerprint:null,recovery:null,source_correction:sourceCorrection,
       improvement_authority:{observations:revisionAuthorization?.observations,records:revisionAuthorization?.records},budget:{initial:1,recovery:0}}))>64*1024)
     throw fail("improvement_attempt_unbounded");
@@ -253,8 +257,9 @@ function prepareAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, hea
     prior_attempt_id: prior?.attempt_id ?? null, prior_receipt_fingerprint: prior?.receipt_fingerprint ?? null,
     recovery: number === 2 ? recoveryProof : null, source_correction: sourceCorrection,
     ...(isReviewedRevision(sourceCorrection) ? { revision_authority: revisionAuthorization.observations } : {}),
+    ...(isMaintenance(sourceCorrection) ? { maintenance_authority: {observations:revisionAuthorization.observations,records:revisionAuthorization.records} } : {}),
     ...(isImprovement(sourceCorrection) ? { improvement_authority: {observations:revisionAuthorization.observations,records:revisionAuthorization.records} } : {}),
-    budget: { initial: 1, recovery: isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) ? 0 : 1 } };
+    budget: { initial: 1, recovery: isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection) ? 0 : 1 } };
   append(root, `attempt-${number}.json`, record);
   const capability = Object.freeze({ ...record });
   capabilities.set(capability, { root, repositoryRoot, checkoutOwner, record,
@@ -306,6 +311,7 @@ export function finishAttempt(capability, { receiptFingerprint, disposition, cle
 
 export function readRecoveryProof(file) {
   const proof = read(file);
+  if (hasMaintenanceMarker(proof)) throw fail("maintenance_mixed_route");
   if (hasImprovementMarker(proof)) throw fail("improvement_mixed_route");
   if (hasRetiredQualificationMarker(proof)) throw fail("qualification_route_retired");
   for (const [key, expected] of [["cause_artifact", proof.evidence_sha256], ["probe_artifact", proof.probe?.artifact_sha256]]) {
@@ -336,6 +342,7 @@ function prepareAttemptInspection({ anchorRoot, repositoryRoot = anchorRoot, rec
     const binding = digest(receipt);
     const attempt = receipt.attempt;
     if (hasRetiredQualificationMarker(receipt)) return false;
+    if (hasMaintenanceMarker(receipt) && !validMaintenanceAttempt(attempt)) return false;
     if (hasImprovementMarker(receipt) && !validImprovementAttempt(attempt)) return false;
     const familyId = candidateFamilyId(receipt.repository.branch, attempt.source_correction);
     if (attempt.family_id !== familyId || ![1, 2].includes(attempt.number)) return false;
@@ -352,10 +359,6 @@ function prepareAttemptInspection({ anchorRoot, repositoryRoot = anchorRoot, rec
         if (receipt.receipt_version !== 4 || !validReviewedRevisionAttempt(attempt)) return false;
         const tip = reconstructAttemptTip(lineage);
         if (tip.family_id !== familyId || tip.attempt_id !== attempt.attempt_id || tip.reviewed_revision_consumed !== attempt.source_correction.commission.ordinal) return false;
-      }
-      if (isImprovement(attempt.source_correction)) {
-        const tip = reconstructAttemptTip(lineage);
-        if (tip.family_id !== familyId || !tip.improvement_consumed) return false;
       }
     }
     const root = path.join(anchorRoot, ".augnes-local-verification", "families", familyId);
@@ -447,6 +450,34 @@ export function prepareImprovementCandidate({anchorRoot,repositoryRoot,proof}) {
     campaign_sha256:digest(evidence.campaign),review_sha256:digest(evidence.review)};
 }
 
+export function maintenanceMaterial(repositoryRoot,proof,{authorizationRequired=true}={}) {
+  const {local_relative_path:relative,...raw}=proof;
+  if(!revisionPath(relative)||!relative.startsWith(".augnes-local-verification/")||!relative.endsWith(".json"))throw fail("maintenance_proof_path_invalid");
+  const file=path.join(repositoryRoot,relative),stored=read(file);parseImprovementJSON(readFileSync(file));
+  if(digest(stored)!==digest(raw))throw fail("maintenance_proof_changed");
+  return readMaintenanceEvidence(file,raw,repositoryRoot,{remember:rememberRevisionFile,authorizationRequired});
+}
+function verifyMaintenanceOriginals(anchorRoot,repositoryRoot,proof,evidence) {
+  const root=path.join(anchorRoot,".augnes-local-verification/families",proof.prior_family_id);
+  if(revisionDirectoryEntries(root).includes(`attempt-${proof.prior_number+1}.json`))throw fail("maintenance_latest_tip_required");
+  for(const kind of ["attempt","completion"]){const file=path.join(root,`${kind}-${proof.prior_number}.json`);read(file);if(digest(readFileSync(file))!==evidence.evidence.originals[kind].sha256)throw fail("maintenance_original_ledger_changed");}
+  const file=path.join(repositoryRoot,proof.prior_receipt_path);read(file,512*1024);
+  if(digest(readFileSync(file))!==evidence.evidence.originals.receipt.sha256)throw fail("maintenance_original_receipt_changed");
+  return root;
+}
+// No admission capability, ledger append, or setup mutation. Evidence and live
+// input readiness are separate results so unsafe retained stock cannot vanish.
+export function prepareMaintenanceCandidate({anchorRoot,repositoryRoot,proof}) {
+  const evidence=maintenanceMaterial(repositoryRoot,proof,{authorizationRequired:false});
+  verifyMaintenanceOriginals(anchorRoot,repositoryRoot,proof,evidence);
+  const tip=reconstructAttemptTip({anchorRoot,repositoryRoot,branch:proof.branch});
+  if(tip.family_id!==proof.prior_family_id||tip.number!==proof.prior_number||tip.attempt_id!==proof.prior_attempt_id||!(tip.improvement_consumed||tip.maintenance_consumed))throw fail("maintenance_latest_tip_required");
+  if(pathPresent(path.join(anchorRoot,".augnes-local-verification/families",candidateFamilyId(proof.branch,proof))))throw fail("maintenance_target_exists");
+  let liveInputIssue=null;try{inspectMaintenanceInputs(repositoryRoot,evidence);}catch(error){liveInputIssue=error.code??error.message;}
+  return {eligible_evidence:true,live_inputs_ready:liveInputIssue===null,live_input_issue:liveInputIssue,admission:false,reserved:false,
+    missing:proof.authorization===null?["authenticated_candidate_acceptance","prospective_maintenance_commission"]:[],evidence_sha256:digest(evidence.evidence),review_sha256:digest(evidence.review)};
+}
+
 export function reconstructAttemptTip(context) {
   return readAttemptLineage(context);
 }
@@ -468,6 +499,7 @@ function readAttemptLineage({ anchorRoot, repositoryRoot = null, branch }, throu
     const number = reachedReceipt ? throughAttempt.number : entries.includes("attempt-2.json") ? 2 : 1;
     if (number === 2 && hasRetiredQualificationMarker(read(path.join(root, "attempt-1.json")))) throw fail("qualification_route_retired");
     const attempt = read(path.join(root, `attempt-${number}.json`));
+    if (hasMaintenanceMarker(attempt) && !validMaintenanceAttempt(attempt)) throw fail("maintenance_attempt_invalid");
     if (hasImprovementMarker(attempt) && !validImprovementAttempt(attempt)) throw fail("improvement_attempt_invalid");
     if (hasRetiredQualificationMarker(attempt)) throw fail("qualification_route_retired");
     if (attempt.contract !== ATTEMPT_CONTRACT || attempt.branch !== branch || attempt.family_id !== familyId || attempt.number !== number ||
@@ -482,26 +514,37 @@ function readAttemptLineage({ anchorRoot, repositoryRoot = null, branch }, throu
       revisionMaximum = attempt.source_correction.commission.maximum_invocations;
     }
     const edgeFile = path.join(root, "correction-successor.json");
-    if (isImprovement(attempt.source_correction)) {
-      if (entries.some(name=>!["attempt-1.json","completion-1.json"].includes(name))) throw fail("improvement_terminal");
-      if (!entries.includes("completion-1.json")) throw fail("improvement_reserved_unsettled");
-      const completion = read(path.join(root,"completion-1.json"));
-      if (completion.attempt_id !== attempt.attempt_id || !sha(completion.receipt_fingerprint)) throw fail("improvement_completion_invalid");
-      return {family_id:familyId,number:1,attempt_id:attempt.attempt_id,improvement_consumed:true};
+    const terminal = isImprovement(attempt.source_correction) || isMaintenance(attempt.source_correction);
+    if (terminal) {
+      const prefix=isMaintenance(attempt.source_correction)?"maintenance":"improvement";
+      if (entries.some(name=>!["attempt-1.json","completion-1.json","correction-successor.json"].includes(name))) throw fail(prefix+"_terminal");
+      if (!entries.includes("completion-1.json")) throw fail(prefix+"_reserved_unsettled");
+      const completion=read(path.join(root,"completion-1.json"));
+      if(completion.contract!==ATTEMPT_CONTRACT || completion.attempt_id!==attempt.attempt_id || !sha(completion.receipt_fingerprint)) throw fail(prefix+"_completion_invalid");
+      if(reachedReceipt || !entries.includes("correction-successor.json"))return {family_id:familyId,number:1,attempt_id:attempt.attempt_id,[prefix+"_consumed"]:true};
+      if(read(edgeFile).kind!=="prospective_maintenance")throw fail(prefix+"_terminal");
     }
     if (reachedReceipt || !entries.includes("correction-successor.json")) return { family_id: familyId, number, attempt_id: attempt.attempt_id, ...(revisionCount ? { reviewed_revision_consumed: revisionCount, revision_commission: revisionCommission, revision_grants: [...revisionGrants] } : {}) };
-    const edge = read(edgeFile), revisionEdge = edge.kind === "reviewed_revision", improvementEdge = edge.kind === "behavior_preserving_improvement";
+    const edge = read(edgeFile), revisionEdge = edge.kind === "reviewed_revision", improvementEdge = edge.kind === "behavior_preserving_improvement", maintenanceEdge = edge.kind === "prospective_maintenance";
     if (hasRetiredQualificationMarker(edge)) throw fail("qualification_route_retired");
     if (revisionCount && !revisionEdge) throw fail("attempt_revision_commission_terminal");
     const completion = read(path.join(root, `completion-${number}.json`));
-    const edgeKeys = edge.contract === undefined ? ["family_id", "head", "tree", "proof_fingerprint"] : ["contract", "kind", "family_id", "head", "tree", "proof_fingerprint", ...(improvementEdge?["grant_comment_id","grant_sha256","reserved_at"]:[])];
+    const edgeKeys = edge.contract === undefined ? ["family_id", "head", "tree", "proof_fingerprint"] : ["contract", "kind", "family_id", "head", "tree", "proof_fingerprint", ...((improvementEdge||maintenanceEdge)?["grant_comment_id","grant_sha256","reserved_at"]:[])];
     if (completion.contract !== ATTEMPT_CONTRACT || completion.attempt_id !== attempt.attempt_id || !sha(completion.receipt_fingerprint) || !sha(edge.family_id) || !sha(edge.proof_fingerprint) ||
         digest(Object.keys(edge).sort()) !== digest(edgeKeys.sort()) ||
-        (edge.contract !== undefined && (edge.contract !== "augnes.local-canonical-successor.v2" || !revisionEdge && !improvementEdge))) throw fail("attempt_lineage_edge_invalid");
-    if (improvementEdge && !pathPresent(path.join(anchorRoot,".augnes-local-verification","families",edge.family_id,"attempt-1.json"))) throw fail("improvement_reserved_unsettled");
+        (edge.contract !== undefined && (edge.contract !== "augnes.local-canonical-successor.v2" || !revisionEdge && !improvementEdge && !maintenanceEdge))) throw fail("attempt_lineage_edge_invalid");
+    if ((improvementEdge || maintenanceEdge) && !pathPresent(path.join(anchorRoot,".augnes-local-verification","families",edge.family_id,"attempt-1.json"))) throw fail("improvement_reserved_unsettled");
     const next = read(path.join(anchorRoot, ".augnes-local-verification", "families", edge.family_id, "attempt-1.json"));
     if (hasRetiredQualificationMarker(next)) throw fail("qualification_route_retired");
     const proof = next.source_correction;
+    if (maintenanceEdge !== isMaintenance(proof) || hasMaintenanceMarker(next) && !validMaintenanceAttempt(next)) throw fail("maintenance_mixed_edge");
+    if (maintenanceEdge) {
+      if (!terminal || !repositoryRoot || !validMaintenanceAttempt(next)) throw fail("maintenance_predecessor_invalid");
+      const evidence=maintenanceMaterial(repositoryRoot,proof);
+      verifyMaintenanceOriginals(anchorRoot,repositoryRoot,proof,evidence);
+      const observations=validateMaintenanceAuthorityRecords(proof,evidence,next.maintenance_authority.records,{current:false});
+      if(digest(observations)!==digest(next.maintenance_authority.observations) || !validImprovementEdge(edge,proof,next.family_id) || Date.parse(edge.reserved_at)<=Date.parse(observations.prospective_grant.timestamp) || Date.parse(edge.reserved_at)>Date.parse(next.started_at))throw fail("maintenance_edge_invalid");
+    }
     if (improvementEdge !== isImprovement(proof)) throw fail("improvement_mixed_edge");
     if (improvementEdge) {
       if (!repositoryRoot || !validImprovementAttempt(next)) throw fail("improvement_attempt_invalid");
@@ -575,6 +618,12 @@ function readSourceCorrectionMaterial(file, repositoryRoot) {
     throw fail("source_correction_unsafe_path");
   const proof = read(file);
   if (hasRetiredQualificationMarker(proof)) throw fail("qualification_route_retired");
+  if (hasMaintenanceMarker(proof) && !isMaintenance(proof)) throw fail("maintenance_mixed_route");
+  if (isMaintenance(proof)) {
+    parseImprovementJSON(readFileSync(file));
+    const evidence=readMaintenanceEvidence(file,proof,repositoryRoot,{remember:rememberRevisionFile});
+    return {proof:{...proof,local_relative_path:relative},evidence};
+  }
   if (hasImprovementMarker(proof) && !isImprovement(proof)) throw fail("improvement_mixed_route");
   if (isImprovement(proof)) {
     parseImprovementJSON(readFileSync(file));
@@ -620,6 +669,31 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
   const { proof: reread, evidence } = readSourceCorrectionMaterial(path.join(repositoryRoot, proof.local_relative_path ?? ""), repositoryRoot);
   if (digest(reread) !== digest(proof) || proof.branch !== branch || proof.head !== head || proof.tree !== tree ||
       !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree)) throw fail("source_correction_identity_invalid");
+  if (isMaintenance(proof)) {
+    const priorRoot=verifyMaintenanceOriginals(anchorRoot,repositoryRoot,proof,evidence);
+    if(acceptedMain!==proof.base || digest(evidence.planner.phases)!==digest(REVIEWED_REVISION_PHASES))throw fail("maintenance_current_target_invalid");
+    if(reserve)inspectMaintenanceInputs(repositoryRoot,evidence);
+    retainDependencyPrerequisites?.({observations:evidence.dependencies});
+    return ({revisionAuthorization,revisionInputs,assertCurrent})=>{
+      if(reserve){assertMaintenanceAuthorization(proof,evidence,revisionAuthorization);if(digest(revisionInputs)!==digest(evidence.runtime))throw fail("maintenance_current_runtime_invalid");}
+      else {
+        if(!validMaintenanceAttempt(stockReceipt.attempt))throw fail("maintenance_attempt_invalid");
+        const stored=stockReceipt.attempt.maintenance_authority;
+        if(digest(validateMaintenanceAuthorityRecords(proof,evidence,stored.records,{current:false}))!==digest(stored.observations))throw fail("maintenance_historical_authority_invalid");
+        for(const expected of evidence.dependencies){
+          const record=stockReceipt.inputs?.prepared_dependencies?.find(x=>x.phase_id===expected.phase_id);
+          // Failed/incomplete runs retain their history; a passing stock still
+          // requires all dependency phases and prerequisites in the receipt owner.
+          if(record && (!record.prerequisite || comparePreparedDependencyInputs(expected,record.prerequisite)!=="unchanged"))throw fail("maintenance_prerequisite_invalid");
+        }
+      }
+      const fresh=maintenanceMaterial(repositoryRoot,proof);verifyMaintenanceOriginals(anchorRoot,repositoryRoot,proof,fresh);
+      if(reserve){assertMaintenanceAuthorization(proof,fresh,revisionAuthorization);inspectMaintenanceInputs(repositoryRoot,fresh);}
+      if(assertCurrent?.()?.then)throw fail("revision_boundary_must_be_synchronous");
+      if(reserve)append(priorRoot,"correction-successor.json",{contract:"augnes.local-canonical-successor.v2",kind:proof.kind,family_id:candidateFamilyId(branch,proof),head,tree,proof_fingerprint:digest(proof),grant_comment_id:proof.authorization.grant_comment_id,grant_sha256:proof.authorization.grant_comment_sha256,reserved_at:new Date().toISOString()});
+      if(!validImprovementEdge(read(path.join(priorRoot,"correction-successor.json")),proof,candidateFamilyId(branch,proof)))throw fail("maintenance_edge_invalid");
+    };
+  }
   if (isImprovement(proof)) {
     const priorRoot = verifyImprovementOriginals(anchorRoot,repositoryRoot,proof,evidence);
     if (acceptedMain !== proof.base || evidence.campaign.target.checkout_fingerprint !== checkoutVerificationFingerprint(repositoryRoot)) throw fail("improvement_current_target_invalid");
@@ -713,6 +787,7 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
   const priorRoot = path.join(anchorRoot, ".augnes-local-verification", "families", proof.prior_family_id);
   if (realpathSync(priorRoot) !== priorRoot) throw fail("source_correction_unsafe_predecessor");
   const prior = read(path.join(priorRoot, `attempt-${proof.prior_number}.json`));
+  if (hasMaintenanceMarker(prior)) throw fail("maintenance_terminal");
   if (hasImprovementMarker(prior)) throw fail("improvement_terminal");
   if (hasRetiredQualificationMarker(prior)) throw fail("qualification_route_retired");
   const completion = read(path.join(priorRoot, `completion-${proof.prior_number}.json`));
@@ -781,6 +856,7 @@ const VERIFIER_MODULES = Object.freeze([
 function verifyRevisionOriginals(anchorRoot, repositoryRoot, proof, materialFile = null) {
   const priorRoot = path.join(anchorRoot, ".augnes-local-verification", "families", proof.prior_family_id);
   if (realpathSync(priorRoot) !== priorRoot || revisionDirectoryEntries(priorRoot).includes(`attempt-${proof.prior_number + 1}.json`)) throw fail("revision_latest_settled_required");
+  if (hasMaintenanceMarker(read(path.join(priorRoot,`attempt-${proof.prior_number}.json`)))) throw fail("maintenance_terminal");
   if (hasImprovementMarker(read(path.join(priorRoot,`attempt-${proof.prior_number}.json`)))) throw fail("improvement_terminal");
   for (const kind of ["attempt", "completion"]) {
     const actual = path.join(priorRoot, `${kind}-${proof.prior_number}.json`); read(actual);

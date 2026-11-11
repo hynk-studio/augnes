@@ -1517,6 +1517,13 @@ const suites = {
       timeoutMs: 90_000,
       requireNaturalExit: true,
     },
+    {
+      id: "local-canonical-maintenance",
+      label: "prospective maintenance proof, safe inputs and terminal succession",
+      ...rootNode("scripts/test-local-canonical-maintenance.mjs"),
+      timeoutMs: 60_000,
+      requireNaturalExit: true,
+    },
     ...reviewedRevisionSteps,
     {
       label: "prepared dependency eligibility before consumers",

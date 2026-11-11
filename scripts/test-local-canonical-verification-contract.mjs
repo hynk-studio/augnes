@@ -736,6 +736,7 @@ for (const authorityChild of [
   "scripts/test-dependency-lock-compatibility.mjs",
   "scripts/test-local-canonical-executor.mjs",
   "scripts/test-local-canonical-improvement.mjs",
+  "scripts/test-local-canonical-maintenance.mjs",
   "scripts/test-local-canonical-receipt.mjs",
   "scripts/test-local-canonical-isolation.mjs",
   "scripts/test-github-main-branch-transport.mjs",
@@ -752,6 +753,12 @@ assert.notEqual(improvementChildStart,-1);
 const improvementChild=canonicalSuite.slice(improvementChildStart,canonicalSuite.indexOf("    },",improvementChildStart));
 for(const fragment of ['timeoutMs: 90_000','requireNaturalExit: true','"scripts/test-local-canonical-improvement.mjs"'])
   requireText(improvementChild,fragment,"PASS/PASS contract controls have a separate finite authority owner");
+
+const maintenanceChildStart=canonicalSuite.indexOf('id: "local-canonical-maintenance"');
+assert.notEqual(maintenanceChildStart,-1);
+const maintenanceChild=canonicalSuite.slice(maintenanceChildStart,canonicalSuite.indexOf("    },",maintenanceChildStart));
+for(const fragment of ['timeoutMs: 60_000','requireNaturalExit: true','"scripts/test-local-canonical-maintenance.mjs"'])
+  requireText(maintenanceChild,fragment,"maintenance controls have their own finite authority owner, outside the product child");
 
 const isolatedChildStart = canonicalSuite.indexOf('id: "local-canonical-isolation"');
 assert.notEqual(isolatedChildStart, -1);
