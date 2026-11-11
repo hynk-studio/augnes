@@ -21,7 +21,8 @@ import path from 'node:path';
 import { Script } from 'node:vm';
 import { randomUUID } from 'node:crypto';
 import { startLocal, fixtureScope, dispatchNavigation } from './web-planning-local-runtime.mjs';
-import { buildWebPlanning, webRoot } from './build-web-planning.mjs';
+import { webRoot } from './build-web-planning.mjs';
+import { checkWebPlanningBuildInputs } from './web-planning-build-checks.mjs';
 import { canonical, hash, exportWork, headBinding, normalizePayload } from '../apps/web_planning/src/contract.ts';
 import { normalizeInitialProjectWorkDefinitionV01 as legacyNormalize } from '../lib/vnext/runtime/initial-project-work-context.ts';
 import { buildSelectedWorkSourceEntry, normalizeSelectedWorkSources } from '../lib/intake/selected-work-source-comparison.ts';
@@ -64,7 +65,7 @@ try {
  const artifact=path.join(root,'artifact');
  process.env.OWNER_EMAIL='web-planning-artifact-secret-sentinel';
  process.env.REQUEST_SECRET='web-planning-artifact-secret-sentinel';
- await buildWebPlanning(artifact);
+ await checkWebPlanningBuildInputs(artifact);
  const code=await readFile(path.join(artifact,'server/index.js'),'utf8');
  const runtimeConfig=await checkSitesArtifact(artifact,code);
  await exerciseSitesBootstrap({start,artifact,code,runtimeConfig,client,newWork,save,edit,headBinding,passed});

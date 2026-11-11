@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": { "build": "vite build", "db:generate": "drizzle-kit generate" },
+  "scripts": { "build": "vite build --configLoader native", "db:generate": "drizzle-kit generate" },
   "engines": {
     "node": "^22.23.4 || ^24.22.1",
     "npm": ">=10 <12"
