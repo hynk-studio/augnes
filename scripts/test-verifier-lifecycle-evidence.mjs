@@ -7,7 +7,7 @@ import path from "node:path";
 import { digest } from "./local-canonical-inputs.mjs";
 import { readVerifierLifecycleDelegation, delegatesMaterialSourceCommission, verifierLifecycleAuthorityBindings,
   verifierLifecycleAuthorityScope, MATERIAL_HISTORY_BOUNDARY, INTEGRATION_BUDGET_LIMIT, verifyGitRevisionFailure } from "./local-canonical-git-observation.mjs";
-import { VERIFIER_LIFECYCLE_REPAIR, VERIFIER_LIFECYCLE_GRANT, verifyVerifierLifecyclePredecessor, verifyVerifierLifecycleRepair } from "./local-canonical-verifier-lifecycle-witness.mjs";
+import { VERIFIER_LIFECYCLE_REPAIR, VERIFIER_LIFECYCLE_GRANT, verifierLifecycleReaderGraph, verifyVerifierLifecyclePredecessor, verifyVerifierLifecycleRepair } from "./local-canonical-verifier-lifecycle-witness.mjs";
 import { REVIEWED_REVISION_PHASES, validateReviewedRevisionAuthorityRecords, reviewedRevisionAuthorityObservation } from "./local-canonical-attempts.mjs";
 
 const [delegationFile, receiptFile, materialFile, ...extra] = process.argv.slice(2);
@@ -17,6 +17,19 @@ const p = materialFile ? read(materialFile) : { ...structuredClone(original.atte
   prior_family_id: original.attempt.family_id, prior_attempt_id: original.run.id, prior_receipt_fingerprint: original.integrity.content_fingerprint };
 p.commission.evidence_kind = VERIFIER_LIFECYCLE_REPAIR;
 const cases = [];
+const gitSource = args => execFileSync("git", ["--no-replace-objects", ...args], { timeout: 10000, maxBuffer: 16 * 1024 * 1024 });
+const graph = verifierLifecycleReaderGraph(gitSource, original.repository.head_sha);
+assert(graph.some(entry => entry.path === "plugins/augnes-operator/mcp/node-runtime-policy.mjs"));
+assert(graph.every(entry => !entry.path.includes("scripts/scripts/")));
+const graphFixture = new Map([
+  ["scripts/local-canonical-fixture-budget-witness.mjs", 'import "../shared/reader.mjs"; const child = `import "./not-a-module.mjs"`; // import "./comment.mjs"\n'],
+  ["shared/reader.mjs", 'export const value = 1;'],
+]);
+const readGraphFixture = ([command, ref]) => { assert.equal(command, "show"); const raw = graphFixture.get(ref.slice(ref.indexOf(":") + 1)); assert.notEqual(raw, undefined); return Buffer.from(raw); };
+assert.deepEqual(verifierLifecycleReaderGraph(readGraphFixture, "fixture").map(entry => entry.path), [...graphFixture.keys()]);
+graphFixture.set("scripts/local-canonical-fixture-budget-witness.mjs", 'import "../../outside.mjs";');
+assert.throws(() => verifierLifecycleReaderGraph(readGraphFixture, "fixture"));
+cases.push("actual complete predecessor import closure", "ignore import-like child strings and comments", "refuse outside-repository imports");
 assert(readVerifierLifecycleDelegation(delegation.body, p)); assert(delegatesMaterialSourceCommission(delegation.body, p));
 for (const [label, change] of [
   ["negated permission", b => b.replace("is explicitly authorized", "is not explicitly authorized")],

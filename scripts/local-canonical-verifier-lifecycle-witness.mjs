@@ -1,4 +1,5 @@
 import path from "node:path";
+import { createRequire } from "node:module";
 import { digest, comparePreparedDependencyInputs } from "./local-canonical-inputs.mjs";
 import { pureContractGitSource } from "./local-canonical-pure-contract-witness.mjs";
 import { gitRevisionInventory } from "./local-canonical-git-observation.mjs";
@@ -19,6 +20,30 @@ const settled = r => r?.completed === true && r.failure_count === 0 && equal(r.f
 const sourceWithoutGenerated = ({ root_generated, ...source }) => source;
 const interval = (start, end, first, last) => [start, end, first, last].every(v => Number.isFinite(Date.parse(v))) &&
   Date.parse(first) <= Date.parse(start) && Date.parse(start) <= Date.parse(end) && Date.parse(end) <= Date.parse(last);
+
+// Parse actual declarations/literal dynamic imports, never import-looking
+// text inside comments, templates or child-program strings.
+export function verifierLifecycleReaderGraph(git, head) {
+  const ts = createRequire(import.meta.url)("typescript"), files = new Map();
+  const visit = file => {
+    if (files.has(file)) return;
+    if (files.size >= 128 || !/^[\w./-]+\.mjs$/u.test(file) || path.posix.isAbsolute(file) || file.split("/").includes("..")) fail();
+    const raw = git(["show", head + ":" + file]);
+    if (raw.length > 8 * 1024 * 1024) fail();
+    const tree = ts.createSourceFile(file, raw.toString(), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    if (tree.parseDiagnostics.length) fail();
+    files.set(file, { path: file, sha256: digest(raw), basis: head });
+    const walk = node => {
+      const specifier = ts.isImportDeclaration(node) || ts.isExportDeclaration(node) ? node.moduleSpecifier :
+        ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword && node.arguments.length === 1 ? node.arguments[0] : null;
+      if (specifier && ts.isStringLiteral(specifier) && specifier.text.startsWith(".") && specifier.text.endsWith(".mjs"))
+        visit(path.posix.normalize(path.posix.join(path.posix.dirname(file), specifier.text)));
+      ts.forEachChild(node, walk);
+    };
+    walk(tree);
+  };
+  visit(generatedOwner); return [...files.values()];
+}
 
 // This only explains one extra issue in a comparison view. It never edits the
 // historical stock, resolves the unknown writer/exception, or grants execution.
@@ -111,17 +136,11 @@ export function verifyVerifierLifecycleRepair(p, prior, focused, { git, parse, b
   }
   if (digest(bytes(c.collector, 128 * 1024)) !== digest(git(["show", p.head + ":" + VERIFIER_LIFECYCLE_COLLECTOR]))) fail();
   const overlay = c.source_overlay;
-  const closure = new Set();
-  const visit = file => {
-    if (closure.has(file)) return; if (closure.size >= 128 || !/^scripts\/[\w./-]+\.mjs$/u.test(file) || file.split("/").includes("..")) fail();
-    closure.add(file); const source = git(["show", prior.head + ":" + file]).toString();
-    for (const match of source.matchAll(/(?:from\s*|import\s*)["'](\.[^"']+\.mjs)["']/gu)) visit(path.posix.normalize(path.posix.join(path.posix.dirname(file), match[1])));
-  };
-  visit(generatedOwner);
+  const closure = verifierLifecycleReaderGraph(git, prior.head);
   if (!Array.isArray(overlay) || !overlay.length || new Set(overlay.map(v => v.path)).size !== overlay.length ||
-      !equal(overlay.map(v => v.path).sort(), [...closure].sort()) ||
+      !equal(overlay.map(v => v.path).sort(), closure.map(v => v.path).sort()) ||
       overlay.filter(v => v.path === generatedOwner).length !== 1 ||
-      overlay.some(v => !/^scripts\/[\w./-]+\.mjs$/u.test(v.path) || v.path.split("/").includes("..") ||
+      overlay.some(v => !/^[\w./-]+\.mjs$/u.test(v.path) || path.posix.isAbsolute(v.path) || v.path.split("/").includes("..") ||
         v.basis !== prior.head || v.sha256 !== digest(git(["show", v.basis + ":" + v.path])))) fail();
   for (const test of c.cases.slice(0, 2)) {
     const packet = parse(test.inspection), receipt = parse(test.receipt), old = parse(test.prior_inspection), through = test.name === "through-build";

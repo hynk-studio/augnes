@@ -20,6 +20,7 @@ import { observePureContractSource, observePureContractLoader } from "./local-ca
 import { finalizeReceipt } from "./local-canonical-receipt.mjs";
 import { inspectCurrentIntegrationBudgetInputs } from "./local-canonical-fixture-budget-witness.mjs";
 import { inspectGeneratedStockBrowserInputs } from "./local-canonical-stock-lifecycle-witness.mjs";
+import { verifierLifecycleReaderGraph } from "./local-canonical-verifier-lifecycle-witness.mjs";
 import { observeGitRevisionTarget, phaseEnvironment, buildPhasePlan, executePhase, runPhasesSequentially,
   prepareInvocationInputs, computeExecutorSourceFingerprint, removeBoundedGeneratedNextState } from "./run-local-canonical-verification.mjs";
 import { AUXILIARY_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
@@ -128,15 +129,13 @@ async function capture() {
     // A bounded module capsule uses the genuine predecessor reader and its
     // complete local import graph. Candidate-only exports cannot be borrowed
     // into that graph. The driver and inspected checkout stay at this head.
-    const capsule = path.join(environment.AUGNES_CANONICAL_TEMP_ROOT, "prior-reader"), copied = new Set();
-    const copy = file => {
-      if (copied.has(file)) return; copied.add(file);
-      const bytes = git(["show", baseline + ":" + file]);
-      const target = path.join(capsule, file); mkdirSync(path.dirname(target), { recursive: true }); writeFileSync(target, bytes, { mode: 0o600 });
-      sourceOverlay.push({ path: file, sha256: digest(bytes), basis: baseline });
-      for (const match of bytes.toString().matchAll(/(?:from\s*|import\s*)["'](\.[^"']+\.mjs)["']/gu)) copy(path.posix.normalize(path.posix.join(path.posix.dirname(file), match[1])));
-    };
-    copy("scripts/local-canonical-fixture-budget-witness.mjs"); symlinkSync(path.join(root, "node_modules"), path.join(capsule, "node_modules"));
+    const capsule = path.join(environment.AUGNES_CANONICAL_TEMP_ROOT, "prior-reader");
+    for (const entry of verifierLifecycleReaderGraph(git, baseline)) {
+      const raw = git(["show", baseline + ":" + entry.path]); assert.equal(digest(raw), entry.sha256);
+      const target = path.join(capsule, entry.path); mkdirSync(path.dirname(target), { recursive: true }); writeFileSync(target, raw, { mode: 0o600 });
+      sourceOverlay.push(entry);
+    }
+    symlinkSync(path.join(root, "node_modules"), path.join(capsule, "node_modules"));
     const priorReader = path.join(capsule, "scripts/local-canonical-fixture-budget-witness.mjs");
     for (const name of ["stopped-before-build", "through-build"]) {
       removeBoundedGeneratedNextState({ root, checkoutOwner: owner });
