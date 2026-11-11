@@ -18,12 +18,23 @@ interface. The product is continuous work, not a collection of surfaces.
 **Resume / Verify / Decide.**
 
 [Try a method without installing Augnes](#try-a-method-without-setup) ·
+[Software Change Check](docs/SOFTWARE_CHANGE_SKILL_DISTRIBUTION.md) ·
 [Why Augnes](#why-augnes) · [What works today](#what-works-today) · [Quickstart](#quickstart) ·
 [Product direction](#product-direction) ·
 [Authority](#repository-authority) ·
 [Verification](#canonical-verification)
 
 ## Try a method without setup
+
+**Software Change Check:** Check an installation, package delivery or version
+change with your coding agent and the project's existing checks.
+[Free Agensi listing](https://www.agensi.io/skills/augnes-software-change-check) ·
+[Source and examples](skills/verify-software-change/SKILL.md) ·
+[Distribution status and result/correction path](docs/SOFTWARE_CHANGE_SKILL_DISTRIBUTION.md).
+This is separate from the workflow-cost calculator below. It requires a
+code-capable agent with authorized access to the subject and its checks;
+the optional input snapshot helper needs Python 3.9+. No Augnes runtime or
+account is required. Delivery through Agensi requires an Agensi connection.
 
 **Without installing Augnes does not mean zero prerequisites.** This small,
 optional workflow-cost calculator estimates **expected total work** for repeated
