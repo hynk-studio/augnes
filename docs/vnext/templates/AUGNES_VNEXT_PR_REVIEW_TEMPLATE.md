@@ -1,11 +1,17 @@
 # Augnes vNext PR Review Template
 
+Use only sections relevant to the change and the claims made. This is a review
+aid, not a requirement to produce every listed artifact, metric, or test. Apply
+the [repository review principles](../../../AGENTS.md#practical-review-and-closure).
+For follow-up reviews, inspect the corrections and their effects, including
+invalidated evidence; retain settled findings unless new evidence changes them.
+
 ## 1. Summary
 
 ```text
 PR:
 Target work/milestone:
-Claimed maturity move:
+Claimed maturity move (if any):
 Reviewer:
 ```
 
@@ -78,6 +84,9 @@ Migration/restore status:
 
 ## 9. Outcome Evidence
 
+Use this section for actual outcome or maturity claims. A bounded correctness
+fix does not acquire a new comparative-usefulness study from this template.
+
 ```text
 Dogfood/external project use:
 Metric change:
@@ -90,6 +99,13 @@ Why this is more than a panel/type/record existing:
 ```text
 APPROVE / REQUEST CHANGES / COMMENT
 
+Required blockers (if any): evidence, material impact, resolution condition.
+Optional improvements (if any): clearly non-blocking.
+
 Merge authority remains with the user/operator.
 Semantic adoption remains a separate Augnes ReviewDecision when applicable.
 ```
+
+Accept and close when the goal and required conditions are met without material
+blockers. Independent review does not require duplicating every run unless the
+applicable contract or a specific evidence concern requires it.
