@@ -236,7 +236,7 @@ export async function checkBrowserSourceSuccessor(c, h, firstProof, firstAuthori
   const source = h.read(path.join(c.artifacts, p.source.artifact));
   source.reviewed_at = now();
   p.source = h.artifact(c, "source.json", source);
-  const corrected = await behavior(c);
+  const corrected = await (h.behavior ? h.behavior(c) : behavior(c));
   assert.equal(corrected.result.exit_code, 0);
   const focused = h.read(path.join(c.artifacts, p.focused.artifact));
   Object.assign(focused, {

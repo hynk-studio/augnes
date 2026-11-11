@@ -1,4 +1,5 @@
 import { PREPARED_ELIGIBILITY_REPAIR, PREPARED_ELIGIBILITY_CLAIM, PREPARED_ELIGIBILITY_GRANT, verifyPreparedEligibilityRepair } from "./local-canonical-prepared-eligibility-witness.mjs";
+import { VERIFIER_LIFECYCLE_REPAIR, VERIFIER_LIFECYCLE_CLAIM, VERIFIER_LIFECYCLE_GRANT, verifyVerifierLifecycleRepair } from "./local-canonical-verifier-lifecycle-witness.mjs";
 import { isSerialAggregateRevision, hasSerialAccounting } from "./local-canonical-serial-aggregate.mjs";
 import { validProjectExperienceAccounting } from "./project-experience-serial-budget.mjs";
 import { digest, classifyInputChange, effectiveInputObservation, inputEventIdentity, nonFaultInputChange, INPUT_CONTRACT, PREPARED_DEPENDENCY_CONTRACT, comparePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
@@ -418,6 +419,8 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
   const material = isMaterialSourceRevision(p);
   if (regression?.kind!==undefined) {
     if (!material) fail("revision_git_regression_invalid");
+    if (regression.kind===VERIFIER_LIFECYCLE_REPAIR)
+      return verifyVerifierLifecycleRepair(p, prior, focused, { git, parse, bytes, completedAt, original, stock, completion, repositoryRoot });
     if (regression.kind===REGISTERED_FIXTURE_BUDGET) return verifyRegisteredFixtureBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
     if (regression.kind===REGISTERED_INTEGRATION_BUDGET) return verifyRegisteredIntegrationBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
     if (regression.kind===PREPARED_ELIGIBILITY_REPAIR)
@@ -521,6 +524,7 @@ function visibleDelegationParagraphs(body) {
 }
 
 export function delegatesMaterialSourceCommission(body,p) {
+  if (p.commission.evidence_kind === VERIFIER_LIFECYCLE_REPAIR) return !!readVerifierLifecycleDelegation(body,p);
   if (p.commission.evidence_kind === PREPARED_ELIGIBILITY_REPAIR) return !!readPreparedEligibilityDelegation(body,p);
   if (p.commission.evidence_kind === REGISTERED_INTEGRATION_BUDGET)
     return !!readIntegrationBudgetDelegation(body,p);
@@ -832,3 +836,53 @@ export function readPreparedEligibilityDelegation(body, p) {
 export const preparedEligibilityAuthorityBindings = p => typedMaterialAuthorityBindings(p, PREPARED_ELIGIBILITY_REPAIR, PREPARED_ELIGIBILITY_CLAIM);
 export const preparedEligibilityAuthorityScope = (p, review, grant) =>
   typedMaterialAuthorityScope(p, review, grant, preparedEligibilityAuthorityBindings(p), PREPARED_ELIGIBILITY_GRANT);
+
+// Visible verifier-lifecycle delegation, distinct from the product-defect and
+// Browser-repair formats. Literal backslash-n separators in the labeled source
+// block are presentation only; the normalized authority digest retains raw bytes.
+export function readVerifierLifecycleDelegation(body, p) {
+  const sections = visibleDelegationParagraphs(body), normalize = value => value?.replace(/R[1-9]\d*/gu, "the preceding revision");
+  if (sections.length !== 22 || !/^## R[1-9]\d* task delegation — complete the verifier corrections and qualification$/u.test(sections[0])) return null;
+  const fixed = {
+  "2": "The user approved proceeding with the next work and enabling the existing Codex operator to finish it. This assignment covers diagnosis, implementation, connected focused validation, independent final source/preparation review, conditional authority recording, one prospective deciding invocation, separate fresh-process stock, independent result audit, cleanup and one consolidated return. Do not return at measurement, patch, review or preparation merely as a routine approval checkpoint. Resolve ordinary in-scope findings without another user roundtrip.",
+  "3": "### Starting point and retained history",
+  "6": "### Operator autonomy and scope",
+  "7": "Read current Space, AGENTS.md, active verification policy and relevant source owners. Verify actual identity, publication, worktree and resource ownership. Continue the same task; coordinate with an already active owner rather than creating duplicate work. Inspect current main and overlapping work only where they affect these changes. Necessary integration of adopted changes and resolution of real conflicts are authorized; unrelated main movement is not an automatic stop or reason to rerun everything.",
+  "8": "Choose files, functions, measurements and tests from current evidence. Prefer the smallest reusable correction in existing owners. Challenge a contradicted hypothesis and reuse unaffected evidence honestly. Narrow shared reader/policy support needed to represent the actual correction and legitimate new authority is included, subject to independent review and refusal controls. Do not force incompatible evidence, invent a product defect or causal RED, add incident/commit-specific exceptions, or rebuild the verification framework. Preserve accepted product and GREEN-helper behavior, pinned package/runtime inputs, installed Companion, Git settings and foreign work.",
+  "9": "### Complete both verifier obligations",
+  "11": "**the preceding revision-F1:** correctly model registered generation of `next-env.d.ts` by typecheck/typegen as well as build and dev startup. Bind permitted complete content forms to the actual registered producer, execution/settlement evidence and supported writer interval. Preserve file safety, ownership, source/loader/dependency integrity and authentic receipt binding. Do not simply ignore generated files, accept an arbitrary phase label or rewrite file bytes to satisfy a hash. Cover the real development-declaration → registered typecheck/typegen → build → fresh-process inspection path, and the relevant path that fails after typegen/typecheck before build. Retain explicit refusals for unexecuted or unsupported writers, out-of-window changes, unsafe/substituted files and tampered evidence. Historical file writer and original first stock exception remain UNKNOWN unless new evidence specifically establishes them; a later reproduction has its own attribution.",
+  "12": "Before any deciding reservation, demonstrate both connected paths through production owners with bounded disposable controls, not just copied predicates or isolated helper PASS. Keep the preceding revision's early dependency-eligibility gate and later prepared-input checks. Keep evidence-file privacy scoped to its files; record and consistently apply supported workload launch settings. Run meaningful affected regression/type/static checks. Development fixtures must not consume a real deciding allowance.",
+  "13": "### Delegated recording after independent review",
+  "14": "After a separate read-only reviewer accepts the actual final published source, the implementation operator is explicitly authorized to publish the required separate exact-candidate execution record through the existing authenticated maintainer identity under this delegation.",
+  "15": "For this assignment that condition requires the final complete delta, both demonstrated verifier corrections or justified prospective allowance, connected positive/refusal evidence, applicable policy semantics, actual non-reserving preparation commitment and complete current inventory. Faithfully record the independent decision and identify reviewer and submitting operator separately. Then publish a DISTINCT subsequent exact-target execution grant, bound to this delegation, the new acceptance, actual latest predecessor and final source/preparation/inputs/runtime. Authenticate and read back complete records, current permission, chronology and canonical observation digests before reservation. An old review/grant or this task comment alone is not executable authority. Do not claim an existing parser already supports a new case; any necessary narrow semantic support must be implemented, tested and independently accepted first.",
+  "16": "The new prospective commission permits **one deciding invocation total**. Reservation/interruption consumes it. No ordinal two, recovery, unchanged-target retry, reset of earlier accounting or replacement commission merely because a deciding run fails. Pre-reservation packet mistakes and demonstrated in-scope defects can be corrected with updated exact-target records within this assignment; preserve refusals and do not blindly resubmit.",
+  "17": "### Finish and return",
+  "18": "Once ready and authorized, execute the actual final-head planner-selected reference-Mac qualification, its separate fresh-process stock, independent result audit and owned cleanup. Preserve real FAIL, cancellation and NOT_RUN outcomes; do not force remaining stopped phases or stitch earlier passes into a new qualification. After consumption, finish permitted analysis, preservation and handoff without another deciding run.",
+  "19": "Return one the preceding revision package on this same PR and existing Pages: exact final source and rationale, complete targeted delta, measurements and limitations, connected focused checks, actual independent reviews and authority records, qualification/stock, physical accounting and cleanup. Save accessible original evidence and verify delivered source bytes/hashes without repeatedly repackaging unchanged history. Keep runtime-registration limitations factual. A material unresolved safety, authority, access or evidence boundary warrants one concrete blocked return after useful independent work, not indefinite experimentation.",
+  "20": "Keep Draft, auto-merge off and QUALIFICATION HOLD / DO NOT MERGE until receiving judgment. This assignment does not authorize Ready, merge, deployment, installed adoption, unrelated credentials/configuration changes or live provider spending."
+};
+  if (Object.entries(fixed).some(([index, expected]) => normalize(sections[index]) !== expected)) return null;
+  const assignment = sections[1].match(/^Authorize one cohesive correction and qualification assignment for issue #([1-9]\d*) on ([\w/-]+) and Draft PR #([1-9]\d*)\.$/u);
+  if (assignment?.[2] !== p.branch || assignment?.[3] !== String(p.pull_request)) return null;
+  const lines = sections[4].split(/\\n|\n/u);
+  const worktree = lines[2]?.match(/^Existing task worktree: `(\/[A-Za-z0-9_./-]+)`\.$/u)?.[1];
+  const head = lines[3]?.match(/^Received head: `([a-f0-9]{40})`\.$/u)?.[1];
+  const tree = lines[4]?.match(/^Received tree: `([a-f0-9]{40})`\.$/u)?.[1];
+  const base = lines[5]?.match(/^Received base\/current observed main: `([a-f0-9]{40})`\.$/u)?.[1];
+  const review = lines[6]?.match(/^Receiving decision: https:\/\/github\.com\/hynk-studio\/augnes\/pull\/([1-9]\d*)#pullrequestreview-([1-9]\d*)$/u);
+  const report = lines[7]?.match(/^R([1-9]\d*) return: https:\/\/github\.com\/hynk-studio\/augnes\/pull\/([1-9]\d*)#issuecomment-([1-9]\d*)$/u);
+  if (lines.length !== 8 || lines[0] !== "Repository/origin: `hynk-studio/augnes` / `https://github.com/hynk-studio/augnes.git`." ||
+      lines[1] !== "Existing branch: `" + p.branch + "`." || !worktree || worktree.slice(1).split("/").some(part => !part || part === "." || part === "..") ||
+      !head || !tree || !base || review?.[1] !== String(p.pull_request) || report?.[2] !== String(p.pull_request)) return null;
+  const history = sections[5].match(/^The reported latest settled attempt is `([^`]+)`, family `([a-f0-9]{64})`, receipt `([a-f0-9]{64})`\. Verify the actual physical tip before using it\. Preserve R[1-9]\d* (\d+)\/(\d+)\/(\d+), all seven qualification Browser phases NOT_RUN, false stock\/(\d+) and its spent 1\/1 commission\. Original ordinary 1 \+ reviewed 2 \/ recovery 0 and R[1-9]\d*\/R[1-9]\d* consumed commissions also remain spent\. No historical receipt, authority, UNKNOWN or source attribution is rewritten\.$/u);
+  if (!history || history[1] !== p.prior_attempt_id || history[2] !== p.prior_family_id || history[3] !== p.prior_receipt_fingerprint) return null;
+  const measured = sections[10].replace(/its \d+-second bound/u, "its registered bound").replace(/passed in \d+\.\d{3} seconds/u, "passed in the recorded interval").replace(/R[1-9]\d*'s/u, "the predecessor's");
+  if (measured !== "**Authority fixture:** investigate the complete timed lifetime of `reviewed revision controls: browser`, not actual Chrome/B1. The inner synthetic fixture reached its registered bound; the last visible nested receipt reader passed in the recorded interval. Use bounded sanitized stage/timing observations across imports, setup, Git/material replay, nested child, subsequent assertions/export and cleanup. Exercise the complete registered wrapper and relevant parent conditions under the intended runtime and launch settings. Correct demonstrated unnecessary work, waits or lifecycle defects without weakening assertions or isolation. If measurements instead establish progressing necessary workload with an inadequate allowance, a finite prospective adjustment specific to this registration and its required enclosing bound is authorized after independent evidence review. Justify the amount and cleanup reserve; do not inflate unrelated timeouts or claim that a new passing run explains the predecessor's historical interruption. No blind unchanged-run loops.") return null;
+  const links = sections[21].split(/\\n|\n/u);
+  if (links.length !== 3 || !["Current work: ", "Development operating criteria: ", "Retained handoff and originals: "].every((label, index) =>
+      new RegExp("^" + label + "https://chatgpt\\.com/space/page_[a-z0-9]+$", "u").test(links[index]))) return null;
+  return { worktree, head, tree, base, reviewId: Number(review[2]), reportId: Number(report[3]), counts: history.slice(4).map(Number) };
+}
+export const verifierLifecycleAuthorityBindings = p => typedMaterialAuthorityBindings(p, VERIFIER_LIFECYCLE_REPAIR, VERIFIER_LIFECYCLE_CLAIM);
+export const verifierLifecycleAuthorityScope = (p, review, grant) =>
+  typedMaterialAuthorityScope(p, review, grant, verifierLifecycleAuthorityBindings(p), VERIFIER_LIFECYCLE_GRANT);

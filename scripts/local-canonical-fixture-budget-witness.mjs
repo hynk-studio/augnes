@@ -7,6 +7,7 @@ import { buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs
 import { observePureContractSource, observePureContractLoader, pureContractGitSource } from "./local-canonical-pure-contract-witness.mjs";
 import { gitRevisionInventory } from "./local-canonical-git-observation.mjs";
 import { createCanonicalRevisionReader } from "./canonical-revision-reader.mjs";
+import { verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
 
 export const REGISTERED_FIXTURE_BUDGET = "registered-fixture-aggregate-budget-v1";
 export const FIXTURE_BUDGET_CLAIM = "Measured prospective development-fixture allowance; historical cause remains UNKNOWN; neither demonstrated cure nor qualification PASS.";
@@ -840,7 +841,7 @@ export function verifyRegisteredIntegrationBudget(p,prior,focused,options) {
   return p.head;
 }
 
-// Next writes this declaration at the root during build and dev startup. The
+// Next writes this declaration during typegen, build and dev startup. The
 // pinned dependency and Git observations still apply. Only these complete
 // declaration forms can be a changed output of an owned, settled phase.
 const nextDeclarationKinds = new Map();
@@ -857,6 +858,7 @@ for (const [kind, directory] of [["build", ".next"], ["dev", ".next/dev"]]) {
   ];
   for (const eol of ["\n", "\r\n"]) nextDeclarationKinds.set(digest(Buffer.from(lines.join(eol))), kind);
 }
+export const nextDeclarationKind = sha256 => nextDeclarationKinds.get(sha256);
 
 function readNextDeclaration(root, observed) {
   if (!Array.isArray(observed) || observed.length > 1) fail();
@@ -872,17 +874,37 @@ function readNextDeclaration(root, observed) {
   return { kind: nextDeclarationKinds.get(observed[0].sha256), mtime: after.mtimeNs, ctime: after.ctimeNs };
 }
 
-function settledNextDeclarationOutput(receipt, current, frozen) {
-  if (receipt?.verification_context?.kind !== "isolated-worktree" || receipt.cleanup?.completed !== true ||
+export function settledNextDeclarationOutput(receipt, current, frozen) {
+  if (!verifyReceiptIntegrity(receipt) || receipt?.verification_context?.kind !== "isolated-worktree" || receipt.cleanup?.completed !== true ||
       !current?.kind || !Array.isArray(frozen) || frozen.length > 1 ||
-      frozen.some(file => file.path !== "next-env.d.ts" || !nextDeclarationKinds.has(file.sha256))) return false;
+      frozen.some(file => file.path !== "next-env.d.ts" || !nextDeclarationKinds.has(file.sha256)) ||
+      !/^[a-f0-9]{32}$/u.test(receipt.run?.invocation_id ?? "") || !Array.isArray(receipt.phases)) return false;
+  const runStart = Date.parse(receipt.run.started_at), runEnd = Date.parse(receipt.run.finished_at);
+  const writers = current.kind === "build" ? new Map([
+    ["typecheck", { command: "npm run typecheck", exclusive: false, browser: false }],
+    ["build", { command: "npm run build", exclusive: true, browser: false }],
+  ]) : new Map([["e2e-project-experience", {
+    command: "node scripts/run-canonical-test-suite.mjs e2e-project-experience", exclusive: true, browser: true,
+  }]]);
   return receipt.phases.some(phase => {
-    // The project-experience phase owns the root Next dev startup. Other
-    // Browser phases do not extend this declaration's accepted writer window.
-    const ownedWriter = current.kind === "build" ? phase.id === "build" : phase.id === "e2e-project-experience" && phase.browser === true;
+    const writer = writers.get(phase.id);
     const start = Date.parse(phase.started_at), end = Date.parse(phase.finished_at);
-    if (!ownedWriter || phase.status === "not_run" || phase.cleanup?.completed !== true ||
-        phase.cleanup.termination_reason !== "natural_exit" || !Number.isFinite(start) || !Number.isFinite(end)) return false;
+    const succeeded = phase.status === "pass" && phase.exit_status === 0 && phase.failure_code === null;
+    const failed = phase.status === "failure" && Number.isInteger(phase.exit_status) && phase.exit_status > 0 && phase.failure_code === "phase_failed";
+    if (!writer || phase.command !== writer.command || phase.cwd_scope !== "root" ||
+        phase.exclusive !== writer.exclusive || phase.browser !== writer.browser ||
+        phase.invocation_id !== receipt.run.invocation_id ||
+        !/^[a-f0-9]{64}$/u.test(phase.environment_fingerprint ?? "") ||
+        receipt.inputs?.binding?.phase_environment_fingerprints?.filter(entry =>
+          entry.id === phase.id && entry.fingerprint === phase.environment_fingerprint).length !== 1 ||
+        receipt.phases.filter(entry => entry.id === phase.id).length !== 1 ||
+        (phase.browser ? phase.base_sha !== receipt.repository?.base_sha || phase.head_sha !== receipt.repository?.head_sha
+          : phase.base_sha !== null || phase.head_sha !== null) ||
+        !(succeeded || failed) || phase.timed_out !== false || phase.spawn_error_code !== null ||
+        phase.cleanup?.completed !== true || phase.cleanup.exit_observed !== true || phase.cleanup.streams_closed !== true ||
+        ![null, 0].includes(phase.cleanup.listener_residue_count) ||
+        phase.cleanup.remaining_owned_processes !== 0 || phase.cleanup.termination_reason !== "natural_exit" ||
+        ![runStart, runEnd, start, end].every(Number.isFinite) || !(runStart <= start && start <= end && end <= runEnd)) return false;
     const first = BigInt(start) * 1_000_000n, last = BigInt(end + 1) * 1_000_000n;
     return [current.mtime, current.ctime].every(time => first <= time && time < last);
   });
@@ -892,7 +914,9 @@ export function inspectCurrentIntegrationBudgetInputs(root, witness, stockReceip
   const { root_generated: generated, ...current } = observePureContractSource(root);
   const { root_generated: frozen, ...source } = witness.after.source;
   const declaration = readNextDeclaration(root, generated);
-  if (!equal(current, source) || (!equal(generated, frozen) && !settledNextDeclarationOutput(stockReceipt, declaration, frozen)) ||
+  const sameReceiptSource = stockReceipt?.repository?.head_sha === source.head && stockReceipt?.repository?.tree_sha === source.tree &&
+    stockReceipt?.inputs?.binding?.head === source.head && stockReceipt?.inputs?.binding?.tree === source.tree;
+  if (!equal(current, source) || (!equal(generated, frozen) && !(sameReceiptSource && settledNextDeclarationOutput(stockReceipt, declaration, frozen))) ||
       !equal(observePureContractLoader(root), witness.after.loader) ||
       comparePreparedDependencyInputs(observePreparedDependencyInputs({ repositoryRoot: root, phaseId: "dependencies-root" }),
         witness.after.dependencies) !== "unchanged" || existsSync(witness.environment.AUGNES_CANONICAL_TEMP_ROOT)) fail();

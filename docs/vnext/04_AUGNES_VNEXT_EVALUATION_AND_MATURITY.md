@@ -35,6 +35,18 @@ use current ordinary authority for its own qualification. Adopting this proposal
 or renewing #1612 requires the final separate review decision; no maturity,
 merge or installed-adoption claim follows from preparing the path.
 
+For the verifier-lifecycle continuation, measure the complete registered synthetic
+fixture rather than attributing its timeout to actual Browser work. Natural
+development passes retain that meaning; they do not explain the historical
+interruption. Exercise genuine Next dev setup, registered typegen/typecheck and
+build, including natural failure/stop before build and a fresh-process reader.
+Separate actual producer records from structural refusals and from disposable
+physical attempt/completion controls. A checksum alone is not authentic lineage.
+Generated content, safe file identity, supported writer interval, exact command,
+invocation and environment all remain necessary. A preparation, acceptance or
+grant is not a qualification result, and a new commission cannot erase spent
+history or acquire a retry by failing.
+
 ### Branch-local TS capture evidence
 
 For the #1612 compatibility candidate, distinguish structural reader fixtures

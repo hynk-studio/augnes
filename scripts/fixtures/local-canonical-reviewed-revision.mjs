@@ -413,13 +413,22 @@ if(process.argv[2]==="--cold"){
 }else if(process.argv[2]==="--run-browser-fixtures"){
   browserProgress("setup_start");
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
-  const c=setup(owner.root,true);
-  browserProgress("setup_complete");
+  const lifecycle={pendingChildren:0}, run=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);
+  let c;
   try {
+    c=setup(owner.root,true);
+    browserProgress("setup_complete");
     await runBrowserRevisionControls(c,{prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,baseReceipt,
-      fresh:packet=>freshReader(c,packet),progress:browserProgress});
+      fresh:packet=>freshReader(c,packet,run),behavior:subject=>behavior(subject,false,run),progress:browserProgress});
     browserProgress("controls_complete");
-  }finally{browserProgress("cleanup_start");releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0});assert(cleanupCanonicalTestResources([owner])[0].completed);browserProgress("cleanup_complete");}
+  }finally{
+    browserProgress("cleanup_start");
+    const settled=lifecycle.pendingChildren===0;
+    if(settled&&c?.owner)releaseCheckoutVerificationOwnership(c.owner,c.checkout);
+    settleCanonicalTestResourceUse(owner,{exit_observed:settled,streams_closed:settled,cleanup_completed:settled,remaining_owned_processes:lifecycle.pendingChildren});
+    assert(cleanupCanonicalTestResources([owner])[0].completed);
+    browserProgress("cleanup_complete");
+  }
 }else if(process.argv[2]==="--run-settlement-fixtures"){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
   const c=setup(owner.root);let children=0;
