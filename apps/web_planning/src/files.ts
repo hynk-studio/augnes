@@ -1,3 +1,4 @@
+import { CONTINUATION_EXPORT, CONTINUATION_COMPATIBILITY } from './continuation-contract';
 import { PARTICIPATION_FORMAT, PARTICIPATION_EXPORT, PARTICIPATION_COMPATIBILITY } from "./participation-contract";
 import { REASSESSMENT_EXPORT, REASSESSMENT_COMPATIBILITY } from "./return-reassessment";
 import { USE_EXPORT, USE_COMPATIBILITY } from "./return-use";
@@ -105,6 +106,7 @@ export function verifiedBodies(chain:Revision[],value:unknown):FileBody[] {
 }
 function exportIdentity(chain:Revision[]) {
   const files=historyFiles(chain);
+  if(chain.some(r=>r.continuation))return {format:CONTINUATION_EXPORT,compatibility:CONTINUATION_COMPATIBILITY};
   if(chain.some(r=>r.return_reassessment))return {format:REASSESSMENT_EXPORT,compatibility:REASSESSMENT_COMPATIBILITY};
   if(chain.some(r=>r.format===PARTICIPATION_FORMAT))return {format:PARTICIPATION_EXPORT,compatibility:PARTICIPATION_COMPATIBILITY};
   if(chain.some(r=>r.return_use))return {format:USE_EXPORT,compatibility:USE_COMPATIBILITY};
@@ -120,7 +122,7 @@ export function exportFiles(chain:Revision[],bodies:FileBody[]) {
 }
 export function validateFileExport(scope:Scope,value:unknown) {
   exact(value,"format,schema,compatibility,revisions,files,fingerprint");
-  if(value.schema!==1||![FILE_EXPORT_FORMAT,FILE_RELATION_EXPORT_FORMAT,EXCHANGE_EXPORT,LARGE_EXPORT,USE_EXPORT,PARTICIPATION_EXPORT,REASSESSMENT_EXPORT].includes(value.format))fail("incompatible_format",409);
+  if(value.schema!==1||![CONTINUATION_EXPORT,FILE_EXPORT_FORMAT,FILE_RELATION_EXPORT_FORMAT,EXCHANGE_EXPORT,LARGE_EXPORT,USE_EXPORT,PARTICIPATION_EXPORT,REASSESSMENT_EXPORT].includes(value.format))fail("incompatible_format",409);
   if(!Array.isArray(value.revisions)||!value.revisions.length)fail("invalid_export");
   const {fingerprint,...content}=value;
   if(hash(canonical(content))!==fingerprint)fail("export_integrity",409);

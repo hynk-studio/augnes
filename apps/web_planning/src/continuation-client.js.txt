@@ -1,0 +1,85 @@
+'use strict';
+const $=id=>document.getElementById(id),meta=name=>document.querySelector('meta[name="'+name+'"]').content;
+const scope={workspace_id:meta('workspace'),project_id:meta('project')},id=meta('continuation-id'),manage=meta('continuation-mode')==='manage';
+const root=manage?'/api/work/'+id+'/continuation':'/api/continuation/'+id;
+const pointer='augnes-continuation-pending:'+scope.project_id+':'+id+':'+manage;
+let current=null,busy=false,lost=false,pending=null,cursor=null,confirmedAbsent=false;
+const status=text=>{$('status').textContent=text;};
+function controls(){
+  if(manage){$('grant-fields').disabled=busy||!!pending&&!confirmedAbsent||!current;$('grant-submit').disabled=busy||!!pending&&!confirmedAbsent||!current;$('grant-reconcile').hidden=!pending;}
+  else{$('update-fields').disabled=busy||!!pending||!current;$('update-submit').disabled=busy||!!pending||!current||current.remaining_updates<=0;$('resolve').hidden=!pending;}
+  $('refresh').disabled=busy;$('refresh').textContent=pending?'Read current work (pending save retained)':'Read current work';
+}
+async function api(path,body){
+  if(lost)throw Error('access_denied');
+  const r=await fetch(path,{method:body===undefined?'GET':'POST',credentials:'same-origin',cache:'no-store',redirect:'manual',signal:AbortSignal.timeout(15000),
+    headers:{'x-web-planning-project':scope.project_id,...(body===undefined?{}:{'content-type':'application/json','x-csrf-token':meta('csrf-token')})},
+    ...(body===undefined?{}:{body:JSON.stringify({...scope,...body})})});
+  if([401,403].includes(r.status)||r.type==='opaqueredirect'||r.headers.get('x-web-planning-response')!=='1'){
+    lost=true;current=null;$('work-context').replaceChildren();
+    for(const input of document.querySelectorAll('textarea,input'))input.value='';
+    for(const button of document.querySelectorAll('button'))button.disabled=true;
+    if($('grants'))$('grants').replaceChildren();if($('limits'))$('limits').textContent='';
+    throw Error('Access ended. Private content was cleared; a pending operation remains unresolved.');
+  }
+  const value=await r.json();if(lost)throw Error('access_denied');if(!r.ok)throw Error(value.error??'storage_unavailable');return value;
+}
+function paragraph(parent,text){const p=document.createElement('p');p.textContent=text;parent.append(p);}
+function show(value){
+  current=value;const h=value.saved,box=$('work-context');box.replaceChildren();
+  const title=document.createElement('h2');title.textContent=h.definition.goal;box.append(title);
+  paragraph(box,'Success criteria: '+h.definition.success_criteria.join('; '));
+  for(const n of h.sources)paragraph(box,n.why_included+': '+n.bounded_summary+' — '+n.compatibility_source_ref.external_id);
+  for(const r of value.history??[h]){
+    if(r.continuation)paragraph(box,'Revision '+r.revision+' · '+r.continuation.principal_ref+' · Obligation: '+r.continuation.obligation+' · Report: '+r.continuation.report+' · Next: '+r.continuation.next_action);
+    if(r.exchange)paragraph(box,'Revision '+r.revision+' · '+r.exchange.kind+': '+r.exchange.message+' · Next: '+r.exchange.next_action);
+    if(!manage)for(const [kind,files] of [['files',r.files??[]],['exchange-files',r.exchange?.artifacts??[]]])for(const [index,item] of files.entries()){const f=item.file??item;
+      const a=document.createElement('a');a.textContent='Revision '+r.revision+': '+f.name+' (untrusted attachment)';a.href=root+'/'+kind+'/'+r.revision+'/'+r.fingerprint.slice(7)+'/'+index;box.append(a,document.createElement('br'));
+    }
+  }
+  if(!manage)$('limits').textContent='Current obligation: '+value.obligation+' · '+value.remaining_updates+' of '+value.max_updates+' updates remaining · Access ends '+new Date(value.expires).toLocaleString();
+  controls();
+}
+async function read(){
+  const value=manage?await api('/api/work/'+id+'/history'):await api(root);
+  show(manage?{saved:value.revisions.at(-1),history:value.revisions}:value);
+}
+async function grants(more=false){
+  const value=await api(root+(more&&cursor?'?cursor='+cursor:''));cursor=value.next;
+  if(!more)$('grants').replaceChildren();
+  for(const g of value.grants){const row=document.createElement('section');paragraph(row,g.recipient+' · '+g.obligation+' · Limit '+g.max_updates+' · '+(g.revoked_at?'Revoked':new Date(g.expires).toLocaleString()));
+    const link=document.createElement('a');link.href=g.link;link.textContent=g.link;row.append(link);
+    const revoke=document.createElement('button');revoke.textContent='Revoke';revoke.disabled=!!g.revoked_at;revoke.onclick=()=>run(async()=>{await api(root+'/revoke',{grant_id:g.id});await grants();status('Delegation revoked. Existing updates and obligations remain.');});row.append(revoke);$('grants').append(row);}
+  $('grants-more').hidden=!cursor;
+}
+function remember(value){sessionStorage.setItem(pointer,JSON.stringify(value));pending=value;controls();}
+function clearPending(){sessionStorage.removeItem(pointer);pending=null;controls();}
+async function run(fn){if(busy||lost)return;busy=true;controls();try{await fn();}catch(e){status(e.message);}finally{busy=false;if(!lost)controls();}}
+$('refresh').onclick=()=>run(async()=>{await read();if(manage)await grants();status(pending?'Read current work. Reconcile the pending operation before another write.':'Current work read.');});
+if(manage){
+  $('grant-form').onsubmit=e=>{e.preventDefault();run(async()=>{
+    const body={grant_id:pending?.grant_id??crypto.randomUUID(),expected:{revision:current.saved.revision,fingerprint:current.saved.fingerprint},recipient:$('recipient').value,
+      obligation:$('obligation').value,expires:new Date($('expires').value).getTime(),max_updates:Number($('max-updates').value),confirm:'share-this-work-history'};
+    // Keep one operation key through reconciliation; retain no recipient or private obligation.
+    confirmedAbsent=false;remember({grant_id:body.grant_id});await api(root+'/create',body);clearPending();await grants();status('Delegation created. Share its link deliberately; the link grants nothing without the recipient sign-in.');
+  });};
+  $('grant-reconcile').onclick=()=>run(async()=>{
+    const result=await api(root+'/resolve',pending);await read();await grants();
+    if(result.outcome==='created'){clearPending();confirmedAbsent=false;status('The delegation already exists; its lifetime and limit were not renewed.');}
+    else{confirmedAbsent=true;status('No committed delegation was found. Review the current work and prepare the grant again; the same operation key is retained.');}
+  });
+  $('grants-more').onclick=()=>run(()=>grants(true));
+}else{
+  $('update-form').onsubmit=e=>{e.preventDefault();run(async()=>{
+    const body={request_key:crypto.randomUUID(),expected:{revision:current.saved.revision,fingerprint:current.saved.fingerprint},report:$('report').value,next_action:$('next-action').value};
+    // Retain only an operation locator across reload, never private authored text.
+    remember({request_key:body.request_key});await api(root+'/save',body);clearPending();await read();$('report').value=$('next-action').value='';status('Attributed update saved.');
+  });};
+  $('resolve').onclick=()=>run(async()=>{
+    const result=await api(root+'/resolve',pending);await read();clearPending();
+    status(result.outcome==='saved'?'The earlier update is saved. Do not submit it again.':'No committed update was found. Review the freshly read history before deliberately preparing another update.');
+  });
+}
+try{const raw=sessionStorage.getItem(pointer);if(raw)pending=JSON.parse(raw);}catch{pending={};}
+window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
+run(async()=>{await read();if(manage)await grants();status(pending?'An earlier operation needs reconciliation.':'Current work read.');});

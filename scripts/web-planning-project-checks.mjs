@@ -10,6 +10,7 @@ import { fixtureScope, migrationPrefix } from './web-planning-local-runtime.mjs'
 import { webRoot } from './build-web-planning.mjs';
 
 const contributor = 'independent-principal-b@example.test';
+export { session as projectSession, ok as projectOk, agentSession as projectAgentSession, bindings as projectBindings, input as projectInput };
 const route = (r, suffix = '') => '/api/work/' + r.work_id + (suffix ? '/' + suffix : '');
 const upload = (name, text) => {
   const bytes = Buffer.from(text);

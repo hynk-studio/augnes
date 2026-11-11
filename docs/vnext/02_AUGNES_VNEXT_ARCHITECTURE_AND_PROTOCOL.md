@@ -4285,6 +4285,41 @@ owns entry/API/client limits, quiesced migration, backup requirements and the
 non-destructive owner-only rollback posture. This is the first W2 entry slice,
 not whole-W2, delegated succession or independently hosted adoption acceptance.
 
+#### Scoped Web work succession (#1628)
+
+The first successor role, `continue-work-v1`, delegates a bounded read/append
+surface for one existing work to a separately authenticated, already admitted
+principal. The immutable operational grant binds workspace, project, work,
+issuer, recipient, unresolved obligation, expiry and cumulative update limit.
+The owner explicitly discloses that work's full history and attachments, including
+recorded reference metadata. Related work IDs do not grant access to their source
+histories or files. Changing a browser, model or session cannot renew the grant.
+
+A successor reads the existing purpose, attributed sources, selected materials,
+prior updates and outstanding obligation, then records a report and next action.
+The new v0.10 envelope copies the prior definition, sources, relations and files
+exactly and adds `continuation` attribution. Project ownership and the stable
+project `author_ref` remain distinct from the executing `principal_ref`, issuer
+and grant ID. Neither earlier authorship nor earlier envelope bytes change.
+Reported findings remain claims; this grants no Core acceptance, native sync,
+model call, external effect, subdelegation, erasure or editing of selected work.
+
+Both Browser and agent/client writers use the same exact predecessor and request
+identity. Unknown delivery is reconciled by reading committed effects; another
+session must not infer failure or a renewed allowance. The INSERT atomically
+checks live grant scope, revocation, expiry and remaining updates, including when
+revocation races a previously admitted request. Reads recheck access before
+returning data. Revocation removes future disclosure/write rights, preserving
+committed contributions and obligations for authorized readers. Expiry or an
+exhausted update allowance is not a judgment that the work is complete.
+
+Operational schema 6 retains existing data bytes and adds only the grants. Full
+v0.10 work exports carry historical attribution but no live grants or credentials.
+Selected-project reconstruction revokes existing grants as part of the same
+transaction. Imported attribution is not live permission. The
+[Web guide](../../apps/web_planning/README.md#scoped-work-succession-1628) owns
+ordinary entry, bounded API/client operations and compatible rollback.
+
 ### 13.6 Explicit portable Web source admission (#1475)
 
 The [local handoff](../WEB_EXPORT_NATIVE_HANDOFF.md) directly reuses the Web v0.3

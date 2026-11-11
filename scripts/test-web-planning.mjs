@@ -1,3 +1,5 @@
+import { checkWorkContinuation } from './web-planning-successor-checks.mjs';
+import { checkContinuationClient } from './test-web-planning-continuation-client.mjs';
 import { checkIndependentProjects } from './web-planning-project-checks.mjs';
 import { checkProjectEntryClient } from './test-web-planning-project-entry-client.mjs';
 import { checkParticipation } from './web-planning-participation-checks.mjs';
@@ -34,6 +36,7 @@ import { checkCloudflarePlanning } from './web-planning-cloudflare-checks.mjs';
 const root=process.env.AUGNES_CANONICAL_TEMP_ROOT;if(!root)throw new Error('owned_test_root_required');
 console.log(JSON.stringify({web_planning_interception_diagnostics_contract:await checkWebPlanningInterceptionDiagnostics()}));
 console.log(JSON.stringify({web_planning_touch_transport_contract:await checkWebPlanningTouchTransport()}));
+await checkContinuationClient();
 let local;const open=[];let checks=0;
 function passed(name){checks++;console.log('web-planning: '+name);}
 const scope={workspace_id:fixtureScope.workspace_id,project_id:fixtureScope.project_id};
@@ -207,6 +210,7 @@ try {
  await checkReturnReassessment({start,client,newWork,save,passed});
  await checkParticipation({start,client,newWork,save,passed});
  await checkIndependentProjects({start,root,passed});
+ await checkWorkContinuation({start,root,passed});
  await checkLargeExchanges({start,client,newWork,save,passed});
  await checkOrdinaryFiles({start,client,newWork,save,passed,open});
  await checkStoryWriting({start,client,newWork,save,passed});

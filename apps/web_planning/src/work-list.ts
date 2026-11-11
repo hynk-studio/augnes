@@ -1,3 +1,4 @@
+import { CONTINUATION_FORMAT, CONTINUATION_COMPATIBILITY, continuationRecord } from './continuation-contract';
 import { PARTICIPATION_FORMAT, PARTICIPATION_COMPATIBILITY } from "./participation-contract";
 import { REASSESSMENT_FORMAT, REASSESSMENT_COMPATIBILITY, reassessmentRecord } from "./return-reassessment";
 import { USE_FORMAT, USE_COMPATIBILITY, returnUse } from "./return-use";
@@ -10,9 +11,9 @@ import { fileManifest, FILE_COMPATIBILITY, FILE_FORMAT, FILE_RELATION_COMPATIBIL
 // Return their original seals for checking. Older planning-only rows contribute
 // lineage and file membership, not notes, definitions, scenes or comparisons.
 export const listEnvelope = `CASE WHEN revision=(SELECT n FROM summary)
-  OR json_type(envelope,'$.exchange') IS NOT NULL OR json_extract(envelope,'$.format')='${EXCHANGE_FORMAT}'
+  OR json_type(envelope,'$.continuation') IS NOT NULL OR json_type(envelope,'$.exchange') IS NOT NULL OR json_extract(envelope,'$.format')='${EXCHANGE_FORMAT}'
   THEN envelope ELSE json_remove(envelope,'$.sources','$.definition','$.relations','$.return_use','$.return_reassessment') END`;
-export const revisionCompatibility = new Map<string,string>([[REASSESSMENT_FORMAT,REASSESSMENT_COMPATIBILITY],[PARTICIPATION_FORMAT,PARTICIPATION_COMPATIBILITY],[USE_FORMAT,USE_COMPATIBILITY],[FORMAT,COMPATIBILITY],[RELATION_FORMAT,RELATION_COMPATIBILITY],
+export const revisionCompatibility = new Map<string,string>([[CONTINUATION_FORMAT,CONTINUATION_COMPATIBILITY],[REASSESSMENT_FORMAT,REASSESSMENT_COMPATIBILITY],[PARTICIPATION_FORMAT,PARTICIPATION_COMPATIBILITY],[USE_FORMAT,USE_COMPATIBILITY],[FORMAT,COMPATIBILITY],[RELATION_FORMAT,RELATION_COMPATIBILITY],
   [FILE_FORMAT,FILE_COMPATIBILITY],[FILE_RELATION_FORMAT,FILE_RELATION_COMPATIBILITY],[EXCHANGE_FORMAT,EXCHANGE_COMPATIBILITY],[LARGE_FORMAT,LARGE_COMPATIBILITY]]);
 const previewLimit = 2;
 
@@ -36,7 +37,9 @@ export function projectWorkListItem(scope:Scope,id:string,rows:Revision[]) {
         !FINGERPRINT.test(row.request_fingerprint)) fail("history_index_integrity",503);
     predecessor = row.fingerprint;
     if (row.files!==undefined) fileManifest(row.files);
-    if (row===head || row.exchange) {
+    if ((row.format===CONTINUATION_FORMAT)!==("continuation" in row))fail("incompatible_format",409);
+    if(row.continuation)continuationRecord(row.continuation);
+    if (row===head || row.exchange || row.continuation) {
       const {fingerprint,...material}=row;
       if (hash(canonical(material))!==fingerprint) fail("history_integrity",409);
     }
@@ -63,6 +66,7 @@ export function projectWorkListItem(scope:Scope,id:string,rows:Revision[]) {
     fail("history_observation_incomplete",503);
   return {work_id:id,goal:head.definition.goal,exchanges:"/api/work/"+id+"/exchanges",recorded_at:head.recorded_at,
     ...headBinding(head),branch_of:head.relations?.origin?.source.work_id??null,
+    latest_continuation:[...rows].reverse().find(r=>r.continuation)?.continuation??null,
     overview:{awaiting_count:awaiting.size,return_count:returns.length,returned_file_count:returnedFiles,
       awaiting:[...awaiting.values()].slice(0,previewLimit).map(preview),
       returns:returns.slice(-previewLimit).reverse().map(({request,returned})=>({request:preview(request),returned:preview(returned)}))}};

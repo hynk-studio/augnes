@@ -695,6 +695,30 @@ Exact final qualification, immutable failures and cleanup belong to the PR and
 private evidence record. Existing native and #1587 observations are preserved,
 not repeated or promoted into evidence for this new permission boundary.
 
+### Scoped Web successor evidence (#1628)
+
+The bounded successor claim requires a different authenticated sign-in to read
+an explicitly shared work, understand its recorded purpose/source basis and
+unfinished obligation, and save a useful attributed next action. Current writer
+identity must not rewrite prior authorship or inherit owner credentials. A new
+browser/session must retain the cumulative grant limit and reconcile uncertain
+writes before replacement. Revocation racing a preauthorized write must refuse
+at the actual INSERT; denied identities cannot use an ordinary owner endpoint
+to bypass the role. Completed records and unresolved obligations remain readable
+to the owner. Export/reconstruction retains their exact bytes while ending live
+grants, including when another project remains populated.
+
+The focused [D1/agent checks](../../scripts/web-planning-successor-checks.mjs)
+exercise these paths, concurrent limit consumption, expiry, edited setup and
+cross-grant CSRF refusal. The complete Web suite invokes the same checks and
+[client recovery/privacy cases](../../scripts/test-web-planning-continuation-client.mjs).
+The existing Web Browser owner includes the [ordinary form journey](../../scripts/browser-web-planning-succession.mjs)
+with separate authenticated contexts, real committed response loss, fresh-session
+continuation and revocation. Browser observations and their environment are
+reported separately. Controlled sign-ins
+and scripted judgments establish implementation behavior, not model understanding,
+hosted adoption, organic use, general organizations or the benefit of delegation.
+
 ### Independent private Web project entry evidence (#1627)
 
 The bounded entry claim requires two separately authenticated, explicitly admitted

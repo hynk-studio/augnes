@@ -85,6 +85,69 @@ ID; task-bound operations always use their exact setup. After reading the curren
 continuation, the existing planning draft/ticket/save/resolve methods below record
 the later step. No special agent or scene-specific state path is needed.
 
+### Scoped work succession (#1628)
+
+In admitted private project mode, open a saved work and choose **Delegate updates
+to this saved work**. The owner deliberately shares that work's complete history,
+attached files and reference metadata with one already admitted sign-in. The
+`continue-work-v1` role permits reading that work and appending attributed reports
+and next actions. It permits no changes to the owner's purpose or selected
+material, other-work access, erasure, imports, subdelegation or external execution.
+Choose the unresolved obligation, an expiry within 90 days and 1–20 saved updates.
+The server enforces both expiry and the cumulative update limit; a fresh session
+or model does not renew either. The owner can revoke the delegation in this page.
+Creating a new grant is an explicit new owner decision, not automatic succession.
+
+The recipient opens the returned `/continue/<grant-id>` link under their own
+admitted sign-in. Read the current purpose, sources, earlier updates and unresolved
+obligations before saving an update. Neither a link nor a downloaded setup is a
+credential. A lost save acknowledgement leaves an operation locator; use **Check
+the pending save** before preparing another update. Reconciliation reads existing
+effects and never resubmits. Expired/revoked access also stops reconciliation;
+the owner retains the complete history. A pending grant creation also retains
+only its operation key. Its read-only check either finds the existing grant or
+unlocks the form while retaining that same key; reloading requires another check.
+Checking never creates or renews access, and stores no recipient or private text.
+
+`GET /api/work/<work-id>/continuation` lists owner grants (opaque ID cursor).
+Owner `POST .../create` takes `grant_id`, exact `expected`, `recipient`, `obligation`,
+`expires` (Unix milliseconds), `max_updates`, and
+`confirm: "share-this-work-history"`; `POST .../revoke` and the read-only
+`POST .../resolve` take `grant_id`.
+All writes include the selected `workspace_id`/`project_id` and normal CSRF.
+The recipient uses `GET /api/continuation/<grant-id>` for the complete one-work
+context and `GET .../setup` for its setup. `POST .../save` takes `request_key`,
+exact `expected`, `report` and `next_action`; `POST .../resolve` takes only
+`request_key`. Identity and issuer attribution come from authentication and the
+stored grant, never these inputs. Read/write refusal ends disclosure; an already
+admitted save must still satisfy the atomic SQL revocation/expiry/budget gate.
+
+For an ordinary supported agent client, import `openFileContinuation` from
+`apps/augnes_apps/scripts/web-file-client.mjs`, open the downloaded setup, then
+use `read()`, `save({request_key, expected, report, next_action})` and
+`resolve(request_key)`. Use the recipient's own existing Access login and the
+approved `AUGNES_WEB_ORIGIN`; do not copy the owner's session. `read()` must precede
+new work. Original expected bindings and request keys are needed to reconcile
+uncertain delivery; reading the fresh history does not create a new attempt grant.
+
+Migration `0008_work_continuation.sql` advances schema 5 to 6 with writers
+quiesced and a full backup. It adds operational grants without modifying existing
+mapping, revision or file bytes. Old owner-only/schema-4 and admitted/schema-5
+paths remain supported by this worker; succession itself requires schema 6.
+A new attributed update uses revision/export v0.10 (`web-planning/10`). The stable
+project `author_ref` and every older envelope remain unchanged; the update's
+`continuation.principal_ref`, `issuer_ref`, `grant_id` and authentication class
+identify its actual sign-in and authorization source. This records an attributed
+report, not a model identity, verified result, acceptance or live execution grant.
+
+Complete JSON and readable exports retain these reports and obligations.
+Reconstruction preserves their exact bytes and revokes all current grants only
+in the restored project; portable attribution never recreates live authority.
+After a v0.10 record is written, retain a v0.10-compatible reader/writer for
+rollback. No downmigration or data deletion is supplied. Owner changes to the
+ordinary work remain separate. This first role does not permit rewriting the
+work definition or its selected methods/files; other roles remain future scope.
+
 ### Project mapping migration and rollback
 
 Migration `0007_independent_projects.sql` advances the operational schema from 4
@@ -97,7 +160,7 @@ Drizzle snapshot follows the same schema; deferred foreign-key checks keep exist
 dependants enforced during replacement. A failed migration rolls back as a unit.
 
 The current worker can still read schema 4 in default owner-only mode; enabling
-project entry requires schema 5. Operational rollback disables project entry and
+project entry requires schema 5 or 6. Operational rollback disables project entry and
 uses the current worker's legacy owner-only path, retaining new projects in storage.
 Do not run an older schema-4 worker as a writer on schema 5, or downgrade/drop new
 project mappings. A full pre-migration backup restores the old installation only
@@ -1800,7 +1863,7 @@ remain unchanged. The later direct-host #1351 journey was accepted in #1356; thi
 | `REQUEST_SECRET` | Random server-only secret of at least 32 characters for scope-bound save/CSRF seals. Store through the separately authorized Sites secret owner, never in Git or prompts. Rotation invalidates outstanding seals and needs deliberate outcome reconciliation. |
 | `SITES_INGRESS_MODE` | Leave unset until hosted trust checks pass. `verified-private-sites` enables the documented identity adapter; it is an operator assertion, not cryptographic verification or authentication by itself. |
 | `RECONSTRUCTION_MODE` | Normally unset. `quiesced-empty-store` admits an explicitly requested reconstruction into the selected empty project scope, only after the old writer is quiesced. Other projects remain independent. |
-| `PROJECT_ENTRY_MODE` | Normally unset (legacy owner-only). `admitted-private-v1` enables private project entry on schema 5. It does not alter the hosted audience. |
+| `PROJECT_ENTRY_MODE` | Normally unset (legacy owner-only). `admitted-private-v1` enables private project entry on schema 5 or 6. It does not alter the hosted audience. |
 | `PROJECT_ADMITTED_EMAILS` | JSON array of up to 100 verified-ingress emails allowed to create/select their own projects when entry is enabled. It grants no access to another owner's project. |
 
 Before real data, independently verify owner-private audience, authenticated
@@ -1843,7 +1906,8 @@ JSON, revision bounds, scoped foreign keys and uniqueness constraints are
 also exercised directly in D1. The original two migrations remain unchanged.
 #1351 used schema 1 with only a JSON-envelope extension; #1372's file implementation
 added 0002/schema 2, and #1397 added 0003/schema 3. The complete-originals
-Worker requires at least 0004/schema 4; project entry requires 0007/schema 5.
+Worker requires at least 0004/schema 4; project entry requires 0007/schema 5,
+and scoped work succession requires 0008/schema 6.
 The 0004 migration copies the old file headers and
 BLOBs, retains every revision, and adds scoped parts with cascading erasure.
 Apply it only through the established migration owner in a separately approved

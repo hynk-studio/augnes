@@ -218,3 +218,21 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
   async function feedback(cursor){if(!participant)fail('Choose a participant setup.');return (await request(root+'/feedback'+(cursor?'?cursor='+encodeURIComponent(cursor):''))).json();}
   return { participant, feedback, project: project.name, work_id, setupDigest: digest(selected), planning, list, get, readPage, write, inspectReturn, prepareReturn, sendReturn, savedFile, recordedOrigin, readOrigin, evidenceFile, inspectUse, prepareReassessment, sendReassessment };
 }
+
+// A separately authenticated successor uses only the one-work continuation routes.
+export async function openFileContinuation(setupPath, expectedSetupDigest) {
+  const bytes=await readFile(setupPath);
+  if(expectedSetupDigest&&digest(bytes)!==expectedSetupDigest)fail('Continuation setup changed.');
+  const setup=JSON.parse(bytes.toString('utf8'));
+  if(Object.keys(setup).sort().join(',')!=='format,grant_id,origin,project_id,work_id,workspace_id'||setup.format!=='augnes_web_continuation.v1'||
+    ![setup.workspace_id,setup.project_id,setup.work_id,setup.grant_id].every(v=>typeof v==='string'&&uuid.test(v)))fail('Invalid continuation setup.');
+  const root='/api/continuation/'+setup.grant_id;
+  const {request}=await openFileConnection(setup.origin,'/continue/'+setup.grant_id,setup,setup.project_id);
+  async function read(){
+    const value=await (await request(root)).json();
+    if(value.work_id!==setup.work_id||value.project_id!==setup.project_id||value.workspace_id!==setup.workspace_id||value.grant_id!==setup.grant_id)fail('Continuation selection changed.');
+    return value;
+  }
+  await read();
+  return {read,save:async input=>(await request(root+'/save',input)).json(),resolve:async request_key=>(await request(root+'/resolve',{request_key})).json()};
+}

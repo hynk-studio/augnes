@@ -1,4 +1,6 @@
 import { browserDraftSafety } from './browser-web-planning-draft-safety.mjs';
+import { browserWorkSuccession } from './browser-web-planning-succession.mjs';
+import { projectBindings } from './web-planning-project-checks.mjs';
 import { browserParticipation, browserParticipationRecovery } from './browser-web-planning-participation.mjs';
 import { participantBindings } from './web-planning-participation-checks.mjs';
 import { selectBrowserPath } from "./local-canonical-browser-input.mjs";
@@ -382,6 +384,9 @@ try {
  const participantOwner=await page(debug,local.origin);await login(participantOwner,local.origin);
  await browserParticipationRecovery({owner:participantOwner,participant:c=>page(debug,local.origin,c?.browserContextId??true),local,root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
  await browserParticipation({owner:participantOwner,participant:()=>page(debug,local.origin,true),local,root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
+ for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=null;
+ local=await startLocal({root:path.join(root,'work-succession-browser'),bindings:projectBindings()});
+ await browserWorkSuccession({owner:await page(debug,local.origin,true),successor:()=>page(debug,local.origin,true),local,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
  assert.deepEqual(interceptionErrors,[]);
  // The same complete product journey now enters the compiled direct Worker
  // through workerd's platform Access simulation, without local login cookies.
