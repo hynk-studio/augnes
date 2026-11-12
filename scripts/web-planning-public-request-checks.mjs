@@ -234,7 +234,11 @@ export async function checkPublicRequests({ start, client, newWork, save, passed
     const keys = Object.keys(row);
     await restore.db.prepare('INSERT INTO ' + table + ' (' + keys.join(',') + ') VALUES (' + keys.map(() => '?').join(',') + ')').bind(...Object.values(row)).run();
   }
-  assert.equal((await restorer.request('/api/reconstruct-exchange', { export: exported, confirm: 'reconstruct-empty-store' })).status, 200);
+  // An unanswered request still uses the existing v0.5 exchange export; publication
+  // is operational metadata and must not promote its work/export format.
+  assert.equal(exported.format, 'web_planning_export.v0.5');
+  const reconstructed = await restorer.request('/api/reconstruct-files', { export: exported, confirm: 'reconstruct-empty-store' });
+  assert.equal(reconstructed.status, 200, JSON.stringify(reconstructed.data));
   const restoredPublic = await restore.mf.dispatchFetch(restore.origin + '/public-requests/' + erased.input.publication_id + '.json');
   assert.equal(restoredPublic.status, 200);
   const restoredView = await restoredPublic.json();
@@ -249,4 +253,32 @@ export async function checkPublicRequests({ start, client, newWork, save, passed
   assert.equal(server.externalRequests(), 0);
   assert.equal(restore.externalRequests(), 0);
   passed('public requests: source erasure removes public material; supported reconstruction retires retained publication and recipient authority instead of reviving public access');
+
+  // Exercise the compiled direct Worker and the pinned Wrangler/D1 migration
+  // path. Anonymous reads must work without ctx.access, while private routes
+  // still refuse identity headers/cookies supplied by the caller.
+  const direct = await start('public-requests-direct', { direct: true, bindings });
+  const previousOwner = owner;
+  try {
+    owner = await client(direct, { entryHeaders: { 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document', 'sec-fetch-site': 'none' } });
+    const selected = await seed('direct-worker');
+    await req(publications(selected.base, 'create'), selected.input);
+    await direct.setOptions({ access: undefined });
+    const locator = direct.origin + '/public-requests/' + selected.input.publication_id;
+    const json = await direct.mf.dispatchFetch(locator + '.json', { headers: { origin: 'https://outside.example.test', 'sec-fetch-site': 'cross-site' } });
+    assert.equal(json.status, 200);
+    assert.equal(json.headers.get('set-cookie'), null);
+    const view = await json.json();
+    assert.deepEqual(view.summary, selected.input.summary);
+    assert.equal(view.issuer.authentication, 'verified_ingress_email');
+    const html = await direct.mf.dispatchFetch(locator);
+    assert.equal(html.status, 200);
+    assert((await html.text()).includes(encode(selected.input.summary.purpose)));
+    const spoof = { 'oai-authenticated-user-email': direct.env.OWNER_EMAIL, 'Cf-Access-Authenticated-User-Email': direct.env.OWNER_EMAIL, cookie: 'web_planning_local=' + direct.env.LOCAL_SESSION };
+    for (const privatePath of ['/api/works', publications(selected.base), '/participate/' + selected.grant.id]) {
+      assert.equal((await direct.mf.dispatchFetch(direct.origin + privatePath, { headers: spoof })).status, 403);
+    }
+    assert.equal(direct.externalRequests(), 0);
+  } finally { owner = previousOwner; }
+  passed('public requests: compiled direct Worker and Wrangler-applied D1 migrations publish the selected view; absent platform Access permits anonymous HTML/JSON only, while spoofed identities cannot read private work or submit');
 }

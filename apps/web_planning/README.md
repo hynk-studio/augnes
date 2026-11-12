@@ -658,7 +658,13 @@ Focused development commands:
 `node scripts/run-web-planning.mjs public-requests` uses the existing bounded
 D1 lifecycle; `node scripts/test-web-planning-publication-client.mjs` checks
 browser-client state deterministically without claiming a real browser run.
-The ordinary Web suite invokes these same checks. Record actual results and
+The ordinary Web D1 suite invokes those same D1 and deterministic client checks.
+`node scripts/run-web-planning.mjs public-requests-browser` uses the existing
+Chrome lifecycle for selected publication, anonymous HTML/JSON, response-loss
+reconciliation and the same request's separate participant return, checked use,
+feedback, withdrawal and expiry. Run it alongside the existing Web browser suite;
+both retain their existing bounded lifecycle and deadlines.
+Record actual results and
 blocked checks on the candidate; source, controlled fixtures, hosted publication,
 invited response, independent participation and economic demand are different
 observations. This does not implement #1642's need-driven external transport.

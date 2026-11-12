@@ -1,7 +1,7 @@
 // Focused entry reuses the same D1 check owner as the ordinary Web suite.
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { startLocal, fixtureScope } from './web-planning-local-runtime.mjs';
+import { startLocal, fixtureScope, dispatchNavigation } from './web-planning-local-runtime.mjs';
 import { checkPublicRequests } from './web-planning-public-request-checks.mjs';
 import { checkPublicationClient } from './test-web-planning-publication-client.mjs';
 const root = process.env.AUGNES_CANONICAL_TEMP_ROOT;
@@ -10,9 +10,10 @@ const servers = []; let checks = 0;
 async function start(name, options = {}) {
   const s = await startLocal({ root: path.join(root, name), ...options }); servers.push(s); return s;
 }
-async function client(s) {
+async function client(s, options = {}) {
   const cookie = 'web_planning_local=' + s.env.LOCAL_SESSION;
-  const entry = await s.mf.dispatchFetch(s.env.APP_ORIGIN + '/', { headers: { cookie } });
+  const init = { headers: { cookie, ...options.entryHeaders } };
+  const entry = await (options.entryHeaders ? dispatchNavigation(s, s.env.APP_ORIGIN + '/', init) : s.mf.dispatchFetch(s.env.APP_ORIGIN + '/', init));
   assert.equal(entry.status, 200);
   const csrf = (await entry.text()).match(/name="csrf-token" content="([^"]+)"/)[1];
   const cookies = cookie + '; ' + entry.headers.get('set-cookie').split(';')[0];

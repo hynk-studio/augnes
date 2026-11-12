@@ -1,5 +1,6 @@
 import { browserDraftSafety } from './browser-web-planning-draft-safety.mjs';
 import { browserWorkSuccession } from './browser-web-planning-succession.mjs';
+import { browserPublicRequest } from './browser-web-planning-public-requests.mjs';
 import { projectBindings } from './web-planning-project-checks.mjs';
 import { browserParticipation, browserParticipationRecovery } from './browser-web-planning-participation.mjs';
 import { participantBindings } from './web-planning-participation-checks.mjs';
@@ -228,8 +229,8 @@ async function login(c,origin){await navigate(c,origin+'/_local/login');await wa
 async function reopen(c){await wait(()=>c.eval("document.querySelectorAll('#work-list button').length>0"),'saved list');await c.eval("document.querySelector('#work-list button').click()");await wait(()=>visible(c,'editor'),'editor');}
 let checks=[], browserUse;
 try {
- const recoveryOnly=process.argv[2]==='--participation-recovery',reassessmentOnly=process.argv[2]==='--reassessment',draftSafetyOnly=process.argv[2]==='--draft-safety',successionOnly=process.argv[2]==='--succession';
- assert(process.argv.length===2||(recoveryOnly||reassessmentOnly||draftSafetyOnly||successionOnly)&&process.argv.length===3);
+ const recoveryOnly=process.argv[2]==='--participation-recovery',publicOnly=process.argv[2]==='--public-requests',reassessmentOnly=process.argv[2]==='--reassessment',draftSafetyOnly=process.argv[2]==='--draft-safety',successionOnly=process.argv[2]==='--succession';
+ assert(process.argv.length===2||(recoveryOnly||publicOnly||reassessmentOnly||draftSafetyOnly||successionOnly)&&process.argv.length===3);
  testReadOnlyRequestWindow();
  local=await startLocal({root:path.join(root,'runtime')});const origin=local.origin;
  const debug=await availablePort();const profile=path.join(root,'chrome-profile'),downloads=path.join(root,'downloads');await mkdir(downloads);
@@ -245,7 +246,14 @@ try {
      replaceRuntime:async()=>{for(const tab of clients)await navigate(tab,'about:blank');await closeLocalRuntime();local=null;
        local=await startLocal({root:path.join(root,'draft-safety-'+(++destination)),port,bindings});await login(c,local.origin);}});
  }
- if(successionOnly){
+ async function publicationJourney({seed,grant}){
+   return browserPublicRequest({publisher:await page(debug,local.origin,true),visitor:await page(debug,local.origin,true),local,root,seed,grant,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
+ }
+ if(publicOnly){
+   await navigate(a,'about:blank');await closeLocalRuntime();local=await startLocal({root:path.join(root,'public-request-browser'),bindings:{...participantBindings(),PUBLIC_REQUEST_MODE:'selected-public-request-v1'}});
+   const owner=await page(debug,local.origin,true);await owner.send('Network.setCookie',{name:'web_planning_local',value:local.env.LOCAL_SESSION,url:local.origin,httpOnly:true,sameSite:'Strict'});await navigate(owner,local.origin+'/');await wait(()=>owner.eval("typeof api==='function'&&!busy"),'public-request owner');
+   await browserParticipation({owner,participant:()=>page(debug,local.origin,true),local,root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks,publication:publicationJourney});
+ }else if(successionOnly){
    await navigate(a,'about:blank');await closeLocalRuntime();local=await startLocal({root:path.join(root,'work-succession-browser'),bindings:projectBindings()});
    await browserWorkSuccession({owner:await page(debug,local.origin,true),successor:()=>page(debug,local.origin,true),local,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
  }else if(draftSafetyOnly){await draftSafetyJourney(a);

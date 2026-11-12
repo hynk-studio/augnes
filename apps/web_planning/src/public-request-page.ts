@@ -17,7 +17,7 @@ function publicPage(value:PublicRequestView):string {
   const details=value.available?value:null;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${escape(details?details.summary.title:'Request unavailable')} · Augnes</title>
-  <style>body{font:18px/1.6 system-ui,sans-serif;max-width:48rem;margin:3rem auto;padding:0 1.3rem;color:#1c3035;background:#f5f7f6}a{color:#075d65}h1{line-height:1.2}dt{font-weight:650;margin-top:1.2rem}dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}code{overflow-wrap:anywhere}aside{padding:1rem;border-left:3px solid #527b7b}footer{margin:2rem 0}</style>
+  <style>body{font:18px/1.6 system-ui,sans-serif;max-width:48rem;margin:3rem auto;padding:0 1.3rem;color:#1c3035;background:#f5f7f6;overflow-wrap:anywhere}a{color:#075d65}h1{line-height:1.2}dt{font-weight:650;margin-top:1.2rem}dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}code{overflow-wrap:anywhere}aside{padding:1rem;border-left:3px solid #527b7b}footer{margin:2rem 0}</style>
   </head><body><header>augnes / project request</header><main>
   <h1>${escape(details?details.summary.title:'This request is not currently available.')}</h1>
   <p><strong>Status: ${escape(value.status)}</strong></p>
