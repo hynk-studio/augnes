@@ -313,6 +313,10 @@ await runOperatorExecutionBrowserChildV1({
         `document.querySelector('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')?.getAttribute('data-guidebrief-interaction-in-flight') === 'true'`,
         "GuideBrief preview single flight",
       );
+      await lifecycle.waitForCondition(
+        `(() => { const conversation = document.querySelector('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]'); return conversation?.getAttribute('data-guidebrief-interpretation') === 'idle' && conversation.getAttribute('data-guidebrief-interaction-in-flight') === 'true'; })()`,
+        "GuideBrief in-flight preview survives capability refresh",
+      );
       await lifecycle.releasePausedSemanticTransitionRequest("preview");
       await lifecycle.waitForCondition(
         `document.querySelector('[data-vnext-transition-step="preview"][data-vnext-transition-step-status="prepared"]') !== null`,
