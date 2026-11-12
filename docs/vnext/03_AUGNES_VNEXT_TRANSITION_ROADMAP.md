@@ -27,14 +27,23 @@ progress. Registration and implementation activity are not completed capability.
 | Commissioned succession: [#1628](https://github.com/hynk-studio/augnes/issues/1628) | A separately authorized successor resumes relevant purpose, judgments, methods, unfinished work and obligations within a scoped delegation. | Consume the project/identity boundary, not a universal hierarchy. Preserve historical authorship, scope/lifetime, revoked-access refusal and reconciliation of uncertain effects. |
 | Commissioned bounded derivation: [#1629](https://github.com/hynk-studio/augnes/issues/1629) | Selected permitted methods and conditions enter a separately operated undertaking, serve a different task/consumer and remain usable after executor replacement. | Build when its actual ownership/material dependencies are available; not a prerequisite for the first W2 delivery. Lineage does not automatically transfer credentials, budgets, customer material or live authority. |
 
-The #1627 candidate implements admitted private project creation/selection,
+The merged #1627 implementation provides admitted private project creation/selection,
 stable project attribution and fresh-session continuation using ordinary Web
 work. Its schema-5 migration preserves legacy mapping/export bytes and scopes
 reconstruction to the selected project. Browser and client entry share enforcing
-owners. This is proposed source pending the Draft PR review and applicable
-Local Canonical qualification, not a merged, deployed or independently adopted
-capability. See the [Web entry guide](../../apps/web_planning/README.md#independent-private-projects-opt-in)
+owners. This entry was merged in [#1631](https://github.com/hynk-studio/augnes/pull/1631)
+after final-target Mac qualification and receiving review. Deployment and hosted
+independent-user adoption remain separate. See the [Web entry guide](../../apps/web_planning/README.md#independent-private-projects-opt-in)
 for the implemented boundary; #1628, #1629 and #1630 remain follow-through.
+
+The #1628 candidate adds one-work read/append succession: an admitted recipient
+uses its own sign-in to recover purpose, selected context and prior obligations,
+then records an attributed report and next action within an expiring, finite
+owner grant. Revocation, atomic budget/currentness checks, unknown-save readback
+and grant-free export/recovery use the ordinary Web owners. This is a Draft
+candidate requiring review and final-target qualification, not deployed or
+adopted capability. Rewriting the owner's purpose/material, arbitrary executor
+identity, subdelegation and automatic external execution are outside this role.
 
 The first W2 product result is independently owned continuing work, useful
 cross-project cooperation and an authorized successor's meaningful next step.

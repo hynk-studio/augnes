@@ -1,4 +1,8 @@
 /// <reference path="./assets.d.ts" />
+import { CONTINUATION_EXPORT } from './continuation-contract';
+import { activeContinuation, continuationContext, continuationView, createContinuation, listContinuations, revokeContinuation, resolveContinuation, writeContinuation } from './continuation';
+import { continuationPage } from './continuation-page';
+import continuationClient from './continuation-client.js.txt?raw';
 import { PARTICIPATION_EXPORT } from "./participation-contract";
 import { activeGrant, knownRecipient, createGrant, listGrants, participantContext, participantFeedbackView, participantFile, participantView, participantWrite, revokeGrant } from "./participation";
 import { participantPage, participantRecoveryPage } from "./participation-page";
@@ -77,6 +81,30 @@ function checkReplayedOccurrences(saved: Revision,edits: any[]) {
 export async function handle(request:Request,env:Environment,principal:Principal):Promise<Response> {
   try {
     const url=new URL(request.url), path=url.pathname;
+    const successor=path.match(/^\/(continue|api\/continuation)\/([a-f0-9-]{36})(.*)$/);
+    if(successor&&UUID.test(successor[2])){
+      const access=await authorize(request,env,principal,undefined,false,successor[2]),suffix=successor[3];
+      const context=await continuationContext(access);let result:Response;
+      if(url.search)fail('scope_denied',403);
+      if(successor[1]==='continue'&&!suffix&&request.method==='GET'){
+        const csrf=csrfToken(access,request);result=html(continuationPage(access,csrf,successor[2]),{'Set-Cookie':csrfCookie(access,csrf)});
+      }else if(successor[1]!=='api/continuation')fail('scope_denied',403);
+      else if(request.method==='GET'&&!suffix)result=json(continuationView(access,context));
+      else if(request.method==='GET'&&suffix==='/setup')result=new Response(JSON.stringify({format:'augnes_web_continuation.v1',origin:env.APP_ORIGIN,
+        workspace_id:access.workspace_id,project_id:access.project_id,work_id:context.g.work_id,grant_id:successor[2]}),
+        {headers:{...headers,'Content-Type':'application/json','Content-Disposition':'attachment; filename=continuation-setup.json'}});
+      else if(request.method==='POST'&&['/save','/resolve'].includes(suffix)){
+        requireCsrf(access,request);const input=await body(request,16_000);requireScope(access,input);
+        result=json(await writeContinuation(access,context,input,suffix==='/resolve'));
+      }else{
+        const file=suffix.match(/^\/(files|exchange-files)\/([1-9][0-9]{0,15})\/([a-f0-9]{64})\/([0-7])$/);
+        if(!file||request.method!=='GET')fail('scope_denied',403);
+        const r=context.chain[Number(file[2])-1];if(!r||r.fingerprint!=='sha256:'+file[3])fail('file_revision_unavailable',409);
+        const {file:meta,bytes}=await downloadFile(access,r,Number(file[4]),file[1]==='exchange-files');
+        result=new Response(bytes,{headers:{...headers,'Content-Type':'application/octet-stream','Content-Disposition':`attachment; filename="artifact.bin"; filename*=UTF-8''${encodeURIComponent(meta.name).replace(/['()*]/g,x=>'%'+x.charCodeAt(0).toString(16))}`,'X-Content-SHA256':meta.digest,'Content-Length':String(meta.bytes)}});
+      }
+      await activeContinuation(access);return result;
+    }
     const participant=path.match(/^\/(participate|api\/participation)\/([a-f0-9-]{36})(.*)$/);
     if(participant && UUID.test(participant[2])){
       const access=await authorize(request,env,principal,participant[2]),id=participant[2],suffix=participant[3];
@@ -131,7 +159,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
       await activeGrant(access,id); // Readback/authorization loss never becomes an empty result.
       return result;
     }
-    const accountEntry=projectEntryEnabled(env)&&(path==='/projects'||path==='/api/projects'||path==='/projects.js'||
+    const accountEntry=projectEntryEnabled(env)&&(path==='/projects'||path==='/api/projects'||path==='/projects.js'||path==='/continuation.js'||
       path==='/'&&!url.search&&!request.headers.has('x-web-planning-project')||['/style.css','/client.js','/exchange-text.mjs','/planning-notes.mjs','/favicon.ico'].includes(path));
     const access=await authorize(request,env,principal,undefined,accountEntry);
     if(accountEntry){
@@ -146,7 +174,13 @@ export async function handle(request:Request,env:Environment,principal:Principal
         if(request.method!=='POST'||url.search)fail('method_not_allowed',405);
         requireCsrf(access,request);return json(await createProject(access,await body(request)));
       }
+      if(path==='/continuation.js'&&request.method==='GET'&&!url.search)return new Response(continuationClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
       if(path==='/projects.js'&&request.method==='GET'&&!url.search)return new Response(projectsClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
+    }
+    const manage=path.match(/^\/delegations\/([a-f0-9-]{36})\/([a-f0-9-]{36})$/);
+    if(manage&&request.method==='GET'&&!url.search&&UUID.test(manage[1])&&UUID.test(manage[2])){
+      await listContinuations(access,manage[2]);const chain=await readWork(access,manage[2]);if(!chain.length)fail('work_not_found',404);
+      const csrf=csrfToken(access,request);return html(continuationPage(access,csrf,manage[2],true),{'Set-Cookie':csrfCookie(access,csrf)});
     }
     if(request.method==="GET") {
       if(path==="/favicon.ico" && !url.search)return new Response(null,{status:204,headers});
@@ -179,6 +213,11 @@ export async function handle(request:Request,env:Environment,principal:Principal
         const cursor=url.searchParams.get("cursor")??"";
         if(cursor && !UUID.test(cursor))fail("invalid_cursor");
         return json(await listWork(access,cursor));
+      }
+      const continuing=path.match(/^\/api\/work\/([a-f0-9-]+)\/continuation$/);
+      if(continuing&&UUID.test(continuing[1])){
+        if([...url.searchParams.keys()].some(k=>k!=='cursor')||url.searchParams.getAll('cursor').length>1)fail('scope_denied',403);
+        return json(await listContinuations(access,continuing[1],url.searchParams.get('cursor')??''));
       }
       const grants=path.match(/^\/api\/work\/([a-f0-9-]+)\/participation$/);
       if(grants && UUID.test(grants[1])){
@@ -221,6 +260,8 @@ export async function handle(request:Request,env:Environment,principal:Principal
       path==="/api/reconstruct-directions"?LARGE_PAIR_REQUEST_BYTES:path==="/api/reconstruct-files"?FILE_EXPORT_REQUEST_BYTES:REQUEST_BYTES;
     const input=await body(request,limit); if(!input || typeof input!=="object")fail("invalid_body");
     requireScope(access,input);
+    const continuing=path.match(/^\/api\/work\/([a-f0-9-]+)\/continuation\/(create|revoke|resolve)$/);
+    if(continuing&&UUID.test(continuing[1]))return json(await (continuing[2]==='create'?createContinuation(access,continuing[1],input):continuing[2]==='resolve'?resolveContinuation(access,continuing[1],input):revokeContinuation(access,continuing[1],input)));
     const grant=path.match(/^\/api\/work\/([a-f0-9-]+)\/participation\/(create|revoke)$/);
     if(grant&&UUID.test(grant[1]))return json(await (grant[2]==='create'?createGrant(access,grant[1],input):revokeGrant(access,grant[1],input)));
     const text=path.match(/^\/api\/work\/([a-f0-9-]+)\/(exchange-files|files)\/([1-9][0-9]{0,15})\/([a-f0-9]{64})\/([0-7])\/text$/);
@@ -263,7 +304,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
     if(path==="/api/reconstruct" || path==="/api/reconstruct-files" || extendedRestore) {
       exact(input,"workspace_id,project_id,export,confirm");
       if(env.RECONSTRUCTION_MODE!=="quiesced-empty-store" || input.confirm!=="reconstruct-empty-store")fail("reconstruction_disabled",403);
-      if(path==="/api/reconstruct-exchange" && ![LARGE_EXPORT,USE_EXPORT,PARTICIPATION_EXPORT,REASSESSMENT_EXPORT].includes(input.export?.format) ||
+      if(path==="/api/reconstruct-exchange" && ![CONTINUATION_EXPORT,LARGE_EXPORT,USE_EXPORT,PARTICIPATION_EXPORT,REASSESSMENT_EXPORT].includes(input.export?.format) ||
          path==="/api/reconstruct-directions" && input.export?.format!==DIRECTION_EXPORT)fail("incompatible_format",409);
       if((path==="/api/reconstruct-files" || path==="/api/reconstruct-directions") && input.export?.format===DIRECTION_EXPORT){
         const works=validateDirectionExport(access,input.export);await reconstructWorks(access,works);
