@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { AUXILIARY_EXECUTION_BUDGETS } from "../local-canonical-closeout-budgets.mjs";
 import { chmodSync, cpSync, linkSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
@@ -85,7 +86,7 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
     const selected=JSON.stringify({serial_aggregate_controls:findings,synthetic_only:true,cleanup_owned_by_fixture:true})+"\n"+
       "AUGNES_REVIEW_CHILD_RESULT "+JSON.stringify({...normal,control_id:"reviewed-revision-serial-aggregate"})+"\n";
     const output=role==="direct"?selected+JSON.stringify({status:"pass",checks:["reviewed revision controls: serial-aggregate"],cleanup_complete:true})+"\n":
-      delta.groups.map(group=>lifecycle("authority","reviewed revision controls: "+group,group==="serial-aggregate"?40000:group==="serial-material"?75000:30000,10,0,group==="serial-aggregate"?selected:"")).join("")+
+      delta.groups.map(group=>lifecycle("authority","reviewed revision controls: "+group,group==="serial-aggregate"?40000:group==="serial-material"?AUXILIARY_EXECUTION_BUDGETS.reviewSerialMaterialControlMs:30000,10,0,group==="serial-aggregate"?selected:"")).join("")+
         JSON.stringify({suite:"authority",status:"pass",coverage:"focused_reviewed_revision_children_only",results:delta.groups.map(group=>({id:"local-canonical-reviewed-revision-"+group,...normal,status:0})),companion_service_maintenance:null},null,2)+"\n";
     const args=role==="direct"?["--import","tsx",FIXTURE_BUDGET_PATHS.wrapper,"--reviewed-revision-controls","serial-aggregate"]:[FIXTURE_BUDGET_PATHS.suite,"authority","--reviewed-revision-only"];
     return ref(role+".json",{contract:"augnes.registered-fixture-budget-witness.v1",basis:"actual-owned-development-invocation",role,command:["node",...args].join(" "),tested_source_head:head,tree,dirty:"",
@@ -127,9 +128,11 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
     r=>r.phases[0].log.truncated=true,r=>r.phases[0].log.bytes++,r=>r.phases[0].command="other",r=>r.phases[0].cleanup.termination_reason="bounded_timeout"]) {
     const r=structuredClone(original);mutate(r);assert.throws(()=>verify(p,focused,r));negatives++;
   }
-  for(const changes of [s=>s.replace('assert.equal(result.exit_code, 0, lastChildDiagnostic)','assert.equal(result.exit_code, 1, lastChildDiagnostic)'),s=>s.replace('60000 :','60001 :'),
+  for(const changes of [s=>s.replace('assert.equal(result.exit_code, 0, lastChildDiagnostic)','assert.equal(result.exit_code, 1, lastChildDiagnostic)'),s=>s.replace('AUXILIARY_EXECUTION_BUDGETS.reviewSerialMaterialFixtureMs','80001'),
     s=>s.replace('--reviewed-revision-controls','--substituted-controls')]) {
-    write(FIXTURE_BUDGET_PATHS.wrapper,changes(finalSources[FIXTURE_BUDGET_PATHS.wrapper]));const changed=commit("controlled incompatible workload");
+    const wrapperSource=finalSources[FIXTURE_BUDGET_PATHS.wrapper],changedWrapper=changes(wrapperSource);
+    assert.notEqual(changedWrapper,wrapperSource,"controlled wrapper mutation must change source");
+    write(FIXTURE_BUDGET_PATHS.wrapper,changedWrapper);const changed=commit("controlled incompatible workload");
     assert.throws(()=>fixtureBudgetSourceDelta(git,oldHead,changed,"serial-aggregate"));git(["reset","--hard",head]);negatives++;
   }
   assert.throws(()=>fixtureBudgetSourceDelta(git,head,head,"serial-aggregate"));negatives++;

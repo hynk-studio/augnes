@@ -164,7 +164,7 @@ try {
       } };
       const result = await child([fixture, "--run-" + name + "-fixtures", ...(groups.indexOf(name) >= 3 ? [JSON.stringify(handoff)] : [])], {
         controlId: name === "revision" ? "reviewed-revision" : "reviewed-revision-" + name,
-        timeoutMs: name === "serial-material" ? 60000 : name === "serial-aggregate" ? AUXILIARY_EXECUTION_BUDGETS.reviewSerialAggregateFixtureMs : ["revision", "acquisition", "git-successor", "git-input-successor"].includes(name) ? AUXILIARY_EXECUTION_BUDGETS.reviewRevisionFixtureMs : 15000,
+        timeoutMs: name === "serial-material" ? AUXILIARY_EXECUTION_BUDGETS.reviewSerialMaterialFixtureMs : name === "serial-aggregate" ? AUXILIARY_EXECUTION_BUDGETS.reviewSerialAggregateFixtureMs : ["revision", "acquisition", "git-successor", "git-input-successor"].includes(name) ? AUXILIARY_EXECUTION_BUDGETS.reviewRevisionFixtureMs : 15000,
         stdout: name === "serial-aggregate" ? serialOutput : process.stdout, stderr: process.stderr,
       });
       assert.equal(result.exit_code, 0, lastChildDiagnostic);

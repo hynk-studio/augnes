@@ -1584,8 +1584,11 @@ and cleanup owners; the additional negative controls do not enlarge a deadline.
 resource and cleanup owners. The aggregate has no additional registration.
 The serial-material registration additionally executes three actual compiler
 children and serial incident/lineage controls in its own disposable root. Its
-60-second nested owner and 75-second outer natural-exit limit are focused-test
-bounds only; all production serial limits and other registrations stay fixed.
+80-second nested owner and 95-second outer natural-exit limit are focused-test
+bounds for the complete fixture, including its witnesses and fresh receipt
+reads. The 15-second outer separation and individual compiler/reader limits
+remain intact. These prospective allowances do not identify a historical
+timeout cause; all production serial limits and other registrations stay fixed.
 
 The new commission's initial ordinal binds its latest tip as its root. All old
 grant IDs and consumption are reconstructed from the existing exclusive chain.
