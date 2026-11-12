@@ -1,8 +1,8 @@
+/// <reference path="./assets.d.ts" />
 import { CONTINUATION_EXPORT } from './continuation-contract';
 import { activeContinuation, continuationContext, continuationView, createContinuation, listContinuations, revokeContinuation, resolveContinuation, writeContinuation } from './continuation';
 import { continuationPage } from './continuation-page';
 import continuationClient from './continuation-client.js.txt?raw';
-/// <reference path="./assets.d.ts" />
 import { PARTICIPATION_EXPORT } from "./participation-contract";
 import { activeGrant, knownRecipient, createGrant, listGrants, participantContext, participantFeedbackView, participantFile, participantView, participantWrite, revokeGrant } from "./participation";
 import { participantPage, participantRecoveryPage } from "./participation-page";
