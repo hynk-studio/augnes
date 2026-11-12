@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { AUXILIARY_EXECUTION_BUDGETS } from "../local-canonical-closeout-budgets.mjs";
-import { chmodSync, cpSync, linkSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { chmodSync, cpSync, linkSync, lstatSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { digest, observeCanonicalRuntimeInputs, observePreparedDependencyInputs } from "../local-canonical-inputs.mjs";
@@ -204,15 +204,22 @@ function generatedDeclarationControls(root, parent, write) {
     dependencies: observePreparedDependencyInputs({ repositoryRoot: root, phaseId: "dependencies-root" }) },
     environment: { AUGNES_CANONICAL_TEMP_ROOT: path.join(parent, "already-settled-generated-source") } };
   inspectCurrentIntegrationBudgetInputs(root, witness);
-  const started_at = new Date().toISOString();
   write(file, dev);
   // Complete registered fields in explicitly synthetic records. Checksums
   // provide integrity, never physical attempt authority for this fixture.
+  // Author the positive interval from this file's observed timestamps: the
+  // filesystem clock need not share Date.now()'s granularity. This models
+  // containment only; production writer attribution and its bounds are unchanged.
+  const written = lstatSync(absolute, { bigint: true });
+  const first = written.mtimeNs < written.ctimeNs ? written.mtimeNs : written.ctimeNs;
+  const last = written.mtimeNs > written.ctimeNs ? written.mtimeNs : written.ctimeNs;
+  const started_at = new Date(Number(first / 1_000_000n)).toISOString();
+  const finished_at = new Date(Number(last / 1_000_000n)).toISOString();
   const invocation = "a".repeat(32), environment = digest("synthetic generated declaration environment"), source = witness.after.source;
   const phase = { id: "e2e-project-experience", command: "node scripts/run-canonical-test-suite.mjs e2e-project-experience",
     cwd_scope: "root", exclusive: true, browser: true, base_sha: source.head, head_sha: source.head,
     invocation_id: invocation, environment_fingerprint: environment, status: "pass", exit_status: 0,
-    timed_out: false, spawn_error_code: null, failure_code: null, started_at, finished_at: new Date().toISOString(),
+    timed_out: false, spawn_error_code: null, failure_code: null, started_at, finished_at,
     cleanup: { completed: true, exit_observed: true, streams_closed: true, remaining_owned_processes: 0, listener_residue_count: null, termination_reason: "natural_exit" } };
   const receipt = { verification_context: { kind: "isolated-worktree" }, cleanup: { completed: true },
     repository: { head_sha: source.head, tree_sha: source.tree, base_sha: source.head },
@@ -223,7 +230,10 @@ function generatedDeclarationControls(root, parent, write) {
   stock();
   const refused = [];
   const reject = (name, action) => { assert.throws(action); refused.push(name); };
-  reject("outside_writer_window", () => stock({ ...receipt, phases: [{ ...phase, finished_at: new Date(Date.parse(started_at) - 1).toISOString() }] }));
+  const later = new Date(Number(last / 1_000_000n + 1n)).toISOString();
+  reject("outside_writer_window", () => stock({ ...receipt,
+    run: { ...receipt.run, started_at: later, finished_at: later },
+    phases: [{ ...phase, started_at: later, finished_at: later }] }));
   reject("other_phase", () => stock({ ...receipt, phases: [{ ...phase, id: "typecheck", browser: false }] }));
   reject("other_browser_phase", () => stock({ ...receipt, phases: [{ ...phase, id: "e2e-golden" }] }));
   reject("unsettled_owner", () => stock({ ...receipt, cleanup: { completed: false } }));
