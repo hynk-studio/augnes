@@ -20,6 +20,14 @@ const gitId = x => typeof x==="string" && /^[a-f0-9]{40}$/u.test(x);
 const id = x => Number.isSafeInteger(x)&&x>0;
 const text = x => typeof x==="string"&&x.length>0&&x.length<=4096;
 const utc = x => typeof x==="string"&&Number.isFinite(Date.parse(x))&&new Date(x).toISOString()===x&&Date.parse(x)<=Date.now();
+// Authenticated GitHub records use UTC seconds or exactly three fractional
+// digits. Validate the calendar by round trip without changing the raw record
+// or its observation digest. Internal witnesses keep the stricter utc format.
+const externalUtc = x => typeof x==="string"&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u.test(x)&&
+  Number.isFinite(Date.parse(x))&&new Date(x).toISOString()===(x.length===20?x.slice(0,-1)+".000Z":x)&&Date.parse(x)<=Date.now();
+// A seconds-only earlier record can fall anywhere within its reported second.
+// It cannot prove strict ordering against a later record in that same second.
+const strictlyAfter = (later,earlier) => Date.parse(later)>Date.parse(earlier)+(earlier.length===20?999:0);
 const keys = (v,s) => requireThat(v&&typeof v==="object"&&!Array.isArray(v)&&equal(Object.keys(v).sort(),s.split(" ").sort()),"shape_invalid");
 const unique = xs => Array.isArray(xs)&&xs.length>0&&xs.length<=200&&xs.every(text)&&equal(xs,[...new Set(xs)].sort());
 export const isMaintenance = p => p?.schema==="augnes.local-canonical-source-correction.v2"&&p.kind===MAINTENANCE_KIND;
@@ -145,7 +153,7 @@ export function validateMaintenanceAuthorityRecords(p,e,records,{current=true}={
   requireThat(a.id===p.authorization.acceptance_review_id&&g.id===p.authorization.grant_comment_id&&a.id!==g.id&&a.commit_id===p.head&&a.pull_request_url===`${url}/pulls/${p.pull_request}`&&
     ["COMMENTED","APPROVED"].includes(a.state)&&g.issue_url===`${url}/issues/${p.pull_request}`&&g.created_at===g.updated_at&&
     [a,g].every(x=>x.user?.type==="User"&&id(x.user.id)&&/^[A-Za-z0-9-]{1,39}$/u.test(x.user.login)&&["OWNER","MEMBER","COLLABORATOR"].includes(x.author_association))&&
-    utc(a.submitted_at)&&utc(g.created_at)&&Date.parse(a.submitted_at)>Date.parse(e.review.reviewed_at)&&Date.parse(g.created_at)>Date.parse(a.submitted_at)&&Date.parse(g.created_at)>Date.parse(e.completion.finished_at)&&
+    externalUtc(a.submitted_at)&&externalUtc(g.created_at)&&strictlyAfter(a.submitted_at,e.review.reviewed_at)&&strictlyAfter(g.created_at,a.submitted_at)&&strictlyAfter(g.created_at,e.completion.finished_at)&&
     digest(observations.accepted_maintenance)===p.authorization.acceptance_review_sha256&&digest(observations.prospective_grant)===p.authorization.grant_comment_sha256,"authenticated_record_invalid");
   for(const [record,permission]of [[a,records.acceptance_permission],[g,records.grant_permission]])requireThat(permission.user?.login===record.user.login&&permission.user?.id===record.user.id&&["admin","maintain"].includes(permission.permission),current?"current_authorization_refused":"historical_permission_invalid");
   const pr=records.pull_request;
@@ -172,6 +180,6 @@ export function validMaintenanceAttempt(a){
   try{requireThat(isMaintenance(a?.source_correction)&&a.number===1&&equal(a.budget,{initial:1,recovery:0})&&a.recovery===null&&a.prior_attempt_id===null&&a.prior_receipt_fingerprint===null&&
     !Object.hasOwn(a,"improvement_authority")&&!Object.hasOwn(a,"revision_authority"),"attempt_invalid");
     keys(a.maintenance_authority,"records observations");keys(a.maintenance_authority.observations,"accepted_maintenance prospective_grant");
-    for(const [role,o]of Object.entries(a.maintenance_authority.observations)){keys(o,"id author author_id body_sha256 timestamp role commit_id");requireThat(o.role===role&&id(o.id)&&id(o.author_id)&&sha(o.body_sha256)&&utc(o.timestamp)&&text(o.author)&&(role==="prospective_grant"?o.commit_id===null:o.commit_id===a.head),"attempt_invalid");}return true;
+    for(const [role,o]of Object.entries(a.maintenance_authority.observations)){keys(o,"id author author_id body_sha256 timestamp role commit_id");requireThat(o.role===role&&id(o.id)&&id(o.author_id)&&sha(o.body_sha256)&&externalUtc(o.timestamp)&&text(o.author)&&(role==="prospective_grant"?o.commit_id===null:o.commit_id===a.head),"attempt_invalid");}return true;
   }catch{return false;}
 }

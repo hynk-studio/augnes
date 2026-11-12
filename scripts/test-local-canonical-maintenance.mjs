@@ -6,13 +6,13 @@ import { syncBuiltinESMExports } from "node:module";
 import { createCanonicalTestResourceRoot, buildCanonicalChildEnvironment, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
 import { releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { beginAttempt, finishAttempt, prepareAttemptDependencies, inspectAttemptRecords, reconstructAttemptTip, readSourceCorrectionProof, supportsSourceCorrection, maintenanceMaterial, prepareMaintenanceCandidate } from "./local-canonical-attempts.mjs";
-import { authorizeMaintenance, validMaintenanceAttempt, observeMaintenanceSetup, maintenanceFaults } from "./local-canonical-maintenance.mjs";
+import { authorizeMaintenance, assertMaintenanceAuthorization, validateMaintenanceAuthorityRecords, maintenanceAuthorityObservation, MAINTENANCE_GRANT, validMaintenanceAttempt, observeMaintenanceSetup, maintenanceFaults } from "./local-canonical-maintenance.mjs";
 import { readStockMachineIdentity, inspectMaintenanceStock } from "./run-local-canonical-verification.mjs";
 import { createPrivateReviewExport, inspectPrivateReviewExport } from "./local-canonical-review-export.mjs";
-import { finalizeReceipt, inspectReceiptForDecision, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
+import { canonicalSerialize, finalizeReceipt, inspectReceiptForDecision, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
 import { createMaintenanceFixture } from "./fixtures/local-canonical-maintenance.mjs";
 import { completeSyntheticReceipt, write } from "./fixtures/local-canonical-improvement.mjs";
-import { observePreparedDependencyInputs, freezeInputContract } from "./local-canonical-inputs.mjs";
+import { digest, observePreparedDependencyInputs, freezeInputContract } from "./local-canonical-inputs.mjs";
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
 
 // This owner uses isolated synthetic authority and accounting only. It never
@@ -73,8 +73,60 @@ async function refuses(name,mutate,{rebuild=true,admit=false}={}) {
   });
 }
 const linked=(a,disposition="product_failure",cleanup=true)=>finalizeReceipt({receipt_version:4,repository:{branch:c.branch,base_sha:c.base,head_sha:a.head,tree_sha:a.tree},run:{id:a.attempt_id},attempt:a,outcome:{disposition},cleanup:{completed:cleanup}});
+// Rebinding below is restricted to isolated synthetic copies. Real provider
+// bytes and observation hashes must never be rewritten to satisfy validation.
+function rebindSyntheticRecords(proof,records) {
+  const grant=JSON.parse(records.grant.body.slice(MAINTENANCE_GRANT.length+1));
+  grant.acceptance_sha256=digest(maintenanceAuthorityObservation(records.acceptance,"accepted_maintenance"));
+  records.grant.body=MAINTENANCE_GRANT+"\n"+canonicalSerialize(grant);
+  proof.authorization.acceptance_review_sha256=grant.acceptance_sha256;
+  proof.authorization.grant_comment_sha256=digest(maintenanceAuthorityObservation(records.grant,"prospective_grant"));
+}
+function authorityTimestampControls() {
+  const evidence=material(),base=structuredClone({proof:c.proof,records:c.records});
+  const second=Math.floor(Date.parse(base.records.acceptance.submitted_at)/1000)*1000;
+  const at=ms=>new Date(second+ms).toISOString(),seconds=ms=>at(ms).replace(/\.000Z$/u,"Z");
+  let positive=0,negative=0;
+  const check=(name,acceptance,grant,pass)=>{
+    const {proof,records}=structuredClone(base);
+    records.acceptance.submitted_at=acceptance;records.grant.created_at=grant;records.grant.updated_at=grant;
+    rebindSyntheticRecords(proof,records);
+    const before=canonicalSerialize({proof,records,evidence});
+    if(pass){
+      const observations=validateMaintenanceAuthorityRecords(proof,evidence,records);
+      assert.equal(observations.accepted_maintenance.timestamp,acceptance);
+      assert.equal(observations.prospective_grant.timestamp,grant);
+      assert.equal(digest(observations.accepted_maintenance),proof.authorization.acceptance_review_sha256);
+      assert.equal(digest(observations.prospective_grant),proof.authorization.grant_comment_sha256);
+      assert.throws(()=>assertMaintenanceAuthorization(proof,evidence,{records,observations}),/authenticated_capability_required/);
+      assert(validMaintenanceAttempt({source_correction:proof,head:proof.head,number:1,budget:{initial:1,recovery:0},recovery:null,prior_attempt_id:null,prior_receipt_fingerprint:null,maintenance_authority:{records,observations}}));
+      positive++;
+    }else{assert.throws(()=>validateMaintenanceAuthorityRecords(proof,evidence,records),/maintenance_authenticated_record_invalid/,name);negative++;}
+    assert.equal(canonicalSerialize({proof,records,evidence}),before,name+" preserves raw identity");
+    assert(!fs.existsSync(path.join(c.priorRoot,"correction-successor.json")),name+" cannot reserve");
+  };
+  for(const [name,a,g]of [["seconds",seconds(0),seconds(1000)],["milliseconds",at(123),at(1456)],["seconds then later milliseconds",seconds(0),at(1001)],["milliseconds then later seconds",at(999),seconds(1000)],["precise same-second order",at(123),at(124)]])check(name,a,g,true);
+  for(const [name,a,g]of [["equal seconds",seconds(0),seconds(0)],["equal instants in different forms",seconds(0),at(0)],["ambiguous same-second precision",seconds(0),at(999)],["reversed mixed precision",at(123),seconds(0)],["reversed milliseconds",at(124),at(123)],["equal milliseconds",at(123),at(123)]])check(name,a,g,false);
+  const malformed=[null,42,"",at(0)+" "," "+at(0),at(0).slice(0,10),at(0).replace("T","t"),at(0).replace("Z","z"),at(0).replace("Z","+00:00"),at(0).replace(".000Z",".0Z"),at(0).replace(".000Z",".0000Z"),"2026-02-30T02:55:21Z","2025-02-29T02:55:21.000Z","2026-13-12T02:55:21Z","2026-11-12T24:00:00Z","2026-11-12T02:60:00Z","2026-11-12T02:55:60Z","2099-01-01T00:00:00Z","2099-01-01T00:00:00.001Z"];
+  const stored={source_correction:base.proof,head:base.proof.head,number:1,budget:{initial:1,recovery:0},recovery:null,prior_attempt_id:null,prior_receipt_fingerprint:null,
+    maintenance_authority:{records:base.records,observations:validateMaintenanceAuthorityRecords(base.proof,evidence,base.records)}};
+  assert(validMaintenanceAttempt(stored));
+  for(const value of malformed){
+    check("invalid acceptance "+JSON.stringify(value),value,at(1000),false);check("invalid grant "+JSON.stringify(value),at(0),value,false);
+    // The stored-observation consumer has no chronology comparison to mask an
+    // impossible calendar or future timestamp. Exercise each role independently.
+    for(const role of ["accepted_maintenance","prospective_grant"]){const bad=structuredClone(stored);bad.maintenance_authority.observations[role].timestamp=value;assert.equal(validMaintenanceAttempt(bad),false);}
+  }
+  for(const value of ["2024-02-29T02:55:21Z","2024-02-29T02:55:21.123Z"]){const leap=structuredClone(stored);leap.maintenance_authority.observations.accepted_maintenance.timestamp=value;assert(validMaintenanceAttempt(leap));}
+  const {proof,records}=structuredClone(base),before=canonicalSerialize(records);
+  records.acceptance.submitted_at=records.acceptance.submitted_at.replace(/\.\d{3}Z$/u,"Z");
+  assert.throws(()=>validateMaintenanceAuthorityRecords(proof,evidence,records),/maintenance_(authority_scope|authenticated_record)_invalid/);
+  assert.notEqual(canonicalSerialize(records),before,"raw formatting changes are digest-visible");
+  note(`external authority UTC formats and chronology: ${positive} valid, ${negative} refusals; raw identity preserved and no capability/reservation`);
+}
 try {
   c=await createMaintenanceFixture(resource.root,env,prepareTrees);
+  authorityTimestampControls();
   const mixed=structuredClone(c.terminalReceipt);
   mixed.inputs.events.push({disposition:"ambient_observation"},{disposition:"incidental_executable_metadata"},{disposition:"unchanged"});
   assert.deepEqual(maintenanceFaults(mixed),maintenanceFaults(c.terminalReceipt));
@@ -122,6 +174,8 @@ try {
   await refuses("wrong driver binding",()=>c.w[1].fixture_sha256="a".repeat(64));
   await refuses("runtime binding drift",()=>c.w[1].end_binding.environment_fingerprint="a".repeat(64));
   await refuses("retrospective witness",()=>c.w[0].started_at=JSON.parse(fs.readFileSync(path.join(c.folder,"prior-completion.json"))).finished_at);
+  await refuses("internal witness still requires milliseconds",()=>c.w[0].started_at=c.w[0].started_at.replace(/\.\d{3}Z$/u,"Z"));
+  await refuses("internal review still requires milliseconds",()=>c.r.reviewed_at=c.r.reviewed_at.replace(/\.\d{3}Z$/u,"Z"));
   for(const patch of [{exit_code:0},{timed_out:true},{cancelled:true},{termination_reason:"bounded_timeout"},{streams_closed:false},{cleanup_completed:false},{remaining_owned_processes:1}])await refuses("not natural RED "+JSON.stringify(patch),()=>Object.assign(c.w[0].result,patch));
   note("exact source/driver/runtime and contemporaneous natural RED/GREEN bindings are mandatory");
   await refuses("self review",()=>c.r.reviewer=c.e.implementation_actor);
@@ -153,6 +207,18 @@ try {
   await isolated(async()=>{const a=await reserve(),r=linked(a,"user_cancellation");finishAttempt(a,{receiptFingerprint:r.integrity.content_fingerprint,disposition:"user_cancellation",cleanupComplete:true});assert(await inspectAttemptRecords({anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt:r}));await assert.rejects(()=>reserve());});
   const machine=path.join(resource.root,"machine");fs.mkdirSync(machine);assert.throws(()=>readStockMachineIdentity({attempt:{source_correction:c.proof}},machine));assert.deepEqual(fs.readdirSync(machine),[]);
   note("interrupted attempt settlement is retained; stock never creates machine identity");
+  await isolated(async()=>{
+    c.records.acceptance.submitted_at=c.records.acceptance.submitted_at.replace(/\.\d{3}Z$/u,"Z");
+    c.records.grant.created_at=c.records.grant.created_at.replace(/\.\d{3}Z$/u,"Z");
+    c.records.grant.updated_at=c.records.grant.created_at;
+    rebindSyntheticRecords(c.p,c.records);write(c.file,c.p);c.proof={...c.p,local_relative_path:path.relative(c.checkout,c.file)};
+    const {receipt,context}=await completeSyntheticReceipt(c,reserve);
+    assert(validMaintenanceAttempt(receipt.attempt));
+    assert(await inspectAttemptRecords({anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt}));
+    const observed=await inspectMaintenanceStock({anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt,runtimeInputs:c.inputs,assertCurrent(){},transport:c.transport()});
+    assert.equal(observed.currentAttemptRecordsValid,true);
+    assert.deepEqual(inspectReceiptForDecision(receipt,{...context,...observed}).issues,[]);
+  });note("seconds-precision synthetic records retain admission, physical history and fresh stock compatibility");
   await isolated(async()=>{
     const {receipt:r,context}=await completeSyntheticReceipt(c,reserve);
     const stock=()=>inspectMaintenanceStock({anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt:r,runtimeInputs:c.inputs,assertCurrent(){},transport:c.transport()});
