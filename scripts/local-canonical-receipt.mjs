@@ -4,7 +4,7 @@ import { validProjectExperienceAccounting } from "./project-experience-serial-bu
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { CANONICAL_REPOSITORY_ID } from "./canonical-repository-identity.mjs";
-import { INTEGRATION_BASE_CONTRACT, INTEGRATION_BASE_SOURCE } from "./local-canonical-integration-base.mjs";
+import { INTEGRATION_BASE_CONTRACT, LEGACY_INTEGRATION_BASE_CONTRACT, INTEGRATION_BASE_SOURCE } from "./local-canonical-integration-base.mjs";
 import { requiresCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { VERIFICATION_CONTEXT_CONTRACT } from "./local-canonical-verification-context.mjs";
@@ -252,12 +252,21 @@ export function inspectReceiptForDecision(receipt, options = {}) {
       (expectedRunId !== null && expectedRunId !== receipt.run.id)) issues.push("receipt_run_identity_invalid");
   if (selectedPlan === "documentation-only") issues.push("documentation_feedback_not_deciding");
   if (mode === "changed" || mode === "full") {
-    if (!validAdmittedIntegrationBase(receipt?.integration_base, receipt?.repository) ||
-        Date.parse(receipt.integration_base?.observation?.observed_at) < Date.parse(receipt?.run?.started_at) ||
+    const declaredBase = receipt?.integration_base?.contract === INTEGRATION_BASE_CONTRACT;
+    if ((declaredBase && receipt?.receipt_version !== 4) ||
+        !validAdmittedIntegrationBase(receipt?.integration_base, receipt?.repository) ||
+        Date.parse(receipt.integration_base?.checked_at) < Date.parse(receipt?.run?.started_at) ||
+        (receipt.integration_base?.observation && Date.parse(receipt.integration_base.observation.observed_at) < Date.parse(receipt?.run?.started_at)) ||
         Date.parse(receipt.integration_base?.checked_at) > Date.parse(receipt?.run?.finished_at)) {
       issues.push("receipt_integration_base_provenance_invalid");
     }
-    if (!currentIntegrationBase?.observation) {
+    if (declaredBase) {
+      if (currentIntegrationBase?.contract !== INTEGRATION_BASE_CONTRACT ||
+          !validAdmittedIntegrationBase(currentIntegrationBase, receipt?.repository) ||
+          Date.parse(currentIntegrationBase?.checked_at) < Date.parse(receipt?.run?.finished_at) ||
+          (currentIntegrationBase?.observation && Date.parse(currentIntegrationBase.observation.observed_at) < Date.parse(receipt?.run?.finished_at)))
+        issues.push("receipt_current_integration_base_invalid");
+    } else if (!currentIntegrationBase?.observation) {
       issues.push("receipt_current_integration_base_unavailable");
     } else if (currentIntegrationBase.observation.sha !== receipt?.repository?.base_sha) {
       issues.push("receipt_stale_integration_base");
@@ -636,7 +645,12 @@ export function inspectReceiptForDecision(receipt, options = {}) {
       historical_integrity: verifyReceiptIntegrity(receipt) ? "intact" : "invalid",
       evidence_validity: issues.filter(code => !applicabilityCodes.has(code) && !currentAuthorityCodes.has(code)).length === 0 ? "valid_in_recorded_context" : "invalid_or_incomplete",
       safety: [4, 5].includes(receipt?.receipt_version) ? receipt?.outcome?.safety ?? "unknown" : "legacy_recorded_scope",
-      current_merge_applicability: issues.some(code => applicabilityCodes.has(code)) ? "blocked" : "matches_observed_context",
+      current_merge_applicability: issues.some(code => applicabilityCodes.has(code)) ? "blocked" :
+        receipt?.integration_base?.contract === INTEGRATION_BASE_CONTRACT && !currentIntegrationBase?.observation
+          ? "current_main_unobserved" :
+          receipt?.integration_base?.contract === INTEGRATION_BASE_CONTRACT &&
+          currentIntegrationBase?.observation?.sha !== receipt?.repository?.base_sha
+            ? "different_current_main" : "matches_observed_context",
       ...((isReviewedIntegration(receipt?.attempt?.source_correction)||isImprovement(receipt?.attempt?.source_correction)||isMaintenance(receipt?.attempt?.source_correction)) ? {current_authorization:issues.some(code=>currentAuthorityCodes.has(code))?"unverified":"authenticated"}:{}),
     },
     content_fingerprint:
@@ -776,18 +790,23 @@ export function inspectClassifiedEvidence(receipt, issues, incomplete = null) {
 
 function validAdmittedIntegrationBase(value, repository) {
   const observation = value?.observation;
-  return value?.contract === INTEGRATION_BASE_CONTRACT &&
+  const observed = observation &&
+    observation.source === INTEGRATION_BASE_SOURCE &&
+    observation.repository_id === CANONICAL_REPOSITORY_ID &&
+    observation.repository_id === repository?.repository_id && observation.branch === "main" &&
+    SHA_PATTERN.test(observation.sha ?? "") && isIsoTimestamp(observation.observed_at) &&
+    Date.parse(value?.checked_at) >= Date.parse(observation.observed_at) &&
+    value?.base_matches_current_main === (observation.sha === repository?.base_sha);
+  return [INTEGRATION_BASE_CONTRACT, LEGACY_INTEGRATION_BASE_CONTRACT].includes(value?.contract) &&
     value?.status === "admitted" && value?.reason_code === null &&
     value?.requested_base_sha === repository?.base_sha &&
     value?.tested_head_sha === repository?.head_sha &&
     value?.requested_base_sha !== value?.tested_head_sha &&
-    value?.base_matches_current_main === true && value?.base_is_ancestor_of_head === true &&
-    observation?.source === INTEGRATION_BASE_SOURCE &&
-    observation?.repository_id === CANONICAL_REPOSITORY_ID &&
-    observation?.repository_id === repository?.repository_id && observation?.branch === "main" &&
-    observation?.sha === repository?.base_sha && SHA_PATTERN.test(observation?.sha ?? "") &&
-    isIsoTimestamp(observation?.observed_at) && isIsoTimestamp(value?.checked_at) &&
-    Date.parse(value.checked_at) >= Date.parse(observation.observed_at);
+    value?.base_is_ancestor_of_head === true &&
+    isIsoTimestamp(value?.checked_at) &&
+    (value.contract === LEGACY_INTEGRATION_BASE_CONTRACT
+      ? observed && value.base_matches_current_main === true
+      : observed || observation === null && value.base_matches_current_main === null);
 }
 
 function isIsoTimestamp(value) {

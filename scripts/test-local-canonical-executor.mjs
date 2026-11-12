@@ -74,7 +74,7 @@ import {
   releaseCheckoutVerificationOwnership,
   requiresCheckoutVerificationOwnership,
 } from "./local-canonical-checkout-ownership.mjs";
-import { admitIntegrationBase } from "./local-canonical-integration-base.mjs";
+import { admitIntegrationBase, LEGACY_INTEGRATION_BASE_CONTRACT } from "./local-canonical-integration-base.mjs";
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { finalizeReceipt, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
 
@@ -334,12 +334,23 @@ try {
     assert.equal(admitted.integrationBase.observation.sha, currentBase);
     assert.equal(admitted.integrationBase.base_is_ancestor_of_head, true);
     assert.equal(admitted.plan.selected_plan, "full-canonical");
+    for (const [base, head, transport, observed] of [
+      [oldBase, proposedHead, currentTransport, true],
+      [oldBase, divergentHead, currentTransport, true],
+      [currentBase, proposedHead, { fetchBranchHead: async () => { throw new Error("offline"); } }, false],
+      [currentBase, proposedHead, { fetchBranchHead: async () => ({ repository_id: "other/repository", branch: "main", sha: currentBase }) }, false],
+    ]) {
+      const result = await admitAndResolveVerificationPlan({ mode, root: admissionRoot,
+        baseSha: base, headSha: head, transport, planner });
+      assert.equal(result.integrationBase.status, "admitted");
+      assert.equal(result.integrationBase.base_is_ancestor_of_head, true);
+      assert.equal(Boolean(result.integrationBase.observation), observed);
+      assert.equal(result.integrationBase.base_matches_current_main, observed ? false : null);
+      assert.equal(result.plan.selected_plan, "full-canonical");
+    }
     for (const [base, head, transport, reason] of [
-      [oldBase, proposedHead, currentTransport, "integration_base_mismatch"],
-      [proposedHead, proposedHead, currentTransport, "integration_base_mismatch"],
+      [proposedHead, proposedHead, currentTransport, "identical_base_and_head"],
       [currentBase, divergentHead, currentTransport, "integration_base_not_ancestor"],
-      [currentBase, proposedHead, { fetchBranchHead: async () => { throw new Error("offline"); } }, "integration_base_observation_unavailable"],
-      [currentBase, proposedHead, { fetchBranchHead: async () => ({ repository_id: "other/repository", branch: "main", sha: currentBase }) }, "integration_base_observation_unavailable"],
     ]) {
       const callsBefore = decidingPlannerCalls;
       const result = await admitAndResolveVerificationPlan({ mode, root: admissionRoot,
@@ -355,7 +366,21 @@ try {
       assert.equal(failed.integration_base.reason_code, reason);
     }
   }
-  assert.equal(decidingPlannerCalls, 2);
+  assert.equal(decidingPlannerCalls, 10);
+  for (const [base, transport, reason] of [
+    [oldBase, currentTransport, "integration_base_mismatch"],
+    [currentBase, { fetchBranchHead: async () => { throw new Error("offline"); } }, "integration_base_observation_unavailable"],
+  ]) {
+    const legacy = await admitIntegrationBase({ repositoryRoot: admissionRoot, baseSha: base,
+      headSha: proposedHead, transport, contract: LEGACY_INTEGRATION_BASE_CONTRACT });
+    assert.equal(legacy.status, "refused");
+    assert.equal(legacy.reason_code, reason);
+  }
+  const legacy = await admitIntegrationBase({ repositoryRoot: admissionRoot, baseSha: currentBase,
+    headSha: proposedHead, transport: currentTransport, contract: LEGACY_INTEGRATION_BASE_CONTRACT });
+  assert.equal(legacy.status, "admitted");
+  await assert.rejects(admitIntegrationBase({ repositoryRoot: admissionRoot, baseSha: currentBase,
+    headSha: proposedHead, transport: currentTransport, contract: "unknown" }), /integration_base_contract_unsupported/);
   const unavailable = await admitIntegrationBase({ repositoryRoot: admissionRoot, baseSha: currentBase,
     headSha: "0".repeat(40), transport: currentTransport });
   assert.equal(unavailable.reason_code, "integration_base_ancestry_unavailable");

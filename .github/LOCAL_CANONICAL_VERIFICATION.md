@@ -25,7 +25,7 @@ The receipt preserves the established evidence vocabulary:
 
 - exact repository identity
 - exact base SHA
-- authenticated current integration-base observation and base-to-head ancestry
+- declared base-to-head ancestry and, when available, authenticated current-main observation
 - exact head SHA
 - dirty-worktree status
 - operating system and architecture
@@ -72,9 +72,7 @@ The executor first requires the authorized verification context and exact author
 `origin`. The default context retains the exact fixed local root. It verifies that base and head are lowercase 40-character commit
 identities available locally. `changed` and `full` additionally require:
 
-- the requested base equals the current `main` observed through the existing
-  read-only authenticated GitHub main-branch transport for `hynk-studio/augnes`;
-- that base is an ancestor of the exact requested head;
+- the explicitly requested base is an ancestor of the distinct exact requested head;
 - current `HEAD` equals the requested head;
 - the worktree is clean before and after execution;
 - the current host satisfies the Canonical platform and resource policy;
@@ -89,13 +87,21 @@ discards, or moves user source changes.
 The ordinary PR lane observes `main` before responsibility planning through
 `scripts/github-main-branch-transport.mjs`: a bounded authenticated `gh api`
 GET, pinned to `github.com`, the canonical repository and `main`, without a
-cached-response request. Local tracking refs do not substitute for an unavailable
-or invalid remote response. Wrong/stale bases and unproven ancestry produce a
-failed receipt with no planner classification or deciding phases. No automatic
+cached-response request. New integration-base v2 records qualify the declared
+base/head range: a different or unavailable current main is informational and
+does not block execution or fresh receipt validation. This does not claim that
+an untested combination with newer main has passed. Local tracking refs do not
+substitute for an authenticated main observation. Identical commits, unavailable
+local commits and unproven ancestry still refuse before planning or phases.
+Retained integration-base v1 records keep their original current-main admission
+and stock requirements; historical receipts are never upgraded to v2. Existing
+route-specific accepted-main authority bindings remain unchanged. No automatic
 fetch, source integration, retry, or GitHub write is performed.
 
 Admission and later receipt validation are observations at recorded times.
-Validation re-observes current `main` and rechecks ancestry. Neither read reserves
+Validation re-observes current `main` when available and rechecks declared ancestry.
+For v2 it reports differing/unobserved main as applicability information, separate
+from validity of the exact tested range. Neither read reserves
 the base or proves the eventual GitHub merge result: `main` may move after the
 last read, and the later merge-time TOCTOU boundary remains unclosed here.
 
@@ -2223,12 +2229,15 @@ Validation exits nonzero unless the receipt is currently valid deciding
 evidence. It rejects or marks non-deciding a receipt when:
 
 - current `HEAD`, origin, branch/detached state, worktree cleanliness, or environment identity differs;
-- the fresh authenticated `main` observation is unavailable or differs from the
-  recorded base, or current ancestry cannot be established;
+- current declared base-to-head ancestry cannot be established; for retained
+  integration-base v1 receipts, the fresh authenticated `main` observation is
+  also required to match the recorded base;
 - integration-base provenance is missing, inconsistent, wrongly timed, or
   tampered; historical version 1/2 receipts remain historical and are not upgraded
   into newer evidence; version 3 keeps its original interpretation and is never
   rewritten or promoted into version 4;
+- integration-base v2 appears in a historical version 3 receipt, its recorded
+  check falls outside the run, or its fresh local-source check predates settlement;
 - required checkout ownership was not acquired/released for the phase lifetime,
   failed, or belongs to another physical checkout;
 - the admitted context, physical checkout, receipt filename/run identity,

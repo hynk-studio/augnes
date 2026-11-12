@@ -1115,7 +1115,9 @@ export async function executeLocalCanonicalVerification({
     outcome: { disposition, first_fault: inputMonitor?.fault() ?? null, execution: !executionFailure && allSelectedPhasesPassed ? "complete_pass" : "incomplete_or_failed",
       validity: inputs && !executionReason && !inputMonitor?.fault() && cleanupComplete ? "valid_within_observed_scope" : "invalid_or_unknown",
       safety: inputMonitor?.fault() ? "blocked" : cleanupComplete ? "preserved_within_observed_scope" : "unknown",
-      applicability_at_admission: integrationBase?.status === "admitted" ? "current_base" : "blocked" },
+      applicability_at_admission: integrationBase?.status === "admitted"
+        ? integrationBase.base_matches_current_main === true ? "current_base" : "declared_base"
+        : "blocked" },
     integration_base: integrationBase,
     verification_context: verificationContext,
     checkout_ownership: checkoutOwnership,
@@ -1506,6 +1508,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
         repositoryRoot,
         baseSha: receipt?.repository?.base_sha,
         headSha: receipt?.repository?.head_sha,
+        contract: receipt?.integration_base?.contract ?? null,
       });
     } catch {
       // Invalid historical identity is not current integration-base evidence.

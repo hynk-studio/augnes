@@ -4,7 +4,8 @@ import { CANONICAL_REPOSITORY_ID } from "./canonical-repository-identity.mjs";
 import { createGitHubMainBranchTransport } from "./github-main-branch-transport.mjs";
 import { assertExactSha } from "./local-canonical-environment.mjs";
 
-export const INTEGRATION_BASE_CONTRACT = "augnes.local-canonical-integration-base.v1";
+export const LEGACY_INTEGRATION_BASE_CONTRACT = "augnes.local-canonical-integration-base.v1";
+export const INTEGRATION_BASE_CONTRACT = "augnes.local-canonical-integration-base.v2";
 export const INTEGRATION_BASE_SOURCE = "github_authenticated_main_branch_get";
 
 // No tracking-ref fallback and no fetch/write: this is an observation, not a
@@ -15,11 +16,14 @@ export async function admitIntegrationBase({
   headSha,
   transport = createGitHubMainBranchTransport(),
   now = () => new Date().toISOString(),
+  contract = INTEGRATION_BASE_CONTRACT,
 }) {
   assertExactSha(baseSha, "base");
   assertExactSha(headSha, "head");
+  if (![INTEGRATION_BASE_CONTRACT, LEGACY_INTEGRATION_BASE_CONTRACT].includes(contract))
+    throw Object.assign(new Error("integration_base_contract_unsupported"), { code: "integration_base_contract_unsupported" });
   const admission = {
-    contract: INTEGRATION_BASE_CONTRACT,
+    contract,
     requested_base_sha: baseSha,
     tested_head_sha: headSha,
     status: "refused",
@@ -45,9 +49,13 @@ export async function admitIntegrationBase({
   } catch {
     admission.reason_code = "integration_base_observation_unavailable";
   }
-  if (admission.observation) {
+  if (admission.observation)
     admission.base_matches_current_main = baseSha === admission.observation.sha;
-    if (!admission.base_matches_current_main) {
+  if (admission.observation || contract === INTEGRATION_BASE_CONTRACT) {
+    // The declared base selects the exact source comparison. Current main is
+    // observed for applicability, not a requirement to rewrite the candidate.
+    // Retained v1 receipts keep their original current-main requirement.
+    if (contract === LEGACY_INTEGRATION_BASE_CONTRACT && !admission.base_matches_current_main) {
       admission.reason_code = "integration_base_mismatch";
     } else if (baseSha === headSha) {
       admission.reason_code = "identical_base_and_head";
