@@ -34,6 +34,11 @@ export const AUXILIARY_EXECUTION_BUDGETS = Object.freeze({
   // settlement, process observations and wrapper cleanup. These are bounded
   // owners, not a universal wall-clock guarantee or permission to retry.
   reviewSerialAggregateControlMs: 40_000,
+  // Complete material fixture: observed 58.343s prefix, existing 15s reader
+  // and about 2.857s other work leave 3.8s within this prospective allowance.
+  // The outer owner retains 8s TERM / 5s KILL / 2s parent settlement margin.
+  reviewSerialMaterialFixtureMs: 80_000,
+  reviewSerialMaterialControlMs: 95_000,
   reviewAdverseFixtureMs: 12_000,
   reviewChildResultHarnessMs: 60_000,
 });
