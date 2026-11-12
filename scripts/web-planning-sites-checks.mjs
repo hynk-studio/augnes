@@ -19,11 +19,12 @@ const sqlParts=text=>text.split('--> statement-breakpoint').map(s=>s.trim());
 async function migrationParity(folder,generated) {
   const journal=await json(path.join(folder,'meta/_journal.json'));
   assert.equal(journal.dialect,'sqlite');
-  assert.deepEqual(journal.entries.map(e=>[e.idx,e.tag,e.breakpoints]),[[0,'0000_web_planning',true],[1,'0001_schema_version',true],[2,'0002_revision_files',true],[3,'0003_cumulative_history',true],[4,'0004_complete_exchange_files',true],[5,'0005_return_destination',true],[6,'0006_request_participation',true],[7,'0007_independent_projects',true]]);
+  assert.deepEqual(journal.entries.map(e=>[e.idx,e.tag,e.breakpoints]),[[0,'0000_web_planning',true],[1,'0001_schema_version',true],[2,'0002_revision_files',true],[3,'0003_cumulative_history',true],[4,'0004_complete_exchange_files',true],[5,'0005_return_destination',true],[6,'0006_request_participation',true],[7,'0007_independent_projects',true],[8,'0008_work_continuation',true]]);
   assert(journal.entries.every((e,i)=>i===0||e.when>journal.entries[i-1].when));
-  const snapshots=await Promise.all(['0000','0001','0002','0003','0004','0005','0006','0007'].map(n=>json(path.join(folder,`meta/${n}_snapshot.json`))));
+  const snapshots=await Promise.all(['0000','0001','0002','0003','0004','0005','0006','0007','0008'].map(n=>json(path.join(folder,`meta/${n}_snapshot.json`))));
   assert.deepEqual(shape(snapshots[0]),shape(snapshots[1]),'historical snapshots changed');
-  assert.deepEqual(shape(snapshots[7]),shape(generated.snapshot),'Drizzle schema/snapshot drift');
+  assert.deepEqual(shape(snapshots[8]),shape(generated.snapshot),'Drizzle schema/snapshot drift');
+  assert.equal(snapshots[8].prevId,snapshots[7].id);
   assert.equal(snapshots[7].prevId,snapshots[6].id);
   assert.equal(snapshots[6].prevId,snapshots[5].id);assert.equal(snapshots[5].prevId,snapshots[4].id);assert.equal(snapshots[4].prevId,snapshots[3].id);assert.equal(snapshots[1].prevId,snapshots[0].id);assert.equal(snapshots[2].prevId,snapshots[1].id);assert.equal(snapshots[3].prevId,snapshots[2].id);
   const initial=await readFile(path.join(folder,'0000_web_planning.sql'),'utf8');
@@ -37,8 +38,9 @@ async function migrationParity(folder,generated) {
   // Compare the replacement table's final semantic name; no constraint, column
   // or index text is normalized away.
   const projects=(await readFile(path.join(folder,'0007_independent_projects.sql'),'utf8')).replaceAll('__new_web_planning_workspace','web_planning_workspace');
+  const continuation=(await readFile(path.join(folder,'0008_work_continuation.sql'),'utf8')).replaceAll('__new_web_planning_schema','web_planning_schema');
   for(const statement of generated.statements){
-    const owner=/^CREATE (TABLE|(?:UNIQUE )?INDEX) `web_planning_(workspace|schema)/.test(statement)||statement.startsWith('CREATE UNIQUE INDEX `web_planning_participation_identity`')?projects:/^CREATE (TABLE|INDEX) `web_planning_participation/.test(statement)?participation:statement.startsWith('CREATE INDEX `web_planning_return_destination`')?uses:/^CREATE TABLE `web_planning_revision`/.test(statement)?cumulative:/^CREATE TABLE `web_planning_(file|file_part)`/.test(statement)?files:initial;
+    const owner=/^CREATE (TABLE|INDEX) `web_planning_(continuation|schema)/.test(statement)?continuation:/^CREATE (TABLE|(?:UNIQUE )?INDEX) `web_planning_workspace/.test(statement)||statement.startsWith('CREATE UNIQUE INDEX `web_planning_participation_identity`')?projects:/^CREATE (TABLE|INDEX) `web_planning_participation/.test(statement)?participation:statement.startsWith('CREATE INDEX `web_planning_return_destination`')?uses:/^CREATE TABLE `web_planning_revision`/.test(statement)?cumulative:/^CREATE TABLE `web_planning_(file|file_part)`/.test(statement)?files:initial;
     assert(owner.includes(statement.trim()),'Drizzle schema/SQL drift');
   }
   assert.match(upgrade,/RAISE\(ABORT, 'file_history_count_exceeded'\)/);
@@ -65,8 +67,8 @@ export async function checkSitesArtifact(artifact,code) {
   const tree=(await readdir(artifact,{recursive:true,withFileTypes:true})).filter(e=>e.isFile())
     .map(e=>path.relative(artifact,path.join(e.parentPath,e.name))).sort();
   assert.deepEqual(tree,[
-    '.openai/drizzle/0000_web_planning.sql','.openai/drizzle/0001_schema_version.sql','.openai/drizzle/0002_revision_files.sql','.openai/drizzle/0003_cumulative_history.sql','.openai/drizzle/0004_complete_exchange_files.sql','.openai/drizzle/0005_return_destination.sql','.openai/drizzle/0006_request_participation.sql','.openai/drizzle/0007_independent_projects.sql',
-    '.openai/drizzle/meta/0000_snapshot.json','.openai/drizzle/meta/0001_snapshot.json', '.openai/drizzle/meta/0002_snapshot.json','.openai/drizzle/meta/0003_snapshot.json','.openai/drizzle/meta/0004_snapshot.json','.openai/drizzle/meta/0005_snapshot.json','.openai/drizzle/meta/0006_snapshot.json','.openai/drizzle/meta/0007_snapshot.json','.openai/drizzle/meta/_journal.json',
+    '.openai/drizzle/0000_web_planning.sql','.openai/drizzle/0001_schema_version.sql','.openai/drizzle/0002_revision_files.sql','.openai/drizzle/0003_cumulative_history.sql','.openai/drizzle/0004_complete_exchange_files.sql','.openai/drizzle/0005_return_destination.sql','.openai/drizzle/0006_request_participation.sql','.openai/drizzle/0007_independent_projects.sql','.openai/drizzle/0008_work_continuation.sql',
+    '.openai/drizzle/meta/0000_snapshot.json','.openai/drizzle/meta/0001_snapshot.json', '.openai/drizzle/meta/0002_snapshot.json','.openai/drizzle/meta/0003_snapshot.json','.openai/drizzle/meta/0004_snapshot.json','.openai/drizzle/meta/0005_snapshot.json','.openai/drizzle/meta/0006_snapshot.json','.openai/drizzle/meta/0007_snapshot.json','.openai/drizzle/meta/0008_snapshot.json','.openai/drizzle/meta/_journal.json',
     '.openai/hosting.json','server/.vite/manifest.json','server/index.js','server/wrangler.json',
   ]);
   assert.deepEqual(await json(path.join(artifact,'.openai/hosting.json')),{d1:'DB',r2:null});
@@ -139,7 +141,7 @@ export async function exerciseSitesBootstrap({start,artifact,code,runtimeConfig,
   }
   await server.db.prepare('DELETE FROM web_planning_schema').run();
   assert.equal((await request(server)).status,503);assert.equal(await count(server),0);
-  await server.db.prepare('INSERT INTO web_planning_schema(version) VALUES (5)').run();
+  await server.db.prepare('INSERT INTO web_planning_schema(version) VALUES (6)').run();
   const direct=await start('sites-direct-entry',options);
   assert.equal((await request(direct)).status,200);assert.equal(await count(direct),1);
   const responses=await Promise.all(Array.from({length:8},()=>request(server,undefined,navigation('cross-site'))));
@@ -163,9 +165,9 @@ export async function exerciseSitesBootstrap({start,artifact,code,runtimeConfig,
   // Constraint tests execute the staged Drizzle material on real D1, including
   // boundaries otherwise masked by the application's validation/conditional SQL.
   const db=server.db;
-  assert.deepEqual((await db.prepare('SELECT version FROM web_planning_schema').all()).results,[{version:5}]);
-  assert.equal((await db.prepare('SELECT count(*) n FROM __drizzle_migrations').first()).n,8);
-  await assert.rejects(db.prepare('INSERT INTO web_planning_schema VALUES (5)').run());
+  assert.deepEqual((await db.prepare('SELECT version FROM web_planning_schema').all()).results,[{version:6}]);
+  assert.equal((await db.prepare('SELECT count(*) n FROM __drizzle_migrations').first()).n,9);
+  await assert.rejects(db.prepare('INSERT INTO web_planning_schema VALUES (6)').run());
   await assert.rejects(db.prepare('INSERT INTO web_planning_schema VALUES (1)').run());
   await assert.rejects(db.prepare('UPDATE web_planning_workspace SET singleton=0').run());
   const insert=(work,revision,requestKey,envelope='{}',workspace=expected.workspace_id)=>db.prepare(
