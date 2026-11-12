@@ -15,7 +15,13 @@ that autonomous method learning has already shipped.
 The product invariant is the continuity of meaning, not the replication of one
 interface. The product is continuous work, not a collection of surfaces.
 
-**Resume / Verify / Decide.**
+**Resume / Verify / Anticipate / Decide.**
+
+These are [product responsibilities](docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md#anticipate),
+not mandatory execution steps. Anticipate connects evidence and explicit
+assumptions to conditional futures, risks, opportunities and observations that
+could change a decision. This direction does not claim an autonomous forecasting
+engine, require a model call or change the existing approval boundaries.
 
 [Try a method without installing Augnes](#try-a-method-without-setup) ·
 [Software Change Check](docs/SOFTWARE_CHANGE_SKILL_DISTRIBUTION.md) ·

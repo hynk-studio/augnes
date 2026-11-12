@@ -242,7 +242,7 @@ Bounded public reading, revision-bound publication and cross-owner contribution
 belong to the same continuous-work direction under #1447/#1443; private-usefulness
 comparisons are not prerequisites for these already approved capabilities.
 General network-scale discovery, reputation and settlement remain later scope.
-The product-facing loop remains **Resume → Verify → Decide**.
+The product compass is **Resume → Verify → Anticipate → Decide**.
 
 Public entry must offer useful work before requiring registration, a continuing
 identity or contribution to an Augnes-selected task. An asset should make its
@@ -459,7 +459,16 @@ places the first bounded application under existing owners;
 separates capability, economic outcome, experience benefit and participation
 effects. Their existence is not evidence of autonomous business competence.
 
-## 2. Product compass: Resume / Verify / Decide
+<a id="2-product-compass-resume--verify--decide"></a>
+
+## 2. Product compass: Resume / Verify / Anticipate / Decide
+
+These name core product responsibilities, not four mandatory calls, screens or
+sequential gates. A useful outlook can request further verification; a decision
+or later observation can revise that outlook. Apply only the depth needed for
+the work. Human-authored reasoning and existing zero-model paths remain valid;
+model enrichment is optional. Implementation status and sequence remain with
+[03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#selective-model-application-across-local-and-web-work).
 
 ### Resume
 
@@ -494,16 +503,52 @@ source-anchored, and what remains unknown.
 Execution completion is not verified success. A host result may be operational
 residue without proving that the task goal was satisfied.
 
+### Anticipate
+
+Explore conditional futures, risks, opportunities and action-dependent outcomes
+from the project's past observations, current conditions and explicit
+assumptions. Identify the material premises, relevant horizon and observations
+that could change an inquiry, preparation or consequential decision. This includes
+conditions under which today's operating assumptions stop being useful, not only
+continuation of an observed trend. Possible futures can inform an investigation
+without a fixed destination or an immediate execution commitment.
+
+Keep source-backed observations separate from assumptions, inferred connections,
+desired outcomes and uncertainty. A supported observation does not by itself
+establish the causal or logical connection to a future outcome. Use statistical
+reasoning, logical constraints, competing explanations, scenarios, ranges or
+justified probability estimates selectively; none is a universal prerequisite.
+Do not invent probabilities to make an outlook appear precise.
+
+A prediction is one possible output within Anticipate, not its whole purpose or
+a newly mandated Core record type. Forecasts, scenarios and comparisons between
+possible actions may overlap rather than form mutually exclusive categories.
+An action-dependent causal claim needs support beyond an observed association.
+Keep relevant alternatives, including waiting or investigating, visible when
+they could change the judgment. Preserve the original basis and information
+cutoff when later evidence changes a material assumption or outlook; update only
+the judgments affected. An unchosen alternative is not an observed outcome, and
+a recorded expectation does not prove improved foresight or learning.
+
+Use existing source, expectation, outlook, assessment and decision connections
+where sufficient. Anticipate may be brief or unnecessary for a particular task;
+it adds no default form, mandatory modeling pass, new approval gate or automatic
+action. Its outputs remain non-authoritative review material, not verified future
+facts, accepted state, permission or an applied Transition. Core semantics remain
+owned by [02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md), and
+[04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#question-specific-model-evidence)
+separates reasoning quality, forecast evidence, later use and total burden.
+
 ### Decide
 
 Present the consequential judgment and its effect without making the user
 operate the underlying protocol. Recommendation is not decision. Candidate is
 not accepted state. A user decision is not an applied Transition.
 
-Default product presence should help users Resume, Verify or Decide about work
-and its capabilities. A method can earn its place by improving actual outcomes
-or enabling previously impractical work through that flow; it need not create
-another visible step or surface.
+Default product presence should help users Resume, Verify, Anticipate or Decide
+about work and its capabilities. A method can earn its place by improving actual
+outcomes or enabling previously impractical work through that flow; it need not
+create another visible step or surface.
 
 ## 3. Cross-surface continuity
 

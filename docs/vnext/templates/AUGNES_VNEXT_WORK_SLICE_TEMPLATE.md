@@ -19,9 +19,13 @@ Target worker/adapter:
 ```text
 User/workflow problem:
 Why now:
-Which of Resume / Verify / Decide improves:
+Which of Resume / Verify / Anticipate / Decide improves:
 Observed current friction:
 ```
+
+Select only the responsibilities the slice improves. The
+[product compass](../01_AUGNES_VNEXT_MASTERPLAN.md#anticipate) does not require
+every task to add a prediction, model, record or approval step.
 
 ## 3. Architecture Classification
 
