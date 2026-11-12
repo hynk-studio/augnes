@@ -1,4 +1,4 @@
-import { isMaintenance, hasMaintenanceMarker, readMaintenanceEvidence, inspectMaintenanceInputs, assertMaintenanceAuthorization, validateMaintenanceAuthorityRecords, validMaintenanceAttempt } from "./local-canonical-maintenance.mjs";
+import { isMaintenance, hasMaintenanceMarker, readMaintenanceEvidence, inspectMaintenanceInputs, assertMaintenanceAuthorization, validateMaintenanceAuthorityRecords, validMaintenanceAttempt, externalUtc, strictlyAfter } from "./local-canonical-maintenance.mjs";
 import { VERIFIER_LIFECYCLE_REPAIR, VERIFIER_LIFECYCLE_CLAIM, VERIFIER_LIFECYCLE_GRANT, verifyVerifierLifecyclePredecessor } from "./local-canonical-verifier-lifecycle-witness.mjs";
 import { readVerifierLifecycleDelegation, verifierLifecycleAuthorityScope } from "./local-canonical-git-observation.mjs";
 import { PREPARED_ELIGIBILITY_REPAIR, PREPARED_ELIGIBILITY_CLAIM, PREPARED_ELIGIBILITY_GRANT, PREPARED_ELIGIBILITY_PHASE, verifyPreparedEligibilityPredecessor } from "./local-canonical-prepared-eligibility-witness.mjs";
@@ -27,7 +27,7 @@ import { REGISTERED_FIXTURE_BUDGET, REGISTERED_INTEGRATION_BUDGET, fixtureBudget
 import { GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM, GENERATED_STOCK_GRANT, GENERATED_STOCK_PHASE,
   inspectGeneratedStockBrowserInputs } from "./local-canonical-stock-lifecycle-witness.mjs";
 import { verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
-import { isImprovement, hasImprovementMarker, ordinaryV2SourceModule, parseImprovementJSON, readImprovementEvidence,
+import { artifactReader, isImprovement, hasImprovementMarker, ordinaryV2SourceModule, parseImprovementJSON, readImprovementEvidence,
   assertImprovementAuthorization, validateImprovementAuthorityRecords, validImprovementAttempt } from "./local-canonical-improvement.mjs";
 import { checkoutVerificationFingerprint } from "./local-canonical-checkout-ownership.mjs";
 import { REPOSITORY_PURE_CONTRACT, inspectCurrentPureContractInputs } from "./local-canonical-pure-contract-witness.mjs";
@@ -95,7 +95,9 @@ function afterRevisionValidation(observe, validate, finish) {
   const complete = current => {
     if (consumed) throw fail("revision_validation_already_used");
     consumed = true;
-    return finish(prepared, current, assertUnchanged);
+    // Synchronous finish may read transitive originals after the observation.
+    // Keep those reads in the same seal through the last pre-append boundary.
+    return revisionReadScope.run(scope,()=>finish(prepared, current, assertUnchanged));
   };
   return typeof observe === "function" ? Promise.resolve().then(observe).then(complete) : complete(null);
 }
@@ -147,6 +149,7 @@ export function hasRetiredQualificationMarker(value) {
 // through to ordinary or legacy receipt handling.
 export function supportsSourceCorrection(proof) {
   return proof !== null && typeof proof === "object" && !Array.isArray(proof) && !hasRetiredQualificationMarker(proof) &&
+    (!Object.hasOwn(proof,"integration_case") || isReviewedIntegration(proof)) &&
     (!hasMaintenanceMarker(proof) || isMaintenance(proof) && !Object.hasOwn(proof,"maintenance_authority") && !Object.hasOwn(proof,"evidence_kind")) &&
     (!hasImprovementMarker(proof) || isImprovement(proof) && !Object.hasOwn(proof,"improvement_authority") && !Object.hasOwn(proof,"evidence_kind")) && (
     proof.schema === "augnes.local-canonical-source-correction.v1" ||
@@ -177,10 +180,38 @@ export function beginAttempt(options) {
   return afterRevisionValidation(options.observeRevision, () => prepareAttempt(options), (finish, current, check) => finish(current, check));
 }
 
+const isAcceptedMainIntegration = proof => proof?.schema === "augnes.local-canonical-source-correction.v2" && proof.kind === "accepted_main_integration";
+export const isReviewedIntegration = proof => isAcceptedMainIntegration(proof) && proof.integration_case === "reviewed";
+export const hasReviewedIntegrationMarker = value => [value,value?.source_correction,value?.attempt,value?.attempt?.source_correction]
+  .some(v => v && (Object.hasOwn(v,"integration_case") || Object.hasOwn(v,"integration_authority")));
+const followsSuccessfulMaintenance = (prior, completion, proof) =>
+  isAcceptedMainIntegration(proof) && validMaintenanceAttempt(prior) &&
+  completion.disposition === "completed_success" && completion.cleanup_complete === true;
+
+// The same eligibility reader as admission, without an edge, attempt, ownership
+// lease or capability. This does not authenticate the review or grant execution.
+export function prepareAcceptedMainIntegrationCandidate({anchorRoot,repositoryRoot,proof,acceptedMain}) {
+  if (!isAcceptedMainIntegration(proof)) throw fail("candidate_integration_unproven");
+  return afterRevisionValidation(null, () => {
+    const tip = reconstructAttemptTip({anchorRoot,repositoryRoot,branch:proof.branch});
+    if (tip.family_id !== proof.prior_family_id || tip.number !== proof.prior_number || tip.attempt_id !== proof.prior_attempt_id || tip.reviewed_revision_consumed || tip.improvement_consumed)
+      throw fail("attempt_latest_tip_required");
+    return prepareSourceCorrection({anchorRoot,repositoryRoot,branch:proof.branch,head:proof.head,tree:proof.tree,
+      proof,acceptedMain,reserve:false,preparing:true});
+  }, (finish, current, check) => {
+    finish({assertCurrent:check});
+    return {eligible_evidence:true,authorized:false,reserved:false,head:proof.head,tree:proof.tree,
+      accepted_main:acceptedMain,predecessor:proof.prior_receipt_fingerprint,
+      budget:isReviewedIntegration(proof)?proof.budget:{initial:1,recovery:1},
+      ...(isReviewedIntegration(proof)?{missing:["authenticated_candidate_acceptance","prospective_explicit_budget_commission"]}:{})};
+  });
+}
+
 function prepareAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, head, tree, runId, contractFingerprint, inputContract = null, recoveryProof = null, sourceCorrection = null, acceptedMain = null, revisionAuthorization = null, revisionInputs = null, revisionLive = null, observeRevision = null, assertCurrent = null, ...retiredOptions }) {
   if (["browserReplacement", "browserAuthorization", "browserLive", "observerAuthorization", "timeoutAuthorization", "conditionAuthorization", "guideAuthorization"].some(key => Object.hasOwn(retiredOptions, key))) throw fail("qualification_route_retired");
   assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
   if (hasRetiredQualificationMarker(sourceCorrection) || hasRetiredQualificationMarker(recoveryProof)) throw fail("qualification_route_retired");
+  if (hasReviewedIntegrationMarker(sourceCorrection) && !isReviewedIntegration(sourceCorrection) || hasReviewedIntegrationMarker(recoveryProof)) throw fail("integration_mixed_route");
   if (hasMaintenanceMarker(sourceCorrection) && !isMaintenance(sourceCorrection) || hasMaintenanceMarker(recoveryProof)) throw fail("maintenance_mixed_route");
   if (hasImprovementMarker(sourceCorrection) && !isImprovement(sourceCorrection) || hasImprovementMarker(recoveryProof)) throw fail("improvement_mixed_route");
   if (!branch || !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree) || !sha(contractFingerprint)) throw fail("attempt_identity_invalid");
@@ -191,7 +222,9 @@ function prepareAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, hea
   if (pathPresent(initialRoot)) {
     const currentTip = reconstructAttemptTip({anchorRoot,repositoryRoot,branch});
     if (currentTip.improvement_consumed && !isMaintenance(sourceCorrection)) throw fail("improvement_terminal");
-    if (currentTip.maintenance_consumed && !isMaintenance(sourceCorrection)) throw fail("maintenance_terminal");
+    // Eligibility is checked against the immutable successful predecessor below;
+    // selecting this kind alone cannot reopen a spent maintenance commission.
+    if (currentTip.maintenance_consumed && !isMaintenance(sourceCorrection) && !isAcceptedMainIntegration(sourceCorrection)) throw fail("maintenance_terminal");
   }
   if (sourceCorrection && read(path.join(anchorRoot, ".augnes-local-verification", "families", sourceCorrection.prior_family_id, `attempt-${sourceCorrection.prior_number}.json`)).branch !== branch) throw fail("source_correction_predecessor_invalid");
   if (sourceCorrection) {
@@ -203,17 +236,18 @@ function prepareAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, hea
             read(path.join(anchorRoot,".augnes-local-verification/families",tip.family_id,`attempt-${tip.number}.json`)).source_correction?.commission?.maximum_invocations) :
           tip.reviewed_revision_consumed)) throw fail("attempt_latest_tip_required");
   }
-  if (observeRevision && (!(isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection)) || typeof observeRevision !== "function" || typeof assertCurrent !== "function")) throw fail("revision_observer_invalid");
+  if (isReviewedIntegration(sourceCorrection) && (typeof observeRevision !== "function" || typeof assertCurrent !== "function" || recoveryProof)) throw fail("integration_authenticated_authority_required");
+  if (observeRevision && (!(isReviewedIntegration(sourceCorrection) || isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection)) || typeof observeRevision !== "function" || typeof assertCurrent !== "function")) throw fail("revision_observer_invalid");
   if (requiresPreparedEligibility(sourceCorrection) && inputContract === null) throw fail("input_contract_owner_invalid");
   if (inputContract !== null) assertInputContractBinding(inputContract, contractFingerprint);
   const binding = digest({ sourceCorrection, branch, head, tree, acceptedMain, revisionInputs });
   let dependencyPrerequisites = null;
   const correction = sourceCorrection ? prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof: sourceCorrection, acceptedMain, reserve: true,
     retainDependencyPrerequisites: value => { dependencyPrerequisites = structuredClone(value); } }) : null;
-  if (isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection)) {
+  if (isReviewedIntegration(sourceCorrection) || isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection)) {
     const candidate = path.join(artifact,"families",familyId);
     if (pathPresent(candidate)) {
-      if (isImprovement(sourceCorrection) || isMaintenance(sourceCorrection) || revisionDirectoryEntries(candidate).length) throw fail("attempt_candidate_superseded");
+      if (isReviewedIntegration(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection) || revisionDirectoryEntries(candidate).length) throw fail("attempt_candidate_superseded");
     } else revisionReadScope.getStore()?.absent.add(candidate);
   }
   return (current, assertUnchanged) => {
@@ -230,9 +264,9 @@ function prepareAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, hea
     assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
     assertUnchanged();
   };
-  if ((isImprovement(sourceCorrection) || isMaintenance(sourceCorrection)) && Buffer.byteLength(JSON.stringify({contract:ATTEMPT_CONTRACT,family_id:familyId,attempt_id:runId,number:1,branch,head,tree,
+  if ((isReviewedIntegration(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection)) && Buffer.byteLength(JSON.stringify({contract:ATTEMPT_CONTRACT,family_id:familyId,attempt_id:runId,number:1,branch,head,tree,
       contract_fingerprint:contractFingerprint,started_at:new Date().toISOString(),prior_attempt_id:null,prior_receipt_fingerprint:null,recovery:null,source_correction:sourceCorrection,
-      improvement_authority:{observations:revisionAuthorization?.observations,records:revisionAuthorization?.records},budget:{initial:1,recovery:0}}))>64*1024)
+      [isReviewedIntegration(sourceCorrection)?"integration_authority":"improvement_authority"]:{observations:revisionAuthorization?.observations,records:revisionAuthorization?.records},budget:{initial:1,recovery:0}}))+1>64*1024)
     throw fail("improvement_attempt_unbounded");
   if (correction) correction({ revisionAuthorization, revisionInputs, revisionLive, assertCurrent: boundary });
   else boundary();
@@ -259,7 +293,8 @@ function prepareAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, hea
     ...(isReviewedRevision(sourceCorrection) ? { revision_authority: revisionAuthorization.observations } : {}),
     ...(isMaintenance(sourceCorrection) ? { maintenance_authority: {observations:revisionAuthorization.observations,records:revisionAuthorization.records} } : {}),
     ...(isImprovement(sourceCorrection) ? { improvement_authority: {observations:revisionAuthorization.observations,records:revisionAuthorization.records} } : {}),
-    budget: { initial: 1, recovery: isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection) ? 0 : 1 } };
+    ...(isReviewedIntegration(sourceCorrection) ? {integration_authority:{observations:revisionAuthorization.observations,records:revisionAuthorization.records}} : {}),
+    budget: { initial: 1, recovery: isReviewedIntegration(sourceCorrection) || isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection) ? 0 : 1 } };
   append(root, `attempt-${number}.json`, record);
   const capability = Object.freeze({ ...record });
   capabilities.set(capability, { root, repositoryRoot, checkoutOwner, record,
@@ -314,6 +349,7 @@ export function readRecoveryProof(file) {
   if (hasMaintenanceMarker(proof)) throw fail("maintenance_mixed_route");
   if (hasImprovementMarker(proof)) throw fail("improvement_mixed_route");
   if (hasRetiredQualificationMarker(proof)) throw fail("qualification_route_retired");
+  if (hasReviewedIntegrationMarker(proof)) throw fail("integration_mixed_route");
   for (const [key, expected] of [["cause_artifact", proof.evidence_sha256], ["probe_artifact", proof.probe?.artifact_sha256]]) {
     const name = proof[key];
     if (typeof name !== "string" || !/^[a-z0-9_-]+\.json$/u.test(name) || !sha(expected)) throw fail("attempt_repair_evidence_missing");
@@ -344,6 +380,7 @@ function prepareAttemptInspection({ anchorRoot, repositoryRoot = anchorRoot, rec
     if (hasRetiredQualificationMarker(receipt)) return false;
     if (hasMaintenanceMarker(receipt) && !validMaintenanceAttempt(attempt)) return false;
     if (hasImprovementMarker(receipt) && !validImprovementAttempt(attempt)) return false;
+    if (hasReviewedIntegrationMarker(receipt) && !validReviewedIntegrationAttempt(attempt)) return false;
     const familyId = candidateFamilyId(receipt.repository.branch, attempt.source_correction);
     if (attempt.family_id !== familyId || ![1, 2].includes(attempt.number)) return false;
     let correction = null;
@@ -501,6 +538,7 @@ function readAttemptLineage({ anchorRoot, repositoryRoot = null, branch }, throu
     const attempt = read(path.join(root, `attempt-${number}.json`));
     if (hasMaintenanceMarker(attempt) && !validMaintenanceAttempt(attempt)) throw fail("maintenance_attempt_invalid");
     if (hasImprovementMarker(attempt) && !validImprovementAttempt(attempt)) throw fail("improvement_attempt_invalid");
+    if (hasReviewedIntegrationMarker(attempt) && !validReviewedIntegrationAttempt(attempt)) throw fail("integration_attempt_invalid");
     if (hasRetiredQualificationMarker(attempt)) throw fail("qualification_route_retired");
     if (attempt.contract !== ATTEMPT_CONTRACT || attempt.branch !== branch || attempt.family_id !== familyId || attempt.number !== number ||
         (attempt.source_correction && !supportsSourceCorrection(attempt.source_correction))) throw fail("attempt_lineage_identity_invalid");
@@ -522,7 +560,7 @@ function readAttemptLineage({ anchorRoot, repositoryRoot = null, branch }, throu
       const completion=read(path.join(root,"completion-1.json"));
       if(completion.contract!==ATTEMPT_CONTRACT || completion.attempt_id!==attempt.attempt_id || !sha(completion.receipt_fingerprint)) throw fail(prefix+"_completion_invalid");
       if(reachedReceipt || !entries.includes("correction-successor.json"))return {family_id:familyId,number:1,attempt_id:attempt.attempt_id,[prefix+"_consumed"]:true};
-      if(read(edgeFile).kind!=="prospective_maintenance")throw fail(prefix+"_terminal");
+      if(read(edgeFile).kind!=="prospective_maintenance" && !isMaintenance(attempt.source_correction))throw fail(prefix+"_terminal");
     }
     if (reachedReceipt || !entries.includes("correction-successor.json")) return { family_id: familyId, number, attempt_id: attempt.attempt_id, ...(revisionCount ? { reviewed_revision_consumed: revisionCount, revision_commission: revisionCommission, revision_grants: [...revisionGrants] } : {}) };
     const edge = read(edgeFile), revisionEdge = edge.kind === "reviewed_revision", improvementEdge = edge.kind === "behavior_preserving_improvement", maintenanceEdge = edge.kind === "prospective_maintenance";
@@ -537,6 +575,13 @@ function readAttemptLineage({ anchorRoot, repositoryRoot = null, branch }, throu
     const next = read(path.join(anchorRoot, ".augnes-local-verification", "families", edge.family_id, "attempt-1.json"));
     if (hasRetiredQualificationMarker(next)) throw fail("qualification_route_retired");
     const proof = next.source_correction;
+    if (isReviewedIntegration(proof) || terminal && !maintenanceEdge) {
+      if (edge.contract !== undefined || !repositoryRoot || terminal && !followsSuccessfulMaintenance(attempt, completion, proof)) throw fail("maintenance_terminal");
+      // Cold traversal and receipt inspection must enforce the same exact
+      // review, original receipt and pure-merge bindings as admission.
+      prepareSourceCorrection({anchorRoot,repositoryRoot,branch,head:next.head,tree:next.tree,proof,
+        acceptedMain:proof.accepted_main,reserve:false,stockReceipt:{attempt:next}})({assertCurrent:null});
+    }
     if (maintenanceEdge !== isMaintenance(proof) || hasMaintenanceMarker(next) && !validMaintenanceAttempt(next)) throw fail("maintenance_mixed_edge");
     if (maintenanceEdge) {
       if (!terminal || !repositoryRoot || !validMaintenanceAttempt(next)) throw fail("maintenance_predecessor_invalid");
@@ -617,6 +662,7 @@ function readSourceCorrectionMaterial(file, repositoryRoot) {
   if (!/^\.augnes-local-verification\/[a-zA-Z0-9_./-]+\.json$/u.test(relative) || relative.split("/").includes("..") || realpathSync(file) !== file)
     throw fail("source_correction_unsafe_path");
   const proof = read(file);
+  if (hasReviewedIntegrationMarker(proof) && !isReviewedIntegration(proof)) throw fail("integration_mixed_route");
   if (hasRetiredQualificationMarker(proof)) throw fail("qualification_route_retired");
   if (hasMaintenanceMarker(proof) && !isMaintenance(proof)) throw fail("maintenance_mixed_route");
   if (isMaintenance(proof)) {
@@ -636,7 +682,11 @@ function readSourceCorrectionMaterial(file, repositoryRoot) {
   }
   const version2 = proof.schema === "augnes.local-canonical-source-correction.v2";
   const review = version2 ? readCandidateReview(file, proof) : null;
-  if (version2 && proof.kind === "accepted_main_integration") return { proof: { ...proof, local_relative_path: relative } };
+  if (version2 && proof.kind === "accepted_main_integration") {
+    if (isReviewedIntegration(proof)) parseImprovementJSON(readFileSync(file));
+    else if (Object.hasOwn(proof,"integration_case")) throw fail("candidate_integration_unproven");
+    return { proof: { ...proof, local_relative_path: relative } };
+  }
   const sourceModule = proof.source_module ?? "";
   const nativePreparationRevision = version2 && proof.kind === "source_revision" &&
     sourceModule === "components/workbench/semantic-review/selected-work-source-editor.tsx";
@@ -665,7 +715,7 @@ function readSourceCorrectionMaterial(file, repositoryRoot) {
   return { proof: { ...proof, local_relative_path: relative.split(path.sep).join("/") } };
 }
 
-function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, acceptedMain, reserve, stockReceipt = null, retainDependencyPrerequisites = null }) {
+function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, acceptedMain, reserve, stockReceipt = null, retainDependencyPrerequisites = null, preparing = false }) {
   const { proof: reread, evidence } = readSourceCorrectionMaterial(path.join(repositoryRoot, proof.local_relative_path ?? ""), repositoryRoot);
   if (digest(reread) !== digest(proof) || proof.branch !== branch || proof.head !== head || proof.tree !== tree ||
       !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree)) throw fail("source_correction_identity_invalid");
@@ -783,14 +833,14 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
     return;
     };
   }
-  return ({ assertCurrent = null }) => {
+  return ({ assertCurrent = null, revisionAuthorization = null }) => {
   const priorRoot = path.join(anchorRoot, ".augnes-local-verification", "families", proof.prior_family_id);
   if (realpathSync(priorRoot) !== priorRoot) throw fail("source_correction_unsafe_predecessor");
   const prior = read(path.join(priorRoot, `attempt-${proof.prior_number}.json`));
-  if (hasMaintenanceMarker(prior)) throw fail("maintenance_terminal");
+  const completion = read(path.join(priorRoot, `completion-${proof.prior_number}.json`));
+  if (hasMaintenanceMarker(prior) && !followsSuccessfulMaintenance(prior, completion, proof)) throw fail("maintenance_terminal");
   if (hasImprovementMarker(prior)) throw fail("improvement_terminal");
   if (hasRetiredQualificationMarker(prior)) throw fail("qualification_route_retired");
-  const completion = read(path.join(priorRoot, `completion-${proof.prior_number}.json`));
   if (prior.branch !== branch || prior.attempt_id !== proof.prior_attempt_id || prior.head === head || prior.tree === tree ||
       completion.attempt_id !== prior.attempt_id || completion.receipt_fingerprint !== proof.prior_receipt_fingerprint ||
       completion.cleanup_complete !== true ||
@@ -822,10 +872,20 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
       throw fail("candidate_guard_correction_unproven");
     if (proof.kind === "accepted_main_integration") {
       if (!/^[0-9a-f]{40}$/u.test(acceptedMain ?? "") || proof.accepted_main !== acceptedMain || original.repository.base_sha === acceptedMain ||
+          (!isReviewedIntegration(proof) && (Object.hasOwn(proof,"integration_case") ||
           git(["show", "-s", "--format=%P", head]).toString().trim() !== `${prior.head} ${acceptedMain}` ||
-          !matchesReadOnlyMergeTree(git, prior.head, acceptedMain, head))
+          !matchesReadOnlyMergeTree(git, prior.head, acceptedMain, head))))
         throw fail("candidate_integration_unproven");
       git(["merge-base", "--is-ancestor", acceptedMain, head]);
+      if (isReviewedIntegration(proof)) {
+        const material=readReviewedIntegration(repositoryRoot,proof,prior,completion);
+        if (!preparing) {
+          if (reserve) assertIntegrationAuthorization(proof,material,revisionAuthorization);
+          else if (!validReviewedIntegrationAttempt(stockReceipt?.attempt) ||
+            digest(validateIntegrationAuthorityRecords(proof,material,stockReceipt.attempt.integration_authority.records,{current:false})) !== digest(stockReceipt.attempt.integration_authority.observations))
+            throw fail("integration_historical_authority_invalid");
+        }
+      }
     }
   }
   if (!(proof.schema === "augnes.local-canonical-source-correction.v2" && proof.kind === "accepted_main_integration")) {
@@ -837,6 +897,11 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
   const successor = { family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
   const reservation = path.join(priorRoot, "correction-successor.json");
   if (assertCurrent?.()?.then) throw fail("revision_boundary_must_be_synchronous");
+  if (preparing) {
+    if (pathPresent(reservation) || pathPresent(path.join(anchorRoot,".augnes-local-verification/families",successor.family_id)))
+      throw fail("attempt_candidate_superseded");
+    return;
+  }
   if (reserve) {
     append(priorRoot, "correction-successor.json", successor);
   }
@@ -922,6 +987,132 @@ function readCandidateReview(file, proof) {
       typeof review.authority_reference !== "string" || !/^https:\/\/github\.com\/hynk-studio\/augnes\/(?:issues|pull)\/[0-9]+(?:#[A-Za-z0-9_-]+)?$/u.test(review.authority_reference) ||
       !Number.isFinite(Date.parse(review.reviewed_at)) || Date.parse(review.reviewed_at) > Date.now()) throw fail("candidate_review_invalid");
   return review;
+}
+
+// The explicitly selected integration case reads existing immutable objects.
+// It never asks Git to recreate a merge, apply a patch, or write an object.
+export const INTEGRATION_ACCEPT = "Accept this reviewed integration candidate and its complete source delivery.";
+export const INTEGRATION_GRANT = "Commission one qualification of this reviewed integration with an explicit budget.";
+const integrationCapabilities = new WeakMap();
+const integrationRequire = (ok,code) => {if(!ok)throw fail("integration_"+code);};
+const integrationKeys = (v,keys) => integrationRequire(v && typeof v === "object" && !Array.isArray(v) &&
+  digest(Object.keys(v).sort())===digest(keys.split(" ").sort()),"shape_invalid");
+export const integrationTarget = p => ({repository:"hynk-studio/augnes",origin:"https://github.com/hynk-studio/augnes.git",
+  ...Object.fromEntries("pull_request branch base head tree prior_family_id prior_number prior_attempt_id prior_receipt_fingerprint".split(" ").map(k=>[k,p[k]])),
+  integration_sha256:digest(p.integration)});
+const integrationGit = root => args => execFileSync("git",["--no-replace-objects",...args],
+  {cwd:root,timeout:10000,maxBuffer:16*1024*1024,stdio:["ignore","pipe","pipe"]});
+const integrationPaths = (git,a,b) => git(["diff","--name-only","--no-renames",a,b,"--"]).toString().trim().split("\n").filter(Boolean).sort();
+const integrationDelta = (git,a,b,paths=[]) => digest(git(["diff","--binary","--no-ext-diff","--no-textconv","--no-renames",a,b,"--",...paths]));
+const treeEntries = (git,ref) => new Map(git(["ls-tree","-rz","--full-tree",ref]).toString().split("\0").filter(Boolean).map(row=>{
+  const split=row.indexOf("\t");return [row.slice(split+1),row.slice(0,split)];
+}));
+
+export function readReviewedIntegration(root,p,prior,completion) {
+  const {local_relative_path:relative,...raw}=p;
+  integrationKeys(raw,"schema kind integration_case branch base accepted_main head tree pull_request prior_family_id prior_number prior_attempt_id prior_receipt_fingerprint prior_receipt_path integration planner review budget authorization");
+  integrationRequire(isReviewedIntegration(p) && p.base===p.accepted_main && Number.isSafeInteger(p.pull_request) && p.pull_request>0 &&
+    digest(p.budget)===digest({initial:1,recovery:0}) && completion.disposition==="completed_success" && completion.cleanup_complete===true,"target_invalid");
+  if(p.authorization!==null){
+    integrationKeys(p.authorization,"acceptance_review_id acceptance_review_sha256 grant_comment_id grant_comment_sha256");
+    integrationRequire([p.authorization.acceptance_review_id,p.authorization.grant_comment_id].every(x=>Number.isSafeInteger(x)&&x>0) &&
+      p.authorization.acceptance_review_id!==p.authorization.grant_comment_id && [p.authorization.acceptance_review_sha256,p.authorization.grant_comment_sha256].every(sha),"authorization_invalid");
+  }
+  const i=p.integration;
+  integrationKeys(i,"commit tree merge_base overlaps delta_sha256 resolution_delta_sha256 correction_delta_sha256 correction_paths");
+  const git=integrationGit(root), identity=ref=>git(["rev-parse",ref+"^{tree}"]).toString().trim();
+  integrationRequire([i.commit,i.tree,i.merge_base,p.base,p.head,p.tree].every(x=>/^[a-f0-9]{40}$/u.test(x??"")) &&
+    git(["show","-s","--format=%P",i.commit]).toString().trim()===`${prior.head} ${p.base}` && identity(i.commit)===i.tree && identity(p.head)===p.tree &&
+    git(["show","-s","--format=%P",p.head]).toString().trim()===i.commit && git(["merge-base",prior.head,p.base]).toString().trim()===i.merge_base,"topology_invalid");
+  const base=treeEntries(git,i.merge_base), previous=treeEntries(git,prior.head), main=treeEntries(git,p.base), actual=treeEntries(git,i.commit), expected=new Map(), overlaps=[];
+  for(const name of [...new Set([...base.keys(),...previous.keys(),...main.keys(),...actual.keys()])].sort()){
+    const b=base.get(name),a=previous.get(name),m=main.get(name),value=actual.get(name);
+    if(a!==b && m!==b && a!==m){
+      overlaps.push({path:name,base:b??null,predecessor:a??null,main:m??null,result:value??null});
+    } else {const v=a===b?m:a;if(v!==undefined)expected.set(name,v);}
+  }
+  const names=overlaps.map(x=>x.path), union=new Map(actual);for(const name of names)union.delete(name);
+  integrationRequire(digest(i.overlaps)===digest(overlaps) && union.size===expected.size && [...expected].every(([k,v])=>union.get(k)===v),"overlap_accounting_invalid");
+  integrationRequire(i.delta_sha256===integrationDelta(git,prior.head,i.commit) &&
+    i.resolution_delta_sha256===(names.length?integrationDelta(git,prior.head,i.commit,names):digest(Buffer.alloc(0))) &&
+    i.correction_delta_sha256===integrationDelta(git,i.commit,p.head) &&
+    Array.isArray(i.correction_paths) && i.correction_paths.length>0 && digest(i.correction_paths)===digest(integrationPaths(git,i.commit,p.head)),"complete_delta_invalid");
+  const reader=artifactReader(path.dirname(path.join(root,relative)),rememberRevisionFile);
+  const review=reader(p.review),planner=reader(p.planner);
+  integrationKeys(review,"schema kind head tree predecessor_head predecessor_tree source_review delta_sha256 changed_paths authority_reference reviewed_at integration_sha256 planner_sha256 reviewer implementation_actor no_write disposition judgments report");
+  integrationKeys(review.judgments,"complete_integration complete_overlaps complete_corrections verifier_policy_adjustments_only affected_consumers authority_and_lineage no_weakened_contract");
+  integrationRequire(review.integration_sha256===digest(i) && review.planner_sha256===p.planner.sha256 &&
+    typeof review.reviewed_at==="string" && Number.isFinite(Date.parse(review.reviewed_at)) && new Date(review.reviewed_at).toISOString()===review.reviewed_at && Date.parse(review.reviewed_at)<=Date.now() &&
+    typeof review.reviewer==="string" && review.reviewer.length>0 && review.reviewer!==review.implementation_actor && typeof review.implementation_actor==="string" && review.implementation_actor.length>0 &&
+    review.no_write===true && review.disposition==="accept" && Object.values(review.judgments).every(x=>x===true),"independent_review_required");
+  // The ordinary reader also binds the complete predecessor-to-final diff,
+  // paths and chronological source review, before this reader is reached.
+  const report=reader(review.report,{json:false,maximum:128*1024});
+  integrationRequire([p.head,p.tree,digest(i),review.delta_sha256].every(x=>report.includes(x)) && planner.base===p.base && planner.head===p.head &&
+    planner.selected_plan==="full-canonical" && digest(planner.phases)===digest(REVIEWED_REVISION_PHASES) && Array.isArray(planner.owners) && planner.owners.length>0,"review_or_planner_unbound");
+  return {review,planner,completion};
+}
+
+export function integrationMaterial(repositoryRoot,p,anchorRoot=repositoryRoot) {
+  const file=path.join(repositoryRoot,p.local_relative_path);
+  return {review:readCandidateReview(file,p),planner:artifactReader(path.dirname(file),rememberRevisionFile)(p.planner),
+    completion:read(path.join(anchorRoot,".augnes-local-verification/families",p.prior_family_id,`completion-${p.prior_number}.json`))};
+}
+
+const integrationObservation=(r,role)=>({id:r.id,author:r.user?.login,author_id:r.user?.id,body_sha256:digest(r.body),timestamp:role==="prospective_grant"?r.created_at:r.submitted_at,role,commit_id:role==="prospective_grant"?null:r.commit_id});
+export function validateIntegrationAuthorityRecords(p,e,records,{current=true}={}) {
+  integrationKeys(records,"acceptance grant acceptance_permission grant_permission pull_request");
+  integrationRequire(p.authorization!==null,"authenticated_authority_required");
+  const {acceptance:a,grant:g}=records;
+  const body=(r,prefix,fields)=>{integrationRequire(typeof r.body==="string"&&r.body.startsWith(prefix+"\n"),"operative_authority_required");const v=parseImprovementJSON(r.body.slice(prefix.length+1));integrationKeys(v,fields);return v;};
+  const av=body(a,INTEGRATION_ACCEPT,"target review_sha256 independent_report_sha256 scope");
+  const gv=body(g,INTEGRATION_GRANT,"target review_sha256 acceptance_sha256 planner_sha256 maximum_invocations recovery unchanged_retry stop_on_failure_or_interruption fresh_validation independent_result_audit owned_cleanup cumulative_cost_and_timing_risk");
+  const observations={accepted_integration:integrationObservation(a,"accepted_integration"),prospective_grant:integrationObservation(g,"prospective_grant")};
+  integrationRequire([av,gv].every(v=>digest(v.target)===digest(integrationTarget(p))&&v.review_sha256===p.review.sha256) && av.scope==="reviewed_integration" && av.independent_report_sha256===e.review.report.sha256 &&
+    gv.acceptance_sha256===digest(observations.accepted_integration) && gv.planner_sha256===p.planner.sha256 && gv.maximum_invocations===1 && gv.recovery===p.budget.recovery && gv.unchanged_retry===0 &&
+    gv.stop_on_failure_or_interruption===true && gv.fresh_validation===true && gv.independent_result_audit===true && gv.owned_cleanup===true && gv.cumulative_cost_and_timing_risk==="accept_once_under_unchanged_bounds","authority_binding_invalid");
+  const url="https://api.github.com/repos/hynk-studio/augnes";
+  integrationRequire(a.id===p.authorization.acceptance_review_id && g.id===p.authorization.grant_comment_id && a.id!==g.id && a.commit_id===p.head && a.pull_request_url===`${url}/pulls/${p.pull_request}` &&
+    ["COMMENTED","APPROVED"].includes(a.state) && g.issue_url===`${url}/issues/${p.pull_request}` && g.created_at===g.updated_at &&
+    [a,g].every(r=>r.user?.type==="User"&&Number.isSafeInteger(r.user.id)&&r.user.id>0&&/^[A-Za-z0-9-]{1,39}$/u.test(r.user.login)&&["OWNER","MEMBER","COLLABORATOR"].includes(r.author_association)) &&
+    externalUtc(a.submitted_at) && externalUtc(g.created_at) && strictlyAfter(a.submitted_at,e.review.reviewed_at) && strictlyAfter(g.created_at,a.submitted_at) && strictlyAfter(g.created_at,e.completion.finished_at) &&
+    digest(observations.accepted_integration)===p.authorization.acceptance_review_sha256 && digest(observations.prospective_grant)===p.authorization.grant_comment_sha256,"authenticated_record_invalid");
+  for(const [r,permission]of [[a,records.acceptance_permission],[g,records.grant_permission]])integrationRequire(permission.user?.login===r.user.login&&permission.user?.id===r.user.id&&["admin","maintain"].includes(permission.permission),"permission_invalid");
+  const pr=records.pull_request;
+  integrationRequire(pr.number===p.pull_request&&pr.base?.repo?.full_name==="hynk-studio/augnes"&&pr.head?.repo?.full_name==="hynk-studio/augnes"&&pr.head.sha===p.head&&pr.head.ref===p.branch&&pr.base.sha===p.base&&pr.base.ref==="main"&&pr.state==="open"&&pr.draft===true&&pr.auto_merge===null,current?"current_applicability_refused":"historical_target_invalid");
+  return observations;
+}
+export async function observeIntegrationAuthority(p,e,transport=createGitHubObserverAuthorizationTransport(p.pull_request)) {
+  integrationRequire(p.authorization!==null,"authenticated_authority_required");
+  const a=await transport.review(p.authorization.acceptance_review_id),g=await transport.grant(p.authorization.grant_comment_id);
+  const records={acceptance:a,grant:g,acceptance_permission:await transport.permission(a.user?.login),grant_permission:await transport.permission(g.user?.login),pull_request:await transport.pullRequest()};
+  const observations=validateIntegrationAuthorityRecords(p,e,records),user=u=>({login:u.login,id:u.id,type:u.type});
+  const project=(v,grant)=>({id:v.id,user:user(v.user),body:v.body,author_association:v.author_association,...(grant?{issue_url:v.issue_url,created_at:v.created_at,updated_at:v.updated_at}:{state:v.state,commit_id:v.commit_id,pull_request_url:v.pull_request_url,submitted_at:v.submitted_at})});
+  records.acceptance=project(a,false);records.grant=project(g,true);
+  for(const k of ["acceptance_permission","grant_permission"])records[k]={permission:records[k].permission,user:user(records[k].user)};
+  const pr=records.pull_request,branch=v=>({sha:v.sha,ref:v.ref,repo:{full_name:v.repo.full_name}});
+  records.pull_request={number:pr.number,state:pr.state,draft:pr.draft,auto_merge:pr.auto_merge,base:branch(pr.base),head:branch(pr.head)};
+  integrationRequire(Buffer.byteLength(JSON.stringify(records))<=16*1024,"authority_unbounded");return Object.freeze({records,observations});
+}
+export async function authorizeIntegration(p,e,transport){const v=await observeIntegrationAuthority(p,e,transport);integrationCapabilities.set(v,{proof:digest(p),value:digest(v)});return v;}
+function assertIntegrationAuthorization(p,e,v){const c=integrationCapabilities.get(v);integrationRequire(c&&c.proof===digest(p)&&c.value===digest(v)&&digest(validateIntegrationAuthorityRecords(p,e,v.records))===digest(v.observations),"authenticated_capability_required");
+  integrationRequire(strictlyAfter(new Date().toISOString(),v.observations.prospective_grant.timestamp),"grant_must_precede_admission");
+}
+export function validReviewedIntegrationAttempt(a){
+  try{
+    integrationRequire(isReviewedIntegration(a?.source_correction)&&a.number===1&&digest(a.budget)===digest({initial:1,recovery:0})&&digest(a.source_correction.budget)===digest(a.budget)&&a.recovery===null&&a.prior_attempt_id===null&&a.prior_receipt_fingerprint===null&&
+      !["maintenance_authority","improvement_authority","revision_authority"].some(k=>Object.hasOwn(a,k)),"attempt_invalid");
+    integrationKeys(a.integration_authority,"records observations");integrationKeys(a.integration_authority.observations,"accepted_integration prospective_grant");
+    for(const [role,o]of Object.entries(a.integration_authority.observations)){
+      integrationKeys(o,"id author author_id body_sha256 timestamp role commit_id");
+      integrationRequire(o.role===role&&Number.isSafeInteger(o.id)&&o.id>0&&Number.isSafeInteger(o.author_id)&&o.author_id>0&&sha(o.body_sha256)&&externalUtc(o.timestamp)&&
+        typeof o.author==="string"&&/^[A-Za-z0-9-]{1,39}$/u.test(o.author)&&(role==="prospective_grant"?o.commit_id===null:o.commit_id===a.head),"attempt_observation_invalid");
+    }
+    integrationRequire(externalUtc(a.started_at)&&new Date(a.started_at).toISOString()===a.started_at&&
+      strictlyAfter(a.integration_authority.observations.prospective_grant.timestamp,a.integration_authority.observations.accepted_integration.timestamp)&&
+      strictlyAfter(a.started_at,a.integration_authority.observations.prospective_grant.timestamp),"attempt_chronology_invalid");
+    return true;
+  }catch{return false;}
 }
 
 // Stock validation must not run a merge command or write Git objects. Resolve a

@@ -1,5 +1,5 @@
 import { hasMaintenanceMarker } from "./local-canonical-maintenance.mjs";
-import { REVIEWED_REVISION_SCHEMA, isReviewedRevision, validReviewedRevisionAttempt, hasRetiredQualificationMarker, supportsSourceCorrection } from "./local-canonical-attempts.mjs";
+import { REVIEWED_REVISION_SCHEMA, isReviewedRevision, validReviewedRevisionAttempt, hasRetiredQualificationMarker, supportsSourceCorrection, hasReviewedIntegrationMarker } from "./local-canonical-attempts.mjs";
 import { isBrowserRevision, browserBindingMatches } from "./local-canonical-browser-revision.mjs";
 import { browserConsumersForPhase } from "./local-canonical-browser-identity.mjs";
 import { validCanonicalRuntimeInputs } from "./local-canonical-inputs.mjs";
@@ -15,6 +15,7 @@ export function createPrivateReviewExport(receipt) {
   // This lossy historical projection is not a source for the new contract.
   // Retain the original receipt and its private artifact references instead.
   if (hasMaintenanceMarker(receipt)) throw new Error("review_export_maintenance_requires_original");
+  if (hasReviewedIntegrationMarker(receipt)) throw new Error("review_export_integration_requires_original");
   if (hasImprovementMarker(receipt)) throw new Error("review_export_improvement_requires_original");
   if (hasRetiredQualificationMarker(receipt)) throw new Error("review_export_retired_route_use_historical_revision");
   if (![3, 4].includes(receipt?.receipt_version)) throw new Error("review_export_version_unsupported");
@@ -71,6 +72,7 @@ export function createPrivateReviewExport(receipt) {
 }
 
 export function inspectPrivateReviewExport(value) {
+  if (hasReviewedIntegrationMarker(value)) return {structurally_valid:false,deciding:false,independent_attestation:false,original_receipt_fingerprint:null};
   if (hasMaintenanceMarker(value)) return {structurally_valid:false,deciding:false,independent_attestation:false,original_receipt_fingerprint:null};
   if (hasImprovementMarker(value)) return {structurally_valid:false,deciding:false,independent_attestation:false,original_receipt_fingerprint:null};
   if (!value || typeof value !== "object" || Array.isArray(value)) return { structurally_valid: false, deciding: false, independent_attestation: false, original_receipt_fingerprint: null };

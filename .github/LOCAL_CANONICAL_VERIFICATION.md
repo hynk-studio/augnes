@@ -1049,9 +1049,68 @@ edge. Concurrent contenders, replay and preexisting target state refuse. An
 interruption after that edge, even before an attempt file, consumes the
 commission; orphan/truncated state is retained and never reclaimed. The new
 attempt derives initial1/recovery0 and records `maintenance_authority`.
-Ordinary recovery, source_revision, accepted-main and verifier-correction
-cannot bypass a terminal tip. A further repaired target requires another
-explicit maintenance decision and new exact-target commission.
+Ordinary recovery, source_revision and verifier-correction cannot bypass a
+terminal tip. A further repaired target requires another explicit maintenance
+decision and new exact-target commission.
+
+A completed-success maintenance attempt with complete cleanup may instead be
+the predecessor of the existing reviewed `accepted_main_integration` case.
+Admission, cold lineage reconstruction and stock inspection require the same
+original receipt, exact later review, exclusive successor, accepted main and
+selected integration case described below. Failed, incomplete or unsafe
+predecessors do not qualify; selecting an integration label does not reopen the
+spent maintenance commission. Its original attempt, completion, authority,
+receipt and budget remain immutable. The legacy pure integration is an ordinary v2
+candidate with its existing initial1/recovery1 ceiling; it is not a renewed
+maintenance grant, and any execution or substantiated recovery still needs
+separate applicable human authority.
+
+`prepareAcceptedMainIntegrationCandidate` reuses the complete integration
+eligibility reader without a reservation, attempt capability or lease. Its
+result is evidence preparation, not authentication or permission to execute.
+An existing successor or target family refuses preparation. With no
+`integration_case` selector the historical pure two-parent, whole-entry union
+rule and receipt interpretation remain unchanged. Amended commits and differing
+overlaps still refuse that legacy case.
+
+The explicit `integration_case:"reviewed"` selects a reviewed integration, never
+a pure merge or a repair of the successful predecessor. Source delivery is one
+real integration commit with ordered successful-predecessor/accepted-main
+parents, followed by one separately attributable compatibility correction commit.
+The proof binds the actual merge base, integration commit/tree, every differing
+overlap's base/predecessor/main/result tree entries, complete integration and
+resolution diffs, complete correction diff/paths, and final head/tree. Every
+non-overlapping entry must still equal the read-only union. Independent complete
+source review binds all these identities, the full predecessor-to-final diff,
+affected consumers and necessary verifier/policy adjustments only. No issue or
+file exemption, mutable merge replay, external verifier overlay or prerequisite
+main merge is used. Preparation and stock read existing objects and never create
+Git objects or reserve accounting.
+
+That review file is evidence, not authority. Acceptance must begin with
+`Accept this reviewed integration candidate and its complete source delivery.`
+and the distinct later commission with
+`Commission one qualification of this reviewed integration with an explicit budget.`
+Each is followed by one canonical JSON object. They bind the exact repository,
+PR, predecessor, main, final source, integration digest, review/report and planner.
+The same bounded authenticated GitHub transport checks the exact-head review,
+unedited comment, User/admin-or-maintain permissions and strict timestamp order,
+including conservative second-precision chronology. Provider bytes and timestamps
+are not normalized before hashing. The commission explicitly sets maximum1,
+recovery0, unchanged_retry0, stop, fresh validation, independent audit, cleanup and
+`accept_once_under_unchanged_bounds` for cumulative cost/timing risk. The proof's
+explicit budget is initial1/recovery0; neither implementation nor preparation
+grants an invocation or any recovery. `authorization:null` is valid preparation.
+
+Normal admission alone mints the invocation-local capability and appends the
+existing exclusive successor. Cold history and receipt inspection replay the
+same source and authenticated historical records. Unsafe current inputs, stale
+main/target, missing review, unaccounted changes, competing succession and replay
+refuse; a partial edge remains retained and cannot be reclaimed. Current stock
+separately observes live authority/applicability without invalidating an intact
+historical recorded-context result. Final planner-selected Full coverage and a
+separate fresh receipt process remain mandatory under later explicit authority.
+Do not fabricate repair RED or renew the predecessor's spent commission.
 
 Receipt version4 and the complete final planner workload stay unchanged.
 Stock checks the one-shot budget, physical history, historical authenticated

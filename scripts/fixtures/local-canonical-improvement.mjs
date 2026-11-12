@@ -108,7 +108,7 @@ export function createImprovementFixture(root,env) {
 
 // Complete synthetic receipt controls; these values never claim Browser or
 // qualification execution. They exercise the production receipt reader.
-export async function completeSyntheticReceipt(c, reserve) {
+export async function completeSyntheticReceipt(c, reserve, { preparedDependencies = true } = {}) {
   const {baseReceipt,validContext}=await import("./local-canonical-receipt-v3.mjs");
   const {dependencyRecords}=await import("./local-canonical-browser-successor.mjs");
   const {buildPhasePlan}=await import("../run-local-canonical-verification.mjs");
@@ -136,7 +136,7 @@ export async function completeSyntheticReceipt(c, reserve) {
   const service={status:"not_installed",checkout_relation:"exact",service_identity:null,preservation_valid:true,preservation_binding:digest("synthetic preservation")};
   const observation={contract:"augnes.companion-preservation-observation.v1",samples:1,coherent:true,live_identity_valid:true,before_binding:service.preservation_binding,after_binding:service.preservation_binding,started_at:start,finished_at:finish};
   r.cleanup.companion_service={scope:"accepted_checkout_read_only",before:service,after:service,maintenance_acquired:false,maintenance_released:true,restored:true,observations:{before:observation,after:observation}};
-  r.inputs={...input,fingerprint:digest(input),checks:1,events:[],first_fault:null,secondary_faults:[],prepared_dependencies:packages};
+  r.inputs={...input,fingerprint:digest(input),checks:1,events:[],first_fault:null,secondary_faults:[],...(preparedDependencies?{prepared_dependencies:packages}:{})};
   r.phases=plan.map(p=>({...baseReceipt.phases[0],id:p.id,label:p.label,command:p.display,cwd_scope:p.cwdScope,exclusive:p.exclusive,browser:p.browser,base_sha:c.base,head_sha:c.head,
     started_at:start,finished_at:finish,duration_ms:0,invocation_id:r.run.invocation_id,environment_fingerprint:digest(p.id),cleanup:{completed:true,exit_observed:true,streams_closed:true,termination_reason:"natural_exit",remaining_owned_processes:0,listener_residue_count:0},
     browser_use:Object.entries(browserConsumersForPhase(p.id)).flatMap(([consumer,count])=>Array.from({length:count},()=>({contract:"augnes.local-canonical-browser-use.v2",consumer,executable_name:"synthetic-browser",location_fingerprint:digest("synthetic browser"),before:c.inputs.node.observation,after:c.inputs.node.observation,actual_version:"Chrome/1.2.3.4",runtime_versions:{http:"Chrome/1.2.3.4",cdp:"Chrome/1.2.3.4"},disposition:"unchanged",unchanged:true})))}));

@@ -22,7 +22,7 @@ import {
 import path from "node:path";
 import os from "node:os";
 import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, createInputReader, classifyInputChange, nonFaultInputChange, inputReadOptions, supportedInputContract, createGitTrackingResource, observeCanonicalRuntimeInputs, canonicalRuntimeInputEnvironment, observePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
-import { beginAttempt, finishAttempt, prepareAttemptDependencies, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords, hasRetiredQualificationMarker, isReviewedRevision, isWebPlanningClientRevision, authorizeReviewedRevision, REVIEWED_REVISION_PHASES, improvementMaterial, maintenanceMaterial } from "./local-canonical-attempts.mjs";
+import { beginAttempt, finishAttempt, prepareAttemptDependencies, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords, hasRetiredQualificationMarker, isReviewedRevision, isWebPlanningClientRevision, authorizeReviewedRevision, REVIEWED_REVISION_PHASES, improvementMaterial, maintenanceMaterial, isReviewedIntegration, hasReviewedIntegrationMarker, integrationMaterial, authorizeIntegration, observeIntegrationAuthority } from "./local-canonical-attempts.mjs";
 import { isImprovement, hasImprovementMarker, authorizeImprovement, observeImprovementAuthority } from "./local-canonical-improvement.mjs";
 import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-evidence-retention.mjs";
 import { isGitObservationRevision, isInventoryBoundRevision, gitRevisionInventory } from "./local-canonical-git-observation.mjs";
@@ -519,10 +519,10 @@ export async function executeLocalCanonicalVerification({
   });
 
   const sourceCorrection = sourceCorrectionProofPath ? readSourceCorrectionProof(resolveArtifactPath(sourceCorrectionProofPath), repositoryRoot) : null;
-  if ((isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection)) && (((isImprovement(sourceCorrection) || isMaintenance(sourceCorrection)) ? !["full","changed"].includes(mode) : mode !== "full") || checkoutContext !== "isolated-worktree" || recoveryProofPath || plan.selected_plan !== "full-canonical"))
+  if ((isReviewedIntegration(sourceCorrection) || isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection)) && (((isReviewedIntegration(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection)) ? !["full","changed"].includes(mode) : mode !== "full") || checkoutContext !== "isolated-worktree" || recoveryProofPath || plan.selected_plan !== "full-canonical"))
     throw Object.assign(new Error("reviewed_revision_full_route_required"), { code: "reviewed_revision_full_route_required" });
   const hostResult = collectHostEnvironment(repositoryRoot);
-  const runtimeInputs = isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection) ? observeRevisionInputs(sourceCorrection, hostResult) : null;
+  const runtimeInputs = isReviewedIntegration(sourceCorrection) || isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection) ? observeRevisionInputs(sourceCorrection, hostResult) : null;
   assertRuntimeInputSelection(runtimeInputs);
   const host = hostResult.public;
   const nodePolicy = evaluateNodePolicy();
@@ -763,8 +763,8 @@ export async function executeLocalCanonicalVerification({
           if (inputMonitor.check() || signal.aborted) throw Object.assign(new Error("input_invalidation"), { code: "input_invalidation" });
           if (mode !== "quick") assertFrozenSource(identityBefore, verificationContext);
           if (!attempt && mode !== "quick" && plan.selected_plan !== "documentation-only" && phaseDefinitions.length > 0 && checkoutOwner) {
-            const reviewed = isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection);
-            if (reviewed && (((isImprovement(sourceCorrection) || isMaintenance(sourceCorrection)) ? !["full","changed"].includes(mode) : mode !== "full") || checkoutContext !== "isolated-worktree" || plan.selected_plan !== "full-canonical" ||
+            const reviewed = isReviewedIntegration(sourceCorrection) || isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection);
+            if (reviewed && (((isReviewedIntegration(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection)) ? !["full","changed"].includes(mode) : mode !== "full") || checkoutContext !== "isolated-worktree" || plan.selected_plan !== "full-canonical" ||
                 digest(phaseDefinitions.map(p => p.id)) !== digest(REVIEWED_REVISION_PHASES))) throw Object.assign(new Error("reviewed_revision_workload_invalid"), { code: "reviewed_revision_workload_invalid" });
             attempt = await beginAttempt({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, checkoutOwner,
               branch: identityBefore.branch, head: headSha, tree: inputs.snapshot().binding.tree, runId,
@@ -772,6 +772,12 @@ export async function executeLocalCanonicalVerification({
               recoveryProof: recoveryProofPath ? readRecoveryProof(resolveArtifactPath(recoveryProofPath)) : null,
               sourceCorrection, revisionInputs: runtimeInputs,
               observeRevision: reviewed ? async () => {
+                if (isReviewedIntegration(sourceCorrection)) {
+                  const material=integrationMaterial(repositoryRoot,sourceCorrection,verificationAnchorRoot(verificationContext));
+                  const workload={base:baseSha,head:headSha,selected_plan:plan.selected_plan,phases:phaseDefinitions.map(p=>p.id),owners:[...plan.planner_owner_ids].sort()};
+                  if(digest(workload)!==digest(material.planner))throw Object.assign(new Error("integration_planner_changed"),{code:"integration_planner_changed"});
+                  return {authorization:await authorizeIntegration(sourceCorrection,material),live:null};
+                }
                 if (isMaintenance(sourceCorrection)) {
                   const material=maintenanceMaterial(repositoryRoot,sourceCorrection);
                   const workload={base:baseSha,head:headSha,selected_plan:plan.selected_plan,phases:phaseDefinitions.map(p=>p.id),owners:[...plan.planner_owner_ids].sort()};
@@ -1420,7 +1426,7 @@ export function readStockMachineIdentity(receipt, machineRoot) {
   if (hasRetiredQualificationMarker(receipt)) throw Object.assign(new Error("qualification_route_retired"), { code: "qualification_route_retired" });
   // These revisions replay existing machine identity without creating or repairing it.
   const attempt = receipt.attempt;
-  const revision = hasMaintenanceMarker(receipt) || hasImprovementMarker(receipt) || isWebPlanningClientRevision(attempt?.source_correction) ||
+  const revision = hasReviewedIntegrationMarker(receipt) || hasMaintenanceMarker(receipt) || hasImprovementMarker(receipt) || isWebPlanningClientRevision(attempt?.source_correction) ||
     (attempt?.source_correction?.schema === "augnes.local-canonical-source-correction.v7") ||
     attempt?.source_correction?.kind === "reviewed_revision" || attempt?.revision_authority || attempt?.reviewed_revision_consumed;
   return revision
@@ -1445,6 +1451,19 @@ export async function inspectImprovementStock({ anchorRoot, repositoryRoot, rece
     },
   });
   return {currentAttemptRecordsValid,improvementCurrentIssue};
+}
+
+export async function inspectIntegrationStock({anchorRoot,repositoryRoot,receipt,assertCurrent,transport}) {
+  const integrationCurrentIssues=["receipt_integration_current_authorization_unverified"];
+  const currentAttemptRecordsValid=await inspectAttemptRecords({anchorRoot,repositoryRoot,receipt,
+    assertCurrent:()=>{try{assertCurrent?.();}catch{integrationCurrentIssues.push("receipt_integration_current_inputs_invalid");}},
+    observeRevision:async()=>{
+      const p=receipt.attempt.source_correction,e=integrationMaterial(repositoryRoot,p,anchorRoot);
+      try{await observeIntegrationAuthority(p,e,transport);integrationCurrentIssues.splice(integrationCurrentIssues.indexOf("receipt_integration_current_authorization_unverified"),1);}
+      catch(error){integrationCurrentIssues.push(error?.code==="integration_current_applicability_refused"?"receipt_integration_current_applicability_refused":"receipt_integration_current_authorization_unverified");}
+      return {authorization:null,live:null};
+    }});
+  return {currentAttemptRecordsValid,integrationCurrentIssues:[...new Set(integrationCurrentIssues)]};
 }
 
 export async function inspectMaintenanceStock({anchorRoot,repositoryRoot,receipt,runtimeInputs,assertCurrent,transport}) {
@@ -1533,7 +1552,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   }
   let runtimeInputs = null;
   const reviewed = isReviewedRevision(receipt.attempt?.source_correction);
-  if (reviewed || isImprovement(receipt.attempt?.source_correction) || isMaintenance(receipt.attempt?.source_correction)) {
+  if (isReviewedIntegration(receipt.attempt?.source_correction) || reviewed || isImprovement(receipt.attempt?.source_correction) || isMaintenance(receipt.attempt?.source_correction)) {
     try { runtimeInputs = observeRevisionInputs(receipt.attempt.source_correction, validationHost); } catch { /* stock refuses unavailable runtime input */ }
   }
   let currentInputStateValid = null;
@@ -1545,8 +1564,10 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
       throw Object.assign(new Error("revision_stock_source_changed"), {code:"revision_stock_source_changed"});
     if (!currentInputStateValid) throw Object.assign(new Error("revision_stock_inputs_changed"), {code:"revision_stock_inputs_changed"});
   };
-  let improvementCurrentIssue = null, maintenanceCurrentIssues = [], currentAttemptRecordsValid = null;
-  if (receipt.receipt_version === 4 && isMaintenance(receipt.attempt?.source_correction)) {
+  let improvementCurrentIssue = null, maintenanceCurrentIssues = [], integrationCurrentIssues = [], currentAttemptRecordsValid = null;
+  if (receipt.receipt_version === 4 && isReviewedIntegration(receipt.attempt?.source_correction)) {
+    ({currentAttemptRecordsValid,integrationCurrentIssues}=await inspectIntegrationStock({anchorRoot:verificationAnchorRoot(verificationContext),repositoryRoot,receipt,assertCurrent:checkCurrentInputs}));
+  } else if (receipt.receipt_version === 4 && isMaintenance(receipt.attempt?.source_correction)) {
     ({currentAttemptRecordsValid,maintenanceCurrentIssues}=await inspectMaintenanceStock({anchorRoot:verificationAnchorRoot(verificationContext),repositoryRoot,receipt,runtimeInputs,assertCurrent:checkCurrentInputs}));
   } else if (receipt.receipt_version === 4 && isImprovement(receipt.attempt?.source_correction)) {
     ({currentAttemptRecordsValid,improvementCurrentIssue}=await inspectImprovementStock({
@@ -1576,6 +1597,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
     currentAttemptRecordsValid,
     improvementCurrentIssue,
     maintenanceCurrentIssues,
+    integrationCurrentIssues,
     currentVerificationContext: verificationContext,
     expectedRunId: path.basename(receiptPath, ".json"),
     currentIntegrationBase,

@@ -23,11 +23,11 @@ const utc = x => typeof x==="string"&&Number.isFinite(Date.parse(x))&&new Date(x
 // Authenticated GitHub records use UTC seconds or exactly three fractional
 // digits. Validate the calendar by round trip without changing the raw record
 // or its observation digest. Internal witnesses keep the stricter utc format.
-const externalUtc = x => typeof x==="string"&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u.test(x)&&
+export const externalUtc = x => typeof x==="string"&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u.test(x)&&
   Number.isFinite(Date.parse(x))&&new Date(x).toISOString()===(x.length===20?x.slice(0,-1)+".000Z":x)&&Date.parse(x)<=Date.now();
 // A seconds-only earlier record can fall anywhere within its reported second.
 // It cannot prove strict ordering against a later record in that same second.
-const strictlyAfter = (later,earlier) => Date.parse(later)>Date.parse(earlier)+(earlier.length===20?999:0);
+export const strictlyAfter = (later,earlier) => Date.parse(later)>Date.parse(earlier)+(earlier.length===20?999:0);
 const keys = (v,s) => requireThat(v&&typeof v==="object"&&!Array.isArray(v)&&equal(Object.keys(v).sort(),s.split(" ").sort()),"shape_invalid");
 const unique = xs => Array.isArray(xs)&&xs.length>0&&xs.length<=200&&xs.every(text)&&equal(xs,[...new Set(xs)].sort());
 export const isMaintenance = p => p?.schema==="augnes.local-canonical-source-correction.v2"&&p.kind===MAINTENANCE_KIND;

@@ -11,7 +11,7 @@ import { VERIFICATION_CONTEXT_CONTRACT } from "./local-canonical-verification-co
 import { VERIFICATION_CAPACITY_CONTRACT, verificationCapacityLimit } from "./local-canonical-capacity.mjs";
 import { HISTORICAL_INPUT_CONTRACT } from "./local-canonical-historical-inputs.mjs";
 import { supportedInputContract, digest, deriveOperationalDisposition, nonFaultInputChange, classifyInputChange, effectiveInputObservation, inputEventIdentity, validObservationDiagnostic, validInputFailureDiagnostics, validCanonicalRuntimeInputs, preparedDependencyIdentity, comparePreparedDependencyInputs } from "./local-canonical-inputs.mjs";
-import { ATTEMPT_CONTRACT, REVIEWED_REVISION_SCHEMA, REVIEWED_REVISION_PHASES, isReviewedRevision, validReviewedRevisionAttempt, hasRetiredQualificationMarker, supportsSourceCorrection } from "./local-canonical-attempts.mjs";
+import { ATTEMPT_CONTRACT, REVIEWED_REVISION_SCHEMA, REVIEWED_REVISION_PHASES, isReviewedRevision, validReviewedRevisionAttempt, hasRetiredQualificationMarker, supportsSourceCorrection, isReviewedIntegration, hasReviewedIntegrationMarker, validReviewedIntegrationAttempt } from "./local-canonical-attempts.mjs";
 import { isBrowserRevision, browserBindingMatches } from "./local-canonical-browser-revision.mjs";
 import { validBrowserUse, validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 
@@ -138,6 +138,7 @@ export function inspectReceiptForDecision(receipt, options = {}) {
   const {
     currentInputStateValid = null,
     currentAttemptRecordsValid = null,
+    integrationCurrentIssues = ["receipt_integration_current_authorization_unverified"],
     maintenanceCurrentIssues = ["receipt_maintenance_current_authorization_unverified"],
     improvementCurrentIssue = "receipt_improvement_current_authorization_unverified",
     currentIdentity = null,
@@ -154,6 +155,8 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     expectedRunId = null,
   } = options ?? {};
   const issues = [];
+  if(isReviewedIntegration(receipt?.attempt?.source_correction))issues.push(...integrationCurrentIssues);
+  if(hasReviewedIntegrationMarker(receipt)&&!validReviewedIntegrationAttempt(receipt?.attempt))issues.push("receipt_integration_invalid");
   if(isMaintenance(receipt?.attempt?.source_correction))issues.push(...maintenanceCurrentIssues);
   if(hasMaintenanceMarker(receipt)&&!validMaintenanceAttempt(receipt?.attempt))issues.push("receipt_maintenance_invalid");
   if (isImprovement(receipt?.attempt?.source_correction) && improvementCurrentIssue) issues.push(improvementCurrentIssue);
@@ -622,8 +625,8 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     if (currentAttemptRecordsValid !== true) issues.push("receipt_attempt_records_unverified");
     if (currentInputStateValid !== true) issues.push("receipt_current_inputs_unverified");
   }
-  const applicabilityCodes = new Set(["receipt_stale_integration_base", "receipt_current_integration_base_unavailable", "receipt_current_integration_base_invalid", "receipt_stale_head", "receipt_current_worktree_dirty", "receipt_stale_branch_state", "receipt_current_inputs_unverified", "receipt_improvement_current_applicability_refused", "receipt_improvement_current_runtime_invalid", "receipt_maintenance_current_applicability_refused", "receipt_maintenance_current_runtime_invalid", "receipt_maintenance_current_inputs_invalid"]);
-  const currentAuthorityCodes=new Set(["receipt_improvement_current_authorization_unverified","receipt_maintenance_current_authorization_unverified"]);
+  const applicabilityCodes = new Set(["receipt_integration_current_applicability_refused", "receipt_integration_current_inputs_invalid", "receipt_stale_integration_base", "receipt_current_integration_base_unavailable", "receipt_current_integration_base_invalid", "receipt_stale_head", "receipt_current_worktree_dirty", "receipt_stale_branch_state", "receipt_current_inputs_unverified", "receipt_improvement_current_applicability_refused", "receipt_improvement_current_runtime_invalid", "receipt_maintenance_current_applicability_refused", "receipt_maintenance_current_runtime_invalid", "receipt_maintenance_current_inputs_invalid"]);
+  const currentAuthorityCodes=new Set(["receipt_integration_current_authorization_unverified","receipt_improvement_current_authorization_unverified","receipt_maintenance_current_authorization_unverified"]);
   return {
     valid_deciding_evidence: issues.length === 0,
     status: issues.length === 0 ? "valid" : "non_deciding_or_stale",
@@ -634,7 +637,7 @@ export function inspectReceiptForDecision(receipt, options = {}) {
       evidence_validity: issues.filter(code => !applicabilityCodes.has(code) && !currentAuthorityCodes.has(code)).length === 0 ? "valid_in_recorded_context" : "invalid_or_incomplete",
       safety: [4, 5].includes(receipt?.receipt_version) ? receipt?.outcome?.safety ?? "unknown" : "legacy_recorded_scope",
       current_merge_applicability: issues.some(code => applicabilityCodes.has(code)) ? "blocked" : "matches_observed_context",
-      ...((isImprovement(receipt?.attempt?.source_correction)||isMaintenance(receipt?.attempt?.source_correction)) ? {current_authorization:issues.some(code=>currentAuthorityCodes.has(code))?"unverified":"authenticated"}:{}),
+      ...((isReviewedIntegration(receipt?.attempt?.source_correction)||isImprovement(receipt?.attempt?.source_correction)||isMaintenance(receipt?.attempt?.source_correction)) ? {current_authorization:issues.some(code=>currentAuthorityCodes.has(code))?"unverified":"authenticated"}:{}),
     },
     content_fingerprint:
       receipt?.integrity?.content_fingerprint ?? null,
@@ -687,7 +690,7 @@ export function inspectClassifiedEvidence(receipt, issues, incomplete = null) {
   if (new Set(input.resources.map(r => r.id)).size !== input.resources.length ||
       ["codex-preferences", "user-instructions", "auth-location", "git-config", "node-executable"].some(id => !input.resources.some(r => r.id === id))) issues.push("receipt_input_inventory_invalid");
   const attempt = receipt.attempt;
-  const revisionLane = isMaintenance(attempt?.source_correction) || isImprovement(attempt?.source_correction) || (attempt?.source_correction?.schema === REVIEWED_REVISION_SCHEMA) || attempt?.source_correction?.kind === "reviewed_revision" || attempt?.revision_authority || attempt?.reviewed_revision_consumed;
+  const revisionLane = isReviewedIntegration(attempt?.source_correction) || isMaintenance(attempt?.source_correction) || isImprovement(attempt?.source_correction) || (attempt?.source_correction?.schema === REVIEWED_REVISION_SCHEMA) || attempt?.source_correction?.kind === "reviewed_revision" || attempt?.revision_authority || attempt?.reviewed_revision_consumed;
   const browserRevision = isBrowserRevision(attempt?.source_correction);
   const browser = input.binding?.runtime_inputs?.browser;
   if (browserRevision ? !browser || !browserBindingMatches(input, browser) :
@@ -726,7 +729,7 @@ export function inspectClassifiedEvidence(receipt, issues, incomplete = null) {
   }
   if (receipt.evidence.mode !== "quick" && (attempt?.contract !== ATTEMPT_CONTRACT || ![1, 2].includes(attempt.number) ||
       attempt.attempt_id !== receipt.run.id || attempt.head !== receipt.repository.head_sha || attempt.tree !== receipt.repository.tree_sha ||
-      attempt.contract_fingerprint !== input.fingerprint || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== (isReviewedRevision(attempt.source_correction) || isImprovement(attempt.source_correction) || isMaintenance(attempt.source_correction) ? 0 : 1) ||
+      attempt.contract_fingerprint !== input.fingerprint || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== (isReviewedIntegration(attempt.source_correction) || isReviewedRevision(attempt.source_correction) || isImprovement(attempt.source_correction) || isMaintenance(attempt.source_correction) ? 0 : 1) ||
       (attempt.number === 1 && (attempt.prior_attempt_id !== null || attempt.recovery !== null)) ||
       (attempt.number === 2 && (!SHA256_PATTERN.test(attempt.prior_receipt_fingerprint ?? "") || !attempt.recovery)))) issues.push("receipt_attempt_lineage_invalid");
   if (hasSerialAccounting(attempt?.source_correction) && receipt.phases.some(p => p.id === "e2e-project-experience" && p.status === "pass" && !validProjectExperienceAccounting(p.serial_budget)))
@@ -735,6 +738,7 @@ export function inspectClassifiedEvidence(receipt, issues, incomplete = null) {
       !["full","changed"].includes(receipt.evidence.mode) || receipt.evidence.selected_plan !== "full-canonical" || receipt.verification_context.kind !== "isolated-worktree" || attempt.source_correction.base !== receipt.repository.base_sha ||
       digest(receipt.phases.map(p=>p.id)) !== digest(REVIEWED_REVISION_PHASES) || !validCanonicalRuntimeInputs(input.binding?.runtime_inputs) ||
       receipt.phases.some(p=>p.cleanup?.termination_reason!=="natural_exit" || p.cleanup?.exit_observed!==true || p.cleanup?.streams_closed!==true))) issues.push("receipt_improvement_contract_invalid");
+  if(isReviewedIntegration(attempt?.source_correction) && (!validReviewedIntegrationAttempt(attempt) || receipt.receipt_version!==4 || !["changed","full"].includes(receipt.evidence.mode) || receipt.evidence.selected_plan!=="full-canonical" || receipt.verification_context.kind!=="isolated-worktree" || attempt.source_correction.base!==receipt.repository.base_sha || digest(receipt.phases.map(p=>p.id))!==digest(REVIEWED_REVISION_PHASES) || !validCanonicalRuntimeInputs(input.binding?.runtime_inputs) || receipt.phases.some(p=>p.status==="pass"&&(p.cleanup?.termination_reason!=="natural_exit"||p.cleanup?.exit_observed!==true||p.cleanup?.streams_closed!==true))))issues.push("receipt_integration_lane_invalid");
   if(isMaintenance(attempt?.source_correction)) {
     if(receipt.receipt_version!==4 || !validMaintenanceAttempt(attempt) || !["full","changed"].includes(receipt.evidence.mode) || receipt.evidence.selected_plan!=="full-canonical" ||
       receipt.verification_context.kind!=="isolated-worktree" || attempt.source_correction.base!==receipt.repository.base_sha ||
