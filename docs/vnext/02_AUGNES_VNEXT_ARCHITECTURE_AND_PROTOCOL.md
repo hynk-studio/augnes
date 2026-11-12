@@ -4246,6 +4246,33 @@ revocation or source erasure to download an existing browser-local pending retur
 This exposes no server request, file, feedback or save outcome, performs no write,
 and grants no renewed access. Unknown submission status remains unknown.
 
+#### Selectively published real-project requests (#1641)
+
+An optional operational publication binds an explicitly authored public summary
+to one saved Web request, the observed work head and an existing scoped recipient
+grant. The authenticated owning project supplies issuer attribution. Publication
+creation atomically checks ownership, exact request/current basis, live response
+authority and erasure. A retained publication UUID reconciles uncertain creation;
+identical replay returns the same publication, altered replay refuses, and a
+read-only absent observation neither creates nor cancels an effect.
+
+Anonymous HTML and JSON expose the same allowlisted public material and source
+reference, never a full work envelope, private file bytes or recipient identity.
+Publication is an authored claim, not verified truth or universal actor identity.
+Public reading and URL possession grant no participation, execution, contact,
+spending or commitment authority. The linked existing recipient path retains
+its own authentication, exact request-bound return and origin check/use/feedback.
+
+The disclosed snapshot never silently tracks newer private text. Current reads
+distinguish active, stale and answered requests; an answer is not checked use.
+Withdrawal, expiry, erased source or unavailable response authority removes the
+selected material from service. It does not recall outside copies. Operational
+records remain outside revision exports; reconstruction revokes the selected
+project's publications with its existing grants. No Core kind, accepted state,
+new work-revision format or native synchronization is introduced. The
+[Web public-request guide](../../apps/web_planning/README.md#selected-public-project-requests-1641)
+owns bounded APIs, activation, source retention and rollback.
+
 #### Independent private Web projects (#1627)
 
 An explicitly enabled admitted-principal entry separates the installation's

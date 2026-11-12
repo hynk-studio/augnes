@@ -80,6 +80,20 @@ export const continuation=sqliteTable('web_planning_continuation',{
   check('web_planning_continuation_limit',sql`${t.max_updates} BETWEEN 1 AND 20`),
 ]);
 
+// Explicitly selected public summaries are operational publication mappings.
+// They neither modify work envelopes nor travel in portable work exports.
+export const publicRequest=sqliteTable('web_planning_public_request',{
+  publication_id:text('publication_id').primaryKey(),
+  workspace_id:text('workspace_id').notNull(),project_id:text('project_id').notNull(),work_id:text('work_id').notNull(),
+  issuer_hash:text('issuer_hash').notNull(),grant_id:text('grant_id').notNull(),grant_fingerprint:text('grant_fingerprint').notNull(),
+  material:text('material').notNull(),material_fingerprint:text('material_fingerprint').notNull(),
+  created_at:text('created_at').notNull(),expires:integer('expires').notNull(),revoked_at:text('revoked_at'),
+},t=>[
+  foreignKey({columns:[t.workspace_id,t.project_id],foreignColumns:[workspace.workspace_id,workspace.project_id]}),
+  index('web_planning_public_request_work').on(t.workspace_id,t.project_id,t.work_id,t.publication_id),
+  check('web_planning_public_request_material',sql`json_valid(${t.material})`),
+]);
+
 // Quotas are also enforced by the migration's transaction-local INSERT trigger.
 export const file=sqliteTable('web_planning_file',{
   workspace_id:text('workspace_id').notNull(),project_id:text('project_id').notNull(),

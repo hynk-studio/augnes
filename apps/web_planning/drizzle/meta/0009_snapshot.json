@@ -1,0 +1,892 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "5a6e1d74-855e-4812-bc4e-7661866b52ea",
+  "prevId": "240c9994-99ec-4712-9890-9d5a06f6bf71",
+  "tables": {
+    "web_planning_continuation": {
+      "name": "web_planning_continuation",
+      "columns": {
+        "grant_id": {
+          "name": "grant_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "issuer_hash": {
+          "name": "issuer_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "recipient_login": {
+          "name": "recipient_login",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "recipient_hash": {
+          "name": "recipient_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "obligation": {
+          "name": "obligation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "creation_fingerprint": {
+          "name": "creation_fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires": {
+          "name": "expires",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "max_updates": {
+          "name": "max_updates",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "web_planning_continuation_work": {
+          "name": "web_planning_continuation_work",
+          "columns": [
+            "workspace_id",
+            "project_id",
+            "work_id",
+            "grant_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "web_planning_continuation_workspace_id_project_id_web_planning_workspace_workspace_id_project_id_fk": {
+          "name": "web_planning_continuation_workspace_id_project_id_web_planning_workspace_workspace_id_project_id_fk",
+          "tableFrom": "web_planning_continuation",
+          "tableTo": "web_planning_workspace",
+          "columnsFrom": [
+            "workspace_id",
+            "project_id"
+          ],
+          "columnsTo": [
+            "workspace_id",
+            "project_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "web_planning_continuation_limit": {
+          "name": "web_planning_continuation_limit",
+          "value": "\"web_planning_continuation\".\"max_updates\" BETWEEN 1 AND 20"
+        }
+      }
+    },
+    "web_planning_erased": {
+      "name": "web_planning_erased",
+      "columns": {
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "web_planning_erased_workspace_id_project_id_web_planning_workspace_workspace_id_project_id_fk": {
+          "name": "web_planning_erased_workspace_id_project_id_web_planning_workspace_workspace_id_project_id_fk",
+          "tableFrom": "web_planning_erased",
+          "tableTo": "web_planning_workspace",
+          "columnsFrom": [
+            "workspace_id",
+            "project_id"
+          ],
+          "columnsTo": [
+            "workspace_id",
+            "project_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "web_planning_erased_workspace_id_project_id_work_id_pk": {
+          "columns": [
+            "workspace_id",
+            "project_id",
+            "work_id"
+          ],
+          "name": "web_planning_erased_workspace_id_project_id_work_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "web_planning_file": {
+      "name": "web_planning_file",
+      "columns": {
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "digest": {
+          "name": "digest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "bytes": {
+          "name": "bytes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "body": {
+          "name": "body",
+          "type": "blob",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "web_planning_file_workspace_id_project_id_web_planning_workspace_workspace_id_project_id_fk": {
+          "name": "web_planning_file_workspace_id_project_id_web_planning_workspace_workspace_id_project_id_fk",
+          "tableFrom": "web_planning_file",
+          "tableTo": "web_planning_workspace",
+          "columnsFrom": [
+            "workspace_id",
+            "project_id"
+          ],
+          "columnsTo": [
+            "workspace_id",
+            "project_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "web_planning_file_workspace_id_project_id_work_id_digest_pk": {
+          "columns": [
+            "workspace_id",
+            "project_id",
+            "work_id",
+            "digest"
+          ],
+          "name": "web_planning_file_workspace_id_project_id_work_id_digest_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "web_planning_file_size": {
+          "name": "web_planning_file_size",
+          "value": "\"web_planning_file\".\"bytes\" BETWEEN 0 AND 6291456"
+        },
+        "web_planning_file_body": {
+          "name": "web_planning_file_body",
+          "value": "(\"web_planning_file\".\"bytes\" <= 262144 AND typeof(\"web_planning_file\".\"body\") = 'blob' AND length(\"web_planning_file\".\"body\") = \"web_planning_file\".\"bytes\") OR (\"web_planning_file\".\"bytes\" > 262144 AND \"web_planning_file\".\"body\" IS NULL)"
+        }
+      }
+    },
+    "web_planning_file_part": {
+      "name": "web_planning_file_part",
+      "columns": {
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "digest": {
+          "name": "digest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ordinal": {
+          "name": "ordinal",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data": {
+          "name": "data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "web_planning_file_part_workspace_id_project_id_work_id_digest_web_planning_file_workspace_id_project_id_work_id_digest_fk": {
+          "name": "web_planning_file_part_workspace_id_project_id_work_id_digest_web_planning_file_workspace_id_project_id_work_id_digest_fk",
+          "tableFrom": "web_planning_file_part",
+          "tableTo": "web_planning_file",
+          "columnsFrom": [
+            "workspace_id",
+            "project_id",
+            "work_id",
+            "digest"
+          ],
+          "columnsTo": [
+            "workspace_id",
+            "project_id",
+            "work_id",
+            "digest"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "web_planning_file_part_workspace_id_project_id_work_id_digest_ordinal_pk": {
+          "columns": [
+            "workspace_id",
+            "project_id",
+            "work_id",
+            "digest",
+            "ordinal"
+          ],
+          "name": "web_planning_file_part_workspace_id_project_id_work_id_digest_ordinal_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "web_planning_part_ordinal": {
+          "name": "web_planning_part_ordinal",
+          "value": "typeof(\"web_planning_file_part\".\"ordinal\") = 'integer' AND \"web_planning_file_part\".\"ordinal\" BETWEEN 0 AND 31"
+        },
+        "web_planning_part_size": {
+          "name": "web_planning_part_size",
+          "value": "typeof(\"web_planning_file_part\".\"data\") = 'text' AND length(\"web_planning_file_part\".\"data\") BETWEEN 4 AND 262144"
+        }
+      }
+    },
+    "web_planning_participation": {
+      "name": "web_planning_participation",
+      "columns": {
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "grant_id": {
+          "name": "grant_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "recipient_login": {
+          "name": "recipient_login",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "recipient_hash": {
+          "name": "recipient_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "disclosure": {
+          "name": "disclosure",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "disclosure_fingerprint": {
+          "name": "disclosure_fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires": {
+          "name": "expires",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "web_planning_participation_request": {
+          "name": "web_planning_participation_request",
+          "columns": [
+            "workspace_id",
+            "project_id",
+            "work_id"
+          ],
+          "isUnique": false
+        },
+        "web_planning_participation_identity": {
+          "name": "web_planning_participation_identity",
+          "columns": [
+            "grant_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "web_planning_participation_workspace_id_project_id_web_planning_workspace_workspace_id_project_id_fk": {
+          "name": "web_planning_participation_workspace_id_project_id_web_planning_workspace_workspace_id_project_id_fk",
+          "tableFrom": "web_planning_participation",
+          "tableTo": "web_planning_workspace",
+          "columnsFrom": [
+            "workspace_id",
+            "project_id"
+          ],
+          "columnsTo": [
+            "workspace_id",
+            "project_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "web_planning_participation_workspace_id_project_id_grant_id_pk": {
+          "columns": [
+            "workspace_id",
+            "project_id",
+            "grant_id"
+          ],
+          "name": "web_planning_participation_workspace_id_project_id_grant_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "web_planning_participation_disclosure": {
+          "name": "web_planning_participation_disclosure",
+          "value": "json_valid(\"web_planning_participation\".\"disclosure\")"
+        }
+      }
+    },
+    "web_planning_public_request": {
+      "name": "web_planning_public_request",
+      "columns": {
+        "publication_id": {
+          "name": "publication_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "issuer_hash": {
+          "name": "issuer_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "grant_id": {
+          "name": "grant_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "grant_fingerprint": {
+          "name": "grant_fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "material": {
+          "name": "material",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "material_fingerprint": {
+          "name": "material_fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires": {
+          "name": "expires",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "web_planning_public_request_work": {
+          "name": "web_planning_public_request_work",
+          "columns": [
+            "workspace_id",
+            "project_id",
+            "work_id",
+            "publication_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "web_planning_public_request_workspace_id_project_id_web_planning_workspace_workspace_id_project_id_fk": {
+          "name": "web_planning_public_request_workspace_id_project_id_web_planning_workspace_workspace_id_project_id_fk",
+          "tableFrom": "web_planning_public_request",
+          "tableTo": "web_planning_workspace",
+          "columnsFrom": [
+            "workspace_id",
+            "project_id"
+          ],
+          "columnsTo": [
+            "workspace_id",
+            "project_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "web_planning_public_request_material": {
+          "name": "web_planning_public_request_material",
+          "value": "json_valid(\"web_planning_public_request\".\"material\")"
+        }
+      }
+    },
+    "web_planning_revision": {
+      "name": "web_planning_revision",
+      "columns": {
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "fingerprint": {
+          "name": "fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_key": {
+          "name": "request_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_fingerprint": {
+          "name": "request_fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "envelope": {
+          "name": "envelope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "web_planning_return_destination": {
+          "name": "web_planning_return_destination",
+          "columns": [
+            "workspace_id",
+            "project_id",
+            "envelope ->> '$.return_use.returned.fingerprint'",
+            "envelope ->> '$.return_use.index'",
+            "work_id",
+            "revision"
+          ],
+          "isUnique": false,
+          "where": "(envelope ->> '$.return_use.returned.fingerprint') IS NOT NULL"
+        },
+        "web_planning_revision_request": {
+          "name": "web_planning_revision_request",
+          "columns": [
+            "workspace_id",
+            "project_id",
+            "request_key"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "web_planning_revision_workspace_id_project_id_web_planning_workspace_workspace_id_project_id_fk": {
+          "name": "web_planning_revision_workspace_id_project_id_web_planning_workspace_workspace_id_project_id_fk",
+          "tableFrom": "web_planning_revision",
+          "tableTo": "web_planning_workspace",
+          "columnsFrom": [
+            "workspace_id",
+            "project_id"
+          ],
+          "columnsTo": [
+            "workspace_id",
+            "project_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "web_planning_revision_workspace_id_project_id_work_id_revision_pk": {
+          "columns": [
+            "workspace_id",
+            "project_id",
+            "work_id",
+            "revision"
+          ],
+          "name": "web_planning_revision_workspace_id_project_id_work_id_revision_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "web_planning_revision_positive": {
+          "name": "web_planning_revision_positive",
+          "value": "typeof(\"web_planning_revision\".\"revision\") = 'integer' AND \"web_planning_revision\".\"revision\" BETWEEN 1 AND 9007199254740991"
+        },
+        "web_planning_revision_json": {
+          "name": "web_planning_revision_json",
+          "value": "json_valid(\"web_planning_revision\".\"envelope\")"
+        }
+      }
+    },
+    "web_planning_schema": {
+      "name": "web_planning_schema",
+      "columns": {
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "web_planning_schema_version": {
+          "name": "web_planning_schema_version",
+          "value": "\"web_planning_schema\".\"version\" = 6"
+        }
+      }
+    },
+    "web_planning_workspace": {
+      "name": "web_planning_workspace",
+      "columns": {
+        "singleton": {
+          "name": "singleton",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "author_ref": {
+          "name": "author_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "owner_login_hash": {
+          "name": "owner_login_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "continuation_work_id": {
+          "name": "continuation_work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "creation_key": {
+          "name": "creation_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "creation_fingerprint": {
+          "name": "creation_fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "web_planning_workspace_owner": {
+          "name": "web_planning_workspace_owner",
+          "columns": [
+            "owner_login_hash",
+            "project_id"
+          ],
+          "isUnique": false
+        },
+        "web_planning_workspace_scope": {
+          "name": "web_planning_workspace_scope",
+          "columns": [
+            "workspace_id",
+            "project_id"
+          ],
+          "isUnique": true
+        },
+        "web_planning_workspace_creation": {
+          "name": "web_planning_workspace_creation",
+          "columns": [
+            "owner_login_hash",
+            "creation_key"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "web_planning_workspace_positive": {
+          "name": "web_planning_workspace_positive",
+          "value": "\"web_planning_workspace\".\"singleton\" >= 1"
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {
+      "web_planning_return_destination": {
+        "columns": {
+          "envelope ->> '$.return_use.returned.fingerprint'": {
+            "isExpression": true
+          },
+          "envelope ->> '$.return_use.index'": {
+            "isExpression": true
+          }
+        }
+      }
+    }
+  }
+}

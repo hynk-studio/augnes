@@ -674,3 +674,7 @@ $('manage-continuation')?.addEventListener('click',()=>{
   if(!work||!saved||dirty||pending||busy||accessLost||!mayLeave()){status('Save or reconcile the selected work before delegating it.');return;}
   location.assign('/delegations/'+scope.project_id+'/'+work);
 });
+$('manage-publication')?.addEventListener('click',()=>{
+  if(!work||!saved||dirty||pending||busy||accessLost||!mayLeave()){status('Save or reconcile the selected work before preparing its public request.');return;}
+  location.assign('/publications/'+scope.project_id+'/'+work);
+});

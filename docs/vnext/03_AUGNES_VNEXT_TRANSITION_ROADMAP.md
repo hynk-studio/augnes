@@ -3577,6 +3577,30 @@ The next operational decision remains separately authorized deployment/migration
 and intended-recipient access; none is executed or made a gate for implementation.
 Earlier failures, accepted scopes, unknown usage and unrelated owners are preserved.
 
+### Current P2/P5 candidate — Selected real-project public requests (#1641)
+
+[#1641](https://github.com/hynk-studio/augnes/issues/1641) adds an opt-in owner
+publication form and authenticated API for one existing project's real request.
+The stable anonymous HTML/JSON carries explicitly selected authored purpose,
+need, source/version, project attribution, current status and the actual
+designated-recipient response requirements. It reuses the #1589 recipient
+return/check-use/feedback path without broadening anonymous access.
+
+The bounded candidate adds optional operational publication metadata, exact-key
+reconciliation and project-scoped reconstruction revocation. It preserves schema
+6, existing work/export formats, source bytes and the default private deployment.
+Its [ordinary guide](../../apps/web_planning/README.md#selected-public-project-requests-1641)
+defines the implemented surface and limits; the candidate PR owns the actually
+executed checks and final-target qualification. Source implementation alone is
+not tested hosted publication or a live external round trip.
+
+[#1642](https://github.com/hynk-studio/augnes/issues/1642) remains the separate
+need-driven host/channel transport and fresh-executor follow-through. This
+candidate neither consumes #1640's allowance nor enlarges its acceptance.
+Production migration, public ingress/admission, selected real data, outreach,
+provider expenditure and repository merge retain their separate authority.
+No independent demand or successful resource acquisition is claimed.
+
 ### Completed bounded P2/P5 implementation — Request-scoped Web participation (#1589)
 
 The [request-scoped flow](../../apps/web_planning/README.md#request-scoped-participants-and-shared-feedback-1589)
