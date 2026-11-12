@@ -38,12 +38,18 @@ assert(chrome,'real_browser_unavailable');
 const owned=new Set(),clients=[];let processRecord,local;let external=0,exceptions=0,saveRequests=0,lostResponse=false,unexpectedFailures=0;const expectedFailures=new Set();
 const requests=[],responses=[],interceptionErrors=[],acknowledgementChecks=[];
 const requestSources=new WeakMap();
-async function wait(fn,label){const end=Date.now()+15000;while(Date.now()<end){if(await fn())return;await delay(80);}throw new Error('browser_wait:'+label);}
+async function wait(fn,label){
+ const end=Date.now()+15000;let pause=5;
+ // Most local writes settle before the former first 80ms poll. Observe those
+ // completions promptly, then retain the existing cadence for longer waits.
+ while(Date.now()<end){if(await fn())return;await delay(pause);pause=Math.min(pause*2,80);}
+ throw new Error('browser_wait:'+label);
+}
 async function click(c,id){c.interceptions.mark('ui_click',{element_id:id});await c.eval(`document.getElementById(${JSON.stringify(id)}).click()`);}
 async function set(c,id,value){await c.eval(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('input',{bubbles:true}));})()`);}
 async function state(c,expression){return c.eval(expression);}
 async function visible(c,id){return c.eval(`!!document.getElementById(${JSON.stringify(id)})&&!document.getElementById(${JSON.stringify(id)}).hidden`);}
-async function saved(c,n){await wait(()=>c.eval(`document.getElementById('saved-label')?.textContent.startsWith('Saved revision ${n} ')`),'saved '+n);}
+async function saved(c,n){await wait(()=>c.eval(`!busy&&document.getElementById('saved-label')?.textContent.startsWith('Saved revision ${n} ')`),'saved '+n);}
 async function page(debug,origin,isolated=false){
  let target,browserContextId;
  if(isolated){
