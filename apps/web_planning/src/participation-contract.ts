@@ -1,3 +1,4 @@
+import { contributionSource, type ContributionSource } from './contribution-contract';
 import { boundedText, exact, fail, FINGERPRINT, UUID } from "./contract";
 
 // Only new attributed returns or deliberately shared decisions use v0.8.
@@ -6,11 +7,12 @@ export const PARTICIPATION_FORMAT = "web_planning_revision.v0.8";
 export const PARTICIPATION_EXPORT = "web_planning_export.v0.8";
 export const PARTICIPATION_COMPATIBILITY = "web-planning/8";
 export interface Contributor {
-  grant_id:string; principal_ref:string; authentication:"verified_ingress_email"|"local_fixture_email";
+  project?:ContributionSource; grant_id:string; principal_ref:string; authentication:"verified_ingress_email"|"local_fixture_email";
 }
 export interface ParticipantFeedback { explanation:string; next_action:string }
 export function contributor(value:unknown):Contributor {
-  exact(value,"grant_id,principal_ref,authentication");
+  exact(value,"grant_id,principal_ref,authentication"+(value && typeof value==="object" && "project" in value?",project":""));
+  if(value.project)contributionSource(value.project);
   if(!UUID.test(value.grant_id)||!FINGERPRINT.test(value.principal_ref)||
     !["verified_ingress_email","local_fixture_email"].includes(value.authentication))fail("invalid_contributor");
   return value as Contributor;

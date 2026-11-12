@@ -4285,6 +4285,42 @@ owns entry/API/client limits, quiesced migration, backup requirements and the
 non-destructive owner-only rollback posture. This is the first W2 entry slice,
 not whole-W2, delegated succession or independently hosted adoption acceptance.
 
+#### Cross-project Web contribution ownership (#1630)
+
+An active request grant resolves source project A independently of the
+recipient's selected project. B must be owned by the same authenticated
+recipient and distinct from A. Neither a caller-supplied project/work identifier
+nor a downloaded setup retargets that grant. The existing participant and
+exchange writer remains the authority for disclosure, expiry/revocation,
+immutable source basis, cumulative one-answer admission and exact replay.
+
+B may deliberately retain selected disclosed originals as its own ordinary work.
+The first v0.11 revision seals A's original project author/request, disclosure
+fingerprint, brief, conditions, expiry and selected file occurrences alongside
+exact copied bytes. This is historical provenance, not a live grant or evidence
+that the source is still available, current or accepted. The INSERT rechecks the
+active source grant and source existence. B's later authored revisions preserve
+the initial record while permitting its own judgment, material and next action.
+No source correction silently replaces previously retained material.
+
+B deliberately returns selected files from one exact current saved revision.
+The same atomic exchange writer rechecks A's frozen base and grant and B's source
+head; it retains project author/work/revision/file-selection attribution without
+copying private B notes, definitions or other files. These return/use records
+use v0.11 while older seals remain unchanged. The existing checked-use writer
+records A's reported checking, saved output/adaptation and disposition distinctly.
+Only deliberately shared disposition/explanation/next action enter feedback;
+private destination identifiers, titles, files, checks and reasoning do not.
+
+Unknown retention/return delivery must reconcile the original operation before
+replacement. Readback is not another write or allowance. B's independent work and
+already committed source/destination bytes survive non-use or grant expiry and
+revocation, which stop future source access. Exports/reconstruction preserve
+historical attribution but never recreate an operational grant. No new Core
+kind, native synchronization, execution authority, grant table or migration is
+introduced. The [Web contract](../../apps/web_planning/README.md#cross-project-contributions-1630)
+owns the ordinary browser/client surface, retained-file limits and rollback.
+
 #### Scoped Web work succession (#1628)
 
 The first successor role, `continue-work-v1`, delegates a bounded read/append

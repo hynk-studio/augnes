@@ -7,6 +7,15 @@ ${a.local?'<p class="local-banner">Disposable local fixture · simulated separat
 <main id="main"><h1>Contribute to this request</h1><p id="status" role="status">Reading the permitted request…</p>
 <section id="request"><h2>Selected originals and brief</h2><p id="brief"></p><p id="conditions"></p><p id="identity"></p><div id="files"></div></section>
 <details><summary>Use a local or agent client</summary><p>Use your own existing Cloudflare Access login for this origin. This setup grants no access by itself and contains no credential.</p><a href="${root}/setup" download>Download participant setup</a></details>
+<section id="cooperation" hidden><h2>Work in your own project</h2><p>Keep selected shared originals and their conditions in a project you own. Continue there, then deliberately return selected saved files here. Your other work stays private.</p>
+<button id="load-projects" type="button">Choose my project</button><select id="own-project" aria-label="Your project"></select><button id="more-projects" type="button" hidden>More projects</button>
+<form id="retain-form"><fieldset id="retain-fields"><legend>Start your contribution work</legend><div id="retain-files"></div><p>Retained work supports up to 8 files, 256 KiB each and 512 KiB together. Larger originals remain available through the permitted request reader.</p>
+<label>Title for your work<input id="own-title" required maxlength="500"></label><label>Your next step<input id="own-next" required maxlength="500"></label>
+<button id="retain" type="submit">Keep selected originals in my project</button></fieldset></form>
+<button id="load-own-works" type="button">Read my saved contribution work</button><div id="own-works"></div><button id="more-own-works" type="button" hidden>More contribution work</button>
+<form id="project-return-form"><fieldset id="project-return-fields"><legend>Return selected saved results</legend><select id="own-work" aria-label="Saved contribution work"></select><div id="result-files"></div>
+<label>What did you learn or change?<textarea id="project-message" required maxlength="500"></textarea></label><label>Suggested next action<input id="project-next" required maxlength="500"></label>
+<label><input id="share-project-source" type="checkbox" required>Share these files and their project author and exact work/revision identifiers with the requester.</label><button id="project-send" type="submit">Send selected saved results</button></fieldset></form></section>
 <form id="return"><fieldset id="fields"><legend>Send your return</legend><p>One answer is allowed. The owner checks it and decides how to use it.</p>
 <label for="message">What did you change or learn?<textarea id="message" required maxlength="500"></textarea></label>
 <label for="upload">Returned files<input id="upload" type="file" multiple></label><p>Up to 8 files, 6 MiB each and 7 MiB together.</p>
