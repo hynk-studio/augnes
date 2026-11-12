@@ -757,7 +757,7 @@ for(const fragment of ['timeoutMs: 90_000','requireNaturalExit: true','"scripts/
 const maintenanceChildStart=canonicalSuite.indexOf('id: "local-canonical-maintenance"');
 assert.notEqual(maintenanceChildStart,-1);
 const maintenanceChild=canonicalSuite.slice(maintenanceChildStart,canonicalSuite.indexOf("    },",maintenanceChildStart));
-for(const fragment of ['timeoutMs: 60_000','requireNaturalExit: true','"scripts/test-local-canonical-maintenance.mjs"'])
+for(const fragment of ['timeoutMs: 90_000','requireNaturalExit: true','"scripts/test-local-canonical-maintenance.mjs"'])
   requireText(maintenanceChild,fragment,"maintenance controls have their own finite authority owner, outside the product child");
 
 const isolatedChildStart = canonicalSuite.indexOf('id: "local-canonical-isolation"');

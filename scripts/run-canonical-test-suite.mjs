@@ -1521,7 +1521,12 @@ const suites = {
       id: "local-canonical-maintenance",
       label: "prospective maintenance proof, safe inputs and terminal succession",
       ...rootNode("scripts/test-local-canonical-maintenance.mjs"),
-      timeoutMs: 60_000,
+      // Aggregate test liveness, not a product deadline. Complete controls took
+      // ~49s, including ~36s across 5,867 Git calls. Keep those independent
+      // reads and every scenario; add a finite 30s orchestration reserve to the
+      // former 60s bound. Inner 10s setup limits and TERM/KILL cleanup stay intact.
+      // This prospective allowance does not explain the retained 60s timeout.
+      timeoutMs: 90_000,
       requireNaturalExit: true,
     },
     ...reviewedRevisionSteps,
