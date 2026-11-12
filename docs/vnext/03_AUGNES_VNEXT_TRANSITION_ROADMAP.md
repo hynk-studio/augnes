@@ -1679,6 +1679,10 @@ The implementation must connect four responsibilities through existing owners:
    sufficient. Bounded agenda/outlook calculations are optional methods; novel
    questions need not fit their supplied flags. A new supervisor/model service
    is not required.
+   Where dependencies, lead times or changing project conditions matter, use
+   source-linked event/state history to form conditional future options, including
+   new method combinations and preparation for opportunities. Carry their
+   assumptions, horizon and reconsideration signals through existing outlook paths.
 3. **Act and return.** Connect the selected question to an authorized existing
    execution path and its actual output/check. Read the returned material and
    retain the limits of what it establishes; a plan or receipt alone is not the
@@ -1711,6 +1715,11 @@ host/model instructions may already satisfy some or all of these responsibilitie
   from judgment/revision time where available; unknowns remain explicit. Preserve
   original observations, predictions and unaffected judgments. Rebuild the guide
   or mark affected material stale when its supporting revisions or conditions change.
+
+Within existing source-access and context bounds, a successor may revisit the
+underlying evidence to reframe a question or propose options outside the inherited
+set. Preserve earlier views as history, not proof of their forecasts; a new framing
+remains derived interpretation, not automatic replacement of accepted Perspective.
 
 Use existing context, source, expectation and outlook mechanisms where sufficient;
 the guide may be composed on demand. Deliver the instruction-to-read/use/update
