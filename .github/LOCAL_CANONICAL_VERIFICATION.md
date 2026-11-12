@@ -832,9 +832,11 @@ controller and owned-child settlement path, never by a foreign PID. Observer
 failure, source/input invalidation, safety faults, cancellation, missing coverage
 and incomplete cleanup cannot yield PASS. Raw phase statuses remain intact.
 Receipt inspection reports execution/coverage, historical integrity, evidence
-validity, safety and current merge applicability separately. Later main movement
-blocks current applicability without rewriting the historical receipt. The
-unchanged exact-head/current-main/context gates still apply to deciding use.
+validity, safety and current merge applicability separately. For retained v1
+integration-base records, later main movement blocks current applicability.
+New v2 records retain valid evidence for the declared range and report differing
+or unobserved main separately. Exact-head, ancestry and context gates remain;
+no historical receipt is rewritten or promoted.
 
 ### Attempt families and bounded operational recovery
 

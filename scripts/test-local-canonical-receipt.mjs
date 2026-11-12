@@ -91,6 +91,7 @@ for (const [current, issue] of [
   [{ ...validContext.currentIntegrationBase, status: "refused", observation: null }, "receipt_current_integration_base_unavailable"],
   [{ ...validContext.currentIntegrationBase, observation: { ...validContext.currentIntegrationBase.observation, sha: "9".repeat(40) } }, "receipt_stale_integration_base"],
   [{ ...validContext.currentIntegrationBase, base_is_ancestor_of_head: false }, "receipt_current_integration_base_invalid"],
+  [{ ...validContext.currentIntegrationBase, contract: INTEGRATION_BASE_CONTRACT }, "receipt_current_integration_base_invalid"],
   [{ ...validContext.currentIntegrationBase, checked_at: "2026-07-23T00:00:00.000Z" }, "receipt_current_integration_base_invalid"],
 ]) {
   assert(inspectReceiptForDecision(finalized, { ...validContext, currentIntegrationBase: current }).issues.includes(issue));

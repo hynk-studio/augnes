@@ -270,7 +270,8 @@ export function inspectReceiptForDecision(receipt, options = {}) {
       issues.push("receipt_current_integration_base_unavailable");
     } else if (currentIntegrationBase.observation.sha !== receipt?.repository?.base_sha) {
       issues.push("receipt_stale_integration_base");
-    } else if (!validAdmittedIntegrationBase(currentIntegrationBase, receipt?.repository) ||
+    } else if (currentIntegrationBase.contract !== receipt?.integration_base?.contract ||
+        !validAdmittedIntegrationBase(currentIntegrationBase, receipt?.repository) ||
         Date.parse(currentIntegrationBase.observation.observed_at) < Date.parse(receipt?.run?.finished_at) ||
         Date.parse(currentIntegrationBase.checked_at) < Date.parse(receipt?.run?.finished_at)) {
       issues.push("receipt_current_integration_base_invalid");
@@ -798,6 +799,7 @@ function validAdmittedIntegrationBase(value, repository) {
     Date.parse(value?.checked_at) >= Date.parse(observation.observed_at) &&
     value?.base_matches_current_main === (observation.sha === repository?.base_sha);
   return [INTEGRATION_BASE_CONTRACT, LEGACY_INTEGRATION_BASE_CONTRACT].includes(value?.contract) &&
+    repository?.repository_id === CANONICAL_REPOSITORY_ID &&
     value?.status === "admitted" && value?.reason_code === null &&
     value?.requested_base_sha === repository?.base_sha &&
     value?.tested_head_sha === repository?.head_sha &&

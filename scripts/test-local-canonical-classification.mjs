@@ -428,6 +428,7 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
     r => { r.integration_base.checked_at = "2026-07-23T00:00:00.000Z"; },
     r => { r.integration_base.base_is_ancestor_of_head = false; },
     r => { r.integration_base.requested_base_sha = "9".repeat(40); },
+    r => { r.repository.repository_id = "other/repository"; },
     r => { r.integration_base.contract = "unknown"; },
     r => { r.integration_base.base_matches_current_main = true; },
   ]) {
