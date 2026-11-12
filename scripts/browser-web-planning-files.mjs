@@ -24,9 +24,19 @@ export async function browserFileJourney({a,debug,origin,page,click,set,settled,
  await click(consumer,'saved-context');await settled(consumer);
  assert.match(await consumer.eval("$('context-view').innerText"),/Source and results are required together/);
  assert.equal(await consumer.eval("document.querySelectorAll('#context-view [data-file-url]').length"),4);
- await consumer.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads});
+ const download=async(name,start)=>{
+   let id,complete=false;
+   const downloaded=m=>{
+     if(m.method==='Browser.downloadWillBegin'&&m.params.suggestedFilename===name)id=m.params.guid;
+     if(m.method==='Browser.downloadProgress'&&m.params.guid===id&&m.params.state==='completed')complete=true;
+   };
+   consumer.handlers.push(downloaded);
+   try{await start();await wait(()=>complete,'complete download '+name);}
+   finally{consumer.handlers.splice(consumer.handlers.indexOf(downloaded),1);}
+ };
+ await consumer.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads,eventsEnabled:true});
  for(const [i,f] of fileFixtures.entries()) {
-   await consumer.eval(`document.querySelectorAll('#context-view [data-file-url]')[${i}].click()`);await settled(consumer);
+   await download(f.name,async()=>{await consumer.eval(`document.querySelectorAll('#context-view [data-file-url]')[${i}].click()`);await settled(consumer);});
    await wait(async()=> (await readdir(downloads)).includes(f.name),'download '+f.name);
    const bytes=await readFile(path.join(downloads,f.name));assert.deepEqual(bytes,f.bytes);assert.equal(digestBytes(bytes),first.files[i].digest);
  }
@@ -48,7 +58,7 @@ export async function browserFileJourney({a,debug,origin,page,click,set,settled,
  await navigate(consumer,origin+'/');await wait(()=>consumer.eval("!![...$('work-list').querySelectorAll('button')].find(b=>b.textContent==='Continue from an exact private file bundle')"),'file reopen');
  await consumer.eval("[...$('work-list').querySelectorAll('button')].find(b=>b.textContent==='Continue from an exact private file bundle').click()");await saved(consumer,2);await settled(consumer);
  await click(consumer,'saved-context');await settled(consumer);assert.match(await consumer.eval("$('context-view').innerText"),/sum=499500/);
- await consumer.eval("$('history-tools').open=true");await click(consumer,'export');await settled(consumer);
+ await consumer.eval("$('history-tools').open=true");await download('planning-work.json',async()=>{await click(consumer,'export');await settled(consumer);});
  await wait(async()=> (await readdir(downloads)).includes('planning-work.json'),'complete file export');
  const bytes=await readFile(path.join(downloads,'planning-work.json')),exported=JSON.parse(bytes);const validated=validateFileExport(fixtureScope,exported);
  assert.equal(validated.chain.length,2);assert.deepEqual(validated.chain[0],first);assert.deepEqual(validated.chain[1],second);assert.equal(validated.bodies.length,5);
