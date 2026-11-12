@@ -8,7 +8,7 @@ import { selectBrowserPath } from "./local-canonical-browser-input.mjs";
 import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { browserSceneJourney } from "./browser-web-planning-scenes.mjs";
 import { browserSceneResponseJourney } from './browser-web-planning-scene-responses.mjs';
-import { CDP } from './web-planning-cdp.mjs';
+import { CDP, downloadBrowserFiles } from './web-planning-cdp.mjs';
 import { observeWebPlanningInterceptions } from './web-planning-interception.mjs';
 import { browserStoryJourney } from './browser-web-planning-story.mjs';
 import { browserFileJourney } from './browser-web-planning-files.mjs';
@@ -318,7 +318,7 @@ try {
  assert.equal(await a.eval("document.getElementById('goal').value"),'Survives a lost response and restart');await click(a,'saved-context');await wait(()=>a.eval("document.querySelector('#context-view [data-revision]')?.dataset.revision==='4'"),'reopened context');checks.push('browser storage cleared, workerd restart, server reopen');
  for(const [width,height] of [[390,844],[1200,800]]){await a.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});assert(await a.eval('document.documentElement.scrollWidth<=window.innerWidth'),'responsive overflow');}
  assert(await a.eval("[...document.querySelectorAll('input:not([type=hidden]),textarea,select')].every(e=>!!document.querySelector('label[for=\"'+e.id+'\"]'))"));checks.push('responsive widths and labelled keyboard controls');
- await a.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads});await a.eval("document.getElementById('history-tools').open=true");await click(a,'export');await wait(async()=> (await readdir(downloads)).some(p=>p.endsWith('.json')),'export download');
+ await a.eval("document.getElementById('history-tools').open=true");await downloadBrowserFiles(a,downloads,['planning-work.json'],wait,()=>click(a,'export'),'export download');assert((await readdir(downloads)).some(p=>p.endsWith('.json')));
  const exported=JSON.parse(await readFile(path.join(downloads,(await readdir(downloads)).find(p=>p.endsWith('.json'))),'utf8'));assert.equal(exported.revisions.length,4);
  await click(a,'erase');await wait(()=>visible(a,'erase-confirm'),'erase confirmation');await click(a,'cancel-erase');assert(await visible(a,'editor'));await click(a,'erase');
  await wait(()=>a.eval("!capacityInFlight&&['fits','blocked','unavailable'].includes($('draft-capacity').dataset.state)"),'capacity before erase');a.holdCapacity=true;

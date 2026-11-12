@@ -11,7 +11,7 @@ import { checkReturnReassessment } from './web-planning-reassessment-checks.mjs'
 import { checkReturnContinuation } from './web-planning-return-checks.mjs';
 import { checkFileExchanges } from './web-planning-exchange-checks.mjs';
 import { checkDirections } from "./web-planning-direction-checks.mjs";
-import { checkWebPlanningInterceptionDiagnostics, checkWebPlanningTouchTransport } from './test-web-planning-interception.mjs';
+import { checkWebPlanningInterceptionDiagnostics, checkWebPlanningTouchTransport, checkWebPlanningDownloadCompletion } from './test-web-planning-interception.mjs';
 import { checkSceneContinuity } from "./web-planning-scene-checks.mjs";
 import { checkFiles } from './web-planning-file-checks.mjs';
 import { checkOrdinaryFiles } from './web-planning-ordinary-file-checks.mjs';
@@ -38,6 +38,7 @@ import { checkCloudflarePlanning } from './web-planning-cloudflare-checks.mjs';
 const root=process.env.AUGNES_CANONICAL_TEMP_ROOT;if(!root)throw new Error('owned_test_root_required');
 console.log(JSON.stringify({web_planning_interception_diagnostics_contract:await checkWebPlanningInterceptionDiagnostics()}));
 console.log(JSON.stringify({web_planning_touch_transport_contract:await checkWebPlanningTouchTransport()}));
+console.log(JSON.stringify({web_planning_download_completion_contract:await checkWebPlanningDownloadCompletion()}));
 await checkContinuationClient();
 let local;const open=[];let checks=0;
 function passed(name){checks++;console.log('web-planning: '+name);}
