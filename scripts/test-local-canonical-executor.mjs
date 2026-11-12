@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { isMaintenance } from "./local-canonical-maintenance.mjs";
 import { isImprovement } from "./local-canonical-improvement.mjs";
-import { hasRetiredQualificationMarker, isReviewedRevision, REVIEWED_REVISION_PHASES, readSourceCorrectionProof as readCorrectionProof } from "./local-canonical-attempts.mjs";
+import { hasRetiredQualificationMarker, isReviewedIntegration, isReviewedRevision, REVIEWED_REVISION_PHASES, readSourceCorrectionProof as readCorrectionProof } from "./local-canonical-attempts.mjs";
 
 import { isGitObservationRevision, isInventoryBoundRevision } from "./local-canonical-git-observation.mjs";
 import { isSerialAggregateRevision } from "./local-canonical-serial-aggregate.mjs";
@@ -1005,6 +1005,7 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
     if (!racingState) createSharedState();
     const diagnosticBeforeLock = { next: existsSync(next), windows: existsSync(windows) };
     const calls = { acquire: 0, release: 0, phases: 0, remove: 0, checkoutAcquire: 0, checkoutRelease: 0, logPrepare: 0, prune: 0 };
+    const scenarioErrors = [];
     const historical = scenario.includes("historical_");
     const historicalRefusal = historical && !scenario.endsWith("_ready");
     const historicalGraph = scenario.includes("_r8a_") ? "r8a" : "durable";
@@ -1052,7 +1053,7 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
     const context = {
       checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
       controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, baseSha: "0".repeat(40), headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
-      isMaintenance, isImprovement, isReviewedRevision, isBrowserRevision, isGitObservationRevision, isInventoryBoundRevision, isSerialAggregateRevision, digest, REVIEWED_REVISION_PHASES,
+      isMaintenance, isImprovement, isReviewedIntegration, isReviewedRevision, isBrowserRevision, isGitObservationRevision, isInventoryBoundRevision, isSerialAggregateRevision, digest, REVIEWED_REVISION_PHASES,
       sourceCorrection: revisionLane ? { schema: browserRefusal ? "augnes.local-canonical-source-correction.v8" : "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", ...(revisionSettlement ? { settlement: { sha256: "c".repeat(64) } } : {}) } : null,
       authorizeReviewedRevision: async () => { authorityObserved = true; if (scenario === "revision_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
       observeReviewedRevisionSettlementState: async () => {
@@ -1133,7 +1134,7 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
         assert.equal(options.currentRunId, "synthetic");
         return enforceArtifactRetention({ ...options, root });
       },
-      safeErrorCode: error => error.code ?? "synthetic_failure", boundedLifecycleState: value => value,
+      safeErrorCode: error => { scenarioErrors.push(error.stack ?? String(error)); return error.code ?? "synthetic_failure"; }, boundedLifecycleState: value => value,
       inspectCompanionService: async () => structuredClone(serviceState),
       inspectVerificationCompanionPreservation: async (_ctx, { freshTransport }) => {
         assert.equal(freshTransport, browserRefusal);
@@ -1257,7 +1258,7 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
         executorSource.slice(passingStart, passingEnd) + "\nreturn passing;")(context.phaseReceipts, result.executionFailure, [], result.cleanupComplete);
       assert.equal(passing, false, "clean settlement does not erase an execution exception");
     } else {
-      assert.equal(calls.phases, 1); assert.equal(calls.release, quick || isolated || unsettled ? 0 : 1);
+      assert.equal(calls.phases, 1, `${scenario}: ${scenarioErrors.join("\n")}`); assert.equal(calls.release, quick || isolated || unsettled ? 0 : 1);
       if (isolated) assert.equal(privateResourceCleaned, !unsettled);
       assert.equal(result.sharedGeneratedStateOwned, true); assert.equal(result.cleanupComplete, !unsettled);
       assert.equal(result.nextState.removed_after_execution, !quick && !unsettled);
@@ -1307,7 +1308,7 @@ const successionProfiles = [
   { schema: "augnes.local-canonical-source-correction.v8", kind: "reviewed_revision" },
   { schema: "augnes.local-canonical-source-correction.v9", kind: "reviewed_revision" },
 ];
-const dispatchStart = executorSource.indexOf("            const reviewed = isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection);");
+const dispatchStart = executorSource.indexOf("            const reviewed = isReviewedIntegration(sourceCorrection) || isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection);");
 const dispatchEnd = executorSource.indexOf("            pinVerificationEvidence(", dispatchStart);
 assert(dispatchStart > 0 && dispatchEnd > dispatchStart);
 const admissionDispatch = executorSource.slice(dispatchStart, dispatchEnd);
@@ -1327,7 +1328,7 @@ function dispatchContext(candidate, authority, settlement = async () => null) {
   return { get observed() { return observed; }, context: {
     sourceCorrection:candidate, receipt:{receipt_version:4,inputs:frozenInputs,attempt:{source_correction:candidate}},
     inputs:{snapshot:()=>frozenInputs,check(){}}, repositoryRoot:coexistenceRoot,
-    isMaintenance,isImprovement,isReviewedRevision,isBrowserRevision,isGitObservationRevision,isInventoryBoundRevision,isSerialAggregateRevision,
+    isMaintenance,isImprovement,isReviewedIntegration,isReviewedRevision,isBrowserRevision,isGitObservationRevision,isInventoryBoundRevision,isSerialAggregateRevision,
     mode:"full",checkoutContext:"isolated-worktree",plan:{selected_plan:"full-canonical"},
     digest,REVIEWED_REVISION_PHASES,phaseDefinitions:REVIEWED_REVISION_PHASES.map(id=>({id})),
     inputMonitor:{check:()=>null},signal:{aborted:false},runtimeInputs:{},
