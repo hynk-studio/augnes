@@ -7,7 +7,7 @@ let current=null,busy=false,lost=false,pending=null,cursor=null,confirmedAbsent=
 const status=text=>{$('status').textContent=text;};
 function controls(){
   if(manage){$('grant-fields').disabled=busy||!!pending&&!confirmedAbsent||!current;$('grant-submit').disabled=busy||!!pending&&!confirmedAbsent||!current;$('grant-reconcile').hidden=!pending;}
-  else{$('update-fields').disabled=busy||!!pending||!current;$('update-submit').disabled=busy||!!pending||!current||current.remaining_updates<=0;$('resolve').hidden=!pending;}
+  else{$('update-fields').disabled=busy||!!pending&&!confirmedAbsent||!current;$('update-submit').disabled=busy||!!pending&&!confirmedAbsent||!current||current.remaining_updates<=0;$('resolve').hidden=!pending;}
   $('refresh').disabled=busy;$('refresh').textContent=pending?'Read current work (pending save retained)':'Read current work';
 }
 async function api(path,body){
@@ -29,10 +29,16 @@ function show(value){
   current=value;const h=value.saved,box=$('work-context');box.replaceChildren();
   const title=document.createElement('h2');title.textContent=h.definition.goal;box.append(title);
   paragraph(box,'Success criteria: '+h.definition.success_criteria.join('; '));
+  if(h.definition.non_goals?.length)paragraph(box,'Outside this work: '+h.definition.non_goals.join('; '));
   for(const n of h.sources)paragraph(box,n.why_included+': '+n.bounded_summary+' — '+n.compatibility_source_ref.external_id);
   for(const r of value.history??[h]){
     if(r.continuation)paragraph(box,'Revision '+r.revision+' · '+r.continuation.principal_ref+' · Obligation: '+r.continuation.obligation+' · Report: '+r.continuation.report+' · Next: '+r.continuation.next_action);
     if(r.exchange)paragraph(box,'Revision '+r.revision+' · '+r.exchange.kind+': '+r.exchange.message+' · Next: '+r.exchange.next_action);
+    const record=document.createElement('details'),label=document.createElement('summary'),content=document.createElement('pre');
+    label.textContent='Revision '+r.revision+' · Complete saved record';
+    // Keep every historical judgment, source status, dependency and attribution
+    // inspectable as recorded, without dereferencing other work or executing it.
+    content.textContent=JSON.stringify(r,null,2);record.append(label,content);box.append(record);
     if(!manage)for(const [kind,files] of [['files',r.files??[]],['exchange-files',r.exchange?.artifacts??[]]])for(const [index,item] of files.entries()){const f=item.file??item;
       const a=document.createElement('a');a.textContent='Revision '+r.revision+': '+f.name+' (untrusted attachment)';a.href=root+'/'+kind+'/'+r.revision+'/'+r.fingerprint.slice(7)+'/'+index;box.append(a,document.createElement('br'));
     }
@@ -71,13 +77,20 @@ if(manage){
   $('grants-more').onclick=()=>run(()=>grants(true));
 }else{
   $('update-form').onsubmit=e=>{e.preventDefault();run(async()=>{
-    const body={request_key:crypto.randomUUID(),expected:{revision:current.saved.revision,fingerprint:current.saved.fingerprint},report:$('report').value,next_action:$('next-action').value};
+    const body={request_key:pending?.request_key??crypto.randomUUID(),expected:{revision:current.saved.revision,fingerprint:current.saved.fingerprint},report:$('report').value,next_action:$('next-action').value};
     // Retain only an operation locator across reload, never private authored text.
-    remember({request_key:body.request_key});await api(root+'/save',body);clearPending();await read();$('report').value=$('next-action').value='';status('Attributed update saved.');
+    confirmedAbsent=false;remember({request_key:body.request_key});await api(root+'/save',body);clearPending();$('report').value=$('next-action').value='';
+    // A failed refresh cannot erase the confirmed save or leave its text ready
+    // to duplicate. Require a fresh head before preparing the next update.
+    current=null;controls();
+    try{await read();status('Attributed update saved.');}
+    catch(error){if(lost)throw error;status('The update is saved, but current work could not be read. Use Read current work before preparing another update.');}
   });};
   $('resolve').onclick=()=>run(async()=>{
-    const result=await api(root+'/resolve',pending);await read();clearPending();
-    status(result.outcome==='saved'?'The earlier update is saved. Do not submit it again.':'No committed update was found. Review the freshly read history before deliberately preparing another update.');
+    const result=await api(root+'/resolve',pending);await read();
+    const committed=result.outcome==='saved'||current.history.some(r=>r.request_key===pending.request_key&&r.continuation?.grant_id===id);
+    if(committed){clearPending();confirmedAbsent=false;$('report').value=$('next-action').value='';status('The earlier update is saved. Do not submit it again.');}
+    else{confirmedAbsent=true;status('The original update is not visible yet; its outcome remains unknown. Review the current history before explicitly preparing it again. The same operation key is retained.');}
   });
 }
 try{const raw=sessionStorage.getItem(pointer);if(raw)pending=JSON.parse(raw);}catch{pending={};}

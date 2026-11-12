@@ -228,8 +228,8 @@ async function login(c,origin){await navigate(c,origin+'/_local/login');await wa
 async function reopen(c){await wait(()=>c.eval("document.querySelectorAll('#work-list button').length>0"),'saved list');await c.eval("document.querySelector('#work-list button').click()");await wait(()=>visible(c,'editor'),'editor');}
 let checks=[], browserUse;
 try {
- const recoveryOnly=process.argv[2]==='--participation-recovery',reassessmentOnly=process.argv[2]==='--reassessment',draftSafetyOnly=process.argv[2]==='--draft-safety';
- assert(process.argv.length===2||(recoveryOnly||reassessmentOnly||draftSafetyOnly)&&process.argv.length===3);
+ const recoveryOnly=process.argv[2]==='--participation-recovery',reassessmentOnly=process.argv[2]==='--reassessment',draftSafetyOnly=process.argv[2]==='--draft-safety',successionOnly=process.argv[2]==='--succession';
+ assert(process.argv.length===2||(recoveryOnly||reassessmentOnly||draftSafetyOnly||successionOnly)&&process.argv.length===3);
  testReadOnlyRequestWindow();
  local=await startLocal({root:path.join(root,'runtime')});const origin=local.origin;
  const debug=await availablePort();const profile=path.join(root,'chrome-profile'),downloads=path.join(root,'downloads');await mkdir(downloads);
@@ -245,7 +245,10 @@ try {
      replaceRuntime:async()=>{for(const tab of clients)await navigate(tab,'about:blank');await closeLocalRuntime();local=null;
        local=await startLocal({root:path.join(root,'draft-safety-'+(++destination)),port,bindings});await login(c,local.origin);}});
  }
- if(draftSafetyOnly){await draftSafetyJourney(a);
+ if(successionOnly){
+   await navigate(a,'about:blank');await closeLocalRuntime();local=await startLocal({root:path.join(root,'work-succession-browser'),bindings:projectBindings()});
+   await browserWorkSuccession({owner:await page(debug,local.origin,true),successor:()=>page(debug,local.origin,true),local,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
+ }else if(draftSafetyOnly){await draftSafetyJourney(a);
  }else if(recoveryOnly){
    await closeLocalRuntime();local=await startLocal({root:path.join(root,'participation-recovery'),bindings:participantBindings()});
    const owner=await page(debug,local.origin);await login(owner,local.origin);

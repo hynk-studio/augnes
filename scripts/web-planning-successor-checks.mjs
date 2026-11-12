@@ -7,9 +7,22 @@ import { authorize } from '../apps/web_planning/src/access.ts';
 import { continuationContext, writeContinuation } from '../apps/web_planning/src/continuation.ts';
 import { openFileContinuation } from '../apps/augnes_apps/scripts/web-file-client.mjs';
 import { planningDraft } from '../apps/augnes_apps/scripts/planning-notes.mjs';
+import { directionExport } from '../apps/web_planning/src/direction-recovery.ts';
+import { CONTINUATION_EXPORT } from '../apps/web_planning/src/continuation-contract.ts';
+import { LARGE_EXPORT } from '../apps/web_planning/src/exchange.ts';
+import { FILE_EXPORT_FORMAT, FILE_EXPORT_REQUEST_BYTES, LARGE_PAIR_REQUEST_BYTES } from '../apps/web_planning/src/files.ts';
 import { projectSession as session, projectOk as ok, projectAgentSession as agent, projectBindings as bindings, projectInput as input } from './web-planning-project-checks.mjs';
 
+export function checkContinuationDirectionBudget(){
+  // Exercise the pair envelope's format-dependent byte boundary independently
+  // of revision validation. Succession must preserve the existing large limit.
+  const payload='x'.repeat(FILE_EXPORT_REQUEST_BYTES);
+  for(const format of [LARGE_EXPORT,CONTINUATION_EXPORT])assert.doesNotThrow(()=>directionExport([{format,payload},{format:FILE_EXPORT_FORMAT}]));
+  assert.throws(()=>directionExport([{format:FILE_EXPORT_FORMAT,payload},{format:FILE_EXPORT_FORMAT}]),/reconstruction_budget_exceeded/);
+  assert.throws(()=>directionExport([{format:CONTINUATION_EXPORT,payload:'x'.repeat(LARGE_PAIR_REQUEST_BYTES)}]),/reconstruction_budget_exceeded/);
+}
 export async function checkWorkContinuation({start,root,passed}) {
+  checkContinuationDirectionBudget();
   const s=await start('work-succession',{bindings:bindings()}),entry=await session(s,'A');
   const created=await ok(entry,'/api/projects',input('A')),other=await ok(entry,'/api/projects',{...input('A'),name:'Unshared project'});
   const p=created.project,id=p.continuation_work_id,owner=await session(s,'A',p),work='/api/work/'+id,grants=work+'/continuation';

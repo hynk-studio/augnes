@@ -103,11 +103,19 @@ admitted sign-in. Read the current purpose, sources, earlier updates and unresol
 obligations before saving an update. Neither a link nor a downloaded setup is a
 credential. A lost save acknowledgement leaves an operation locator; use **Check
 the pending save** before preparing another update. Reconciliation reads existing
-effects and never resubmits. Expired/revoked access also stops reconciliation;
-the owner retains the complete history. A pending grant creation also retains
+effects and never resubmits. An absent snapshot keeps the same operation key for explicit re-preparation,
+and a late commit visible in the refreshed history settles the original save.
+The complete saved record for each revision remains inspectable, including
+non-goals, source status, relationships and earlier use/reassessment decisions.
+Expired/revoked access also stops reconciliation; the owner retains the complete
+history. A pending grant creation also retains
 only its operation key. Its read-only check either finds the existing grant or
 unlocks the form while retaining that same key; reloading requires another check.
 Checking never creates or renews access, and stores no recipient or private text.
+
+For focused development coverage, `node scripts/run-web-planning.mjs succession-browser`
+runs this journey through the existing Web Browser owner with its unchanged
+180-second deadline and cleanup. The default Browser inventory still includes it.
 
 `GET /api/work/<work-id>/continuation` lists owner grants (opaque ID cursor).
 Owner `POST .../create` takes `grant_id`, exact `expected`, `recipient`, `obligation`,
