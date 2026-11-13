@@ -64,15 +64,16 @@ try{
     cleanup_completed:true,remaining_owned_processes:0,termination_reason:"natural_exit",duration_ms:1});
   const make=(label,catalogue,tested,exit)=>{
     const cases=[];
-    for(const id of ["exact_raw","changed_content","changed_permission","changed_location","changed_scope","forged_inventory","metadata_only"]){
+    for(const id of ["exact_raw","changed_content","changed_permission","changed_location","changed_scope","forged_inventory","malformed_observation","metadata_only"]){
       const input=clone(baseline),g=input.resources[0];
       if(id==="changed_content")g.before.sha256=digest("stock verifier different complete content");
       if(id==="changed_permission")g.before.permission_identity=digest("stock verifier different permission");
       if(id==="changed_location")g.location_fingerprint=digest("stock verifier different location");
       if(id==="changed_scope"){g.gitTracking.protected_branches=[digest("stock verifier different branch")];g.before.git_projection.scope_fingerprint=digest("stock verifier different scope");}
+      if(id==="malformed_observation")delete g.before.metadata.links;
       if(id==="metadata_only")for(const key of ["inode","mtime_ns","ctime_ns"])g.before.metadata[key]="2";
       cases.push({id,expected:["exact_raw","metadata_only"].includes(id),actual:id==="exact_raw"||id==="metadata_only"&&exit===0,
-        expected_inventory_sha256:gitRevisionInventory(baseline),current_inventory_sha256:id==="forged_inventory"?digest("stock verifier forged inventory claim"):gitRevisionInventory(input),
+        expected_inventory_sha256:gitRevisionInventory(baseline),current_inventory_sha256:id==="forged_inventory"?digest("stock verifier forged inventory claim"):id==="malformed_observation"?digest("stock verifier malformed inventory claim"):gitRevisionInventory(input),
         input_inventory:input,synthetic_service_observed_at:at(exit?-8500:-6500),...(id==="metadata_only"?{changed_fields:["inode","mtime_ns","ctime_ns"]}:{})});
     }
     const physical={contract:"augnes.local-canonical-browser-bundle.v1",present:true,location_fingerprint:digest(working),
@@ -109,7 +110,7 @@ try{
   for(const mutate of [s=>s.imports_complete=false,s=>s.actual_imports=s.actual_imports.filter(v=>v.path!==driver),
     s=>s.actual_imports=s.actual_imports.filter(v=>v.path!==STOCK_VERIFIER_MODULES[0]),s=>s.primary_error_stage="imports",s=>s.primary_error.code="ERR_MODULE_NOT_FOUND",
     s=>s.primary_error.actual=true,s=>s.primary_error.expected=false,s=>s.cases.shift(),s=>s.cases.reverse(),s=>s.cases[0].actual=false,
-    s=>s.cases[1].actual=true,s=>s.cases.at(-1).actual=true,s=>s.cases.at(-1).changed_fields.pop(),
+    s=>s.cases[1].actual=true,s=>s.cases.find(v=>v.id==="malformed_observation").input_inventory.resources[0].before.metadata.links="1",s=>s.cases.at(-1).actual=true,s=>s.cases.at(-1).changed_fields.pop(),
     s=>s.cases.at(-1).input_inventory.resources[0].before.sha256=digest("hidden content difference"),s=>s.cases.at(-1).current_inventory_sha256=digest("forged observed hash"),
     s=>s.baseline_inventory.resources[0].before.sha256=digest("unbound corpus baseline"),s=>s.corpus.manifest_sha256=digest("substituted corpus"),
     s=>s.corpus.after.inventory_sha256=digest("physical drift"),s=>s.corpus.cleanup.completed=false,s=>s.context_sha256=digest("wrong context"),

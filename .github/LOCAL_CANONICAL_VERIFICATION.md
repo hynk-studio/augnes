@@ -1452,7 +1452,7 @@ binds the complete effective source catalogue and imports separately from those
 variants, common runtime/headers, all three dependencies, environment, isolated
 physical ledger/input corpus and natural cleanup. Both roles must pass exact
 raw inspection and the declared content/security/location/scope/forged-binding
-refusals before the same desired metadata-only assertion. Repair RED requires
+and malformed-observation refusals before the same desired metadata-only assertion. Repair RED requires
 the actual old production `inspectAttemptRecords` result to refuse that same
 byte-identical metadata-only case; final GREEN completes it and all cleanup.
 Setup/import/selector/timeout/cleanup failures are not repair RED. Synthetic

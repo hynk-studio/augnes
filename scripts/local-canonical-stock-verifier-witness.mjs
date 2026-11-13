@@ -15,7 +15,7 @@ export const STOCK_VERIFIER_MODULES = Object.freeze([
   "scripts/local-canonical-attempts.mjs", "scripts/local-canonical-git-observation.mjs",
 ]);
 export const STOCK_VERIFIER_CASES = Object.freeze([
-  "exact_raw", "changed_content", "changed_permission", "changed_location", "changed_scope", "forged_inventory", "metadata_only",
+  "exact_raw", "changed_content", "changed_permission", "changed_location", "changed_scope", "forged_inventory", "malformed_observation", "metadata_only",
 ]);
 const equal = (a,b) => a !== undefined && b !== undefined && digest(a) === digest(b);
 const sha = value => /^[a-f0-9]{64}$/u.test(value ?? "");
@@ -145,10 +145,11 @@ function verifyCaseInputs(summary,witness) {
       case "changed_location":git.location_fingerprint=digest("stock verifier different location");break;
       case "changed_scope":git.gitTracking.protected_branches=[digest("stock verifier different branch")];git.before.git_projection.scope_fingerprint=digest("stock verifier different scope");break;
       case "forged_inventory":break;
+      case "malformed_observation":delete git.before.metadata.links;break;
       case "metadata_only":for(const key of ["inode","mtime_ns","ctime_ns"])git.before.metadata[key]=String(BigInt(git.before.metadata[key])+1n);break;
       default:fail();
     }
-    const inventory=row.id==="forged_inventory"?digest("stock verifier forged inventory claim"):gitRevisionInventory(input);
+    const inventory=row.id==="forged_inventory"?digest("stock verifier forged inventory claim"):row.id==="malformed_observation"?digest("stock verifier malformed inventory claim"):gitRevisionInventory(input);
     if(!equal(row.input_inventory,input) || row.expected_inventory_sha256!==expected || row.current_inventory_sha256!==inventory ||
         !(Date.parse(witness.started_at)<=Date.parse(row.synthetic_service_observed_at)&&
           Date.parse(row.synthetic_service_observed_at)<=Date.parse(witness.finished_at)))fail();

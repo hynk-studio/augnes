@@ -142,11 +142,12 @@ export async function exerciseStockVerifier(restored,onStage=()=>{}) {
     ["changed_location",false,input=>stockGit(input).location_fingerprint=digest("stock verifier different location")],
     ["changed_scope",false,input=>{stockGit(input).gitTracking.protected_branches=[digest("stock verifier different branch")];stockGit(input).before.git_projection.scope_fingerprint=digest("stock verifier different scope");}],
     ["forged_inventory",false,()=>{}],
+    ["malformed_observation",false,input=>{delete stockGit(input).before.metadata.links;}],
     ["metadata_only",true,input=>{for(const key of ["inode","mtime_ns","ctime_ns"])stockGit(input).before.metadata[key]=String(BigInt(stockGit(input).before.metadata[key])+1n);}],
   ];
   try{for(const [id,desired,mutate]of variants){
     const input=clone(baseline);mutate(input);
-    const inventory=id==="forged_inventory"?digest("stock verifier forged inventory claim"):gitRevisionInventory(input);
+    const inventory=id==="forged_inventory"?digest("stock verifier forged inventory claim"):id==="malformed_observation"?digest("stock verifier malformed inventory claim"):gitRevisionInventory(input);
     const live={...clone(context.live),inputInventory:input,inventory};
     // This is fixture-authored current-service data, not a host service read.
     // Historical observations and authored authority timestamps stay frozen.
