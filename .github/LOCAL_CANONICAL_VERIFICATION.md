@@ -1516,6 +1516,59 @@ structural status still supplies no independent attestation or deciding stock.
 Inherited serial accounting, exclusive successor and one-shot consumption are
 unchanged. No acceptance/grant is required to produce a non-reserving target.
 
+The explicitly selected `commission.allowance_case =
+"registered-maintenance-direct-v1"` extends this same evidence kind to the
+registered `local-canonical-maintenance` direct authority child after a latest,
+fully settled ordinary v2 `source_revision` product failure. It does not select
+the serial wrapper grammar. The retained complete physical authority log must
+show that exact direct child bounded at 60000 ms, its forced timeout settlement,
+the natural outer phase failure and complete cleanup. The existing strict
+settled-failure reader verifies all phases, runtime, Browser/environment and
+stock consequences. Its original failure, false stock and UNKNOWN timing cause
+remain unchanged. Ordinary RED/GREEN and every legacy route keep their meanings.
+
+Only the direct registration's 60000-to-90000 ms allowance changes. The complete
+suite outside that literal, maintenance workload and internal 10000 ms limits
+remain fixed. The complete source partition separately commits the registration
+delta and the closed set of evidence readers, controls and policy changes for
+independent review. Retained timing-only loader diagnostics retain their original
+source and missing observations; their finite inert loader grammar is validated
+without executing historical source. Complete stages, source preimages, actual
+collector/observer/output bytes, natural settlement, measured rationale and
+contradictory passing observations are required. No natural RED, fabricated
+90-second assertion or observation exceeding the old bound is required.
+
+The existing fixture-budget collector captures the complete direct registered
+command on the final source with unchanged before/after source, loader, runtime,
+configuration, dependencies and complete current input inventory. There is no
+second serial parent capture or Full rehearsal. The affected maintenance test
+does not recursively execute these contract controls. Final changed consumed
+code requires its relevant focused observation; old measurements are not retagged.
+
+The existing material preparation, authenticated authority, exclusive lineage,
+receipt and stock owners carry this selected case. A genuinely new unedited
+conditional delegation precedes non-reserving preparation; separate independent
+review includes the complete final delta, evidence and readers themselves.
+The exact-target acceptance and separate prospective grant bind the existing
+evidence kind, allowance case, 90000/10000 ms limits, complete preparation
+commitment, predecessor, declared base, head/tree, inventory and original records.
+The grant begins `Authorize one NEW prospective v7 reviewed_revision commission
+for the measured registered maintenance allowance.` It permits exactly one
+admitted invocation, recovery zero and unchanged admitted retry zero; reservation
+or interruption consumes it. It cannot follow another reviewed commission or
+renew the predecessor. At most two command launches are allowed, with the second
+only after a conclusively pre-reservation/pre-admission/pre-phase refusal caused
+by a demonstrated task-owned setup defect, corrected with complete cleanup and
+still-valid authority. Any admitted failure or interruption stops execution.
+
+For this explicit case, current PR/base-branch movement is informational under
+integration-base v2. Preparation and admission retain the declared base and exact
+source ancestry, authenticated Draft head/repository/ref, complete input,
+Companion, ownership and capacity checks. They do not require current main to
+equal the declared base or claim an untested current-main integration. Other
+inventory-bound route publication and base rules are unchanged. Separate fresh
+receipt validation, independent result audit and cleanup remain mandatory.
+
 The production reader owns the four-paragraph material-source delegation. It must
 be unedited, genuinely new and later than the physical predecessor's completion.
 Real non-reserving preparation precedes separate independent acceptance of the

@@ -23,6 +23,7 @@ import {CANONICAL_NODE_VERSION} from "../local-canonical-environment.mjs";
 import {inspectGitRevisionPreparation} from "../local-canonical-attempts.mjs";
 import {baseReceipt} from "./local-canonical-receipt-v3.mjs";
 import {runMaterialSourceControls,seedMaterialSourceFiles,prepareMaterialSourcePredecessor} from "./local-canonical-material-source.mjs";
+import {runMaintenanceAllowanceControls} from "./local-canonical-maintenance-allowance.mjs";
 
 const self=fileURLToPath(import.meta.url), quiet={write(){}}, clone=v=>structuredClone(v);
 // Fixed, value-free development diagnostics. performance.now includes this
@@ -403,6 +404,12 @@ if(process.argv[2]==="--cold"){
       cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});
     assert(cleanupCanonicalTestResources([owner])[0].completed);
   }
+}else if(process.argv[2]==="--run-maintenance-allowance-fixtures"){
+  const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
+  const lifecycle={pendingChildren:0},run=createTrackedReviewChildRunner(lifecycle,runCanonicalChild),c=setup(owner.root);
+  try { await runMaintenanceAllowanceControls(c,{prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,run,
+    fresh:packet=>freshReader(c,packet,run)},path.resolve(path.dirname(self),"../..")); }
+  finally {releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});assert(cleanupCanonicalTestResources([owner])[0].completed);}
 }else if(["--run-serial-aggregate-fixtures","--run-serial-material-fixtures"].includes(process.argv[2])){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
   const lifecycle={pendingChildren:0}, run=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);

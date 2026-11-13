@@ -77,6 +77,7 @@ export async function executeFixture(c, h, proof, cap, browserRecord, dependenci
     head: c.head, tree: c.tree, executor_fingerprint: baseReceipt.executor.source_fingerprint, runtime_inputs: c.inputs,
     environment_keys: runtimeKeys, phase_environment_fingerprints: REVIEWED_REVISION_PHASES.map(id => ({id, fingerprint:digest(id)}))
   } } : declaration(c);
+  h.prepareInput?.(input);
   const start = now();
   const attempt = h.begin(c, proof, cap, { contractFingerprint: digest(input) });
   const child = await (h.behavior ? h.behavior(c) : behavior(c)), passed = child.result.exit_code === 0, finish = now();
@@ -174,6 +175,7 @@ export async function executeFixture(c, h, proof, cap, browserRecord, dependenci
     r.outcome={...r.outcome,disposition:"safety_violation",first_fault:fault,safety:"blocked",validity:"invalid_or_unknown",execution:"incomplete_or_failed"};
     r.final={...r.final,result:"failure",exit_status:1,reason_codes:["verification_cancelled"]};
   }
+  h.decorateReceipt?.(r);
   const receipt = finalizeReceipt(r);
   h.storeReceipt(c, receipt);
   finishAttempt(attempt, { receiptFingerprint: receipt.integrity.content_fingerprint, disposition: r.outcome.disposition, cleanupComplete: true });

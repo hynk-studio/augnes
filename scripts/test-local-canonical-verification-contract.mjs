@@ -11,6 +11,8 @@ import { integrationBudgetRegistration, REGISTERED_INTEGRATION_BUDGET, verifyInt
 import { integrationBudgetAuthorityBindings, integrationBudgetAuthorityScope, INTEGRATION_BUDGET_GRANT,
   INTEGRATION_BUDGET_LIMIT, MATERIAL_HISTORY_BOUNDARY } from "./local-canonical-git-observation.mjs";
 import { spawnSync } from "node:child_process";
+import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
+import { createCanonicalTestResourceRoot, buildCanonicalChildEnvironment, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
 import {
   existsSync,
   readFileSync,
@@ -1903,6 +1905,17 @@ for (const fragment of [
     `package-history requirement is missing: ${fragment}`,
   );
 }
+
+// Evidence-contract controls remain outside the maintenance aggregate whose
+// allowance they inspect. The child owns disposable synthetic accounting only.
+const allowanceResource=createCanonicalTestResourceRoot("ag-resource-test-");
+try {
+  const result=await runCanonicalChild({suite:"verification-contract",label:"direct maintenance measured allowance controls",command:process.execPath,
+    args:["--import","tsx","scripts/fixtures/local-canonical-reviewed-revision.mjs","--run-maintenance-allowance-fixtures"],cwd:repositoryRoot,
+    env:buildCanonicalChildEnvironment({temporaryRoot:allowanceResource.root}),resourceOwner:allowanceResource,timeoutMs:30000,
+    stdout:process.stdout,stderr:process.stderr,log(){}});
+  assert.equal(canonicalChildAcceptanceFailure(result,{requireNaturalExit:true,requireCompleteCleanup:true,timeoutMs:30000}),null);
+} finally { assert(cleanupCanonicalTestResources([allowanceResource]).every(v=>v.completed)); }
 
 console.log(
   JSON.stringify(

@@ -6,7 +6,8 @@ import { digest, classifyInputChange, effectiveInputObservation, inputEventIdent
 import { settledIsolatedResources, cancelledPhase, verifySettledPhaseFailure } from "./local-canonical-browser-revision.mjs";
 import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
-import { REGISTERED_FIXTURE_BUDGET, verifyRegisteredFixtureBudget,
+import { REGISTERED_FIXTURE_BUDGET, verifyRegisteredFixtureBudget, FIXTURE_BUDGET_CLAIM,
+  isMaintenanceFixtureBudget, MAINTENANCE_FIXTURE_CASE, MAINTENANCE_FIXTURE_GRANT,
   REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM, verifyRegisteredIntegrationBudget } from "./local-canonical-fixture-budget-witness.mjs";
 import { GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM, GENERATED_STOCK_GRANT,
   verifyGeneratedStockRepair } from "./local-canonical-stock-lifecycle-witness.mjs";
@@ -524,6 +525,7 @@ function visibleDelegationParagraphs(body) {
 }
 
 export function delegatesMaterialSourceCommission(body,p) {
+  if (isMaintenanceFixtureBudget(p)) return equal(visibleDelegationParagraphs(body), maintenanceFixtureDelegation(p).split("\n\n"));
   if (p.commission.evidence_kind === VERIFIER_LIFECYCLE_REPAIR) return !!readVerifierLifecycleDelegation(body,p);
   if (p.commission.evidence_kind === PREPARED_ELIGIBILITY_REPAIR) return !!readPreparedEligibilityDelegation(body,p);
   if (p.commission.evidence_kind === REGISTERED_INTEGRATION_BUDGET)
@@ -643,6 +645,14 @@ function typedMaterialAuthorityBindings(p, kind, claim) {
 }
 
 export const integrationBudgetAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM);
+export const maintenanceFixtureAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_FIXTURE_BUDGET, FIXTURE_BUDGET_CLAIM) +
+  "\nAllowance case: " + MAINTENANCE_FIXTURE_CASE + "\nRegistered aggregate: 60000 to 90000 ms; inner setup: 10000 ms unchanged.";
+export const maintenanceFixtureDelegation = p => [
+  "Authorize one measured registered maintenance allowance assignment on " + p.branch + " in Draft PR #" + p.pull_request + ". Select " + REGISTERED_FIXTURE_BUDGET + " / " + MAINTENANCE_FIXTURE_CASE + " within the existing inventory-bound v7 owners.",
+  "Predecessor: " + p.prior_family_id + " / " + p.prior_attempt_id + " / " + p.prior_receipt_fingerprint + ".",
+  MATERIAL_HISTORY_BOUNDARY,
+  "After separate independent acceptance of the complete final source delta including evidence readers, original evidence, exact published target and real non-reserving preparation, authorize faithful exact-target acceptance and a separate prospective commission through the authenticated maintainer identity. Accept the disclosed cumulative cost, residual UNKNOWN historical timing causes and prospective 90000 ms maintenance aggregate allowance; preserve inner 10000 ms setup limits, workload, assertions, natural settlement and cleanup. Exactly one admitted deciding invocation total; reservation/interruption consumes it. No ordinal two, recovery or unchanged-target retry. At most two command launches, with the second only after a conclusively pre-reservation/pre-admission/pre-phase refusal caused by a demonstrated task-owned setup defect, corrected with complete cleanup and still-valid authority. Stop after any admitted failure or interruption. Complete planner-selected qualification, separate fresh-process stock, independent result audit and owned cleanup."
+].join("\n\n");
 export const generatedStockAuthorityBindings = p => typedMaterialAuthorityBindings(p, GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM);
 
 function typedMaterialAuthorityScope(p, review, grant, bindings, opening) {
@@ -659,6 +669,8 @@ function typedMaterialAuthorityScope(p, review, grant, bindings, opening) {
 
 export const integrationBudgetAuthorityScope = (p, review, grant) =>
   typedMaterialAuthorityScope(p, review, grant, integrationBudgetAuthorityBindings(p), INTEGRATION_BUDGET_GRANT);
+export const maintenanceFixtureAuthorityScope = (p, review, grant) =>
+  isMaintenanceFixtureBudget(p) && typedMaterialAuthorityScope(p, review, grant, maintenanceFixtureAuthorityBindings(p), MAINTENANCE_FIXTURE_GRANT);
 export const generatedStockAuthorityScope = (p, review, grant) =>
   typedMaterialAuthorityScope(p, review, grant, generatedStockAuthorityBindings(p), GENERATED_STOCK_GRANT);
 

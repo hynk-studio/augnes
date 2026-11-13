@@ -197,12 +197,21 @@ export function verifyReviewedBrowserFailure(r, stock, inputs, phaseIds) {
 
 // Both reviewed continuations require the physical ordinal-one Full to have
 // stopped at a natural child failure with settled resources and accounted stock.
-export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBrowser, allowIncompleteBrowser = false, expectedOrdinal = 1, generatedStockSerial = false) {
+export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBrowser, allowIncompleteBrowser = false, expectedOrdinal = 1, generatedStockSerial = false, ordinaryFixture = false) {
   const failed = r.phases?.findIndex(p => p.status === "failure") ?? -1;
   const reason = generatedStockSerial ? "serial_execution_incomplete" : "phase_failed";
-  if (r.attempt?.source_correction?.commission?.ordinal !== expectedOrdinal ||
+  const ordinary = r.attempt?.source_correction;
+  const oldRuntime=r.inputs?.binding?.runtime_inputs,oldNode=r.inputs?.resources?.find(v=>v.id==="node-executable");
+  // Ordinary execution omitted the optional runtime binding or recorded null. Reuse its
+  // actual Node identity, not invented historical header/runtime observations.
+  // Current headers remain independently observed by the selected v7 proof.
+  const runtimeMatches=ordinaryFixture&&oldRuntime==null ? oldNode?.before?.present===true&&
+    oldNode.location_fingerprint===inputs?.node?.location_fingerprint&&oldNode.before.sha256===inputs.node.observation.sha256&&
+    same(oldNode.before.metadata,inputs.node.observation.metadata) : same(inputs,oldRuntime);
+  if ((ordinaryFixture ? ordinary?.schema !== "augnes.local-canonical-source-correction.v2" || ordinary.kind !== "source_revision" || Object.hasOwn(ordinary,"commission") :
+      ordinary?.commission?.ordinal !== expectedOrdinal) ||
       r.run?.id !== r.attempt.attempt_id || r.attempt.contract_fingerprint !== r.inputs?.fingerprint ||
-      r.evidence?.mode !== "full" || r.evidence.selected_plan !== "full-canonical" || r.evidence.deciding !== false ||
+      !(r.evidence?.mode === "full" || ordinaryFixture && r.evidence?.mode === "changed") || r.evidence.selected_plan !== "full-canonical" || r.evidence.deciding !== false ||
       r.verification_context?.kind !== "isolated-worktree" || r.repository.worktree_before !== "clean" || r.repository.worktree_after !== "clean" ||
       r.outcome?.disposition !== "product_failure" || r.outcome.validity !== "valid_within_observed_scope" ||
       r.outcome.safety !== "preserved_within_observed_scope" || r.outcome.execution !== "incomplete_or_failed" ||
@@ -217,7 +226,7 @@ export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBr
       !settledIsolatedResources(r) || r.historical_inputs?.required !== true ||
       failed < 0 || !same(r.phases.map(p => p.id), phaseIds) ||
       (generatedStockSerial && r.phases[failed].id !== "e2e-project-experience") ||
-      !same(inputs, r.inputs.binding?.runtime_inputs))
+      !runtimeMatches)
     throw fail("revision_browser_failure_invalid");
 
   const environments = r.inputs.binding.phase_environment_fingerprints;
@@ -256,7 +265,10 @@ export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBr
   }
   if (stock.status !== "non_deciding_or_stale" || stock.valid_deciding_evidence !== false ||
       !same(stock.dimensions, { historical_integrity: "intact", execution: "incomplete_or_failed", evidence_validity: "invalid_or_incomplete",
-        safety: "preserved_within_observed_scope", current_merge_applicability: "matches_observed_context" }) ||
+        safety: "preserved_within_observed_scope", current_merge_applicability: ordinaryFixture &&
+          r.integration_base?.contract === "augnes.local-canonical-integration-base.v2" &&
+          ["different_current_main","current_main_unobserved"].includes(stock.dimensions?.current_merge_applicability) ?
+          stock.dimensions.current_merge_applicability : "matches_observed_context" }) ||
       !same(stock.issues, [...issues].sort())) throw fail("revision_browser_stock_unaccounted");
 }
 

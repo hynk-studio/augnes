@@ -22,8 +22,10 @@ import { createIsolatedInvocationResources, cleanupIsolatedInvocationResources }
 
 const [directory,role,group,...extra]=process.argv.slice(2);
 const integration = role === "integration" && group === "external-response";
+const maintenance = group === "local-canonical-maintenance";
 if(extra.length||!integration&&!["direct","registered"].includes(role)||!group||!directory)
   throw new Error("usage: capture-local-canonical-fixture-budget.mjs <existing-output-directory> <direct|registered|integration> <group>");
+if (maintenance && role!=="direct") throw new Error("fixture_budget_direct_registration_required");
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 assert.equal(realpathSync(process.cwd()),root);
 const out=realpathSync(directory),git=args=>execFileSync("git",["--no-replace-objects",...args],{cwd:root,timeout:10000,maxBuffer:16*1024*1024});
@@ -111,14 +113,14 @@ const config=["package.json","package-lock.json","tsconfig.json","scripts/browse
 const dependencies_before=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"}),runtime_before=observeCanonicalRuntimeInputs();
 const context=admitVerificationContext({repositoryRoot:root,kind:"isolated-worktree"}),host=collectHostEnvironment(root);
 const input_inventory_before=(await observeGitRevisionTarget(context,host.browserExecutablePath,runtime_before)).inputInventory;
-const args=role==="direct"?["--import","tsx",FIXTURE_BUDGET_PATHS.wrapper,"--reviewed-revision-controls",group]:[FIXTURE_BUDGET_PATHS.suite,"authority","--reviewed-revision-only"];
+const args=maintenance?registration.command.slice(1):role==="direct"?["--import","tsx",FIXTURE_BUDGET_PATHS.wrapper,"--reviewed-revision-controls",group]:[FIXTURE_BUDGET_PATHS.suite,"authority","--reviewed-revision-only"];
 const owner=createCanonicalTestResourceRoot("ag-resource-test-",{shortSocketPaths:true});
 let output="",lifecycle="",result,owned_cleanup,environment_before,loader_before,error;
 const started_at=new Date().toISOString();
 try {
   environment_before=fixtureBudgetEnvironment(owner.root);loader_before=observePureContractLoader(root,environment_before);
   result=await runCanonicalChild({suite:"fixture-budget-capture",label:role+" registered fixture allowance",command:process.execPath,args,cwd:root,env:environment_before,
-    resourceOwner:owner,timeoutMs:role==="direct"?registration.limits[group].outer:AUXILIARY_EXECUTION_BUDGETS.reviewHarnessMs,
+    resourceOwner:owner,timeoutMs:maintenance?registration.bound_ms:role==="direct"?registration.limits[group].outer:AUXILIARY_EXECUTION_BUDGETS.reviewHarnessMs,
     stdout:{write(chunk){output+=chunk;}},stderr:{write(chunk){output+=chunk;}},log(line){lifecycle+=line+"\n";}});
 } catch(e) { error=e; }
 finally { owned_cleanup=cleanupCanonicalTestResources([owner]); }
