@@ -1793,6 +1793,13 @@ one task may answer several questions. Reuse sufficient existing observations.
 The full L1/L2 successor requirements remain; an individual diagnostic observation
 need not add a fresh executor unless it claims later use or continuity.
 
+Where sufficient-work stopping or later reconsideration is the unanswered question,
+use the [conditional-sufficiency contrast](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#conditional-sufficiency-and-selective-reconsideration)
+within assigned L1 work: stop unnecessary optional work after checked satisfaction
+and retain the basis for selective later reconsideration. Reuse existing expectation,
+outcome and agenda/re-entry owners; this adds no separate framework, study
+allocation, phase or completion gate and reopens no completed study.
+
 [WikiSkill](https://arxiv.org/html/2608.27454v1) and
 [REM](https://arxiv.org/html/2610.27377v1) inform the compact-method/source-reading
 question; [ProactMem](https://arxiv.org/html/2610.36967v1) informs event relevance.

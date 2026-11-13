@@ -1227,6 +1227,31 @@ experience-presence/absence contrast asks a different question. Choose the
 contrast needed for the claim, not an automatic factorial design. Report
 remaining exposure, selection and causal limits even when both paths complete.
 
+#### Conditional sufficiency and selective reconsideration
+
+Within assigned L1 work, select this contrast when stopping or later reconsideration
+is the unanswered decision; reuse adequate existing observations. Check whether
+satisfaction of the task's checked requirements leads to stopping unnecessary
+optional work without dropping unmet acceptance conditions, outstanding obligations
+or material unknowns. Retain the scope and basis of completion and relevant
+reconsideration conditions through existing outcome and agenda/source paths.
+
+Keep immediate criterion conformance, prediction match, later practical usefulness
+and authority separate. Use the declared observation horizon for delayed practical
+effects; pending or unavailable usefulness evidence does not erase a valid bounded
+completion, while missing required acceptance evidence still leaves that acceptance
+unmet. Later material evidence may warrant revisiting the affected judgment or work;
+duplicate or irrelevant additions should not by themselves reopen settled work.
+Preserve still-valid results and independent support rather than rerun everything.
+
+Assess premature stopping, missed warranted reconsideration and unnecessary
+continuation/reopening alongside actual outcomes and the existing
+[total-burden measures](#cost-and-user-burden). An incremental comparison of a
+proposed feedback-use change starts from current Augnes under the
+[strong-comparison rules](#strong-comparisons-and-independence), without disabling
+the baseline's ordinary judgment. These are decision-relevant observations, not
+mandatory new arms, a separate study or additional acceptance gates.
+
 ### Question-specific model evidence
 
 For the [selective application direction](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#selective-model-application-across-local-and-web-work),
