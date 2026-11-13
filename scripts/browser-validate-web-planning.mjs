@@ -519,6 +519,7 @@ try {
  console.log(JSON.stringify({web_planning_browser_checks:checks,acknowledgement_checks:acknowledgementChecks,actual_agent_read:false,sites_ingress_verified:false,cloudflare_access_hosted_verified:false,external_requests:external,script_exceptions:exceptions}));
 } catch(error){primaryError=error;observation.failure('owner',error);throw error;}
 finally {
+  let cleanupFailure;
   try {
     await settleWebPlanningBrowser({primary:primaryError,observe:observeStage,steps:[
       ...clients.map(c=>({name:'cdp',run:()=>c.close()})),
@@ -528,10 +529,12 @@ finally {
       ...(local?[{name:'runtime',run:()=>local.close()}]:[]),
       {name:'ownership',run:()=>assert.equal(owned.size,0)},
     ]});
-    console.log('web_planning_browser_cleanup_complete');
-  } finally {
-    console.log(JSON.stringify({web_planning_interception_diagnostics:clients.map(c=>c.interceptions.summary())}));
-    console.log(JSON.stringify({web_planning_browser_observation:observation.summary()}));
+    observation.record('web_planning_browser_cleanup_complete');
+  } catch(error){cleanupFailure=error;}
+  finally {
+    observation.record({web_planning_interception_diagnostics:clients.map(c=>c.interceptions.summary())});
+    observation.record({web_planning_browser_observation:observation.summary()});
+    observation.assertComplete({primary:primaryError,cleanup:cleanupFailure});
   }
 }
 function privateViewCleared(s){return s.work===null&&s.saved===null&&s.pending===null&&s.saveTicket===null&&!s.body.includes('Private material')&&!s.body.includes('Saved revision');}

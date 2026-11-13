@@ -259,8 +259,22 @@ export async function checkWebPlanningBrowserObservation() {
       assert.equal(closed,1,'diagnostics cannot skip or repeat actual cleanup');assert.equal(listener.listening,false);
     } finally {if(listener.listening)await new Promise(ok=>listener.close(ok));}
   }
+  const reportingFailure=new Error('constructed reporting failure');
+  const reporting=createWebPlanningBrowserObservation({report:event=>{if(event.web_planning_stage?.event!=='start')throw reportingFailure;}});
+  let acquired;
+  try {
+    acquired=await reporting.stage('actual resource acquisition',async()=>{
+      const value=createServer();await new Promise(ok=>value.listen(0,'127.0.0.1',ok));return value;
+    });
+    assert.equal(acquired.listening,true,'completion reporting cannot discard the acquired resource');
+    await settleWebPlanningBrowser({observe:reporting.stage,steps:[{name:'acquired',run:()=>new Promise(ok=>acquired.close(ok))}]});
+    assert.equal(acquired.listening,false);
+    await assert.rejects(reporting.stage('primary with reporter failure',async()=>{throw primary;}),error=>error===primary);
+    assert.throws(()=>reporting.assertComplete({primary}),error=>error.errors[0]===primary&&error.errors.includes(reportingFailure)&&error.cleanup_completed===true);
+    assert(reporting.summary().diagnostic_failures>0);
+  } finally {if(acquired?.listening)await new Promise(ok=>acquired.close(ok));}
   assert.deepEqual(recorder.summary().failed,2);
-  return {constructed:true,real_loopback_cleanup:true,immediate_failure:true,primary_preserved:true,all_cleanup_attempted:true,observer_independent_cleanup:true,bounded_observations:true,private_error_redacted:true};
+  return {constructed:true,real_loopback_cleanup:true,immediate_failure:true,primary_preserved:true,all_cleanup_attempted:true,observer_independent_cleanup:true,acquired_value_and_primary_survive_reporter_failure:true,bounded_observations:true,private_error_redacted:true};
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

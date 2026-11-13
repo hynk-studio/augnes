@@ -3,29 +3,40 @@ import { publicTimingLabel } from './browser-e2e-timing.mjs';
 // Diagnostic observations for this Browser owner; no timing verdict or retry.
 export function createWebPlanningBrowserObservation({
   now=()=>performance.now(), cpu=previous=>process.cpuUsage(previous),
-  report=value=>console.log(JSON.stringify(value)), maximumStages=512,
+  report=value=>console.log(typeof value==='string'?value:JSON.stringify(value)), maximumStages=512,
 }={}) {
   if(!Number.isSafeInteger(maximumStages)||maximumStages<1||maximumStages>512)
     throw new Error('web_planning_observation_bound_invalid');
-  const started=now(),initialCpu=cpu();let sequence=0,completed=0,failed=0;
+  const started=now(),initialCpu=cpu(),diagnosticErrors=[];let sequence=0,completed=0,failed=0;
+  const emit=value=>{try{report(value);}catch(error){diagnosticErrors.push(error);}};
   const errorIdentity=error=>({name:publicTimingLabel(String(error?.name||'Error')),code:typeof error?.code==='string'&&/^[a-z0-9_-]{1,80}$/i.test(error.code)?error.code:null,message:publicTimingLabel(String(error?.message||'Browser operation failed').split('\n')[0]||'Browser operation failed')});
   return Object.freeze({
     async stage(label,run) {
       if(sequence>=maximumStages)throw new Error('web_planning_observation_bound_exceeded');
       const id=++sequence,name=publicTimingLabel(label),start=now(),beforeCpu=cpu();
-      report({web_planning_stage:{id,name,event:'start',elapsed_ms:start-started,cpu_us:beforeCpu}});
+      emit({web_planning_stage:{id,name,event:'start',elapsed_ms:start-started,cpu_us:beforeCpu}});
       try {
         const result=await run();completed++;
-        report({web_planning_stage:{id,name,event:'complete',elapsed_ms:now()-started,duration_ms:now()-start,cpu_us:cpu(beforeCpu)}});
+        emit({web_planning_stage:{id,name,event:'complete',elapsed_ms:now()-started,duration_ms:now()-start,cpu_us:cpu(beforeCpu)}});
         return result;
       } catch(error) {
         failed++;
-        report({web_planning_stage:{id,name,event:'failure',elapsed_ms:now()-started,duration_ms:now()-start,cpu_us:cpu(beforeCpu),error:errorIdentity(error)}});
+        emit({web_planning_stage:{id,name,event:'failure',elapsed_ms:now()-started,duration_ms:now()-start,cpu_us:cpu(beforeCpu),error:errorIdentity(error)}});
         throw error;
       }
     },
-    failure(label,error) {report({web_planning_primary_failure:{name:publicTimingLabel(label),error:errorIdentity(error),elapsed_ms:now()-started}});},
-    summary() {return {started:sequence,completed,failed,elapsed_ms:now()-started,cpu_us:cpu(initialCpu)};},
+    failure(label,error) {emit({web_planning_primary_failure:{name:publicTimingLabel(label),error:errorIdentity(error),elapsed_ms:now()-started}});},
+    record:emit,
+    summary() {return {started:sequence,completed,failed,diagnostic_failures:diagnosticErrors.length,elapsed_ms:now()-started,cpu_us:cpu(initialCpu)};},
+    assertComplete({primary,cleanup}={}) {
+      if(!diagnosticErrors.length){if(cleanup)throw cleanup;return;}
+      const errors=[...(primary!==undefined?[primary]:[])];
+      if(cleanup)errors.push(...(cleanup instanceof AggregateError&&typeof cleanup.cleanup_completed==='boolean'?cleanup.errors.filter(e=>e!==primary):[cleanup]));
+      errors.push(...diagnosticErrors);
+      const failure=new AggregateError(errors,'Web Planning Browser diagnostic reporting failed');
+      failure.cleanup_completed=cleanup?cleanup.cleanup_completed===true:true;
+      throw failure;
+    },
   });
 }
 
