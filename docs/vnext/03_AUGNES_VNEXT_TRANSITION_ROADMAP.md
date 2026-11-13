@@ -24,7 +24,7 @@ progress. Registration and implementation activity are not completed capability.
 |---|---|---|
 | First implementation: [#1627](https://github.com/hynk-studio/augnes/issues/1627) | Admitted independent principals create/select private projects and continue their own purpose, source-grounded authored judgments, unfinished work and next action through ordinary browser and agent paths. | Enforce server-owned namespace selection and project-scoped recovery; preserve existing private deployments and history. Fresh-session continuation is required, not a new dashboard or another work ID in the installation owner's project. |
 | Commissioned cooperation: [#1630](https://github.com/hynk-studio/augnes/issues/1630) | Connect independently owned projects through permitted request, return, checked use/non-use and deliberately shared feedback; the contributor retains its own later work. | Consume the usable #1627 boundary and reuse completed #1589/merged #1591. Do not rebuild W1 or require the recipient to adopt a contribution before the contributor can continue. |
-| Commissioned succession: [#1628](https://github.com/hynk-studio/augnes/issues/1628) | A separately authorized successor resumes relevant purpose, judgments, methods, unfinished work and obligations within a scoped delegation. | Consume the project/identity boundary, not a universal hierarchy. Preserve historical authorship, scope/lifetime, revoked-access refusal and reconciliation of uncertain effects. |
+| Completed succession: [#1628](https://github.com/hynk-studio/augnes/issues/1628) | A separately authorized successor resumes relevant purpose, judgments, methods, unfinished work and obligations within a scoped delegation. | Consume the project/identity boundary, not a universal hierarchy. Preserve historical authorship, scope/lifetime, revoked-access refusal and reconciliation of uncertain effects. |
 | Commissioned bounded derivation: [#1629](https://github.com/hynk-studio/augnes/issues/1629) | Selected permitted methods and conditions enter a separately operated undertaking, serve a different task/consumer and remain usable after executor replacement. | Build when its actual ownership/material dependencies are available; not a prerequisite for the first W2 delivery. Lineage does not automatically transfer credentials, budgets, customer material or live authority. |
 
 The merged #1627 implementation provides admitted private project creation/selection,
@@ -34,16 +34,31 @@ reconstruction to the selected project. Browser and client entry share enforcing
 owners. This entry was merged in [#1631](https://github.com/hynk-studio/augnes/pull/1631)
 after final-target Mac qualification and receiving review. Deployment and hosted
 independent-user adoption remain separate. See the [Web entry guide](../../apps/web_planning/README.md#independent-private-projects-opt-in)
-for the implemented boundary; #1628, #1629 and #1630 remain follow-through.
+for the implemented boundary; #1628 is integrated below, while #1629 and #1630
+retain their own follow-through.
 
-The #1628 candidate adds one-work read/append succession: an admitted recipient
-uses its own sign-in to recover purpose, selected context and prior obligations,
-then records an attributed report and next action within an expiring, finite
-owner grant. Revocation, atomic budget/currentness checks, unknown-save readback
-and grant-free export/recovery use the ordinary Web owners. This is a Draft
-candidate requiring review and final-target qualification, not deployed or
-adopted capability. Rewriting the owner's purpose/material, arbitrary executor
-identity, subdelegation and automatic external execution are outside this role.
+The completed #1628 implementation merged in [#1639](https://github.com/hynk-studio/augnes/pull/1639)
+as `60c8f238c3bec248a806c5dfa50388dd004c3bc9`, preserving the qualified tree
+`48e74a3529dda01a8a84976f1e8ed8af61337495`. It provides one-work read/append
+succession: an admitted recipient uses its own sign-in to recover purpose,
+selected context and prior obligations, then records an attributed report and
+next action within an expiring, finite owner grant. Revocation, atomic cumulative
+budget/currentness checks, unknown-save readback and grant-free export/recovery
+use the ordinary Web owners. Source integration and exact-target qualification
+are distinct from deployment or hosted adoption. Rewriting the owner's
+purpose/material, arbitrary executor identity, subdelegation and automatic
+external execution remain outside this role.
+
+The current #1630 candidate connects that independent-project boundary to the
+existing #1589/#1591 request, return and checked-use workflow. B deliberately
+retains disclosed originals in an ordinary work it owns, prepares its own result,
+and explicitly returns selected saved files with exact project/work attribution.
+A can save checked partial use, adaptation or non-use and share bounded feedback;
+B continues independently. Browser and client operations share the same writers,
+source-grant resolution, immutable provenance and uncertainty reconciliation.
+Portable history carries no live grant. This candidate still requires its own
+review and final-target qualification; #1639's evidence or consumed allowance
+cannot qualify it. Bounded method derivation remains with #1629.
 
 The first W2 product result is independently owned continuing work, useful
 cross-project cooperation and an authorized successor's meaningful next step.
@@ -1679,6 +1694,10 @@ The implementation must connect four responsibilities through existing owners:
    sufficient. Bounded agenda/outlook calculations are optional methods; novel
    questions need not fit their supplied flags. A new supervisor/model service
    is not required.
+   Where dependencies, lead times or changing project conditions matter, use
+   source-linked event/state history to form conditional future options, including
+   new method combinations and preparation for opportunities. Carry their
+   assumptions, horizon and reconsideration signals through existing outlook paths.
 3. **Act and return.** Connect the selected question to an authorized existing
    execution path and its actual output/check. Read the returned material and
    retain the limits of what it establishes; a plan or receipt alone is not the
@@ -1711,6 +1730,11 @@ host/model instructions may already satisfy some or all of these responsibilitie
   from judgment/revision time where available; unknowns remain explicit. Preserve
   original observations, predictions and unaffected judgments. Rebuild the guide
   or mark affected material stale when its supporting revisions or conditions change.
+
+Within existing source-access and context bounds, a successor may revisit the
+underlying evidence to reframe a question or propose options outside the inherited
+set. Preserve earlier views as history, not proof of their forecasts; a new framing
+remains derived interpretation, not automatic replacement of accepted Perspective.
 
 Use existing context, source, expectation and outlook mechanisms where sufficient;
 the guide may be composed on demand. Deliver the instruction-to-read/use/update

@@ -1,3 +1,4 @@
+import { browserCrossProjectContributions } from './browser-web-planning-contributions.mjs';
 import { browserDraftSafety } from './browser-web-planning-draft-safety.mjs';
 import { browserWorkSuccession } from './browser-web-planning-succession.mjs';
 import { browserPublicRequest } from './browser-web-planning-public-requests.mjs';
@@ -228,15 +229,16 @@ async function navigate(c,url){
  // The command response can precede document commit. An old complete document,
  // including one at the same URL, cannot satisfy the new navigation.
  await wait(async()=>{const {frame}= (await c.send('Page.getFrameTree')).frameTree;
-   return frame.id===frameId&&(!loaderId||frame.loaderId===loaderId)&&await c.eval(`document.readyState==='complete'&&location.href===${JSON.stringify(frame.url)}`);
+   return frame.id===frameId&&(!loaderId||frame.loaderId===loaderId)&&await c.eval(`document.readyState==='complete'&&location.href===${JSON.stringify(frame.url+(frame.urlFragment??''))}`);
  },'destination document complete');
 }
 async function login(c,origin){await navigate(c,origin+'/_local/login');await wait(()=>c.eval("!!document.querySelector('form button')"),'login');await c.eval("document.querySelector('form button').click()");await wait(()=>c.eval("document.getElementById('list-state')?.textContent!=='Reading saved work…'&&!!document.getElementById('new-work')"),'workspace');}
 async function reopen(c){await wait(()=>c.eval("document.querySelectorAll('#work-list button').length>0"),'saved list');await c.eval("document.querySelector('#work-list button').click()");await wait(()=>visible(c,'editor'),'editor');}
 let checks=[], browserUse;
 try {
+ const cooperationOnly=process.argv[2]==='--cooperation';
  const recoveryOnly=process.argv[2]==='--participation-recovery',publicOnly=process.argv[2]==='--public-requests',reassessmentOnly=process.argv[2]==='--reassessment',draftSafetyOnly=process.argv[2]==='--draft-safety',successionOnly=process.argv[2]==='--succession';
- assert(process.argv.length===2||(recoveryOnly||publicOnly||reassessmentOnly||draftSafetyOnly||successionOnly)&&process.argv.length===3);
+ assert(process.argv.length===2||(cooperationOnly||recoveryOnly||publicOnly||reassessmentOnly||draftSafetyOnly||successionOnly)&&process.argv.length===3);
  testReadOnlyRequestWindow();
  local=await startLocal({root:path.join(root,'runtime')});const origin=local.origin;
  const debug=await availablePort();const profile=path.join(root,'chrome-profile'),downloads=path.join(root,'downloads');await mkdir(downloads);
@@ -259,6 +261,9 @@ try {
    await navigate(a,'about:blank');await closeLocalRuntime();local=await startLocal({root:path.join(root,'public-request-browser'),bindings:{...participantBindings(),PUBLIC_REQUEST_MODE:'selected-public-request-v1'}});
    const owner=await page(debug,local.origin,true);await owner.send('Network.setCookie',{name:'web_planning_local',value:local.env.LOCAL_SESSION,url:local.origin,httpOnly:true,sameSite:'Strict'});await navigate(owner,local.origin+'/');await wait(()=>owner.eval("typeof api==='function'&&!busy"),'public-request owner');
    await browserParticipation({owner,participant:()=>page(debug,local.origin,true),local,root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks,publication:publicationJourney});
+ }else if(cooperationOnly){
+   await navigate(a,'about:blank');await closeLocalRuntime();local=await startLocal({root:path.join(root,'cross-project-browser'),bindings:projectBindings()});
+   await browserCrossProjectContributions({owner:await page(debug,local.origin,true),participant:()=>page(debug,local.origin,true),local,root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
  }else if(successionOnly){
    await navigate(a,'about:blank');await closeLocalRuntime();local=await startLocal({root:path.join(root,'work-succession-browser'),bindings:projectBindings()});
    await browserWorkSuccession({owner:await page(debug,local.origin,true),successor:()=>page(debug,local.origin,true),local,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
@@ -404,6 +409,9 @@ try {
  for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=null;
  local=await startLocal({root:path.join(root,'work-succession-browser'),bindings:projectBindings()});
  await browserWorkSuccession({owner:await page(debug,local.origin,true),successor:()=>page(debug,local.origin,true),local,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
+ for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=null;
+ local=await startLocal({root:path.join(root,'cross-project-browser'),bindings:projectBindings()});
+ await browserCrossProjectContributions({owner:await page(debug,local.origin,true),participant:()=>page(debug,local.origin,true),local,root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
  assert.deepEqual(interceptionErrors,[]);
  // The same complete product journey now enters the compiled direct Worker
  // through workerd's platform Access simulation, without local login cookies.

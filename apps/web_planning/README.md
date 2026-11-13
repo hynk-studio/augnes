@@ -57,8 +57,8 @@ write in the original tab. Different tabs never imply shared write authority.
 Each project retains a randomly assigned stable author reference. A fresh browser
 or client using the same currently admitted authenticated principal can continue
 without rewriting prior authors. Email control does not identify a particular
-human, model or executor. A different principal's delegation/succession is not
-implemented by this entry. W1 requests still derive scope from their exact grant
+human, model or executor. A different principal's delegation uses the separately
+scoped succession path below. W1 requests still derive scope from their exact grant
 and authenticated recipient, independently of the recipient's own project.
 Grant IDs are globally unique for their existing unscoped request URLs; a second
 project cannot reuse an ID to make the original recipient's entry ambiguous.
@@ -84,6 +84,88 @@ For project-level task discovery, set `AUGNES_WEB_PROJECT_ID` to a returned proj
 ID; task-bound operations always use their exact setup. After reading the current
 continuation, the existing planning draft/ticket/save/resolve methods below record
 the later step. No special agent or scene-specific state path is needed.
+
+### Cross-project contributions (#1630)
+
+A request recipient who also owns an admitted private project can choose **Work
+in your own project** on the participant page. Choose a project, select shared
+originals, and supply your own work title and next step. **Keep selected originals
+in my project** creates an ordinary work with the exact selected bytes, original
+request identity, disclosed brief/conditions and historical attribution. The
+ordinary retained-work limits remain 8 files, 256 KiB each and 512 KiB total;
+larger originals remain readable through the existing request reader. This does
+not copy undisclosed request text, other files or either complete workspace.
+
+Open that work in its own project, edit or add files and save through the normal
+work editor. Back at the request, read **My saved contribution work**, select the
+exact saved revision's files, and explicitly confirm sharing their project author
+and work/revision identifiers. **Send selected saved results** returns only those
+files and your explanation/next action. The original request's one-answer limit
+still applies across browser and client sessions. A question or reframing is a
+valid return. The requester uses the existing checked-use editor to save use,
+adaptation, partial use, deferral or decline and deliberately shared feedback.
+B's ordinary work and next step remain independent of A's decision or access grant.
+
+Source operations resolve the exact stored request/grant and its owning project.
+The separate destination project must belong to the authenticated recipient;
+selected-project headers, editable setups and work IDs cannot transfer authority.
+Retention atomically rechecks the live disclosure grant and source existence.
+Return atomically checks that grant, A's frozen save base and B's exact current
+source revision. Source advances refuse a stale return; they do not substitute
+new material for the original disclosure. Subsequent reuse retains original
+conditions and attribution in history; current permission, corrections and
+source availability must be checked separately, never inferred from that copy.
+
+Both operations keep an exact browser recovery body in the existing per-operation
+journal before sending. A reload checks the pending operation before replacement;
+readback never writes. An absent result permits only the same eligible operation
+key/body, not a second contribution. A committed return can be reconciled even
+after B edits or erases its own source. Revoked/expired source access stops source
+reads and reconciliation; B's retained project work remains available under B's
+own authority. Existing local recovery downloads retain unknown drafts.
+
+The downloaded participant setup also exposes these methods through
+`openFileTask(setupPath).cooperation` in the ordinary supported local client:
+
+- `projects(cursor)` and `works(destination_project_id, cursor)` list only the
+  recipient's own projects and this request's retained contribution work.
+- `retain(input, resolve=false)` takes `destination_project_id`, `request_key`,
+  selected original `indices`, `title`, `next_action` and
+  `confirm: "retain-selected-request"`.
+- `returnSaved(input, resolve=false)` takes `destination_project_id`,
+  `request_key`, the request's frozen `expected`, exact B `source` WorkRef,
+  selected `indices`, `message`, `next_action` and
+  `confirm: "share-selected-results-and-attribution"`.
+
+Keep each exact input until acknowledged; call with `resolve=true` first after
+unknown delivery. The setup's source request is validated before these operations.
+Use the recipient's existing Access login and approved origin as for W1; browser
+Sites entry does not supply a headless Access session. The public App catalog and
+its read-only tool surface remain unchanged.
+
+These client methods and browser forms use `GET /api/participation/<grant>/projects`
+(with optional cursor) and POST subroutes `project-works`, `retain`,
+`retain-resolve`, `project-return`, `project-return-resolve`. POST includes the
+normal source `workspace_id`/`project_id`, recipient CSRF, and the explicit owned
+`destination_project_id`. `project-works` takes `cursor` (empty for the first
+page); other POST bodies additionally include the exact source `request` WorkRef.
+No operation derives source authority from the destination selection.
+
+New retained-request, project-attributed return and use records require v0.11
+(`web-planning/11`). Retention records its disclosure only in the first revision;
+later authored changes do not rewrite it. Returns and their use retain B's exact
+source attestation. Existing v0.1–v0.10 records and bytes remain unchanged. No
+migration, operational grant, dependency or native Core record is added. Full
+and readable exports retain historical provenance; supported empty-store recovery
+restores bytes without live grants. After v0.11 data exists, rollback needs a
+v0.11-compatible reader/writer. Deployment and production migration are separate
+authorized operations, not prerequisites fulfilled by a local fixture.
+
+Focused development: `node scripts/run-web-planning.mjs cooperation` and
+`node scripts/run-web-planning.mjs cooperation-browser`. The full existing Web
+and Browser owners also include these checks with their unchanged deadlines.
+Controlled local sign-ins and scripted judgments are not hosted adoption,
+independent review, comparative usefulness or evidence of market demand.
 
 ### Scoped work succession (#1628)
 

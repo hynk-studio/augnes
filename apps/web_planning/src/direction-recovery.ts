@@ -1,3 +1,4 @@
+import { CONTRIBUTION_EXPORT } from './contribution-contract';
 import { assertHistoryBudget, canonical, canonicalBytes, exact, fail, hash, reference, type Scope } from "./contract";
 import { PARTICIPATION_EXPORT } from "./participation-contract";
 import { CONTINUATION_EXPORT } from "./continuation-contract";
@@ -12,7 +13,7 @@ export function directionExport(works:unknown[]){
  const content={format:DIRECTION_EXPORT,schema:1,compatibility:"web-planning/directions-1",works};
  const value={...content,fingerprint:hash(canonical(content))};
  // Leave room for the unchanged route's scope/confirmation wrapper.
- const limit=works.some(w=>[LARGE_EXPORT,USE_EXPORT,PARTICIPATION_EXPORT,REASSESSMENT_EXPORT,CONTINUATION_EXPORT].includes((w as {format:string})?.format))?LARGE_PAIR_REQUEST_BYTES:FILE_EXPORT_REQUEST_BYTES;
+ const limit=works.some(w=>[CONTRIBUTION_EXPORT,LARGE_EXPORT,USE_EXPORT,PARTICIPATION_EXPORT,REASSESSMENT_EXPORT,CONTINUATION_EXPORT].includes((w as {format:string})?.format))?LARGE_PAIR_REQUEST_BYTES:FILE_EXPORT_REQUEST_BYTES;
  if(canonicalBytes(value)+512>limit)fail("reconstruction_budget_exceeded",422);
  return value;
 }

@@ -216,7 +216,13 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
     return (await request(root + (participant?'/':'/exchanges/') + (resolve ? 'resolve' : 'save'), body)).json();
   }
   async function feedback(cursor){if(!participant)fail('Choose a participant setup.');return (await request(root+'/feedback'+(cursor?'?cursor='+encodeURIComponent(cursor):''))).json();}
-  return { participant, feedback, project: project.name, work_id, setupDigest: digest(selected), planning, list, get, readPage, write, inspectReturn, prepareReturn, sendReturn, savedFile, recordedOrigin, readOrigin, evidenceFile, inspectUse, prepareReassessment, sendReassessment };
+  const cooperation={
+    async projects(cursor){if(!participant)fail('Choose a participant setup.');await list();return json('/projects'+(cursor?'?cursor='+encodeURIComponent(cursor):''));},
+    async works(destination_project_id,cursor=''){await list();return json('/project-works',{destination_project_id,cursor});},
+    async retain(input,resolve=false){await list();return json(resolve?'/retain-resolve':'/retain',{...input,request:setup.request});},
+    async returnSaved(input,resolve=false){await list();return json(resolve?'/project-return-resolve':'/project-return',{...input,request:setup.request});},
+  };
+  return { cooperation, participant, feedback, project: project.name, work_id, setupDigest: digest(selected), planning, list, get, readPage, write, inspectReturn, prepareReturn, sendReturn, savedFile, recordedOrigin, readOrigin, evidenceFile, inspectUse, prepareReassessment, sendReassessment };
 }
 
 // A separately authenticated successor uses only the one-work continuation routes.

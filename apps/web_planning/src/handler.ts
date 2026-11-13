@@ -1,4 +1,6 @@
 /// <reference path="./assets.d.ts" />
+import { CONTRIBUTION_EXPORT } from './contribution-contract';
+import { retainContribution, contributionWorks, returnContribution } from './contributions';
 import { CONTINUATION_EXPORT } from './continuation-contract';
 import { activeContinuation, continuationContext, continuationView, createContinuation, listContinuations, revokeContinuation, resolveContinuation, writeContinuation } from './continuation';
 import { continuationPage } from './continuation-page';
@@ -145,7 +147,20 @@ export async function handle(request:Request,env:Environment,principal:Principal
       else if(request.method==='GET' && !url.search && suffix==='/exchange-text.mjs')result=new Response(exchangeTextModule,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
       else if(request.method==='GET' && !url.search && suffix==='/style.css')result=new Response(style,{headers:{...headers,'Content-Type':'text/css; charset=utf-8'}});
       else if(request.method==='GET' && !url.search && suffix==='')result=json(participantView(access,c));
-      else if(request.method==='GET' && suffix==='/feedback'){
+      else if(request.method==='GET' && suffix==='/projects'){
+        if([...url.searchParams.keys()].some(k=>k!=='cursor')||url.searchParams.getAll('cursor').length>1)fail('scope_denied',403);
+        result=json(await listProjects(await authorize(request,env,principal,undefined,true),url.searchParams.get('cursor')??''));
+      }else if(request.method==='POST' && ['/retain','/retain-resolve','/project-works','/project-return','/project-return-resolve'].includes(suffix)){
+        if(url.search)fail('scope_denied',403);
+        requireCsrf(access,request);const input=await body(request);requireScope(access,input);
+        if(!UUID.test(String(input.destination_project_id)))fail('scope_denied',403);
+        const ownHeaders=new Headers(request.headers);ownHeaders.set('x-web-planning-project',String(input.destination_project_id));
+        const own=await authorize(new Request(request.url,{method:request.method,headers:ownHeaders}),env,principal);
+        if(suffix==='/project-works'){
+          exact(input,'workspace_id,project_id,destination_project_id,cursor');
+          result=json(await contributionWorks(access,own,c,String(input.cursor??'')));
+        }else result=json(await (suffix.startsWith('/retain')?retainContribution: returnContribution)(access,own,c,input,suffix.endsWith('resolve')));
+      }else if(request.method==='GET' && suffix==='/feedback'){
         if([...url.searchParams.keys()].some(k=>k!=='cursor')||url.searchParams.getAll('cursor').length>1)fail('scope_denied',403);
         result=json(await participantFeedbackView(access,c,url.searchParams.get('cursor')));
       }else if(request.method==='GET' && !url.search && suffix==='/setup'){
@@ -330,7 +345,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
     if(path==="/api/reconstruct" || path==="/api/reconstruct-files" || extendedRestore) {
       exact(input,"workspace_id,project_id,export,confirm");
       if(env.RECONSTRUCTION_MODE!=="quiesced-empty-store" || input.confirm!=="reconstruct-empty-store")fail("reconstruction_disabled",403);
-      if(path==="/api/reconstruct-exchange" && ![CONTINUATION_EXPORT,LARGE_EXPORT,USE_EXPORT,PARTICIPATION_EXPORT,REASSESSMENT_EXPORT].includes(input.export?.format) ||
+      if(path==="/api/reconstruct-exchange" && ![CONTRIBUTION_EXPORT,CONTINUATION_EXPORT,LARGE_EXPORT,USE_EXPORT,PARTICIPATION_EXPORT,REASSESSMENT_EXPORT].includes(input.export?.format) ||
          path==="/api/reconstruct-directions" && input.export?.format!==DIRECTION_EXPORT)fail("incompatible_format",409);
       if((path==="/api/reconstruct-files" || path==="/api/reconstruct-directions") && input.export?.format===DIRECTION_EXPORT){
         const works=validateDirectionExport(access,input.export);await reconstructWorks(access,works);
@@ -389,7 +404,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
       if(!sameBinding(headBinding(head),expected))fail("refresh_required",409);
       if(action==="context") {const refs=await referenceAvailability(access,head);
         if(!await headsCurrent(access,reference(head),reference(head)))fail("refresh_required",409);
-        return html(renderContext(head,chain.at(-2),refs.availability,refs.reviewSource,exchangeList(chain).decisions.flatMap(d=>"current" in d?[d.current!]:[])));}
+        return html(renderContext(head,chain.at(-2),refs.availability,refs.reviewSource,exchangeList(chain).decisions.flatMap(d=>"current" in d?[d.current!]:[]),chain[0].contribution_request));}
       if(action==="ticket") {
         const {histories}=await selectionHistories(access,id,input.material_edits);
         const prepared=bound?await applyReturn(access,id,chain,await prepareSceneDraft(access,chain,selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,chain,histories),input.files,head),input.scene),input.return_choice):undefined;
