@@ -71,8 +71,8 @@ decisions and outstanding next action without a private chat. Partial advice and
 unaccepted conditional offers remain distinct from successful resource acquisition
 or new authority. Controlled HTTP/D1 and fresh-process checks establish mechanism
 behavior only; final-target qualification has its own outcome. Public disclosure
-and common fixture maintenance remain with #1641/#1644 and #1648 respectively,
-and neither unfinished candidate is a prerequisite for this available private
+remains with #1641/#1644, and common fixture maintenance is integrated through
+merged #1648. Their separate work is not a prerequisite for this available private
 transport. See the [client guide](../../apps/web_planning/README.md#need-driven-request-through-the-authenticated-http-client-1642).
 
 The first W2 product result is independently owned continuing work, useful
