@@ -32,9 +32,29 @@ export function createWebPlanningBrowserObservation({
 // Attempt every owned cleanup step. An earlier body failure is first in any
 // aggregate, and remains the caller's thrown error when cleanup succeeds.
 export async function settleWebPlanningBrowser({primary,steps,observe=async(_name,run)=>run()}) {
-  const errors=[];
+  const errors=[],observationErrors=[],cleanupErrors=[];
   for(const {name,run} of steps) {
-    try {await observe('cleanup.'+name,run);} catch(error) {errors.push(error);}
+    let started=false,running,observationError,observationFailed=false,cleanupError,cleanupFailed=false;
+    const runOnce=()=>{
+      if(!started){started=true;running=Promise.resolve().then(()=>run());}
+      return running;
+    };
+    try {
+      await observe('cleanup.'+name,runOnce);
+      if(!started)throw new Error('web_planning_cleanup_observation_skipped_callback');
+    } catch(error) {observationFailed=true;observationError=error;}
+    // An exhausted/failed reporter cannot decide whether cleanup runs. Await
+    // the same promise if observation already invoked it, including late errors.
+    try {await runOnce();} catch(error) {cleanupFailed=true;cleanupError=error;}
+    if(observationFailed&&(!cleanupFailed||observationError!==cleanupError)){
+      observationErrors.push(observationError);errors.push(observationError);
+    }
+    if(cleanupFailed){cleanupErrors.push(cleanupError);errors.push(cleanupError);}
   }
-  if(errors.length)throw new AggregateError([...(primary!==undefined?[primary]:[]),...errors],'Web Planning Browser cleanup failed');
+  if(errors.length){
+    const failure=new AggregateError([...(primary!==undefined?[primary]:[]),...errors],'Web Planning Browser settlement failed');
+    failure.cleanup_completed=cleanupErrors.length===0;
+    failure.observation_errors=observationErrors;failure.cleanup_errors=cleanupErrors;
+    throw failure;
+  }
 }

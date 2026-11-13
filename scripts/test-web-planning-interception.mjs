@@ -246,8 +246,21 @@ export async function checkWebPlanningBrowserObservation() {
   } finally {if(server.listening)await new Promise(ok=>server.close(ok));}
   await assert.rejects((async()=>{try{throw primary;}finally{await settleWebPlanningBrowser({steps:[]});}})(),error=>error===primary);
   await assert.rejects(settleWebPlanningBrowser({steps:[{name:'alone',run:async()=>{throw secondary;}}]}),error=>error.errors[0]===secondary&&error.errors.length===1);
+  for(const mode of ['exhausted','throw-before','throw-after']) {
+    const listener=createServer();await new Promise(ok=>listener.listen(0,'127.0.0.1',ok));let closed=0;
+    const diagnostic=new Error('constructed observation failure');
+    const bounded=createWebPlanningBrowserObservation({report:()=>{},maximumStages:1});
+    await bounded.stage('spent',async()=>{});
+    const observe=mode==='exhausted'?bounded.stage:async(_name,run)=>{if(mode==='throw-after')await run();throw diagnostic;};
+    try {
+      await assert.rejects(settleWebPlanningBrowser({primary,observe,steps:[
+        {name:'listener',run:async()=>{closed++;await new Promise((ok,no)=>listener.close(e=>e?no(e):ok()));}},
+      ]}),error=>error.errors[0]===primary&&error.errors.length===2&&error.cleanup_completed===true&&error.cleanup_errors.length===0&&error.observation_errors.length===1);
+      assert.equal(closed,1,'diagnostics cannot skip or repeat actual cleanup');assert.equal(listener.listening,false);
+    } finally {if(listener.listening)await new Promise(ok=>listener.close(ok));}
+  }
   assert.deepEqual(recorder.summary().failed,2);
-  return {constructed:true,real_loopback_cleanup:true,immediate_failure:true,primary_preserved:true,all_cleanup_attempted:true,bounded_observations:true,private_error_redacted:true};
+  return {constructed:true,real_loopback_cleanup:true,immediate_failure:true,primary_preserved:true,all_cleanup_attempted:true,observer_independent_cleanup:true,bounded_observations:true,private_error_redacted:true};
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

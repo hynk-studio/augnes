@@ -524,7 +524,8 @@ finally {
       ...clients.map(c=>({name:'cdp',run:()=>c.close()})),
       ...(processRecord?[{name:'chrome',run:()=>terminateOwnedProcessTree(processRecord)}]:[]),
       {name:'browser_identity',run:()=>browserUse?.finish()},
-      ...(local?[{name:'runtime',run:()=>closeLocalRuntime()}]:[]),
+      // Final disposal cannot re-enter a diagnostic wrapper that may have failed.
+      ...(local?[{name:'runtime',run:()=>local.close()}]:[]),
       {name:'ownership',run:()=>assert.equal(owned.size,0)},
     ]});
     console.log('web_planning_browser_cleanup_complete');
