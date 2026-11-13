@@ -1433,6 +1433,38 @@ may retain the after witness only with the complete exact Git delta and identica
 consumed bytes; executable changes require relevant new evidence. Witness originals
 are never relabeled.
 
+The explicit material attribution `material-common-candidate-driver-v1` permits
+one reviewed candidate MJS driver with predecessor/final implicated modules.
+It is not the v10 successor case. The before role is a candidate harness with
+only named materially changed modules replaced by exact predecessor bytes; its
+Git HEAD remains the candidate and it is never described as a clean predecessor
+checkout. Both roles bind the complete effective physical source catalogue,
+common candidate source digest, separate driver and tested-module identities,
+actual Node-loaded project sources, unchanged runtime/environment and all three
+prepared dependency trees. Source substitutions outside that partition refuse.
+The compiled Worker input inventory and executed bundle identity must also
+remain equal. Equal lexical child environments require a freshly created empty
+owned directory per role, with prior settlement, removal and observed absence
+before the same path can be recreated; mutable HOME/temp/cache/runtime state
+cannot carry between roles.
+
+The concrete request-transport driver preserves real Worker/session/request
+assertions. It selects only a body-bearing local POST `/api/drafts` with declared
+length above the reader limit, converts those same bytes to a scheduled stream,
+and releases the remainder only after that exact actual Undici request's 413
+headers. Unknown-length streaming is not selected. Fresh ports/session/CSRF
+values remain raw per-run observations; matching semantic setup does not imply
+identical secret or header digests across roles or reconstruct historical order.
+The evidence reader requires a natural selected-response-body EPIPE after setup,
+correlation and actual 413, plus complete final assertions and natural cleanup.
+Setup, loader, harness, timeout or cleanup failure cannot supply RED. Every
+outcome and original counter/error remains retained. Typed-kind mixtures,
+post-pass/acquisition fallback, unknown attribution and after-equivalence refuse.
+The complete final executable delta, including these readers, requires separate
+review. This attribution supplies no acceptance, execution allowance or retry;
+existing preparation, authenticated authority, physical lineage and final Full
+requirements remain controlling.
+
 For a compiler defect, the bounded `repository-typecheck-v1` alternative records
 the unchanged `npm run typecheck` (`npm run typegen && tsc --noEmit`) with actual
 natural RED exit 2 and GREEN exit 0. It binds exact clean Git heads/trees and tree

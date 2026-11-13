@@ -1100,6 +1100,12 @@ function runCanonicalRevisionReaderCases() {
     }
   }
   assert.equal(reader.read(before, "docs/empty.md"), "");
+  const binary = Buffer.from([0, 255, 10, 1]);
+  assert.deepEqual(reader.readBytes(before, "docs/binary.bin"), binary);
+  const callerBytes = reader.readBytes(before, "docs/binary.bin");
+  callerBytes.fill(0);
+  assert.deepEqual(reader.readBytes(before, "docs/binary.bin"), binary, "binary reads cannot mutate the shared cache");
+  assert.throws(() => reader.readBytes(before, "docs/binary.bin", 3), /bounded input size/u);
   assert.throws(() => reader.read(after, "docs/empty.md"), /git show failed/u);
   assert.equal(reader.tree(after).has("docs/literal1x.md"), false, "no pathspec expansion");
   assert.throws(() => reader.tree("HEAD"), /exact SHA/u);

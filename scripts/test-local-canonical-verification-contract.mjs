@@ -1917,6 +1917,15 @@ try {
   assert.equal(canonicalChildAcceptanceFailure(result,{requireNaturalExit:true,requireCompleteCleanup:true,timeoutMs:30000}),null);
 } finally { assert(cleanupCanonicalTestResources([allowanceResource]).every(v=>v.completed)); }
 
+const commonDriverResource=createCanonicalTestResourceRoot("ag-resource-test-");
+try {
+  const result=await runCanonicalChild({suite:"verification-contract",label:"material common-driver attribution controls",command:process.execPath,
+    args:["scripts/test-local-canonical-common-driver.mjs"],cwd:repositoryRoot,
+    env:buildCanonicalChildEnvironment({temporaryRoot:commonDriverResource.root}),resourceOwner:commonDriverResource,timeoutMs:10000,
+    stdout:process.stdout,stderr:process.stderr,log(){}});
+  assert.equal(canonicalChildAcceptanceFailure(result,{requireNaturalExit:true,requireCompleteCleanup:true,timeoutMs:10000}),null);
+} finally { assert(cleanupCanonicalTestResources([commonDriverResource]).every(v=>v.completed)); }
+
 console.log(
   JSON.stringify(
     {

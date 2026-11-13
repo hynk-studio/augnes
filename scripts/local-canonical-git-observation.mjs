@@ -14,6 +14,8 @@ import { GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM, GENERATED_STOCK_GRANT,
 import { REPOSITORY_TYPECHECK, verifyRepositoryTypecheck } from "./local-canonical-typecheck-witness.mjs";
 import { REPOSITORY_PURE_CONTRACT, verifyRepositoryPureContract } from "./local-canonical-pure-contract-witness.mjs";
 import { INTEGRATION_BASE_CONTRACT, validAdmittedIntegrationBase, usesDeclaredIntegrationBase } from "./local-canonical-integration-base.mjs";
+import { MATERIAL_COMMON_DRIVER, verifyMaterialCommonDriver } from "./local-canonical-common-driver.mjs";
+export { MATERIAL_COMMON_DRIVER } from "./local-canonical-common-driver.mjs";
 
 export const isGitObservationRevision = p =>
   p?.schema === "augnes.local-canonical-source-correction.v10" && p.kind === "reviewed_revision";
@@ -424,6 +426,11 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
   if (isGitObservationSuccessor(p) && regression?.attribution === "candidate-driver-prior-implicated-source")
     return verifyCanonicalTsRepair(p,prior,focused,{git,parse,bytes,completedAt,repositoryRoot});
   const material = isMaterialSourceRevision(p);
+  if (regression?.attribution === MATERIAL_COMMON_DRIVER) {
+    if (!material || postPass || acquisition || retainedBefore) fail("revision_git_regression_invalid");
+    return verifyMaterialCommonDriver(p,prior,focused,{git,parse,bytes,completedAt,repositoryRoot});
+  }
+  if (material && regression?.attribution !== undefined) fail("revision_git_regression_invalid");
   if (regression?.kind!==undefined) {
     if (!material) fail("revision_git_regression_invalid");
     if (regression.kind===VERIFIER_LIFECYCLE_REPAIR)
