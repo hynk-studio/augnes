@@ -3,7 +3,13 @@ import http from 'node:http';
 import { once } from 'node:events';
 import { createRequire, registerHooks } from 'node:module';
 import { createHash } from 'node:crypto';
-import { installControlledUpload, selectControlledUpload, CONTROLLED_UPLOAD_CHUNK_BYTES } from './web-planning-controlled-upload.mjs';
+import { readFileSync, writeFileSync, symlinkSync } from 'node:fs';
+import path from 'node:path';
+import { build } from 'esbuild';
+import { fileURLToPath } from 'node:url';
+import { bundleWebPlanning } from './build-web-planning.mjs';
+import { createCanonicalTestResourceRoot, beginCanonicalTestResourceUse, settleCanonicalTestResourceUse, cleanupCanonicalTestResources } from './canonical-test-environment.mjs';
+import { installControlledUpload, selectControlledUpload, CONTROLLED_UPLOAD_CHUNK_BYTES, observeControlledWorkerInput } from './web-planning-controlled-upload.mjs';
 
 // Small authoring controls. This uses the pinned transport against real local
 // sockets; it does not execute either prospective product comparison role.
@@ -13,6 +19,27 @@ const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
 const limit=CONTROLLED_UPLOAD_CHUNK_BYTES,payload=Uint8Array.from({length:limit*2+17},(_,i)=>i%251);
 const headers={'content-length':String(payload.byteLength),'content-type':'application/json','x-synthetic-check':'kept'};
 const findings=[];
+const inputOwner=createCanonicalTestResourceRoot('ag-resource-test-');beginCanonicalTestResourceUse(inputOwner);
+try{
+ writeFileSync(path.join(inputOwner.root,'payload.txt'),'synthetic literal',{mode:0o600});
+ writeFileSync(path.join(inputOwner.root,'entry.mjs'),"import text from './payload.txt?raw'; export default text;",{mode:0o600});
+ const built=await build({absWorkingDir:inputOwner.root,entryPoints:['entry.mjs'],bundle:true,write:false,format:'esm',loader:{'.txt':'text'},metafile:true});
+ const rows=Object.keys(built.metafile.inputs).map(input=>observeControlledWorkerInput(inputOwner.root,input));
+ assert(rows.some(row=>row.input==='payload.txt?raw'&&row.path==='payload.txt'&&row.sha256===digest(readFileSync(path.join(inputOwner.root,'payload.txt')))));
+ assert(rows.some(row=>row.input==='entry.mjs'&&row.path==='entry.mjs'));
+ for(const input of ['../payload.txt','/payload.txt','payload.txt?other','payload.txt?other.txt?raw','payload.txt#raw'])assert.throws(()=>observeControlledWorkerInput(inputOwner.root,input),/ERR_CONTROLLED_WORKER_INPUT/);
+ symlinkSync('payload.txt',path.join(inputOwner.root,'link.txt'));assert.throws(()=>observeControlledWorkerInput(inputOwner.root,'link.txt'),/ERR_CONTROLLED_WORKER_INPUT/);
+ findings.push('actual pinned esbuild raw-text input keeps its identifier and exact physical bytes; unsupported suffix/outside/symlink inputs refuse');
+}finally{
+ settleCanonicalTestResourceUse(inputOwner,{exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0});
+ assert(cleanupCanonicalTestResources([inputOwner]).every(value=>value.completed));
+}
+const repositoryRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const actualBundle=await bundleWebPlanning(path.join(repositoryRoot,'scripts/web-planning-local-ingress.ts'));
+const actualInputs=actualBundle.inputs.map(input=>observeControlledWorkerInput(repositoryRoot,input));
+assert(actualInputs.some(row=>row.input.endsWith('.txt?raw')));
+assert(actualInputs.length>0&&new Set(actualInputs.map(row=>row.input)).size===actualInputs.length);
+findings.push('complete actual Worker input inventory resolves and binds before any Worker/session/request comparison');
 const imported=[];let actualRequestBytes;
 const hook=registerHooks({load(url,context,nextLoad){const result=nextLoad(url,context);imported.push(url);return result;}});
 try{actualRequestBytes=(await import('../apps/web_planning/src/contract.ts')).REQUEST_BYTES;assert(Number.isSafeInteger(actualRequestBytes)&&actualRequestBytes>=CONTROLLED_UPLOAD_CHUNK_BYTES);}

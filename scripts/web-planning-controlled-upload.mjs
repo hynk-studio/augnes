@@ -1,10 +1,25 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { channel } from 'node:diagnostics_channel';
 import { createHash } from 'node:crypto';
+import { lstatSync, readFileSync, realpathSync } from 'node:fs';
+import path from 'node:path';
 
 export const CONTROLLED_UPLOAD_CHUNK_BYTES = 65536;
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const fault = code => Object.assign(new Error(code), { code });
+// esbuild preserves a text import's ?raw suffix in its input identifier; that
+// suffix is not part of the file it read. Retain both identities explicitly.
+export function observeControlledWorkerInput(root,input) {
+ if(typeof input!=='string'||path.isAbsolute(input)||input.includes('#')||
+   input.includes('?')&&(!input.endsWith('.txt?raw')||input.indexOf('?')!==input.length-4))throw fault('ERR_CONTROLLED_WORKER_INPUT');
+ const physical=input.endsWith('.txt?raw')?input.slice(0,-4):input;
+ if(path.normalize(physical)!==physical||physical==='..'||physical.startsWith('../'))throw fault('ERR_CONTROLLED_WORKER_INPUT');
+ const file=path.join(root,physical),before=lstatSync(file,{bigint:true});
+ if(!before.isFile()||realpathSync(file)!==file)throw fault('ERR_CONTROLLED_WORKER_INPUT');
+ const bytes=readFileSync(file),after=lstatSync(file,{bigint:true});
+ if(['dev','ino','mode','uid','gid','nlink','size','mtimeNs','ctimeNs'].some(key=>before[key]!==after[key]))throw fault('ERR_CONTROLLED_WORKER_INPUT_DRIFT');
+ return {input,path:physical,byte_size:bytes.length,sha256:hash(bytes)};
+}
 export function controlledUploadError(error,depth=0) {
  if (!error) return null;
  return {name:String(error.name??'Error'),code:error.code??null,message:String(error.message??error).slice(0,512),

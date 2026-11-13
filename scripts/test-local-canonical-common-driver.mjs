@@ -38,7 +38,7 @@ try{
  const make=(label,catalogue,tested,exit)=>{
   const summary={contract:"augnes.common-request-transport-observation.v1",imports_complete:true,assertions_complete:exit===0,cleanup_complete:true,
    primary_error_stage:exit?"response_body":null,primary_error:exit?{name:"TypeError",cause:{code:"EPIPE"}}:null,primary_selected:exit===1,primary_response_status:exit?413:null,
-   first_transport_error:exit?{code:"EPIPE"}:null,cleanup_errors:[],checkpoints:["controlled protocol assertion"],actual_imports:catalogue.map(({path,byte_size,sha256})=>({path,byte_size,sha256})),worker_bundle:{bytes:1,sha256:digest("controlled bundle")},worker_inputs:catalogue.filter(v=>v.path===driver).map(({path,byte_size,sha256})=>({path,byte_size,sha256})),
+   first_transport_error:exit?{code:"EPIPE"}:null,cleanup_errors:[],checkpoints:["controlled protocol assertion"],actual_imports:catalogue.map(({path,byte_size,sha256})=>({path,byte_size,sha256})),worker_bundle:{bytes:1,sha256:digest("controlled bundle")},worker_inputs:catalogue.filter(v=>v.path===driver).map(({path,byte_size,sha256})=>({input:path,path,byte_size,sha256})),
    selected_uploads:exit?[{correlated_requests:1,matching_413_headers:1,released:true,harness_error:null,transport_error:{code:"EPIPE"},payload_sha256:digest("controlled payload"),headers_sha256:digest("controlled headers"),declared_length:131072,enqueued_bytes:65536}]:[]};
   const stdout=ref(label+".log",COMMON_DRIVER_RESULT_PREFIX+JSON.stringify(summary)+"\n");
   return ref(label+".json",{attribution:MATERIAL_COMMON_DRIVER,driver_source_head:head,tested_source_head:tested,
@@ -66,6 +66,7 @@ try{
   s=>s.primary_error=null,s=>s.primary_error={code:"UNRELATED"},s=>s.selected_uploads[0].transport_error=null,
   s=>s.first_transport_error={code:"EPIPE",message:"detached"},
   s=>s.worker_inputs.push({path:"scripts/untracked.mjs",byte_size:1,sha256:digest("untracked")}),
+  s=>s.worker_inputs[0].input=s.worker_inputs[0].path+'?unbound',
   s=>s.selected_uploads[0].matching_413_headers=2,s=>s.selected_uploads[0].harness_error={code:"ERR_CONTROLLED_UPLOAD_RESPONSE_TIMEOUT"},
   s=>s.cleanup_errors.push({code:"cleanup"}),s=>s.actual_imports[0].sha256=digest("wrong import")])mutateWitness("before",w=>{const s=JSON.parse(bytes(w.stdout).toString().slice(COMMON_DRIVER_RESULT_PREFIX.length));mutate(s);w.stdout=ref("bad-summary-"+refused+".log",COMMON_DRIVER_RESULT_PREFIX+JSON.stringify(s)+"\n");});
  mutateWitness("after",w=>w.tested_source_head=prior.head);

@@ -39,11 +39,7 @@ try{
  if(!owner.root.startsWith(canonicalRoot+path.sep))throw new Error('common_driver_resource_containment');
  resources.beginCanonicalTestResourceUse(owner);
  const built=await bundleWebPlanning(path.join(repositoryRoot,'scripts/web-planning-local-ingress.ts'));
- workerInputs=built.inputs.map(input=>{
-  const file=path.resolve(input),relative=path.relative(repositoryRoot,file);
-  if(relative.startsWith('..')||path.isAbsolute(relative)||realpathSync(file)!==file)throw new Error('common_driver_worker_input_outside');
-  const bytes=readFileSync(file);return {path:relative,byte_size:bytes.length,sha256:digest(bytes)};
- }).sort((a,b)=>a.path.localeCompare(b.path));
+ workerInputs=built.inputs.map(input=>control.observeControlledWorkerInput(repositoryRoot,input)).sort((a,b)=>a.input.localeCompare(b.input));
  server=await startLocal({root:owner.root,code:built.code,handleStructuredLogs:log=>{
   if(!log||typeof log!=='object'||Array.isArray(log)||typeof log.level!=='string'||typeof log.message!=='string'||typeof log.timestamp!=='number')
    throw new Error('common_driver_structured_log_contract');
