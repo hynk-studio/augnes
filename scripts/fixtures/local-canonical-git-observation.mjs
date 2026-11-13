@@ -7,7 +7,7 @@ import { digest, INPUT_CONTRACT, inputEventIdentity, createGitTrackingResource, 
 import { CANONICAL_NODE_VERSION } from "../local-canonical-environment.mjs";
 import { finalizeReceipt } from "../local-canonical-receipt.mjs";
 import { REVIEWED_REVISION_PHASES, reconstructAttemptTip, inspectGitRevisionPreparation, readSourceCorrectionProof, reviewedRevisionAuthorityObservation } from "../local-canonical-attempts.mjs";
-import { GIT_INPUT_REVISION, GIT_INPUT_HISTORY_BOUNDARY, gitObservationIncident, gitRevisionInventory, gitReviewTarget, finalDependencyCommand, finalDependencyProbe, verifyGitRevisionFailure, verifyGitRevisionSuccess, postPassReviewFields } from "../local-canonical-git-observation.mjs";
+import { GIT_INPUT_REVISION, DIRECT_GIT_INPUT_REVISION, gitInputHistoryBoundary, GIT_INPUT_HISTORY_BOUNDARY, gitObservationIncident, gitRevisionInventory, gitReviewTarget, finalDependencyCommand, finalDependencyProbe, verifyGitRevisionFailure, verifyGitRevisionSuccess, postPassReviewFields } from "../local-canonical-git-observation.mjs";
 
 import { runCanonicalChild } from "../canonical-child-runner.mjs";
 import { behavior, dependencyRecords, executeFixture } from "./local-canonical-browser-successor.mjs";
@@ -23,12 +23,12 @@ export function gitFixtureDeclaration(c) {
   const config = { ...structuredClone(node.observation), git_projection:{policy:"isolated-current-branches-v1", applicable:true,
     effective_sha256:digest("original effective config"), scope_fingerprint:digest("branches")} };
   const resource = (id, before) => ({id, classification:"execution", location_fingerprint:digest(id), before});
-  return {contract:INPUT_CONTRACT, path_kind:"isolated-model-free-v1", binding:{head:c.acceptedHead},
+  return {contract:INPUT_CONTRACT, path_kind:"isolated-model-free-v1", binding:{head:c.acceptedHead,...(c.directGitInput ? {tree:c.acceptedTree} : {})},
     resources:[{...resource("git-config",config),gitTracking:{policy:"isolated-current-branches-v1",protected_branches:[digest(c.branch)]}},
       {...resource("node-executable",node.observation),location_fingerprint:node.location_fingerprint,readOnlyExecutable:true},
       ...["git-executable","browser-executable"].map(id=>({...resource(id,node.observation),readOnlyExecutable:true})),
       ...["codex-preferences","user-instructions","auth-location"].map(id=>({...resource(id,{present:false}),classification:"ambient"})),
-      {...resource("node-headers",c.inputs.headers.observation),location_fingerprint:c.inputs.headers.location_fingerprint,nodeHeaders:true}]};
+      ...(!c.directGitInput ? [{...resource("node-headers",c.inputs.headers.observation),location_fingerprint:c.inputs.headers.location_fingerprint,nodeHeaders:true}] : [])]};
 }
 
 export function gitFixtureReceipt(c, raw) {
@@ -45,8 +45,8 @@ export function gitFixtureReceipt(c, raw) {
   const fault = ({resource,disposition,observed_at,monotonic_ns,diagnostic}) => ({resource,disposition,observed_at,monotonic_ns,...(diagnostic?{diagnostic}:{})});
   const [pass,stop,unused] = raw.phases;
   return finalizeReceipt({...raw,run:{...raw.run,started_at:time(-100000)},phases:phaseIds.map((id,i)=>({...(i < 3 ? pass : i === 3 ? stop : unused),id})),
-    inputs:{...declared,fingerprint:digest(declared),events:[race,change],first_fault:fault(race),secondary_faults:[fault(change)]},
-    outcome:{...raw.outcome,disposition:"unknown_relevance",first_fault:fault(race)}});
+    inputs:{...declared,fingerprint:digest(declared),events:c.directGitInput?[change]:[race,change],first_fault:fault(c.directGitInput?change:race),secondary_faults:c.directGitInput?[]:[fault(change)]},
+    outcome:{...raw.outcome,disposition:c.directGitInput?"input_invalidation":"unknown_relevance",first_fault:fault(c.directGitInput?change:race)}});
 }
 // Exercise the same exclusive ledger, proof reader, authenticated capability and
 // separate-process stock entry as the browser successor, using ordinary v10 inputs.
@@ -864,22 +864,43 @@ export async function completeGitRevisionControls(c,h) {
 // natural child settlement, authenticated transport and append-only admission.
 // This is not production qualification or authority for any existing PR.
 export async function runGitInputRevisionControls(c,h,sourceSuccessor=false,lifecycleOnly=false) {
+  const direct=!!c.directGitInput, marker=direct?DIRECT_GIT_INPUT_REVISION:GIT_INPUT_REVISION;
   const original=c.prior, ledger=path.join(c.legacyRoot,"completion-1.json"), edge=path.join(c.legacyRoot,"correction-successor.json");
   const historical=[ledger,path.join(c.legacyRoot,"attempt-1.json"),path.join(c.checkout,".augnes-local-verification/receipts",original.run.id+".json")];
   const historicalBytes=historical.map(f=>readFileSync(f));
   const stock={content_fingerprint:original.integrity.content_fingerprint,status:"non_deciding_or_stale",valid_deciding_evidence:false,
-    issues:["receipt_classified_outcome_not_passing","receipt_current_inputs_unverified","receipt_final_result_not_pass",
+    issues:[...(direct?["receipt_attempt_records_unverified"]:[]),"receipt_classified_outcome_not_passing","receipt_current_inputs_unverified","receipt_final_result_not_pass",
       "receipt_input_observation_blocked","receipt_non_deciding","receipt_phase_environment_binding_invalid",...phaseIds.slice(3).map(id=>"phase_not_passing:"+id)],
     dimensions:{historical_integrity:"intact",execution:"incomplete_or_failed",evidence_validity:"invalid_or_incomplete",safety:"blocked",current_merge_applicability:"blocked"}};
-  const completion=h.read(ledger), incident=gitObservationIncident(original,original.attempt,completion,stock,phaseIds);
+  const completion=h.read(ledger), readIncident=(r=original,s=stock)=>gitObservationIncident(r,r.attempt,completion,s,phaseIds,marker), incident=readIncident();
+  if(direct){
+    assert(!original.inputs.resources.some(r=>r.id==="node-headers"));
+    assert.throws(()=>gitObservationIncident(original,original.attempt,completion,stock,phaseIds));
+    assert.throws(()=>gitObservationIncident(original,original.attempt,completion,stock,phaseIds,GIT_INPUT_REVISION));
+    for(const mutate of [
+      r=>r.inputs.events.push(structuredClone(r.inputs.events[0])),
+      r=>r.inputs.events[0].diagnostic={contract:"augnes.input-observation-failure.v1",stage:"metadata_consistency",code:"input_observation_race"},
+      r=>r.inputs.events[0].resource="node-executable",
+      r=>r.inputs.first_fault=null,
+      r=>r.inputs.secondary_faults=[r.inputs.first_fault],
+      r=>r.inputs.events[0].after.permission_identity=digest("different permissions"),
+      r=>r.inputs.events[0].after.git_projection.scope_fingerprint=digest("different scope"),
+      r=>r.inputs.binding.head="a".repeat(40),
+      r=>r.cleanup.companion_service.observations.after.coherent=false,
+    ]){const bad=structuredClone(original);mutate(bad);for(const e of bad.inputs.events)e.identity=inputEventIdentity(e);assert.throws(()=>readIncident(bad));}
+    assert.throws(()=>readIncident(original,{...stock,issues:[...stock.issues,"unexplained_refusal"]}));
+    assert.throws(()=>readIncident(original,{...stock,issues:stock.issues.filter(i=>i!=="receipt_current_inputs_unverified")}));
+  }
   h.prepare(c); const p=c.proof;
-  assert.equal(p.head,original.attempt.head); assert.equal(p.tree,original.attempt.tree);
-  p.schema="augnes.local-canonical-source-correction.v10";p.commission.input_revision=GIT_INPUT_REVISION;
+  assert.equal(p.head===original.attempt.head,!direct); assert.equal(p.tree===original.attempt.tree,!direct);
+  p.schema="augnes.local-canonical-source-correction.v10";p.commission.input_revision=marker;
+  if(direct)p.commission.maximum_invocations=1;
   p.originals.stock=h.artifact(c,"prior-stock.log",JSON.stringify(stock));p.inputs.predecessor_sha256=digest(incident);
   const config=path.join(c.checkout,".git/config");
   const observe=()=>freezeInputContract({resources:[createGitTrackingResource(config,[c.checkout])],pathKind:"isolated-model-free-v1",binding:{}}).snapshot().resources[0];
   c.gitDeclaration.resources[0]=observe();
-  const inventory={...c.gitDeclaration,binding:{head:p.head,tree:p.tree,runtime_inputs:c.inputs}};
+  const inventory={...c.gitDeclaration,binding:{head:p.head,tree:p.tree,runtime_inputs:c.inputs},
+    resources:[...c.gitDeclaration.resources,...(direct?[{id:"node-headers",classification:"execution",location_fingerprint:c.inputs.headers.location_fingerprint,before:c.inputs.headers.observation,nodeHeaders:true}]:[])]};
   const snapshot={...inventory,fingerprint:digest(inventory),first_fault:null,secondary_faults:[],events:[]};
   p.inputs.inventory_sha256=gitRevisionInventory(snapshot);
   const module=new URL("../local-canonical-inputs.mjs",import.meta.url).href;
@@ -892,7 +913,7 @@ export async function runGitInputRevisionControls(c,h,sourceSuccessor=false,life
   const get=ref=>h.read(path.join(c.artifacts,ref.artifact)), artifact=(name,v)=>h.artifact(c,name,v);
   assert.deepEqual(JSON.parse(stdout),inventory.resources[0]);
   const output=artifact("stable-input.log",stdout), record=artifact("stable-input.json",{command,tested_source_head:p.head,finished_at:time(-10000),result});
-  const focus={...get(p.focused),finished_at:time(-9000),remedy:"Completed upstream publication before freezing the changed protected Git input; product source is unchanged.",
+  const focus={...get(p.focused),finished_at:time(-9000),remedy:"Completed upstream publication before freezing the changed protected Git input; source changes are separately reviewed.",
     input_remedy_resources:["git-config"],input_inventory:artifact("input-inventory.json",snapshot),implicated_paths:[],
     commands:[{command,tested_source_head:p.head,result,record,stdout:output}]};
   p.focused=artifact("focused.json",focus);
@@ -915,7 +936,14 @@ export async function runGitInputRevisionControls(c,h,sourceSuccessor=false,life
     return {bytes:bytes.length,sha256:digest(bytes),paths:c.git(["diff","--name-only",from,productHead,"--"]).toString().trim().split("\n").filter(Boolean).sort()};};
   const productCandidate={...structuredClone(p),head:productHead,tree:productTree,accepted:{...p.accepted,head:productHead,tree:productTree}};
   productCandidate.source=artifact("product-delta.json",{...source,accepted_to_final:delta(productHead),predecessor_to_final:delta(p.head),main_to_final:delta(p.base)});
-  assert.throws(()=>prepare(productCandidate),/revision_product_source_changed/);
+  if(!direct)assert.throws(()=>prepare(productCandidate),/revision_product_source_changed/);
+  else {
+    assert.deepEqual(source.predecessor_to_final.paths,[product]);
+    for(const mutate of [q=>q.commission.maximum_invocations=2,q=>q.commission.ordinal=2]){const bad=structuredClone(p);mutate(bad);assert.throws(()=>prepare(bad));}
+    // The recorded stock refusal cannot hide a missing physical predecessor.
+    const attemptPath=historical[1],bytes=readFileSync(attemptPath);rmSync(attemptPath);
+    try{assert.throws(()=>prepare());}finally{h.write(attemptPath,bytes);}
+  }
   for (const mutate of [
     v=>v.resources[0].before=structuredClone(original.inputs.resources[0].before),
     v=>v.resources[0].before.git_projection.scope_fingerprint=digest("substituted scope"),
@@ -964,17 +992,19 @@ export async function runGitInputRevisionControls(c,h,sourceSuccessor=false,life
   }
   c.gitDeclaration=inventory;
   const {review,grant}=c.authority,target=gitReviewTarget(p);
-  review.body=["Source review decision: ACCEPT / RETAIN for prospective qualification.",p.base,p.head,p.tree,p.prior_receipt_fingerprint,target,GIT_INPUT_REVISION,GIT_INPUT_HISTORY_BOUNDARY].join("\n");
+  review.body=["Source review decision: ACCEPT / RETAIN for prospective qualification.",p.base,p.head,p.tree,p.prior_receipt_fingerprint,target,marker,gitInputHistoryBoundary(p)].join("\n");
   review.submitted_at=time(-8000);grant.created_at=grant.updated_at=time(-5000);
-  grant.body=["Authorize prospective Mac qualification of this stable Git-input target.",p.schema,p.branch,p.base,p.head,p.tree,p.prior_receipt_fingerprint,target,
-    GIT_INPUT_REVISION,GIT_INPUT_HISTORY_BOUNDARY,"https://github.com/hynk-studio/augnes/pull/999#pullrequestreview-10","Separate fresh-process stock and independent audit."].join("\n");
+  grant.body=[direct?"Authorize one prospective Mac qualification of this direct Git-input target.":"Authorize prospective Mac qualification of this stable Git-input target.",p.schema,p.branch,p.base,p.head,p.tree,p.prior_receipt_fingerprint,target,
+    marker,gitInputHistoryBoundary(p),"https://github.com/hynk-studio/augnes/pull/999#pullrequestreview-10","Separate fresh-process stock and independent audit.",
+    ...(direct?["Exactly one admitted deciding invocation total. Reservation/interruption consumes it. Zero unchanged-target retry; zero extra recovery."]:[])].join("\n");
   const bind=()=>{p.accepted.review.sha256=digest(reviewedRevisionAuthorityObservation(review,"accepted_revision"));
     p.authorization.grant_sha256=digest(reviewedRevisionAuthorityObservation(grant,"execution_commission"));h.write(c.file,p);};
   const grantBody=grant.body,reviewBody=review.body;
   if(!sourceSuccessor && !lifecycleOnly){
   for(const object of [review,grant]) {
     const body=object.body;
-    for(const bad of [body.replace(GIT_INPUT_HISTORY_BOUNDARY,""),body.replace(GIT_INPUT_REVISION,""),"> "+body,"HOLD\n"+body]){
+    for(const bad of [body.replace(gitInputHistoryBoundary(p),""),body.replace(marker,""),"> "+body,"HOLD\n"+body,
+      ...(direct&&object===grant?[body.replace("Exactly one admitted deciding invocation total.","Two invocations."),body.replace("Reservation/interruption consumes it.",""),body.replace("zero extra recovery","recovery available")]:[])]){
       object.body=bad;bind();await assert.rejects(h.auth(c,h.proof(c)));
     }object.body=body;
   }
@@ -1029,7 +1059,7 @@ export async function runGitInputRevisionControls(c,h,sourceSuccessor=false,life
   const tip=reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch});
   assert.equal(tip.reviewed_revision_consumed,1);
   for(const [i,file] of historical.entries())assert.deepEqual(readFileSync(file),historicalBytes[i]);
-  assert.equal(stock.valid_deciding_evidence,false);assert.equal(original.inputs.first_fault.disposition,"observer_failure");
-  console.log(JSON.stringify({synthetic_only:true,unchanged_product:true,stable_protected_input:true,natural_child:true,separate_stock:true,
+  assert.equal(stock.valid_deciding_evidence,false);assert.equal(original.inputs.first_fault.disposition,direct?"input_invalidation":"observer_failure");
+  console.log(JSON.stringify({synthetic_only:true,unchanged_product:!direct,direct_input_invalidation:direct,maximum_invocations:p.commission.maximum_invocations,stable_protected_input:true,natural_child:true,separate_stock:true,
     historical_invalidity_preserved:true,consumed:1,controls:["missing or negative authority","unknown history acknowledgment","unchanged, incomplete or substituted input","unrelated product delta","stale predecessor","unsafe permissions and links","unsettled cleanup","in-flight input invalidation","competing reservations and exclusive replay"]}));
 }

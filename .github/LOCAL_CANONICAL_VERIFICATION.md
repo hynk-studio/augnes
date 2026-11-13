@@ -1950,6 +1950,62 @@ preserve them with their verifier revision rather than removing the marker or
 reinterpreting them as old v10. The maintenance proposal qualifies through the
 current ordinary planner/authority, never by granting itself this alternative.
 
+#### Directly observed protected Git-input interruption within v10
+
+The explicit commission discriminator `input_revision: "direct-protected-git-input-v1"`
+supports a settled ordinary isolated Full whose first and only fault is a
+directly observed protected `git-config/input_invalidation`. It does not require
+or invent a metadata reader failure. Unmarked v10 and
+`stable-protected-git-input-v1` retain their ordered observer-failure predicates.
+The direct case is ordinal one with `maximum_invocations: 1`; ordinal two,
+unchanged retry and extra recovery refuse. Reservation or interruption consumes
+the one invocation. The marker participates in the existing commission identity.
+
+The existing incident reader checks the complete original receipt, attempt,
+completion, event identities and separate false stock, exact phase order and
+cancelled child, safe unchanged Git location/scope/permissions, released owners,
+isolated cleanup and coherent Companion preservation. Additional faults,
+observer diagnostics, substituted history and unexplained stock issues refuse.
+An original `receipt_attempt_records_unverified` refusal is retained, never
+removed retrospectively. The existing physical-original and reconstructed
+latest-tip checks must independently succeed before preparation, reservation
+and stock; a material-only read is not physical admission. No global
+`knownInputInvalidation` allowlist is widened.
+
+Reuse the complete input snapshot, stable-input remedy and current publication
+checks above. Current Git protection must match the recorded changed projection
+and differ from the failed freeze. Bind the actual original Node location and
+content, and the current runtime/header identities; an ordinary predecessor need
+not have recorded headers. Publishing and own-branch upstream setup finish
+before inventory. All in-flight input, authentication, freshness, ownership,
+cleanup and complete planner-selected Full requirements remain effective.
+
+The direct case may include an independently reviewed product correction.
+The complete predecessor/final and main/final deltas, pinned package/toolchain
+sources, final-source focused results and actual preparation commitment remain
+bound by existing source and review owners. The input remedy still names only
+`git-config`, has empty `implicated_paths` and no product `regression`. Product
+RED/GREEN and source acceptance keep their own attribution; neither reclassifies
+the earlier interruption or supplies the input sequencing remedy. The legacy
+stable-input alternative continues to require unchanged product sources.
+
+After independent acceptance of the published final source, applicable admission
+and prepared inputs, record a separate authenticated exact-target grant. Its
+standalone first line is `Authorize one prospective Mac qualification of this direct Git-input target.`
+Both review and grant include the marker, predecessor and target commitment,
+and `Original direct Git input invalidation, false stock and consumed invocation remain unchanged.`
+The grant explicitly states exactly one admitted deciding invocation total,
+reservation/interruption consumption, zero unchanged-target retry, zero extra
+recovery, separate fresh-process stock and independent result audit. Record
+the reviewer and submitting operator's actual provenance under the applicable
+human delegation. The existing maintainer permission, commit-anchored acceptance,
+unedited later grant and Draft publication checks remain mandatory. Preparation,
+this amendment and an implementation-owner statement confer no execution authority.
+
+Rollback readers refuse the new marker; preserve its original proof, consumed
+edge and reader revision. No new ledger, dispatcher or verification framework
+is introduced, and no historical result or earlier allowance is reset.
+
 ### Completed source-correction routes v3-v6
 
 The task-specific observer repair, corrected timeout, condition requalification
