@@ -1092,13 +1092,16 @@ function selectiveCapture(ref, head, p, {git,parse,bytes}, corrected) {
   return {w,report,coverage};
 }
 
-// A real historical development checkout may differ in location. Each run
-// retains its own complete physical identity; only the already validated
-// content, layout, permissions and package sources are compared across roots.
+// This non-causal workload witness may use distinct physical checkouts.
+// Compare content, layout and package sources across roots, not their raw Mac
+// security hashes (xattr output includes absolute filenames). This makes no
+// cross-root ACL/flag/attribute-equivalence claim. Every capture still retains
+// its complete security identity and requires exact local before/after equality;
+// same-root captures and current-target/Full/stock checks remain security-bound.
 function sameSelectiveDependencies(a,b) {
-  const {location_fingerprint:al,...before}=preparedDependencyIdentity(a);
-  const {location_fingerprint:bl,...after}=preparedDependencyIdentity(b);
-  return selectiveSha(al)&&selectiveSha(bl)&&equal(before,after);
+  const {location_fingerprint:al,permission_sha256:ap,...before}=preparedDependencyIdentity(a);
+  const {location_fingerprint:bl,permission_sha256:bp,...after}=preparedDependencyIdentity(b);
+  return selectiveSha(al)&&selectiveSha(bl)&&equal(before,after)&&(al!==bl||ap===bp);
 }
 
 export function verifySelectiveFixtureWorkload(p, prior, focused, options) {

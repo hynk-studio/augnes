@@ -307,6 +307,21 @@ export async function selectiveFixtureWorkloadControls(parent,h,sourceRoot) {
     const bad=structuredClone(focused),w=structuredClone(after);mutate(w);bad.regression.after=ref("negative-after-"+refusals+".json",w);bad.commands[0]={...bad.commands[0],record:bad.regression.after,stdout:w.stdout};
     assert.throws(()=>verifySelectiveFixtureWorkload(p,prior,bad,options));refusals++;
   }
+  // Different physical roots retain their actual raw security identities. This
+  // is content/layout/package equality, never claimed ACL/xattr equivalence.
+  const dependencyBefore=(differentRoot,changePermission=true,changeLayout=false,withinRun=false)=>{
+    const witness=structuredClone(before),copy=structuredClone(focused);
+    for(const side of ["before","after"])witness[side].dependencies={...witness[side].dependencies,
+      ...(differentRoot?{location_fingerprint:digest("different physical dependency root")} : {}),
+      ...(changePermission&&(!withinRun||side==="after")?{permission_sha256:digest("separately observed raw security")}:{}),
+      ...(changeLayout?{layout_sha256:digest("changed dependency topology")}:{} )};
+    copy.regression.before=ref("dependency-before-"+differentRoot+"-"+changePermission+"-"+changeLayout+"-"+withinRun+".json",witness);
+    return copy;
+  };
+  assert.equal(verifySelectiveFixtureWorkload(p,prior,dependencyBefore(true),options),head);
+  for(const [differentRoot,changeLayout,withinRun]of [[false,false,false],[true,true,false],[true,false,true]]){
+    assert.throws(()=>verifySelectiveFixtureWorkload(p,prior,dependencyBefore(differentRoot,true,changeLayout,withinRun),options));refusals++;
+  }
   for(const mutate of [v=>v.source_correction.commission.maximum_invocations=2,v=>v.source_correction.commission.input_revision="stable-protected-git-input-v1",v=>v.budget.recovery=1]) {
     const bad=structuredClone(prior),r=structuredClone(original);mutate(bad);r.attempt=bad;assert.throws(()=>selectiveFixtureWorkloadIncident(p,bad,focused.regression,{...options,original:r}));refusals++;
   }

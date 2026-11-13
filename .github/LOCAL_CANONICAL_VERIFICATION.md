@@ -1259,7 +1259,11 @@ The supported witness is the actual bounded
 clean sources and the same runtime. A natural before PASS and after PASS is
 honest where the original isolated fixture passed. Require attributable removal
 of redundant fixture work and independent source/evidence review; do not seek a
-false RED. Diagnostic preloads and CPU profiles are supporting observations,
+false RED. Across distinct physical dependency roots, compare content, layout
+and package declarations; retain their separate raw security identities without
+claiming cross-root ACL/flag/attribute equivalence. Local before/after and
+same-root security equality, plus complete current-target/Full/stock protection,
+remain required. Diagnostic preloads and CPU profiles are supporting observations,
 not admission witnesses. Refuse unrelated source, changed product or pinned
 inputs, missing cases, changed authority/freshness or weakened cleanup.
 
