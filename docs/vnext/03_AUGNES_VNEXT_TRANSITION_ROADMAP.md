@@ -2056,6 +2056,20 @@ scoped findings and current priorities; renaming those studies does not justify
 repeating them. It adds no implementation, provider allocation, Core schema,
 memory engine or product default, and transfers no historical study budget.
 
+**Research reference (2026-11-13): repeated method selection.**
+[TRUST: Trustworthy Recursive Self-Improvement with Statistical Guarantees (v1)](https://arxiv.org/abs/2611.10787v1)
+motivates a conditional question within this method-reuse direction: when noisy
+repeated evaluations determine which method is retained, can bounded sequential
+selection improve later useful outcomes while retaining still-valid capabilities
+and keeping evaluation burden justified? Consider a concrete method consumer
+and discriminating comparison, using existing versioned methods, source-linked
+assessments and the strong adaptive memo/code baseline before adding machinery.
+A statistical allocator is one possible method, not a required component. Apply
+[04's sequential-selection interpretation](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#sequential-method-selection-claims).
+This Augnes hypothesis is **Research / unexecuted**; it leaves priorities,
+P4.6/#1459/#1464 findings and allocations unchanged, without a new Core record,
+product default or mandatory development/verification gate.
+
 The v0.2 [method lifecycle connection](#development-and-operation-sequence--2026-10-25)
 belongs to these existing L2/P4.6 responsibilities. Link a useful original case
 and its executable method, conditions/exclusions, exact version, selected later

@@ -1634,6 +1634,36 @@ composition and exact output correctness do not establish autonomous selection,
 superiority, learning or independent demand; the fixed live-model comparison
 remains NOT_RUN and historical P4.6 findings remain unchanged.
 
+#### Sequential method-selection claims
+
+For the [TRUST-informed research question](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#next-p4p5--executable-capability-reuse-from-experience-1373),
+apply the following only when making a sequential-selection claim, not as a
+universal statistical gate for ordinary development, verification or review.
+
+When using an online statistical selection rule, identify the candidate/decision
+sequence and outcome criterion covered by its error claim. Determine the current
+testing level before observing the current deciding outcomes, and retain
+cumulative testing history across continuation; renaming or branching the same
+search does not by itself restore independence or renew a statistical allowance.
+Validity under adaptive feedback and data reuse requires the stated assumptions;
+choosing a correction parameter or counting reuse does not establish a bias bound.
+
+Distinguish an observed fraction of accepted non-improving changes from a formal
+bound at a declared loss tolerance. A bound on the expected fraction of
+unacceptable selections is not a per-run maximum, a guarantee of positive gain,
+or assurance against cumulative or severe loss. Report only the criterion
+actually supported, together with useful outcomes and retained competence;
+accepting nothing can eliminate erroneous acceptances without improving anything.
+
+Statistical error allowance is not compute, time or authority budget. Early
+statistical stopping does not establish resource savings when evaluation continues
+for proposer feedback; use the existing [total-burden accounting](#cost-and-user-burden).
+Different accepted candidates can change later proposals and observations.
+Fixed-log replay can diagnose selection on common candidates but cannot establish
+closed-loop improvement. Distinguish that local comparison from a whole adaptive
+trajectory with feedback; select the comparison needed for the claim rather than
+requiring both. Statistical selection remains assessment, not authorization.
+
 ### Execution-choice evidence and conditional reuse
 
 The [#1486 late-review exercise](../../scripts/test-late-review.ts) separates
