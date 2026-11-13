@@ -178,6 +178,10 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/run-local-canonical-verification.mjs",
   "scripts/test-harness-process-lifecycle.mjs",
   "scripts/validate-canonical-docs-change.mjs",
+  "scripts/local-canonical-common-driver.mjs",
+  "scripts/local-canonical-material-stock-predecessor.mjs",
+  "scripts/local-canonical-stock-verifier-witness.mjs",
+  "scripts/local-canonical-stock-verifier-output.mjs",
 ]);
 const RECEIPT_RETENTION = 20;
 const LOG_RUN_RETENTION = 5;

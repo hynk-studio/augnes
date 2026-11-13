@@ -185,12 +185,20 @@ const executorSource = readFileSync(
     }
     for (const relative of ["scripts/local-canonical-pure-contract-witness.mjs", "scripts/canonical-revision-reader.mjs",
       "scripts/local-canonical-fixture-budget-witness.mjs", "scripts/capture-local-canonical-fixture-budget.mjs",
-      "scripts/local-canonical-stock-lifecycle-witness.mjs", "scripts/local-canonical-improvement.mjs", "scripts/local-canonical-maintenance.mjs"]) {
+      "scripts/local-canonical-stock-lifecycle-witness.mjs", "scripts/local-canonical-improvement.mjs", "scripts/local-canonical-maintenance.mjs",
+      "scripts/local-canonical-common-driver.mjs", "scripts/local-canonical-material-stock-predecessor.mjs",
+      "scripts/local-canonical-stock-verifier-witness.mjs", "scripts/local-canonical-stock-verifier-output.mjs"]) {
       const file = path.join(owner.root, relative), original = readFileSync(path.join(repositoryRoot, relative));
       writeFileSync(file, original);
       const before = computeExecutorSourceFingerprint(owner.root);
+      const historicalFiles=[...declaration[1].matchAll(/"([^"]+)"/gu)].map(match=>match[1]).filter(name=>![
+        "scripts/local-canonical-common-driver.mjs", "scripts/local-canonical-material-stock-predecessor.mjs",
+        "scripts/local-canonical-stock-verifier-witness.mjs", "scripts/local-canonical-stock-verifier-output.mjs"].includes(name));
+      const historical=computeExecutorSourceFingerprint(owner.root,historicalFiles);
       writeFileSync(file, "export const changed = true;\n");
       assert.notEqual(computeExecutorSourceFingerprint(owner.root), before);
+      if(!historicalFiles.includes(relative))assert.equal(computeExecutorSourceFingerprint(owner.root,historicalFiles),historical,
+        "an explicit historical source-file inventory keeps its original fingerprint meaning");
       writeFileSync(file, original);
     }
   } finally { assert(cleanupCanonicalTestResources([owner])[0].completed); }
