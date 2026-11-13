@@ -7,8 +7,9 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {fixtureNow} from './local-canonical-authority-clock.mjs';
 import {digest} from '../local-canonical-inputs.mjs';
 import {CANONICAL_NODE_VERSION} from '../local-canonical-environment.mjs';
-import {inspectGitRevisionPreparation,reconstructAttemptTip,reviewedRevisionAuthorityObservation} from '../local-canonical-attempts.mjs';
-import {MATERIAL_SOURCE_CORRECTION,MATERIAL_HISTORY_BOUNDARY,gitReviewTarget,verifyGitRevisionFailure} from '../local-canonical-git-observation.mjs';
+import {inspectGitRevisionPreparation,inspectAttemptRecords,reconstructAttemptTip,reviewedRevisionAuthorityObservation} from '../local-canonical-attempts.mjs';
+import {MATERIAL_SOURCE_CORRECTION,MATERIAL_HISTORY_BOUNDARY,gitReviewTarget,verifyGitRevisionFailure,
+ GIT_CURRENT_STOCK_COMPARISON,gitRevisionInventory,gitRevisionStockComparison} from '../local-canonical-git-observation.mjs';
 import {REVIEWED_REVISION_PHASES} from '../local-canonical-attempts.mjs';
 import {executeFixture,dependencyRecords} from './local-canonical-browser-successor.mjs';
 import {createPrivateReviewExport,inspectPrivateReviewExport} from '../local-canonical-review-export.mjs';
@@ -17,6 +18,38 @@ const clone=structuredClone,now=()=>new Date(fixtureNow()).toISOString();
 const driver='scripts/material-source-behavior.mjs',product='apps/web_planning/src/exchange-client.js.txt';
 const predecessorDriver='scripts/material-predecessor.mjs';
 const decision='Source review decision: ACCEPT / RETAIN for prospective qualification.';
+
+// The real attempt reader replays disposable authenticated evidence and physical
+// settlement. Current stock compatibility never edits those historical records.
+async function currentGitStockControls(c,p,cap,receipt) {
+ const inventory=clone(receipt.inputs),changed=clone(inventory),git=changed.resources.find(r=>r.id==='git-config');
+ for(const key of ['inode','mtime_ns','ctime_ns'])git.before.metadata[key]=String(BigInt(git.before.metadata[key])+1n);
+ assert.equal(gitRevisionInventory(inventory),p.inputs.inventory_sha256);
+ const live={...clone(c.live),inputInventory:changed,inventory:gitRevisionInventory(changed)};
+ const family=path.join(c.anchor,'.augnes-local-verification/families',receipt.attempt.family_id);
+ const files=[c.file,...['attempt-1.json','completion-1.json'].map(name=>path.join(family,name)),
+  path.join(c.checkout,'.augnes-local-verification/receipts',receipt.run.id+'.json')];
+ const originals=files.map(file=>digest(readFileSync(file))),receiptHash=digest(receipt),tipHash=digest(reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}));
+ const inspect=(current,contract=GIT_CURRENT_STOCK_COMPARISON,r=receipt)=>inspectAttemptRecords({
+  anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt:r,revisionInputs:c.inputs,gitCurrentStockContract:contract,
+  observeRevision:()=>({authorization:cap,live:current}),assertCurrent(){}});
+ assert.equal(await inspect(live,null),false);assert.equal(await inspect(live,'unsupported'),false);
+ assert.equal(await inspect(live),true);
+ const same={...clone(c.live),inputInventory:inventory,inventory:gitRevisionInventory(inventory)};
+ assert.equal(await inspect(same),true);
+ const different=clone(live);different.inputInventory.resources.find(r=>r.id==='git-config').before.sha256=digest('different full config bytes');
+ different.inventory=gitRevisionInventory(different.inputInventory);assert.equal(await inspect(different),false);
+ assert.equal(await inspect({...live,inventory:digest('unbound inventory claim')}),false);
+ assert.equal(await inspect({...live,inputInventory:undefined}),false);
+ const tampered=clone(receipt);tampered.inputs=changed;
+ assert(gitRevisionStockComparison(tampered.inputs,live.inputInventory,GIT_CURRENT_STOCK_COMPARISON).equivalent);
+ assert.equal(await inspect(live,GIT_CURRENT_STOCK_COMPARISON,tampered),false,'historical receipt catalogue must still match the proof raw pin');
+ assert.deepEqual(files.map(file=>digest(readFileSync(file))),originals);assert.equal(digest(receipt),receiptHash);
+ assert.equal(digest(reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch})),tipHash);
+ console.log(JSON.stringify({git_current_stock:{contract:GIT_CURRENT_STOCK_COMPARISON,synthetic_only:true,
+  historical_inventory_sha256:gitRevisionInventory(inventory),current_inventory_sha256:live.inventory,
+  allowed_metadata_stock:true,legacy_and_unknown_strict:true,full_content_and_hash_claim_refused:true,historical_pin_exact:true,physical_accounting_unchanged:true}}));
+}
 
 // Pure variants complement the actual integration-failure/fresh-stock/physical
 // successor sequence below; none is authority or an observation of host QA.
@@ -282,6 +315,9 @@ export async function runMaterialSourceControls(c,h,group) {
   failed_integration_browser_prefix:0,declared_base_retained:true,different_tracking_main:true,fresh_stock_false:true},synthetic_only:true}));return;
  }
  const final=h.proof(c),finalCap=await h.auth(c,final);
+ if(group==='material-stock'){
+ await currentGitStockControls(c,final,finalCap,c.materialFinalReceipt);unchanged();return;
+ }
  if(group==='material-final'){
  assert.deepEqual(tip().revision_grants,[11,32,62]);
  const exe=c.gitDeclaration.resources.find(v=>v.id==='browser-executable');

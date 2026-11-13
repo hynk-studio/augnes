@@ -170,6 +170,38 @@ export function gitRevisionInventory(snapshot) {
   }));
 }
 
+// Current stock may compare two complete, independently coherent observations
+// of the same Git bytes. This is not an admission identity or a reinterpretation
+// of an immutable inventory pin. Unknown comparison versions stay raw-strict.
+export const GIT_CURRENT_STOCK_COMPARISON = "complete-git-config-current-stock-v1";
+export function gitRevisionStockComparison(expected, current, contract = null) {
+  const expectedInventory = gitRevisionInventory(expected), currentInventory = gitRevisionInventory(current);
+  const result = { contract, expected_inventory_sha256: expectedInventory, current_inventory_sha256: currentInventory,
+    exact: expectedInventory === currentInventory, equivalent: expectedInventory === currentInventory };
+  if (result.exact || contract !== GIT_CURRENT_STOCK_COMPARISON) return result;
+  const keys = (value, names) => value && typeof value === "object" && !Array.isArray(value) &&
+    Object.keys(value).sort().join(",") === names;
+  const complete = snapshot => {
+    const resource = snapshot.resources.find(r => r.id === "git-config"), value = resource.before;
+    return keys(resource, "before,classification,gitTracking,id,location_fingerprint") && resource.classification === "execution" &&
+      keys(resource.gitTracking, "policy,protected_branches") &&
+      keys(value, "git_projection,metadata,permission_identity,present,sha256") &&
+      keys(value.metadata, "bytes,ctime_ns,device,gid,inode,links,mode,mtime_ns,uid") &&
+      keys(value.git_projection, "applicable,effective_sha256,policy,scope_fingerprint");
+  };
+  if (!complete(expected) || !complete(current)) return result;
+  const image = snapshot => snapshot.resources.map(resource => {
+    const value = effectiveInputObservation(resource.before, resource, snapshot);
+    if (resource.id !== "git-config") return { ...resource, before: value };
+    // Retain the complete SHA and byte length. The ordinary effective Git
+    // projection intentionally omits those and cannot establish this rule.
+    return { ...resource, before: { ...resource.before, metadata: Object.fromEntries(
+      Object.entries(resource.before.metadata).filter(([key]) => !["inode", "mtime_ns", "ctime_ns"].includes(key))) } };
+  });
+  result.equivalent = digest(image(expected)) === digest(image(current));
+  return result;
+}
+
 // This lane may integrate its verifier and corresponding policy/controls, but
 // cannot disguise a product edit as an unchanged-product input correction.
 const gitInputVerificationPaths = new Set([

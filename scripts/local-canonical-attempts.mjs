@@ -33,7 +33,8 @@ import { artifactReader, isImprovement, hasImprovementMarker, ordinaryV2SourceMo
 import { checkoutVerificationFingerprint } from "./local-canonical-checkout-ownership.mjs";
 import { REPOSITORY_PURE_CONTRACT, inspectCurrentPureContractInputs } from "./local-canonical-pure-contract-witness.mjs";
 import { MATERIAL_COMMON_DRIVER, inspectCurrentCommonDriverInputs } from "./local-canonical-common-driver.mjs";
-import {GIT_INPUT_REVISION, GIT_INPUT_HISTORY_BOUNDARY, isGitInputRevision, verifyGitInputRemedy, verifyGitInputPublication} from "./local-canonical-git-observation.mjs";
+import {GIT_INPUT_REVISION, GIT_INPUT_HISTORY_BOUNDARY, isGitInputRevision, verifyGitInputRemedy, verifyGitInputPublication,
+  GIT_CURRENT_STOCK_COMPARISON, gitRevisionInventory, gitRevisionStockComparison} from "./local-canonical-git-observation.mjs";
 
 export const ATTEMPT_CONTRACT = "augnes.local-canonical-attempt-family.v1";
 const fail = code => Object.assign(new Error(code), { code });
@@ -376,7 +377,7 @@ export function inspectAttemptRecords(options) {
   } catch { return false; }
 }
 
-function prepareAttemptInspection({ anchorRoot, repositoryRoot = anchorRoot, receipt, revisionAuthorization = null, revisionInputs = null, revisionLive = null, observeRevision = null, assertCurrent = null }) {
+function prepareAttemptInspection({ anchorRoot, repositoryRoot = anchorRoot, receipt, revisionAuthorization = null, revisionInputs = null, revisionLive = null, observeRevision = null, assertCurrent = null, gitCurrentStockContract = null }) {
     const binding = digest(receipt);
     const attempt = receipt.attempt;
     if (hasRetiredQualificationMarker(receipt)) return false;
@@ -393,7 +394,8 @@ function prepareAttemptInspection({ anchorRoot, repositoryRoot = anchorRoot, rec
       const prefix = readAttemptLineage(lineage, attempt);
       if (prefix.family_id !== familyId || prefix.attempt_id !== attempt.attempt_id || prefix.number !== attempt.number) return false;
       correction = prepareSourceCorrection({ anchorRoot, repositoryRoot, branch: receipt.repository.branch,
-        head: attempt.head, tree: attempt.tree, proof: attempt.source_correction, acceptedMain: receipt.repository.base_sha, reserve: false, stockReceipt: receipt });
+        head: attempt.head, tree: attempt.tree, proof: attempt.source_correction, acceptedMain: receipt.repository.base_sha, reserve: false,
+        stockReceipt: receipt, gitCurrentStockContract });
       if (isReviewedRevision(attempt.source_correction)) {
         if (receipt.receipt_version !== 4 || !validReviewedRevisionAttempt(attempt)) return false;
         const tip = reconstructAttemptTip(lineage);
@@ -717,7 +719,7 @@ function readSourceCorrectionMaterial(file, repositoryRoot) {
   return { proof: { ...proof, local_relative_path: relative.split(path.sep).join("/") } };
 }
 
-function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, acceptedMain, reserve, stockReceipt = null, retainDependencyPrerequisites = null, preparing = false }) {
+function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, acceptedMain, reserve, stockReceipt = null, retainDependencyPrerequisites = null, preparing = false, gitCurrentStockContract = null }) {
   const { proof: reread, evidence } = readSourceCorrectionMaterial(path.join(repositoryRoot, proof.local_relative_path ?? ""), repositoryRoot);
   if (digest(reread) !== digest(proof) || proof.branch !== branch || proof.head !== head || proof.tree !== tree ||
       !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree)) throw fail("source_correction_identity_invalid");
@@ -798,7 +800,16 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
     if (usesRevisionInventory(proof)) {
       const sourceDecision = isInventoryBoundRevision(proof) && proof.commission.ordinal === 2
         ? revisionAuthorization.observations.contract_review : revisionAuthorization.observations.accepted_revision;
-      if (revisionLive?.inventory !== proof.inputs.inventory_sha256 ||
+      let inventoryMatches = revisionLive?.inventory === proof.inputs.inventory_sha256;
+      if (!reserve && stockReceipt?.receipt_version === 4 && isMaterialSourceRevision(proof) &&
+          gitCurrentStockContract === GIT_CURRENT_STOCK_COMPARISON) {
+        // First seal both raw identities. Compatibility concerns current
+        // applicability only; the receipt/proof pin remains byte-for-byte exact.
+        inventoryMatches = gitRevisionInventory(stockReceipt.inputs) === proof.inputs.inventory_sha256 &&
+          gitRevisionInventory(revisionLive?.inputInventory) === revisionLive?.inventory &&
+          gitRevisionStockComparison(stockReceipt.inputs, revisionLive.inputInventory, gitCurrentStockContract).equivalent;
+      }
+      if (!inventoryMatches ||
           (evidence.retainedObservation || evidence.postPass) && Date.parse(revisionAuthorization.observations.forward_decision.timestamp) <= Date.parse(evidence.completion.finished_at) ||
           isGitObservationSuccessor(proof) && Date.parse(revisionAuthorization.observations.task_delegation.timestamp) <= Date.parse(evidence.completion.finished_at) ||
           Date.parse(sourceDecision.timestamp) <= Math.max(Date.parse(evidence.source.reviewed_at), Date.parse(evidence.focused.finished_at)))

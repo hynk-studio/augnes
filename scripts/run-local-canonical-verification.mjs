@@ -25,7 +25,8 @@ import { freezeInputContract, monitorInputContract, digest, deriveOperationalDis
 import { beginAttempt, finishAttempt, prepareAttemptDependencies, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords, hasRetiredQualificationMarker, isReviewedRevision, isWebPlanningClientRevision, authorizeReviewedRevision, REVIEWED_REVISION_PHASES, improvementMaterial, maintenanceMaterial, isReviewedIntegration, hasReviewedIntegrationMarker, integrationMaterial, authorizeIntegration, observeIntegrationAuthority } from "./local-canonical-attempts.mjs";
 import { isImprovement, hasImprovementMarker, authorizeImprovement, observeImprovementAuthority } from "./local-canonical-improvement.mjs";
 import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-evidence-retention.mjs";
-import { isGitObservationRevision, isInventoryBoundRevision, gitRevisionInventory } from "./local-canonical-git-observation.mjs";
+import { isGitObservationRevision, isInventoryBoundRevision, isMaterialSourceRevision, gitRevisionInventory,
+  GIT_CURRENT_STOCK_COMPARISON, gitRevisionStockComparison } from "./local-canonical-git-observation.mjs";
 import { isBrowserRevision, browserBindingMatches } from "./local-canonical-browser-revision.mjs";
 import { browserInstallationRoot } from "./local-canonical-inputs.mjs";
 import { BROWSER_IDENTITY_PREFIX, validPhaseBrowserUse, browserConsumersForPhase, MAX_BROWSER_USE_RECORDS, parseBrowserUseLine } from "./local-canonical-browser-identity.mjs";
@@ -1568,6 +1569,9 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
     if (!currentInputStateValid) throw Object.assign(new Error("revision_stock_inputs_changed"), {code:"revision_stock_inputs_changed"});
   };
   let improvementCurrentIssue = null, maintenanceCurrentIssues = [], integrationCurrentIssues = [], currentAttemptRecordsValid = null;
+  const gitCurrentStockContract = receipt.receipt_version === 4 && isMaterialSourceRevision(receipt.attempt?.source_correction)
+    ? GIT_CURRENT_STOCK_COMPARISON : null;
+  let gitCurrentStockComparison = null;
   if (receipt.receipt_version === 4 && isReviewedIntegration(receipt.attempt?.source_correction)) {
     ({currentAttemptRecordsValid,integrationCurrentIssues}=await inspectIntegrationStock({anchorRoot:verificationAnchorRoot(verificationContext),repositoryRoot,receipt,assertCurrent:checkCurrentInputs}));
   } else if (receipt.receipt_version === 4 && isMaintenance(receipt.attempt?.source_correction)) {
@@ -1578,13 +1582,17 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
     }));
   } else if (receipt.receipt_version === 4) currentAttemptRecordsValid = await inspectAttemptRecords({
     anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, revisionInputs: runtimeInputs,
+    gitCurrentStockContract,
     observeRevision: reviewed ? async () => {
       const proof = receipt.attempt.source_correction;
       const authorization = await authorizeReviewedRevision(proof);
       let live = isBrowserRevision(proof) ? await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: true }) : null;
       if (isGitObservationRevision(proof) || isInventoryBoundRevision(proof) || isSerialAggregateRevision(proof)) {
         live = await observeGitRevisionTarget(verificationContext, validationHost.browserExecutablePath, runtimeInputs);
-        if (gitRevisionInventory(receipt.inputs) !== live.inventory) live = null;
+        if (gitCurrentStockContract === GIT_CURRENT_STOCK_COMPARISON) {
+          gitCurrentStockComparison = gitRevisionStockComparison(receipt.inputs, live.inputInventory, gitCurrentStockContract);
+          if (gitCurrentStockComparison.current_inventory_sha256 !== live.inventory || !gitCurrentStockComparison.equivalent) live = null;
+        } else if (gitRevisionInventory(receipt.inputs) !== live.inventory) live = null;
       }
       if (proof.settlement) live = await observeReviewedRevisionSettlementState(verificationContext);
       return {authorization,live};
@@ -1595,7 +1603,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   if (receipt.receipt_version === 4 && currentInputStateValid === null) {
     try { checkCurrentInputs(); } catch { currentInputStateValid = false; }
   }
-  return inspectReceiptForDecision(receipt, {
+  const currentStock = inspectReceiptForDecision(receipt, {
     currentInputStateValid,
     currentAttemptRecordsValid,
     improvementCurrentIssue,
@@ -1627,6 +1635,9 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
       },
     },
   });
+  // This is the current reader's attributed comparison, never a new field in
+  // the old receipt, proof, grant or physical attempt/completion records.
+  return gitCurrentStockComparison ? { ...currentStock, current_stock_input_comparison: gitCurrentStockComparison } : currentStock;
 }
 
 function quickPhases() {

@@ -802,6 +802,19 @@ whole-file protection. Earlier declarations without this resource marker keep
 their original comparison and recorded failures. This adds neither a retry nor
 a proof kind, and never authorizes changing the shared configuration.
 
+The current stock reader for material-source v7 receipts explicitly selects
+`complete-git-config-current-stock-v1` when comparing complete v3 isolated Git
+observations under that resource marker. Only `inode`, `mtime_ns` and `ctime_ns`
+may differ. Complete file SHA-256 and byte length, location, resource role and
+protected branches, projection and scope, mode/owner/group/device/link count,
+and permission identity remain exact. Every other resource keeps its existing
+inventory identity. Unsupported versions, incomplete or unknown Git shapes and
+unsafe or racing acquisition receive no relaxation. The reader reports its
+comparison version and both raw inventory hashes separately from the receipt.
+Historical proof/receipt/ledger pins and raw inventory verification stay exact;
+preparation and deciding admission do not use this current-stock equivalence.
+It neither makes an incomplete receipt pass nor renews an allowance.
+
 Version 2 material retains its original raw preparation/admission hash and
 preference-only comparison (leading `model`, `model_reasoning_effort` and
 `service_tier` values; remainder changes refuse). Version 3 never reinterprets
