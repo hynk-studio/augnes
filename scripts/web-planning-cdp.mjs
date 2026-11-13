@@ -124,3 +124,25 @@ export class CDP {
     });
   }
 }
+
+// A Chrome destination may exist while its body is still being written. Bind
+// this operation's expected names to actual completed GUIDs before reading it.
+export async function downloadBrowserFiles(client,directory,names,wait,trigger,label) {
+  const expected=new Set(names),ids=new Map(),completed=new Set();let failure;
+  const observe=message=>{
+    const p=message.params;
+    if(message.method==='Browser.downloadWillBegin'&&expected.has(p.suggestedFilename))ids.set(p.guid,p.suggestedFilename);
+    if(message.method==='Browser.downloadProgress'&&ids.has(p.guid)){
+      if(p.state==='completed')completed.add(ids.get(p.guid));
+      if(p.state==='canceled')failure=new Error('browser_download_canceled:'+ids.get(p.guid));
+    }
+  };
+  client.handlers.push(observe);
+  try{
+    await client.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:directory,eventsEnabled:true});
+    await trigger();
+    await wait(()=>{if(failure)throw failure;return names.every(name=>completed.has(name));},label);
+  }finally{
+    const index=client.handlers.indexOf(observe);if(index!==-1)client.handlers.splice(index,1);
+  }
+}

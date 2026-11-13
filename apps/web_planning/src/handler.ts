@@ -5,6 +5,9 @@ import { CONTINUATION_EXPORT } from './continuation-contract';
 import { activeContinuation, continuationContext, continuationView, createContinuation, listContinuations, revokeContinuation, resolveContinuation, writeContinuation } from './continuation';
 import { continuationPage } from './continuation-page';
 import continuationClient from './continuation-client.js.txt?raw';
+import { createPublicRequest, listPublicRequests, readPublicRequest, resolvePublicRequest, revokePublicRequest } from './public-requests';
+import { publicationPage, publicRequestResponse } from './public-request-page';
+import publicationClient from './publication-client.js.txt?raw';
 import { PARTICIPATION_EXPORT } from "./participation-contract";
 import { activeGrant, knownRecipient, createGrant, listGrants, participantContext, participantFeedbackView, participantFile, participantView, participantWrite, revokeGrant } from "./participation";
 import { participantPage, participantRecoveryPage } from "./participation-page";
@@ -80,6 +83,18 @@ function checkReplayedOccurrences(saved: Revision,edits: any[]) {
 export async function handle(request:Request,env:Environment,principal:Principal):Promise<Response> {
   try {
     const url=new URL(request.url), path=url.pathname;
+    // Only the deliberately published projection is anonymous. Every private
+    // operation still resolves the existing enforcing principal/project owner.
+    const published=path.match(/^\/public-requests\/([a-f0-9-]{36})(\.json)?$/);
+    if(published&&UUID.test(published[1])){
+      try {
+        if(request.method!=='GET')fail('method_not_allowed',405);
+        if(url.search||url.origin!==env.APP_ORIGIN)fail('scope_denied',403);
+        return publicRequestResponse(await readPublicRequest(env,published[1]),!!published[2]);
+      } catch(e) {
+        return publicRequestResponse({error:e instanceof Refusal?e.code:'storage_unavailable'},true,e instanceof Refusal?e.status:503);
+      }
+    }
     const successor=path.match(/^\/(continue|api\/continuation)\/([a-f0-9-]{36})(.*)$/);
     if(successor&&UUID.test(successor[2])){
       const access=await authorize(request,env,principal,undefined,false,successor[2]),suffix=successor[3];
@@ -171,7 +186,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
       await activeGrant(access,id); // Readback/authorization loss never becomes an empty result.
       return result;
     }
-    const accountEntry=projectEntryEnabled(env)&&(path==='/projects'||path==='/api/projects'||path==='/projects.js'||path==='/continuation.js'||
+    const accountEntry=projectEntryEnabled(env)&&(path==='/projects'||path==='/api/projects'||path==='/projects.js'||path==='/continuation.js'||path==='/publications.js'||
       path==='/'&&!url.search&&!request.headers.has('x-web-planning-project')||['/style.css','/client.js','/exchange-text.mjs','/planning-notes.mjs','/favicon.ico'].includes(path));
     const access=await authorize(request,env,principal,undefined,accountEntry);
     if(accountEntry){
@@ -187,6 +202,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
         requireCsrf(access,request);return json(await createProject(access,await body(request)));
       }
       if(path==='/continuation.js'&&request.method==='GET'&&!url.search)return new Response(continuationClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
+      if(path==='/publications.js'&&request.method==='GET'&&!url.search)return new Response(publicationClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
       if(path==='/projects.js'&&request.method==='GET'&&!url.search)return new Response(projectsClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
     }
     const manage=path.match(/^\/delegations\/([a-f0-9-]{36})\/([a-f0-9-]{36})$/);
@@ -194,8 +210,14 @@ export async function handle(request:Request,env:Environment,principal:Principal
       await listContinuations(access,manage[2]);const chain=await readWork(access,manage[2]);if(!chain.length)fail('work_not_found',404);
       const csrf=csrfToken(access,request);return html(continuationPage(access,csrf,manage[2],true),{'Set-Cookie':csrfCookie(access,csrf)});
     }
+    const publications=path.match(/^\/publications\/([a-f0-9-]{36})\/([a-f0-9-]{36})$/);
+    if(publications&&request.method==='GET'&&!url.search&&UUID.test(publications[1])&&UUID.test(publications[2])){
+      await listPublicRequests(access,publications[2]);const chain=await readWork(access,publications[2]);if(!chain.length)fail('work_not_found',404);
+      const csrf=csrfToken(access,request);return html(publicationPage(access,csrf,publications[2]),{'Set-Cookie':csrfCookie(access,csrf)});
+    }
     if(request.method==="GET") {
       if(path==="/favicon.ico" && !url.search)return new Response(null,{status:204,headers});
+      if(path==='/publications.js'&&!url.search)return new Response(publicationClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
       if(path==="/" && (!url.search || selectedProject(request))) {
         const csrf=csrfToken(access,request);
         return html(page(csrf,access),{"Set-Cookie":csrfCookie(access,csrf)});
@@ -227,6 +249,11 @@ export async function handle(request:Request,env:Environment,principal:Principal
         return json(await listWork(access,cursor));
       }
       const continuing=path.match(/^\/api\/work\/([a-f0-9-]+)\/continuation$/);
+      const published=path.match(/^\/api\/work\/([a-f0-9-]+)\/public-requests$/);
+      if(published&&UUID.test(published[1])){
+        if([...url.searchParams.keys()].some(k=>k!=='cursor')||url.searchParams.getAll('cursor').length>1)fail('scope_denied',403);
+        return json(await listPublicRequests(access,published[1],url.searchParams.get('cursor')??''));
+      }
       if(continuing&&UUID.test(continuing[1])){
         if([...url.searchParams.keys()].some(k=>k!=='cursor')||url.searchParams.getAll('cursor').length>1)fail('scope_denied',403);
         return json(await listContinuations(access,continuing[1],url.searchParams.get('cursor')??''));
@@ -272,6 +299,8 @@ export async function handle(request:Request,env:Environment,principal:Principal
       path==="/api/reconstruct-directions"?LARGE_PAIR_REQUEST_BYTES:path==="/api/reconstruct-files"?FILE_EXPORT_REQUEST_BYTES:REQUEST_BYTES;
     const input=await body(request,limit); if(!input || typeof input!=="object")fail("invalid_body");
     requireScope(access,input);
+    const publishing=path.match(/^\/api\/work\/([a-f0-9-]+)\/public-requests\/(create|resolve|revoke)$/);
+    if(publishing&&UUID.test(publishing[1]))return json(await (publishing[2]==='create'?createPublicRequest(access,publishing[1],input):publishing[2]==='resolve'?resolvePublicRequest(access,publishing[1],input):revokePublicRequest(access,publishing[1],input)));
     const continuing=path.match(/^\/api\/work\/([a-f0-9-]+)\/continuation\/(create|revoke|resolve)$/);
     if(continuing&&UUID.test(continuing[1]))return json(await (continuing[2]==='create'?createContinuation(access,continuing[1],input):continuing[2]==='resolve'?resolveContinuation(access,continuing[1],input):revokeContinuation(access,continuing[1],input)));
     const grant=path.match(/^\/api\/work\/([a-f0-9-]+)\/participation\/(create|revoke)$/);

@@ -64,6 +64,13 @@
       "when": 1794438872137,
       "tag": "0008_work_continuation",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1794484800000,
+      "tag": "0009_public_requests",
+      "breakpoints": true
     }
   ]
 }

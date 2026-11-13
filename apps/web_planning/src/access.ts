@@ -6,7 +6,7 @@ export interface Environment {
   DB: Database; APP_ORIGIN: string; OWNER_EMAIL: string; WORKSPACE_ID: string;
   PROJECT_ID: string; PROJECT_NAME?: string; AUTHOR_REF: string; REQUEST_SECRET: string;
   SITES_INGRESS_MODE?: string; RECONSTRUCTION_MODE?: string; PARTICIPATION_MODE?: string;
-  PROJECT_ENTRY_MODE?: string; PROJECT_ADMITTED_EMAILS?: string;
+  PROJECT_ENTRY_MODE?: string; PROJECT_ADMITTED_EMAILS?: string; PUBLIC_REQUEST_MODE?: string;
 }
 export type Principal = { login: string | null; localFixture?: true; ingress?: "sites" | "cloudflare-access" };
 export type Access = Store & { env: Environment; local: boolean; signout: string; recipientHash?: string;
@@ -23,7 +23,7 @@ export function sitesPrincipal(request: Request, env: Environment): Principal {
 }
 export function projectEntryEnabled(env:Environment) { return env.PROJECT_ENTRY_MODE==='admitted-private-v1'; }
 export function selectedProject(request:Request):string|null {
-  const url=new URL(request.url),management=url.pathname.match(/^\/delegations\/([a-f0-9-]{36})\/([a-f0-9-]{36})$/);
+  const url=new URL(request.url),management=url.pathname.match(/^\/(?:delegations|publications)\/([a-f0-9-]{36})\/([a-f0-9-]{36})$/);
   const query=management?.[1]??(url.pathname==='/'?url.searchParams.get('project'):null),header=request.headers.get('x-web-planning-project');
   if(url.pathname==='/' && url.search && (url.searchParams.getAll('project').length!==1 || [...url.searchParams.keys()].some(k=>k!=='project')) ||
     query!==null && header!==null && query!==header || [query,header].some(v=>v!==null&&!UUID.test(v)))fail('scope_denied',403);
@@ -35,7 +35,7 @@ export async function authorize(request: Request, env: Environment, principal: P
   const multi=projectEntryEnabled(env);
   const projectNavigation=url.searchParams.getAll('project').length===1 && [...url.searchParams.keys()].every(k=>k==='project') &&
     UUID.test(url.searchParams.get('project')??'') && (!request.headers.has('x-web-planning-project') || request.headers.get('x-web-planning-project')===url.searchParams.get('project'));
-  const entry=request.method==='GET' && ((url.pathname==='/' && (!url.search || projectNavigation)) || (multi&&url.pathname==='/projects'&&!url.search) || (multi&&/^\/delegations\/[a-f0-9-]{36}\/[a-f0-9-]{36}$/.test(url.pathname)&&!url.search) || (multi&&successor&&url.pathname==='/continue/'+successor&&!url.search) || (participant && /^\/participate\/[a-f0-9-]{36}$/.test(url.pathname)&&!url.search));
+  const entry=request.method==='GET' && ((url.pathname==='/' && (!url.search || projectNavigation)) || (multi&&url.pathname==='/projects'&&!url.search) || (multi&&/^\/delegations\/[a-f0-9-]{36}\/[a-f0-9-]{36}$/.test(url.pathname)&&!url.search) || (env.PUBLIC_REQUEST_MODE==='selected-public-request-v1'&&/^\/publications\/[a-f0-9-]{36}\/[a-f0-9-]{36}$/.test(url.pathname)&&!url.search) || (multi&&successor&&url.pathname==='/continue/'+successor&&!url.search) || (participant && /^\/participate\/[a-f0-9-]{36}$/.test(url.pathname)&&!url.search));
   // One fixed classification per refused entry; never serialize a request,
   // identity, environment value, or exception into production logs.
   function refuse(reason:string,code:string,status:number):never {

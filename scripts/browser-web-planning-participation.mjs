@@ -74,7 +74,7 @@ export async function browserParticipationRecovery({owner,participant,local,root
   checks.push('Legacy v1 body: unavailable submission, reload reconciliation, exact retry, one committed return and exact acknowledgement cleanup');
 }
 
-export async function browserParticipation({owner,participant,local,root,click,set,settled,wait,navigate,barrier,checks}){
+export async function browserParticipation({owner,participant,local,root,click,set,settled,wait,navigate,barrier,checks,publication}){
   const origin=local.origin,folder=path.join(root,'participant-cli');await mkdir(folder,{mode:0o700});
   const seed=await owner.eval(`(async()=>{
     const first=await api('/api/drafts',{}),base='/api/work/'+first.work_id;
@@ -92,6 +92,7 @@ export async function browserParticipation({owner,participant,local,root,click,s
   await owner.eval("[...document.querySelectorAll('#exchange-list button')].find(e=>e.textContent==='Create participant link').click()");await settled(owner);
   const link=await owner.eval("[...document.querySelectorAll('#exchange-list a')].find(e=>e.href.includes('/participate/'))?.href");assert(link);
   const id=link.split('/').at(-1),p=await participant();
+  const checkPublishedReturn=publication?await publication({seed,grant:{id,link}}):null;
   await p.send('Network.setCookie',{name:'web_planning_local',value:local.env.LOCAL_PARTICIPANT_SESSION,url:origin,httpOnly:true,sameSite:'Strict'});
   await navigate(p,link);await wait(()=>p.eval("typeof state!=='undefined'&&!!state&&!busy"),'participant entry');
   assert.equal(await p.eval("document.body.innerText.includes('PRIVATE_')"),false);
@@ -142,6 +143,7 @@ export async function browserParticipation({owner,participant,local,root,click,s
   assert.match(await fresh.eval("$('feedback').innerText"),/Used your arrival time/);assert.equal(await fresh.eval("document.body.innerText.includes('PRIVATE_')"),false);
   const downloadPath=path.join(folder,'actual-return.md');const returnedItem=listed.items[1];await cli('exact-download',['get',String(returnedItem.ref.revision),'notice.md',downloadPath]);
   assert.equal(await readFile(downloadPath,'utf8'),returned+'\r\n');
+  await checkPublishedReturn?.();
   await owner.eval("[...document.querySelectorAll('#exchange-list summary')].find(e=>e.textContent==='Participant access for this request').click()");await settled(owner);
   await owner.eval("[...document.querySelectorAll('#exchange-list button')].find(b=>b.textContent==='Refresh access records').click()");await settled(owner);
   await owner.eval("[...document.querySelectorAll('#exchange-list button')].find(b=>b.textContent==='End access').click()");await settled(owner);

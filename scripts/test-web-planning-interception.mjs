@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { mock } from 'node:test';
 import { pathToFileURL } from 'node:url';
-import { CDP } from './web-planning-cdp.mjs';
+import { CDP, downloadBrowserFiles } from './web-planning-cdp.mjs';
 import { observeWebPlanningInterceptions } from './web-planning-interception.mjs';
 
 class ControlledSocket extends EventTarget {
@@ -180,7 +180,42 @@ export async function checkWebPlanningInterceptionDiagnostics() {
   return { constructed: true, chrome_failure_rethrown: true, exact_context: true, lifecycle_transitions: true, private_headers_and_bodies_excluded: true, ignored_errors: 0 };
 }
 
+// Constructed download protocol controls, paired with the retained real Chrome
+// byte-read failure and focused four-file run. These are not historical replay.
+export async function checkWebPlanningDownloadCompletion() {
+  const other=()=>{},client={handlers:[other],async send(method,params){
+    assert.equal(method,'Browser.setDownloadBehavior');assert.equal(params.eventsEnabled,true);
+  }};
+  const emit=(method,params)=>client.handlers.forEach(fn=>fn({method,params}));
+  const begin=(guid,name)=>emit('Browser.downloadWillBegin',{guid,suggestedFilename:name});
+  const progress=(guid,state)=>emit('Browser.downloadProgress',{guid,state});
+  let checks=0;
+  await downloadBrowserFiles(client,'constructed-downloads',['a.txt','b.txt'],async predicate=>{
+    assert.equal(predicate(),false,'file creation/in-progress is not completion');checks++;
+    progress('foreign','completed');assert.equal(predicate(),false,'unmatched GUID cannot settle an expected name');checks++;
+    progress('a','completed');assert.equal(predicate(),false,'every requested download must complete');checks++;
+    progress('b','completed');assert.equal(predicate(),true);checks++;
+  },async()=>{begin('a','a.txt');begin('b','b.txt');progress('a','inProgress');},'constructed pair');
+  assert.deepEqual(client.handlers,[other]);
+  await downloadBrowserFiles(client,'constructed-downloads',['a.txt'],async predicate=>{
+    assert.equal(predicate(),false,'a previous operation cannot satisfy a new download of the same name');checks++;
+    progress('new-a','completed');assert.equal(predicate(),true);
+  },async()=>begin('new-a','a.txt'),'fresh operation');
+  await assert.rejects(downloadBrowserFiles(client,'constructed-downloads',['a.txt'],async predicate=>predicate(),
+    async()=>{begin('cancelled','a.txt');progress('cancelled','canceled');},'cancelled'),/browser_download_canceled:a.txt/);
+  assert.deepEqual(client.handlers,[other]);
+  const fault=new Error('constructed trigger failure');
+  await assert.rejects(downloadBrowserFiles(client,'constructed-downloads',['a.txt'],async()=>{},async()=>{throw fault;},'trigger'),e=>e===fault);
+  assert.deepEqual(client.handlers,[other]);
+  client.send=async()=>{throw fault;};
+  await assert.rejects(downloadBrowserFiles(client,'constructed-downloads',['a.txt'],async()=>{},async()=>{},'setup'),e=>e===fault);
+  assert.deepEqual(client.handlers,[other]);
+  return {constructed:true,real_browser:false,readiness_checks:checks,exact_guid_and_all_names:true,
+    cancellation_refused:true,fresh_operation:true,setup_and_trigger_failures_preserved:true,handlers_released:true};
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   console.log(JSON.stringify({ web_planning_touch_transport_contract: await checkWebPlanningTouchTransport() }));
   console.log(JSON.stringify({ web_planning_interception_diagnostics_contract: await checkWebPlanningInterceptionDiagnostics() }));
+  console.log(JSON.stringify({ web_planning_download_completion_contract: await checkWebPlanningDownloadCompletion() }));
 }
