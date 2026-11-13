@@ -695,6 +695,34 @@ Exact final qualification, immutable failures and cleanup belong to the PR and
 private evidence record. Existing native and #1587 observations are preserved,
 not repeated or promoted into evidence for this new permission boundary.
 
+### Selected public request evidence (#1641)
+
+The bounded public-request claim needs an unprivileged reader to recover the
+actual project's selected purpose, concrete need/reason, attributed issuer,
+exact source/version and truthful return requirements. Compare human and agent
+representations, including status and limits. A rendered page alone is not a
+verified need, submission permission or transport integration.
+
+The [focused D1 checks](../../scripts/web-planning-public-request-checks.mjs)
+exercise the existing project/request/grant writers, selective disclosure,
+scope/CSRF/currentness refusal, immutable public material, exact-key response-loss
+reconciliation, revocation/expiry/erasure and reconstruction. The return case
+uses a separately authenticated controlled participant, then the ordinary origin
+writer for actual adapted output and permitted shared feedback. These fixture
+identities do not establish an independently operated outsider.
+
+The [deterministic publication-client checks](../../scripts/test-web-planning-publication-client.mjs)
+cover pending-operation IDs, read-only resolution, no duplicate after confirmed
+creation, access-loss cleanup and unsaved disclosure selection. They are not a
+real-browser observation. Report blocked D1/build/type/browser checks as blocked,
+not inferred passes from syntax, pure client checks or a SQLite migration test.
+Existing final-target verification and cleanup owners remain unchanged.
+
+Source readiness, separately authorized production publication, an actual return,
+checked use, executor replacement and voluntary repeat participation retain
+separate evidence. This public projection alone does not satisfy #1642's
+producer-to-transport-to-consumer integration or demonstrate economic demand.
+
 ### Cross-project contribution evidence (#1630)
 
 Require independently owned A/B projects to complete deliberate request sharing,

@@ -1,3 +1,4 @@
+import { downloadBrowserFiles } from './web-planning-cdp.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -16,8 +17,8 @@ export async function browserOrdinaryFileJourney({a,debug,origin,page,click,set,
  const picker=async(c,selector,files)=>{const {root:dom}=await c.send('DOM.getDocument');const {nodeId}=await c.send('DOM.querySelector',{nodeId:dom.nodeId,selector});await c.send('DOM.setFileInputFiles',{nodeId,files});await settled(c);};
  const add=async(c,text)=>{await click(c,'add-note');await c.eval(`(()=>{const r=$('notes').lastElementChild;r.querySelector('[data-field=text]').value=${JSON.stringify(text)};r.querySelector('[data-field=source]').value='Synthetic author';r.querySelector('[data-field=text]').dispatchEvent(new Event('input',{bubbles:true}));})()`);};
  const fileChoice=async(c,side,name,selected)=>{await c.eval(`(()=>{const e=[...$('file-choices').querySelectorAll('input')].find(e=>e.dataset.side===${JSON.stringify(side)}&&JSON.parse(e.dataset.file).name===${JSON.stringify(name)});if(e.checked!==${selected})e.click();})()`);};
- const downloadDir=async(c,name)=>{const dir=path.join(folder,name);await mkdir(dir);await c.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:dir});return dir;};
- const downloaded=async(dir,name)=>{await wait(async()=>(await readdir(dir)).includes(name),'ordinary download '+name);return readFile(path.join(dir,name));};
+ const downloadDir=async(c,name)=>{const dir=path.join(folder,name);await mkdir(dir);return dir;};
+ const downloaded=async(dir,name)=>{assert((await readdir(dir)).includes(name));return readFile(path.join(dir,name));};
  const viewports=[];
  const fit=async(c,stage)=>{for(const width of [390,768,1200]){await c.send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<500});const dimensions=await c.eval('({scroll:document.documentElement.scrollWidth,client:document.documentElement.clientWidth,inner:innerWidth})');viewports.push({stage,width,...dimensions});assert(dimensions.scroll<=width&&dimensions.client===width,JSON.stringify({stage,width,...dimensions}));}};
  await ready(a);await click(a,'new-work');await set(a,'goal','Ordinary requirements and results');await set(a,'criteria','Preserve exact requirements and earlier results');
@@ -56,14 +57,14 @@ export async function browserOrdinaryFileJourney({a,debug,origin,page,click,set,
  await replaceRuntime(false);const fresh=await page(debug,origin);await ready(fresh);await choose(fresh,original.definition.goal);await saved(fresh,2);await settled(fresh);
  assert.deepEqual(await fresh.eval('saved'),result);await click(fresh,'saved-context');await settled(fresh);assert.match(await fresh.eval("$('context-view').innerText"),/File copy attribution/);
  const downloads=await downloadDir(fresh,'result-downloads'),artifacts=[];
- for(const f of result.files){await fresh.eval(`[...$('context-view').querySelectorAll('[data-file-url]')].find(e=>e.dataset.fileName===${JSON.stringify(f.name)}).click()`);await settled(fresh);
+ for(const f of result.files){await downloadBrowserFiles(fresh,downloads,[f.name],wait,async()=>{await fresh.eval(`[...$('context-view').querySelectorAll('[data-file-url]')].find(e=>e.dataset.fileName===${JSON.stringify(f.name)}).click()`);await settled(fresh);},'ordinary download '+f.name);
    const bytes=await downloaded(downloads,f.name);assert.equal(digestBytes(bytes),f.digest);assert.equal(bytes.length,f.bytes);assert.equal(bytes.toString(),f.name==='requirements.txt'?requirements:f.name==='results.txt'?alternative:baseline);artifacts.push({name:'download-'+f.name,bytes:bytes.length,sha256:digestBytes(bytes),data:bytes.toString('base64')});}
  await fresh.eval("$('history-tools').open=true");await click(fresh,'history');await settled(fresh);assert.match(await fresh.eval("$('history-view').textContent"),/revision|Revision/);
- await click(fresh,'export');await settled(fresh);await click(fresh,'reading-export');await settled(fresh);
+ await downloadBrowserFiles(fresh,downloads,['planning-work.json','authored-work.html'],wait,async()=>{await click(fresh,'export');await settled(fresh);await click(fresh,'reading-export');await settled(fresh);},'ordinary complete and readable downloads');
  const complete=await downloaded(downloads,'planning-work.json'),reading=await downloaded(downloads,'authored-work.html'),exported=JSON.parse(complete);validateFileExport(fixtureScope,exported);
  assert.deepEqual(exported.revisions,[original,result]);assert(exported.files.some(f=>f.digest===original.files[1].digest));assert(reading.toString().includes(baseline));assert(reading.toString().includes(alternative));
  for(const [name,bytes] of [['original-complete.json',complete],['original-readable.html',reading]])artifacts.push({name,bytes:bytes.length,sha256:digestBytes(bytes),data:bytes.toString('base64')});
- await choose(fresh,branch.definition.goal);assert.deepEqual(await fresh.eval('saved'),branch);const branchDownloads=await downloadDir(fresh,'branch-downloads');await fresh.eval("$('history-tools').open=true");await click(fresh,'export');await settled(fresh);await click(fresh,'reading-export');await settled(fresh);
+ await choose(fresh,branch.definition.goal);assert.deepEqual(await fresh.eval('saved'),branch);const branchDownloads=await downloadDir(fresh,'branch-downloads');await fresh.eval("$('history-tools').open=true");await downloadBrowserFiles(fresh,branchDownloads,['planning-work.json','authored-work.html'],wait,async()=>{await click(fresh,'export');await settled(fresh);await click(fresh,'reading-export');await settled(fresh);},'ordinary branch downloads');
  const branchBytes=await downloaded(branchDownloads,'planning-work.json'),branchReading=await downloaded(branchDownloads,'authored-work.html');assert.deepEqual(JSON.parse(branchBytes).revisions,[branchInitial,branch]);
  for(const [name,bytes] of [['alternate-complete.json',branchBytes],['alternate-readable.html',branchReading]])artifacts.push({name,bytes:bytes.length,sha256:digestBytes(bytes),data:bytes.toString('base64')});
  // Actual zero-note ordinary file branch uses the same visible creation path.
@@ -73,7 +74,7 @@ export async function browserOrdinaryFileJourney({a,debug,origin,page,click,set,
  for(const [file,expected] of [[path.join(downloads,'planning-work.json'),exported],[path.join(branchDownloads,'planning-work.json'),JSON.parse(branchBytes)]]){
    await replaceRuntime(true);const replacement=await page(debug,origin);await ready(replacement);assert.deepEqual(await countRows(),{revisions:0,files:0});await replacement.eval("$('reconstruction').open=true");await picker(replacement,'#import-file',[file]);await click(replacement,'import');await settled(replacement);assert.deepEqual(await replacement.eval('saved'),expected.revisions.at(-1));
    await replaceRuntime(false);const reopen=await page(debug,origin);await ready(reopen);await choose(reopen,expected.revisions.at(-1).definition.goal);await click(reopen,'saved-context');await settled(reopen);assert.match(await reopen.eval("$('context-view').textContent"),/Origin unavailable or unverified/);
-   const recovered=await downloadDir(reopen,'recovery-'+expected.revisions[0].work_id);await reopen.eval("$('history-tools').open=true");await click(reopen,'export');await settled(reopen);assert.deepEqual(JSON.parse(await downloaded(recovered,'planning-work.json')),expected);
+   const recovered=await downloadDir(reopen,'recovery-'+expected.revisions[0].work_id);await reopen.eval("$('history-tools').open=true");await downloadBrowserFiles(reopen,recovered,['planning-work.json'],wait,async()=>{await click(reopen,'export');await settled(reopen);},'ordinary recovered download');assert.deepEqual(JSON.parse(await downloaded(recovered,'planning-work.json')),expected);
    await fit(reopen,'reconstructed '+expected.revisions[0].work_id);
  }
  const screenshot=Buffer.from(shot.data,'base64');artifacts.push({name:'reviewed-file-selection.png',bytes:screenshot.length,sha256:digestBytes(screenshot),data:shot.data});
