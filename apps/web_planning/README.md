@@ -211,6 +211,14 @@ expired deadline stays unresolved for explicit review; `recover NEW_DIRECTORY`
 preserves its original `scope.json` before clearing the pending slot. Exchange
 `retry` likewise resolves the exact original request/return before repeating it.
 Keep the task setup and its private `.pending` directory across executor changes.
+Completion and recovery atomically move the current journal entry to a unique
+`claimed-...` locator before comparing its exact retained contents. They delete
+only a match. A late completion that encounters a different operation preserves
+it under that locator, rather than deleting the newer pending scope. Normal
+publication never reuses claimed names. A crash or read failure also leaves the
+claimed journal discoverable by `check`, `retry` and `recover`; when several
+operations remain, select the listed locator. This applies to scope and ordinary
+request/return retirement without changing their wire identities or writers.
 
 The returned link identifies the actual authenticated participant route.
 Creation establishes availability for permitted pull, not recipient delivery or

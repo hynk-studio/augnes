@@ -1,5 +1,5 @@
 import { constants as fs } from 'node:fs';
-import { open, readFile, unlink, link, mkdir, readdir, lstat, rmdir } from 'node:fs/promises';
+import { open, readFile, unlink, link, rename, mkdir, readdir, lstat, rmdir } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { digest, openFileTask, openFileProject, openFileProjects } from './web-file-client.mjs';
@@ -76,6 +76,19 @@ async function recoverDraft(directory, {work_id, setup_digest, body}) {
   }
 }
 async function newJson(path,value){const out=await open(path,'wx',0o600);try{await out.writeFile(JSON.stringify(value,null,2));await out.sync();}finally{await out.close();}}
+async function retireJournal(journal, expectedText){
+  // Claim the current entry atomically BEFORE inspecting it. The shared scope
+  // name may already hold another operation. Never unlink that reusable name.
+  // Normal publication never writes a claimed-* name; other completers may
+  // only move it away. Thus the later unlink cannot delete a replacement.
+  const claimed=join(pendingDir,'claimed-'+randomUUID());
+  try{await rename(journal,claimed);}catch(error){if(error.code==='ENOENT')return;throw error;}
+  let actual;
+  try{actual=await readFile(claimed,'utf8');}catch(error){if(error.code==='ENOENT')return;throw error;}
+  if(actual===expectedText)await unlink(claimed).catch(error=>{if(error.code!=='ENOENT')throw error;});
+  // A different entry, a crash or a read error leaves the complete original
+  // discoverable as a pending journal. Fresh check/retry/recover uses its body.
+}
 async function run() {
   if(setup==='projects'){
     if(args.length)throw Error('Use projects [CURSOR].');
@@ -191,14 +204,15 @@ async function run() {
   await mkdir(pendingDir,{recursive:true,mode:0o700});
   const directory = await lstat(pendingDir);
   if (!directory.isDirectory() || (directory.mode & 0o077)) throw new Error('Choose a private task setup directory.');
-  const pending = (await readdir(pendingDir)).filter(name=>name==='scope'||/^[a-f0-9-]{36}$/.test(name));
-  let operation, journal;
+  const pending = (await readdir(pendingDir)).filter(name=>name==='scope'||/^(?:claimed-)?[a-f0-9-]{36}$/.test(name));
+  let operation, journal, journalText;
   if (['check', 'retry', 'recover'].includes(action)) {
     if (action === 'recover' && !args[0]) throw new Error('Use recover NEW_DIRECTORY after checking an unrecorded, stale save.');
     const selected = (action === 'recover' ? args[1] : args[0]) ?? (pending.length === 1 ? pending[0] : undefined);
     if (!pending.includes(selected)) throw new Error('Select a pending request: ' + pending.join(', '));
     journal = join(pendingDir,selected);
-    operation = JSON.parse(await readFile(journal, 'utf8'));
+    journalText=await readFile(journal, 'utf8');
+    operation = JSON.parse(journalText);
   } else {
     if (pending.length) throw new Error('Check the previous pending file save first.');
     const state = await client.list();
@@ -241,7 +255,8 @@ async function run() {
     const tmp = journal + '.' + randomUUID() + '.tmp';
     const output = await open(tmp, 'wx', 0o600);
     try {
-      await output.writeFile(JSON.stringify(operation)); await output.sync();
+      journalText=JSON.stringify(operation);
+      await output.writeFile(journalText); await output.sync();
       await link(tmp, journal).catch(error => { if (error.code === 'EEXIST') throw new Error('Check the previous pending file save first.'); throw error; });
     } finally { await output.close(); await unlink(tmp); }
   }
@@ -254,10 +269,10 @@ async function run() {
     if(action==='recover'&&result.outcome==='unknown'&&!result.retry_allowed){
       await mkdir(args[0],{mode:0o700});
       await newJson(join(args[0],'scope.json'),operation);
-      await unlink(journal);
+      await retireJournal(journal,journalText);
       return {...result,next_action:'The original scope is preserved in scope.json. Review current work before another disclosure.'};
     }
-    if(result.outcome==='saved')await unlink(journal).catch(error=>{if(error.code!=='ENOENT')throw error;});
+    if(result.outcome==='saved')await retireJournal(journal,journalText);
     return {...result,delivery:'UNKNOWN',next_action:result.outcome==='saved'?
       'The original scope is recorded. Check expiry/revocation before using its authenticated pull route. Its link is not delivery or reading. Use request-context to recover the response and checked use.':
       'The scope was not observed. Retain this exact journal; check before retrying. Review stale or expired work before another disclosure.'};
@@ -286,7 +301,7 @@ async function run() {
       next_action:'The pending ' + field + ' was refused. Use recover NEW_DIRECTORY to preserve the draft before correcting it.'};
     if (action === 'recover') {
       await recoverDraft(args[0], operation);
-      await unlink(journal);
+      await retireJournal(journal,journalText);
       result.next_action = 'The refused draft and its exact files were recovered. Correct the text before making a new request or return.';
     }
     return result;
@@ -303,7 +318,7 @@ async function run() {
   } else if (action === 'recover' && result.outcome !== 'saved') {
     result.next_action = 'The save is still eligible on its original version. Check it before retrying the exact pending request.';
   }
-  if (result.outcome === 'saved' || (superseded && action === 'recover')) await unlink(journal).catch(error => { if (error.code !== 'ENOENT') throw error; });
+  if (result.outcome === 'saved' || (superseded && action === 'recover')) await retireJournal(journal,journalText);
   return result;
 }
 try { print(await run()); } catch (error) {
