@@ -46,6 +46,36 @@ export async function dispatchNavigation(server,url,init={}) {
     req.on('error',reject);req.end(init.body);
   });
 }
+// A declared-size refusal must arrive before upload is necessary. Sending the
+// oversized body concurrently makes Undici's upload error race its response
+// reader when workerd closes an unread request. Keep this a real HTTP exchange:
+// send headers only, require the complete response, then settle the socket.
+export async function dispatchRequestHeaders(server,url,init={}) {
+  const target=new URL(url),local=new URL(server.origin);
+  if(local.hostname!=='127.0.0.1' || !['http:','https:'].includes(local.protocol) || init.body!==undefined)
+    throw new Error('local_headers_dispatch_only');
+  const headers=Object.fromEntries(new Headers(init.headers));
+  headers[CoreHeaders.ORIGINAL_URL]=target.href;
+  return new Promise((resolve,reject)=>{
+    let response,error,size=0;const chunks=[];
+    const fail=e=>{error??=e;req.destroy();};
+    const req=(local.protocol==='https:'?https:http).request(new URL(target.pathname+target.search,local),{method:init.method??'POST',headers,agent:false,rejectUnauthorized:false},res=>{
+      res.on('error',fail);
+      res.on('aborted',()=>fail(new Error('local_dispatch_response_aborted')));
+      res.on('data',chunk=>{size+=chunk.length;if(size>4096)fail(new Error('local_dispatch_response_too_large'));else chunks.push(chunk);});
+      res.on('end',()=>{
+        if(!res.complete){fail(new Error('local_dispatch_response_incomplete'));return;}
+        try{response=new Response(Buffer.concat(chunks),{status:res.statusCode,headers:res.headers});}
+        catch(e){fail(e);return;}
+        req.destroy();
+      });
+    });
+    const timer=setTimeout(()=>fail(new Error('local_dispatch_timeout')),10000);
+    req.on('error',fail);
+    req.on('close',()=>{clearTimeout(timer);if(error)reject(error);else if(response)resolve(response);else reject(new Error('local_dispatch_response_incomplete'));});
+    req.flushHeaders();
+  });
+}
 export async function startLocal({root,port,production=false,direct=false,access=accessSimulation,bindings={},code,initialize=true,seedMapping=!direct,
   migrationsFolder=path.join(webRoot,'drizzle'),runtimeConfig=direct?directConfig:workerConfig,handleStructuredLogs}={}) {
   port??=await availablePort();const origin=`${direct?'https':'http'}://127.0.0.1:${port}`;
