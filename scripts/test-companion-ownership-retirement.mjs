@@ -11,6 +11,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import * as core from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 import { registerOwnedChild, cleanupOwnedProcesses } from "./test-harness-process-lifecycle.mjs";
+import { runCompanionFixtureScenario } from "./companion-service-fixture-observation.mjs";
 const hash = value => createHash("sha256").update(value).digest("hex");
 const json = (file, value) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(value) + "\n", { mode: 0o600 }); };
 const read = file => JSON.parse(fs.readFileSync(file, "utf8"));
@@ -171,13 +172,9 @@ async function fixture({ laterAttemptExit = false } = {}) {
         throw error;
     }
 }
-async function run(name, action, options) { const f = await fixture(options); try {
-    await action(f);
-    console.log(JSON.stringify({ scenario: name, pass: true, effects: f.effects() }));
+async function run(name, action, options) {
+    await runCompanionFixtureScenario(name, () => fixture(options), action);
 }
-finally {
-    await f.cleanup();
-} }
 await run("lost-state-retirement-and-replay", async (f) => {
     const status = await core.inspectCompanionService(f.options);
     assert.equal(status.status, "recovery_required");

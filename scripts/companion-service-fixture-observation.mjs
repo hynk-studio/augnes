@@ -4,6 +4,26 @@ import { spawnSync } from "node:child_process";
 import { closeSync, constants, fstatSync, openSync, readFileSync } from "node:fs";
 import { readCompanionSupervisorFailureProvenance } from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 
+// Keep a scenario's assertion completion distinct from its owned cleanup.
+// These observations use the existing child watchdog; they add no stage limit.
+export async function runCompanionFixtureScenario(name, setup, action, {
+  log = value => console.log(value), now = () => performance.now(),
+} = {}) {
+  const started = now();
+  const observe = value => log(JSON.stringify({ scenario: name, ...value,
+    elapsed_ms: Math.round(now() - started) }));
+  observe({ stage: "scenario_start" });
+  const fixture = await setup();
+  try {
+    observe({ stage: "fixture_ready" });
+    await action(fixture);
+    observe({ stage: "action_pass" });
+  } finally {
+    await fixture.cleanup();
+  }
+  observe({ pass: true, effects: fixture.effects(), cleanup_complete: true });
+}
+
 export function collectFixtureCliResult(child) {
   return new Promise((resolve) => {
     let stdout = "", stderr = "", errorCode = null;

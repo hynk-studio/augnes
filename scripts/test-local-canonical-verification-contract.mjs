@@ -7,7 +7,7 @@ import { RESEARCH_REGISTRATION_PATH, RESEARCH_SOURCE_PATHS, RESEARCH_OWNER_ID,
 import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { assertVerificationDocumentation } from "./validate-canonical-docs-change.mjs";
 import { buildPhasePlan, OPERATING_POLICY_PHASE_IDS } from "./run-local-canonical-verification.mjs";
-import { integrationBudgetRegistration, REGISTERED_INTEGRATION_BUDGET, verifyIntegrationBudgetAdoptedEntries } from "./local-canonical-fixture-budget-witness.mjs";
+import { integrationBudgetRegistration, registeredFixtureBudget, REGISTERED_INTEGRATION_BUDGET, verifyIntegrationBudgetAdoptedEntries } from "./local-canonical-fixture-budget-witness.mjs";
 import { integrationBudgetAuthorityBindings, integrationBudgetAuthorityScope, INTEGRATION_BUDGET_GRANT,
   INTEGRATION_BUDGET_LIMIT, MATERIAL_HISTORY_BOUNDARY } from "./local-canonical-git-observation.mjs";
 import { spawnSync } from "node:child_process";
@@ -26,6 +26,8 @@ import {
 } from "./runtime-operability-ownership.mjs";
 import {
   assertCanonicalConcurrentChildLabelsV01,
+  DEFAULT_CANONICAL_TERM_GRACE_MS,
+  DEFAULT_CANONICAL_KILL_GRACE_MS,
   normalizeCanonicalConcurrentChildLabelV01,
 } from "./canonical-child-runner.mjs";
 
@@ -754,8 +756,28 @@ for (const fragment of ['timeoutMs: 30_000', 'requireNaturalExit: true', '"scrip
 
 const revisionSteps = canonicalSuite.slice(canonicalSuite.indexOf("const reviewedRevisionSteps ="), canonicalSuite.indexOf("const suites ="));
 for (const fragment of ['["revision", "settlement", "browser", "git", "git-input", "git-input-direct", "git-input-lifecycle", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation", "serial-aggregate", "serial-material"].map(group', '"--reviewed-revision-controls", group',
-  'timeoutMs: group === "serial-material" ? 75_000 : group === "serial-aggregate" ? AUXILIARY_EXECUTION_BUDGETS.reviewSerialAggregateControlMs : 30_000', 'requireNaturalExit: true'])
+  'requireNaturalExit: true'])
   requireText(revisionSteps, fragment, "each reviewed fixture group has its own bounded natural-exit registration");
+// Inspect effective values through the existing finite registration reader,
+// using the same working-tree source as this behavioral contract check.
+// Selecting its supported aggregate owner does not admit a material correction.
+const revisionBudgets = registeredFixtureBudget(([, target]) =>
+  Buffer.from(readRepositoryFile(target.slice(target.indexOf(":") + 1))), "fixture", "serial-aggregate");
+for (const [group, limits] of Object.entries(revisionBudgets.limits)) {
+  const expected = group === "serial-material" ? {inner: 80_000, outer: 95_000} :
+    group === "serial-aggregate" ? {inner: 20_000, outer: 40_000} :
+    ["revision", "acquisition", "git-successor", "git-input-successor"].includes(group) ?
+      {inner: 20_000, outer: 30_000} : {inner: 15_000, outer: 30_000};
+  assert.deepEqual(limits, expected, `reviewed fixture budgets: ${group}`);
+}
+const materialBudget = revisionBudgets.limits["serial-material"];
+assert.deepEqual(materialBudget, {
+  inner: revisionBudgets.constants.reviewSerialMaterialFixtureMs,
+  outer: revisionBudgets.constants.reviewSerialMaterialControlMs,
+}, "material callers use the shared fixture allowances");
+assert.equal(materialBudget.outer - materialBudget.inner -
+  DEFAULT_CANONICAL_TERM_GRACE_MS - DEFAULT_CANONICAL_KILL_GRACE_MS, 2_000,
+  "material outer allowance retains termination grace and parent settlement");
 assert.equal(countOccurrences(canonicalSuite, "...reviewedRevisionSteps,"), 1);
 assert.equal(countOccurrences(canonicalSuite, '"--reviewed-revision-controls"'), 1);
 assert.doesNotMatch(canonicalSuite, /--operating-profile-succession-controls/u);
