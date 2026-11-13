@@ -51,12 +51,10 @@ const summary={contract:"augnes.common-stock-verifier-observation.v1",imports_co
   actual_imports:[...loaded.values()].sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0)};
 try { await writeStockVerifierSummary(summary); }
 catch(error) {
-  if(primary) {
-    try { primary.output_error=errorValue(error); } catch { /* Preserve the original error even if diagnostic attachment refuses. */ }
-    throw primary;
-  }
-  if(cleanupErrors.length)throw Object.assign(new Error("stock_verifier_cleanup_failed"),{code:"stock_verifier_cleanup_failed",cleanup_errors:cleanupErrors,output_error:errorValue(error)});
-  throw error;
+  // The first real error remains the cause. Recording refusal is separately
+  // explicit and cannot supply a successful repair witness.
+  throw Object.assign(new Error("stock_verifier_output_failed"),{code:"stock_verifier_output_failed",cause:primary??error,
+    primary_error:primary?errorValue(primary):null,cleanup_errors:cleanupErrors,output_error:errorValue(error)});
 }
 if(primary)throw primary;
 if(cleanupErrors.length)throw Object.assign(new Error("stock_verifier_cleanup_failed"),{code:"stock_verifier_cleanup_failed"});

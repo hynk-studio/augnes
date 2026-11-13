@@ -1455,7 +1455,10 @@ raw inspection and the declared content/security/location/scope/forged-binding
 and malformed-observation refusals before the same desired metadata-only assertion. Repair RED requires
 the actual old production `inspectAttemptRecords` result to refuse that same
 byte-identical metadata-only case; final GREEN completes it and all cleanup.
-Setup/import/selector/timeout/cleanup failures are not repair RED. Synthetic
+Setup/import/selector/timeout/cleanup/output failures are not repair RED. The
+common summary write must settle before the original primary is rethrown; the
+reader requires complete UTF-8 output with its terminal newline, binds original
+stderr, and refuses explicit recording failures even if JSON is parseable. Synthetic
 ledger accounting is not real authority or qualification. The existing HTTP
 common-driver attribution and its EPIPE conditions retain their meaning.
 

@@ -73,6 +73,9 @@ function verifyStockVerifierPair(p,prior,focused,{git,parse,bytes,completedAt,re
         !(Date.parse(lifecycle.created_at)<=Date.parse(w.started_at) && Date.parse(w.started_at)<=Date.parse(lifecycle.cleanup_finished_at) &&
           Date.parse(lifecycle.cleanup_finished_at)<=Date.parse(w.finished_at)) ||
         w===after && !(Date.parse(before.resource_lifecycle.cleanup_finished_at)<Date.parse(lifecycle.created_at)))fail();
+    const errorBytes=bytes(w.stderr,64*1024),errorText=errorBytes.toString("utf8");
+    if(!Buffer.from(errorText).equals(errorBytes)||errorText.includes("stock_verifier_output_failed")||
+      exit===1&&!errorText.includes("ERR_ASSERTION"))fail();
     validateSummary(bytes(w.stdout,2*1024*1024),catalogue,r.corpus,corpus,corpusContext,exit,env,w,r.path);
   }
   return p.head;
@@ -103,7 +106,9 @@ function validateCorpus(corpus,bytes) {
 }
 
 function validateSummary(output,catalogue,corpusRef,corpus,corpusContext,exit,env,witness,driverPath) {
-  const lines=output.toString("utf8").split(/\r?\n/u).filter(line=>line.startsWith(STOCK_VERIFIER_RESULT_PREFIX));
+  const text=output.toString("utf8");
+  if(!Buffer.from(text).equals(output)||!text.endsWith("\n"))fail();
+  const lines=text.split(/\r?\n/u).filter(line=>line.startsWith(STOCK_VERIFIER_RESULT_PREFIX));
   if(lines.length!==1)fail();let s;try{s=JSON.parse(lines[0].slice(STOCK_VERIFIER_RESULT_PREFIX.length));}catch{fail();}
   if(s.contract!==STOCK_VERIFIER_OBSERVATION || s.imports_complete!==true || s.cleanup_complete!==true ||
       !equal(s.cleanup_errors,[]) || s.synthetic_authority!==true || s.remote_requests!==0 || s.physical_accounting_unchanged!==true ||

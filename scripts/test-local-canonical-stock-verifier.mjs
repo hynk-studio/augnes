@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { Writable } from "node:stream";
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { writeStockVerifierSummary } from "./local-canonical-stock-verifier-output.mjs";
 import fs, { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, realpathSync, renameSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
@@ -43,7 +44,9 @@ try{
     assert.equal(Buffer.concat(chunks).toString(),STOCK_VERIFIER_RESULT_PREFIX+JSON.stringify(large)+"\n");
     assert.match(Buffer.concat(outputErrors).toString(),/output_control_primary/);
   } finally { assert(cleanupCanonicalTestResources([outputOwner]).every(v=>v.completed)); }
-  await assert.rejects(writeStockVerifierSummary({}, {write(_bytes,callback){callback(Object.assign(new Error("controlled output refusal"),{code:"output_control_refusal"}));}}),/controlled output refusal/);
+  const refusal=Object.assign(new Error("controlled output refusal"),{code:"output_control_refusal"}),broken=new Writable({write(_bytes,_encoding,callback){callback(refusal);}});
+  await assert.rejects(writeStockVerifierSummary({},broken),error=>error===refusal);
+  assert.equal(broken.listenerCount("error"),0);assert.equal(broken.destroyed,true);
   git(["init","--quiet"]);write(".gitignore","node_modules/\n");
   for(const name of STOCK_VERIFIER_MODULES)write(name,"export const controlled=false;\n");
   for(const dir of ["","apps/augnes_apps","apps/web_planning"]){const prefix=dir?dir+"/":"";
@@ -110,7 +113,7 @@ try{
       file_sha256:digest(git(["show",head+":"+driver])),command,runtime_before:runtime,runtime_after:runtime,runtime_inputs_sha256:p.inputs.identity_sha256,
       node_version:process.versions.node,node_executable:realpathSync(process.execPath),environment_before:env,environment_after:env,environment:digest(env),prepared_dependencies:deps,result:result(exit),
       resource_lifecycle:{owner,initial_entries:[],absent_after_cleanup:true,created_at:at(exit?-9500:-7500),cleanup_finished_at:at(exit?-8500:-6500),cleanup:{root,completed:true,failure_count:0,failures:[]}},
-      started_at:at(exit?-9000:-7000),finished_at:at(exit?-8000:-6000),stdout:ref(label+".log",STOCK_VERIFIER_RESULT_PREFIX+JSON.stringify(summary)+"\n")});
+      started_at:at(exit?-9000:-7000),finished_at:at(exit?-8000:-6000),stderr:ref(label+"-stderr.log",exit?"ERR_ASSERTION\n":""),stdout:ref(label+".log",STOCK_VERIFIER_RESULT_PREFIX+JSON.stringify(summary)+"\n")});
   };
   const before=make("before",sources.before,prior.head,1),after=make("after",sources.after,head,0),green=parse(after);
   const focused={implicated_paths:[...STOCK_VERIFIER_MODULES],source_files:[{path:driver}],input_remedy_resources:[],finished_at:at(-5000),
@@ -122,6 +125,9 @@ try{
     if(which==="after")f.commands=[{...f.commands[0],record:f.regression.after,stdout:w.stdout,result:w.result}];assert.throws(()=>verify(f),undefined,"refusal "+refusals+": "+description);};
   const mutateSummary=(which,mutate)=>mutateWitness(which,w=>{const s=JSON.parse(bytes(w.stdout).toString().slice(STOCK_VERIFIER_RESULT_PREFIX.length));
     mutate(s);w.stdout=ref("bad-summary-"+refusals+".log",STOCK_VERIFIER_RESULT_PREFIX+JSON.stringify(s)+"\n");},"summary "+mutate.toString());
+  mutateWitness("before",w=>delete w.stderr);
+  mutateWitness("before",w=>w.stderr=ref("recording-error.log","stock_verifier_output_failed\nERR_ASSERTION\n"));
+  mutateWitness("before",w=>w.stdout=ref("missing-terminal-newline.log",bytes(w.stdout).subarray(0,-1)));
   for(const mutate of [w=>w.driver_source_head=prior.head,w=>w.modules.pop(),w=>w.source_state.kind="clean-predecessor",
     w=>w.source_files_after=ref("incomplete-source.json",[]),w=>w.prepared_dependencies.pop(),w=>w.runtime_after.node.observation.sha256=digest("runtime drift"),
     w=>w.environment_after.EXTRA="drift",w=>w.result.timed_out=true,w=>w.result.termination_reason="bounded_timeout",w=>w.result.cleanup_completed=false,
