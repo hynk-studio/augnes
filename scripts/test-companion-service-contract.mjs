@@ -37,7 +37,7 @@ import {
 } from "./test-harness-process-lifecycle.mjs";
 import { buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
 import { collectFixtureCliResult, fixtureInstallFailureDiagnostic, fixtureProcessIdentity,
-  observeFixtureLaunchJob, readFixtureJson, readFixtureManagerObservation,
+  observeFixtureLaunchJob, readFixtureJson, readFixtureManagerObservation, runCompanionFixtureScenario,
 } from "./companion-service-fixture-observation.mjs";
 import { createServiceContractFamilies } from "./fixtures/companion-service-contract-families.mjs";
 import {
@@ -72,6 +72,44 @@ import {
 } from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 
 const repositoryRoot = process.cwd();
+async function assertFixtureScenarioSettlement() {
+  const events = [];
+  let clock = 0, releaseCleanup, cleanupStarted;
+  const started = new Promise(resolve => { cleanupStarted = resolve; });
+  const cleanup = new Promise(resolve => { releaseCleanup = resolve; });
+  const observation = { log: value => events.push(JSON.parse(value)), now: () => clock };
+  const fixture = { effects: () => 1, cleanup: async () => { cleanupStarted(); await cleanup; } };
+  const pending = runCompanionFixtureScenario("settled", async () => {
+    clock = 10; return fixture;
+  }, async value => { assert.equal(value, fixture); clock = 25; }, observation);
+  await started;
+  assert.deepEqual(events.map(value => value.stage), ["scenario_start", "fixture_ready", "action_pass"]);
+  assert.deepEqual(events.map(value => value.elapsed_ms), [0, 10, 25]);
+  assert(!events.some(value => value.pass === true), "assertions cannot publish success before cleanup");
+  clock = 40;
+  releaseCleanup();
+  await pending;
+  assert.deepEqual(events.at(-1), { scenario: "settled", pass: true, effects: 1,
+    cleanup_complete: true, elapsed_ms: 40 });
+
+  for (const failure of ["setup", "action", "cleanup"]) {
+    events.length = 0;
+    let cleaned = false;
+    const error = new Error(`fixture-${failure}`);
+    await assert.rejects(runCompanionFixtureScenario(failure, async () => {
+      if (failure === "setup") throw error;
+      return { effects: () => 0, cleanup: async () => {
+        cleaned = true;
+        if (failure === "cleanup") throw error;
+      } };
+    }, async () => { if (failure === "action") throw error; }, observation), value => value === error);
+    assert.equal(cleaned, failure !== "setup");
+    assert(!events.some(value => value.pass === true), `${failure} failure cannot publish success`);
+  }
+  console.log(JSON.stringify({ case: "fixture-scenario-settlement", status: "passed",
+    pass_after_cleanup: true, stage_durations_observed: true, failures_not_promoted: true }));
+}
+
 async function assertFixtureInstallationEvidence() {
   const secret = "fixture-one-time-token-do-not-report";
   const refusal = { contract: COMPANION_SERVICE_CONTRACT, result: "refused",
@@ -173,6 +211,7 @@ const unsettledFixtureOwners = new Set();
 let summary;
 try {
   assertFixtureNodeVersionReuse();
+  await assertFixtureScenarioSettlement();
   await assertFixtureInstallationEvidence();
   await assertPreservationObservation();
   await assertInstalledAccessDiagnostics();
