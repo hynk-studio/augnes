@@ -1,4 +1,6 @@
 import path from "node:path";
+import { STOCK_VERIFIER_RESULT_PREFIX } from "./local-canonical-stock-verifier-output.mjs";
+export { STOCK_VERIFIER_RESULT_PREFIX } from "./local-canonical-stock-verifier-output.mjs";
 import { digest } from "./local-canonical-inputs.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
@@ -8,7 +10,6 @@ import { validBrowserBundle } from "./local-canonical-browser-bundle.mjs";
 
 export const GIT_CONFIG_STOCK_VERIFIER_REPAIR = "git-config-stock-verifier-repair-v1";
 export const MATERIAL_COMMON_STOCK_VERIFIER = "material-common-stock-verifier-driver-v1";
-export const STOCK_VERIFIER_RESULT_PREFIX = "AUGNES_STOCK_VERIFIER_RESULT ";
 export const STOCK_VERIFIER_CORPUS = "augnes.synthetic-stock-verifier-corpus.v1";
 export const STOCK_VERIFIER_OBSERVATION = "augnes.common-stock-verifier-observation.v1";
 export const STOCK_VERIFIER_MODULES = Object.freeze([

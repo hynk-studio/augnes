@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { runCanonicalChild } from "./canonical-child-runner.mjs";
+import { writeStockVerifierSummary } from "./local-canonical-stock-verifier-output.mjs";
 import fs, { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, realpathSync, renameSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { execFileSync } from "node:child_process";
@@ -25,6 +27,23 @@ const bytes=(r,max)=>revisionArtifact(root,r,max),parse=r=>JSON.parse(bytes(r));
 const git=args=>execFileSync("git",["--no-replace-objects",...args],{cwd:root,timeout:10000,maxBuffer:8*1024*1024,stdio:["ignore","pipe","pipe"]});
 let refusals=0;
 try{
+  // The real summary writer must settle a pipe larger than its usual buffer
+  // before the same natural primary exception terminates the child.
+  const outputOwner=createCanonicalTestResourceDirectory(path.join(root,"output-child")),chunks=[],outputErrors=[];
+  const large={control:"bounded-output",payload:"x".repeat(262144)};let outputBytes=0,outputResult;
+  try {
+    const writer=new URL("./local-canonical-stock-verifier-output.mjs",import.meta.url).href;
+    const payload=`import {writeStockVerifierSummary} from ${JSON.stringify(writer)};await writeStockVerifierSummary({control:"bounded-output",payload:"x".repeat(262144)});throw Object.assign(new Error("controlled primary"),{code:"output_control_primary"});`;
+    outputResult=await runCanonicalChild({suite:"stock-verifier-output",label:"complete summary before natural primary failure",command:process.execPath,
+      args:["--input-type=module","-e",payload],cwd:root,env:buildCanonicalChildEnvironment({temporaryRoot:outputOwner.root,resourceRoot:outputOwner.root}),
+      resourceOwner:outputOwner,timeoutMs:3000,stdout:{write:chunk=>{outputBytes+=chunk.length;if(outputBytes<=1024*1024)chunks.push(Buffer.from(chunk));}},
+      stderr:{write:chunk=>{if(outputErrors.reduce((n,v)=>n+v.length,0)<65536)outputErrors.push(Buffer.from(chunk));}},log(){}});
+    assert.equal(outputResult.exit_code,1);assert.equal(outputResult.termination_reason,"natural_exit");assert.equal(outputResult.timed_out,false);
+    assert(outputResult.exit_observed&&outputResult.streams_closed&&outputResult.cleanup_completed&&outputResult.remaining_owned_processes===0);
+    assert.equal(Buffer.concat(chunks).toString(),STOCK_VERIFIER_RESULT_PREFIX+JSON.stringify(large)+"\n");
+    assert.match(Buffer.concat(outputErrors).toString(),/output_control_primary/);
+  } finally { assert(cleanupCanonicalTestResources([outputOwner]).every(v=>v.completed)); }
+  await assert.rejects(writeStockVerifierSummary({}, {write(_bytes,callback){callback(Object.assign(new Error("controlled output refusal"),{code:"output_control_refusal"}));}}),/controlled output refusal/);
   git(["init","--quiet"]);write(".gitignore","node_modules/\n");
   for(const name of STOCK_VERIFIER_MODULES)write(name,"export const controlled=false;\n");
   for(const dir of ["","apps/augnes_apps","apps/web_planning"]){const prefix=dir?dir+"/":"";
