@@ -209,8 +209,7 @@ function maintenanceIncident(p,prior,reg,{git,bytes,original,completion,reposito
   const match=result.match(/ duration_ms=([0-9]+) exit_code=null signal=SIG(?:TERM|KILL) timed_out=true exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=bounded_timeout$/u);
   const start=`[canonical:authority] child_start label=${label} timeout_ms=${registration.bound_ms}`;
   if (!match||Number(match[1])<registration.bound_ms||text.split("\n").filter(l=>l===start).length!==1||text.indexOf(start)>=text.indexOf(result)||
-      text.split("\n").filter(l=>l.startsWith("[canonical:authority] child_result ")&&!l.includes(" exit_code=0 ")).length!==1||
-      !text.includes("canonical child failed: suite=authority label="+registration.label+" exit_code=null signal=SIG")) fail();
+      text.split("\n").filter(l=>l.startsWith("[canonical:authority] child_result ")&&!l.includes(" exit_code=0 ")).length!==1) fail();
   const events=text.split("\n").filter(l=>l.startsWith("[canonical:authority] ")&&l.includes(" label="+label+" "));
   const essential=events.filter(l=>!l.includes(" child_active "));
   if (!equal(essential.map(l=>l.slice(22).split(" ")[0]),["child_start","child_spawn","child_cleanup_start","child_cleanup_result","child_result"])) fail();
@@ -226,6 +225,13 @@ function maintenanceIncident(p,prior,reg,{git,bytes,original,completion,reposito
   }
   const cleanup=one(jsonLines(text).filter(v=>v.suite==="authority"&&Array.isArray(v.resource_cleanup)));
   if (!cleanup.resource_cleanup.length||cleanup.resource_cleanup.some(v=>v.completed!==true||v.failure_count!==0||v.failures.length)) fail();
+  const lines=text.split("\n"),aggregate="AggregateError: canonical suite execution or cleanup failed";
+  const failure=`Error: canonical child timed out: suite=authority label=${registration.label} timeout_ms=${registration.bound_ms}`;
+  const timeout=one(lines.filter(line=>line.trim().startsWith("Error: canonical child timed out: suite=authority ")));
+  const code=one(lines.filter(line=>line.trim()==="code: 'canonical_child_timeout',"));
+  if (timeout.trim()!==failure||lines.filter(line=>line===aggregate).length!==1||
+      !(text.indexOf(result)<text.indexOf(JSON.stringify(cleanup))&&text.indexOf(JSON.stringify(cleanup))<text.indexOf(aggregate)&&
+        text.indexOf(aggregate)<text.indexOf(timeout)&&text.indexOf(timeout)<text.indexOf(code)))fail();
   return registration;
 }
 

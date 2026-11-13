@@ -80,7 +80,7 @@ export async function runMaintenanceAllowanceControls(c,h,sourceRoot) {
     `[canonical:authority] child_cleanup_start label=${quoted} elapsed_ms=60000 reason=bounded_timeout exit_observed=false stdout_closed=false stderr_closed=false\n`+
     `[canonical:authority] child_cleanup_result label=${quoted} elapsed_ms=60009 reason=bounded_timeout streams_closed=true remaining_owned_processes=0\n`+
     `[canonical:authority] child_result label=${quoted} duration_ms=60010 exit_code=null signal=SIGTERM timed_out=true exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=bounded_timeout\n`+
-    JSON.stringify({suite:"authority",resource_cleanup:[{completed:true,failure_count:0,failures:[]}]})+"\ncanonical child failed: suite=authority label="+label+" exit_code=null signal=SIGTERM\n";
+    JSON.stringify({suite:"authority",resource_cleanup:[{completed:true,failure_count:0,failures:[]}]})+"\nAggregateError: canonical suite execution or cleanup failed\n    Error: canonical child timed out: suite=authority label="+label+" timeout_ms=60000\n      code: 'canonical_child_timeout',\n";
   const oldRun="ordinary-maintenance-failure",relative=`.augnes-local-verification/logs/${oldRun}/authority.log`;write(relative,incident);
   const failing={...h,begin:(_subject,_proof,_cap,extra)=>beginAttempt({anchorRoot:c.anchor,repositoryRoot:c.checkout,checkoutOwner:c.owner,branch:c.branch,head:c.head,tree:c.tree,
     runId:oldRun,sourceCorrection:old,...extra}),behavior:async()=>{
@@ -143,6 +143,14 @@ export async function runMaintenanceAllowanceControls(c,h,sourceRoot) {
   const args=preparation(),prepared=await prepareMaterialSourceRevision(args,{transport:api});assert.equal(prepared.authorized,false);assert.equal(prepared.reserved,false);
   const edge=path.join(priorFolder,"correction-successor.json");assert(!existsSync(edge));
   let refusals=0;
+  const wrongMarker=incident.replace("canonical child timed out:","canonical child timed off:");
+  assert.notEqual(wrongMarker,incident);assert.equal(Buffer.byteLength(wrongMarker),Buffer.byteLength(incident));
+  const previousFocused=p.focused,wrongMarkerFocused=clone(focused);
+  wrongMarkerFocused.regression.incident.log=ref("wrong-timeout-marker.log",wrongMarker);
+  wrongMarkerFocused.regression.incident.log_identity.sha256=digest(wrongMarker);
+  write(relative,wrongMarker);p.focused=ref("wrong-timeout-focused.json",wrongMarkerFocused);
+  try { assert.throws(()=>inspectGitRevisionPreparation(preparation()),error=>error.code==="revision_fixture_budget_invalid");refusals++; }
+  finally { write(relative,incident);p.focused=previousFocused; }
   for(const mutate of [q=>q.commission.allowance_case="unknown",q=>q.prior_attempt_id="wrong",q=>q.commission.maximum_invocations=2,q=>q.inputs.inventory_sha256=digest("substituted"),q=>delete q.commission.delegation]) {
     const previous=clone(p);mutate(p);try{assert.throws(()=>inspectGitRevisionPreparation(preparation()));refusals++;}finally{p=previous;}
   }
