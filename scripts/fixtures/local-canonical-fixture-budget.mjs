@@ -310,7 +310,7 @@ export async function selectiveFixtureWorkloadControls(parent,h,sourceRoot) {
   // Different physical roots retain their actual raw security identities. This
   // is content/layout/package equality, never claimed ACL/xattr equivalence.
   const dependencyBefore=(differentRoot,changePermission=true,changeLayout=false,withinRun=false)=>{
-    const witness=structuredClone(before),copy=structuredClone(focused);
+    const witness=parse(focused.regression.before),copy=structuredClone(focused);
     for(const side of ["before","after"])witness[side].dependencies={...witness[side].dependencies,
       ...(differentRoot?{location_fingerprint:digest("different physical dependency root")} : {}),
       ...(changePermission&&(!withinRun||side==="after")?{permission_sha256:digest("separately observed raw security")}:{}),
