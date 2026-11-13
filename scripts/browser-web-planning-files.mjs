@@ -1,3 +1,4 @@
+import { downloadBrowserFiles } from './web-planning-cdp.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -24,10 +25,9 @@ export async function browserFileJourney({a,debug,origin,page,click,set,settled,
  await click(consumer,'saved-context');await settled(consumer);
  assert.match(await consumer.eval("$('context-view').innerText"),/Source and results are required together/);
  assert.equal(await consumer.eval("document.querySelectorAll('#context-view [data-file-url]').length"),4);
- await consumer.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads});
  for(const [i,f] of fileFixtures.entries()) {
-   await consumer.eval(`document.querySelectorAll('#context-view [data-file-url]')[${i}].click()`);await settled(consumer);
-   await wait(async()=> (await readdir(downloads)).includes(f.name),'download '+f.name);
+   await downloadBrowserFiles(consumer,downloads,[f.name],wait,async()=>{await consumer.eval(`document.querySelectorAll('#context-view [data-file-url]')[${i}].click()`);await settled(consumer);},'download '+f.name);
+   assert((await readdir(downloads)).includes(f.name));
    const bytes=await readFile(path.join(downloads,f.name));assert.deepEqual(bytes,f.bytes);assert.equal(digestBytes(bytes),first.files[i].digest);
  }
  let output='';const continuation=await runCanonicalChild({suite:'web-planning-browser',label:'downloaded-file-continuation',command:process.execPath,args:['analysis.mjs','results.json'],cwd:downloads,env:process.env,timeoutMs:10000,stdout:{write(chunk){output+=chunk.toString();}}});
@@ -48,8 +48,8 @@ export async function browserFileJourney({a,debug,origin,page,click,set,settled,
  await navigate(consumer,origin+'/');await wait(()=>consumer.eval("!![...$('work-list').querySelectorAll('button')].find(b=>b.textContent==='Continue from an exact private file bundle')"),'file reopen');
  await consumer.eval("[...$('work-list').querySelectorAll('button')].find(b=>b.textContent==='Continue from an exact private file bundle').click()");await saved(consumer,2);await settled(consumer);
  await click(consumer,'saved-context');await settled(consumer);assert.match(await consumer.eval("$('context-view').innerText"),/sum=499500/);
- await consumer.eval("$('history-tools').open=true");await click(consumer,'export');await settled(consumer);
- await wait(async()=> (await readdir(downloads)).includes('planning-work.json'),'complete file export');
+ await consumer.eval("$('history-tools').open=true");await downloadBrowserFiles(consumer,downloads,['planning-work.json'],wait,async()=>{await click(consumer,'export');await settled(consumer);},'complete file export');
+ assert((await readdir(downloads)).includes('planning-work.json'));
  const bytes=await readFile(path.join(downloads,'planning-work.json')),exported=JSON.parse(bytes);const validated=validateFileExport(fixtureScope,exported);
  assert.equal(validated.chain.length,2);assert.deepEqual(validated.chain[0],first);assert.deepEqual(validated.chain[1],second);assert.equal(validated.bodies.length,5);
  for(const [width,height] of [[390,844],[1200,800]]){await consumer.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});assert(await consumer.eval('document.documentElement.scrollWidth<=innerWidth'));}

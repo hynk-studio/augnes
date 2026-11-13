@@ -1,0 +1,114 @@
+'use strict';
+const $=id=>document.getElementById(id),meta=name=>document.querySelector('meta[name="'+name+'"]').content;
+const scope={workspace_id:meta('workspace'),project_id:meta('project')},work=meta('publication-work'),root='/api/work/'+work+'/public-requests';
+const pointer='augnes-publication-pending:'+scope.project_id+':'+work;
+const responseEnabled=meta('public-response-enabled')==='true';
+const keys=['project','title','purpose','need','reason','evidence','expected_return','checking_use'];
+let current=null,grants=[],grantCursor=null,cursor=null,busy=false,lost=false,pending=null,confirmedAbsent=false,dirty=false;
+const status=text=>{$('status').textContent=text;};
+function selected(){return grants.find(g=>g.id===$('grant').value);}
+function eligible(g){return responseEnabled&&!!g&&!g.revoked_at&&g.expires>Date.now()&&current&&g.disclosure.expected.revision===current.revision&&g.disclosure.expected.fingerprint===current.fingerprint;}
+function controls(){
+  const blocked=busy||lost||!current||!!pending&&!confirmedAbsent;
+  $('publication-fields').disabled=blocked;$('publication-submit').disabled=blocked||!eligible(selected());
+  $('publication-resolve').hidden=!pending;$('publication-resolve').disabled=busy||lost;
+  $('refresh').disabled=busy||lost;$('publications-more').disabled=busy||lost;
+}
+function deny(){
+  lost=true;current=null;grants=[];dirty=false;
+  for(const id of ['source-context','grant-context','public-preview','publications'])$(id).replaceChildren();
+  $('grant').replaceChildren();
+  for(const input of document.querySelectorAll('textarea,input')){input.value='';input.checked=false;}
+  for(const button of document.querySelectorAll('button'))button.disabled=true;
+  $('publication-fields').disabled=true;
+}
+async function api(path,body){
+  if(lost)throw Error('access_denied');
+  const r=await fetch(path,{method:body===undefined?'GET':'POST',credentials:'same-origin',cache:'no-store',redirect:'manual',signal:AbortSignal.timeout(15000),
+    headers:{'x-web-planning-project':scope.project_id,...(body===undefined?{}:{'content-type':'application/json','x-csrf-token':meta('csrf-token')})},
+    ...(body===undefined?{}:{body:JSON.stringify({...scope,...body})})});
+  if([401,403].includes(r.status)||r.type==='opaqueredirect'||r.headers.get('x-web-planning-response')!=='1'){
+    deny();throw Error('Access ended. Private source and draft text were cleared. A pending publication remains unresolved.');
+  }
+  const value=await r.json();if(lost)throw Error('access_denied');
+  if(!r.ok)throw Error(value.error??'storage_unavailable');return value;
+}
+function paragraph(parent,text){const p=document.createElement('p');p.textContent=text;parent.append(p);}
+function summary(){return Object.fromEntries(keys.map(k=>[k,$('summary-'+k).value]));}
+function invalidatePreview(){dirty=true;$('confirm-publication').checked=false;$('public-preview').textContent='';}
+function showGrant(){
+  const g=selected();$('grant-context').textContent=g?
+    'Private selection only: '+g.disclosure.brief+' · Recipient '+g.recipient+' · Request revision '+g.disclosure.request.revision+
+    (eligible(g)?' · Current response basis':' · Not available for new publication'):'Choose an existing request. Create its participant grant in the private file-request view if none is listed.';
+  controls();
+}
+async function readGrants(more=false){
+  if(!responseEnabled){grants=[];$('grant').replaceChildren();$('grants-more').hidden=true;$('grant-context').textContent='Participant response access is disabled. Existing publications can still be checked or withdrawn; new publication is unavailable.';return;}
+  const value=await api('/api/work/'+work+'/participation'+(more&&grantCursor?'?cursor='+grantCursor:''));
+  grantCursor=value.next;
+  if(!more)grants=[];
+  grants.push(...value.grants);const prior=$('grant').value;$('grant').replaceChildren();
+  const blank=document.createElement('option');blank.value='';blank.textContent='Choose a current participant request';$('grant').append(blank);
+  for(const g of grants){const o=document.createElement('option');o.value=g.id;o.textContent=g.disclosure.brief+' — '+g.recipient;o.disabled=!eligible(g);$('grant').append(o);}
+  $('grant').value=grants.some(g=>g.id===prior)?prior:'';$('grants-more').hidden=!grantCursor;showGrant();
+}
+async function publications(more=false){
+  const value=await api(root+(more&&cursor?'?cursor='+cursor:''));cursor=value.next;
+  if(!more)$('publications').replaceChildren();
+  for(const p of value.publications){
+    const row=document.createElement('section');paragraph(row,p.summary.title+' · '+(p.revoked_at?'Withdrawn':p.expires<=Date.now()?'Expired':'Published; open the public view for current response status'));
+    const link=document.createElement('a');link.href=p.link;link.textContent=p.link;row.append(link);
+    const json=document.createElement('a');json.href=p.link+'.json';json.textContent=' JSON';row.append(json);
+    const revoke=document.createElement('button');revoke.textContent='Withdraw public material';revoke.disabled=!!p.revoked_at;
+    revoke.onclick=()=>run(async()=>{await api(root+'/revoke',{publication_id:p.id});await publications();status('Withdrawn from this service. Previously shared copies cannot be recalled.');});
+    row.append(revoke);$('publications').append(row);
+  }
+  $('publications-more').hidden=!cursor;return value.publications;
+}
+async function read(){
+  const value=await api('/api/work/'+work);current=value.saved;$('source-context').replaceChildren();
+  paragraph($('source-context'),'Private work: '+current.definition.goal+' · revision '+current.revision);
+  paragraph($('source-context'),'The public summary below starts blank. Private source content is not selected automatically.');
+  await readGrants();
+}
+function remember(value){sessionStorage.setItem(pointer,JSON.stringify(value));pending=value;controls();}
+function clearPending(){sessionStorage.removeItem(pointer);pending=null;confirmedAbsent=false;controls();}
+function clearForm(){for(const k of keys)$('summary-'+k).value='';$('expires').value='';$('confirm-publication').checked=false;$('public-preview').textContent='';dirty=false;}
+async function run(fn){if(busy||lost)return;busy=true;controls();try{await fn();}catch(e){status(e.message);}finally{busy=false;if(!lost)controls();}}
+$('publication-form').oninput=e=>{if(e.target!==$('confirm-publication'))invalidatePreview();};
+$('grant').onchange=()=>{invalidatePreview();showGrant();};
+$('preview').onclick=()=>{
+  const g=selected();if(!eligible(g)){status('Read and select a current participant request first.');return;}
+  $('public-preview').textContent=JSON.stringify({summary:summary(),request:g.disclosure.request,
+    response:'Only the designated authenticated participant; public reading grants no submission or execution permission.',expires:new Date($('expires').value).toString()},null,2);
+};
+$('publication-form').onsubmit=e=>{e.preventDefault();run(async()=>{
+  const g=selected();if(!eligible(g)||!$('confirm-publication').checked)throw Error('Review a current request and explicitly confirm the public selection.');
+  const input={publication_id:pending?.publication_id??crypto.randomUUID(),request:g.disclosure.request,
+    expected:{revision:current.revision,fingerprint:current.fingerprint},grant_id:g.id,summary:summary(),
+    expires:new Date($('expires').value).getTime(),confirm:'publish-selected-request'};
+  confirmedAbsent=false;remember({publication_id:input.publication_id});
+  const saved=await api(root+'/create',input);clearPending();clearForm();
+  status('Publication saved: '+saved.link);
+  try{await publications();}catch(e){if(lost)throw e;status('Publication saved: '+saved.link+'. The list refresh failed; read current publications. Do not publish it again.');}
+});};
+$('publication-resolve').onclick=()=>run(async()=>{
+  const resolved=await api(root+'/resolve',pending);
+  if(resolved.outcome==='created'){
+    const link=resolved.publication.link;clearPending();clearForm();status('The publication already exists: '+link+'. Its expiry was not renewed.');
+    try{await publications();}catch(e){if(lost)throw e;status('The publication already exists: '+link+'. Refresh the list separately.');}
+  }else{
+    confirmedAbsent=false;await read();const found=(await publications()).find(p=>p.id===pending.publication_id);
+    if(found){clearPending();clearForm();status('The earlier publication is now visible: '+found.link+'. Do not publish it again.');return;}
+    confirmedAbsent=true;
+    status('No committed publication was visible at this read. Its outcome remains unknown. You may explicitly review and prepare again with the same operation key; no new publication key will be allocated.');
+  }
+});
+$('refresh').onclick=()=>run(async()=>{await read();await publications();status(pending?'Read current state. Check the pending publication before another write.':'Current requests and publications read.');});
+$('grants-more').onclick=()=>run(()=>readGrants(true));
+$('publications-more').onclick=()=>run(()=>publications(true));
+try{const raw=sessionStorage.getItem(pointer);if(raw){const p=JSON.parse(raw);if(!p||Object.keys(p).join(',')!=='publication_id'||typeof p.publication_id!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(p.publication_id))throw Error('invalid_pending_locator');pending=p;}}
+catch{lost=true;status('The pending-publication locator is unavailable or invalid. Keep this tab and recover the original operation through the owner API before publishing again.');}
+window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
+window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
+if(lost)controls();else run(async()=>{await read();await publications();status(pending?'An earlier publication needs reconciliation.':'Choose a request and explicitly select what to publish.');});

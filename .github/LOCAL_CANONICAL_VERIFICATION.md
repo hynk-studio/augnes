@@ -838,6 +838,41 @@ New v2 records retain valid evidence for the declared range and report differing
 or unobserved main separately. Exact-head, ancestry and context gates remain;
 no historical receipt is rewritten or promoted.
 
+### Time budgets and timeout triage
+
+Keep the meaning and owner of each time bound distinct:
+
+- A caller's wait or polling interval is an observation boundary, not evidence
+  that the owned process terminated. Inspect the existing execution before
+  launching another one.
+- A fixture or suite watchdog bounds the complete registered test workload,
+  including setup, witnesses and fresh readers. It is not a product latency
+  requirement. Its outer owner also needs the existing bounded settlement and
+  cleanup allowance; changing the outer wait alone cannot rescue an inner kill.
+- A product deadline or explicit performance requirement remains a correctness
+  condition for its declared environment and workload. Do not relax it as test
+  harness maintenance.
+- A task's cumulative resource budget and invocation grant limit authority,
+  not program speed. An adjusted fixture allowance does not replenish either.
+
+Use retained results to identify the failing owner, its configured bound, last
+completed stage, exit/signal and cleanup before choosing a check. A natural
+failing parent can contain a timed-out child. Keep both observations and the raw
+receipt classification; do not infer a hang, product regression or infrastructure
+cause from elapsed time alone. Report incomplete coverage separately from an
+observed assertion failure. Existing task notes suffice; no new report schema or
+blanket instrumentation is required.
+
+Before collecting expensive correction witnesses, confirm that the current
+source's evidence reader supports the selected owner, failure and required
+bindings. Successful ordinary focused execution is not admission evidence for
+an unsupported owner. Reuse valid source review and observations within scope,
+then obtain the applicable final-target verification; do not repeat a workload
+merely to repair its report or seek a favorable sample. Where practical,
+coordinate known base-moving work around a long exact-target run and final
+stock read. This is scheduling advice, not a base reservation or permission to
+block another owner. Existing freshness, attempt and cleanup gates are unchanged.
+
 ### Attempt families and bounded operational recovery
 
 A task starts an append-only family at the authorized anchor,
@@ -1910,8 +1945,15 @@ and cleanup owners; the additional negative controls do not enlarge a deadline.
 resource and cleanup owners. The aggregate has no additional registration.
 The serial-material registration additionally executes three actual compiler
 children and serial incident/lineage controls in its own disposable root. Its
-60-second nested owner and 75-second outer natural-exit limit are focused-test
-bounds only; all production serial limits and other registrations stay fixed.
+80-second nested owner and 95-second outer natural-exit limit are focused-test
+bounds for the complete fixture, including its witnesses and fresh receipt
+reads. The 15-second outer separation and individual compiler/reader limits
+remain intact. These prospective allowances do not identify a historical
+timeout cause; all production serial limits and other registrations stay fixed.
+The shared values live in `scripts/local-canonical-closeout-budgets.mjs`; the
+existing contract check reads their effective inner/outer registrations. This
+calibration does not add `serial-material` to the fixture-budget evidence-owner
+catalog or authorize a new deciding invocation.
 
 The new commission's initial ordinal binds its latest tip as its root. All old
 grant IDs and consumption are reconstructed from the existing exclusive chain.

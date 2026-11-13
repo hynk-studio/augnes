@@ -1914,7 +1914,24 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
   const stockLines = bytes(p.originals.stock).toString("utf8").split("\n").filter(line => line.startsWith("{"));
   if (stockLines.length !== 1) throw fail("revision_predecessor_stock_invalid");
   const stock = JSON.parse(stockLines[0]);
-  const originalGit = args => execFileSync("git", ["--no-replace-objects",...args], {cwd:repositoryRoot,timeout:10000,maxBuffer:16*1024*1024,stdio:["ignore","pipe","pipe"]});
+  // A validation reads the same immutable commit blobs through several owners.
+  // Reuse only their bounded raw bytes in this call. Mutable queries, failures
+  // and later validations still use the original Git caller independently.
+  const sourceBlobs = new Map(); let sourceBlobBytes = 0;
+  const sourceHeads = new Set([p.head,p.base,p.accepted.head,prior.head]);
+  const sourceGit = (args,maxBuffer=16*1024*1024) => {
+    const spec=args.length===2&&args[0]==="show"?args[1]:null;
+    const cacheable=typeof spec==="string"&&spec.length>41&&spec.length<=4137&&spec[40]===":"&&
+      /^[a-f0-9]{40}$/u.test(spec.slice(0,40))&&sourceHeads.has(spec.slice(0,40))&&Number.isSafeInteger(maxBuffer)&&maxBuffer>0;
+    const key=cacheable?maxBuffer+":"+spec:null;
+    if(key&&sourceBlobs.has(key))return Buffer.from(sourceBlobs.get(key));
+    const bytes=execFileSync("git", ["--no-replace-objects",...args], {cwd:repositoryRoot,timeout:10000,maxBuffer,stdio:["ignore","pipe","pipe"]});
+    if(key&&Buffer.isBuffer(bytes)&&sourceBlobs.size<128&&sourceBlobBytes+bytes.length<=16*1024*1024){
+      sourceBlobs.set(key,Buffer.from(bytes));sourceBlobBytes+=bytes.length;
+    }
+    return bytes;
+  };
+  const originalGit = args => sourceGit(args);
   const serialIncident = serial ? readSerialAggregateIncident(p,original,prior,completion,{parse,bytes,git:originalGit,phases:REVIEWED_REVISION_PHASES,stock}) : null;
   const browser = isBrowserRevision(p), successor = isBrowserSuccessor(p);
   const gitSuccessor = isGitObservationSuccessor(p);
@@ -1999,7 +2016,7 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
       inputs.node?.observation?.present !== true || !sha(inputs.node.observation.sha256) || !sha(inputs.headers?.location_fingerprint) ||
       !validNodeHeaders(inputs.headers?.observation)) throw fail("revision_inputs_invalid");
   const source = parse(p.source), focused = parse(p.focused);
-  const git = (args, maxBuffer = 16 * 1024 * 1024) => execFileSync("git", ["--no-replace-objects", ...args], { cwd: repositoryRoot, timeout: 10000, maxBuffer, stdio: ["ignore", "pipe", "pipe"] });
+  const git = sourceGit;
   verifyInheritedSerialConnection(p,git);
   const delta = (a, b) => { const d = git(["diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", a, b, "--"]); return { bytes: d.length, sha256: digest(d), paths: git(["diff", "--name-only", a, b, "--"]).toString().trim().split("\n").filter(Boolean).sort() }; };
   const initial = gitSuccessor ? p.commission.initial_accepted : p.accepted;

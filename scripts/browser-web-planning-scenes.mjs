@@ -1,3 +1,4 @@
+import { downloadBrowserFiles } from './web-planning-cdp.mjs';
 import { browserDirectionJourney } from "./browser-web-planning-directions.mjs";
 import assert from 'node:assert/strict';
 import { mkdir,readFile,readdir,writeFile } from 'node:fs/promises';
@@ -35,8 +36,8 @@ export async function browserSceneJourney({a,debug,origin,page,click,set,settled
  const context=await fresh.eval('sceneContext');assert(context.entries.some(e=>e.kind==='knowledge'&&e.disposition==='adopted'&&e.text.includes('아직 열지')));
  assert(context.entries.some(e=>e.kind==='intention'&&e.disposition==='undecided'));assert(context.entries.some(e=>e.disposition==='rejected'));
  const earlier=await fresh.eval("api('/api/work/'+work+'/scene-context',{expected:binding(saved),intent:{...sceneParameters(),event_time:1,reveal_order:1}})");assert.equal(earlier.entries.length,3);assert(!earlier.text.includes(sceneFixture.proposals[3].text));
- const downloads=path.join(root,'scene-downloads');await mkdir(downloads);await fresh.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads});await click(fresh,'scene-context-download');
- await wait(async()=>(await readdir(downloads)).includes('scene-context.txt'),'actual context download');const contextBytes=await readFile(path.join(downloads,'scene-context.txt'));assert.equal(contextBytes.toString(),context.text);assert.equal(digestBytes(contextBytes),context.fingerprint);
+ const downloads=path.join(root,'scene-downloads');await mkdir(downloads);await downloadBrowserFiles(fresh,downloads,['scene-context.txt'],wait,()=>click(fresh,'scene-context-download'),'actual context download');
+ assert((await readdir(downloads)).includes('scene-context.txt'));const contextBytes=await readFile(path.join(downloads,'scene-context.txt'));assert.equal(contextBytes.toString(),context.text);assert.equal(digestBytes(contextBytes),context.fingerprint);
  // Preserve the actual producer bytes for a separately bounded ordinary-use
  // handoff. The model receives only this context file, not these assertions.
  console.log(JSON.stringify({scene_consumer_handoff:{context:contextBytes.toString(),context_sha256:digestBytes(contextBytes),complete_export:await fresh.eval("api('/api/work/'+work+'/export')"),provenance:'browser Download scene context; saved reviewed revision 4; no consumer has run'}}));
@@ -46,8 +47,8 @@ export async function browserSceneJourney({a,debug,origin,page,click,set,settled
  // Detach/reattach the presentation using the common writer. Scene state stays
  // selected and cannot be implicitly erased or re-adopted by a presentation.
  for(const [value,revision] of [['ordinary',6],['story',7]]){await set(fresh,'presentation',value);await fresh.eval("$('presentation').dispatchEvent(new Event('change',{bubbles:true}))");await settled(fresh);await click(fresh,'save');await saved(fresh,revision);await settled(fresh);assert.deepEqual(await fresh.eval('sceneBook.scenes[0].review.dispositions'),sceneChoices);}
- const id=await fresh.eval('work');await fresh.eval("$('history-tools').open=true");await click(fresh,'export');await settled(fresh);await click(fresh,'reading-export');await settled(fresh);
- await wait(async()=>{const names=await readdir(downloads);return names.includes('planning-work.json')&&names.includes('authored-work.html');},'scene export downloads');
+ const id=await fresh.eval('work');await fresh.eval("$('history-tools').open=true");await downloadBrowserFiles(fresh,downloads,['planning-work.json','authored-work.html'],wait,async()=>{await click(fresh,'export');await settled(fresh);await click(fresh,'reading-export');await settled(fresh);},'scene export downloads');
+ {const names=await readdir(downloads);assert(names.includes('planning-work.json')&&names.includes('authored-work.html'));}
  const exported=JSON.parse(await readFile(path.join(downloads,'planning-work.json'),'utf8'));const html=await readFile(path.join(downloads,'authored-work.html'),'utf8');assert(html.includes('rejected'));assert.equal(exported.revisions.length,7);
  for(const [width,height] of [[390,844],[768,900],[1200,800]]){await fresh.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});assert(await fresh.eval('document.documentElement.scrollWidth<=innerWidth'));}
  await replaceRuntime(true);const dest=await page(debug,origin);await ready(dest);assert.equal(await dest.eval("$('list-state').textContent"),'No saved work yet.');

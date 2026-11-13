@@ -1,3 +1,4 @@
+import { downloadBrowserFiles } from './web-planning-cdp.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -25,9 +26,9 @@ export async function browserStoryJourney({a,debug,origin,page,click,set,settled
  const fresh=await page(debug,origin);await ready(fresh);await choose(fresh);await saved(fresh,5);await settled(fresh);
  assert.equal(await fresh.eval("$('presentation').value"),'story');assert.equal(await fresh.eval("$('authored-text').value"),recoveredDraft);assert.equal(await fresh.eval('saved.work_id'),first.work_id);
  assert.equal(await fresh.eval('saved.sources.length'),0);
- const downloads=path.join(root,'story-downloads');await mkdir(downloads);await fresh.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads});
- await fresh.eval("$('history-tools').open=true");await click(fresh,'reading-export');await settled(fresh);await click(fresh,'export');await settled(fresh);
- await wait(async()=>{const names=await readdir(downloads);return names.includes('authored-work.html')&&names.includes('planning-work.json');},'story downloads');
+ const downloads=path.join(root,'story-downloads');await mkdir(downloads);
+ await fresh.eval("$('history-tools').open=true");await downloadBrowserFiles(fresh,downloads,['authored-work.html','planning-work.json'],wait,async()=>{await click(fresh,'reading-export');await settled(fresh);await click(fresh,'export');await settled(fresh);},'story downloads');
+ {const names=await readdir(downloads);assert(names.includes('authored-work.html')&&names.includes('planning-work.json'));}
  const html=await readFile(path.join(downloads,'authored-work.html'),'utf8'),bytes=await readFile(path.join(downloads,'planning-work.json')),exported=JSON.parse(bytes);
  assert(html.includes('<pre>'+escape(storyOriginal)+'</pre>'));assert(html.includes('<pre>'+escape(recoveredDraft)+'</pre>'));assert.equal(exported.revisions.length,5);
  for(const [width,height] of [[390,844],[768,900],[1200,800]]){await fresh.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});assert(await fresh.eval('document.documentElement.scrollWidth<=innerWidth'));}

@@ -4246,6 +4246,33 @@ revocation or source erasure to download an existing browser-local pending retur
 This exposes no server request, file, feedback or save outcome, performs no write,
 and grants no renewed access. Unknown submission status remains unknown.
 
+#### Selectively published real-project requests (#1641)
+
+An optional operational publication binds an explicitly authored public summary
+to one saved Web request, the observed work head and an existing scoped recipient
+grant. The authenticated owning project supplies issuer attribution. Publication
+creation atomically checks ownership, exact request/current basis, live response
+authority and erasure. A retained publication UUID reconciles uncertain creation;
+identical replay returns the same publication, altered replay refuses, and a
+read-only absent observation neither creates nor cancels an effect.
+
+Anonymous HTML and JSON expose the same allowlisted public material and source
+reference, never a full work envelope, private file bytes or recipient identity.
+Publication is an authored claim, not verified truth or universal actor identity.
+Public reading and URL possession grant no participation, execution, contact,
+spending or commitment authority. The linked existing recipient path retains
+its own authentication, exact request-bound return and origin check/use/feedback.
+
+The disclosed snapshot never silently tracks newer private text. Current reads
+distinguish active, stale and answered requests; an answer is not checked use.
+Withdrawal, expiry, erased source or unavailable response authority removes the
+selected material from service. It does not recall outside copies. Operational
+records remain outside revision exports; reconstruction revokes the selected
+project's publications with its existing grants. No Core kind, accepted state,
+new work-revision format or native synchronization is introduced. The
+[Web public-request guide](../../apps/web_planning/README.md#selected-public-project-requests-1641)
+owns bounded APIs, activation, source retention and rollback.
+
 #### Independent private Web projects (#1627)
 
 An explicitly enabled admitted-principal entry separates the installation's
@@ -4284,6 +4311,42 @@ mapping/author. The [Web guide](../../apps/web_planning/README.md#independent-pr
 owns entry/API/client limits, quiesced migration, backup requirements and the
 non-destructive owner-only rollback posture. This is the first W2 entry slice,
 not whole-W2, delegated succession or independently hosted adoption acceptance.
+
+#### Cross-project Web contribution ownership (#1630)
+
+An active request grant resolves source project A independently of the
+recipient's selected project. B must be owned by the same authenticated
+recipient and distinct from A. Neither a caller-supplied project/work identifier
+nor a downloaded setup retargets that grant. The existing participant and
+exchange writer remains the authority for disclosure, expiry/revocation,
+immutable source basis, cumulative one-answer admission and exact replay.
+
+B may deliberately retain selected disclosed originals as its own ordinary work.
+The first v0.11 revision seals A's original project author/request, disclosure
+fingerprint, brief, conditions, expiry and selected file occurrences alongside
+exact copied bytes. This is historical provenance, not a live grant or evidence
+that the source is still available, current or accepted. The INSERT rechecks the
+active source grant and source existence. B's later authored revisions preserve
+the initial record while permitting its own judgment, material and next action.
+No source correction silently replaces previously retained material.
+
+B deliberately returns selected files from one exact current saved revision.
+The same atomic exchange writer rechecks A's frozen base and grant and B's source
+head; it retains project author/work/revision/file-selection attribution without
+copying private B notes, definitions or other files. These return/use records
+use v0.11 while older seals remain unchanged. The existing checked-use writer
+records A's reported checking, saved output/adaptation and disposition distinctly.
+Only deliberately shared disposition/explanation/next action enter feedback;
+private destination identifiers, titles, files, checks and reasoning do not.
+
+Unknown retention/return delivery must reconcile the original operation before
+replacement. Readback is not another write or allowance. B's independent work and
+already committed source/destination bytes survive non-use or grant expiry and
+revocation, which stop future source access. Exports/reconstruction preserve
+historical attribution but never recreate an operational grant. No new Core
+kind, native synchronization, execution authority, grant table or migration is
+introduced. The [Web contract](../../apps/web_planning/README.md#cross-project-contributions-1630)
+owns the ordinary browser/client surface, retained-file limits and rollback.
 
 #### Scoped Web work succession (#1628)
 

@@ -1,8 +1,13 @@
 /// <reference path="./assets.d.ts" />
+import { CONTRIBUTION_EXPORT } from './contribution-contract';
+import { retainContribution, contributionWorks, returnContribution } from './contributions';
 import { CONTINUATION_EXPORT } from './continuation-contract';
 import { activeContinuation, continuationContext, continuationView, createContinuation, listContinuations, revokeContinuation, resolveContinuation, writeContinuation } from './continuation';
 import { continuationPage } from './continuation-page';
 import continuationClient from './continuation-client.js.txt?raw';
+import { createPublicRequest, listPublicRequests, readPublicRequest, resolvePublicRequest, revokePublicRequest } from './public-requests';
+import { publicationPage, publicRequestResponse } from './public-request-page';
+import publicationClient from './publication-client.js.txt?raw';
 import { PARTICIPATION_EXPORT } from "./participation-contract";
 import { activeGrant, knownRecipient, createGrant, listGrants, participantContext, participantFeedbackView, participantFile, participantView, participantWrite, revokeGrant } from "./participation";
 import { participantPage, participantRecoveryPage } from "./participation-page";
@@ -81,6 +86,18 @@ function checkReplayedOccurrences(saved: Revision,edits: any[]) {
 export async function handle(request:Request,env:Environment,principal:Principal):Promise<Response> {
   try {
     const url=new URL(request.url), path=url.pathname;
+    // Only the deliberately published projection is anonymous. Every private
+    // operation still resolves the existing enforcing principal/project owner.
+    const published=path.match(/^\/public-requests\/([a-f0-9-]{36})(\.json)?$/);
+    if(published&&UUID.test(published[1])){
+      try {
+        if(request.method!=='GET')fail('method_not_allowed',405);
+        if(url.search||url.origin!==env.APP_ORIGIN)fail('scope_denied',403);
+        return publicRequestResponse(await readPublicRequest(env,published[1]),!!published[2]);
+      } catch(e) {
+        return publicRequestResponse({error:e instanceof Refusal?e.code:'storage_unavailable'},true,e instanceof Refusal?e.status:503);
+      }
+    }
     const successor=path.match(/^\/(continue|api\/continuation)\/([a-f0-9-]{36})(.*)$/);
     if(successor&&UUID.test(successor[2])){
       const access=await authorize(request,env,principal,undefined,false,successor[2]),suffix=successor[3];
@@ -133,7 +150,20 @@ export async function handle(request:Request,env:Environment,principal:Principal
       else if(request.method==='GET' && !url.search && suffix==='/exchange-text.mjs')result=new Response(exchangeTextModule,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
       else if(request.method==='GET' && !url.search && suffix==='/style.css')result=new Response(style,{headers:{...headers,'Content-Type':'text/css; charset=utf-8'}});
       else if(request.method==='GET' && !url.search && suffix==='')result=json(participantView(access,c));
-      else if(request.method==='GET' && suffix==='/feedback'){
+      else if(request.method==='GET' && suffix==='/projects'){
+        if([...url.searchParams.keys()].some(k=>k!=='cursor')||url.searchParams.getAll('cursor').length>1)fail('scope_denied',403);
+        result=json(await listProjects(await authorize(request,env,principal,undefined,true),url.searchParams.get('cursor')??''));
+      }else if(request.method==='POST' && ['/retain','/retain-resolve','/project-works','/project-return','/project-return-resolve'].includes(suffix)){
+        if(url.search)fail('scope_denied',403);
+        requireCsrf(access,request);const input=await body(request);requireScope(access,input);
+        if(!UUID.test(String(input.destination_project_id)))fail('scope_denied',403);
+        const ownHeaders=new Headers(request.headers);ownHeaders.set('x-web-planning-project',String(input.destination_project_id));
+        const own=await authorize(new Request(request.url,{method:request.method,headers:ownHeaders}),env,principal);
+        if(suffix==='/project-works'){
+          exact(input,'workspace_id,project_id,destination_project_id,cursor');
+          result=json(await contributionWorks(access,own,c,String(input.cursor??'')));
+        }else result=json(await (suffix.startsWith('/retain')?retainContribution: returnContribution)(access,own,c,input,suffix.endsWith('resolve')));
+      }else if(request.method==='GET' && suffix==='/feedback'){
         if([...url.searchParams.keys()].some(k=>k!=='cursor')||url.searchParams.getAll('cursor').length>1)fail('scope_denied',403);
         result=json(await participantFeedbackView(access,c,url.searchParams.get('cursor')));
       }else if(request.method==='GET' && !url.search && suffix==='/setup'){
@@ -159,7 +189,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
       await activeGrant(access,id); // Readback/authorization loss never becomes an empty result.
       return result;
     }
-    const accountEntry=projectEntryEnabled(env)&&(path==='/projects'||path==='/api/projects'||path==='/projects.js'||path==='/continuation.js'||
+    const accountEntry=projectEntryEnabled(env)&&(path==='/projects'||path==='/api/projects'||path==='/projects.js'||path==='/continuation.js'||path==='/publications.js'||
       path==='/'&&!url.search&&!request.headers.has('x-web-planning-project')||['/style.css','/client.js','/exchange-text.mjs','/planning-notes.mjs','/favicon.ico'].includes(path));
     const access=await authorize(request,env,principal,undefined,accountEntry);
     if(accountEntry){
@@ -175,6 +205,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
         requireCsrf(access,request);return json(await createProject(access,await body(request)));
       }
       if(path==='/continuation.js'&&request.method==='GET'&&!url.search)return new Response(continuationClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
+      if(path==='/publications.js'&&request.method==='GET'&&!url.search)return new Response(publicationClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
       if(path==='/projects.js'&&request.method==='GET'&&!url.search)return new Response(projectsClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
     }
     const manage=path.match(/^\/delegations\/([a-f0-9-]{36})\/([a-f0-9-]{36})$/);
@@ -182,8 +213,14 @@ export async function handle(request:Request,env:Environment,principal:Principal
       await listContinuations(access,manage[2]);const chain=await readWork(access,manage[2]);if(!chain.length)fail('work_not_found',404);
       const csrf=csrfToken(access,request);return html(continuationPage(access,csrf,manage[2],true),{'Set-Cookie':csrfCookie(access,csrf)});
     }
+    const publications=path.match(/^\/publications\/([a-f0-9-]{36})\/([a-f0-9-]{36})$/);
+    if(publications&&request.method==='GET'&&!url.search&&UUID.test(publications[1])&&UUID.test(publications[2])){
+      await listPublicRequests(access,publications[2]);const chain=await readWork(access,publications[2]);if(!chain.length)fail('work_not_found',404);
+      const csrf=csrfToken(access,request);return html(publicationPage(access,csrf,publications[2]),{'Set-Cookie':csrfCookie(access,csrf)});
+    }
     if(request.method==="GET") {
       if(path==="/favicon.ico" && !url.search)return new Response(null,{status:204,headers});
+      if(path==='/publications.js'&&!url.search)return new Response(publicationClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
       if(path==="/" && (!url.search || selectedProject(request))) {
         const csrf=csrfToken(access,request);
         return html(page(csrf,access),{"Set-Cookie":csrfCookie(access,csrf)});
@@ -215,6 +252,11 @@ export async function handle(request:Request,env:Environment,principal:Principal
         return json(await listWork(access,cursor));
       }
       const continuing=path.match(/^\/api\/work\/([a-f0-9-]+)\/continuation$/);
+      const published=path.match(/^\/api\/work\/([a-f0-9-]+)\/public-requests$/);
+      if(published&&UUID.test(published[1])){
+        if([...url.searchParams.keys()].some(k=>k!=='cursor')||url.searchParams.getAll('cursor').length>1)fail('scope_denied',403);
+        return json(await listPublicRequests(access,published[1],url.searchParams.get('cursor')??''));
+      }
       if(continuing&&UUID.test(continuing[1])){
         if([...url.searchParams.keys()].some(k=>k!=='cursor')||url.searchParams.getAll('cursor').length>1)fail('scope_denied',403);
         return json(await listContinuations(access,continuing[1],url.searchParams.get('cursor')??''));
@@ -260,6 +302,8 @@ export async function handle(request:Request,env:Environment,principal:Principal
       path==="/api/reconstruct-directions"?LARGE_PAIR_REQUEST_BYTES:path==="/api/reconstruct-files"?FILE_EXPORT_REQUEST_BYTES:REQUEST_BYTES;
     const input=await body(request,limit); if(!input || typeof input!=="object")fail("invalid_body");
     requireScope(access,input);
+    const publishing=path.match(/^\/api\/work\/([a-f0-9-]+)\/public-requests\/(create|resolve|revoke)$/);
+    if(publishing&&UUID.test(publishing[1]))return json(await (publishing[2]==='create'?createPublicRequest(access,publishing[1],input):publishing[2]==='resolve'?resolvePublicRequest(access,publishing[1],input):revokePublicRequest(access,publishing[1],input)));
     const continuing=path.match(/^\/api\/work\/([a-f0-9-]+)\/continuation\/(create|revoke|resolve)$/);
     if(continuing&&UUID.test(continuing[1]))return json(await (continuing[2]==='create'?createContinuation(access,continuing[1],input):continuing[2]==='resolve'?resolveContinuation(access,continuing[1],input):revokeContinuation(access,continuing[1],input)));
     const grant=path.match(/^\/api\/work\/([a-f0-9-]+)\/participation\/(create|revoke)$/);
@@ -304,7 +348,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
     if(path==="/api/reconstruct" || path==="/api/reconstruct-files" || extendedRestore) {
       exact(input,"workspace_id,project_id,export,confirm");
       if(env.RECONSTRUCTION_MODE!=="quiesced-empty-store" || input.confirm!=="reconstruct-empty-store")fail("reconstruction_disabled",403);
-      if(path==="/api/reconstruct-exchange" && ![CONTINUATION_EXPORT,LARGE_EXPORT,USE_EXPORT,PARTICIPATION_EXPORT,REASSESSMENT_EXPORT].includes(input.export?.format) ||
+      if(path==="/api/reconstruct-exchange" && ![CONTRIBUTION_EXPORT,CONTINUATION_EXPORT,LARGE_EXPORT,USE_EXPORT,PARTICIPATION_EXPORT,REASSESSMENT_EXPORT].includes(input.export?.format) ||
          path==="/api/reconstruct-directions" && input.export?.format!==DIRECTION_EXPORT)fail("incompatible_format",409);
       if((path==="/api/reconstruct-files" || path==="/api/reconstruct-directions") && input.export?.format===DIRECTION_EXPORT){
         const works=validateDirectionExport(access,input.export);await reconstructWorks(access,works);
@@ -363,7 +407,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
       if(!sameBinding(headBinding(head),expected))fail("refresh_required",409);
       if(action==="context") {const refs=await referenceAvailability(access,head);
         if(!await headsCurrent(access,reference(head),reference(head)))fail("refresh_required",409);
-        return html(renderContext(head,chain.at(-2),refs.availability,refs.reviewSource,exchangeList(chain).decisions.flatMap(d=>"current" in d?[d.current!]:[])));}
+        return html(renderContext(head,chain.at(-2),refs.availability,refs.reviewSource,exchangeList(chain).decisions.flatMap(d=>"current" in d?[d.current!]:[]),chain[0].contribution_request));}
       if(action==="ticket") {
         const {histories}=await selectionHistories(access,id,input.material_edits);
         const prepared=bound?await applyReturn(access,id,chain,await prepareSceneDraft(access,chain,selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,chain,histories),input.files,head),input.scene),input.return_choice):undefined;

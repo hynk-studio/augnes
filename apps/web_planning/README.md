@@ -57,8 +57,8 @@ write in the original tab. Different tabs never imply shared write authority.
 Each project retains a randomly assigned stable author reference. A fresh browser
 or client using the same currently admitted authenticated principal can continue
 without rewriting prior authors. Email control does not identify a particular
-human, model or executor. A different principal's delegation/succession is not
-implemented by this entry. W1 requests still derive scope from their exact grant
+human, model or executor. A different principal's delegation uses the separately
+scoped succession path below. W1 requests still derive scope from their exact grant
 and authenticated recipient, independently of the recipient's own project.
 Grant IDs are globally unique for their existing unscoped request URLs; a second
 project cannot reuse an ID to make the original recipient's entry ambiguous.
@@ -84,6 +84,88 @@ For project-level task discovery, set `AUGNES_WEB_PROJECT_ID` to a returned proj
 ID; task-bound operations always use their exact setup. After reading the current
 continuation, the existing planning draft/ticket/save/resolve methods below record
 the later step. No special agent or scene-specific state path is needed.
+
+### Cross-project contributions (#1630)
+
+A request recipient who also owns an admitted private project can choose **Work
+in your own project** on the participant page. Choose a project, select shared
+originals, and supply your own work title and next step. **Keep selected originals
+in my project** creates an ordinary work with the exact selected bytes, original
+request identity, disclosed brief/conditions and historical attribution. The
+ordinary retained-work limits remain 8 files, 256 KiB each and 512 KiB total;
+larger originals remain readable through the existing request reader. This does
+not copy undisclosed request text, other files or either complete workspace.
+
+Open that work in its own project, edit or add files and save through the normal
+work editor. Back at the request, read **My saved contribution work**, select the
+exact saved revision's files, and explicitly confirm sharing their project author
+and work/revision identifiers. **Send selected saved results** returns only those
+files and your explanation/next action. The original request's one-answer limit
+still applies across browser and client sessions. A question or reframing is a
+valid return. The requester uses the existing checked-use editor to save use,
+adaptation, partial use, deferral or decline and deliberately shared feedback.
+B's ordinary work and next step remain independent of A's decision or access grant.
+
+Source operations resolve the exact stored request/grant and its owning project.
+The separate destination project must belong to the authenticated recipient;
+selected-project headers, editable setups and work IDs cannot transfer authority.
+Retention atomically rechecks the live disclosure grant and source existence.
+Return atomically checks that grant, A's frozen save base and B's exact current
+source revision. Source advances refuse a stale return; they do not substitute
+new material for the original disclosure. Subsequent reuse retains original
+conditions and attribution in history; current permission, corrections and
+source availability must be checked separately, never inferred from that copy.
+
+Both operations keep an exact browser recovery body in the existing per-operation
+journal before sending. A reload checks the pending operation before replacement;
+readback never writes. An absent result permits only the same eligible operation
+key/body, not a second contribution. A committed return can be reconciled even
+after B edits or erases its own source. Revoked/expired source access stops source
+reads and reconciliation; B's retained project work remains available under B's
+own authority. Existing local recovery downloads retain unknown drafts.
+
+The downloaded participant setup also exposes these methods through
+`openFileTask(setupPath).cooperation` in the ordinary supported local client:
+
+- `projects(cursor)` and `works(destination_project_id, cursor)` list only the
+  recipient's own projects and this request's retained contribution work.
+- `retain(input, resolve=false)` takes `destination_project_id`, `request_key`,
+  selected original `indices`, `title`, `next_action` and
+  `confirm: "retain-selected-request"`.
+- `returnSaved(input, resolve=false)` takes `destination_project_id`,
+  `request_key`, the request's frozen `expected`, exact B `source` WorkRef,
+  selected `indices`, `message`, `next_action` and
+  `confirm: "share-selected-results-and-attribution"`.
+
+Keep each exact input until acknowledged; call with `resolve=true` first after
+unknown delivery. The setup's source request is validated before these operations.
+Use the recipient's existing Access login and approved origin as for W1; browser
+Sites entry does not supply a headless Access session. The public App catalog and
+its read-only tool surface remain unchanged.
+
+These client methods and browser forms use `GET /api/participation/<grant>/projects`
+(with optional cursor) and POST subroutes `project-works`, `retain`,
+`retain-resolve`, `project-return`, `project-return-resolve`. POST includes the
+normal source `workspace_id`/`project_id`, recipient CSRF, and the explicit owned
+`destination_project_id`. `project-works` takes `cursor` (empty for the first
+page); other POST bodies additionally include the exact source `request` WorkRef.
+No operation derives source authority from the destination selection.
+
+New retained-request, project-attributed return and use records require v0.11
+(`web-planning/11`). Retention records its disclosure only in the first revision;
+later authored changes do not rewrite it. Returns and their use retain B's exact
+source attestation. Existing v0.1–v0.10 records and bytes remain unchanged. No
+migration, operational grant, dependency or native Core record is added. Full
+and readable exports retain historical provenance; supported empty-store recovery
+restores bytes without live grants. After v0.11 data exists, rollback needs a
+v0.11-compatible reader/writer. Deployment and production migration are separate
+authorized operations, not prerequisites fulfilled by a local fixture.
+
+Focused development: `node scripts/run-web-planning.mjs cooperation` and
+`node scripts/run-web-planning.mjs cooperation-browser`. The full existing Web
+and Browser owners also include these checks with their unchanged deadlines.
+Controlled local sign-ins and scripted judgments are not hosted adoption,
+independent review, comparative usefulness or evidence of market demand.
 
 ### Scoped work succession (#1628)
 
@@ -565,6 +647,109 @@ explicitly to read the saved result or reconcile the exact pending operation.
 Reassessment fields stay locked while their durable journal write is pending;
 late completion cannot restore a cleared view or send a save. The journal's exact
 body remains available to the existing authenticated recovery controls.
+
+## Selected public project requests (#1641)
+
+This opt-in presentation gives an outside reader a real project's selected
+request and a supported response route. It is not a public copy of a private
+work, anonymous signup, an agent identity registry, or a new execution grant.
+Production activation requires separately authorized migration, configuration,
+public ingress and deliberately selected material; the checked-in default is off.
+
+On a schema-6 installation with migration `0009_public_requests.sql`, set
+`PUBLIC_REQUEST_MODE=selected-public-request-v1` only under that activation
+authority. Creating a publication also requires the existing
+`PARTICIPATION_MODE=verified-recipient-v1` and a current participant grant.
+In saved work, **Manage public requests** opens
+`/publications/<project-id>/<work-id>`. First create a request and an explicitly
+scoped participant grant in the existing file-request view. The publication
+form selects that grant and its exact request; all eight public text fields
+start blank. Review the project label, title, purpose, need, reason, selected
+evidence/uncertainty, expected return, and checking/use responsibility before
+confirming disclosure. Each field is required and bounded to 500 Unicode
+codepoints. Local/private paths, email addresses and known credential/raw-payload
+markers are refused as defense in depth, not a guarantee that prose is safe.
+Do not include private details merely because a detector permits them.
+
+The stable `/public-requests/<publication-id>` HTML and matching `.json` GET
+share one allowlisted projection. Both carry the frozen authored summary, exact
+request reference, public material fingerprint, publication/expiry times,
+authenticated project attribution, observed current status and actual response
+requirements. They do not include private history, source file bodies,
+recipient addresses, sessions or credentials. Public responses are no-store,
+have no private session cookie, render authored text inertly, and request
+noindex/nofollow; this slice is link-based public reading, not search promotion.
+The anonymous exception covers only these two exact GET paths, not private APIs.
+
+The linked `/participate/<grant-id>` still requires that separately authenticated
+designated recipient. Reading the public request or possessing its URL grants
+no submission, other-work access, external contact, spending, execution or
+commitment authority. The existing request-bound return, origin checks,
+use/adapt/defer/decline and deliberately shared participant feedback are unchanged.
+An unknown visitor cannot request admission through this slice. The public
+project label and evidence are authored claims; issuer attribution is not
+independent verification of a human, agent, need or finding.
+
+Owner API operations use the ordinary selected-project header, project-bound
+CSRF and scope fields:
+
+- `GET /api/work/<work-id>/public-requests?cursor=<returned-next>` lists ten
+  owner-visible publications at a time.
+- `POST .../create` takes `workspace_id`, `project_id`, `publication_id`
+  (a retained UUID), exact `request` and `expected`, `grant_id`,
+  `summary={project,title,purpose,need,reason,evidence,expected_return,checking_use}`,
+  `expires` (Unix milliseconds), and `confirm:"publish-selected-request"`.
+  Expiry is at most 90 days and no later than the response grant. Authentication
+  supplies issuer attribution; callers cannot select it.
+- `POST .../resolve` and `POST .../revoke` take only those scope fields and
+  `publication_id`. Resolve is read-only and returns `created` or `unknown`;
+  absence at one read is not proof that an uncertain creation cannot commit.
+
+Retain the exact creation input and operation ID until acknowledged. The browser
+keeps only the ID across reloads, never recipient/private text. Unknown delivery
+locks publication until read-only reconciliation. Explicit re-preparation retains
+that same ID; changed replay refuses instead of publishing another version.
+An acknowledged creation clears the submitted text even if list refresh fails.
+The form warns before leaving an unsaved selection. Agents can use the same
+authenticated HTTP contract; no custom transport or owner credential sharing
+is required.
+
+Public text is immutable. Later source changes make a still-readable request
+`stale`; a committed response makes it `answered`, not automatically checked,
+used or successful. Neither status permits another response. Publication
+withdrawal/expiry, source erasure, or unavailable response authority serves only
+a minimal status tombstone, never the selected summary. Currentness is a
+point-in-time observation, not a reserved future right. To revise the public
+text, deliberately withdraw the old publication and select a new one.
+Withdrawal cannot recall copies already obtained. Disabling participation stops
+new publication/response eligibility but leaves owner list/resolve/revoke usable.
+Disabling public-request mode stops the entire optional surface.
+
+The new table is operational metadata, excluded from work exports. The existing
+schema-6 marker, all sealed revision/file bytes, and v0.10-compatible work
+readers/writers remain unchanged. Apply the migration with writers quiesced
+and a complete database backup through the existing migration owner; it adds
+only this optional table/index. No runtime DDL or destructive downmigration is
+provided. Roll back exposure by disabling the mode, retaining data and a
+compatible worker. Work erasure stops public serving; operational publication
+metadata and the authored summary remain retained like prior access records.
+Selected-project reconstruction revokes its retained publications in the same
+transaction as existing grants, never restoring live publication authority.
+
+Focused development commands:
+`node scripts/run-web-planning.mjs public-requests` uses the existing bounded
+D1 lifecycle; `node scripts/test-web-planning-publication-client.mjs` checks
+browser-client state deterministically without claiming a real browser run.
+The ordinary Web D1 suite invokes those same D1 and deterministic client checks.
+`node scripts/run-web-planning.mjs public-requests-browser` uses the existing
+Chrome lifecycle for selected publication, anonymous HTML/JSON, response-loss
+reconciliation and the same request's separate participant return, checked use,
+feedback, withdrawal and expiry. Run it alongside the existing Web browser suite;
+both retain their existing bounded lifecycle and deadlines.
+Record actual results and
+blocked checks on the candidate; source, controlled fixtures, hosted publication,
+invited response, independent participation and economic demand are different
+observations. This does not implement #1642's need-driven external transport.
 
 ## Request-scoped participants and shared feedback (#1589)
 
