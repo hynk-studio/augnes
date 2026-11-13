@@ -22,11 +22,13 @@ const findings=[];
 const inputOwner=createCanonicalTestResourceRoot('ag-resource-test-');beginCanonicalTestResourceUse(inputOwner);
 try{
  writeFileSync(path.join(inputOwner.root,'payload.txt'),'synthetic literal',{mode:0o600});
- writeFileSync(path.join(inputOwner.root,'entry.mjs'),"import text from './payload.txt?raw'; export default text;",{mode:0o600});
+ writeFileSync(path.join(inputOwner.root,'module.mjs'),'export const value=1;',{mode:0o600});
+ writeFileSync(path.join(inputOwner.root,'entry.mjs'),"import text from './payload.txt?raw'; import moduleText from './module.mjs?raw' with {type:'text'}; export default text+moduleText;",{mode:0o600});
  const built=await build({absWorkingDir:inputOwner.root,entryPoints:['entry.mjs'],bundle:true,write:false,format:'esm',loader:{'.txt':'text'},metafile:true});
  const rows=Object.keys(built.metafile.inputs).map(input=>observeControlledWorkerInput(inputOwner.root,input));
  assert(rows.some(row=>row.input==='payload.txt?raw'&&row.path==='payload.txt'&&row.sha256===digest(readFileSync(path.join(inputOwner.root,'payload.txt')))));
  assert(rows.some(row=>row.input==='entry.mjs'&&row.path==='entry.mjs'));
+ assert(rows.some(row=>row.input==='module.mjs?raw'&&row.path==='module.mjs'&&row.sha256===digest(readFileSync(path.join(inputOwner.root,'module.mjs')))));
  for(const input of ['../payload.txt','/payload.txt','payload.txt?other','payload.txt?other.txt?raw','payload.txt#raw'])assert.throws(()=>observeControlledWorkerInput(inputOwner.root,input),/ERR_CONTROLLED_WORKER_INPUT/);
  symlinkSync('payload.txt',path.join(inputOwner.root,'link.txt'));assert.throws(()=>observeControlledWorkerInput(inputOwner.root,'link.txt'),/ERR_CONTROLLED_WORKER_INPUT/);
  findings.push('actual pinned esbuild raw-text input keeps its identifier and exact physical bytes; unsupported suffix/outside/symlink inputs refuse');
@@ -36,7 +38,10 @@ try{
 }
 const repositoryRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const actualBundle=await bundleWebPlanning(path.join(repositoryRoot,'scripts/web-planning-local-ingress.ts'));
-const actualInputs=actualBundle.inputs.map(input=>observeControlledWorkerInput(repositoryRoot,input));
+const actualInputs=actualBundle.inputs.map(input=>{
+ try{return observeControlledWorkerInput(repositoryRoot,input);}
+ catch(error){console.error(JSON.stringify({worker_input_binding_failure:{input,code:error.code??null}}));throw error;}
+});
 assert(actualInputs.some(row=>row.input.endsWith('.txt?raw')));
 assert(actualInputs.length>0&&new Set(actualInputs.map(row=>row.input)).size===actualInputs.length);
 findings.push('complete actual Worker input inventory resolves and binds before any Worker/session/request comparison');

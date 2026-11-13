@@ -82,7 +82,7 @@ function stdoutSummary(bytes,witness,catalogue) {
       !sha(summary.worker_bundle?.sha256)||!Number.isSafeInteger(summary.worker_bundle.bytes)||summary.worker_bundle.bytes<1 ||
       !Array.isArray(summary.worker_inputs)||!summary.worker_inputs.length||summary.worker_inputs.length>8192 ||
       new Set(summary.worker_inputs.map(v=>v.input)).size!==summary.worker_inputs.length || summary.worker_inputs.some(v=>
-        !(v.input===v.path||v.path.endsWith('.txt')&&v.input===v.path+'?raw') ||
+        !(v.input===v.path||/\.(?:txt|mjs)$/u.test(v.path)&&v.input===v.path+'?raw') ||
         !/^[\w./@+-]+$/u.test(v.path??"") || path.posix.normalize(v.path)!==v.path || v.path.startsWith("/") || v.path.startsWith("../") ||
         !sha(v.sha256)||!Number.isSafeInteger(v.byte_size)||v.byte_size<0 ||
         (!/^(?:apps\/(?:augnes_apps|web_planning)\/)?node_modules\//u.test(v.path) &&

@@ -1450,6 +1450,9 @@ cannot carry between roles.
 Supported preparation rereads the three current prepared dependency identities
 against the after witness after its asynchronous live observation; subsequent
 fixed-lock qualification preparation retains its existing meaning.
+Worker inputs retain their original esbuild identifiers separately from physical
+paths. Only the source-declared `.txt?raw` and `.mjs?raw` text forms may map that
+suffix to the corresponding regular file; other suffixes and unsafe paths refuse.
 
 The concrete request-transport driver preserves real Worker/session/request
 assertions. It selects only a body-bearing local POST `/api/drafts` with declared

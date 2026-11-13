@@ -7,12 +7,12 @@ import path from 'node:path';
 export const CONTROLLED_UPLOAD_CHUNK_BYTES = 65536;
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const fault = code => Object.assign(new Error(code), { code });
-// esbuild preserves a text import's ?raw suffix in its input identifier; that
+// esbuild preserves supported raw-text imports' suffix in their identifier; that
 // suffix is not part of the file it read. Retain both identities explicitly.
 export function observeControlledWorkerInput(root,input) {
  if(typeof input!=='string'||path.isAbsolute(input)||input.includes('#')||
-   input.includes('?')&&(!input.endsWith('.txt?raw')||input.indexOf('?')!==input.length-4))throw fault('ERR_CONTROLLED_WORKER_INPUT');
- const physical=input.endsWith('.txt?raw')?input.slice(0,-4):input;
+   input.includes('?')&&(!/\.(?:txt|mjs)\?raw$/u.test(input)||input.indexOf('?')!==input.length-4))throw fault('ERR_CONTROLLED_WORKER_INPUT');
+ const physical=input.endsWith('?raw')?input.slice(0,-4):input;
  if(path.normalize(physical)!==physical||physical==='..'||physical.startsWith('../'))throw fault('ERR_CONTROLLED_WORKER_INPUT');
  const file=path.join(root,physical),before=lstatSync(file,{bigint:true});
  if(!before.isFile()||realpathSync(file)!==file)throw fault('ERR_CONTROLLED_WORKER_INPUT');
