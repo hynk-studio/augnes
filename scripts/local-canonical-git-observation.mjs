@@ -13,6 +13,7 @@ import { GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM, GENERATED_STOCK_GRANT,
   verifyGeneratedStockRepair } from "./local-canonical-stock-lifecycle-witness.mjs";
 import { REPOSITORY_TYPECHECK, verifyRepositoryTypecheck } from "./local-canonical-typecheck-witness.mjs";
 import { REPOSITORY_PURE_CONTRACT, verifyRepositoryPureContract } from "./local-canonical-pure-contract-witness.mjs";
+import { INTEGRATION_BASE_CONTRACT, validAdmittedIntegrationBase, usesDeclaredIntegrationBase } from "./local-canonical-integration-base.mjs";
 
 export const isGitObservationRevision = p =>
   p?.schema === "augnes.local-canonical-source-correction.v10" && p.kind === "reviewed_revision";
@@ -272,7 +273,7 @@ function verifyFinalDependencyFailure(r, stock, inputs, phases) {
   return deps[2].before;
 }
 
-export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expectedOrdinal = 1, forward = false, serialPredecessor = false, generatedStockSerial = false) {
+export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expectedOrdinal = 1, forward = false, serialPredecessor = false, generatedStockSerial = false, materialContinuation = false) {
   const previous = receipt.attempt?.source_correction;
   const { contract, path_kind, binding, resources } = receipt.inputs;
   if (!(usesGitInventory(previous) || serialPredecessor && isSerialAggregateRevision(previous)) || previous.commission.ordinal !== expectedOrdinal ||
@@ -280,8 +281,13 @@ export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expecte
       digest({ contract, path_kind, binding, resources }) !== receipt.inputs.fingerprint)
     fail("revision_git_predecessor_invalid");
   if (forward) return verifyFinalDependencyFailure(receipt, stock, inputs, phases);
+  if (materialContinuation && (!validAdmittedIntegrationBase(receipt.integration_base, receipt.repository) ||
+      receipt.integration_base.contract === INTEGRATION_BASE_CONTRACT && !usesDeclaredIntegrationBase(receipt)))
+    fail("revision_git_predecessor_invalid");
+  const declaredMaterial = materialContinuation && usesDeclaredIntegrationBase(receipt);
+  const incompleteIntegration = declaredMaterial && receipt.phases?.find(phase => phase.status === "failure")?.id === "integration";
   verifySettledPhaseFailure(receipt, stock, inputs, phases, resources.find(r => r.id === "browser-executable"),
-    generatedStockSerial || isGitObservationRevision(previous) && expectedOrdinal === 1, expectedOrdinal, generatedStockSerial);
+    incompleteIntegration || generatedStockSerial || isGitObservationRevision(previous) && expectedOrdinal === 1, expectedOrdinal, generatedStockSerial, false, declaredMaterial);
   if (hasSerialAccounting(previous) && receipt.phases.some(p=>p.id === "e2e-project-experience" && p.status === "pass" && !validProjectExperienceAccounting(p.serial_budget)))
     fail("revision_inherited_serial_accounting_invalid");
 }

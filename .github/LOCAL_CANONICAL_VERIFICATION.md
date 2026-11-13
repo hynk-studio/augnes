@@ -1360,6 +1360,25 @@ mandatory. Observer cancellations, safety violations, successful receipts,
 interruption and incomplete settlement are not material-source incidents. The
 older dependency/restoration exceptions are not widened.
 
+For a material continuation whose predecessor has a valid version 4 receipt
+with admitted integration-base v2 provenance, a naturally failed integration
+phase may retain incomplete Browser use. Earlier passing phases still require every registered
+consumer; later phases remain NOT_RUN with no records. The failed integration
+phase retains only its actual ordered consumer prefix, including an empty prefix
+when it failed before Browser launch. Every retained record must identify the
+protected Browser; missing, excessive, reordered or unexplained records refuse.
+This represents failed/incomplete evidence, never completed Browser coverage.
+Dedicated Browser phases retain their existing complete-use requirements.
+
+For that versioned material case, `different_current_main` and
+`current_main_unobserved` are applicability information in the original false
+stock. Preparation retains the declared base and exact source ancestry without
+requiring the tracking main ref to equal that base. Authenticated Draft source,
+route-specific publication, current inputs, authority and physical succession
+checks remain. Retained integration-base v1 and other route meanings keep their
+existing restrictions. No missing provenance is upgraded to v2, and final
+qualification still requires its complete applicable phase and Browser coverage.
+
 The new commission has ordinal one and maximum one for one exact accepted target
 and preparation commitment. Reservation or interruption consumes it. A further
 in-scope material correction requires another complete proof, separate independent

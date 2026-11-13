@@ -27,6 +27,7 @@ import { REGISTERED_FIXTURE_BUDGET, REGISTERED_INTEGRATION_BUDGET, fixtureBudget
 import { GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM, GENERATED_STOCK_GRANT, GENERATED_STOCK_PHASE,
   inspectGeneratedStockBrowserInputs } from "./local-canonical-stock-lifecycle-witness.mjs";
 import { verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
+import { usesDeclaredIntegrationBase } from "./local-canonical-integration-base.mjs";
 import { artifactReader, isImprovement, hasImprovementMarker, ordinaryV2SourceModule, parseImprovementJSON, readImprovementEvidence,
   assertImprovementAuthorization, validateImprovementAuthorityRecords, validImprovementAttempt } from "./local-canonical-improvement.mjs";
 import { checkoutVerificationFingerprint } from "./local-canonical-checkout-ownership.mjs";
@@ -1865,7 +1866,8 @@ function prepareRevisionInspection({ file, repositoryRoot, predecessorRoot, anch
     const git = args => execFileSync("git", args, { cwd: repositoryRoot, encoding: "utf8", timeout: 10000 }).trim();
     verifyGitInputPublication(p,evidence.original,git);
     if (git(["rev-parse", "HEAD"]) !== p.head || git(["symbolic-ref", "--short", "HEAD"]) !== p.branch ||
-        (usesRevisionInventory(p) && (!isMaintenanceFixtureBudget(p) && git(["rev-parse", "refs/remotes/origin/main"]) !== p.base ||
+        (usesRevisionInventory(p) && (!isMaintenanceFixtureBudget(p) &&
+          !(isMaterialSourceRevision(p) && usesDeclaredIntegrationBase(evidence.original)) && git(["rev-parse", "refs/remotes/origin/main"]) !== p.base ||
           git(["status", "--porcelain=v1"]) || live?.inventory !== p.inputs.inventory_sha256)))
       throw fail("revision_preparation_target_changed");
   }
@@ -1935,7 +1937,7 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
     } else if (!acquisitionIncident) {
       const validateFailure = observedStock => verifyGitRevisionFailure(original, observedStock, inputs, REVIEWED_REVISION_PHASES,
         isMaterialSourceRevision(p) ? prior.source_correction.commission.ordinal : boundedV7 && p.commission.ordinal === 1 ? 2 : 1,
-        !!p.commission.forward_decision, isMaterialSourceRevision(p) && isSerialAggregateRevision(prior.source_correction), generatedStockEvidence(p));
+        !!p.commission.forward_decision, isMaterialSourceRevision(p) && isSerialAggregateRevision(prior.source_correction), generatedStockEvidence(p), isMaterialSourceRevision(p));
       if (verifierLifecycleEvidence(p)) verifyVerifierLifecyclePredecessor(p, prior, parse(p.focused), { original, stock, parse, bytes, git: originalGit, validateFailure });
       else if (preparedEligibilityEvidence(p)) verifyPreparedEligibilityPredecessor(p, prior, parse(p.focused), { original, stock, parse, validateFailure });
       else retainedBefore = validateFailure(stock);

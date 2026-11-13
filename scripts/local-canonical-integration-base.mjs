@@ -8,6 +8,37 @@ export const LEGACY_INTEGRATION_BASE_CONTRACT = "augnes.local-canonical-integrat
 export const INTEGRATION_BASE_CONTRACT = "augnes.local-canonical-integration-base.v2";
 export const INTEGRATION_BASE_SOURCE = "github_authenticated_main_branch_get";
 
+// Shared by receipt validation and prospective continuation readers. A contract
+// name alone cannot turn malformed provenance into declared-range applicability.
+export function validAdmittedIntegrationBase(value, repository) {
+  const iso = value => typeof value === "string" && Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value;
+  const observation = value?.observation;
+  const observed = observation &&
+    observation.source === INTEGRATION_BASE_SOURCE &&
+    observation.repository_id === CANONICAL_REPOSITORY_ID &&
+    observation.repository_id === repository?.repository_id && observation.branch === "main" &&
+    /^[a-f0-9]{40}$/u.test(observation.sha ?? "") && iso(observation.observed_at) &&
+    Date.parse(value?.checked_at) >= Date.parse(observation.observed_at) &&
+    value?.base_matches_current_main === (observation.sha === repository?.base_sha);
+  return [INTEGRATION_BASE_CONTRACT, LEGACY_INTEGRATION_BASE_CONTRACT].includes(value?.contract) &&
+    repository?.repository_id === CANONICAL_REPOSITORY_ID &&
+    value?.status === "admitted" && value?.reason_code === null &&
+    value?.requested_base_sha === repository?.base_sha && value?.tested_head_sha === repository?.head_sha &&
+    value?.requested_base_sha !== value?.tested_head_sha && value?.base_is_ancestor_of_head === true && iso(value?.checked_at) &&
+    (value.contract === LEGACY_INTEGRATION_BASE_CONTRACT
+      ? observed && value.base_matches_current_main === true
+      : observed || observation === null && value.base_matches_current_main === null);
+}
+
+export function usesDeclaredIntegrationBase(receipt) {
+  const value = receipt?.integration_base;
+  return receipt?.receipt_version === 4 && value?.contract === INTEGRATION_BASE_CONTRACT &&
+    validAdmittedIntegrationBase(value, receipt.repository) &&
+    Date.parse(value.checked_at) >= Date.parse(receipt.run?.started_at) &&
+    Date.parse(value.checked_at) <= Date.parse(receipt.run?.finished_at) &&
+    (!value.observation || Date.parse(value.observation.observed_at) >= Date.parse(receipt.run?.started_at));
+}
+
 // No tracking-ref fallback and no fetch/write: this is an observation, not a
 // reservation of GitHub main through the eventual merge.
 export async function admitIntegrationBase({

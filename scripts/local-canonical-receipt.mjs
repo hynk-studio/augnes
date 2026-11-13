@@ -4,7 +4,7 @@ import { validProjectExperienceAccounting } from "./project-experience-serial-bu
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { CANONICAL_REPOSITORY_ID } from "./canonical-repository-identity.mjs";
-import { INTEGRATION_BASE_CONTRACT, LEGACY_INTEGRATION_BASE_CONTRACT, INTEGRATION_BASE_SOURCE } from "./local-canonical-integration-base.mjs";
+import { INTEGRATION_BASE_CONTRACT, LEGACY_INTEGRATION_BASE_CONTRACT, validAdmittedIntegrationBase } from "./local-canonical-integration-base.mjs";
 import { requiresCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { VERIFICATION_CONTEXT_CONTRACT } from "./local-canonical-verification-context.mjs";
@@ -787,28 +787,6 @@ export function inspectClassifiedEvidence(receipt, issues, incomplete = null) {
     fault: input.first_fault, cleanup: receipt.cleanup.completed });
   if (receipt.outcome?.disposition !== disposition || disposition !== (incomplete ? "unclassified_timeout" : "completed_success") ||
       receipt.outcome?.validity !== "valid_within_observed_scope" || receipt.outcome?.safety !== "preserved_within_observed_scope") issues.push("receipt_classified_outcome_not_passing");
-}
-
-function validAdmittedIntegrationBase(value, repository) {
-  const observation = value?.observation;
-  const observed = observation &&
-    observation.source === INTEGRATION_BASE_SOURCE &&
-    observation.repository_id === CANONICAL_REPOSITORY_ID &&
-    observation.repository_id === repository?.repository_id && observation.branch === "main" &&
-    SHA_PATTERN.test(observation.sha ?? "") && isIsoTimestamp(observation.observed_at) &&
-    Date.parse(value?.checked_at) >= Date.parse(observation.observed_at) &&
-    value?.base_matches_current_main === (observation.sha === repository?.base_sha);
-  return [INTEGRATION_BASE_CONTRACT, LEGACY_INTEGRATION_BASE_CONTRACT].includes(value?.contract) &&
-    repository?.repository_id === CANONICAL_REPOSITORY_ID &&
-    value?.status === "admitted" && value?.reason_code === null &&
-    value?.requested_base_sha === repository?.base_sha &&
-    value?.tested_head_sha === repository?.head_sha &&
-    value?.requested_base_sha !== value?.tested_head_sha &&
-    value?.base_is_ancestor_of_head === true &&
-    isIsoTimestamp(value?.checked_at) &&
-    (value.contract === LEGACY_INTEGRATION_BASE_CONTRACT
-      ? observed && value.base_matches_current_main === true
-      : observed || observation === null && value.base_matches_current_main === null);
 }
 
 function isIsoTimestamp(value) {

@@ -1,5 +1,6 @@
 import { digest, classifyInputChange, nonFaultInputChange, inputEventIdentity, validBrowserTarget } from "./local-canonical-inputs.mjs";
 import { browserConsumersForPhase, validBrowserUse, validPhaseBrowserUse, parseBrowserUseLine, BROWSER_IDENTITY_PREFIX } from "./local-canonical-browser-identity.mjs";
+import { usesDeclaredIntegrationBase } from "./local-canonical-integration-base.mjs";
 
 export const BROWSER_REVISION_SCHEMA = "augnes.local-canonical-source-correction.v8";
 export const BROWSER_SUCCESSOR_SCHEMA = "augnes.local-canonical-source-correction.v9";
@@ -197,11 +198,13 @@ export function verifyReviewedBrowserFailure(r, stock, inputs, phaseIds) {
 
 // Both reviewed continuations require the physical ordinal-one Full to have
 // stopped at a natural child failure with settled resources and accounted stock.
-export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBrowser, allowIncompleteBrowser = false, expectedOrdinal = 1, generatedStockSerial = false, ordinaryFixture = false) {
+export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBrowser, allowIncompleteBrowser = false, expectedOrdinal = 1, generatedStockSerial = false, ordinaryFixture = false, declaredMaterial = false) {
   const failed = r.phases?.findIndex(p => p.status === "failure") ?? -1;
   const reason = generatedStockSerial ? "serial_execution_incomplete" : "phase_failed";
   const ordinary = r.attempt?.source_correction;
   const oldRuntime=r.inputs?.binding?.runtime_inputs,oldNode=r.inputs?.resources?.find(v=>v.id==="node-executable");
+  const declaredRange = usesDeclaredIntegrationBase(r);
+  if (declaredMaterial && !declaredRange) throw fail("revision_browser_failure_invalid");
   // Ordinary execution omitted the optional runtime binding or recorded null. Reuse its
   // actual Node identity, not invented historical header/runtime observations.
   // Current headers remain independently observed by the selected v7 proof.
@@ -254,6 +257,13 @@ export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBr
         (index < failed ? phase.status !== "pass" || phase.exit_status !== 0 || phase.failure_code !== null :
           phase.failure_code !== reason || !Number.isSafeInteger(phase.exit_status) || phase.exit_status <= 0))
       throw fail("revision_browser_failure_invalid");
+    if (declaredMaterial && index === failed && phase.id === "integration") {
+      // The registered integration consumers execute sequentially. A failed
+      // phase may retain their actual prefix, never a hole or reordered suffix.
+      const sequence = Object.entries(browserConsumersForPhase(phase.id)).flatMap(([name, count]) => Array(count).fill(name));
+      if (!Array.isArray(records) || records.some((record, i) => record.consumer !== sequence[i]))
+        throw fail("revision_browser_failure_invalid");
+    }
     if (!validPhaseBrowserUse(phase, records, expectedBrowser)) {
       const required = browserConsumersForPhase(phase.id);
       if (!allowIncompleteBrowser || index !== failed || !Array.isArray(records) ||
@@ -265,8 +275,7 @@ export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBr
   }
   if (stock.status !== "non_deciding_or_stale" || stock.valid_deciding_evidence !== false ||
       !same(stock.dimensions, { historical_integrity: "intact", execution: "incomplete_or_failed", evidence_validity: "invalid_or_incomplete",
-        safety: "preserved_within_observed_scope", current_merge_applicability: ordinaryFixture &&
-          r.integration_base?.contract === "augnes.local-canonical-integration-base.v2" &&
+        safety: "preserved_within_observed_scope", current_merge_applicability: (ordinaryFixture || declaredMaterial) && declaredRange &&
           ["different_current_main","current_main_unobserved"].includes(stock.dimensions?.current_merge_applicability) ?
           stock.dimensions.current_merge_applicability : "matches_observed_context" }) ||
       !same(stock.issues, [...issues].sort())) throw fail("revision_browser_stock_unaccounted");
