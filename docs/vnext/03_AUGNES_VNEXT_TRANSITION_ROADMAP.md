@@ -599,7 +599,8 @@ Under the existing [product doctrine](./01_AUGNES_VNEXT_MASTERPLAN.md) and
 north star is user-owned, persistent problem-solving capability for projects and
 ongoing undertakings, built from the experience, corrections and reusable methods
 of users, contributors and replaceable executors. Users include agents acting
-directly or under delegation. The product-facing loop stays **Resume -> Verify -> Decide**. This adds
+directly or under delegation. The product compass is
+**Resume -> Verify -> Anticipate -> Decide**. This adds
 no learning mode, dashboard, approval ritual or new phase. The prospective
 candidate below gives that direction a bounded next implementation outcome;
 documentation does not authorize its runtime or research execution.
@@ -616,6 +617,25 @@ cases, not an admission list or established product-market fit. Read-only,
 fixed-function and one-time participants remain within the product scope.
 
 ### Selective model application across local and web work
+
+The [Anticipate responsibility](./01_AUGNES_VNEXT_MASTERPLAN.md#anticipate) is
+adopted product direction: conditional futures, risks, opportunities,
+action-dependent outcomes and observations that could change a decision belong
+explicitly between available understanding and consequential judgment. This is
+a reasoning loop, not an extra required runtime stage. Prediction is an output
+within that responsibility, not a new Core type or execution permission.
+
+Existing [prospective expectations](#completed-p32--f1-optional-pre-outcome-expectation),
+[bounded project outlook](#current-p3p4p5--project-retry-inspection-outlook-1213) and
+[prospective preparation](#completed-bounded-mechanism--prospective-preparation-and-eventtime-re-entry-1380)
+provide bounded connections, not a general forecasting or self-improving subsystem.
+For further authorized work within existing P3/P4/P5 owners, the useful increment
+is a source-and-assumption-linked outlook informing a real inquiry or choice,
+then selective reconsideration after a relevant observation or condition change.
+Use the existing producer and consumer before proposing another representation.
+This documentation adopts no new runtime, schema, task family, mandatory gate,
+research allocation or phase order; earlier trials and their evidence remain
+scoped to their original assignments.
 
 Apply the [small-model direction](./01_AUGNES_VNEXT_MASTERPLAN.md#5-long-horizon-research-substrate)
 where uncertainty changes an inquiry, interpretation or action. This is a
