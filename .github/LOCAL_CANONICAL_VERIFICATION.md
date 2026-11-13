@@ -1233,6 +1233,30 @@ may retain the after witness only with the complete exact Git delta and identica
 consumed bytes; executable changes require relevant new evidence. Witness originals
 are never relabeled.
 
+The existing candidate-driver/prior-implicated-source collector also supports
+one bounded material-v7 sequencing witness: unchanged command
+`node scripts/test-project-experience-guide-lifecycle-v1.mjs --operator-scope`,
+with only the entire `scripts/browser-validate-operator-native-host-execution-v1.mjs`
+replaced by its predecessor Git bytes for the before observation. All other
+tracked files, including the driver, come from the published candidate. Record
+the actual candidate checkout, explicit prior-source overlay, complete source
+catalogues, identical runtime/environment and same-root prepared dependencies;
+never describe this as a clean historical execution. The existing collector's
+`--driver scripts/test-project-experience-guide-lifecycle-v1.mjs` selects this
+exact recipe, without a new evidence kind or authority route. Its production
+input inventory is observed unchanged before/after and bound at preparation.
+
+Natural RED must be the original context-retention assertion, not import/setup
+failure. GREEN retains all operator lifecycle controls and adopted/invalid/failed
+replacement assertions with the actual hook and source-extracted boundary.
+Independent source review must establish substantive coverage; summary counters
+alone are insufficient. This controlled schedule has zero actual Browser uses
+and proves neither historical Browser recreation nor corrected real-Browser
+qualification. Preserve the strict request classifier, unexpected-request gate,
+readiness deadline, input protection, physical restoration and owned cleanup.
+The existing v10 TS recipe and ordinary historical-driver evidence remain
+separate and unchanged; unsupported drivers, arguments or attributions refuse.
+
 #### Selective integration fixture workload correction
 
 An explicitly reviewed material-source commission may use the typed evidence

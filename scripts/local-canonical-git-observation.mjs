@@ -13,6 +13,7 @@ import { GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM, GENERATED_STOCK_GRANT,
   verifyGeneratedStockRepair } from "./local-canonical-stock-lifecycle-witness.mjs";
 import { REPOSITORY_TYPECHECK, verifyRepositoryTypecheck } from "./local-canonical-typecheck-witness.mjs";
 import { REPOSITORY_PURE_CONTRACT, verifyRepositoryPureContract } from "./local-canonical-pure-contract-witness.mjs";
+import { OPERATOR_REQUEST_LIFECYCLE_PHASES_V1 as GUIDE_REPAIR_PHASES } from "./operator-execution-result-contract-v1.mjs";
 
 export const isGitObservationRevision = p =>
   p?.schema === "augnes.local-canonical-source-correction.v10" && p.kind === "reviewed_revision";
@@ -348,15 +349,49 @@ export function verifyGitRevisionSuccess(r, stock, inputs, phases) {
     fail("revision_positive_stock_invalid");
 }
 
-// Proposed v10-only alternative. This is not an execution grant. The caller
-// retains authenticated review/grant, physical lineage, input and stock checks.
+// The existing candidate-driver overlay has two exact recipes. Neither claims
+// a clean historical checkout or grants execution authority.
+export const GUIDE_REPAIR_DRIVER = "scripts/test-project-experience-guide-lifecycle-v1.mjs";
+export const GUIDE_REPAIR_MODULE = "scripts/browser-validate-operator-native-host-execution-v1.mjs";
+export const GUIDE_REPAIR_FIXTURES = [GUIDE_REPAIR_DRIVER,
+  "scripts/browser-validate-project-experience-v1.mjs", "components/guide/use-project-guide-brief-v0-2.ts",
+  "scripts/project-experience-guide-lifecycle-v1.mjs", "scripts/project-experience-request-verdict-v1.mjs",
+  "scripts/operator-execution-result-contract-v1.mjs", "scripts/capture-canonical-ts-repair.mjs"];
+export const GUIDE_REPAIR_SCOPE = "controlled actual-hook/source-boundary; not real Browser qualification";
+
+export function validateGuideRepairOutcome(output, exit) {
+  if (exit === 1) {
+    if (!output.includes("AssertionError [ERR_ASSERTION]: native follow-up must retain its context while the actual hook replacement Fetch is held") ||
+        !/\ntrue !== false\n/u.test(output) || !/at nativeFollowupBoundary \(/u.test(output))
+      fail("revision_guide_red_assertion_invalid");
+    return;
+  }
+  let report;
+  try { report = JSON.parse(output.trim()); } catch { fail("revision_guide_green_assertions_invalid"); }
+  if (exit !== 0 || report?.test !== "project-experience-guide-lifecycle-v1" || report.status !== "pass" ||
+      report.adversarial_controls !== 73 || report.supersession_adversarial_controls !== 59 || report.delayed_canceled_result_controls !== 4 ||
+      report.supersession_phases !== 18 || !equal(report.replay_phases, GUIDE_REPAIR_PHASES) ||
+      report.operator_scope !== true || report.actual_hook_guard !== true || report.observer_parity !== true ||
+      report.exact_fetch_promise !== true || report.production_attempt !== false ||
+      !equal(report.native_followup_boundary, [
+        {replacement:"adopted",held_until_settlement:true,strict_verdict:true},
+        {replacement:"invalid",held_until_settlement:true,strict_verdict:false},
+        {replacement:"failed",held_until_settlement:true,strict_verdict:false}]))
+    fail("revision_guide_green_assertions_invalid");
+}
+
+// The caller retains authenticated review/grant, physical lineage, input and
+// stock checks. The mjs recipe is only an inventory-bound material-v7 remedy.
 export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, completedAt, repositoryRoot}) {
   const regression = focused.regression, file = regression.path;
-  const command = "node --import tsx scripts/test-project-client-browser.ts";
+  const guide = isMaterialSourceRevision(p) && file === GUIDE_REPAIR_DRIVER;
+  const command = guide ? "node " + GUIDE_REPAIR_DRIVER + " --operator-scope" : "node --import tsx scripts/test-project-client-browser.ts";
   const paths = focused.implicated_paths, fixture = regression.fixture_paths;
-  if (!isGitObservationSuccessor(p) || file !== "scripts/test-project-client-browser.ts" ||
-      focused.failed_phase !== "e2e-project-experience" ||
-      !equal(regression.node_args,["--import","tsx"]) || !equal(regression.args,[]) ||
+  if (!(guide ? p.commission.evidence_kind === undefined && regression.kind === undefined &&
+        equal(paths,[GUIDE_REPAIR_MODULE]) && equal(fixture,GUIDE_REPAIR_FIXTURES) && sha(p.inputs.inventory_sha256) :
+        isGitObservationSuccessor(p) && file === "scripts/test-project-client-browser.ts") ||
+      focused.failed_phase !== (guide ? "e2e-operator-native-host-execution" : "e2e-project-experience") ||
+      !equal(regression.node_args,guide ? [] : ["--import","tsx"]) || !equal(regression.args,guide ? ["--operator-scope"] : []) ||
       !equal(focused.input_remedy_resources,[]) || prior.tree === p.tree ||
       !Array.isArray(paths) || !paths.length || new Set(paths).size !== paths.length || paths.includes(file) ||
       paths.some(name => !/^scripts\/(?:[\w.-]+\/)*[\w.-]+\.(?:ts|tsx|mjs)$/u.test(name) || name.split("/").includes("..")) ||
@@ -423,6 +458,15 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
         result.cancelled!==false || result.cleanup_completed!==true || result.remaining_owned_processes!==0 ||
         result.termination_reason!=="natural_exit" || result.exit_observed!==true || result.streams_closed!==true ||
         !bytes(witness.stdout,2*1024*1024).length) fail("revision_git_regression_invalid");
+    if (guide) {
+      const dirty = head === prior.head ? " M " + GUIDE_REPAIR_MODULE + "\n" : "";
+      if (witness.scope !== GUIDE_REPAIR_SCOPE || witness.checkout_head !== p.head ||
+          witness.source_state !== (head === prior.head ? "candidate-with-prior-implicated-overlay" : "clean-candidate") ||
+          witness.worktree_before !== dirty || witness.worktree_after !== dirty ||
+          witness.input_inventory_sha256 !== p.inputs.inventory_sha256 || !equal(witness.browser_uses,[]))
+        fail("revision_git_regression_invalid");
+      validateGuideRepairOutcome(bytes(witness.stdout,2*1024*1024).toString(),exit);
+    }
   }
   return p.head;
 }
@@ -432,8 +476,10 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
 // a stable test driver and explicit script arguments for the implicated code.
 export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt, retainedBefore, postPass = false, acquisition = false, original, stock, completion, repositoryRoot }) {
   const regression = focused.regression;
-  if (isGitObservationSuccessor(p) && regression?.attribution === "candidate-driver-prior-implicated-source")
+  if (regression?.attribution === "candidate-driver-prior-implicated-source") {
+    if (!(isGitObservationSuccessor(p) || isMaterialSourceRevision(p))) fail("revision_git_regression_invalid");
     return verifyCanonicalTsRepair(p,prior,focused,{git,parse,bytes,completedAt,repositoryRoot});
+  }
   const material = isMaterialSourceRevision(p);
   if (regression?.kind!==undefined) {
     if (!material) fail("revision_git_regression_invalid");

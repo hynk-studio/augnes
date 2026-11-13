@@ -4,7 +4,9 @@ import assert from "node:assert/strict";
 import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { digest, observeInputFile } from "./local-canonical-inputs.mjs";
-import { verifyGitSourceRepair } from "./local-canonical-git-observation.mjs";
+import { verifyGitSourceRepair, MATERIAL_SOURCE_CORRECTION, GUIDE_REPAIR_DRIVER, GUIDE_REPAIR_MODULE,
+  GUIDE_REPAIR_FIXTURES, GUIDE_REPAIR_SCOPE, validateGuideRepairOutcome } from "./local-canonical-git-observation.mjs";
+import { OPERATOR_REQUEST_LIFECYCLE_PHASES_V1 } from "./operator-execution-result-contract-v1.mjs";
 import { revisionArtifact } from "./local-canonical-attempts.mjs";
 import { validateResultDraftCaptureOutcome, validateCaptureBrowserUses, replaceCaptureModule, finalizeFocusedCapture, checkCaptureSource, verifyCaptureDependencyProvenance, TS_REPAIR_DRIVER as driver, TS_REPAIR_MODULE as module } from "./capture-canonical-ts-repair.mjs";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
@@ -86,5 +88,45 @@ try {
  const calls=[],primary=new Error("original_child_fault");
  const final=finalizeFocusedCapture({restore:()=>{calls.push("restore");throw Error("foreign_overlay");},resources:()=>{calls.push("resources");throw Error("unsafe_resource");},ownership:()=>{calls.push("ownership");return {released:true};},source:()=>{calls.push("source");throw Error("source_changed");}});
  assert.deepEqual(calls,["restore","resources","ownership","source"]);assert.equal(final.errors.length,3);assert.equal(primary.message,"original_child_fault");
+ // The mjs seam is a candidate-driver overlay, never a historical clean run.
+ const nativeFiles=new Map([...GUIDE_REPAIR_FIXTURES,GUIDE_REPAIR_MODULE,"package.json","package-lock.json"].map(name=>[name,Buffer.from(name.startsWith("package")?"{}":"candidate "+name)]));
+ const nativeCatalogue=[...nativeFiles.keys()].sort().map(name=>({path:name,mode:"100644"}));
+ const nativeContent=(ref,name)=>ref===old&&name===GUIDE_REPAIR_MODULE?Buffer.from("prior native readiness"):nativeFiles.get(name);
+ const nativeSource=ref=>nativeCatalogue.map(e=>({...e,byte_size:nativeContent(ref,e.path).length,sha256:digest(nativeContent(ref,e.path))}));
+ const nativeCommand="node "+GUIDE_REPAIR_DRIVER+" --operator-scope";
+ const nativeProof={...p,schema:"augnes.local-canonical-source-correction.v7",commission:{ordinal:1,maximum_invocations:1,source_revision:MATERIAL_SOURCE_CORRECTION},inputs:{...p.inputs,inventory_sha256:"f".repeat(64)}};
+ const nativeReport={test:"project-experience-guide-lifecycle-v1",status:"pass",adversarial_controls:73,supersession_adversarial_controls:59,delayed_canceled_result_controls:4,supersession_phases:18,
+  replay_phases:OPERATOR_REQUEST_LIFECYCLE_PHASES_V1,operator_scope:true,actual_hook_guard:true,observer_parity:true,exact_fetch_promise:true,production_attempt:false,
+  native_followup_boundary:[{replacement:"adopted",held_until_settlement:true,strict_verdict:true},{replacement:"invalid",held_until_settlement:true,strict_verdict:false},{replacement:"failed",held_until_settlement:true,strict_verdict:false}]};
+ const nativeRed="AssertionError [ERR_ASSERTION]: native follow-up must retain its context while the actual hook replacement Fetch is held\n\ntrue !== false\n\n    at nativeFollowupBoundary (file:///synthetic/driver.mjs:211:12)\n";
+ const nativeWitness=(ref,baseWitness)=>({...structuredClone(baseWitness),scope:GUIDE_REPAIR_SCOPE,checkout_head:head,
+  source_state:ref===old?"candidate-with-prior-implicated-overlay":"clean-candidate",worktree_before:ref===old?" M "+GUIDE_REPAIR_MODULE+"\n":"",worktree_after:ref===old?" M "+GUIDE_REPAIR_MODULE+"\n":"",
+  input_inventory_sha256:nativeProof.inputs.inventory_sha256,browser_uses:[],source_files:save("native-source-"+ref+".json",nativeSource(ref)),
+  file_sha256:digest(nativeFiles.get(GUIDE_REPAIR_DRIVER)),fixture_sha256:digest(nativeSource(head).filter(v=>GUIDE_REPAIR_FIXTURES.includes(v.path))),
+  modules:[{path:GUIDE_REPAIR_MODULE,sha256:digest(nativeContent(ref,GUIDE_REPAIR_MODULE))}],command:nativeCommand,
+  stdout:save("native-output-"+ref+".log",Buffer.from(ref===old?nativeRed:JSON.stringify(nativeReport)))});
+ const nb=nativeWitness(old,before),na=nativeWitness(head,after);
+ const nf={...focused,failed_phase:"e2e-operator-native-host-execution",implicated_paths:[GUIDE_REPAIR_MODULE],source_files:nativeSource(head),
+  regression:{path:GUIDE_REPAIR_DRIVER,node_args:[],args:["--operator-scope"],fixture_paths:GUIDE_REPAIR_FIXTURES,attribution:"candidate-driver-prior-implicated-source",before:"native-before",after:"native-after"},
+  commands:[{command:nativeCommand,tested_source_head:head,record:"native-after",stdout:na.stdout}]};
+ const nativeCheck=(b=nb,a=na,proof=nativeProof,f=nf)=>verifyGitSourceRepair(proof,prior,f,{repositoryRoot:root,completedAt:"2026-01-01T00:00:00.000Z",
+  git:args=>{if(args[0]==="ls-tree")return Buffer.from(nativeCatalogue.map(e=>`${e.mode} blob ${"c".repeat(40)}\t${e.path}\0`).join(""));
+   if(args[0]==="show"){const colon=args[1].indexOf(":");return nativeContent(args[1].slice(0,colon),args[1].slice(colon+1));}
+   if(args[0]==="rev-parse")return Buffer.from(args[2].startsWith(old)?"0".repeat(40):"1".repeat(40));
+   if(args[0]==="diff")return Buffer.from("@@ -1 +1 @@\n-old\n+new\n");throw Error("unexpected native Git operation");},
+  parse:ref=>ref==="native-before"?b:a,bytes:(ref,max)=>revisionArtifact(root,ref,max)});
+ assert.equal(nativeCheck(),head);
+ for(const change of [q=>q.schema="augnes.local-canonical-source-correction.v10",q=>delete q.commission.source_revision,q=>q.commission.evidence_kind="selective-fixture-workload-v1",q=>delete q.inputs.inventory_sha256]){const q=structuredClone(nativeProof);change(q);refuse(()=>nativeCheck(nb,na,q));}
+ for(const change of [f=>f.regression.path=driver,f=>f.regression.args=[],f=>f.regression.args.push("--skip-assertions"),f=>f.regression.node_args=["--import","tsx"],f=>f.implicated_paths=[module],f=>f.regression.fixture_paths.pop(),f=>f.failed_phase="integration",f=>f.regression.kind="unregistered",f=>f.regression.attribution="historical-clean-driver"]){const f=structuredClone(nf);change(f);refuse(()=>nativeCheck(nb,na,nativeProof,f));}
+ for(const change of [w=>w.driver_source_head=old,w=>w.checkout_head=old,w=>w.source_state="clean-predecessor",w=>w.worktree_before="",w=>w.worktree_after="",w=>w.input_inventory_sha256="0".repeat(64),w=>w.browser_uses=[{}],w=>w.command+=" --other",w=>w.scope="real Browser",w=>w.file_sha256="0".repeat(64),w=>w.environment="0".repeat(64),w=>w.node_version="22.23.4",w=>w.result.cleanup_completed=false,w=>w.prepared_dependencies.after.content_sha256="0".repeat(64)]){const b=structuredClone(nb);change(b);refuse(()=>nativeCheck(b));}
+ for(const change of [s=>s.slice(1),s=>s.map(e=>e.path===GUIDE_REPAIR_DRIVER?{...e,sha256:digest("prior driver")}:e),s=>s.map(e=>e.path===GUIDE_REPAIR_MODULE?{...e,sha256:digest(nativeFiles.get(GUIDE_REPAIR_MODULE))}:e)]){const b=structuredClone(nb);b.source_files=save("native-substituted-source.json",change(nativeSource(old)));refuse(()=>nativeCheck(b));}
+ const unrelated=structuredClone(nb);unrelated.stdout=save("native-unrelated-red.log",Buffer.from("Error: module import failed"));refuse(()=>nativeCheck(unrelated));
+ for(const change of [r=>r.native_followup_boundary.pop(),r=>r.native_followup_boundary[1].strict_verdict=true,r=>r.native_followup_boundary[2].held_until_settlement=false,r=>r.replay_phases.pop(),r=>r.adversarial_controls--,r=>r.supersession_adversarial_controls--,r=>r.delayed_canceled_result_controls=0,r=>r.actual_hook_guard=false,r=>r.observer_parity=false,r=>r.exact_fetch_promise=false,r=>r.operator_scope=false,r=>r.production_attempt=true]){const r=structuredClone(nativeReport);change(r);refuse(()=>validateGuideRepairOutcome(JSON.stringify(r),0));}
+ const wrongGreen=structuredClone(na);wrongGreen.stdout=save("native-wrong-green.log",Buffer.from(JSON.stringify({...nativeReport,operator_scope:false})));refuse(()=>nativeCheck(nb,wrongGreen));
+ // The physical collector accepts only the disclosed singleton overlay.
+ const nativeFile=path.join(root,GUIDE_REPAIR_MODULE);writeFileSync(nativeFile,nativeFiles.get(GUIDE_REPAIR_MODULE),{mode:0o600});
+ const physicalNative=nativeSource(head).filter(e=>e.path===GUIDE_REPAIR_MODULE),nativeGit=args=>Buffer.from(args[0]==="rev-parse"?head:args[0]==="diff"&&args[1]==="--name-only"?GUIDE_REPAIR_MODULE:"");
+ assert.equal(checkCaptureSource(root,physicalNative,nativeGit,head,GUIDE_REPAIR_MODULE).entries,1);
+ refuse(()=>checkCaptureSource(root,physicalNative,nativeGit,head));
  console.log(JSON.stringify({scope:"structural-only",positive:true,refusals}));
 } finally {assert.ok(cleanupCanonicalTestResources([owner]).every(v=>v.completed));assert.equal(existsSync(root),false);}
