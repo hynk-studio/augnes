@@ -43,6 +43,7 @@ try{
   const stdout=ref(label+".log",COMMON_DRIVER_RESULT_PREFIX+JSON.stringify(summary)+"\n");
   return ref(label+".json",{attribution:MATERIAL_COMMON_DRIVER,driver_source_head:head,tested_source_head:tested,
    source_state:{kind:exit?"candidate-with-predecessor-modules":"exact-final-candidate",git_head:head,git_tree:tree,untracked_read_inputs:[]},
+   source_state_after:{kind:exit?"candidate-with-predecessor-modules":"exact-final-candidate",git_head:head,git_tree:tree,untracked_read_inputs:[]},
    source_files:ref(label+"-source.json",catalogue),source_files_after:ref(label+"-source-after.json",catalogue),common_source_sha256:sources.common_sha256,
    modules:catalogue.filter(v=>v.path===module).map(({path,sha256})=>({path,sha256})),file_sha256:digest(git(["show",head+":"+driver])),command,
    runtime_before:runtime,runtime_after:runtime,runtime_inputs_sha256:p.inputs.identity_sha256,node_version:process.versions.node,node_executable:realpathSync(process.execPath),
@@ -57,7 +58,7 @@ try{
  const verify=(f=focused,q=p,extra={})=>verifyGitSourceRepair(q,prior,f,{git,parse,bytes,completedAt,repositoryRoot:root,...extra});
  assert.equal(verify(),head);let refused=0;
  const mutateWitness=(role,mutate)=>{const f=structuredClone(focused),w=parse(f.regression[role]);mutate(w);f.regression[role]=ref("bad-"+(++refused)+".json",w);if(role==="after")f.commands=[{...f.commands[0],record:f.regression.after,stdout:w.stdout,result:w.result}];assert.throws(()=>verify(f));};
- for(const mutate of [w=>w.driver_source_head=prior.head,w=>w.source_state.kind="clean-predecessor",w=>w.modules[0].sha256=digest("substitution"),
+ for(const mutate of [w=>w.driver_source_head=prior.head,w=>w.source_state.kind="clean-predecessor",w=>w.source_state_after.git_head=prior.head,w=>w.modules[0].sha256=digest("substitution"),
   w=>w.source_files_after=ref("altered-source.json",[]),w=>w.prepared_dependencies.pop(),w=>w.prepared_dependencies[1].after.sources[0].sha256=digest("lock drift"),
   w=>w.runtime_after.node.observation.sha256=digest("runtime drift"),w=>w.environment_after.EXTRA="unbound",w=>w.result.timed_out=true,w=>w.result.cleanup_completed=false,
   w=>w.resource_lifecycle.initial_entries.push("shared-cache"),w=>w.resource_lifecycle.absent_after_cleanup=false])mutateWitness("before",mutate);

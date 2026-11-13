@@ -119,6 +119,7 @@ export function verifyMaterialCommonDriver(p,prior,focused,{git,parse,bytes,comp
     const catalogue=JSON.parse(bytes(w.source_files,2*1024*1024)),end=JSON.parse(bytes(w.source_files_after,2*1024*1024));
     if(w.attribution!==MATERIAL_COMMON_DRIVER||w.driver_source_head!==p.head||w.tested_source_head!==head||
         w.source_state?.kind!==kind||w.source_state.git_head!==p.head||w.source_state.git_tree!==p.tree||
+        !equal(w.source_state_after,w.source_state)||
         !equal(w.source_state.untracked_read_inputs,[])||!equal(catalogue,source)||!equal(end,source)||
         w.common_source_sha256!==sources.common_sha256||w.file_sha256!==digest(driver)||w.command!==command||
         !equal(w.modules,source.filter(v=>modules.includes(v.path)).map(({path,sha256})=>({path,sha256})))||
