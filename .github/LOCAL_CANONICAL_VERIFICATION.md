@@ -1447,6 +1447,9 @@ remain equal. Equal lexical child environments require a freshly created empty
 owned directory per role, with prior settlement, removal and observed absence
 before the same path can be recreated; mutable HOME/temp/cache/runtime state
 cannot carry between roles.
+Supported preparation rereads the three current prepared dependency identities
+against the after witness after its asynchronous live observation; subsequent
+fixed-lock qualification preparation retains its existing meaning.
 
 The concrete request-transport driver preserves real Worker/session/request
 assertions. It selects only a body-bearing local POST `/api/drafts` with declared

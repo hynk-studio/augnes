@@ -32,6 +32,7 @@ import { artifactReader, isImprovement, hasImprovementMarker, ordinaryV2SourceMo
   assertImprovementAuthorization, validateImprovementAuthorityRecords, validImprovementAttempt } from "./local-canonical-improvement.mjs";
 import { checkoutVerificationFingerprint } from "./local-canonical-checkout-ownership.mjs";
 import { REPOSITORY_PURE_CONTRACT, inspectCurrentPureContractInputs } from "./local-canonical-pure-contract-witness.mjs";
+import { MATERIAL_COMMON_DRIVER, inspectCurrentCommonDriverInputs } from "./local-canonical-common-driver.mjs";
 import {GIT_INPUT_REVISION, GIT_INPUT_HISTORY_BOUNDARY, isGitInputRevision, verifyGitInputRemedy, verifyGitInputPublication} from "./local-canonical-git-observation.mjs";
 
 export const ATTEMPT_CONTRACT = "augnes.local-canonical-attempt-family.v1";
@@ -1826,6 +1827,8 @@ export async function prepareMaterialSourceRevision(args,{transport}={}) {
   }
   if (evidence.focused.regression?.kind===REPOSITORY_PURE_CONTRACT)
     inspectCurrentPureContractInputs(args.repositoryRoot,JSON.parse(revisionArtifact(path.dirname(args.file),evidence.focused.regression.after)));
+  if (evidence.focused.regression?.attribution===MATERIAL_COMMON_DRIVER)
+    inspectCurrentCommonDriverInputs(args.repositoryRoot,JSON.parse(revisionArtifact(path.dirname(args.file),evidence.focused.regression.after)));
   if (evidence.focused.regression?.kind===REGISTERED_FIXTURE_BUDGET)
     for (const ref of isMaintenanceFixtureBudget(p) ? [evidence.focused.regression.after] : [evidence.focused.regression.after,evidence.focused.regression.registration])
       inspectCurrentFixtureBudgetInputs(args.repositoryRoot,JSON.parse(revisionArtifact(path.dirname(args.file),ref)));

@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import { digest, observePreparedDependencyInputs } from "./local-canonical-inputs.mjs";
 import { revisionArtifact } from "./local-canonical-attempts.mjs";
 import { verifyGitSourceRepair, MATERIAL_SOURCE_CORRECTION, MATERIAL_COMMON_DRIVER } from "./local-canonical-git-observation.mjs";
-import { commonDriverSources, COMMON_DRIVER_RESULT_PREFIX } from "./local-canonical-common-driver.mjs";
+import { commonDriverSources, COMMON_DRIVER_RESULT_PREFIX, inspectCurrentCommonDriverInputs } from "./local-canonical-common-driver.mjs";
 import { createCanonicalTestResourceRoot, beginCanonicalTestResourceUse, settleCanonicalTestResourceUse, cleanupCanonicalTestResources, buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
 
@@ -74,7 +74,11 @@ try{
  for(const mutate of [f=>f.regression.attribution="unknown",f=>f.regression.attribution="candidate-driver-prior-implicated-source",f=>f.regression.kind="typed",f=>f.regression.after_equivalence={target:head},f=>f.regression.node_args=["--import","arbitrary"],f=>f.implicated_paths.push(driver)]){const f=structuredClone(focused);mutate(f);assert.throws(()=>verify(f));refused++;}
  assert.throws(()=>verify(focused,{...p,commission:{...p.commission,evidence_kind:"typed"}}));refused++;
  assert.throws(()=>verify(focused,p,{postPass:true}));refused++;
- console.log(JSON.stringify({material_common_driver_reader:{acceptance:1,refused,synthetic_only:true,qualification:false}}));
+ inspectCurrentCommonDriverInputs(root,green);
+ const changed=path.join(root,"apps/augnes_apps/node_modules/controlled/package.json");writeFileSync(changed,'{"name":"changed"}');
+ assert.throws(()=>inspectCurrentCommonDriverInputs(root,green));
+ assert.throws(()=>inspectCurrentCommonDriverInputs(root,{...green,prepared_dependencies:green.prepared_dependencies.slice(0,2)}));
+ console.log(JSON.stringify({material_common_driver_reader:{acceptance:1,refused,live_input_acceptance:1,live_input_refusals:2,synthetic_only:true,qualification:false}}));
 
  // Concrete scheduler controls use real pinned Undici/HTTP, never a product
  // comparison rehearsal. Their own finite child settles before this owner.

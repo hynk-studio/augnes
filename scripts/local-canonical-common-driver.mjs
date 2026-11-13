@@ -3,7 +3,7 @@ import { createCanonicalRevisionReader } from "./canonical-revision-reader.mjs";
 import { pureContractGitSource } from "./local-canonical-pure-contract-witness.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
-import { digest, preparedDependencyIdentity, comparePreparedDependencyInputs } from "./local-canonical-inputs.mjs";
+import { digest, preparedDependencyIdentity, comparePreparedDependencyInputs, observePreparedDependencyInputs } from "./local-canonical-inputs.mjs";
 
 export const MATERIAL_COMMON_DRIVER = "material-common-candidate-driver-v1";
 export const COMMON_DRIVER_RESULT_PREFIX = "AUGNES_COMMON_DRIVER_RESULT ";
@@ -11,6 +11,16 @@ const equal = (a,b) => a !== undefined && b !== undefined && digest(a) === diges
 const sha = value => /^[a-f0-9]{64}$/u.test(value ?? "");
 const fail = () => { throw Object.assign(new Error("revision_common_driver_invalid"), {code:"revision_common_driver_invalid"}); };
 const dependencyRoots = {"dependencies-root":"", "dependencies-nested":"apps/augnes_apps", "dependencies-web-planning":"apps/web_planning"};
+
+// Preparation rereads adopted live inputs after its asynchronous observation.
+// This does not alter the historical witnesses or later fixed-lock preparation.
+export function inspectCurrentCommonDriverInputs(repositoryRoot,witness) {
+  if(!equal(witness.prepared_dependencies?.map(v=>v.phase_id),Object.keys(dependencyRoots)))fail();
+  for(const row of witness.prepared_dependencies) {
+    const current=observePreparedDependencyInputs({repositoryRoot,phaseId:row.phase_id});
+    if(comparePreparedDependencyInputs(row.after,current)!=="unchanged")fail();
+  }
+}
 
 // One operation-local immutable Git read, including binary blobs. Physical
 // witness artifacts are separately reread through the existing safe reader.
