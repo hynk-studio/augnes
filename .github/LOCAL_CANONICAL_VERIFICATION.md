@@ -1418,6 +1418,61 @@ protected Browser; missing, excessive, reordered or unexplained records refuse.
 This represents failed/incomplete evidence, never completed Browser coverage.
 Dedicated Browser phases retain their existing complete-use requirements.
 
+The explicitly selected `git-config-stock-verifier-repair-v1` material case
+also recognizes an intact settled dedicated-Browser serial timeout predecessor.
+Its `settled-browser-timeout-stock-verifier-v1` interpretation validates the
+preceding passing phases, exact completed consumer prefix, bounded interrupted
+inner child, naturally failed outer coordinator, unexecuted suffix and complete
+owned settlement. The inner timeout is never natural repair RED. Default and
+legacy material cases do not gain partial dedicated-Browser coverage, and final
+qualification still requires every applicable phase and Browser consumer.
+
+This historical case binds both original logs: the truncated native phase
+capture (2 MiB), and one complete outer original (at most 5 MiB for this case
+only). An exact byte-offset terminal slice is bounded to 64 KiB. Its source,
+invocation, phase, receipt, lifecycle and complete original hash remain bound.
+To verify the native prefix, the reader removes only validated outer-owner
+framing/heartbeat records in that unique phase interval, preserving all child
+bytes, including a partial final native line. The terminal slice must equal its
+original byte range; no missing output is reconstructed and no global capture
+allowance changes. Serial accounting and process durations retain their separate
+monotonic clocks and existing bounds.
+
+The original false stock remains immutable. The additional attempt-record issue
+is accounted for only after exact original receipt/proof/authority/physical
+validation and complete recorded Git metadata-only reconciliation. That is a
+source/record-derived explanation, not recovery of an unrecorded exception or a
+claim of ledger corruption. Other missing/extra issues, unsafe inputs, bad
+coverage, unverified history and unsupported interpretations refuse.
+
+The corresponding `material-common-stock-verifier-driver-v1` attribution uses
+one reviewed common candidate driver with predecessor/final implicated attempt
+and Git-observation modules. It is not an untouched predecessor checkout. It
+binds the complete effective source catalogue and imports separately from those
+variants, common runtime/headers, all three dependencies, environment, isolated
+physical ledger/input corpus and natural cleanup. Both roles must pass exact
+raw inspection and the declared content/security/location/scope/forged-binding
+refusals before the same desired metadata-only assertion. Repair RED requires
+the actual old production `inspectAttemptRecords` result to refuse that same
+byte-identical metadata-only case; final GREEN completes it and all cleanup.
+Setup/import/selector/timeout/cleanup failures are not repair RED. Synthetic
+ledger accounting is not real authority or qualification. The existing HTTP
+common-driver attribution and its EPIPE conditions retain their meaning.
+
+Verifier-specific delegation, acceptance and prospective commission name this
+case and retain the historical Browser cause and interrupted operation as
+UNKNOWN. Separate model review is identified accurately; it does not become
+human or external-device validation. Exact material/preparation/source/runtime
+and current input bindings, authenticated identity, chronology, exclusive
+physical succession and maximum1/recovery0/unchanged-retry0 remain required.
+This case accepts the existing integration-base-v2 declared range without
+requiring the PR's observed main commit to equal that base; published exact
+head/branch/repository, valid main identity and actual source ancestry remain
+mandatory. Legacy publication meanings are unchanged. Safe three-tree input
+prerequisites are observed before admission, rechecked after asynchronous
+observation and retained through fixed-lock setup and later stock. Eligibility
+does not establish a Browser timeout repair or change a deadline or timing risk.
+
 For that versioned material case, `different_current_main` and
 `current_main_unobserved` are applicability information in the original false
 stock. Preparation retains the declared base and exact source ancestry without

@@ -14,6 +14,7 @@ import {REVIEWED_REVISION_PHASES} from '../local-canonical-attempts.mjs';
 import {executeFixture,dependencyRecords} from './local-canonical-browser-successor.mjs';
 import {createPrivateReviewExport,inspectPrivateReviewExport} from '../local-canonical-review-export.mjs';
 import {browserConsumersForPhase,validPhaseBrowserUse} from '../local-canonical-browser-identity.mjs';
+import {runMaterialStockPredecessorControls} from './local-canonical-material-stock-predecessor.mjs';
 const clone=structuredClone,now=()=>new Date(fixtureNow()).toISOString();
 const driver='scripts/material-source-behavior.mjs',product='apps/web_planning/src/exchange-client.js.txt';
 const predecessorDriver='scripts/material-predecessor.mjs';
@@ -316,7 +317,8 @@ export async function runMaterialSourceControls(c,h,group) {
  }
  const final=h.proof(c),finalCap=await h.auth(c,final);
  if(group==='material-stock'){
- await currentGitStockControls(c,final,finalCap,c.materialFinalReceipt);unchanged();return;
+ await currentGitStockControls(c,final,finalCap,c.materialFinalReceipt);
+ runMaterialStockPredecessorControls(c,c.materialFinalReceipt);unchanged();return;
  }
  if(group==='material-final'){
  assert.deepEqual(tip().revision_grants,[11,32,62]);

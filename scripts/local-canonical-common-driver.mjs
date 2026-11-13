@@ -47,14 +47,14 @@ export function commonDriverSources(git, repositoryRoot, candidate, predecessor,
   return {before,after,common_sha256:digest(after.filter(v=>!modules.includes(v.path)))};
 }
 
-function completeResult(result,exit) {
+export function commonDriverNaturalResult(result,exit) {
   return result?.exit_code===exit && result.signal===null && result.spawn_error_code===null &&
     result.timed_out===false && result.cancelled===false && result.exit_observed===true &&
     result.streams_closed===true && result.cleanup_completed===true && result.remaining_owned_processes===0 &&
     result.termination_reason==="natural_exit" && Number.isSafeInteger(result.duration_ms) && result.duration_ms>=0;
 }
 
-function dependencies(witness,root,git,head) {
+export function commonDriverDependencies(witness,root,git,head) {
   const rows=witness.prepared_dependencies;
   if(!Array.isArray(rows)||!equal(rows.map(v=>v.phase_id),Object.keys(dependencyRoots)))fail();
   return rows.map(row=>{
@@ -110,7 +110,7 @@ export function verifyMaterialCommonDriver(p,prior,focused,{git,parse,bytes,comp
   const sources=commonDriverSources(git,repositoryRoot,p.head,prior.head,modules);
   const before=parse(r.before),after=parse(r.after),runtime=parse(p.inputs.current);
   const command=["node",...r.node_args,file].join(" ");
-  const driver=git(["show",p.head+":"+file]),dependencyIdentity=dependencies(before,repositoryRoot,git,p.head);
+  const driver=git(["show",p.head+":"+file]),dependencyIdentity=commonDriverDependencies(before,repositoryRoot,git,p.head);
   if(!sources.after.some(v=>v.path===file)||!(Date.parse(completedAt)<Date.parse(before.started_at) &&
       Date.parse(before.started_at)<=Date.parse(before.finished_at) && Date.parse(before.finished_at)<Date.parse(after.started_at) &&
       Date.parse(after.started_at)<=Date.parse(after.finished_at) && Date.parse(after.finished_at)<=Date.parse(focused.finished_at)) ||
@@ -127,8 +127,8 @@ export function verifyMaterialCommonDriver(p,prior,focused,{git,parse,bytes,comp
         !equal(w.runtime_before,runtime)||!equal(w.runtime_after,runtime)||w.runtime_inputs_sha256!==p.inputs.identity_sha256||
         w.node_version!==CANONICAL_NODE_VERSION||digest(w.node_executable)!==runtime.node.location_fingerprint||
         !sha(w.environment)||w.environment!==before.environment||!equal(w.environment_before,w.environment_after)||
-        digest(w.environment_before)!==w.environment||!completeResult(w.result,exit)||
-        !equal(dependencies(w,repositoryRoot,git,p.head),dependencyIdentity))fail();
+        digest(w.environment_before)!==w.environment||!commonDriverNaturalResult(w.result,exit)||
+        !equal(commonDriverDependencies(w,repositoryRoot,git,p.head),dependencyIdentity))fail();
     const env=w.environment_before;
     if(env.AUGNES_CANONICAL_TEMP_ROOT!==env.TMPDIR||!equal(env,buildCanonicalChildEnvironment({ambientEnvironment:env,
       temporaryRoot:env.TMPDIR,resourceRoot:env.AUGNES_CANONICAL_TEMP_ROOT})))fail();

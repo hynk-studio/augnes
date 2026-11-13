@@ -150,6 +150,9 @@ const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-
 
 const suites = {
   unit: [
+    { id:"local-canonical-stock-verifier",label:"material stock-verifier attribution and corpus controls",
+      requirements:["filesystem","process-owning"],...rootNode("scripts/test-local-canonical-stock-verifier.mjs"),
+      timeoutMs:30000,requireNaturalExit:true },
     { id:"project-experience-serial-budget", label:"project experience serial budget and cleanup controls",
       requirements:["filesystem","process-owning"], ...rootNode("scripts/test-project-experience-serial-budget.mjs"),
       timeoutMs:30000, requireNaturalExit:true },

@@ -1,6 +1,7 @@
 import { digest, classifyInputChange, nonFaultInputChange, inputEventIdentity, validBrowserTarget } from "./local-canonical-inputs.mjs";
 import { browserConsumersForPhase, validBrowserUse, validPhaseBrowserUse, parseBrowserUseLine, BROWSER_IDENTITY_PREFIX } from "./local-canonical-browser-identity.mjs";
 import { usesDeclaredIntegrationBase } from "./local-canonical-integration-base.mjs";
+import { verifiedStockPredecessor } from "./local-canonical-material-stock-predecessor.mjs";
 
 export const BROWSER_REVISION_SCHEMA = "augnes.local-canonical-source-correction.v8";
 export const BROWSER_SUCCESSOR_SCHEMA = "augnes.local-canonical-source-correction.v9";
@@ -198,9 +199,11 @@ export function verifyReviewedBrowserFailure(r, stock, inputs, phaseIds) {
 
 // Both reviewed continuations require the physical ordinal-one Full to have
 // stopped at a natural child failure with settled resources and accounted stock.
-export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBrowser, allowIncompleteBrowser = false, expectedOrdinal = 1, generatedStockSerial = false, ordinaryFixture = false, declaredMaterial = false) {
+export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBrowser, allowIncompleteBrowser = false, expectedOrdinal = 1, generatedStockSerial = false, ordinaryFixture = false, declaredMaterial = false, stockPredecessor = null) {
   const failed = r.phases?.findIndex(p => p.status === "failure") ?? -1;
-  const reason = generatedStockSerial ? "serial_execution_incomplete" : "phase_failed";
+  const stockVerifier = verifiedStockPredecessor(stockPredecessor,r,stock);
+  if(stockPredecessor && (!stockVerifier||!declaredMaterial||generatedStockSerial||ordinaryFixture))throw fail("revision_browser_failure_invalid");
+  const reason = generatedStockSerial || stockVerifier ? "serial_execution_incomplete" : "phase_failed";
   const ordinary = r.attempt?.source_correction;
   const oldRuntime=r.inputs?.binding?.runtime_inputs,oldNode=r.inputs?.resources?.find(v=>v.id==="node-executable");
   const declaredRange = usesDeclaredIntegrationBase(r);
@@ -228,7 +231,7 @@ export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBr
       !same(r.final.reason_codes, [reason, "selected_phases_incomplete"].sort()) ||
       !settledIsolatedResources(r) || r.historical_inputs?.required !== true ||
       failed < 0 || !same(r.phases.map(p => p.id), phaseIds) ||
-      (generatedStockSerial && r.phases[failed].id !== "e2e-project-experience") ||
+      ((generatedStockSerial || stockVerifier) && r.phases[failed].id !== "e2e-project-experience") ||
       !runtimeMatches)
     throw fail("revision_browser_failure_invalid");
 
@@ -238,7 +241,7 @@ export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBr
   const issues = new Set(["receipt_classified_outcome_not_passing", "receipt_final_result_not_pass", "receipt_non_deciding"]);
   // The generated-stock evidence reader separately proves the exact serial
   // prefix and the causal attempt-reader defect. Ordinary stock stays strict.
-  if (generatedStockSerial) issues.add("receipt_attempt_records_unverified");
+  if (generatedStockSerial || stockVerifier) issues.add("receipt_attempt_records_unverified");
   for (const [index, phase] of r.phases.entries()) {
     const records = phase.browser_use ?? [];
     if (index >= failed) issues.add("phase_not_passing:" + phase.id);

@@ -33,6 +33,9 @@ import { artifactReader, isImprovement, hasImprovementMarker, ordinaryV2SourceMo
 import { checkoutVerificationFingerprint } from "./local-canonical-checkout-ownership.mjs";
 import { REPOSITORY_PURE_CONTRACT, inspectCurrentPureContractInputs } from "./local-canonical-pure-contract-witness.mjs";
 import { MATERIAL_COMMON_DRIVER, inspectCurrentCommonDriverInputs } from "./local-canonical-common-driver.mjs";
+import { GIT_CONFIG_STOCK_VERIFIER_REPAIR, MATERIAL_COMMON_STOCK_VERIFIER } from "./local-canonical-stock-verifier-witness.mjs";
+import { isStockVerifierRevision, verifyStockVerifierPredecessor } from "./local-canonical-material-stock-predecessor.mjs";
+import { STOCK_VERIFIER_CLAIM, STOCK_VERIFIER_GRANT, stockVerifierAuthorityScope } from "./local-canonical-git-observation.mjs";
 import {GIT_INPUT_REVISION, GIT_INPUT_HISTORY_BOUNDARY, isGitInputRevision, verifyGitInputRemedy, verifyGitInputPublication,
   GIT_CURRENT_STOCK_COMPARISON, gitRevisionInventory, gitRevisionStockComparison} from "./local-canonical-git-observation.mjs";
 
@@ -773,6 +776,7 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
     };
   }
   if (isReviewedRevision(proof)) {
+    if(evidence.stockVerifier) retainDependencyPrerequisites?.({observations:evidence.stockVerifier.prepared_dependencies.map(row=>row.after)});
     if (evidence.integrationBudget) retainDependencyPrerequisites?.({
       observations: [evidence.integrationBudget.after.dependencies,
         ...(evidence.generatedStockBrowser ? [evidence.generatedStockBrowser] : [])],
@@ -825,6 +829,13 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
     }
     if (evidence.integrationBudget) inspectCurrentIntegrationBudgetInputs(repositoryRoot, evidence.integrationBudget, stockReceipt);
     if (evidence.generatedStockBrowser) inspectGeneratedStockBrowserInputs(repositoryRoot, evidence.generatedStockBrowser);
+    if (evidence.stockVerifier) {
+      inspectCurrentCommonDriverInputs(repositoryRoot,evidence.stockVerifier);
+      if(stockReceipt)for(const row of evidence.stockVerifier.prepared_dependencies){
+        const actual=stockReceipt.inputs?.prepared_dependencies?.find(value=>value.phase_id===row.phase_id);
+        if(!actual?.prerequisite||comparePreparedDependencyInputs(row.after,actual.prerequisite)!=="unchanged")throw fail("revision_stock_verifier_inputs_changed");
+      }
+    }
     if (evidence.preparedEligibility) {
       if (process.umask() !== evidence.integrationBudget.process_umask) throw fail("revision_dependency_process_settings_changed");
       if (stockReceipt) for (const expected of [evidence.integrationBudget.after.dependencies, evidence.generatedStockBrowser]) {
@@ -982,6 +993,29 @@ function verifyRevisionOriginals(anchorRoot, repositoryRoot, proof, materialFile
     const logBytes=readFileSync(file);
     if(logBytes.length!==stat.size || digest(logBytes)!==incident.log.sha256) throw fail("revision_fixture_budget_original_log_changed");
     rememberRevisionFile(file,logBytes);
+  }
+  if(stockVerifierEvidence(proof)){
+    const folder=path.dirname(materialFile??path.join(repositoryRoot,proof.local_relative_path));
+    const focused=JSON.parse(revisionArtifact(folder,proof.focused)),incident=focused.predecessor;
+    const relative=incident?.native_log?.relative_path;
+    if(relative!==`.augnes-local-verification/logs/${proof.prior_attempt_id}/e2e-project-experience.log`)
+      throw fail("revision_stock_original_log_invalid");
+    // Match the actual retained originals as well as the packaged copies. The
+    // existing validation scope seals them across every asynchronous observer.
+    for(const [original,ref,size,maximum]of [
+      [path.join(repositoryRoot,relative),incident.native_log.artifact,incident.native_log.bytes,2*1024*1024],
+      [incident.outer_capture.original_path,incident.outer_capture.artifact,incident.outer_capture.bytes,5*1024*1024],
+    ]){
+      if(typeof original!=="string"||!path.isAbsolute(original)||!original.endsWith(".log"))throw fail("revision_stock_original_log_invalid");
+      const before=lstatSync(original,{bigint:true});
+      if(realpathSync(original)!==original||!before.isFile()||before.isSymbolicLink()||before.nlink!==1n||
+        (before.mode&0o022n)||before.uid!==BigInt(process.getuid())||before.size>BigInt(maximum)||before.size!==BigInt(size))
+        throw fail("revision_stock_original_log_unsafe");
+      const content=readFileSync(original),after=lstatSync(original,{bigint:true});
+      if(!revisionEqual(fileIdentity(before),fileIdentity(after))||content.length!==size||digest(content)!==ref.sha256||
+        !content.equals(revisionArtifact(folder,ref,maximum)))throw fail("revision_stock_original_log_changed");
+      rememberRevisionFile(original,content);
+    }
   }
   return priorRoot;
 }
@@ -1359,8 +1393,9 @@ export function validateReviewedRevisionAuthorityRecords(p, review, grant, permi
   const preparedEligibility = preparedEligibilityEvidence(p);
   const verifierLifecycle = verifierLifecycleEvidence(p);
   const maintenanceFixture = isMaintenanceFixtureBudget(p);
-  const typedMaterial = maintenanceFixture || measuredIntegration || generatedStock || preparedEligibility || verifierLifecycle;
-  const prospectiveScope = maintenanceFixture ? maintenanceFixtureAuthorityScope(p,review,grant) : verifierLifecycle ? verifierLifecycleAuthorityScope(p,review,grant) : preparedEligibility ? preparedEligibilityAuthorityScope(p,review,grant) : measuredIntegration ? integrationBudgetAuthorityScope(p,review,grant) :
+  const stockVerifier = stockVerifierEvidence(p);
+  const typedMaterial = stockVerifier || maintenanceFixture || measuredIntegration || generatedStock || preparedEligibility || verifierLifecycle;
+  const prospectiveScope = stockVerifier ? stockVerifierAuthorityScope(p,review,grant) : maintenanceFixture ? maintenanceFixtureAuthorityScope(p,review,grant) : verifierLifecycle ? verifierLifecycleAuthorityScope(p,review,grant) : preparedEligibility ? preparedEligibilityAuthorityScope(p,review,grant) : measuredIntegration ? integrationBudgetAuthorityScope(p,review,grant) :
     generatedStock ? generatedStockAuthorityScope(p,review,grant) :
     [p.branch, String(p.accepted.review.id), p.commission.root_receipt_fingerprint].every(s => grant.body.includes(s)) &&
     /NEW.*commission/iu.test(grantText) && /v7 reviewed_revision/iu.test(grantText) && /old commission remains spent/iu.test(grantText) &&
@@ -1427,7 +1462,7 @@ export function validateReviewedRevisionAuthorityRecords(p, review, grant, permi
       (permitsFinalDependencySuccessor(forward.body,p,revisionCommissionIdentity(p)) ||
         readPostPassDecision(forward.body,p,revisionCommissionIdentity(p)) && permitsPostPassReview(currentReview.body,p,revisionCommissionIdentity(p)))) && prospectiveScope && firstLine(review.body) === decision && firstLine(currentReview.body) === decision &&
       [p.base, p.head, p.tree, target, p.prior_receipt_fingerprint].every(s => currentReview.body.includes(s)) &&
-      firstLine(grant.body) === (maintenanceFixture ? MAINTENANCE_FIXTURE_GRANT : verifierLifecycle ? VERIFIER_LIFECYCLE_GRANT : preparedEligibility ? PREPARED_ELIGIBILITY_GRANT : measuredIntegration ? INTEGRATION_BUDGET_GRANT : generatedStock ? GENERATED_STOCK_GRANT : isMaterialSourceRevision(p) ?
+      firstLine(grant.body) === (stockVerifier ? STOCK_VERIFIER_GRANT : maintenanceFixture ? MAINTENANCE_FIXTURE_GRANT : verifierLifecycle ? VERIFIER_LIFECYCLE_GRANT : preparedEligibility ? PREPARED_ELIGIBILITY_GRANT : measuredIntegration ? INTEGRATION_BUDGET_GRANT : generatedStock ? GENERATED_STOCK_GRANT : isMaterialSourceRevision(p) ?
         "Authorize one NEW prospective v7 reviewed_revision commission for a material source correction." : isGitAcquisitionRevision(p) ?
         "Authorize a NEW prospective v7 reviewed_revision commission for a Git acquisition correction." :
         "Authorize a NEW prospective v7 reviewed_revision commission.") &&
@@ -1450,7 +1485,8 @@ export function validateReviewedRevisionAuthorityRecords(p, review, grant, permi
   if (Date.parse(observations.execution_commission.timestamp) <= Date.parse(observations.accepted_revision.timestamp)) throw fail("revision_authority_order_invalid");
   if (pr?.number !== p.pull_request || pr.state !== "open" || pr.draft !== true || pr.merged !== false || pr.auto_merge !== null ||
       pr.head?.repo?.full_name !== "hynk-studio/augnes" || pr.base?.repo?.full_name !== "hynk-studio/augnes" || pr.head.sha !== p.head ||
-      pr.head.ref !== p.branch || !isMaintenanceFixtureBudget(p) && pr.base.sha !== p.base || pr.base.ref !== "main") throw fail("revision_published_source_invalid");
+      pr.head.ref !== p.branch || !(isMaintenanceFixtureBudget(p)||stockVerifier) && pr.base.sha !== p.base ||
+      stockVerifier && !revisionCommit(pr.base.sha) || pr.base.ref !== "main") throw fail("revision_published_source_invalid");
   return observations;
 }
 
@@ -1665,7 +1701,8 @@ export async function prepareSerialAggregateRevision(args, { transport } = {}) {
 function assertRevisionPublication(p,pr) {
   if (pr?.number!==p.pull_request || pr.state!=="open" || pr.draft!==true || pr.merged!==false || pr.auto_merge!==null ||
       pr.head?.repo?.full_name!=="hynk-studio/augnes" || pr.base?.repo?.full_name!=="hynk-studio/augnes" ||
-      pr.head.sha!==p.head || pr.head.ref!==p.branch || !isMaintenanceFixtureBudget(p) && pr.base.sha!==p.base || pr.base.ref!=="main")
+      pr.head.sha!==p.head || pr.head.ref!==p.branch || !(isMaintenanceFixtureBudget(p)||stockVerifierEvidence(p)) && pr.base.sha!==p.base ||
+      stockVerifierEvidence(p) && !revisionCommit(pr.base.sha) || pr.base.ref!=="main")
     throw fail("revision_published_source_invalid");
 }
 
@@ -1673,9 +1710,10 @@ const measuredIntegrationEvidence = p => p?.commission?.evidence_kind === REGIST
 const generatedStockEvidence = p => p?.commission?.evidence_kind === GENERATED_STOCK_REPAIR;
 const preparedEligibilityEvidence = p => p?.commission?.evidence_kind === PREPARED_ELIGIBILITY_REPAIR;
 const verifierLifecycleEvidence = p => p?.commission?.evidence_kind === VERIFIER_LIFECYCLE_REPAIR;
+const stockVerifierEvidence = isStockVerifierRevision;
 const requiresPreparedEligibility = p => preparedEligibilityEvidence(p) || verifierLifecycleEvidence(p);
 const usesGeneratedStockWitness = p => measuredIntegrationEvidence(p) || generatedStockEvidence(p) || requiresPreparedEligibility(p);
-const materialEvidenceClaim = kind => kind === VERIFIER_LIFECYCLE_REPAIR ? VERIFIER_LIFECYCLE_CLAIM : kind === PREPARED_ELIGIBILITY_REPAIR ? PREPARED_ELIGIBILITY_CLAIM : kind === GENERATED_STOCK_REPAIR ? GENERATED_STOCK_CLAIM : fixtureBudgetEvidenceClaim(kind);
+const materialEvidenceClaim = kind => kind === GIT_CONFIG_STOCK_VERIFIER_REPAIR ? STOCK_VERIFIER_CLAIM : kind === VERIFIER_LIFECYCLE_REPAIR ? VERIFIER_LIFECYCLE_CLAIM : kind === PREPARED_ELIGIBILITY_REPAIR ? PREPARED_ELIGIBILITY_CLAIM : kind === GENERATED_STOCK_REPAIR ? GENERATED_STOCK_CLAIM : fixtureBudgetEvidenceClaim(kind);
 async function verifyIntegrationBudgetDelegation(p,delegation,evidence,repositoryRoot,transport) {
   const scope = readIntegrationBudgetDelegation(delegation.body,p), prior = evidence.prior.source_correction;
   const baseline = evidence.focused.regression.accepted_baseline;
@@ -1838,7 +1876,7 @@ export async function prepareMaterialSourceRevision(args,{transport}={}) {
   }
   if (evidence.focused.regression?.kind===REPOSITORY_PURE_CONTRACT)
     inspectCurrentPureContractInputs(args.repositoryRoot,JSON.parse(revisionArtifact(path.dirname(args.file),evidence.focused.regression.after)));
-  if (evidence.focused.regression?.attribution===MATERIAL_COMMON_DRIVER)
+  if ([MATERIAL_COMMON_DRIVER,MATERIAL_COMMON_STOCK_VERIFIER].includes(evidence.focused.regression?.attribution))
     inspectCurrentCommonDriverInputs(args.repositoryRoot,JSON.parse(revisionArtifact(path.dirname(args.file),evidence.focused.regression.after)));
   if (evidence.focused.regression?.kind===REGISTERED_FIXTURE_BUDGET)
     for (const ref of isMaintenanceFixtureBudget(p) ? [evidence.focused.regression.after] : [evidence.focused.regression.after,evidence.focused.regression.registration])
@@ -1966,9 +2004,11 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
       if (digest({contract,path_kind,binding,resources}) !== original.inputs.fingerprint) throw fail("revision_git_predecessor_invalid");
       verifySettledPhaseFailure(original,stock,inputs,REVIEWED_REVISION_PHASES,resources.find(r=>r.id==="browser-executable"),false,1,false,true);
     } else if (!acquisitionIncident) {
+      const stockPredecessor=stockVerifierEvidence(p)?verifyStockVerifierPredecessor(p,prior,parse(p.focused),{original,stock,parse,bytes,git:originalGit,
+        inventory:gitRevisionInventory,stockComparison:gitRevisionStockComparison,stockContract:GIT_CURRENT_STOCK_COMPARISON}):null;
       const validateFailure = observedStock => verifyGitRevisionFailure(original, observedStock, inputs, REVIEWED_REVISION_PHASES,
         isMaterialSourceRevision(p) ? prior.source_correction.commission.ordinal : boundedV7 && p.commission.ordinal === 1 ? 2 : 1,
-        !!p.commission.forward_decision, isMaterialSourceRevision(p) && isSerialAggregateRevision(prior.source_correction), generatedStockEvidence(p), isMaterialSourceRevision(p));
+        !!p.commission.forward_decision, isMaterialSourceRevision(p) && isSerialAggregateRevision(prior.source_correction), generatedStockEvidence(p), isMaterialSourceRevision(p),stockPredecessor);
       if (verifierLifecycleEvidence(p)) verifyVerifierLifecyclePredecessor(p, prior, parse(p.focused), { original, stock, parse, bytes, git: originalGit, validateFailure });
       else if (preparedEligibilityEvidence(p)) verifyPreparedEligibilityPredecessor(p, prior, parse(p.focused), { original, stock, parse, validateFailure });
       else retainedBefore = validateFailure(stock);
@@ -2159,6 +2199,7 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
     throw fail("serial_focused_contract_invalid");
   const integrationBudget = usesGeneratedStockWitness(p) ? parse(focused.regression.after) : null;
   return { serialIncident, original, prior, completion, stock, inputs, source, focused, dependencySafety, externalSettlement, browserIncident, postPass, acquisitionIncident,
+    stockVerifier:stockVerifierEvidence(p)?parse(focused.regression.after):null,
     integrationBudget, preparedEligibility: requiresPreparedEligibility(p),
     generatedStockBrowser: generatedStockEvidence(p) || requiresPreparedEligibility(p) ? integrationBudget.after.web_dependencies : null,
     retainedObservation: retainedBefore && JSON.parse(bytes(parse(focused.regression.after).stdout)) };

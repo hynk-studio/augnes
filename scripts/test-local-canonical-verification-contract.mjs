@@ -972,6 +972,10 @@ for (const [id, script] of [
   assert.equal(registrations[0][1], script, `${id}: exact existing child`);
   assert.equal(registrations[0][2], "30_000", `${id}: unchanged child bound`);
 }
+// The stock-verifier protocol is a separate finite unit owner. It must not
+// add recursive work to the existing HTTP or product Browser child.
+assert.equal([...canonicalSuite.matchAll(/id:"local-canonical-stock-verifier"/gu)].length,1);
+assert(canonicalSuite.includes('...rootNode("scripts/test-local-canonical-stock-verifier.mjs"),\n      timeoutMs:30000,requireNaturalExit:true'));
 assert(canonicalSuite.includes("suites.unit.filter((step) => step.id === id)"));
 assert(canonicalSuite.includes("checks.length !== 1"));
 assert.deepEqual(
