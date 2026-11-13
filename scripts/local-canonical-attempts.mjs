@@ -19,10 +19,13 @@ import { GIT_ACQUISITION_REPAIR, isGitAcquisitionRevision, gitAcquisitionInciden
 import { createGitHubObserverAuthorizationTransport } from "./github-main-branch-transport.mjs";
 import {MATERIAL_SOURCE_CORRECTION, MATERIAL_HISTORY_BOUNDARY, isMaterialSourceRevision, delegatesMaterialSourceCommission,
   readIntegrationBudgetDelegation, integrationBudgetAuthorityScope, INTEGRATION_BUDGET_GRANT,
-  readGeneratedStockDelegation, generatedStockAuthorityScope } from "./local-canonical-git-observation.mjs";
+  readGeneratedStockDelegation, generatedStockAuthorityScope,
+  selectiveFixtureWorkloadAuthorityScope } from "./local-canonical-git-observation.mjs";
 import { REPOSITORY_TYPECHECK, observeTypecheckCompiler, observeGeneratedTypeInputs } from "./local-canonical-typecheck-witness.mjs";
 import { REGISTERED_FIXTURE_BUDGET, REGISTERED_INTEGRATION_BUDGET, fixtureBudgetEvidenceClaim, fixtureBudgetFailurePhase,
-  inspectCurrentFixtureBudgetInputs, inspectCurrentIntegrationBudgetInputs } from "./local-canonical-fixture-budget-witness.mjs";
+  inspectCurrentFixtureBudgetInputs, inspectCurrentIntegrationBudgetInputs,
+  SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM, selectiveFixtureWorkloadIncident,
+  inspectCurrentSelectiveFixtureWorkloadInputs } from "./local-canonical-fixture-budget-witness.mjs";
 import { GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM, GENERATED_STOCK_GRANT, GENERATED_STOCK_PHASE,
   inspectGeneratedStockBrowserInputs } from "./local-canonical-stock-lifecycle-witness.mjs";
 import { verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
@@ -529,6 +532,7 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
         ...(evidence.generatedStockBrowser ? [evidence.generatedStockBrowser] : [])],
       ...(evidence.preparedEligibility ? { process_umask: evidence.integrationBudget.process_umask } : {}),
     });
+    if (evidence.selectiveWorkload) retainDependencyPrerequisites?.({ observations: [evidence.selectiveWorkload.after.dependencies] });
     const priorRoot = verifyRevisionOriginals(anchorRoot, repositoryRoot, proof);
     const successor = { contract: "augnes.local-canonical-successor.v2", kind: "reviewed_revision",
       family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
@@ -566,6 +570,7 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
       if (comparePreparedDependencyInputs(expected, current) !== "unchanged") throw fail("revision_prospective_dependencies_changed");
     }
     if (evidence.integrationBudget) inspectCurrentIntegrationBudgetInputs(repositoryRoot, evidence.integrationBudget, stockReceipt);
+    if (evidence.selectiveWorkload) inspectCurrentSelectiveFixtureWorkloadInputs(repositoryRoot, evidence.selectiveWorkload, stockReceipt);
     if (evidence.generatedStockBrowser) inspectGeneratedStockBrowserInputs(repositoryRoot, evidence.generatedStockBrowser);
     if (evidence.preparedEligibility) {
       if (process.umask() !== evidence.integrationBudget.process_umask) throw fail("revision_dependency_process_settings_changed");
@@ -918,6 +923,58 @@ export function validReviewedRevisionAttempt(attempt) {
 }
 
 export function validateReviewedRevisionAuthorityRecords(p, review, grant, permissions, pr, settlementReview = null, contractReview = null, delegation = null, forward = null) {
+  const observations = validateReviewedRevisionAuthorityEvidence(p, review, grant, permissions, settlementReview, contractReview, delegation, forward);
+  assertRevisionPublication(p, pr);
+  return observations;
+}
+
+// Historical provenance has no current-PR projection. Authenticate the original
+// immutable records against their physical reservation observations and all
+// original scope/order checks. Prospective publication is checked separately by
+// validateReviewedRevisionAuthorityRecords and prepareMaterialSourceRevision.
+export function validateSelectiveFixtureHistoricalAuthority(prior, review, grant, permissions) {
+  const proof = prior?.source_correction;
+  if (!isDirectGitInputRevision(proof) || proof.commission.ordinal !== 1 || proof.commission.maximum_invocations !== 1 ||
+      !validReviewedRevisionAttempt(prior)) throw fail("revision_selective_historical_authority_invalid");
+  const observations = validateReviewedRevisionAuthorityEvidence(proof, review, grant, permissions);
+  if (!revisionEqual(observations, prior.revision_authority)) throw fail("revision_selective_historical_authority_changed");
+  return observations;
+}
+
+export function validateSelectiveFixtureBaselineAuthority(p, baseline, received, permission, completedAt, delegationAt) {
+  if (received?.id !== baseline.receiving_review.id || received.user?.type !== "User" ||
+      !revisionId(received.user?.id) || !/^[A-Za-z0-9-]{1,39}$/u.test(received.user?.login ?? "") ||
+      !["OWNER","MEMBER","COLLABORATOR"].includes(received.author_association) ||
+      !["COMMENTED","APPROVED"].includes(received.state) || received.commit_id !== baseline.head ||
+      received.pull_request_url !== `https://api.github.com/repos/hynk-studio/augnes/pulls/${p.pull_request}` ||
+      typeof received.body !== "string" || Buffer.byteLength(received.body) > 64 * 1024 ||
+      received.body.split(/\r?\n/u)[0] !== "Independent fixture-correction review: ACCEPT / RETAIN. Qualification remains HOLD." ||
+      ![baseline.head,baseline.tree].every(value => received.body.includes(value)) ||
+      !(Date.parse(completedAt) < Date.parse(received.submitted_at) && Date.parse(received.submitted_at) < Date.parse(delegationAt)) ||
+      digest(reviewedRevisionAuthorityObservation(received,"accepted_revision")) !== baseline.receiving_review.sha256)
+    throw fail("revision_selective_fixture_baseline_invalid");
+  if (permission?.user?.login !== received.user.login || !["admin","maintain"].includes(permission.permission))
+    throw fail("revision_authority_permission_invalid");
+  return reviewedRevisionAuthorityObservation(received,"accepted_revision");
+}
+
+async function authenticateSelectiveFixtureHistory(p, evidence, delegation, transport) {
+  const proof = evidence.prior.source_correction;
+  const review = await transport.review(proof.accepted.review.id);
+  const grant = await transport.grant(proof.authorization.grant_comment_id);
+  const permissions = {
+    accepted_revision: await transport.permission(review?.user?.login),
+    execution_commission: await transport.permission(grant?.user?.login),
+  };
+  const historical = validateSelectiveFixtureHistoricalAuthority(evidence.prior, review, grant, permissions);
+  const baseline = evidence.focused.regression.accepted_baseline;
+  const received = await transport.review(baseline.receiving_review.id);
+  validateSelectiveFixtureBaselineAuthority(p, baseline, received, await transport.permission(received?.user?.login),
+    evidence.completion.finished_at, delegation.created_at);
+  return historical;
+}
+
+function validateReviewedRevisionAuthorityEvidence(p, review, grant, permissions, settlementReview = null, contractReview = null, delegation = null, forward = null) {
   if (!revisionShape(p)) throw fail("revision_authority_missing");
   const observations = {};
   for (const [record, role, ref] of [[review, "accepted_revision", p.accepted.review], [grant, "execution_commission", { id: p.authorization.grant_comment_id, sha256: p.authorization.grant_sha256 }],
@@ -947,8 +1004,9 @@ export function validateReviewedRevisionAuthorityRecords(p, review, grant, permi
   const generatedStock = generatedStockEvidence(p);
   const preparedEligibility = preparedEligibilityEvidence(p);
   const verifierLifecycle = verifierLifecycleEvidence(p);
-  const typedMaterial = measuredIntegration || generatedStock || preparedEligibility || verifierLifecycle;
-  const prospectiveScope = verifierLifecycle ? verifierLifecycleAuthorityScope(p,review,grant) : preparedEligibility ? preparedEligibilityAuthorityScope(p,review,grant) : measuredIntegration ? integrationBudgetAuthorityScope(p,review,grant) :
+  const selectiveWorkload = selectiveFixtureWorkloadEvidence(p);
+  const typedMaterial = measuredIntegration || generatedStock || preparedEligibility || verifierLifecycle || selectiveWorkload;
+  const prospectiveScope = selectiveWorkload ? selectiveFixtureWorkloadAuthorityScope(p,review,grant) : verifierLifecycle ? verifierLifecycleAuthorityScope(p,review,grant) : preparedEligibility ? preparedEligibilityAuthorityScope(p,review,grant) : measuredIntegration ? integrationBudgetAuthorityScope(p,review,grant) :
     generatedStock ? generatedStockAuthorityScope(p,review,grant) :
     [p.branch, String(p.accepted.review.id), p.commission.root_receipt_fingerprint].every(s => grant.body.includes(s)) &&
     /NEW.*commission/iu.test(grantText) && /v7 reviewed_revision/iu.test(grantText) && /old commission remains spent/iu.test(grantText) &&
@@ -1039,9 +1097,6 @@ export function validateReviewedRevisionAuthorityRecords(p, review, grant, permi
       !(isSerialAggregateRevision(p) ? serialAuthorityScope(p,review,grant) : isInventoryBoundRevision(p) ? commissionedScope : isGitObservationRevision(p) ? gitScope : isBrowserRevision(p) ? browserScope : settlementScope || (legacyScope || prospectiveScope) && /zero unchanged-target retry/iu.test(grantText)) ||
       !/separate fresh-process stock/iu.test(grantText) || !/independent.*(?:audit|judgment|decision)/iu.test(grantText)) throw fail("revision_authority_scope_invalid");
   if (Date.parse(observations.execution_commission.timestamp) <= Date.parse(observations.accepted_revision.timestamp)) throw fail("revision_authority_order_invalid");
-  if (pr?.number !== p.pull_request || pr.state !== "open" || pr.draft !== true || pr.merged !== false || pr.auto_merge !== null ||
-      pr.head?.repo?.full_name !== "hynk-studio/augnes" || pr.base?.repo?.full_name !== "hynk-studio/augnes" || pr.head.sha !== p.head ||
-      pr.head.ref !== p.branch || pr.base.sha !== p.base || pr.base.ref !== "main") throw fail("revision_published_source_invalid");
   return observations;
 }
 
@@ -1076,6 +1131,7 @@ export async function authorizeReviewedRevision(p, { transport = createGitHubObs
         delegation.id === evidence.prior.source_correction.commission.delegation?.id ||
         delegation.id === evidence.prior.source_correction.authorization.grant_comment_id)
       throw fail("revision_material_fresh_authority_required");
+    if (selectiveFixtureWorkloadEvidence(p)) await authenticateSelectiveFixtureHistory(p,evidence,delegation,transport);
     if (measuredIntegrationEvidence(p)) await verifyIntegrationBudgetDelegation(p,delegation,evidence,repositoryRoot,transport);
     if (generatedStockEvidence(p)) await verifyGeneratedStockDelegation(p, delegation, evidence, repositoryRoot, transport);
     if (preparedEligibilityEvidence(p)) await verifyPreparedEligibilityDelegation(p, delegation, evidence, repositoryRoot, transport);
@@ -1260,13 +1316,14 @@ function assertRevisionPublication(p,pr) {
     throw fail("revision_published_source_invalid");
 }
 
+const selectiveFixtureWorkloadEvidence = p => p?.commission?.evidence_kind === SELECTIVE_FIXTURE_WORKLOAD;
 const measuredIntegrationEvidence = p => p?.commission?.evidence_kind === REGISTERED_INTEGRATION_BUDGET;
 const generatedStockEvidence = p => p?.commission?.evidence_kind === GENERATED_STOCK_REPAIR;
 const preparedEligibilityEvidence = p => p?.commission?.evidence_kind === PREPARED_ELIGIBILITY_REPAIR;
 const verifierLifecycleEvidence = p => p?.commission?.evidence_kind === VERIFIER_LIFECYCLE_REPAIR;
 const requiresPreparedEligibility = p => preparedEligibilityEvidence(p) || verifierLifecycleEvidence(p);
 const usesGeneratedStockWitness = p => measuredIntegrationEvidence(p) || generatedStockEvidence(p) || requiresPreparedEligibility(p);
-const materialEvidenceClaim = kind => kind === VERIFIER_LIFECYCLE_REPAIR ? VERIFIER_LIFECYCLE_CLAIM : kind === PREPARED_ELIGIBILITY_REPAIR ? PREPARED_ELIGIBILITY_CLAIM : kind === GENERATED_STOCK_REPAIR ? GENERATED_STOCK_CLAIM : fixtureBudgetEvidenceClaim(kind);
+const materialEvidenceClaim = kind => kind === SELECTIVE_FIXTURE_WORKLOAD ? SELECTIVE_FIXTURE_WORKLOAD_CLAIM : kind === VERIFIER_LIFECYCLE_REPAIR ? VERIFIER_LIFECYCLE_CLAIM : kind === PREPARED_ELIGIBILITY_REPAIR ? PREPARED_ELIGIBILITY_CLAIM : kind === GENERATED_STOCK_REPAIR ? GENERATED_STOCK_CLAIM : fixtureBudgetEvidenceClaim(kind);
 async function verifyIntegrationBudgetDelegation(p,delegation,evidence,repositoryRoot,transport) {
   const scope = readIntegrationBudgetDelegation(delegation.body,p), prior = evidence.prior.source_correction;
   const baseline = evidence.focused.regression.accepted_baseline;
@@ -1420,7 +1477,9 @@ export async function prepareMaterialSourceRevision(args,{transport}={}) {
   if (generatedStockEvidence(p)) await verifyGeneratedStockDelegation(p, delegation, evidence, args.repositoryRoot, api);
   if (preparedEligibilityEvidence(p)) await verifyPreparedEligibilityDelegation(p, delegation, evidence, args.repositoryRoot, api);
   if (verifierLifecycleEvidence(p)) await verifyVerifierLifecycleDelegation(p, delegation, evidence, args.repositoryRoot, api);
+  if (selectiveFixtureWorkloadEvidence(p)) await authenticateSelectiveFixtureHistory(p,evidence,delegation,api);
   const checkCurrentInputs=()=>{
+  if (evidence.selectiveWorkload) inspectCurrentSelectiveFixtureWorkloadInputs(args.repositoryRoot,evidence.selectiveWorkload);
   if (evidence.focused.regression?.kind===REPOSITORY_TYPECHECK) {
     const witness=JSON.parse(revisionArtifact(path.dirname(args.file),evidence.focused.regression.after));
     if (!revisionEqual(observeTypecheckCompiler(args.repositoryRoot),{compiler_version:witness.compiler_version,compiler:witness.compiler,entrypoints:witness.entrypoints,overrides:witness.overrides}))
@@ -1463,6 +1522,7 @@ function prepareRevisionInspection({ file, repositoryRoot, predecessorRoot, anch
   if (!revisionEqual(runtimeInputs, evidence.inputs)) throw fail("revision_preparation_target_changed");
   if (evidence.retainedObservation) verifyRetainedWebInput(repositoryRoot,evidence.retainedObservation);
   if (evidence.integrationBudget) inspectCurrentIntegrationBudgetInputs(repositoryRoot,evidence.integrationBudget);
+  if (evidence.selectiveWorkload) inspectCurrentSelectiveFixtureWorkloadInputs(repositoryRoot,evidence.selectiveWorkload);
   if (evidence.generatedStockBrowser) inspectGeneratedStockBrowserInputs(repositoryRoot, evidence.generatedStockBrowser);
   if (evidence.preparedEligibility && process.umask() !== evidence.integrationBudget.process_umask) throw fail("revision_dependency_process_settings_changed");
   if (isBrowserSuccessor(p) || usesRevisionInventory(p)) {
@@ -1553,7 +1613,11 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
       const validateFailure = observedStock => verifyGitRevisionFailure(original, observedStock, inputs, REVIEWED_REVISION_PHASES,
         isMaterialSourceRevision(p) ? prior.source_correction.commission.ordinal : boundedV7 && p.commission.ordinal === 1 ? 2 : 1,
         !!p.commission.forward_decision, isMaterialSourceRevision(p) && isSerialAggregateRevision(prior.source_correction), generatedStockEvidence(p));
-      if (verifierLifecycleEvidence(p)) verifyVerifierLifecyclePredecessor(p, prior, parse(p.focused), { original, stock, parse, bytes, git: originalGit, validateFailure });
+      if (selectiveFixtureWorkloadEvidence(p)) {
+        selectiveFixtureWorkloadIncident(p, prior, parse(p.focused).regression, { git: originalGit, bytes, original, completion, stock });
+        verifyGitRevisionFailure(original, stock, inputs, REVIEWED_REVISION_PHASES, 1, false, false, false, SELECTIVE_FIXTURE_WORKLOAD);
+      }
+      else if (verifierLifecycleEvidence(p)) verifyVerifierLifecyclePredecessor(p, prior, parse(p.focused), { original, stock, parse, bytes, git: originalGit, validateFailure });
       else if (preparedEligibilityEvidence(p)) verifyPreparedEligibilityPredecessor(p, prior, parse(p.focused), { original, stock, parse, validateFailure });
       else retainedBefore = validateFailure(stock);
     }
@@ -1743,7 +1807,7 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
     throw fail("serial_focused_contract_invalid");
   const integrationBudget = usesGeneratedStockWitness(p) ? parse(focused.regression.after) : null;
   return { serialIncident, original, prior, completion, stock, inputs, source, focused, dependencySafety, externalSettlement, browserIncident, postPass, acquisitionIncident,
-    integrationBudget, preparedEligibility: requiresPreparedEligibility(p),
+    integrationBudget, selectiveWorkload: selectiveFixtureWorkloadEvidence(p) ? parse(focused.regression.after) : null, preparedEligibility: requiresPreparedEligibility(p),
     generatedStockBrowser: generatedStockEvidence(p) || requiresPreparedEligibility(p) ? integrationBudget.after.web_dependencies : null,
     retainedObservation: retainedBefore && JSON.parse(bytes(parse(focused.regression.after).stdout)) };
 }

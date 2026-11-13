@@ -1233,6 +1233,47 @@ may retain the after witness only with the complete exact Git delta and identica
 consumed bytes; executable changes require relevant new evidence. Witness originals
 are never relabeled.
 
+#### Selective integration fixture workload correction
+
+An explicitly reviewed material-source commission may use the typed evidence
+kind `selective-fixture-workload-v1` for
+`scripts/test-external-response-selective.ts`. This is a fixture workload remedy,
+not a demonstrated production repair or an explanation of a historical timeout.
+It reuses inventory-bound v7 material-source preparation, exclusive append-only
+lineage, authenticated authority, full coverage, input protection and cleanup.
+It creates no direct-v10 ordinal two, retry, recovery or restored allowance.
+
+This case requires a completely settled, exhausted direct-v10 one-invocation
+predecessor whose natural integration failure contains the registered selective
+child's bounded timeout. Preserve the original classification, unknown historical
+cause, complete receipt, original false stock, physical records and consumed
+authority. The historical failure reader may account for the exact retained
+stale-integration-base and generic attempt-record issues only after independently
+validating physical lineage and unedited historical authority. Preserve every
+original issue and dimension. Do not rewrite or sanitize the stock into a passing
+or context-matching observation. Current candidate publication, base, inputs and
+separate new authority remain mandatory fresh checks.
+
+The supported witness is the actual bounded
+`node --import tsx scripts/test-external-response-selective.ts` command on exact
+clean sources and the same runtime. A natural before PASS and after PASS is
+honest where the original isolated fixture passed. Require attributable removal
+of redundant fixture work and independent source/evidence review; do not seek a
+false RED. Diagnostic preloads and CPU profiles are supporting observations,
+not admission witnesses. Refuse unrelated source, changed product or pinned
+inputs, missing cases, changed authority/freshness or weakened cleanup.
+
+Retain all fifteen refusal cases, seeded-invalid-cache refusal, per-case no-write
+assertions, twenty-nine fresh consumers, permission/race checks and both cumulative
+eight-correction chains with seventy-two traversed edges. Preserve actual selected
+material/correction readback. Keep the selective 90000 ms and nested consumer
+20000 ms execution bounds, existing termination/kill settlement and integration
+phase allowance. The one-shot commission retains ordinal one/maximum one;
+reservation or interruption consumes it. Supported final preparation and
+independent acceptance must precede a genuinely new authenticated exact-target
+grant. Preparation, source review and diagnostic results alone never authorize
+reservation or deciding execution.
+
 For a compiler defect, the bounded `repository-typecheck-v1` alternative records
 the unchanged `npm run typecheck` (`npm run typegen && tsc --noEmit`) with actual
 natural RED exit 2 and GREEN exit 0. It binds exact clean Git heads/trees and tree

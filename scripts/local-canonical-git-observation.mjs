@@ -7,7 +7,8 @@ import { settledIsolatedResources, cancelledPhase, verifySettledPhaseFailure } f
 import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { REGISTERED_FIXTURE_BUDGET, verifyRegisteredFixtureBudget,
-  REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM, verifyRegisteredIntegrationBudget } from "./local-canonical-fixture-budget-witness.mjs";
+  REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM, verifyRegisteredIntegrationBudget,
+  SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM, verifySelectiveFixtureWorkload } from "./local-canonical-fixture-budget-witness.mjs";
 import { GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM, GENERATED_STOCK_GRANT,
   verifyGeneratedStockRepair } from "./local-canonical-stock-lifecycle-witness.mjs";
 import { REPOSITORY_TYPECHECK, verifyRepositoryTypecheck } from "./local-canonical-typecheck-witness.mjs";
@@ -288,7 +289,7 @@ function verifyFinalDependencyFailure(r, stock, inputs, phases) {
   return deps[2].before;
 }
 
-export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expectedOrdinal = 1, forward = false, serialPredecessor = false, generatedStockSerial = false) {
+export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expectedOrdinal = 1, forward = false, serialPredecessor = false, generatedStockSerial = false, historicalStockKind = null) {
   const previous = receipt.attempt?.source_correction;
   const { contract, path_kind, binding, resources } = receipt.inputs;
   if (!(usesGitInventory(previous) || serialPredecessor && isSerialAggregateRevision(previous)) || previous.commission.ordinal !== expectedOrdinal ||
@@ -297,7 +298,7 @@ export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expecte
     fail("revision_git_predecessor_invalid");
   if (forward) return verifyFinalDependencyFailure(receipt, stock, inputs, phases);
   verifySettledPhaseFailure(receipt, stock, inputs, phases, resources.find(r => r.id === "browser-executable"),
-    generatedStockSerial || isGitObservationRevision(previous) && expectedOrdinal === 1, expectedOrdinal, generatedStockSerial);
+    generatedStockSerial || isGitObservationRevision(previous) && expectedOrdinal === 1, expectedOrdinal, generatedStockSerial, historicalStockKind);
   if (hasSerialAccounting(previous) && receipt.phases.some(p=>p.id === "e2e-project-experience" && p.status === "pass" && !validProjectExperienceAccounting(p.serial_budget)))
     fail("revision_inherited_serial_accounting_invalid");
 }
@@ -439,6 +440,7 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
     if (regression.kind===VERIFIER_LIFECYCLE_REPAIR)
       return verifyVerifierLifecycleRepair(p, prior, focused, { git, parse, bytes, completedAt, original, stock, completion, repositoryRoot });
     if (regression.kind===REGISTERED_FIXTURE_BUDGET) return verifyRegisteredFixtureBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
+    if (regression.kind===SELECTIVE_FIXTURE_WORKLOAD) return verifySelectiveFixtureWorkload(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
     if (regression.kind===REGISTERED_INTEGRATION_BUDGET) return verifyRegisteredIntegrationBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
     if (regression.kind===PREPARED_ELIGIBILITY_REPAIR)
       return verifyPreparedEligibilityRepair(p, prior, focused, { git, parse, bytes, completedAt, original, stock, completion });
@@ -541,6 +543,7 @@ function visibleDelegationParagraphs(body) {
 }
 
 export function delegatesMaterialSourceCommission(body,p) {
+  if (p.commission.evidence_kind === SELECTIVE_FIXTURE_WORKLOAD) return !!readSelectiveFixtureWorkloadDelegation(body,p);
   if (p.commission.evidence_kind === VERIFIER_LIFECYCLE_REPAIR) return !!readVerifierLifecycleDelegation(body,p);
   if (p.commission.evidence_kind === PREPARED_ELIGIBILITY_REPAIR) return !!readPreparedEligibilityDelegation(body,p);
   if (p.commission.evidence_kind === REGISTERED_INTEGRATION_BUDGET)
@@ -552,6 +555,19 @@ export function delegatesMaterialSourceCommission(body,p) {
     paragraphs[1] === "Predecessor: " + p.prior_family_id + " / " + p.prior_attempt_id + " / " + p.prior_receipt_fingerprint + "." &&
     paragraphs[2] === MATERIAL_HISTORY_BOUNDARY &&
     paragraphs[3] === "After separate independent acceptance of the actual correction, policy controls, exact published source and real preparation commitment, authorize the operator to record that decision faithfully and publish a separate new prospective commission through the authenticated maintainer identity. Each commission permits exactly one deciding invocation total; reservation or interruption consumes it. No ordinal two, recovery or unchanged-target retry under that commission. A further in-scope material correction requires fresh evidence, independent acceptance and new authenticated authority. Complete planner-selected qualification, separate fresh-process stock, owned cleanup and independent result audit remain required.";
+}
+
+// This authority describes reduced redundant fixture work, not a proved
+// production defect or a recovered explanation of the historical timeout.
+export const SELECTIVE_FIXTURE_WORKLOAD_GRANT = "Authorize one NEW prospective v7 reviewed_revision commission for a material source correction.";
+export function readSelectiveFixtureWorkloadDelegation(body,p) {
+  const paragraphs = visibleDelegationParagraphs(body);
+  return equal(paragraphs,[
+    "Authorize one selective fixture workload qualification assignment on " + p.branch + " in Draft PR #" + p.pull_request + ". Adopt selective-fixture-workload-v1 within the existing material-source-correction-v1 inventory-bound v7 owners. Reduced redundant fixture work with preserved behavior is demonstrated; stable speedup and the historical timeout cause remain unestablished.",
+    "Predecessor: " + p.prior_family_id + " / " + p.prior_attempt_id + " / " + p.prior_receipt_fingerprint + ".",
+    MATERIAL_HISTORY_BOUNDARY,
+    "After separate independent acceptance of the implemented admission, fixture evidence, actual final published source and supported preparation inputs, authorize the operator to record that decision faithfully and publish a separate authenticated exact-target grant through the maintainer identity. Exactly one new complete planner-selected reference-Mac qualification invocation is permitted; reservation or interruption consumes it. No ordinal two, recovery or unchanged-target retry under this commission. Preserve all earlier consumption, original false stock and physical authority. Separate fresh-process stock, owned cleanup and independent result review remain required.",
+  ]) ? { kind: SELECTIVE_FIXTURE_WORKLOAD } : null;
 }
 
 export const INTEGRATION_BUDGET_GRANT = "Authorize one NEW prospective v7 reviewed_revision commission for the measured registered integration allowance.";
@@ -660,6 +676,7 @@ function typedMaterialAuthorityBindings(p, kind, claim) {
 }
 
 export const integrationBudgetAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM);
+export const selectiveFixtureWorkloadAuthorityBindings = p => typedMaterialAuthorityBindings(p, SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM);
 export const generatedStockAuthorityBindings = p => typedMaterialAuthorityBindings(p, GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM);
 
 function typedMaterialAuthorityScope(p, review, grant, bindings, opening) {
@@ -676,6 +693,8 @@ function typedMaterialAuthorityScope(p, review, grant, bindings, opening) {
 
 export const integrationBudgetAuthorityScope = (p, review, grant) =>
   typedMaterialAuthorityScope(p, review, grant, integrationBudgetAuthorityBindings(p), INTEGRATION_BUDGET_GRANT);
+export const selectiveFixtureWorkloadAuthorityScope = (p, review, grant) =>
+  typedMaterialAuthorityScope(p, review, grant, selectiveFixtureWorkloadAuthorityBindings(p), SELECTIVE_FIXTURE_WORKLOAD_GRANT);
 export const generatedStockAuthorityScope = (p, review, grant) =>
   typedMaterialAuthorityScope(p, review, grant, generatedStockAuthorityBindings(p), GENERATED_STOCK_GRANT);
 
