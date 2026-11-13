@@ -50,8 +50,11 @@ const headers={"Cache-Control":"no-store, private","Vary":"Cookie, oai-authentic
   "Content-Security-Policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"};
 function json(value:unknown,status=200) { return new Response(JSON.stringify(value),{status,headers:{...headers,"Content-Type":"application/json"}}); }
 function html(value:string,extra:Record<string,string>={}) { return new Response(value,{headers:{...headers,"Content-Type":"text/html; charset=utf-8",...extra}}); }
+// RFC 9110 media types allow case-insensitive type/subtype and token/quoted parameters.
+// Parameters, including charset, do not change JSON's strict UTF-8 decoding below.
+const JSON_CONTENT_TYPE=/^[\t ]*application\/json[\t ]*(?:;[\t ]*(?:[!#$%&'*+.^_`|~0-9A-Za-z-]+=(?:[!#$%&'*+.^_`|~0-9A-Za-z-]+|"(?:[\t \x21\x23-\x5B\x5D-\x7E\x80-\xFF]|\\[\t \x21-\x7E\x80-\xFF])*")[\t ]*)?)*$/i;
 async function body(request:Request,limit=REQUEST_BYTES) {
-  if(request.headers.get("content-type")!=="application/json") fail("json_required",415);
+  if(!JSON_CONTENT_TYPE.test(request.headers.get("content-type")??"")) fail("json_required",415);
   const reader=request.body?.getReader(); if(!reader) fail("invalid_body");
   const declared=request.headers.get("content-length");
   if(declared!==null && Number(declared)>limit){await reader.cancel();fail("request_too_large",413);}

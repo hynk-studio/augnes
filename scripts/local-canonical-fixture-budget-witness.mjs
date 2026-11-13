@@ -8,8 +8,14 @@ import { observePureContractSource, observePureContractLoader, pureContractGitSo
 import { gitRevisionInventory } from "./local-canonical-git-observation.mjs";
 import { createCanonicalRevisionReader } from "./canonical-revision-reader.mjs";
 import { verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
+import { readImprovementOwnerRegistration } from "./local-canonical-improvement.mjs";
 
 export const REGISTERED_FIXTURE_BUDGET = "registered-fixture-aggregate-budget-v1";
+export const MAINTENANCE_FIXTURE_CASE = "registered-maintenance-direct-v1";
+export const isMaintenanceFixtureBudget = p => p?.commission?.evidence_kind === REGISTERED_FIXTURE_BUDGET &&
+  p.commission.allowance_case === MAINTENANCE_FIXTURE_CASE;
+export const MAINTENANCE_FIXTURE_GRANT = "Authorize one NEW prospective v7 reviewed_revision commission for the measured registered maintenance allowance.";
+export const MAINTENANCE_FIXTURE_LIMIT = "Old commission remains spent. Exactly one admitted deciding invocation total. Reservation/interruption consumes it. No ordinal two, recovery or unchanged-target retry under this commission. Separate fresh-process stock and independent result audit are required.";
 export const FIXTURE_BUDGET_CLAIM = "Measured prospective development-fixture allowance; historical cause remains UNKNOWN; neither demonstrated cure nor qualification PASS.";
 export const REGISTERED_INTEGRATION_BUDGET = "registered-integration-child-budget-v1";
 export const INTEGRATION_BUDGET_CLAIM = "Measured prospective external-response workload allowance. The historical timeout cause remains UNKNOWN.";
@@ -43,6 +49,13 @@ const evidencePaths = new Set([
   "scripts/fixtures/local-canonical-fixture-budget.mjs", "scripts/fixtures/local-canonical-serial-material.mjs",
   "scripts/test-local-canonical-executor.mjs", "scripts/test-local-canonical-verification-contract.mjs",
   ".github/LOCAL_CANONICAL_VERIFICATION.md",
+]);
+const maintenanceOwner = "local-canonical-maintenance";
+const maintenanceTest = "scripts/test-local-canonical-maintenance.mjs";
+const maintenanceEvidencePaths = new Set([...evidencePaths,
+  "scripts/local-canonical-browser-revision.mjs", "scripts/capture-local-canonical-fixture-budget.mjs",
+  "scripts/fixtures/local-canonical-maintenance-allowance.mjs",
+  "scripts/fixtures/local-canonical-reviewed-revision.mjs", "scripts/fixtures/local-canonical-browser-successor.mjs",
 ]);
 const equal = (a,b) => a !== undefined && b !== undefined && digest(a) === digest(b);
 const fail = () => { throw Object.assign(new Error("revision_fixture_budget_invalid"), {code:"revision_fixture_budget_invalid"}); };
@@ -84,6 +97,7 @@ const sourceAt=(git,head,file)=>git(["show",head+":"+file]).toString();
 const replaceNode=(source,tree,n,replacement)=>source.slice(0,n.getStart(tree))+replacement+source.slice(n.end);
 
 export function registeredFixtureBudget(git,head,group) {
+  if (group === maintenanceOwner) return maintenanceFixtureBudgetRegistration(git,head);
   if(!Object.hasOwn(owners,group))fail();
   const source=Object.fromEntries(Object.entries(FIXTURE_BUDGET_PATHS).map(([role,file])=>[role,sourceAt(git,head,file)]));
   const trees=Object.fromEntries(Object.entries(source).map(([role,text])=>[role,ast(text)]));
@@ -118,8 +132,231 @@ export function registeredFixtureBudget(git,head,group) {
   }};
 }
 
+// A direct suite child has one aggregate watchdog. It has no serial wrapper
+// or second aggregate. Parse its actual registration; never reinterpret it as
+// a reviewedRevisionSteps entry or change its internal setup owner.
+export function maintenanceFixtureBudgetRegistration(git,head) {
+  const source=sourceAt(git,head,FIXTURE_BUDGET_PATHS.suite), tree=ast(source);
+  const registration=readImprovementOwnerRegistration(source,maintenanceOwner);
+  if (registration.suite !== "authority" || !registration.require_natural_exit ||
+      !equal(registration.command,["node","--import","tsx",maintenanceTest])) fail();
+  const object=one(nodes(tree,n=>ts().isObjectLiteralExpression(n)&&n.properties.some(p=>
+    ts().isPropertyAssignment(p)&&p.name.getText(tree)==="id"&&ts().isStringLiteral(p.initializer)&&p.initializer.text===maintenanceOwner)));
+  const limit=one(object.properties.filter(p=>ts().isPropertyAssignment(p)&&p.name.getText(tree)==="timeoutMs")).initializer;
+  return {...registration,normalized:syntax(replaceNode(source,tree,limit,"0"))};
+}
+
+function maintenanceFixtureBudgetDelta(git,before,after) {
+  const a=maintenanceFixtureBudgetRegistration(git,before),b=maintenanceFixtureBudgetRegistration(git,after);
+  if (a.bound_ms!==60000 || b.bound_ms!==90000 || a.normalized!==b.normalized) fail();
+  const paths=git(["diff","--name-only","-z","--no-renames",before,after,"--"]).toString().split("\0").filter(Boolean).sort();
+  if (!paths.includes(FIXTURE_BUDGET_PATHS.suite) || paths.some(file=>file!==FIXTURE_BUDGET_PATHS.suite&&!maintenanceEvidencePaths.has(file))) fail();
+  // The entire test and transitive workload stay fixed except the explicitly
+  // partitioned evidence readers/controls. This includes every inner 10s limit.
+  if (!sourceAt(git,before,maintenanceTest).includes("timeoutMs:10000") ||
+      sourceAt(git,before,maintenanceTest)!==sourceAt(git,after,maintenanceTest)) fail();
+  for (const head of [before,after]) {
+    const entries=git(["ls-tree","-z",head,"--",FIXTURE_BUDGET_PATHS.suite,maintenanceTest]).toString().split("\0").filter(Boolean);
+    if (entries.length!==2 || entries.some(line=>!line.startsWith("100644 blob "))) fail();
+  }
+  const delta=files=>({paths:files,sha256:digest(files.length?git(["diff","--binary","--full-index","--no-ext-diff","--no-textconv",before,after,"--",...files]):Buffer.alloc(0))});
+  const omit=({normalized,...registration})=>registration;
+  return {case:MAINTENANCE_FIXTURE_CASE,before:omit(a),after:omit(b),
+    workload:delta([FIXTURE_BUDGET_PATHS.suite]),evidence:delta(paths.filter(file=>file!==FIXTURE_BUDGET_PATHS.suite))};
+}
+
+export function maintenanceFixtureCompletionNames(git,head) {
+  const source=sourceAt(git,head,maintenanceTest),tree=ast(source);
+  const loops=nodes(tree,n=>ts().isForOfStatement(n)&&ts().isArrayLiteralExpression(n.expression));
+  const count=flag=>one(loops.filter(n=>n.statement.getText(tree).includes("check(name,a,g,"+flag+")"))).expression.elements.length;
+  const malformed=variable(tree,"malformed");if(!ts().isArrayLiteralExpression(malformed))fail();
+  const counts={positive:count("true"),negative:count("false")+2*malformed.elements.length};
+  return nodes(tree,n=>ts().isCallExpression(n)&&n.expression.getText(tree)==="note").map(n=>{
+    const label=n.arguments[0];if(!ts().isTemplateExpression(label))return value(label,tree,null,{});
+    return label.head.text+label.templateSpans.map(s=>{
+      if(!ts().isIdentifier(s.expression)||!Object.hasOwn(counts,s.expression.text))fail();
+      return counts[s.expression.text]+s.literal.text;
+    }).join("");
+  });
+}
+function maintenanceCompletion(output,git,head) {
+  const names=maintenanceFixtureCompletionNames(git,head);
+  const summary=one(jsonLines(output).filter(v=>v.status==="pass"&&v.synthetic_only===true&&Array.isArray(v.cases)));
+  const cases=names.map(name=>({name,status:"pass"}));
+  if (!names.length || !equal(summary.cases,cases) || !Array.isArray(summary.refusals) || summary.refusals.length!==30 ||
+      summary.refusals.some(v=>!keys(v,["name","code"])||typeof v.name!=="string"||typeof v.code!=="string") ||
+      new Set(summary.refusals.map(v=>v.name)).size!==summary.refusals.length || summary.qualification!==false ||
+      !equal(jsonLines(output).filter(v=>keys(v,["name","status"])),cases) ||
+      output.split("\n").some(line=>line.startsWith("[local-canonical-browser-use] "))) fail();
+  return summary;
+}
+
+function maintenanceIncident(p,prior,reg,{git,bytes,original,completion,repositoryRoot}) {
+  const incident=reg.incident,phase=one(original.phases.filter(v=>v.id==="authority"));
+  if (prior.source_correction?.schema!=="augnes.local-canonical-source-correction.v2" || prior.source_correction.kind!=="source_revision" ||
+      Object.hasOwn(prior.source_correction,"commission") || original.outcome.disposition!=="product_failure" ||
+      completion.disposition!=="product_failure"||completion.cleanup_complete!==true||completion.infrastructure_code!==null||
+      phase.status!=="failure"||phase.exit_status!==1||phase.timed_out!==false||phase.cleanup?.termination_reason!=="natural_exit"||
+      phase.command!=="npm run test:authority"||phase.log?.truncated!==false||
+      !keys(incident,["receipt","log","log_identity","cause"])||incident.receipt!==p.prior_receipt_fingerprint||incident.cause!=="UNKNOWN") fail();
+  const raw=bytes(incident.log,2*1024*1024),text=raw.toString(),relative=phase.log.relative_path;
+  if (!equal(incident.log_identity,{relative_path:relative,bytes:phase.log.bytes,sha256:digest(raw)})||raw.length!==phase.log.bytes||
+      relative!==`.augnes-local-verification/logs/${prior.attempt_id}/authority.log`) fail();
+  const file=path.join(repositoryRoot,relative),s=lstatSync(file);
+  if (!s.isFile()||s.isSymbolicLink()||s.nlink!==1||(s.mode&0o022)||realpathSync(file)!==file||s.size!==raw.length||!readFileSync(file).equals(raw)) fail();
+  const registration=maintenanceFixtureBudgetRegistration(git,prior.head),label=JSON.stringify(registration.label);
+  const result=one(text.split("\n").filter(l=>l.startsWith("[canonical:authority] child_result label="+label+" ")));
+  const match=result.match(/ duration_ms=([0-9]+) exit_code=null signal=SIG(?:TERM|KILL) timed_out=true exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=bounded_timeout$/u);
+  const start=`[canonical:authority] child_start label=${label} timeout_ms=${registration.bound_ms}`;
+  if (!match||Number(match[1])<registration.bound_ms||text.split("\n").filter(l=>l===start).length!==1||text.indexOf(start)>=text.indexOf(result)||
+      text.split("\n").filter(l=>l.startsWith("[canonical:authority] child_result ")&&!l.includes(" exit_code=0 ")).length!==1) fail();
+  const events=text.split("\n").filter(l=>l.startsWith("[canonical:authority] ")&&l.includes(" label="+label+" "));
+  const essential=events.filter(l=>!l.includes(" child_active "));
+  if (!equal(essential.map(l=>l.slice(22).split(" ")[0]),["child_start","child_spawn","child_cleanup_start","child_cleanup_result","child_result"])) fail();
+  let elapsed=0;
+  for (const line of events) {
+    const ms=line.match(/ (?:elapsed_ms|duration_ms)=([0-9]+)(?: |$)/u);
+    if(ms){if(Number(ms[1])<elapsed||Number(ms[1])>Number(match[1]))fail();elapsed=Number(ms[1]);}
+    const tail=line.slice(line.indexOf(" label="+label+" ")+(" label="+label+" ").length);
+    if(line.includes(" child_spawn ")&&!/^pid=[1-9][0-9]* wait=process_exit$/u.test(tail)||
+       line.includes(" child_active ")&&!new RegExp('^elapsed_ms=[0-9]+ timeout_ms='+registration.bound_ms+' exit_observed=false stdout_closed=false stderr_closed=false wait=process_exit$','u').test(tail)||
+       line.includes(" child_cleanup_start ")&&(!/^elapsed_ms=[0-9]+ reason=bounded_timeout exit_observed=false stdout_closed=false stderr_closed=false$/u.test(tail)||elapsed<registration.bound_ms)||
+       line.includes(" child_cleanup_result ")&&!/^elapsed_ms=[0-9]+ reason=bounded_timeout streams_closed=true remaining_owned_processes=0$/u.test(tail))fail();
+  }
+  const cleanup=one(jsonLines(text).filter(v=>v.suite==="authority"&&Array.isArray(v.resource_cleanup)));
+  if (!cleanup.resource_cleanup.length||cleanup.resource_cleanup.some(v=>v.completed!==true||v.failure_count!==0||v.failures.length)) fail();
+  const lines=text.split("\n"),aggregate="AggregateError: canonical suite execution or cleanup failed";
+  const failure=`Error: canonical child timed out: suite=authority label=${registration.label} timeout_ms=${registration.bound_ms}`;
+  const timeout=one(lines.filter(line=>line.trim().startsWith("Error: canonical child timed out: suite=authority ")));
+  const code=one(lines.filter(line=>line.trim()==="code: 'canonical_child_timeout',"));
+  if (timeout.trim()!==failure||lines.filter(line=>line===aggregate).length!==1||
+      !(text.indexOf(result)<text.indexOf(JSON.stringify(cleanup))&&text.indexOf(JSON.stringify(cleanup))<text.indexOf(aggregate)&&
+        text.indexOf(aggregate)<text.indexOf(timeout)&&text.indexOf(timeout)<text.indexOf(code)))fail();
+  return registration;
+}
+
+// Closed timing-only loader grammar. Legacy field/identifier spellings are
+// retained for original records; no incident hash, execution or deadline exemption.
+export const MAINTENANCE_TIMING_OBSERVER = String.raw`// Private timing-only diagnostic. Never qualification or a correction witness.
+import { registerHooks, syncBuiltinESMExports } from 'node:module';
+import childProcess from 'node:child_process';
+import { performance } from 'node:perf_hooks';
+import { createHash } from 'node:crypto';
+const start=performance.now(),cpu=process.cpuUsage();
+const totals={git_calls:0,git_elapsed_ms:0,children:[],synchronous_children:{}};
+const originalExec=childProcess.execFileSync;
+childProcess.execFileSync=function(file,args,...rest){const t=performance.now(),key=[file,...(args??[]).filter(v=>!['--no-replace-objects','--no-ext-diff','--no-textconv'].includes(v)).slice(0,1)].join(' ');try{return Reflect.apply(originalExec,this,[file,args,...rest]);}finally{const row=totals.synchronous_children[key]??={count:0,elapsed_ms:0};row.count++;row.elapsed_ms+=performance.now()-t;}};
+syncBuiltinESMExports();
+globalThis.__r30Timing={totals,mark(stage){console.log(JSON.stringify({r30_timing:stage,elapsed_ms:performance.now()-start,cpu_us:process.cpuUsage(cpu),...totals}));}};
+globalThis.__r30Timing.mark('import-start');
+const once=(s,from,to)=>{if(s.split(from).length!==2)throw Error('diagnostic_source_boundary_changed:'+from);return s.replace(from,to);};
+registerHooks({load(url,context,next){
+ const result=next(url,context);
+ if(!url.endsWith('/scripts/test-local-canonical-maintenance.mjs')&&!url.endsWith('/scripts/fixtures/local-canonical-improvement.mjs'))return result;
+ let s=typeof result.source==='string'?result.source:Buffer.from(result.source).toString();
+ console.log(JSON.stringify({r30_source:url,sha256:createHash('sha256').update(s).digest('hex')}));
+ if(url.endsWith('/scripts/fixtures/local-canonical-improvement.mjs')){
+  s=once(s,'c.git=args=>execFileSync("git",args,{cwd:c.checkout,env,timeout:5000,stdio:["ignore","pipe","pipe"]});','c.git=args=>{const t=performance.now();try{return execFileSync("git",args,{cwd:c.checkout,env,timeout:5000,stdio:["ignore","pipe","pipe"]});}finally{globalThis.__r30Timing.totals.git_calls++;globalThis.__r30Timing.totals.git_elapsed_ms+=performance.now()-t;}};');
+ }else{
+  s=once(s,'const resource=createCanonicalTestResourceRoot','globalThis.__r30Timing.mark("imports-complete");\nconst resource=createCanonicalTestResourceRoot');
+  s=once(s,'console.log(JSON.stringify(cases.at(-1)));','console.log(JSON.stringify(cases.at(-1)));globalThis.__r30Timing.mark("case:"+name);');
+  s=once(s,'settled=result.cleanup_completed','globalThis.__r30Timing.totals.children.push({label,duration_ms:result.duration_ms,exit_code:result.exit_code});globalThis.__r30Timing.mark("setup-child:"+label);\n    settled=result.cleanup_completed');
+  s=once(s,'refusals.push({name,code:error.code??error.message});','refusals.push({name,code:error.code??error.message});globalThis.__r30Timing.mark("refusal:"+name);');
+  s=once(s,'c=await createMaintenanceFixture(resource.root,env,prepareTrees);','globalThis.__r30Timing.mark("fixture-start");c=await createMaintenanceFixture(resource.root,env,prepareTrees);globalThis.__r30Timing.mark("fixture-complete");');
+  s=once(s,'if(c?.owner)releaseCheckoutVerificationOwnership','globalThis.__r30Timing.mark("cleanup-start");\n  if(c?.owner)releaseCheckoutVerificationOwnership');
+  s=once(s,'assert(cleanupCanonicalTestResources([resource]).every(x=>x.completed));','assert(cleanupCanonicalTestResources([resource]).every(x=>x.completed));globalThis.__r30Timing.mark("cleanup-complete");');
+ }
+ return {...result,source:s};
+}});
+`;
+
+// Retained timing-only diagnostics keep their original fields and source. No
+// runtime inventory, historical execution head or natural RED is synthesized.
+function maintenanceMeasurement(m,prior,options) {
+  const {git,parse,bytes,completedAt}=options;
+  if (!keys(m,["record","stdout","collector","observer","source_head"])||m.source_head!==prior.head) fail();
+  const record=parse(m.record),raw=bytes(m.stdout,2*1024*1024),collector=bytes(m.collector,128*1024),observer=bytes(m.observer,128*1024);
+  if (!natural(record.result)||record.diagnostic!==true||record.development_only!==true||record.qualification!==false||record.reservation!==false||
+      record.registered_limit_ms!==60000||record.diagnostic_limit_ms!==120000||record.error!==undefined||
+      record.collector_sha256!==digest(collector)||record.observer_sha256!==digest(observer)||
+      !equal(record.log,{bytes:raw.length,sha256:digest(raw)})||
+      record.source_sha256!==digest(sourceAt(git,prior.head,maintenanceTest))||record.source_after_sha256!==record.source_sha256||
+      !Array.isArray(record.command)||!equal(record.command.slice(1,2),["--import"])||record.command.at(-1)!==maintenanceTest||
+      !record.cleanup?.length||record.cleanup.some(v=>!v.completed||v.failure_count||v.failures.length)||
+      !(Date.parse(completedAt)<Date.parse(record.started_at)&&Date.parse(record.started_at)<Date.parse(record.finished_at))) fail();
+  const output=raw.toString(),rows=jsonLines(output),stages=rows.filter(v=>typeof v.r30_timing==="string");
+  const summary=maintenanceCompletion(output,git,prior.head);
+  const expected=["import-start","imports-complete","fixture-start","fixture-complete",...summary.cases.map(v=>"case:"+v.name),"cleanup-start","cleanup-complete"];
+  const selected=stages.filter(v=>expected.includes(v.r30_timing));
+  if (!equal(selected.map(v=>v.r30_timing),expected)||stages.some((v,i)=>!Number.isFinite(v.elapsed_ms)||v.elapsed_ms<0||i&&v.elapsed_ms<=stages[i-1].elapsed_ms)||
+      stages.at(-1).elapsed_ms>record.result.duration_ms) fail();
+  const sources=rows.filter(v=>typeof v.r30_source==="string");
+  if (sources.length!==2||sources.some(v=>{
+    const file=[maintenanceTest,"scripts/fixtures/local-canonical-improvement.mjs"].find(file=>v.r30_source.endsWith("/"+file));
+    return !file||v.sha256!==digest(sourceAt(git,prior.head,file));
+  })||!collector.toString().includes("runCanonicalChild")||!observer.toString().includes("registerHooks")||
+      syntax(observer.toString())!==syntax(MAINTENANCE_TIMING_OBSERVER)) fail();
+  return {finished_at:record.finished_at,duration_ms:record.result.duration_ms,refusals:summary.refusals};
+}
+
+function verifyMaintenanceFixtureBudget(p,prior,focused,options) {
+  const {git,parse,bytes,completedAt}=options,reg=focused.regression;
+  if (!keys(reg,["kind","claim","owner","incident","source_partition","rationale","after"])||reg.kind!==REGISTERED_FIXTURE_BUDGET||
+      reg.claim!==FIXTURE_BUDGET_CLAIM||!equal(reg.owner,{phase:"authority",suite:"authority",group:maintenanceOwner})||
+      focused.failed_phase!=="authority"||!equal(focused.input_remedy_resources,[])) fail();
+  maintenanceIncident(p,prior,reg,options);
+  const partition=maintenanceFixtureBudgetDelta(git,prior.head,p.head),r=reg.rationale;
+  if (!equal(reg.source_partition,partition)||!keys(r,["execution_reserve_ms","termination_grace_ms","judgment","measurement","contradictory_observations"])||
+      r.execution_reserve_ms!==30000||r.termination_grace_ms!==13000||typeof r.judgment!=="string"||r.judgment.length<80||r.judgment.length>4000||
+      !Array.isArray(r.contradictory_observations)||!r.contradictory_observations.length) fail();
+  const measured=maintenanceMeasurement(r.measurement,prior,options);
+  for (const adverse of r.contradictory_observations) {
+    if (!keys(adverse,["record","stdout","limitations"])||typeof adverse.limitations!=="string"||adverse.limitations.length<40) fail();
+    const old=parse(adverse.record);
+    if (!natural(old.result)||!old.before?.source||!equal(old.before,old.after)||
+        git(["rev-parse",old.before.source.head+"^{tree}"]).toString().trim()!==old.before.source.tree||
+        old.before.source.dirty!==""||!old.log||!Array.isArray(old.cleanup)||old.cleanup.some(v=>!v.completed||v.failure_count||v.failures.length)||
+        old.registration?.id!==maintenanceOwner||old.registration.bound_ms!==90000||
+        !(Date.parse(measured.finished_at)<Date.parse(old.started_at)&&Date.parse(old.started_at)<Date.parse(old.finished_at))) fail();
+    git(["merge-base","--is-ancestor",prior.head,old.before.source.head]);git(["merge-base","--is-ancestor",old.before.source.head,p.head]);
+    if (sourceAt(git,old.before.source.head,maintenanceTest)!==sourceAt(git,prior.head,maintenanceTest)) fail();
+    const output=bytes(adverse.stdout,2*1024*1024);
+    if (!equal(old.log,{bytes:output.length,sha256:digest(output)})) fail();
+    if (!equal(maintenanceCompletion(output.toString(),git,old.before.source.head).refusals,measured.refusals)) fail();
+  }
+  const w=parse(reg.after),{root_generated,...source}=w.source_before??{};
+  if (w.contract!=="augnes.registered-fixture-budget-witness.v1"||w.role!=="direct"||w.basis!=="actual-owned-development-invocation"||
+      w.synthetic_only!==undefined||w.capture_error!==undefined||w.tested_source_head!==p.head||w.tree!==p.tree||w.dirty!==""||
+      w.command!=="node --import tsx "+maintenanceTest||!equal(source,pureContractGitSource(git,p.head).summary)||
+      !Array.isArray(root_generated)||root_generated.length>1||root_generated.some(v=>v.path!=="next-env.d.ts"||!/^([a-f0-9]{64})$/u.test(v.sha256))||
+      !equal(w.source_before,w.source_after)||!equal(w.environment_before,w.environment_after)||w.environment!==digest(w.environment_before)||
+      !equal(w.environment_before,fixtureBudgetEnvironment(w.resource_root,w.environment_before))||!path.isAbsolute(w.resource_root)||
+      !natural(w.result)||!integer(w.result.duration_ms)||w.result.duration_ms>=90000||
+      !equal(w.runtime_before,w.runtime_after)||digest(w.runtime_before)!==p.inputs.identity_sha256||w.runtime_inputs_sha256!==p.inputs.identity_sha256||
+      w.node_version!==CANONICAL_NODE_VERSION||gitRevisionInventory(w.input_inventory_before)!==p.inputs.inventory_sha256||
+      gitRevisionInventory(w.input_inventory_after)!==p.inputs.inventory_sha256||!equal(w.dependencies_before,w.dependencies_after)||
+      preparedDependencyIdentity(w.dependencies_before).phase_id!=="dependencies-root"||!equal(w.loader_before,w.loader_after)||
+      w.loader_before.path!=="node_modules/tsx/dist/loader.mjs"||w.loader_before.version!==JSON.parse(sourceAt(git,p.head,"package-lock.json")).packages["node_modules/tsx"].version||
+      !equal(w.config,["package.json","package-lock.json","tsconfig.json","scripts/browser-verification-owners.v1.json","scripts/local-canonical-change-owners.v1.json","scripts/canonical-research-tests.v1.json"].map(file=>({path:file,sha256:digest(sourceAt(git,p.head,file))})))||
+      w.owned_cleanup?.length!==1||w.owned_cleanup[0].root!==w.resource_root||w.owned_cleanup[0].completed!==true||w.owned_cleanup[0].failure_count!==0||w.owned_cleanup[0].failures.length||
+      bytes(w.collector,128*1024).toString()!==sourceAt(git,p.head,FIXTURE_BUDGET_COLLECTOR)||
+      !(Date.parse(completedAt)<Date.parse(w.started_at)&&Date.parse(measured.finished_at)<Date.parse(w.started_at)&&Date.parse(w.started_at)<Date.parse(w.finished_at)&&Date.parse(w.finished_at)<=Date.parse(focused.finished_at))) fail();
+  const lifecycle=bytes(w.lifecycle,128*1024).toString();
+  if (lifecycle.trimEnd().split("\n").some(l=>!l.startsWith("[canonical:fixture-budget-capture] ")||!l.includes(' label="direct registered fixture allowance" '))) fail();
+  naturalLifecycle(lifecycle,{suite:"fixture-budget-capture",label:"direct registered fixture allowance",timeout:90000,duration:w.result.duration_ms});
+  if (!equal(maintenanceCompletion(bytes(w.stdout,2*1024*1024).toString(),git,p.head).refusals,measured.refusals)) fail();
+  if (!focused.commands.some(c=>c.command===w.command&&c.tested_source_head===p.head&&equal(c.record,reg.after)&&equal(c.stdout,w.stdout))) fail();
+  return p.head;
+}
+
 export function fixtureBudgetSourceDelta(git,before,after,group) {
-  const old=registeredFixtureBudget(git,before,group),next=registeredFixtureBudget(git,after,group);
+  if (group === "local-canonical-maintenance") return maintenanceFixtureBudgetDelta(git,before,after);
+  return compareFixtureBudgetSource(git,before,after,
+    registeredFixtureBudget(git,before,group),registeredFixtureBudget(git,after,group));
+}
+
+function compareFixtureBudgetSource(git,before,after,old,next) {
+  const group=old.group;
   if(!equal(old.normalized,next.normalized)||!equal(old.groups,next.groups))fail();
   for(const name of old.groups)if(name!==group&&!equal(old.limits[name],next.limits[name]))fail();
   const a=old.limits[group],b=next.limits[group];
@@ -283,7 +520,7 @@ export function fixtureBudgetIncident(p,prior,focused,{git,bytes,original,comple
   const cleanup=one(jsonLines(text).filter(v=>v.suite==="authority"&&Array.isArray(v.resource_cleanup)));
   if(!equal(failed,[outer])||!cleanup.resource_cleanup.length||cleanup.resource_cleanup.some(v=>v.completed!==true||v.failure_count!==0||v.failures.length)||
       !text.includes("assertReviewChildLifecycle")||!text.includes("canonical child failed: suite=authority label=reviewed revision controls: "+reg.owner.group+" exit_code=1 signal=null"))fail();
-  return {inner,limit};
+  return {inner,limit,registration};
 }
 
 export function fixtureBudgetEnvironment(root,ambient=process.env) { return buildCanonicalChildEnvironment({temporaryRoot:root,ambientEnvironment:ambient}); }
@@ -294,6 +531,7 @@ export function inspectCurrentFixtureBudgetInputs(root,w) {
 }
 
 export function verifyRegisteredFixtureBudget(p,prior,focused,options) {
+  if (isMaintenanceFixtureBudget(p)) return verifyMaintenanceFixtureBudget(p,prior,focused,options);
   // One verification repeatedly inspects the same immutable source blobs.
   // Reuse their raw bytes only within this call; every mutable Git query,
   // physical observation and subsequent verification still reads afresh.
@@ -314,8 +552,11 @@ export function verifyRegisteredFixtureBudget(p,prior,focused,options) {
   const {git,parse,bytes,completedAt}=options,reg=focused.regression;
   if(!keys(reg,["kind","claim","owner","incident","source_partition","rationale","after","registration"])||reg.kind!==REGISTERED_FIXTURE_BUDGET||
       p.commission.evidence_kind!==reg.kind||reg.claim!==FIXTURE_BUDGET_CLAIM||!equal(focused.input_remedy_resources,[]))fail();
-  fixtureBudgetIncident(p,prior,focused,options);
-  const delta=fixtureBudgetSourceDelta(git,prior.head,p.head,reg.owner.group);
+  const {registration:historical}=fixtureBudgetIncident(p,prior,focused,options);
+  // Each registration is pinned to its Git commit. Share these observations
+  // within this verification and reread them on the next invocation.
+  const candidate=registeredFixtureBudget(git,p.head,reg.owner.group);
+  const delta=compareFixtureBudgetSource(git,prior.head,p.head,historical,candidate);
   if(!equal(reg.source_partition,delta)||!keys(reg.rationale,["execution_reserve_ms","termination_grace_ms","parent_remaining_ms","judgment","contradictory_observations","measurement"])||
       reg.rationale.execution_reserve_ms!==delta.after.inner-delta.before.inner||reg.rationale.termination_grace_ms!==13000||
       reg.rationale.parent_remaining_ms!==delta.after.outer-delta.after.inner-13000||reg.rationale.parent_remaining_ms<0||
@@ -376,13 +617,12 @@ export function verifyRegisteredFixtureBudget(p,prior,focused,options) {
       const lines=output.split("\n"),starts=lines.filter(line=>line.startsWith("[canonical:authority] child_start "));
       const results=lines.filter(line=>line.startsWith("[canonical:authority] child_result "));
       if(starts.length!==delta.groups.length||results.length!==delta.groups.length)fail();
-      const inventory=registeredFixtureBudget(git,p.head,reg.owner.group);
       for(const [i,group]of delta.groups.entries()) {
         const label=JSON.stringify("reviewed revision controls: "+group),result=tail.results[i];
-        if(starts[i]!==`[canonical:authority] child_start label=${label} timeout_ms=${inventory.limits[group].outer}`||
+        if(starts[i]!==`[canonical:authority] child_start label=${label} timeout_ms=${candidate.limits[group].outer}`||
           results[i]!==`[canonical:authority] child_result label=${label} duration_ms=${result.duration_ms} exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit`||
           lines.indexOf(starts[i])>=lines.indexOf(results[i])||i&&lines.indexOf(results[i-1])>=lines.indexOf(starts[i]))fail();
-        naturalLifecycle(output,{suite:"authority",label:"reviewed revision controls: "+group,timeout:inventory.limits[group].outer,duration:result.duration_ms});
+        naturalLifecycle(output,{suite:"authority",label:"reviewed revision controls: "+group,timeout:candidate.limits[group].outer,duration:result.duration_ms});
       }
       if(lines.some(line=>line.startsWith("[canonical:authority] ")&&!delta.groups.some(group=>line.includes(" label="+JSON.stringify("reviewed revision controls: "+group)+" "))))fail();
     }

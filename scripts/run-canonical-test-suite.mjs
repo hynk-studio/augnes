@@ -137,7 +137,7 @@ const goldenStep = {
   requireNaturalExit: true,
 };
 
-const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-input", "git-input-lifecycle", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation", "serial-aggregate", "serial-material"].map(group => ({
+const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-input", "git-input-lifecycle", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-stock", "material-reservation", "serial-aggregate", "serial-material"].map(group => ({
   id: "local-canonical-reviewed-revision-" + group,
   label: "reviewed revision controls: " + group,
   sharedFixture: !["revision", "settlement", "browser", "serial-aggregate", "serial-material"].includes(group),
@@ -150,6 +150,9 @@ const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-
 
 const suites = {
   unit: [
+    { id:"local-canonical-stock-verifier",label:"material stock-verifier attribution and corpus controls",
+      requirements:["filesystem","process-owning"],...rootNode("scripts/test-local-canonical-stock-verifier.mjs"),
+      timeoutMs:30000,requireNaturalExit:true },
     { id:"project-experience-serial-budget", label:"project experience serial budget and cleanup controls",
       requirements:["filesystem","process-owning"], ...rootNode("scripts/test-project-experience-serial-budget.mjs"),
       timeoutMs:30000, requireNaturalExit:true },
@@ -1241,6 +1244,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "project-work-semantic-state-read",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "mutable-module-state"],
+      label: "packet-history shared state validation and fresh-read corruption refusals",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--semantic-state-read-only"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "unexecuted-successor-revision",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "mutable-module-state"],
@@ -1499,6 +1511,25 @@ const suites = {
       label: "review child natural completion, bounded diagnostics and intentional cancellation controls",
       ...rootNode("scripts/test-local-canonical-review-child-result.mjs"),
       timeoutMs: AUXILIARY_EXECUTION_BUDGETS.reviewChildResultHarnessMs,
+      requireNaturalExit: true,
+    },
+    {
+      id: "local-canonical-improvement",
+      label: "prospective PASS/PASS evidence, authority and terminal accounting",
+      ...rootNode("scripts/test-local-canonical-improvement.mjs"),
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "local-canonical-maintenance",
+      label: "prospective maintenance proof, safe inputs and terminal succession",
+      ...rootNode("scripts/test-local-canonical-maintenance.mjs"),
+      // Aggregate test liveness, not a product deadline. Complete controls took
+      // ~49s, including ~36s across 5,867 Git calls. Keep those independent
+      // reads and every scenario; add a finite 30s orchestration reserve to the
+      // former 60s bound. Inner 10s setup limits and TERM/KILL cleanup stay intact.
+      // This prospective allowance does not explain the retained 60s timeout.
+      timeoutMs: 90_000,
       requireNaturalExit: true,
     },
     ...reviewedRevisionSteps,

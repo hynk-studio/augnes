@@ -1,16 +1,17 @@
+import { isMaintenance, hasMaintenanceMarker, validMaintenanceAttempt } from "./local-canonical-maintenance.mjs";
 import { hasSerialAccounting } from "./local-canonical-serial-aggregate.mjs";
 import { validProjectExperienceAccounting } from "./project-experience-serial-budget.mjs";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { CANONICAL_REPOSITORY_ID } from "./canonical-repository-identity.mjs";
-import { INTEGRATION_BASE_CONTRACT, INTEGRATION_BASE_SOURCE } from "./local-canonical-integration-base.mjs";
+import { INTEGRATION_BASE_CONTRACT, LEGACY_INTEGRATION_BASE_CONTRACT, validAdmittedIntegrationBase } from "./local-canonical-integration-base.mjs";
 import { requiresCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { VERIFICATION_CONTEXT_CONTRACT } from "./local-canonical-verification-context.mjs";
 import { VERIFICATION_CAPACITY_CONTRACT, verificationCapacityLimit } from "./local-canonical-capacity.mjs";
 import { HISTORICAL_INPUT_CONTRACT } from "./local-canonical-historical-inputs.mjs";
 import { supportedInputContract, digest, deriveOperationalDisposition, nonFaultInputChange, classifyInputChange, effectiveInputObservation, inputEventIdentity, validObservationDiagnostic, validInputFailureDiagnostics, validCanonicalRuntimeInputs, preparedDependencyIdentity, comparePreparedDependencyInputs } from "./local-canonical-inputs.mjs";
-import { ATTEMPT_CONTRACT, REVIEWED_REVISION_SCHEMA, REVIEWED_REVISION_PHASES, isReviewedRevision, validReviewedRevisionAttempt, hasRetiredQualificationMarker, supportsSourceCorrection } from "./local-canonical-attempts.mjs";
+import { ATTEMPT_CONTRACT, REVIEWED_REVISION_SCHEMA, REVIEWED_REVISION_PHASES, isReviewedRevision, validReviewedRevisionAttempt, hasRetiredQualificationMarker, supportsSourceCorrection, isReviewedIntegration, hasReviewedIntegrationMarker, validReviewedIntegrationAttempt } from "./local-canonical-attempts.mjs";
 import { isBrowserRevision, browserBindingMatches } from "./local-canonical-browser-revision.mjs";
 import { validBrowserUse, validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 
@@ -137,6 +138,9 @@ export function inspectReceiptForDecision(receipt, options = {}) {
   const {
     currentInputStateValid = null,
     currentAttemptRecordsValid = null,
+    integrationCurrentIssues = ["receipt_integration_current_authorization_unverified"],
+    maintenanceCurrentIssues = ["receipt_maintenance_current_authorization_unverified"],
+    improvementCurrentIssue = "receipt_improvement_current_authorization_unverified",
     currentIdentity = null,
     currentLocks = null,
     currentExecutorFingerprint = null,
@@ -151,6 +155,12 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     expectedRunId = null,
   } = options ?? {};
   const issues = [];
+  if(isReviewedIntegration(receipt?.attempt?.source_correction))issues.push(...integrationCurrentIssues);
+  if(hasReviewedIntegrationMarker(receipt)&&!validReviewedIntegrationAttempt(receipt?.attempt))issues.push("receipt_integration_invalid");
+  if(isMaintenance(receipt?.attempt?.source_correction))issues.push(...maintenanceCurrentIssues);
+  if(hasMaintenanceMarker(receipt)&&!validMaintenanceAttempt(receipt?.attempt))issues.push("receipt_maintenance_invalid");
+  if (isImprovement(receipt?.attempt?.source_correction) && improvementCurrentIssue) issues.push(improvementCurrentIssue);
+  if (hasImprovementMarker(receipt) && !validImprovementAttempt(receipt?.attempt)) issues.push("receipt_improvement_invalid");
   if (hasRetiredQualificationMarker(receipt)) issues.push("receipt_qualification_route_retired");
   if (receipt?.attempt?.source_correction && (!supportsSourceCorrection(receipt.attempt.source_correction) || receipt.receipt_version !== 4))
     issues.push("receipt_source_correction_invalid");
@@ -242,16 +252,26 @@ export function inspectReceiptForDecision(receipt, options = {}) {
       (expectedRunId !== null && expectedRunId !== receipt.run.id)) issues.push("receipt_run_identity_invalid");
   if (selectedPlan === "documentation-only") issues.push("documentation_feedback_not_deciding");
   if (mode === "changed" || mode === "full") {
-    if (!validAdmittedIntegrationBase(receipt?.integration_base, receipt?.repository) ||
-        Date.parse(receipt.integration_base?.observation?.observed_at) < Date.parse(receipt?.run?.started_at) ||
+    const declaredBase = receipt?.integration_base?.contract === INTEGRATION_BASE_CONTRACT;
+    if ((declaredBase && receipt?.receipt_version !== 4) ||
+        !validAdmittedIntegrationBase(receipt?.integration_base, receipt?.repository) ||
+        Date.parse(receipt.integration_base?.checked_at) < Date.parse(receipt?.run?.started_at) ||
+        (receipt.integration_base?.observation && Date.parse(receipt.integration_base.observation.observed_at) < Date.parse(receipt?.run?.started_at)) ||
         Date.parse(receipt.integration_base?.checked_at) > Date.parse(receipt?.run?.finished_at)) {
       issues.push("receipt_integration_base_provenance_invalid");
     }
-    if (!currentIntegrationBase?.observation) {
+    if (declaredBase) {
+      if (currentIntegrationBase?.contract !== INTEGRATION_BASE_CONTRACT ||
+          !validAdmittedIntegrationBase(currentIntegrationBase, receipt?.repository) ||
+          Date.parse(currentIntegrationBase?.checked_at) < Date.parse(receipt?.run?.finished_at) ||
+          (currentIntegrationBase?.observation && Date.parse(currentIntegrationBase.observation.observed_at) < Date.parse(receipt?.run?.finished_at)))
+        issues.push("receipt_current_integration_base_invalid");
+    } else if (!currentIntegrationBase?.observation) {
       issues.push("receipt_current_integration_base_unavailable");
     } else if (currentIntegrationBase.observation.sha !== receipt?.repository?.base_sha) {
       issues.push("receipt_stale_integration_base");
-    } else if (!validAdmittedIntegrationBase(currentIntegrationBase, receipt?.repository) ||
+    } else if (currentIntegrationBase.contract !== receipt?.integration_base?.contract ||
+        !validAdmittedIntegrationBase(currentIntegrationBase, receipt?.repository) ||
         Date.parse(currentIntegrationBase.observation.observed_at) < Date.parse(receipt?.run?.finished_at) ||
         Date.parse(currentIntegrationBase.checked_at) < Date.parse(receipt?.run?.finished_at)) {
       issues.push("receipt_current_integration_base_invalid");
@@ -615,7 +635,8 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     if (currentAttemptRecordsValid !== true) issues.push("receipt_attempt_records_unverified");
     if (currentInputStateValid !== true) issues.push("receipt_current_inputs_unverified");
   }
-  const applicabilityCodes = new Set(["receipt_stale_integration_base", "receipt_current_integration_base_unavailable", "receipt_current_integration_base_invalid", "receipt_stale_head", "receipt_current_worktree_dirty", "receipt_stale_branch_state", "receipt_current_inputs_unverified"]);
+  const applicabilityCodes = new Set(["receipt_integration_current_applicability_refused", "receipt_integration_current_inputs_invalid", "receipt_stale_integration_base", "receipt_current_integration_base_unavailable", "receipt_current_integration_base_invalid", "receipt_stale_head", "receipt_current_worktree_dirty", "receipt_stale_branch_state", "receipt_current_inputs_unverified", "receipt_improvement_current_applicability_refused", "receipt_improvement_current_runtime_invalid", "receipt_maintenance_current_applicability_refused", "receipt_maintenance_current_runtime_invalid", "receipt_maintenance_current_inputs_invalid"]);
+  const currentAuthorityCodes=new Set(["receipt_integration_current_authorization_unverified","receipt_improvement_current_authorization_unverified","receipt_maintenance_current_authorization_unverified"]);
   return {
     valid_deciding_evidence: issues.length === 0,
     status: issues.length === 0 ? "valid" : "non_deciding_or_stale",
@@ -623,9 +644,15 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     dimensions: {
       execution: phases.every(p => p?.status === "pass" && p?.exit_status === 0 && !p?.timed_out) && phases.length > 0 ? "complete_pass" : "incomplete_or_failed",
       historical_integrity: verifyReceiptIntegrity(receipt) ? "intact" : "invalid",
-      evidence_validity: issues.filter(code => !applicabilityCodes.has(code)).length === 0 ? "valid_in_recorded_context" : "invalid_or_incomplete",
+      evidence_validity: issues.filter(code => !applicabilityCodes.has(code) && !currentAuthorityCodes.has(code)).length === 0 ? "valid_in_recorded_context" : "invalid_or_incomplete",
       safety: [4, 5].includes(receipt?.receipt_version) ? receipt?.outcome?.safety ?? "unknown" : "legacy_recorded_scope",
-      current_merge_applicability: issues.some(code => applicabilityCodes.has(code)) ? "blocked" : "matches_observed_context",
+      current_merge_applicability: issues.some(code => applicabilityCodes.has(code)) ? "blocked" :
+        receipt?.integration_base?.contract === INTEGRATION_BASE_CONTRACT && !currentIntegrationBase?.observation
+          ? "current_main_unobserved" :
+          receipt?.integration_base?.contract === INTEGRATION_BASE_CONTRACT &&
+          currentIntegrationBase?.observation?.sha !== receipt?.repository?.base_sha
+            ? "different_current_main" : "matches_observed_context",
+      ...((isReviewedIntegration(receipt?.attempt?.source_correction)||isImprovement(receipt?.attempt?.source_correction)||isMaintenance(receipt?.attempt?.source_correction)) ? {current_authorization:issues.some(code=>currentAuthorityCodes.has(code))?"unverified":"authenticated"}:{}),
     },
     content_fingerprint:
       receipt?.integrity?.content_fingerprint ?? null,
@@ -678,7 +705,7 @@ export function inspectClassifiedEvidence(receipt, issues, incomplete = null) {
   if (new Set(input.resources.map(r => r.id)).size !== input.resources.length ||
       ["codex-preferences", "user-instructions", "auth-location", "git-config", "node-executable"].some(id => !input.resources.some(r => r.id === id))) issues.push("receipt_input_inventory_invalid");
   const attempt = receipt.attempt;
-  const revisionLane = (attempt?.source_correction?.schema === REVIEWED_REVISION_SCHEMA) || attempt?.source_correction?.kind === "reviewed_revision" || attempt?.revision_authority || attempt?.reviewed_revision_consumed;
+  const revisionLane = isReviewedIntegration(attempt?.source_correction) || isMaintenance(attempt?.source_correction) || isImprovement(attempt?.source_correction) || (attempt?.source_correction?.schema === REVIEWED_REVISION_SCHEMA) || attempt?.source_correction?.kind === "reviewed_revision" || attempt?.revision_authority || attempt?.reviewed_revision_consumed;
   const browserRevision = isBrowserRevision(attempt?.source_correction);
   const browser = input.binding?.runtime_inputs?.browser;
   if (browserRevision ? !browser || !browserBindingMatches(input, browser) :
@@ -717,11 +744,26 @@ export function inspectClassifiedEvidence(receipt, issues, incomplete = null) {
   }
   if (receipt.evidence.mode !== "quick" && (attempt?.contract !== ATTEMPT_CONTRACT || ![1, 2].includes(attempt.number) ||
       attempt.attempt_id !== receipt.run.id || attempt.head !== receipt.repository.head_sha || attempt.tree !== receipt.repository.tree_sha ||
-      attempt.contract_fingerprint !== input.fingerprint || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== (isReviewedRevision(attempt.source_correction) ? 0 : 1) ||
+      attempt.contract_fingerprint !== input.fingerprint || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== (isReviewedIntegration(attempt.source_correction) || isReviewedRevision(attempt.source_correction) || isImprovement(attempt.source_correction) || isMaintenance(attempt.source_correction) ? 0 : 1) ||
       (attempt.number === 1 && (attempt.prior_attempt_id !== null || attempt.recovery !== null)) ||
       (attempt.number === 2 && (!SHA256_PATTERN.test(attempt.prior_receipt_fingerprint ?? "") || !attempt.recovery)))) issues.push("receipt_attempt_lineage_invalid");
   if (hasSerialAccounting(attempt?.source_correction) && receipt.phases.some(p => p.id === "e2e-project-experience" && p.status === "pass" && !validProjectExperienceAccounting(p.serial_budget)))
     issues.push("receipt_serial_budget_invalid");
+  if (isImprovement(attempt?.source_correction) && (receipt.receipt_version !== 4 || !validImprovementAttempt(attempt) ||
+      !["full","changed"].includes(receipt.evidence.mode) || receipt.evidence.selected_plan !== "full-canonical" || receipt.verification_context.kind !== "isolated-worktree" || attempt.source_correction.base !== receipt.repository.base_sha ||
+      digest(receipt.phases.map(p=>p.id)) !== digest(REVIEWED_REVISION_PHASES) || !validCanonicalRuntimeInputs(input.binding?.runtime_inputs) ||
+      receipt.phases.some(p=>p.cleanup?.termination_reason!=="natural_exit" || p.cleanup?.exit_observed!==true || p.cleanup?.streams_closed!==true))) issues.push("receipt_improvement_contract_invalid");
+  if(isReviewedIntegration(attempt?.source_correction) && (!validReviewedIntegrationAttempt(attempt) || receipt.receipt_version!==4 || !["changed","full"].includes(receipt.evidence.mode) || receipt.evidence.selected_plan!=="full-canonical" || receipt.verification_context.kind!=="isolated-worktree" || attempt.source_correction.base!==receipt.repository.base_sha || digest(receipt.phases.map(p=>p.id))!==digest(REVIEWED_REVISION_PHASES) || !validCanonicalRuntimeInputs(input.binding?.runtime_inputs) || receipt.phases.some(p=>p.status==="pass"&&(p.cleanup?.termination_reason!=="natural_exit"||p.cleanup?.exit_observed!==true||p.cleanup?.streams_closed!==true))))issues.push("receipt_integration_lane_invalid");
+  if(isMaintenance(attempt?.source_correction)) {
+    if(receipt.receipt_version!==4 || !validMaintenanceAttempt(attempt) || !["full","changed"].includes(receipt.evidence.mode) || receipt.evidence.selected_plan!=="full-canonical" ||
+      receipt.verification_context.kind!=="isolated-worktree" || attempt.source_correction.base!==receipt.repository.base_sha ||
+      digest(receipt.phases.map(p=>p.id))!==digest(REVIEWED_REVISION_PHASES) || !validCanonicalRuntimeInputs(input.binding?.runtime_inputs) ||
+      receipt.phases.some(p=>p.status==="pass"&&(p.cleanup?.termination_reason!=="natural_exit"||p.cleanup?.exit_observed!==true||p.cleanup?.streams_closed!==true)))issues.push("receipt_maintenance_contract_invalid");
+    for(const phase of ["dependencies-root","dependencies-nested","dependencies-web-planning"]) {
+      const record=input.prepared_dependencies?.find(r=>r.phase_id===phase);
+      if(receipt.phases.some(p=>p.id===phase&&p.status==="pass")&&(!record?.prerequisite||comparePreparedDependencyInputs(record.prerequisite,record.before)!=="unchanged"))issues.push("receipt_maintenance_prerequisite_invalid");
+    }
+  }
   const expectedBrowser = input.resources.find(r => r.id === "browser-executable");
   let actualVersion = browserRevision ? browser?.actual_version : null;
   for (const phase of receipt.phases) {
@@ -745,22 +787,6 @@ export function inspectClassifiedEvidence(receipt, issues, incomplete = null) {
     fault: input.first_fault, cleanup: receipt.cleanup.completed });
   if (receipt.outcome?.disposition !== disposition || disposition !== (incomplete ? "unclassified_timeout" : "completed_success") ||
       receipt.outcome?.validity !== "valid_within_observed_scope" || receipt.outcome?.safety !== "preserved_within_observed_scope") issues.push("receipt_classified_outcome_not_passing");
-}
-
-function validAdmittedIntegrationBase(value, repository) {
-  const observation = value?.observation;
-  return value?.contract === INTEGRATION_BASE_CONTRACT &&
-    value?.status === "admitted" && value?.reason_code === null &&
-    value?.requested_base_sha === repository?.base_sha &&
-    value?.tested_head_sha === repository?.head_sha &&
-    value?.requested_base_sha !== value?.tested_head_sha &&
-    value?.base_matches_current_main === true && value?.base_is_ancestor_of_head === true &&
-    observation?.source === INTEGRATION_BASE_SOURCE &&
-    observation?.repository_id === CANONICAL_REPOSITORY_ID &&
-    observation?.repository_id === repository?.repository_id && observation?.branch === "main" &&
-    observation?.sha === repository?.base_sha && SHA_PATTERN.test(observation?.sha ?? "") &&
-    isIsoTimestamp(observation?.observed_at) && isIsoTimestamp(value?.checked_at) &&
-    Date.parse(value.checked_at) >= Date.parse(observation.observed_at);
 }
 
 function isIsoTimestamp(value) {
@@ -826,3 +852,4 @@ function safeIdentifier(value) {
 function compareCodeUnits(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
+import { isImprovement, hasImprovementMarker, validImprovementAttempt } from "./local-canonical-improvement.mjs";

@@ -103,11 +103,19 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
         contradictory_observations:[{record:ref("old-pass.json",{tested_source_head:oldHead,command:"node "+FIXTURE_BUDGET_PATHS.wrapper+" --reviewed-revision-controls serial-aggregate",stdout:ref("old-pass.log","controlled pass"),source_files:[{path:workloadFile,byte_size:Buffer.byteLength(workloadSource),sha256:digest(workloadSource)}],result:normal,finished_at:new Date().toISOString()}),limitations:"Controlled protocol data only; this is not an original incident or a new historical RED."}]},after,registration},
     commands:[after,registration].map(record=>{const w=parse(record);return{command:w.command,tested_source_head:head,record,stdout:w.stdout};})};
   const verify=(q=p,f=focused,r=original,c=completion,readGit=git)=>verifyGitSourceRepair(q,prior,f,{git:readGit,parse,bytes,completedAt,original:r,completion:c,repositoryRoot:root});
+  // Preserve both the registration inventory and all-source read controls.
+  // Every independent verification must read those immutable inputs afresh.
+  const registrationReads=new Map([oldHead,head].flatMap(commit=>
+    Object.values(FIXTURE_BUDGET_PATHS).map(file=>[commit+":"+file,0])));
   const sourceReads=new Map(),countedGit=args=>{
-    if(args[0]==="show")sourceReads.set(args[1],(sourceReads.get(args[1])??0)+1);
+    if(args[0]==="show"){
+      sourceReads.set(args[1],(sourceReads.get(args[1])??0)+1);
+      if(registrationReads.has(args[1]))registrationReads.set(args[1],registrationReads.get(args[1])+1);
+    }
     return git(args);
   };
   assert.equal(verify(p,focused,original,completion,countedGit),head);
+  for(const count of registrationReads.values())assert.equal(count,1,"each exact registration blob is read once per verification");
   assert(sourceReads.size>0);assert([...sourceReads.values()].every(count=>count===1),"one blob read per source per verification");
   inspectCurrentFixtureBudgetInputs(root,parse(after));
   let negatives=0;
@@ -178,6 +186,7 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
   }
   assert.equal(verify(p,focused,original,completion,countedGit),head);
   assert([...sourceReads.values()].every(count=>count===2),"independent verification must read each source afresh");
+  for(const count of registrationReads.values())assert.equal(count,2,"independent verification must reread each registration");
   const generatedControls = generatedDeclarationControls(root, parent, write);
   rmSync(root,{recursive:true});
   return {contract:REGISTERED_FIXTURE_BUDGET,synthetic_only:true,deciding:false,negative_controls:negatives,source_read_operations:2,distinct_sources:sourceReads.size,

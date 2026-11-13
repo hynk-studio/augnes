@@ -4,6 +4,7 @@ import { checkContinuationClient } from './test-web-planning-continuation-client
 import { checkIndependentProjects } from './web-planning-project-checks.mjs';
 import { checkProjectEntryClient } from './test-web-planning-project-entry-client.mjs';
 import { checkParticipation } from './web-planning-participation-checks.mjs';
+import { checkRequestBodies } from './web-planning-request-checks.mjs';
 import { checkPublicRequests } from './web-planning-public-request-checks.mjs';
 import { checkPublicationClient } from './test-web-planning-publication-client.mjs';
 import { checkLargeExchanges } from './web-planning-large-exchange-checks.mjs';
@@ -12,7 +13,7 @@ import { checkReturnReassessment } from './web-planning-reassessment-checks.mjs'
 import { checkReturnContinuation } from './web-planning-return-checks.mjs';
 import { checkFileExchanges } from './web-planning-exchange-checks.mjs';
 import { checkDirections } from "./web-planning-direction-checks.mjs";
-import { checkWebPlanningInterceptionDiagnostics, checkWebPlanningTouchTransport, checkWebPlanningDownloadCompletion } from './test-web-planning-interception.mjs';
+import { checkWebPlanningInterceptionDiagnostics, checkWebPlanningTouchTransport, checkWebPlanningDownloadCompletion, checkWebPlanningBrowserObservation } from './test-web-planning-interception.mjs';
 import { checkSceneContinuity } from "./web-planning-scene-checks.mjs";
 import { checkFiles } from './web-planning-file-checks.mjs';
 import { checkOrdinaryFiles } from './web-planning-ordinary-file-checks.mjs';
@@ -27,7 +28,8 @@ import path from 'node:path';
 import { Script } from 'node:vm';
 import { randomUUID } from 'node:crypto';
 import { startLocal, fixtureScope, dispatchNavigation } from './web-planning-local-runtime.mjs';
-import { buildWebPlanning, webRoot } from './build-web-planning.mjs';
+import { webRoot } from './build-web-planning.mjs';
+import { checkWebPlanningBuildInputs } from './web-planning-build-checks.mjs';
 import { canonical, hash, exportWork, headBinding, normalizePayload } from '../apps/web_planning/src/contract.ts';
 import { normalizeInitialProjectWorkDefinitionV01 as legacyNormalize } from '../lib/vnext/runtime/initial-project-work-context.ts';
 import { buildSelectedWorkSourceEntry, normalizeSelectedWorkSources } from '../lib/intake/selected-work-source-comparison.ts';
@@ -37,6 +39,7 @@ import { checkCapacity } from './web-planning-capacity-checks.mjs';
 import { checkBranching } from './web-planning-branch-checks.mjs';
 import { checkCloudflarePlanning } from './web-planning-cloudflare-checks.mjs';
 const root=process.env.AUGNES_CANONICAL_TEMP_ROOT;if(!root)throw new Error('owned_test_root_required');
+console.log(JSON.stringify({web_planning_browser_observation_contract:await checkWebPlanningBrowserObservation()}));
 console.log(JSON.stringify({web_planning_interception_diagnostics_contract:await checkWebPlanningInterceptionDiagnostics()}));
 console.log(JSON.stringify({web_planning_touch_transport_contract:await checkWebPlanningTouchTransport()}));
 console.log(JSON.stringify({web_planning_download_completion_contract:await checkWebPlanningDownloadCompletion()}));
@@ -74,11 +77,12 @@ try {
  const artifact=path.join(root,'artifact');
  process.env.OWNER_EMAIL='web-planning-artifact-secret-sentinel';
  process.env.REQUEST_SECRET='web-planning-artifact-secret-sentinel';
- await buildWebPlanning(artifact);
+ await checkWebPlanningBuildInputs(artifact);
  const code=await readFile(path.join(artifact,'server/index.js'),'utf8');
  const runtimeConfig=await checkSitesArtifact(artifact,code);
  await exerciseSitesBootstrap({start,artifact,code,runtimeConfig,client,newWork,save,edit,headBinding,passed});
  local=await start('primary');let c=await client(local);
+ await checkRequestBodies({server:local,client:c,passed});
  const normalized=normalizePayload(fixtureScope,{goal:'  계획 🌿  ',success_criteria:[' b ','a','a',''],non_goals:[]},notes);
  assert.deepEqual(normalized.definition,{goal:'계획 🌿',success_criteria:['a','b'],non_goals:[]});
  // Frozen byte fingerprints collected from the merged d7c8c326 normalizer/source owner,

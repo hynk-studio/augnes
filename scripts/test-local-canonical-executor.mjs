@@ -1,11 +1,14 @@
 #!/usr/bin/env node
-import { hasRetiredQualificationMarker, isReviewedRevision, REVIEWED_REVISION_PHASES, readSourceCorrectionProof as readCorrectionProof } from "./local-canonical-attempts.mjs";
+import { isMaintenance } from "./local-canonical-maintenance.mjs";
+import { isImprovement } from "./local-canonical-improvement.mjs";
+import { hasRetiredQualificationMarker, isReviewedIntegration, isReviewedRevision, REVIEWED_REVISION_PHASES, readSourceCorrectionProof as readCorrectionProof } from "./local-canonical-attempts.mjs";
 
-import { isGitObservationRevision, isInventoryBoundRevision } from "./local-canonical-git-observation.mjs";
+import { isGitObservationRevision, isInventoryBoundRevision, isMaterialSourceRevision, MATERIAL_SOURCE_CORRECTION,
+  GIT_CURRENT_STOCK_COMPARISON, gitRevisionInventory, gitRevisionStockComparison } from "./local-canonical-git-observation.mjs";
 import { isSerialAggregateRevision } from "./local-canonical-serial-aggregate.mjs";
 import { isBrowserRevision, verifyBrowserRevisionPreservation } from "./local-canonical-browser-revision.mjs";
 import assert from "node:assert/strict";
-import { digest } from "./local-canonical-inputs.mjs";
+import { digest, INPUT_CONTRACT } from "./local-canonical-inputs.mjs";
 import { spawnSync } from "node:child_process";
 import {
   existsSync,
@@ -72,7 +75,7 @@ import {
   releaseCheckoutVerificationOwnership,
   requiresCheckoutVerificationOwnership,
 } from "./local-canonical-checkout-ownership.mjs";
-import { admitIntegrationBase } from "./local-canonical-integration-base.mjs";
+import { admitIntegrationBase, LEGACY_INTEGRATION_BASE_CONTRACT } from "./local-canonical-integration-base.mjs";
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { finalizeReceipt, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
 
@@ -182,12 +185,20 @@ const executorSource = readFileSync(
     }
     for (const relative of ["scripts/local-canonical-pure-contract-witness.mjs", "scripts/canonical-revision-reader.mjs",
       "scripts/local-canonical-fixture-budget-witness.mjs", "scripts/capture-local-canonical-fixture-budget.mjs",
-      "scripts/local-canonical-stock-lifecycle-witness.mjs"]) {
+      "scripts/local-canonical-stock-lifecycle-witness.mjs", "scripts/local-canonical-improvement.mjs", "scripts/local-canonical-maintenance.mjs",
+      "scripts/local-canonical-common-driver.mjs", "scripts/local-canonical-material-stock-predecessor.mjs",
+      "scripts/local-canonical-stock-verifier-witness.mjs", "scripts/local-canonical-stock-verifier-output.mjs"]) {
       const file = path.join(owner.root, relative), original = readFileSync(path.join(repositoryRoot, relative));
       writeFileSync(file, original);
       const before = computeExecutorSourceFingerprint(owner.root);
+      const historicalFiles=[...declaration[1].matchAll(/"([^"]+)"/gu)].map(match=>match[1]).filter(name=>![
+        "scripts/local-canonical-common-driver.mjs", "scripts/local-canonical-material-stock-predecessor.mjs",
+        "scripts/local-canonical-stock-verifier-witness.mjs", "scripts/local-canonical-stock-verifier-output.mjs"].includes(name));
+      const historical=computeExecutorSourceFingerprint(owner.root,historicalFiles);
       writeFileSync(file, "export const changed = true;\n");
       assert.notEqual(computeExecutorSourceFingerprint(owner.root), before);
+      if(!historicalFiles.includes(relative))assert.equal(computeExecutorSourceFingerprint(owner.root,historicalFiles),historical,
+        "an explicit historical source-file inventory keeps its original fingerprint meaning");
       writeFileSync(file, original);
     }
   } finally { assert(cleanupCanonicalTestResources([owner])[0].completed); }
@@ -332,12 +343,23 @@ try {
     assert.equal(admitted.integrationBase.observation.sha, currentBase);
     assert.equal(admitted.integrationBase.base_is_ancestor_of_head, true);
     assert.equal(admitted.plan.selected_plan, "full-canonical");
+    for (const [base, head, transport, observed] of [
+      [oldBase, proposedHead, currentTransport, true],
+      [oldBase, divergentHead, currentTransport, true],
+      [currentBase, proposedHead, { fetchBranchHead: async () => { throw new Error("offline"); } }, false],
+      [currentBase, proposedHead, { fetchBranchHead: async () => ({ repository_id: "other/repository", branch: "main", sha: currentBase }) }, false],
+    ]) {
+      const result = await admitAndResolveVerificationPlan({ mode, root: admissionRoot,
+        baseSha: base, headSha: head, transport, planner });
+      assert.equal(result.integrationBase.status, "admitted");
+      assert.equal(result.integrationBase.base_is_ancestor_of_head, true);
+      assert.equal(Boolean(result.integrationBase.observation), observed);
+      assert.equal(result.integrationBase.base_matches_current_main, observed ? false : null);
+      assert.equal(result.plan.selected_plan, "full-canonical");
+    }
     for (const [base, head, transport, reason] of [
-      [oldBase, proposedHead, currentTransport, "integration_base_mismatch"],
-      [proposedHead, proposedHead, currentTransport, "integration_base_mismatch"],
+      [proposedHead, proposedHead, currentTransport, "identical_base_and_head"],
       [currentBase, divergentHead, currentTransport, "integration_base_not_ancestor"],
-      [currentBase, proposedHead, { fetchBranchHead: async () => { throw new Error("offline"); } }, "integration_base_observation_unavailable"],
-      [currentBase, proposedHead, { fetchBranchHead: async () => ({ repository_id: "other/repository", branch: "main", sha: currentBase }) }, "integration_base_observation_unavailable"],
     ]) {
       const callsBefore = decidingPlannerCalls;
       const result = await admitAndResolveVerificationPlan({ mode, root: admissionRoot,
@@ -353,7 +375,21 @@ try {
       assert.equal(failed.integration_base.reason_code, reason);
     }
   }
-  assert.equal(decidingPlannerCalls, 2);
+  assert.equal(decidingPlannerCalls, 10);
+  for (const [base, transport, reason] of [
+    [oldBase, currentTransport, "integration_base_mismatch"],
+    [currentBase, { fetchBranchHead: async () => { throw new Error("offline"); } }, "integration_base_observation_unavailable"],
+  ]) {
+    const legacy = await admitIntegrationBase({ repositoryRoot: admissionRoot, baseSha: base,
+      headSha: proposedHead, transport, contract: LEGACY_INTEGRATION_BASE_CONTRACT });
+    assert.equal(legacy.status, "refused");
+    assert.equal(legacy.reason_code, reason);
+  }
+  const legacy = await admitIntegrationBase({ repositoryRoot: admissionRoot, baseSha: currentBase,
+    headSha: proposedHead, transport: currentTransport, contract: LEGACY_INTEGRATION_BASE_CONTRACT });
+  assert.equal(legacy.status, "admitted");
+  await assert.rejects(admitIntegrationBase({ repositoryRoot: admissionRoot, baseSha: currentBase,
+    headSha: proposedHead, transport: currentTransport, contract: "unknown" }), /integration_base_contract_unsupported/);
   const unavailable = await admitIntegrationBase({ repositoryRoot: admissionRoot, baseSha: currentBase,
     headSha: "0".repeat(40), transport: currentTransport });
   assert.equal(unavailable.reason_code, "integration_base_ancestry_unavailable");
@@ -1003,6 +1039,7 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
     if (!racingState) createSharedState();
     const diagnosticBeforeLock = { next: existsSync(next), windows: existsSync(windows) };
     const calls = { acquire: 0, release: 0, phases: 0, remove: 0, checkoutAcquire: 0, checkoutRelease: 0, logPrepare: 0, prune: 0 };
+    const scenarioErrors = [];
     const historical = scenario.includes("historical_");
     const historicalRefusal = historical && !scenario.endsWith("_ready");
     const historicalGraph = scenario.includes("_r8a_") ? "r8a" : "durable";
@@ -1050,7 +1087,7 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
     const context = {
       checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
       controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, baseSha: "0".repeat(40), headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
-      isReviewedRevision, isBrowserRevision, isGitObservationRevision, isInventoryBoundRevision, isSerialAggregateRevision, digest, REVIEWED_REVISION_PHASES,
+      isMaintenance, isImprovement, isReviewedIntegration, isReviewedRevision, isBrowserRevision, isGitObservationRevision, isInventoryBoundRevision, isSerialAggregateRevision, digest, REVIEWED_REVISION_PHASES,
       sourceCorrection: revisionLane ? { schema: browserRefusal ? "augnes.local-canonical-source-correction.v8" : "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", ...(revisionSettlement ? { settlement: { sha256: "c".repeat(64) } } : {}) } : null,
       authorizeReviewedRevision: async () => { authorityObserved = true; if (scenario === "revision_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
       observeReviewedRevisionSettlementState: async () => {
@@ -1131,7 +1168,7 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
         assert.equal(options.currentRunId, "synthetic");
         return enforceArtifactRetention({ ...options, root });
       },
-      safeErrorCode: error => error.code ?? "synthetic_failure", boundedLifecycleState: value => value,
+      safeErrorCode: error => { scenarioErrors.push(error.stack ?? String(error)); return error.code ?? "synthetic_failure"; }, boundedLifecycleState: value => value,
       inspectCompanionService: async () => structuredClone(serviceState),
       inspectVerificationCompanionPreservation: async (_ctx, { freshTransport }) => {
         assert.equal(freshTransport, browserRefusal);
@@ -1255,7 +1292,7 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
         executorSource.slice(passingStart, passingEnd) + "\nreturn passing;")(context.phaseReceipts, result.executionFailure, [], result.cleanupComplete);
       assert.equal(passing, false, "clean settlement does not erase an execution exception");
     } else {
-      assert.equal(calls.phases, 1); assert.equal(calls.release, quick || isolated || unsettled ? 0 : 1);
+      assert.equal(calls.phases, 1, `${scenario}: ${scenarioErrors.join("\n")}`); assert.equal(calls.release, quick || isolated || unsettled ? 0 : 1);
       if (isolated) assert.equal(privateResourceCleaned, !unsettled);
       assert.equal(result.sharedGeneratedStateOwned, true); assert.equal(result.cleanupComplete, !unsettled);
       assert.equal(result.nextState.removed_after_execution, !quick && !unsettled);
@@ -1305,27 +1342,29 @@ const successionProfiles = [
   { schema: "augnes.local-canonical-source-correction.v8", kind: "reviewed_revision" },
   { schema: "augnes.local-canonical-source-correction.v9", kind: "reviewed_revision" },
 ];
-const dispatchStart = executorSource.indexOf("            const reviewed = isReviewedRevision(sourceCorrection);");
+const dispatchStart = executorSource.indexOf("            const reviewed = isReviewedIntegration(sourceCorrection) || isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection);");
 const dispatchEnd = executorSource.indexOf("            pinVerificationEvidence(", dispatchStart);
 assert(dispatchStart > 0 && dispatchEnd > dispatchStart);
 const admissionDispatch = executorSource.slice(dispatchStart, dispatchEnd);
 const stockDispatchStart = executorSource.indexOf("  let runtimeInputs = null;", executorSource.indexOf("export async function validateReceiptAgainstCurrentRepository"));
-const stockDispatchEnd = executorSource.indexOf("  return inspectReceiptForDecision(receipt,", stockDispatchStart);
+const stockDispatchEnd = executorSource.indexOf("  const currentStock = inspectReceiptForDecision(receipt,", stockDispatchStart);
 assert(stockDispatchStart > 0 && stockDispatchEnd > stockDispatchStart);
 const stockDispatch = executorSource.slice(stockDispatchStart, stockDispatchEnd);
 const coexistenceRoot = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-succession-dispatch-")));
 function dispatchContext(candidate, authority, settlement = async () => null) {
-  let observed = null;
+  let observed = null, inspectedOptions = null;
   const consume = async options => {
+    inspectedOptions = options;
     observed = await options.observeRevision?.() ?? null;
     options.assertCurrent();
     return {};
   };
   const frozenInputs = { binding: {tree:"b".repeat(40)}, fingerprint:"c".repeat(64) };
-  return { get observed() { return observed; }, context: {
+  return { get observed() { return observed; }, get inspectedOptions() { return inspectedOptions; }, context: {
     sourceCorrection:candidate, receipt:{receipt_version:4,inputs:frozenInputs,attempt:{source_correction:candidate}},
     inputs:{snapshot:()=>frozenInputs,check(){}}, repositoryRoot:coexistenceRoot,
-    isReviewedRevision,isBrowserRevision,isGitObservationRevision,isInventoryBoundRevision,isSerialAggregateRevision,
+    isMaintenance,isImprovement,isReviewedIntegration,isReviewedRevision,isBrowserRevision,isGitObservationRevision,isInventoryBoundRevision,isSerialAggregateRevision,isMaterialSourceRevision,
+    GIT_CURRENT_STOCK_COMPARISON,gitRevisionInventory,gitRevisionStockComparison,
     mode:"full",checkoutContext:"isolated-worktree",plan:{selected_plan:"full-canonical"},
     digest,REVIEWED_REVISION_PHASES,phaseDefinitions:REVIEWED_REVISION_PHASES.map(id=>({id})),
     inputMonitor:{check:()=>null},signal:{aborted:false},runtimeInputs:{},
@@ -1343,12 +1382,84 @@ async function runDispatch(body, harness) {
   const c={...harness.context};
   if (body === stockDispatch) delete c.runtimeInputs;
   harness.result = await new AsyncFunction(...Object.keys(c), "let attempt,identity;\n"+body+
-    "\nreturn {identity,valid:typeof currentAttemptRecordsValid === 'undefined' ? null : currentAttemptRecordsValid};")(...Object.values(c));
+    "\nreturn {identity,valid:typeof currentAttemptRecordsValid === 'undefined' ? null : currentAttemptRecordsValid,comparison:typeof gitCurrentStockComparison === 'undefined' ? null : gitCurrentStockComparison};")(...Object.values(c));
   return harness.observed;
 }
+
+// Synthetic complete catalogues through the production comparison and dispatch.
+// These controls neither read host stock nor grant or reserve an invocation.
+const stockMetadata = { mode:"33261",uid:"1",gid:"1",links:"1",device:"1",inode:"1",bytes:"10",mtime_ns:"1",ctime_ns:"1" };
+const stockExecutable = { present:true,metadata:stockMetadata,sha256:digest("executable"),permission_identity:digest("permissions"),executable_identity_policy:"shared-posix-v1" };
+const stockRole = (id,before,flags={}) => ({id,classification:"execution",location_fingerprint:digest(id),before:structuredClone(before),...flags});
+const stockInputs = {contract:INPUT_CONTRACT,path_kind:"isolated-model-free-v1",binding:{tree:"b".repeat(40)},resources:[
+  stockRole("git-config",{present:true,metadata:{...stockMetadata,mode:"33188"},sha256:digest("complete config bytes"),permission_identity:digest("config permissions"),
+    git_projection:{policy:"isolated-current-branches-v1",applicable:true,effective_sha256:digest("consumed config"),scope_fingerprint:digest("scope")}},
+    {gitTracking:{policy:"isolated-current-branches-v1",protected_branches:[digest("branch")]}}),
+  ...["node-executable","git-executable","browser-executable"].map(id=>stockRole(id,stockExecutable,{readOnlyExecutable:true})),
+  stockRole("node-headers",{contract:"augnes.local-canonical-node-headers.v1",present:true,location_fingerprint:digest("headers"),inventory_sha256:digest("header inventory"),content_sha256:digest("header bytes"),permission_sha256:digest("header permissions"),entries:2,bytes:10},{nodeHeaders:true}),
+]};
+const stockClone = value => structuredClone(value);
+const stockGit = value => value.resources.find(r=>r.id==="git-config");
+const changedStockMetadata = fields => {const value=stockClone(stockInputs);for(const field of fields)stockGit(value).before.metadata[field]="2";return value;};
+const stockRefuses = (expected,current,contract=GIT_CURRENT_STOCK_COMPARISON) => {
+  try {return !gitRevisionStockComparison(expected,current,contract).equivalent;}
+  catch(error){assert.match(error.code??"",/^(?:revision_git_current_inputs_invalid|input_git_|input_node_headers_|input_executable_)/u);return true;}
+};
+for (const contract of [null,GIT_CURRENT_STOCK_COMPARISON,"unsupported"]) {
+  const same=gitRevisionStockComparison(stockInputs,stockClone(stockInputs),contract);
+  assert(same.exact&&same.equivalent);
+}
+for (const fields of [["inode"],["mtime_ns"],["ctime_ns"],["inode","mtime_ns","ctime_ns"]]) {
+  const current=changedStockMetadata(fields),before=digest(stockInputs),after=digest(current);
+  const comparison=gitRevisionStockComparison(stockInputs,current,GIT_CURRENT_STOCK_COMPARISON);
+  assert.equal(comparison.exact,false);assert.equal(comparison.equivalent,true);
+  assert.equal(comparison.expected_inventory_sha256,gitRevisionInventory(stockInputs));
+  assert.equal(comparison.current_inventory_sha256,gitRevisionInventory(current));
+  assert(stockRefuses(stockInputs,current,null));assert(stockRefuses(stockInputs,current,"unsupported"));
+  assert.equal(digest(stockInputs),before);assert.equal(digest(current),after);
+}
+const stockMutations = [
+  ["complete content, including excluded branch bytes",g=>g.before.sha256=digest("different complete file")],
+  ["byte length",g=>g.before.metadata.bytes="11"],["permissions",g=>g.before.permission_identity=digest("different permissions")],
+  ...["mode","uid","gid","device","links"].map(key=>[key,g=>g.before.metadata[key]=key==="mode"?"33152":"2"]),
+  ["location",g=>g.location_fingerprint=digest("other path")],["classification",g=>g.classification="ambient"],
+  ["resource identity",g=>g.id="other-config"],["tracking policy",g=>g.gitTracking.policy="unsupported"],
+  ["protected branches",g=>g.gitTracking.protected_branches=[digest("other branch")]],
+  ["projection policy",g=>g.before.git_projection.policy="unsupported"],["projection bytes",g=>g.before.git_projection.effective_sha256=digest("other effective config")],
+  ["projection scope",g=>g.before.git_projection.scope_fingerprint=digest("other scope")],["inapplicable projection",g=>g.before.git_projection.applicable=false],
+  ["missing content",g=>delete g.before.sha256],["missing metadata",g=>delete g.before.metadata.bytes],
+  ["unsafe file",g=>g.before.metadata.mode="33206"],["absent file",g=>g.before={present:false}],
+  ["unknown observation",g=>g.before.unknown="new meaning"],["unknown resource",g=>g.unknown=true],
+  ["unknown metadata",g=>g.before.metadata.unknown="1"],
+];
+for (const [name,mutate] of stockMutations) {
+  const current=changedStockMetadata(["inode"]);mutate(stockGit(current));
+  assert(stockRefuses(stockInputs,current),name);
+}
+for (const mutate of [v=>v.contract="augnes.local-canonical-inputs.v2",v=>v.path_kind="canonical-conservative-v1",
+  v=>v.resources.find(r=>r.id==="node-executable").before.sha256=digest("changed node"),
+  v=>v.resources.find(r=>r.id==="node-headers").before.content_sha256=digest("changed headers"),
+  v=>v.resources.find(r=>r.id==="browser-executable").location_fingerprint=digest("changed browser")]) {
+  const current=changedStockMetadata(["inode"]);mutate(current);assert(stockRefuses(stockInputs,current));
+}
+// Unknown but equal extra fields cannot acquire the new metadata equivalence.
+for(const field of ["resource","observation","metadata"]){const old=stockClone(stockInputs),current=changedStockMetadata(["inode"]);
+  for(const value of [old,current]){const g=stockGit(value);(field==="resource"?g:field==="observation"?g.before:g.before.metadata).unknown="1";}
+  assert(stockRefuses(old,current));}
 try {
   const relative = ".augnes-local-verification/proofs/synthetic.json", file = path.join(coexistenceRoot, relative);
   mkdirSync(path.dirname(file), { recursive: true });
+  for (const changedPlanner of [false,true]) {
+    const candidate={schema:"augnes.local-canonical-source-correction.v2",kind:"prospective_maintenance",head:"a".repeat(40)};
+    const harness=dispatchContext(candidate,async()=>{throw new Error("wrong_route");}),calls=[];
+    const planner={base:harness.context.baseSha,head:harness.context.headSha,selected_plan:"full-canonical",phases:REVIEWED_REVISION_PHASES,owners:["local-canonical-integrity"]};
+    Object.assign(harness.context,{mode:"changed",plan:{selected_plan:"full-canonical",planner_owner_ids:planner.owners},
+      maintenanceMaterial:()=>({planner:{...planner,...(changedPlanner?{owners:["wrong-owner"]}:{})}}),
+      authorizeMaintenance:async()=>{calls.push("maintenance");return Object.freeze({synthetic:true});}});
+    if(changedPlanner)await assert.rejects(runDispatch(admissionDispatch,harness),hasCode("maintenance_planner_changed"));
+    else assert.equal((await runDispatch(admissionDispatch,harness)).authorization.synthetic,true);
+    assert.deepEqual(calls,changedPlanner?[]:["maintenance"]);
+  }
   for (const schemaProfile of successionProfiles) for (const kindProfile of successionProfiles) {
     const selected = isReviewedRevision({schema:schemaProfile.schema,kind:kindProfile.kind});
     const candidate = { schema:schemaProfile.schema,kind:kindProfile.kind,local_relative_path:relative,head:"a".repeat(40) };
@@ -1382,6 +1493,22 @@ try {
     await runDispatch(stockDispatch,harness);
     assert.equal(harness.result.valid,false,"stock refuses source changes after immutable validation");
     assert.deepEqual(harness.result.identity,current,"the final verdict receives the final source observation");
+  }
+  for (const material of [false,true]) for (const change of ["metadata","content","claimed-hash"]) {
+    const current=changedStockMetadata(["inode","mtime_ns","ctime_ns"]);
+    if(change==="content")stockGit(current).before.sha256=digest("different complete config");
+    const candidate={schema:"augnes.local-canonical-source-correction.v7",kind:"reviewed_revision",inputs:{inventory_sha256:gitRevisionInventory(stockInputs)},
+      commission:material?{source_revision:MATERIAL_SOURCE_CORRECTION}:{}};
+    const harness=dispatchContext(candidate,async()=>({role:"revision"}));
+    Object.assign(harness.context,{receipt:{receipt_version:4,inputs:stockInputs,attempt:{source_correction:candidate}},
+      inputs:{snapshot:()=>stockInputs,check(){}},observeGitRevisionTarget:async()=>({inventory:change==="claimed-hash"?digest("forged hash"):gitRevisionInventory(current),inputInventory:current})});
+    const observed=await runDispatch(stockDispatch,harness);
+    assert.equal(harness.inspectedOptions.gitCurrentStockContract,material?GIT_CURRENT_STOCK_COMPARISON:null);
+    assert.equal(observed.live!==null,material&&change==="metadata");
+    assert.equal(harness.result.comparison?.contract??null,material?GIT_CURRENT_STOCK_COMPARISON:null);
+    if(material)assert.equal(harness.result.comparison.expected_inventory_sha256,gitRevisionInventory(stockInputs));
+    await assert.rejects(runDispatch(admissionDispatch,harness),hasCode("revision_git_inputs_changed"));
+    assert.equal(harness.inspectedOptions.gitCurrentStockContract,undefined,"admission never selects the current-stock comparison");
   }
 } finally { rmSync(coexistenceRoot,{recursive:true,force:true}); }
 
@@ -1425,6 +1552,9 @@ console.log(
       maximum_outer_phase_concurrency: maximumActive,
       canonical_node_mismatch_explicit: true,
       executor_observation_failure_and_cleanup_remain_distinct: true,
+      git_current_stock: {contract:GIT_CURRENT_STOCK_COMPARISON,exact_and_metadata_cases:7,
+        git_field_refusals:stockMutations.length,other_resource_and_version_refusals:5,unknown_equal_shape_refusals:3,
+        production_dispatch_cases:6,admission_stays_raw_strict:true},
       hosted_ci_absent: true,
     },
     null,

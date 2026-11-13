@@ -1,3 +1,5 @@
+import { createServer } from 'node:net';
+import { createWebPlanningBrowserObservation, settleWebPlanningBrowser } from './web-planning-browser-observation.mjs';
 import assert from 'node:assert/strict';
 import { mock } from 'node:test';
 import { pathToFileURL } from 'node:url';
@@ -214,7 +216,69 @@ export async function checkWebPlanningDownloadCompletion() {
     cancellation_refused:true,fresh_operation:true,setup_and_trigger_failures_preserved:true,handlers_released:true};
 }
 
+
+export async function checkWebPlanningBrowserObservation() {
+  const events=[];let now=0,totalCpu={user:10,system:2};
+  const observation=createWebPlanningBrowserObservation({now:()=>now,cpu:previous=>previous?{user:totalCpu.user-previous.user,system:totalCpu.system-previous.system}:{...totalCpu},report:v=>events.push(v),maximumStages:2});
+  assert.equal(await observation.stage('constructed operation',async()=>{now=8;totalCpu.user+=3;return 42;}),42);
+  assert.equal(events[0].web_planning_stage.event,'start');assert.equal(events[1].web_planning_stage.duration_ms,8);
+  assert.deepEqual(events[1].web_planning_stage.cpu_us,{user:3,system:0});
+  const primary=new Error('constructed body failure'),secondary=new Error('constructed cleanup failure');
+  await assert.rejects(observation.stage('constructed refusal',async()=>{throw primary;}),e=>e===primary);
+  assert.equal(events.at(-1).web_planning_stage.event,'failure');
+  await assert.rejects(observation.stage('past bound',async()=>{}),/bound_exceeded/);
+  assert.throws(()=>createWebPlanningBrowserObservation({maximumStages:513}),/bound_invalid/);
+  const safe=[];const recorder=createWebPlanningBrowserObservation({report:v=>safe.push(v)});
+  recorder.failure('safe operation',new Error('authorization=private value'));
+  assert.match(safe[0].web_planning_primary_failure.error.message,/^redacted_/);
+  const empty=new Error('');await assert.rejects(recorder.stage('empty error',async()=>{throw empty;}),e=>e===empty);
+  const server=createServer();await new Promise(ok=>server.listen(0,'127.0.0.1',ok));
+  const order=[];
+  try {
+    await assert.rejects((async()=>{
+      let first;try{throw primary;}catch(error){first=error;throw error;}
+      finally{await settleWebPlanningBrowser({primary:first,observe:recorder.stage,steps:[
+        {name:'fails',run:async()=>{order.push('failed');throw secondary;}},
+        {name:'listener',run:async()=>{await new Promise((ok,no)=>server.close(e=>e?no(e):ok()));order.push('closed');}},
+      ]});}
+    })(),error=>error instanceof AggregateError&&error.errors[0]===primary&&error.errors[1]===secondary&&error.errors.length===2);
+    assert.deepEqual(order,['failed','closed']);assert.equal(server.listening,false);
+  } finally {if(server.listening)await new Promise(ok=>server.close(ok));}
+  await assert.rejects((async()=>{try{throw primary;}finally{await settleWebPlanningBrowser({steps:[]});}})(),error=>error===primary);
+  await assert.rejects(settleWebPlanningBrowser({steps:[{name:'alone',run:async()=>{throw secondary;}}]}),error=>error.errors[0]===secondary&&error.errors.length===1);
+  for(const mode of ['exhausted','throw-before','throw-after']) {
+    const listener=createServer();await new Promise(ok=>listener.listen(0,'127.0.0.1',ok));let closed=0;
+    const diagnostic=new Error('constructed observation failure');
+    const bounded=createWebPlanningBrowserObservation({report:()=>{},maximumStages:1});
+    await bounded.stage('spent',async()=>{});
+    const observe=mode==='exhausted'?bounded.stage:async(_name,run)=>{if(mode==='throw-after')await run();throw diagnostic;};
+    try {
+      await assert.rejects(settleWebPlanningBrowser({primary,observe,steps:[
+        {name:'listener',run:async()=>{closed++;await new Promise((ok,no)=>listener.close(e=>e?no(e):ok()));}},
+      ]}),error=>error.errors[0]===primary&&error.errors.length===2&&error.cleanup_completed===true&&error.cleanup_errors.length===0&&error.observation_errors.length===1);
+      assert.equal(closed,1,'diagnostics cannot skip or repeat actual cleanup');assert.equal(listener.listening,false);
+    } finally {if(listener.listening)await new Promise(ok=>listener.close(ok));}
+  }
+  const reportingFailure=new Error('constructed reporting failure');
+  const reporting=createWebPlanningBrowserObservation({report:event=>{if(event.web_planning_stage?.event!=='start')throw reportingFailure;}});
+  let acquired;
+  try {
+    acquired=await reporting.stage('actual resource acquisition',async()=>{
+      const value=createServer();await new Promise(ok=>value.listen(0,'127.0.0.1',ok));return value;
+    });
+    assert.equal(acquired.listening,true,'completion reporting cannot discard the acquired resource');
+    await settleWebPlanningBrowser({observe:reporting.stage,steps:[{name:'acquired',run:()=>new Promise(ok=>acquired.close(ok))}]});
+    assert.equal(acquired.listening,false);
+    await assert.rejects(reporting.stage('primary with reporter failure',async()=>{throw primary;}),error=>error===primary);
+    assert.throws(()=>reporting.assertComplete({primary}),error=>error.errors[0]===primary&&error.errors.includes(reportingFailure)&&error.cleanup_completed===true);
+    assert(reporting.summary().diagnostic_failures>0);
+  } finally {if(acquired?.listening)await new Promise(ok=>acquired.close(ok));}
+  assert.deepEqual(recorder.summary().failed,2);
+  return {constructed:true,real_loopback_cleanup:true,immediate_failure:true,primary_preserved:true,all_cleanup_attempted:true,observer_independent_cleanup:true,acquired_value_and_primary_survive_reporter_failure:true,bounded_observations:true,private_error_redacted:true};
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  console.log(JSON.stringify({ web_planning_browser_observation_contract: await checkWebPlanningBrowserObservation() }));
   console.log(JSON.stringify({ web_planning_touch_transport_contract: await checkWebPlanningTouchTransport() }));
   console.log(JSON.stringify({ web_planning_interception_diagnostics_contract: await checkWebPlanningInterceptionDiagnostics() }));
   console.log(JSON.stringify({ web_planning_download_completion_contract: await checkWebPlanningDownloadCompletion() }));

@@ -6,12 +6,18 @@ import { digest, classifyInputChange, effectiveInputObservation, inputEventIdent
 import { settledIsolatedResources, cancelledPhase, verifySettledPhaseFailure } from "./local-canonical-browser-revision.mjs";
 import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
-import { REGISTERED_FIXTURE_BUDGET, verifyRegisteredFixtureBudget,
+import { REGISTERED_FIXTURE_BUDGET, verifyRegisteredFixtureBudget, FIXTURE_BUDGET_CLAIM,
+  isMaintenanceFixtureBudget, MAINTENANCE_FIXTURE_CASE, MAINTENANCE_FIXTURE_GRANT,
   REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM, verifyRegisteredIntegrationBudget } from "./local-canonical-fixture-budget-witness.mjs";
 import { GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM, GENERATED_STOCK_GRANT,
   verifyGeneratedStockRepair } from "./local-canonical-stock-lifecycle-witness.mjs";
 import { REPOSITORY_TYPECHECK, verifyRepositoryTypecheck } from "./local-canonical-typecheck-witness.mjs";
 import { REPOSITORY_PURE_CONTRACT, verifyRepositoryPureContract } from "./local-canonical-pure-contract-witness.mjs";
+import { INTEGRATION_BASE_CONTRACT, validAdmittedIntegrationBase, usesDeclaredIntegrationBase } from "./local-canonical-integration-base.mjs";
+import { MATERIAL_COMMON_DRIVER, verifyMaterialCommonDriver } from "./local-canonical-common-driver.mjs";
+import { GIT_CONFIG_STOCK_VERIFIER_REPAIR, MATERIAL_COMMON_STOCK_VERIFIER, verifyMaterialStockVerifier } from "./local-canonical-stock-verifier-witness.mjs";
+import { verifiedStockPredecessor } from "./local-canonical-material-stock-predecessor.mjs";
+export { MATERIAL_COMMON_DRIVER } from "./local-canonical-common-driver.mjs";
 
 export const isGitObservationRevision = p =>
   p?.schema === "augnes.local-canonical-source-correction.v10" && p.kind === "reviewed_revision";
@@ -166,6 +172,38 @@ export function gitRevisionInventory(snapshot) {
   }));
 }
 
+// Current stock may compare two complete, independently coherent observations
+// of the same Git bytes. This is not an admission identity or a reinterpretation
+// of an immutable inventory pin. Unknown comparison versions stay raw-strict.
+export const GIT_CURRENT_STOCK_COMPARISON = "complete-git-config-current-stock-v1";
+export function gitRevisionStockComparison(expected, current, contract = null) {
+  const expectedInventory = gitRevisionInventory(expected), currentInventory = gitRevisionInventory(current);
+  const result = { contract, expected_inventory_sha256: expectedInventory, current_inventory_sha256: currentInventory,
+    exact: expectedInventory === currentInventory, equivalent: expectedInventory === currentInventory };
+  if (result.exact || contract !== GIT_CURRENT_STOCK_COMPARISON) return result;
+  const keys = (value, names) => value && typeof value === "object" && !Array.isArray(value) &&
+    Object.keys(value).sort().join(",") === names;
+  const complete = snapshot => {
+    const resource = snapshot.resources.find(r => r.id === "git-config"), value = resource.before;
+    return keys(resource, "before,classification,gitTracking,id,location_fingerprint") && resource.classification === "execution" &&
+      keys(resource.gitTracking, "policy,protected_branches") &&
+      keys(value, "git_projection,metadata,permission_identity,present,sha256") &&
+      keys(value.metadata, "bytes,ctime_ns,device,gid,inode,links,mode,mtime_ns,uid") &&
+      keys(value.git_projection, "applicable,effective_sha256,policy,scope_fingerprint");
+  };
+  if (!complete(expected) || !complete(current)) return result;
+  const image = snapshot => snapshot.resources.map(resource => {
+    const value = effectiveInputObservation(resource.before, resource, snapshot);
+    if (resource.id !== "git-config") return { ...resource, before: value };
+    // Retain the complete SHA and byte length. The ordinary effective Git
+    // projection intentionally omits those and cannot establish this rule.
+    return { ...resource, before: { ...resource.before, metadata: Object.fromEntries(
+      Object.entries(resource.before.metadata).filter(([key]) => !["inode", "mtime_ns", "ctime_ns"].includes(key))) } };
+  });
+  result.equivalent = digest(image(expected)) === digest(image(current));
+  return result;
+}
+
 // This lane may integrate its verifier and corresponding policy/controls, but
 // cannot disguise a product edit as an unchanged-product input correction.
 const gitInputVerificationPaths = new Set([
@@ -271,7 +309,7 @@ function verifyFinalDependencyFailure(r, stock, inputs, phases) {
   return deps[2].before;
 }
 
-export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expectedOrdinal = 1, forward = false, serialPredecessor = false, generatedStockSerial = false) {
+export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expectedOrdinal = 1, forward = false, serialPredecessor = false, generatedStockSerial = false, materialContinuation = false, stockPredecessor = null) {
   const previous = receipt.attempt?.source_correction;
   const { contract, path_kind, binding, resources } = receipt.inputs;
   if (!(usesGitInventory(previous) || serialPredecessor && isSerialAggregateRevision(previous)) || previous.commission.ordinal !== expectedOrdinal ||
@@ -279,8 +317,15 @@ export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expecte
       digest({ contract, path_kind, binding, resources }) !== receipt.inputs.fingerprint)
     fail("revision_git_predecessor_invalid");
   if (forward) return verifyFinalDependencyFailure(receipt, stock, inputs, phases);
+  if (materialContinuation && (!validAdmittedIntegrationBase(receipt.integration_base, receipt.repository) ||
+      receipt.integration_base.contract === INTEGRATION_BASE_CONTRACT && !usesDeclaredIntegrationBase(receipt)))
+    fail("revision_git_predecessor_invalid");
+  const declaredMaterial = materialContinuation && usesDeclaredIntegrationBase(receipt);
+  const stockVerifier = verifiedStockPredecessor(stockPredecessor,receipt,stock);
+  if(stockPredecessor && (!declaredMaterial || !stockVerifier || generatedStockSerial))fail("revision_git_predecessor_invalid");
+  const incompleteIntegration = declaredMaterial && receipt.phases?.find(phase => phase.status === "failure")?.id === "integration";
   verifySettledPhaseFailure(receipt, stock, inputs, phases, resources.find(r => r.id === "browser-executable"),
-    generatedStockSerial || isGitObservationRevision(previous) && expectedOrdinal === 1, expectedOrdinal, generatedStockSerial);
+    incompleteIntegration || stockVerifier || generatedStockSerial || isGitObservationRevision(previous) && expectedOrdinal === 1, expectedOrdinal, generatedStockSerial, false, declaredMaterial, stockPredecessor);
   if (hasSerialAccounting(previous) && receipt.phases.some(p=>p.id === "e2e-project-experience" && p.status === "pass" && !validProjectExperienceAccounting(p.serial_budget)))
     fail("revision_inherited_serial_accounting_invalid");
 }
@@ -417,6 +462,17 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
   if (isGitObservationSuccessor(p) && regression?.attribution === "candidate-driver-prior-implicated-source")
     return verifyCanonicalTsRepair(p,prior,focused,{git,parse,bytes,completedAt,repositoryRoot});
   const material = isMaterialSourceRevision(p);
+  if((p.commission.evidence_kind===GIT_CONFIG_STOCK_VERIFIER_REPAIR)!==(regression?.attribution===MATERIAL_COMMON_STOCK_VERIFIER))
+    fail("revision_git_regression_invalid");
+  if(regression?.attribution===MATERIAL_COMMON_STOCK_VERIFIER){
+    if(!material||p.commission.evidence_kind!==GIT_CONFIG_STOCK_VERIFIER_REPAIR||postPass||acquisition||retainedBefore)fail("revision_git_regression_invalid");
+    return verifyMaterialStockVerifier(p,prior,focused,{git,parse,bytes,completedAt,repositoryRoot});
+  }
+  if (regression?.attribution === MATERIAL_COMMON_DRIVER) {
+    if (!material || postPass || acquisition || retainedBefore) fail("revision_git_regression_invalid");
+    return verifyMaterialCommonDriver(p,prior,focused,{git,parse,bytes,completedAt,repositoryRoot});
+  }
+  if (material && regression?.attribution !== undefined) fail("revision_git_regression_invalid");
   if (regression?.kind!==undefined) {
     if (!material) fail("revision_git_regression_invalid");
     if (regression.kind===VERIFIER_LIFECYCLE_REPAIR)
@@ -524,6 +580,9 @@ function visibleDelegationParagraphs(body) {
 }
 
 export function delegatesMaterialSourceCommission(body,p) {
+  if(p.commission.evidence_kind===GIT_CONFIG_STOCK_VERIFIER_REPAIR)
+    return equal(visibleDelegationParagraphs(body),stockVerifierDelegation(p).split("\n\n"));
+  if (isMaintenanceFixtureBudget(p)) return equal(visibleDelegationParagraphs(body), maintenanceFixtureDelegation(p).split("\n\n"));
   if (p.commission.evidence_kind === VERIFIER_LIFECYCLE_REPAIR) return !!readVerifierLifecycleDelegation(body,p);
   if (p.commission.evidence_kind === PREPARED_ELIGIBILITY_REPAIR) return !!readPreparedEligibilityDelegation(body,p);
   if (p.commission.evidence_kind === REGISTERED_INTEGRATION_BUDGET)
@@ -643,7 +702,27 @@ function typedMaterialAuthorityBindings(p, kind, claim) {
 }
 
 export const integrationBudgetAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM);
+export const maintenanceFixtureAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_FIXTURE_BUDGET, FIXTURE_BUDGET_CLAIM) +
+  "\nAllowance case: " + MAINTENANCE_FIXTURE_CASE + "\nRegistered aggregate: 60000 to 90000 ms; inner setup: 10000 ms unchanged.";
+export const maintenanceFixtureDelegation = p => [
+  "Authorize one measured registered maintenance allowance assignment on " + p.branch + " in Draft PR #" + p.pull_request + ". Select " + REGISTERED_FIXTURE_BUDGET + " / " + MAINTENANCE_FIXTURE_CASE + " within the existing inventory-bound v7 owners.",
+  "Predecessor: " + p.prior_family_id + " / " + p.prior_attempt_id + " / " + p.prior_receipt_fingerprint + ".",
+  MATERIAL_HISTORY_BOUNDARY,
+  "After separate independent acceptance of the complete final source delta including evidence readers, original evidence, exact published target and real non-reserving preparation, authorize faithful exact-target acceptance and a separate prospective commission through the authenticated maintainer identity. Accept the disclosed cumulative cost, residual UNKNOWN historical timing causes and prospective 90000 ms maintenance aggregate allowance; preserve inner 10000 ms setup limits, workload, assertions, natural settlement and cleanup. Exactly one admitted deciding invocation total; reservation/interruption consumes it. No ordinal two, recovery or unchanged-target retry. At most two command launches, with the second only after a conclusively pre-reservation/pre-admission/pre-phase refusal caused by a demonstrated task-owned setup defect, corrected with complete cleanup and still-valid authority. Stop after any admitted failure or interruption. Complete planner-selected qualification, separate fresh-process stock, independent result audit and owned cleanup."
+].join("\n\n");
 export const generatedStockAuthorityBindings = p => typedMaterialAuthorityBindings(p, GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM);
+
+export const STOCK_VERIFIER_CLAIM = "Correct current Git-config stock comparison for byte-identical complete observations. Retain the historical bounded Browser timeout and false stock; its cause and interrupted operation remain UNKNOWN.";
+export const STOCK_VERIFIER_GRANT = "Authorize one NEW prospective v7 reviewed_revision commission for the Git-config stock verifier correction.";
+export const stockVerifierDelegation = p => [
+  "Authorize one stock-verifier correction and conditional qualification assignment on "+p.branch+" in Draft PR #"+p.pull_request+". Select "+GIT_CONFIG_STOCK_VERIFIER_REPAIR+" within the existing inventory-bound material-source-correction-v1 owners.",
+  "Predecessor: "+p.prior_family_id+" / "+p.prior_attempt_id+" / "+p.prior_receipt_fingerprint+".",
+  MATERIAL_HISTORY_BOUNDARY,
+  STOCK_VERIFIER_CLAIM+" After separate independent model acceptance of the actual complete source, truthful verifier evidence, exact published target, safe current inputs and real non-reserving preparation commitment, authorize the operator to record that decision faithfully and publish a distinct prospective exact-target commission through the authenticated maintainer identity. Exactly one new admitted deciding invocation; reservation/interruption consumes it. No ordinal two, recovery or unchanged-target admitted retry. Accept disclosed residual timing uncertainty and cumulative cost under unchanged registered bounds, including Browser 180000 ms. Do not claim timeout repair, performance improvement or reliable timing margin. Complete planner-selected Full, separate fresh-process stock, independent result audit and owned cleanup."
+].join("\n\n");
+export const stockVerifierAuthorityBindings = p => typedMaterialAuthorityBindings(p,GIT_CONFIG_STOCK_VERIFIER_REPAIR,STOCK_VERIFIER_CLAIM)+
+  "\nIndependent review: separate model source/evidence/preparation reviewer; not human or external device validation."+
+  "\nTiming decision: proceed once under unchanged registered bounds despite disclosed residual timing uncertainty and cumulative cost; Browser 180000 ms remains unchanged.";
 
 function typedMaterialAuthorityScope(p, review, grant, bindings, opening) {
   const accepted = visibleDelegationParagraphs(review.body);
@@ -659,8 +738,12 @@ function typedMaterialAuthorityScope(p, review, grant, bindings, opening) {
 
 export const integrationBudgetAuthorityScope = (p, review, grant) =>
   typedMaterialAuthorityScope(p, review, grant, integrationBudgetAuthorityBindings(p), INTEGRATION_BUDGET_GRANT);
+export const maintenanceFixtureAuthorityScope = (p, review, grant) =>
+  isMaintenanceFixtureBudget(p) && typedMaterialAuthorityScope(p, review, grant, maintenanceFixtureAuthorityBindings(p), MAINTENANCE_FIXTURE_GRANT);
 export const generatedStockAuthorityScope = (p, review, grant) =>
   typedMaterialAuthorityScope(p, review, grant, generatedStockAuthorityBindings(p), GENERATED_STOCK_GRANT);
+export const stockVerifierAuthorityScope = (p,review,grant) =>
+  typedMaterialAuthorityScope(p,review,grant,stockVerifierAuthorityBindings(p),STOCK_VERIFIER_GRANT);
 
 function operativeAuthoritySections(body) {
   // Read this existing decision format, not arbitrary mentions of its target.

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { checkOptionalPreparationStay } from "./native-work-preparation-browser-checks.mjs";
 
 export async function activateProject(lifecycle) {
   if (
@@ -73,6 +74,7 @@ export async function saveBrowserExpectation(lifecycle, prediction, reason, revi
   await lifecycle.observeControl({ selector: '[data-expectation-action="save"]', kind: "inspect", scope });
   assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-expectation-action="save"]')?.disabled === false`), true,
     'The reviewed expectation must be eligible before Save is clicked');
+  await checkOptionalPreparationStay({ ...lifecycle, cdp: lifecycle.cdp() }, '#expectation-reason');
   await clickSelector(lifecycle, '[data-expectation-action="save"]', scope);
   await wait(`document.querySelector('[data-expectation-history="1"]') !== null`, 'prospective expectation saved');
 }
@@ -81,5 +83,9 @@ export async function reportBrowserExpectation(lifecycle, outcome, observation) 
   await lifecycle.setFormControlValue('#expectation-outcome', outcome);
   await lifecycle.setFormControlValue('#expectation-observation', observation);
   await lifecycle.evaluateBoolean(`(() => { const box = document.querySelector('#expectation-applicability'); if (!box.checked) box.click(); return true; })()`);
+  await checkOptionalPreparationStay({ ...lifecycle, cdp: lifecycle.cdp() }, '#expectation-observation');
   await clickSelector(lifecycle, '[data-expectation-action="report"]');
+  await lifecycle.waitForCondition(`document.querySelector('#expectation-observation')?.value === '' &&
+    Array.from(document.querySelectorAll('[data-expectation-comparison] > details > div > p')).some(p => p.textContent === ${JSON.stringify(observation)})`,
+    'report saved and refreshed history observed');
 }

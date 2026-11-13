@@ -538,6 +538,7 @@ function inspectPacketLineageInsideReadV01(
   db: Database.Database,
   input: { config: VNextLocalOperatorPilotConfigV01; packet_id: string; packet_fingerprint: string },
   readRevision = revisionLineageReaderInsideReadV01(db, input.config),
+  validateSemanticState = () => { validateCurrentSemanticState(db, input.config); },
 ): VNextOperatorPilotPacketLineageInspectionV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
   const packet = loadPacket(
@@ -546,7 +547,7 @@ function inspectPacketLineageInsideReadV01(
     input.packet_id,
     input.packet_fingerprint,
   );
-  validateCurrentSemanticState(db, input.config);
+  validateSemanticState();
   if (isStatelessTerminalSuccessor(packet)) return inspectStatelessTerminalSuccessor(db, { config: input.config, packet });
   if (isStatelessReplacement(packet)) return inspectStatelessReplacement(db, { config: input.config, packet });
   if (packet.compatibility.source_contracts.includes(PROSPECTIVE_PREPARATION_PACKET)) {
@@ -565,7 +566,7 @@ function inspectPacketLineageInsideReadV01(
       throw continuityError("prospective_preparation_authorization_conflict", 409);
     // Authorization's source reader requires a null-grant authored packet, so
     // this recursion cannot follow another preparation or an authority cycle.
-    const prior = inspectPacketLineageInsideReadV01(db, { config: input.config, ...work.source_packet }, readRevision);
+    const prior = inspectPacketLineageInsideReadV01(db, { config: input.config, ...work.source_packet }, readRevision, validateSemanticState);
     const expected = buildBoundedAutomationTaskContextPacketV01({ ...input.config, source_packet: prior.packet, work, grant,
       work_ref: createAutomationWorkRefV01(work), grant_ref: createBoundedAutomationGrantRefV01(grant), generated_at: packet.generated_at });
     if (canonicalizeProtocolValueV01(expected) !== canonicalizeProtocolValueV01(packet)) throw continuityError("prospective_preparation_packet_conflict", 409);
@@ -1057,6 +1058,16 @@ export function readCurrentProjectWorkPacketLineageV01(db: Database.Database, co
 function loadCurrentWorkPackets(db: Database.Database, config: VNextLocalOperatorPilotConfigV01) {
   return db.transaction(() => {
     const readRevision = revisionLineageReaderInsideReadV01(db, config);
+    // Every packet sees the same synchronous read snapshot. Validate shared
+    // state lazily after the first packet loads, preserving error order and
+    // empty-history behavior. Only success is reused; nothing escapes this read.
+    let semanticStateValidated = false;
+    const validateSemanticState = () => {
+      if (!semanticStateValidated) {
+        validateCurrentSemanticState(db, config);
+        semanticStateValidated = true;
+      }
+    };
     const lineages = readProjectWorkPacketHistoryV01(db, config)
       .map((record) => loadPacket(db, config, record.record_id, record.fingerprint))
       .filter(
@@ -1075,7 +1086,7 @@ function loadCurrentWorkPackets(db: Database.Database, config: VNextLocalOperato
       )
       .map((packet) => inspectPacketLineageInsideReadV01(db, {
         config, packet_id: packet.packet_id, packet_fingerprint: packet.integrity.fingerprint,
-      }, readRevision));
+      }, readRevision, validateSemanticState));
     // Sparse semantic predecessors may still match accepted state. Their exact
     // successor edges nevertheless make them historical work, just as in the
     // normal project-work reader; they must not hide a later authored tip.
