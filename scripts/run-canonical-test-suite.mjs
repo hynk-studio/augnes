@@ -1541,7 +1541,7 @@ const suites = {
       // Reuse the owned synthetic reviewed ancestry in a separate child. The
       // existing maintenance aggregate and all reviewed controls keep their bounds.
       // This child also replays preparation, interruption, competing reservation
-      // and two separate cold readers; it has its own finite lifecycle allowance.
+      // and separate cold readers; it has its own finite lifecycle allowance.
       timeoutMs: 75_000,
       requireNaturalExit: true,
     },
