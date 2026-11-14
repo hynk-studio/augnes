@@ -1551,14 +1551,13 @@ const suites = {
       label: "measured maintenance aggregate allowance and succession",
       sharedFixture: true,
       ...rootNode("scripts/fixtures/local-canonical-reviewed-revision.mjs", "--run-maintenance-budget-fixtures"),
-      // Consume the checked ancestry without repeating its setup. The retained
-      // complete owner took 85.838s, including restoration, controls, both
-      // independent readers, final spent-grant refusal and cleanup. The same
-      // finite 30s reserve rounds up to 120s. Continuation adds a predecessor
-      // reservation/settlement (~12s retained) and deeper proof/refusal work;
-      // allocate a separate finite 30s for that support, yielding 150s. Validate
-      // the complete final sequence; retain all inner deadlines and cleanup.
-      timeoutMs: 150_000,
+      // Whole lifecycle observation reached cold-reader launch at 116.320s
+      // on one parent clock. Bound the two deeper continuation readers at 30s
+      // each, then allow one combined 30s for the final refusal, preservation,
+      // handoff, restoration, cleanup and orchestration. Round 206.321s to
+      // 210s. This is a prospective liveness judgment, not measured tail cost.
+      // Legacy 20s readers and product deadlines keep their interpretation.
+      timeoutMs: 210_000,
       requireNaturalExit: true,
     },
     {
