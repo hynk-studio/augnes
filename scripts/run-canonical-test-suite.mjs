@@ -1538,11 +1538,12 @@ const suites = {
       label: "selected maintenance reader evidence and succession",
       sharedFixture: true,
       ...rootNode("scripts/fixtures/local-canonical-reviewed-revision.mjs", "--run-maintenance-reader-fixtures"),
-      // Reuse the owned synthetic reviewed ancestry in a separate child. The
-      // existing maintenance aggregate and all reviewed controls keep their bounds.
-      // This child also replays preparation, interruption, competing reservation
-      // and separate cold readers; it has its own finite lifecycle allowance.
-      timeoutMs: 75_000,
+      // Whole-owner liveness includes import/bootstrap, inherited setup,
+      // controls, independent readers, post-reader refusals, preservation,
+      // handoff, restoration and owned cleanup. The retained complete owner
+      // took 72.482s; apply the maintenance owners' finite 30s orchestration
+      // reserve and round up to 110s. Inner/product deadlines stay unchanged.
+      timeoutMs: 110_000,
       requireNaturalExit: true,
     },
     {
@@ -1550,13 +1551,12 @@ const suites = {
       label: "measured maintenance aggregate allowance and succession",
       sharedFixture: true,
       ...rootNode("scripts/fixtures/local-canonical-reviewed-revision.mjs", "--run-maintenance-budget-fixtures"),
-      // Consume the checked reader ancestry above; do not repeat its setup or
-      // enlarge its 75s child or existing 10s setup/cold limits. The new deeper
-      // stock operation exceeded its initial 10s aggregate. Bound each new
-      // composite reader at 20s and this owner at 90s: retained non-cold work
-      // (~46s; includes cleanup) plus both finite readers, rounded up. A later
-      // stage capture measured pre-cold work at 44.192s. Cleanup stays owned.
-      timeoutMs: 90_000,
+      // Consume the checked ancestry without repeating its setup. The retained
+      // complete owner took 85.838s, including restoration, controls, both
+      // independent readers, final spent-grant refusal and cleanup. The same
+      // finite 30s reserve rounds up to 120s. Validate the complete final
+      // sequence, including continuation support; retain all inner deadlines.
+      timeoutMs: 120_000,
       requireNaturalExit: true,
     },
     {
