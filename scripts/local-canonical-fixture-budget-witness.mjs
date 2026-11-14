@@ -11,6 +11,7 @@ import { verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
 import { readImprovementOwnerRegistration } from "./local-canonical-improvement.mjs";
 
 export const REGISTERED_FIXTURE_BUDGET = "registered-fixture-aggregate-budget-v1";
+export const EXISTING_DEDICATED_FIXTURE_PAIR = "existing-dedicated-pair-v1";
 export const MAINTENANCE_FIXTURE_CASE = "registered-maintenance-direct-v1";
 export const isMaintenanceFixtureBudget = p => p?.commission?.evidence_kind === REGISTERED_FIXTURE_BUDGET &&
   p.commission.allowance_case === MAINTENANCE_FIXTURE_CASE;
@@ -349,13 +350,58 @@ function verifyMaintenanceFixtureBudget(p,prior,focused,options) {
   return p.head;
 }
 
-export function fixtureBudgetSourceDelta(git,before,after,group) {
+export function fixtureBudgetSourceDelta(git,before,after,group,sourceForm) {
+  if(sourceForm!==undefined&&(sourceForm!==EXISTING_DEDICATED_FIXTURE_PAIR||group!=="serial-aggregate"))fail();
   if (group === "local-canonical-maintenance") return maintenanceFixtureBudgetDelta(git,before,after);
   return compareFixtureBudgetSource(git,before,after,
-    registeredFixtureBudget(git,before,group),registeredFixtureBudget(git,after,group));
+    registeredFixtureBudget(git,before,group),registeredFixtureBudget(git,after,group),sourceForm);
 }
 
-function compareFixtureBudgetSource(git,before,after,old,next) {
+// This interpretation permits only the already dedicated serial pair. Audit
+// actual imports and identifier uses: an alias, object escape or an additional
+// consumer cannot silently acquire a larger deadline. String literals in the
+// disposable source controls are not runtime reads.
+function dedicatedFixtureConsumers(git,head,changedPaths) {
+  const files=[...new Set([...git(["grep","-l","-z","local-canonical-closeout-budgets.mjs",head,"--","scripts"]).toString()
+    .split("\0").filter(Boolean).map(entry=>entry.slice(head.length+1)),...changedPaths.filter(file=>file.endsWith(".mjs"))])].sort();
+  const pair={reviewSerialAggregateFixtureMs:FIXTURE_BUDGET_PATHS.wrapper,reviewSerialAggregateControlMs:FIXTURE_BUDGET_PATHS.suite};
+  const counts=Object.fromEntries(Object.keys(pair).map(key=>[key,0])),loads=[];
+  for(const file of files) {
+    const tree=ast(sourceAt(git,head,file));
+    const budgetModule=n=>ts().isStringLiteral(n)&&n.text.endsWith("/local-canonical-closeout-budgets.mjs");
+    for(const n of nodes(tree,n=>ts().isCallExpression(n))) {
+      if(n.expression.kind===ts().SyntaxKind.ImportKeyword||ts().isIdentifier(n.expression)&&["require","createRequire"].includes(n.expression.text)) {
+        if(n.arguments.some(budgetModule))fail();
+        loads.push({file,source:syntax(n.getText(tree))});
+      }
+    }
+    if(nodes(tree,n=>ts().isExportDeclaration(n)&&n.moduleSpecifier&&budgetModule(n.moduleSpecifier)).length)fail();
+    for(const statement of tree.statements) {
+      if(!ts().isImportDeclaration(statement)||!ts().isStringLiteral(statement.moduleSpecifier)||
+          !statement.moduleSpecifier.text.endsWith("/local-canonical-closeout-budgets.mjs"))continue;
+      const clause=statement.importClause,bindings=clause?.namedBindings;
+      if(clause?.name||!bindings||!ts().isNamedImports(bindings))fail();
+      for(const binding of bindings.elements) {
+        const imported=binding.propertyName?.text??binding.name.text;
+        if(imported!=="AUXILIARY_EXECUTION_BUDGETS")continue;
+        if(binding.propertyName||binding.name.text!==imported)fail();
+        for(const use of nodes(tree,n=>ts().isIdentifier(n)&&n.text===imported)) {
+          if(use===binding.name)continue;
+          const parent=use.parent;
+          if(!ts().isPropertyAccessExpression(parent)||parent.expression!==use)fail();
+          const key=parent.name.text;
+          if(Object.hasOwn(pair,key)) {
+            if(file!==pair[key])fail();counts[key]++;
+          }
+        }
+      }
+    }
+  }
+  if(Object.values(counts).some(count=>count!==1))fail();
+  return loads;
+}
+
+function compareFixtureBudgetSource(git,before,after,old,next,sourceForm) {
   const group=old.group;
   if(!equal(old.normalized,next.normalized)||!equal(old.groups,next.groups))fail();
   for(const name of old.groups)if(name!==group&&!equal(old.limits[name],next.limits[name]))fail();
@@ -364,13 +410,29 @@ function compareFixtureBudgetSource(git,before,after,old,next) {
   // A changed shared constant must be consumed by the selected registration;
   // unchanged groups above and unchanged tokens below retain their limits.
   const changedConstants=[...new Set([...Object.keys(old.constants),...Object.keys(next.constants)])].filter(key=>old.constants[key]!==next.constants[key]);
+  const paths=git(["diff","--name-only",before,after,"--"]).toString().trim().split("\n").filter(Boolean).sort();
   // v1 admits newly dedicated allowances only. It cannot enlarge an existing
   // shared constant whose other consumers may have independent limits.
-  if(changedConstants.some(key=>Object.hasOwn(old.constants,key)||!Object.hasOwn(next.constants,key)||
+  const existing=sourceForm===EXISTING_DEDICATED_FIXTURE_PAIR;
+  if(sourceForm!==undefined&&!existing)fail();
+  if(existing) {
+    const pair=["reviewSerialAggregateFixtureMs","reviewSerialAggregateControlMs"];
+    if(group!=="serial-aggregate"||!equal(Object.keys(old.constants),Object.keys(next.constants))||!equal([...changedConstants].sort(),[...pair].sort())||
+        old.source.wrapper!==next.source.wrapper||old.source.suite!==next.source.suite)fail();
+    const withoutPair=source=>{
+      const tree=ast(source);let result=source;
+      const values=nodes(tree,n=>ts().isPropertyAssignment(n)&&pair.includes(n.name.getText(tree))).map(n=>n.initializer);
+      if(values.length!==2||values.some(n=>!ts().isNumericLiteral(n)))fail();
+      for(const n of values.sort((a,b)=>b.pos-a.pos))result=replaceNode(result,tree,n,"0");
+      return syntax(result);
+    };
+    if(withoutPair(old.source.budgets)!==withoutPair(next.source.budgets))fail();
+    if(!equal(dedicatedFixtureConsumers(git,before,paths),dedicatedFixtureConsumers(git,after,paths)))fail();
+  } else if(changedConstants.some(key=>Object.hasOwn(old.constants,key)||!Object.hasOwn(next.constants,key)||
     !next.budgetReferences.includes(key)))fail();
-  const paths=git(["diff","--name-only",before,after,"--"]).toString().trim().split("\n").filter(Boolean).sort();
   const workload=Object.values(FIXTURE_BUDGET_PATHS).filter(file=>paths.includes(file)).sort(), evidence=paths.filter(file=>evidencePaths.has(file));
-  if(workload.length!==3||paths.some(file=>!workload.includes(file)&&!evidencePaths.has(file)))fail();
+  if(existing?!equal(workload,[FIXTURE_BUDGET_PATHS.budgets]):workload.length!==3)fail();
+  if(paths.some(file=>!workload.includes(file)&&!evidencePaths.has(file)))fail();
   const executor="scripts/run-local-canonical-verification.mjs";
   if(paths.includes(executor)) {
     const a=sourceAt(git,before,executor),b=sourceAt(git,after,executor),at=ast(a),bt=ast(b);
@@ -550,13 +612,15 @@ export function verifyRegisteredFixtureBudget(p,prior,focused,options) {
   };
   options={...options,git:gitOnce};
   const {git,parse,bytes,completedAt}=options,reg=focused.regression;
-  if(!keys(reg,["kind","claim","owner","incident","source_partition","rationale","after","registration"])||reg.kind!==REGISTERED_FIXTURE_BUDGET||
+  const sourceForm=Object.hasOwn(reg??{},"source_form")?reg.source_form:undefined;
+  if(Object.hasOwn(reg??{},"source_form")&&sourceForm!==EXISTING_DEDICATED_FIXTURE_PAIR)fail();
+  if(!keys(reg,["kind","claim","owner","incident","source_partition","rationale","after","registration",...(sourceForm===undefined?[]:["source_form"])])||reg.kind!==REGISTERED_FIXTURE_BUDGET||
       p.commission.evidence_kind!==reg.kind||reg.claim!==FIXTURE_BUDGET_CLAIM||!equal(focused.input_remedy_resources,[]))fail();
   const {registration:historical}=fixtureBudgetIncident(p,prior,focused,options);
   // Each registration is pinned to its Git commit. Share these observations
   // within this verification and reread them on the next invocation.
   const candidate=registeredFixtureBudget(git,p.head,reg.owner.group);
-  const delta=compareFixtureBudgetSource(git,prior.head,p.head,historical,candidate);
+  const delta=compareFixtureBudgetSource(git,prior.head,p.head,historical,candidate,sourceForm);
   if(!equal(reg.source_partition,delta)||!keys(reg.rationale,["execution_reserve_ms","termination_grace_ms","parent_remaining_ms","judgment","contradictory_observations","measurement"])||
       reg.rationale.execution_reserve_ms!==delta.after.inner-delta.before.inner||reg.rationale.termination_grace_ms!==13000||
       reg.rationale.parent_remaining_ms!==delta.after.outer-delta.after.inner-13000||reg.rationale.parent_remaining_ms<0||

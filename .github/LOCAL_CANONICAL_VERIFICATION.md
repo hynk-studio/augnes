@@ -1677,8 +1677,23 @@ it never executes historical source. Only the selected aggregate's inner and
 outer allowances may change. Other groups, commands, assertions, child limits,
 the lifecycle owner and product source remain intact. The source partition
 separately commits the exact budget delta and the closed set of evidence-owner
-and control changes for independent review. Version 1 admits newly dedicated
-allowances and freezes existing shared constants. The initial supported owner
+and control changes for independent review. The absent-selector Version 1
+interpretation admits newly dedicated allowances and freezes existing constants;
+its historical proofs and summaries retain that meaning. An explicit regression
+`source_form: "existing-dedicated-pair-v1"` permits only the already dedicated
+serial fixture/control pair. The wrapper and suite bytes, constant keyset, other
+initializers and source syntax stay fixed; only the two numeric allowances
+increase. Its workload partition contains only the budgets file. Actual static
+imports and identifier uses must establish exactly one selected read in each
+registered owner, with no extra consumer, alias, computed read or object escape.
+Dynamic/require imports and re-exports of the budget module refuse; other
+dynamic/require load expressions in affected evidence files must stay fixed.
+Unknown selectors, other regression kinds and maintenance use refuse. This
+interpretation retains the same complete measurement, contradictory old-source
+PASS, final direct/registered capture, original-failure, lineage and authority
+requirements; the selector is committed through the focused artifact. It does
+not change the product serial envelope or any real Browser qualification bound.
+The initial supported owner
 is the `serial-aggregate` reviewed-fixture group, with its substantive completion
 and complete measurement-stage grammar. Both limits remain finite within
 the existing 300-second child-owner bound. The parent leaves the existing

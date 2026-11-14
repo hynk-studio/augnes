@@ -8,7 +8,7 @@ import { gitFixtureDeclaration } from "./local-canonical-git-observation.mjs";
 import { verifyGitSourceRepair, MATERIAL_SOURCE_CORRECTION, gitRevisionInventory } from "../local-canonical-git-observation.mjs";
 import { REGISTERED_FIXTURE_BUDGET, FIXTURE_BUDGET_CLAIM, FIXTURE_BUDGET_COLLECTOR, FIXTURE_BUDGET_PATHS,
   fixtureBudgetSourceDelta, fixtureBudgetEnvironment, inspectCurrentFixtureBudgetInputs, inspectCurrentIntegrationBudgetInputs,
-  fixtureBudgetMeasurementStages } from "../local-canonical-fixture-budget-witness.mjs";
+  fixtureBudgetMeasurementStages, EXISTING_DEDICATED_FIXTURE_PAIR } from "../local-canonical-fixture-budget-witness.mjs";
 import { observePureContractSource, observePureContractLoader } from "../local-canonical-pure-contract-witness.mjs";
 import { inspectGeneratedStockBrowserInputs } from "../local-canonical-stock-lifecycle-witness.mjs";
 import { finalizeReceipt } from "../local-canonical-receipt.mjs";
@@ -27,7 +27,10 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
   write("package.json",{type:"module",dependencies:{tsx:version}});write("package-lock.json",{packages:{"node_modules/tsx":{version}}});write("tsconfig.json",{compilerOptions:{target:"ES2022"}});
   for(const name of ["browser-verification-owners.v1.json","local-canonical-change-owners.v1.json","canonical-research-tests.v1.json"])write("scripts/"+name,{});
   for(const name of ["tsx","esbuild","@esbuild"])cpSync(path.join(sourceRoot,"node_modules",name),path.join(root,"node_modules",name),{recursive:true});
-  const finalSources=Object.fromEntries(Object.values(FIXTURE_BUDGET_PATHS).map(file=>[file,readFileSync(path.join(sourceRoot,file),"utf8")]));
+  // Pin the supported legacy scenario independently of later live allowances.
+  const finalSources=Object.fromEntries(Object.values(FIXTURE_BUDGET_PATHS).map(file=>[file,readFileSync(path.join(sourceRoot,file),"utf8")
+    .replace(/reviewSerialAggregateFixtureMs: [0-9_]+/u,"reviewSerialAggregateFixtureMs: 20_000")
+    .replace(/reviewSerialAggregateControlMs: [0-9_]+/u,"reviewSerialAggregateControlMs: 40_000")]));
   for(const [file,text]of Object.entries(finalSources))write(file,text
     .replace('name === "serial-aggregate" ? AUXILIARY_EXECUTION_BUDGETS.reviewSerialAggregateFixtureMs : ',"")
     .replace('group === "serial-aggregate" ? AUXILIARY_EXECUTION_BUDGETS.reviewSerialAggregateControlMs : ',"")
@@ -35,6 +38,7 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
   const workloadFile="scripts/fixtures/local-canonical-serial-aggregate.mjs",workloadSource=readFileSync(path.join(sourceRoot,workloadFile),"utf8");
   write(workloadFile,workloadSource);
   write(FIXTURE_BUDGET_COLLECTOR,readFileSync(path.join(sourceRoot,FIXTURE_BUDGET_COLLECTOR),"utf8"));
+  write("scripts/local-canonical-receipt.mjs","export {};\n");
   const commit=message=>{git(["add","."]);git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m",message]);return git(["rev-parse","HEAD"]).toString().trim();};
   const oldHead=commit("seed controlled registered allowance");
   for(const [file,text]of Object.entries(finalSources))write(file,text);
@@ -187,10 +191,95 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
   assert.equal(verify(p,focused,original,completion,countedGit),head);
   assert([...sourceReads.values()].every(count=>count===2),"independent verification must read each source afresh");
   for(const count of registrationReads.values())assert.equal(count,2,"independent verification must reread each registration");
+  // A separate interpretation changes the existing dedicated pair, keeping
+  // the legacy proof above and its source-partition shape unchanged.
+  const form=EXISTING_DEDICATED_FIXTURE_PAIR,budget=FIXTURE_BUDGET_PATHS.budgets;
+  write(budget,finalSources[budget].replace("reviewSerialAggregateFixtureMs: 20_000","reviewSerialAggregateFixtureMs: 25_000")
+    .replace("reviewSerialAggregateControlMs: 40_000","reviewSerialAggregateControlMs: 45_000"));
+  const pairHead=commit("controlled existing dedicated pair");
+  const pairDelta=fixtureBudgetSourceDelta(git,head,pairHead,"serial-aggregate",form);
+  assert.deepEqual(pairDelta.before,{inner:20000,outer:40000});
+  assert.deepEqual(pairDelta.after,{inner:25000,outer:45000});
+  assert.deepEqual(pairDelta.workload.paths,[budget]);
+  // Replay the complete reader with this explicit form, not only its source
+  // comparator. These remain controlled observations, never real incident data.
+  const pairPrior={...prior,head,tree},pairTree=git(["rev-parse",pairHead+"^{tree}"]).toString().trim();
+  const pairProof={...p,head:pairHead,tree:pairTree,inputs:{...p.inputs,inventory_sha256:gitRevisionInventory(
+    gitFixtureDeclaration({inputs,acceptedHead:pairHead,branch:"codex/fixture-budget"}))}};
+  const pairLog=log.replace("timeout_ms=30000","timeout_ms=40000").replace('"duration_ms":15095','"duration_ms":20095');
+  const pairOriginal=structuredClone(original);pairOriginal.phases[0].log.bytes=Buffer.byteLength(pairLog);write(relative,pairLog);
+  const pairFocused=structuredClone(focused),pairSource=observePureContractSource(root);
+  pairFocused.regression.source_form=form;pairFocused.regression.source_partition=pairDelta;
+  pairFocused.regression.incident.log=ref("pair-incident.log",pairLog);
+  pairFocused.regression.incident.log_identity={relative_path:relative,bytes:Buffer.byteLength(pairLog),sha256:digest(pairLog)};
+  pairFocused.regression.rationale.measurement.source_head=head;
+  const oldPass=parse(pairFocused.regression.rationale.contradictory_observations[0].record);oldPass.tested_source_head=head;
+  pairFocused.regression.rationale.contradictory_observations[0].record=ref("pair-old-pass.json",oldPass);
+  for(const [role,field]of [["direct","after"],["registered","registration"]]) {
+    const w=parse(pairFocused.regression[field]);w.tested_source_head=pairHead;w.tree=pairTree;
+    w.source_before=pairSource;w.source_after=pairSource;
+    w.input_inventory_before=gitFixtureDeclaration({inputs,acceptedHead:pairHead,branch:"codex/fixture-budget"});
+    w.input_inventory_after=w.input_inventory_before;
+    w.lifecycle=ref("pair-"+role+"-lifecycle.log",bytes(w.lifecycle).toString().replace("timeout_ms=40000","timeout_ms=45000"));
+    w.stdout=ref("pair-"+role+".log",bytes(w.stdout).toString().replace('label="reviewed revision controls: serial-aggregate" timeout_ms=40000',
+      'label="reviewed revision controls: serial-aggregate" timeout_ms=45000'));
+    pairFocused.regression[field]=ref("pair-"+role+".json",w);
+  }
+  pairFocused.commands=[pairFocused.regression.after,pairFocused.regression.registration].map(record=>{
+    const w=parse(record);return{command:w.command,tested_source_head:pairHead,record,stdout:w.stdout};
+  });
+  assert.equal(verifyGitSourceRepair(pairProof,pairPrior,pairFocused,{git,parse,bytes,completedAt,original:pairOriginal,completion,repositoryRoot:root}),pairHead);
+  write(relative,log);
+  assert.throws(()=>fixtureBudgetSourceDelta(git,head,pairHead,"serial-aggregate"));negatives++;
+  for(const selector of [null,"", "unknown"]) {
+    assert.throws(()=>fixtureBudgetSourceDelta(git,head,pairHead,"serial-aggregate",selector));
+    const f=structuredClone(focused);f.regression.source_form=selector;assert.throws(()=>verify(p,f));negatives+=2;
+  }
+  for(const kind of [undefined,"repository-typecheck-v1","registered-integration-child-budget-v1"]) {
+    const f=structuredClone(focused);f.regression.kind=kind;f.regression.source_form=form;assert.throws(()=>verify(p,f));negatives++;
+  }
+  assert.throws(()=>fixtureBudgetSourceDelta(git,head,pairHead,"local-canonical-maintenance",form));negatives++;
+  const pairSources={...finalSources,[budget]:readFileSync(path.join(root,budget),"utf8")};
+  // Alter both old and new owners for consumer controls, so unchanged-byte
+  // checks alone cannot catch an extra pre-existing consumer or object escape.
+  for(const [file,alter]of [
+    [budget,s=>s.replace("ordinaryChildMs: 10_000","ordinaryChildMs: 11_000")],
+    [budget,s=>s.replace("ControlMs: 45_000","ControlMs: 40_000")],
+    [budget,s=>s.replace("ordinaryChildMs: 10_000,","ordinaryChildMs: 10_000, extraMs: 1,")],
+    [FIXTURE_BUDGET_PATHS.wrapper,s=>s.replace("assert.equal(result.exit_code, 0, lastChildDiagnostic)","assert.equal(result.exit_code, 1, lastChildDiagnostic)")],
+    [workloadFile,s=>s+"\n// altered workload\n"],
+  ]) {
+    const original=file===workloadFile?workloadSource:pairSources[file],changed=alter(original);assert.notEqual(changed,original);
+    write(file,changed);const altered=commit("controlled refused pair delta");
+    assert.throws(()=>fixtureBudgetSourceDelta(git,head,altered,"serial-aggregate",form));negatives++;git(["reset","--hard",pairHead]);
+  }
+  for(const extra of [
+    "console.log(AUXILIARY_EXECUTION_BUDGETS.reviewSerialAggregateFixtureMs);",
+    "const alias = AUXILIARY_EXECUTION_BUDGETS;",
+    "console.log(AUXILIARY_EXECUTION_BUDGETS['reviewSerialAggregateFixtureMs']);",
+    "const { reviewSerialAggregateFixtureMs } = AUXILIARY_EXECUTION_BUDGETS;",
+  ]) {
+    git(["reset","--hard",head]);write(FIXTURE_BUDGET_PATHS.wrapper,finalSources[FIXTURE_BUDGET_PATHS.wrapper]+"\n"+extra+"\n");
+    const before=commit("controlled pre-existing consumer");write(budget,pairSources[budget]);const after=commit("controlled enlarged consumer");
+    assert.throws(()=>fixtureBudgetSourceDelta(git,before,after,"serial-aggregate",form));negatives++;git(["reset","--hard",pairHead]);
+  }
+  for(const extra of [
+    "const extra = await import('../local-canonical-closeout-budgets.mjs');",
+    "const extra = require('../local-canonical-closeout-budgets.mjs');",
+    "export * from '../local-canonical-closeout-budgets.mjs';",
+    "import * as extra from '../local-canonical-closeout-budgets.mjs';",
+    "import { AUXILIARY_EXECUTION_BUDGETS as extra } from '../local-canonical-closeout-budgets.mjs';",
+    "const extra = await import(process.argv[2]);",
+  ]) {
+    const file="scripts/local-canonical-receipt.mjs";
+    write(file,extra+"\n");const altered=commit("controlled unsupported module consumer");
+    assert.throws(()=>fixtureBudgetSourceDelta(git,head,altered,"serial-aggregate",form));negatives++;git(["reset","--hard",pairHead]);
+  }
+  git(["reset","--hard",head]);
   const generatedControls = generatedDeclarationControls(root, parent, write);
   rmSync(root,{recursive:true});
   return {contract:REGISTERED_FIXTURE_BUDGET,synthetic_only:true,deciding:false,negative_controls:negatives,source_read_operations:2,distinct_sources:sourceReads.size,
-    generated_stock_controls:generatedControls,original_incident_reproduction:false,recursive_parent_execution:false};
+    existing_dedicated_pair:pairDelta,generated_stock_controls:generatedControls,original_incident_reproduction:false,recursive_parent_execution:false};
 }
 
 // Disposable Git/loader/dependency fixture. The actual historical attempt and

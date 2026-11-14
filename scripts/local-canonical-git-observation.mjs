@@ -459,6 +459,10 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
 // a stable test driver and explicit script arguments for the implicated code.
 export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt, retainedBefore, postPass = false, acquisition = false, original, stock, completion, repositoryRoot }) {
   const regression = focused.regression;
+  // An explicit budget interpretation is never ignored by another witness.
+  if(Object.hasOwn(regression??{},"source_form")&&(regression.kind!==REGISTERED_FIXTURE_BUDGET||
+      p.commission.evidence_kind!==REGISTERED_FIXTURE_BUDGET||regression.owner?.group!=="serial-aggregate"))
+    fail("revision_git_regression_invalid");
   if (isGitObservationSuccessor(p) && regression?.attribution === "candidate-driver-prior-implicated-source")
     return verifyCanonicalTsRepair(p,prior,focused,{git,parse,bytes,completedAt,repositoryRoot});
   const material = isMaterialSourceRevision(p);
