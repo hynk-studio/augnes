@@ -206,7 +206,9 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
   const pairPrior={...prior,head,tree},pairTree=git(["rev-parse",pairHead+"^{tree}"]).toString().trim();
   const pairProof={...p,head:pairHead,tree:pairTree,inputs:{...p.inputs,inventory_sha256:gitRevisionInventory(
     gitFixtureDeclaration({inputs,acceptedHead:pairHead,branch:"codex/fixture-budget"}))}};
-  const pairLog=log.replace("timeout_ms=30000","timeout_ms=40000").replace('"duration_ms":15095','"duration_ms":20095');
+  const pairLog=log.replace("timeout_ms=30000","timeout_ms=40000").replace('"duration_ms":15095','"duration_ms":20095')
+    .replaceAll("elapsed_ms=15699","elapsed_ms=20699").replaceAll("elapsed_ms=15700","elapsed_ms=20700")
+    .replace("duration_ms=15700","duration_ms=20700");
   const pairOriginal=structuredClone(original);pairOriginal.phases[0].log.bytes=Buffer.byteLength(pairLog);write(relative,pairLog);
   const pairFocused=structuredClone(focused),pairSource=observePureContractSource(root);
   pairFocused.regression.source_form=form;pairFocused.regression.source_partition=pairDelta;
