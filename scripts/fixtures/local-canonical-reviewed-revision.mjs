@@ -374,7 +374,7 @@ if(process.argv[2]==="--cold"){
   const readerMode=process.argv[2]==="--run-maintenance-reader-fixtures";
   const group = readerMode?"maintenance-reader":process.argv[2].slice(6,-9), handoff = JSON.parse(process.argv[3]);
   const outer = process.env.AUGNES_CANONICAL_TEMP_ROOT, physical = lstatSync(handoff.root);
-  assert(handoff.root === outer || path.dirname(handoff.root) === path.dirname(path.dirname(outer)) &&
+  assert(handoff.root === outer || (readerMode && path.dirname(handoff.root) === path.dirname(outer) || path.dirname(handoff.root) === path.dirname(path.dirname(outer))) &&
     /^ag-suite-[A-Za-z0-9]{6}$/u.test(path.basename(handoff.root)));
   assert(physical.isDirectory() && realpathSync(handoff.root) === handoff.root && physical.uid === process.getuid() &&
     (physical.mode & 0o777) === 0o700 && String(physical.dev) === handoff.device && String(physical.ino) === handoff.inode);
