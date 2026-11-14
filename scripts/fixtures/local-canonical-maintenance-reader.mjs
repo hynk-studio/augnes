@@ -310,15 +310,23 @@ export async function runMaintenanceReaderControls(c,h){
         assert.equal(settled.filter(row=>row.status==="fulfilled").length,1);assert.equal(settled.filter(row=>row.status==="rejected").length,1);
         return settled.find(row=>row.status==="fulfilled").value;
       });
-      const success=finalizeReceipt({...assembledSuccess,inputs:clone(f.fullInputInventory),verification_context:{...assembledSuccess.verification_context,checkout_fingerprint:physicalFingerprint(c.checkout)},
+      // Keep the controlled Browser observations coherent with the inherited
+      // physical fixture inventory, rather than the generic helper's Node stub.
+      const success=finalizeReceipt({...assembledSuccess,inputs:clone(f.fullInputInventory),
+        phases:assembledSuccess.phases.map(row=>({...row,browser_use:clone(receipt.phases.find(prior=>prior.id===row.id).browser_use)})),
+        verification_context:{...assembledSuccess.verification_context,checkout_fingerprint:physicalFingerprint(c.checkout)},
         checkout_ownership:{...assembledSuccess.checkout_ownership,checkout_fingerprint:f.preparation.checkout_fingerprint}});
       Object.assign(successContext,{currentVerificationContext:success.verification_context,currentCheckoutFingerprint:f.preparation.checkout_fingerprint});
       const successCompletion=path.join(c.anchor,".augnes-local-verification/families",success.attempt.family_id,"completion-1.json");write(successCompletion,{...read(successCompletion),receipt_fingerprint:success.integrity.content_fingerprint});
       const packet=path.join(f.folder,"cold-packet.json");write(packet,{anchor:c.anchor,checkout:c.checkout,branch:c.branch,receipt:success,prior:failure,context:successContext,runtime:f.inputs,live:f.live,records:f.records});
       stage("successor_settled");
-      const result=await h.run({suite:"maintenance-reader",label:"selected maintenance cold lineage and stock",command:process.execPath,args:[self,"--cold",packet],cwd:repository,env:c.env,
-        timeoutMs:10000,stdout:{write(chunk){process.stdout.write(chunk);}},stderr:process.stderr,log(){}});
-      assert.equal(canonicalChildAcceptanceFailure(result,{requireNaturalExit:true,requireCompleteCleanup:true,timeoutMs:10000}),null);
+      // Both readers reopen the packet and physical originals independently.
+      // Separate children keep each existing cold-reader deadline finite.
+      for(const kind of ["current","history"]){
+        const result=await h.run({suite:"maintenance-reader",label:"selected maintenance cold "+kind,command:process.execPath,args:[self,"--cold",packet,kind],cwd:repository,env:c.env,
+          timeoutMs:10000,stdout:{write(chunk){process.stdout.write(chunk);}},stderr:process.stderr,log(){}});
+        assert.equal(canonicalChildAcceptanceFailure(result,{requireNaturalExit:true,requireCompleteCleanup:true,timeoutMs:10000}),null);
+      }
       stage("cold_validation_complete");
       await assert.rejects(()=>reserve(c,f));await assert.rejects(prepare);preserved();
       console.log(JSON.stringify({maintenance_reader_controls:{synthetic_only:true,qualification:false,reviewed_ancestry:true,prior_stock_issue_count:f.stock.issues.length,refusals,
@@ -333,17 +341,22 @@ export async function runMaintenanceReaderControls(c,h){
 
 if(process.argv[2]==="--cold"){
   const packet=read(process.argv[3]),api={anchorRoot:packet.anchor,repositoryRoot:packet.checkout};
+  const kind=process.argv[4];assert(["current","history"].includes(kind));
+  if(kind==="current"){
+    const current=await inspectMaintenanceStock({...api,receipt:packet.receipt,runtimeInputs:packet.runtime,observeCurrentInputs:()=>clone(packet.live),assertCurrent(){},transport:transport(packet.records)});
+    assert.equal(current.currentAttemptRecordsValid,true);assert.deepEqual(inspectReceiptForDecision(packet.receipt,{...packet.context,...current}).issues,[]);
+    console.log(JSON.stringify({maintenance_reader_cold_current:{synthetic_only:true,current_stock:true}}));
+  }else{
   const tip=reconstructAttemptTip({...api,branch:packet.branch});
   assert.equal(tip.attempt_id,packet.receipt.run.id);assert.equal(tip.maintenance_consumed,true);assert.deepEqual(tip.revision_grants,[11,32,62,72]);
   assert.deepEqual(tip.historical_grants.map(row=>row.kind),[...Array(6).fill("reviewed_revision"),"accepted_main_integration","prospective_maintenance","prospective_maintenance"]);
   assert.deepEqual(tip.historical_grants.map(row=>row.grant.id),[11,11,32,32,62,72,3002,4002,5002]);assert(tip.historical_grants.every(row=>row.consumed===1));
-  const current=await inspectMaintenanceStock({...api,receipt:packet.receipt,runtimeInputs:packet.runtime,observeCurrentInputs:()=>clone(packet.live),assertCurrent(){},transport:transport(packet.records)});
-  assert.equal(current.currentAttemptRecordsValid,true);assert.deepEqual(inspectReceiptForDecision(packet.receipt,{...packet.context,...current}).issues,[]);
   let authorityReads=0;
   const historical=await inspectMaintenanceStock({...api,receipt:packet.prior,runtimeInputs:packet.runtime,assertCurrent(){},transport:{review:async()=>{authorityReads++;throw Error("historical failure gives no current authority");}}});
   assert.equal(historical.currentAttemptRecordsValid,true);assert.equal(authorityReads,0);assert(historical.maintenanceCurrentIssues.includes("receipt_historical_failed_maintenance_prefix"));
   const falseResult=inspectReceiptForDecision(packet.prior,{...packet.context,...historical});assert.equal(falseResult.valid_deciding_evidence,false);assert.equal(falseResult.dimensions.current_authorization,"unverified");
   const malformed=clone(packet.prior);malformed.phases.pop();let wronglyPromoted=false;
   assert.equal(await inspectAttemptRecords({...api,receipt:finalizeReceipt(malformed),onHistoricalPrefix(){wronglyPromoted=true;}}),false);assert.equal(wronglyPromoted,false);
-  console.log(JSON.stringify({maintenance_reader_cold:{synthetic_only:true,current_stock:true,typed_history:true,failed_prefix_non_deciding:true,current_authority_reads:authorityReads,malformed_prefix_refused:true}}));
+  console.log(JSON.stringify({maintenance_reader_cold_history:{synthetic_only:true,typed_history:true,failed_prefix_non_deciding:true,current_authority_reads:authorityReads,malformed_prefix_refused:true}}));
+  }
 }

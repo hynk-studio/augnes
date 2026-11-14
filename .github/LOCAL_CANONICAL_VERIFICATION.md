@@ -1132,8 +1132,8 @@ non-deciding prefix and performs no current-authority observation.
 
 This finite case changes neither ordinary maintenance's natural RED/GREEN rule
 nor the one-shot authority/accounting lifecycle. Its additional controls reuse
-owned synthetic reviewed ancestry in a separately registered 60-second child,
-including a separate 10-second cold reader. No existing workload, assertion or
+owned synthetic reviewed ancestry in a separately registered 75-second child,
+including two independent 10-second cold readers. No existing workload, assertion or
 deadline is moved or relaxed. Exact task/source identities belong in bound
 evidence, not in this public rule.
 
