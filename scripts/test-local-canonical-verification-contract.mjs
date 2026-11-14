@@ -781,7 +781,7 @@ const revisionBudgets = registeredFixtureBudget(([, target]) =>
   Buffer.from(readRepositoryFile(target.slice(target.indexOf(":") + 1))), "fixture", "serial-aggregate");
 for (const [group, limits] of Object.entries(revisionBudgets.limits)) {
   const expected = group === "serial-material" ? {inner: 80_000, outer: 95_000} :
-    group === "serial-aggregate" ? {inner: 20_000, outer: 40_000} :
+    group === "serial-aggregate" ? {inner: 25_000, outer: 45_000} :
     ["revision", "acquisition", "git-successor", "git-input-successor"].includes(group) ?
       {inner: 20_000, outer: 30_000} : {inner: 15_000, outer: 30_000};
   assert.deepEqual(limits, expected, `reviewed fixture budgets: ${group}`);
