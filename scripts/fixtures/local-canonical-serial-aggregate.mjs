@@ -190,7 +190,7 @@ export async function runSerialAggregateControls(c,h,materialMode=false) {
     return runSerialMaterialControls(c,h,proof,authority,sourceRoot,use);
   }
   for(const count of [3,4])assert.deepEqual(legacySerialChildren(historicalSuite(count)),historicalChildren.slice(0,count));
-  for(const change of [text=>text+historicalSuite(4),text=>text+'\nconst duplicate={"e2e-project-experience":[{...unsupportedStep}]};',text=>text.replace('timeoutMs: 60000','timeoutMs: 60001'),text=>text.replace('requireNaturalExit: true','requireNaturalExit: false'),text=>text.replace('"filesystem"','"unbound"'),text=>text.replace('{ ...projectExperienceStep }, { ...projectClientBrowserStep }','{ ...projectClientBrowserStep }, { ...projectExperienceStep }')])
+  for(const change of [text=>text+historicalSuite(4),text=>text+'\nconst duplicate={"e2e-project-experience":[{...unsupportedStep}]};',text=>text+'\nconst duplicate={"e2e-project-experience":null};',text=>text.replace('timeoutMs: 60000','timeoutMs: 60001'),text=>text.replace('requireNaturalExit: true','requireNaturalExit: false'),text=>text.replace('"filesystem"','"unbound"'),text=>text.replace('{ ...projectExperienceStep }, { ...projectClientBrowserStep }','{ ...projectClientBrowserStep }, { ...projectExperienceStep }')])
     assert.throws(()=>legacySerialChildren(change(historicalSuite(3))));
   const retainedCompatibility=incident.compatibility;
   for(const mutate of [e=>e.findings.pop(),e=>e.sources[0].candidate.sha256=digest("lost assertion"),e=>e.sources.pop(),e=>e.historical.inventory_sha256=digest("invented fourth"),e=>e.base.head=p.head]) {

@@ -70,7 +70,7 @@ const HISTORICAL_SERIAL_CHILDREN = [{"id":"project-experience","group":"project-
 export function legacySerialChildren(source) {
   const allNames = ["projectExperienceStep","projectClientBrowserStep","webPlanningBrowserStep","webPlanningDraftSafetyStep"];
   const tokens = orchestrationTokens(source);
-  if(tokens.filter((token,i)=>token==="<string:e2e-project-experience>"&&tokens[i+1]===":"&&tokens[i+2]==="[").length!==1)
+  if(tokens.filter((token,i)=>token==="<string:e2e-project-experience>"&&tokens[i+1]===":").length!==1)
     refuse("serial_original_inventory_unreadable");
   const variants=[allNames.slice(0,3),allNames].filter(names=>{
     const registration=orchestrationTokens('"e2e-project-experience": ['+names.map(name=>'{ ...'+name+' }').join(', ')+']');
