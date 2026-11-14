@@ -68,7 +68,17 @@ export function readMaintenanceEvidence(file,p,root,{remember,authorizationRequi
     receipt.run?.id===prior.attempt_id&&receipt.repository?.head_sha===prior.head&&receipt.repository?.tree_sha===prior.tree&&
     digest(original)===p.prior_receipt_fingerprint&&receipt.integrity?.content_fingerprint===p.prior_receipt_fingerprint&&
     equal(receipt.attempt,prior)&&stock.valid_deciding_evidence===false&&stock.content_fingerprint===p.prior_receipt_fingerprint&&Array.isArray(stock.issues)&&stock.issues.length>0,"predecessor_invalid");
-  const git=args=>execFileSync("git",["--no-replace-objects",...args],{cwd:root,timeout:10000,maxBuffer:16*1024*1024,stdio:["ignore","pipe","pipe"]});
+  // Reuse only immutable full-commit blob bytes in this one reader operation.
+  // Mutable Git queries, artifact seals, live inputs and the next reader still
+  // observe afresh. Copies prevent a consumer from modifying retained bytes.
+  const blobs=new Map();let retainedBytes=0;
+  const git=args=>{
+    const spec=args.length===2&&args[0]==="show"&&/^[a-f0-9]{40}:.+/u.test(args[1])?args[1]:null;
+    if(spec&&blobs.has(spec))return Buffer.from(blobs.get(spec));
+    const bytes=execFileSync("git",["--no-replace-objects",...args],{cwd:root,timeout:10000,maxBuffer:16*1024*1024,stdio:["ignore","pipe","pipe"]});
+    if(spec&&blobs.size<128&&retainedBytes+bytes.length<=16*1024*1024){blobs.set(spec,Buffer.from(bytes));retainedBytes+=bytes.length;}
+    return bytes;
+  };
   git(["merge-base","--is-ancestor",prior.head,p.head]);git(["merge-base","--is-ancestor",p.base,p.head]);
   requireThat(git(["rev-parse",p.head+"^{tree}"]).toString().trim()===p.tree,"tree_invalid");
   keys(e.source,"delta_sha256 changed_paths");

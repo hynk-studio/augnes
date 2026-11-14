@@ -3,8 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { syncBuiltinESMExports } from "node:module";
+import childProcess from "node:child_process";
 import { createCanonicalTestResourceRoot, buildCanonicalChildEnvironment, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
 import { releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
+import { physicalFingerprint } from "./local-canonical-verification-context.mjs";
 import { ATTEMPT_CONTRACT, beginAttempt, finishAttempt, prepareAttemptDependencies, inspectAttemptRecords, reconstructAttemptTip, readSourceCorrectionProof, supportsSourceCorrection, maintenanceMaterial, prepareMaintenanceCandidate, prepareAcceptedMainIntegrationCandidate, integrationMaterial, integrationTarget, authorizeIntegration, validateIntegrationAuthorityRecords, validReviewedIntegrationAttempt, INTEGRATION_ACCEPT, INTEGRATION_GRANT, REVIEWED_REVISION_PHASES } from "./local-canonical-attempts.mjs";
 import { authorizeMaintenance, assertMaintenanceAuthorization, validateMaintenanceAuthorityRecords, maintenanceAuthorityObservation, MAINTENANCE_GRANT, validMaintenanceAttempt, observeMaintenanceSetup, maintenanceFaults } from "./local-canonical-maintenance.mjs";
 import { readStockMachineIdentity, inspectMaintenanceStock, inspectIntegrationStock } from "./run-local-canonical-verification.mjs";
@@ -216,7 +218,19 @@ async function failedIntegrationMaintenanceControls({receipt,context,partitionSo
     assert.deepEqual(f.failed.phases.map(p=>p.status),[...Array(6).fill("pass"),"failure",...Array(9).fill("not_run")]);
     assert.deepEqual(f.preparation.input_inventory.binding,{});assert(!Object.hasOwn(f.preparation.input_inventory,"prepared_dependencies"));
     assert.deepEqual(f.fullInputInventory.resources,f.preparation.input_inventory.resources);assert.notEqual(f.fullInputInventory.fingerprint,f.preparation.input_inventory.fingerprint);
-    const original=material();assert.equal(original.fixture.preparation_sha256,f.incident.preparation.sha256);noEdge();
+    // Each reader observes mutable queries again; immutable source bytes are
+    // reused only inside that reader, never across independent operations.
+    const sourceGit=childProcess.execFileSync,reads=[];
+    childProcess.execFileSync=function(command,args,options){if(command==="git")reads.push([...args]);return sourceGit.apply(this,arguments);};syncBuiltinESMExports();
+    let original;
+    try{
+      original=material();const split=reads.length;material();
+      const first=reads.slice(0,split),second=reads.slice(split),blobs=rows=>rows.filter(args=>args.length===3&&args[0]==="--no-replace-objects"&&args[1]==="show"&&/^[a-f0-9]{40}:.+/u.test(args[2])).map(args=>args[2]);
+      assert(blobs(first).length>0);assert.equal(new Set(blobs(first)).size,blobs(first).length,"one immutable blob read per reader");
+      assert.deepEqual(blobs(second),blobs(first),"independent readers reread immutable bytes");
+      assert.deepEqual(second,first,"mutable Git queries also reread in the next operation");
+    }finally{childProcess.execFileSync=sourceGit;syncBuiltinESMExports();}
+    assert.equal(original.fixture.preparation_sha256,f.incident.preparation.sha256);noEdge();
     f.rebuild(false);
     const prepared=await prepare();assert.equal(prepared.eligible_evidence,true);assert.equal(prepared.live_inputs_ready,true);assert.equal(prepared.admission,false);assert.equal(prepared.reserved,false);
     assert.deepEqual(prepared.missing,["authenticated_candidate_acceptance","prospective_maintenance_commission"]);noEdge();
@@ -277,16 +291,24 @@ async function failedIntegrationMaintenanceControls({receipt,context,partitionSo
     });
     // Finish constructing only this new synthetic success with its full,
     // admitted declaration. No retained failed or provider record is rewritten.
-    const checkout=f.preparation.checkout_fingerprint;
+    const checkout=f.preparation.checkout_fingerprint,verification=physicalFingerprint(c.checkout);
     const success=finalizeReceipt({...assembled,inputs:structuredClone(f.fullInputInventory),
-      verification_context:{...assembled.verification_context,checkout_fingerprint:checkout},
-      checkout_ownership:{...assembled.checkout_ownership,checkout_fingerprint:checkout},capacity_ownership:{...assembled.capacity_ownership,checkout_fingerprint:checkout}});
+      verification_context:{...assembled.verification_context,checkout_fingerprint:verification},
+      checkout_ownership:{...assembled.checkout_ownership,checkout_fingerprint:checkout}});
+    assert.notEqual(verification,checkout);assert.notEqual(success.capacity_ownership.checkout_fingerprint,checkout);assert.notEqual(success.capacity_ownership.checkout_fingerprint,verification);
     Object.assign(successContext,{currentVerificationContext:success.verification_context,currentCheckoutFingerprint:checkout});
     assert.equal(success.inputs.binding.head,f.head);assert.equal(success.inputs.binding.tree,f.tree);assert.deepEqual(success.inputs.binding.runtime_inputs,f.inputs);
     assert.equal(success.inputs.binding.executor_fingerprint,success.executor.source_fingerprint);assert(success.inputs.binding.phase_environment_fingerprints.length===16);
     assert.deepEqual(success.inputs.resources,f.preparation.input_inventory.resources);assert.deepEqual(f.live.inputInventory.binding,{});
     const completionFile=path.join(families,success.attempt.family_id,"completion-1.json"),completion=JSON.parse(fs.readFileSync(completionFile));
     write(completionFile,{...completion,receipt_fingerprint:success.integrity.content_fingerprint});
+    for(const [name,fingerprint]of [["verification-context fingerprint is not checkout ownership",verification],["capacity fingerprint is not checkout ownership",success.capacity_ownership.checkout_fingerprint],["missing recorded checkout ownership",null]]){
+      const changed=structuredClone(success);
+      if(fingerprint===null)delete changed.checkout_ownership.checkout_fingerprint;else changed.checkout_ownership.checkout_fingerprint=fingerprint;
+      const bad=finalizeReceipt(changed);
+      try{write(completionFile,{...completion,receipt_fingerprint:bad.integrity.content_fingerprint});assert.equal(await inspectAttemptRecords({anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt:bad}),false,name);recordRefusal(name,{code:"attempt_records_refused"});}
+      finally{write(completionFile,{...completion,receipt_fingerprint:success.integrity.content_fingerprint});}
+    }
     assert(validMaintenanceAttempt(success.attempt));assert.deepEqual(success.attempt.budget,{initial:1,recovery:0});
     const tip=reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch});
     assert.equal(tip.attempt_id,success.run.id);assert.equal(tip.maintenance_consumed,true);

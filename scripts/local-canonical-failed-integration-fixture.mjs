@@ -220,7 +220,7 @@ function partitionSource(git,prior,p,part) {
   return {before,after};
 }
 
-function partitionPositives(part,receipt,p,runtime,{read,git}) {
+function partitionPositives(part,receipt,p,runtime,actual,{read,git}) {
   const before=read(part.source_before,{canonical:false}),after=read(part.source_after,{canonical:false}),registration=read(part.registration,{canonical:false});
   keys(before,"head tree status source node executable");keys(after,"source unchanged");
   requireThat(before.head === receipt.repository.head_sha && before.tree === receipt.repository.tree_sha && typeof before.status === "string" &&
@@ -228,7 +228,6 @@ function partitionPositives(part,receipt,p,runtime,{read,git}) {
     digest(before.executable) === runtime.node.location_fingerprint && equal(before.source,after.source) && after.unchanged === true &&
     equal(Object.keys(before.source).sort(),sourcePaths),"positive_source_invalid");
   for (const [file,hash] of Object.entries(before.source)) requireThat(sha(hash) && hash === digest(sourceAt(git,part.source_head,file)),"positive_source_invalid");
-  const actual=registeredFixtureBudget(git,part.source_head,"serial-aggregate");
   keys(registration,"group_count groups limits old25_preserved");
   requireThat(registration.group_count === actual.groups.length && equal(registration.groups,actual.groups) &&
     equal(registration.limits,actual.limits) && registration.old25_preserved === true &&
@@ -289,7 +288,8 @@ export function readFailedIntegrationFixtureIncident({p,e,prior,completion,recei
   const part=read(incident.partition);keys(part,"source_head source_tree source_before source_after registration checks contract");
   const registrations=partitionSource(git,prior,p,part);
   retainedFailure(incident,p,receipt,registrations.before,{read,root,remember});
-  let latest=partitionPositives(part,receipt,p,runtime,{read,git});
+  // partitionSource already validated this immutable registration in this read.
+  let latest=partitionPositives(part,receipt,p,runtime,registrations.after,{read,git});
   const preparation=read(incident.preparation,{maximum:512*1024});
   keys(preparation,"schema target source_head source_tree checkout_fingerprint runtime_inputs input_inventory inventory_sha256 dependencies prepared_at");
   const input=preparation.input_inventory;

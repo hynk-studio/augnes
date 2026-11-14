@@ -844,7 +844,7 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
           // requires all dependency phases and prerequisites in the receipt owner.
           if(record && (!record.prerequisite || comparePreparedDependencyInputs(expected,record.prerequisite)!=="unchanged"))throw fail("maintenance_prerequisite_invalid");
         }
-        if(evidence.fixture&&stockReceipt.inputs&&(stockReceipt.verification_context?.checkout_fingerprint!==evidence.fixture.preparation.checkout_fingerprint||
+        if(evidence.fixture&&stockReceipt.inputs&&(stockReceipt.checkout_ownership?.checkout_fingerprint!==evidence.fixture.preparation.checkout_fingerprint||
             digest(stockReceipt.inputs.binding?.runtime_inputs)!==digest(evidence.fixture.preparation.runtime_inputs)||
             gitRevisionInventory(stockReceipt.inputs)!==evidence.fixture.preparation.inventory_sha256))throw fail("maintenance_recorded_preparation_changed");
       }
