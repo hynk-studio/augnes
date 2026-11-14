@@ -100,7 +100,9 @@ export async function runSerialAggregateControls(c,h,materialMode=false) {
   assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}).reviewed_revision_consumed,undefined);
   if(!materialMode) {
     for(const name of evolutionPaths)write(path.join(c.checkout,name),sourceAt("6112ab62c9dadac46f7c9c04d8c8a3969b535d5f",name));
-    c.base=commit("reviewed declared-base child and build evolution");
+    const baseSnapshot=commit("reviewed declared-base child and build evolution");
+    const baseTree=c.git(["rev-parse",baseSnapshot+"^{tree}"]).toString().trim();
+    c.base=c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit-tree",baseTree,"-p",c.prior.repository.base_sha,"-m","independently evolved declared base"]).toString().trim();
   }
   // Copy the actual reusable serial owner and driver into this synthetic source.
   const driver="scripts/test-project-experience-serial-budget.mjs";
@@ -110,7 +112,13 @@ export async function runSerialAggregateControls(c,h,materialMode=false) {
     const runner=path.join(c.checkout,"scripts/canonical-child-runner.mjs");
     write(runner,readFileSync(runner,"utf8").replace(/^  onMessage =.*$/mu,"  onMessage,"));
   }
-  c.head=c.commit(4);c.tree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();c.acceptedHead=c.head;c.acceptedTree=c.tree;
+  c.head=c.commit(4);c.tree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();
+  if(!materialMode) {
+    c.head=c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit-tree",c.tree,"-p",c.head,"-p",c.base,"-m","integrate both source lineages"]).toString().trim();
+    c.git(["update-ref","refs/heads/"+c.branch,c.head]);
+    assert.throws(()=>c.git(["merge-base","--is-ancestor",second.head,c.base]));
+  }
+  c.acceptedHead=c.head;c.acceptedTree=c.tree;
   c.git(["update-ref","refs/remotes/origin/main",c.base]);write(path.join(c.checkout,".git/info/exclude"),".augnes-local-verification/\nnode_modules\n.next/\nnext-env.d.ts\ntsconfig.tsbuildinfo\n");
   h.prepare(c);let p=c.proof;
   p.commission={...p.commission,maximum_invocations:1,route:SERIAL_AGGREGATE_ROUTE,envelope_sha256:PROJECT_EXPERIENCE_COMMITMENT};

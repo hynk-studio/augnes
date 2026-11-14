@@ -120,6 +120,7 @@ export function serialEvolutionEvidence(p,prior,historical,git) {
     return blobs.get(oid);
   };
   const evidence={contract:SERIAL_EVOLUTION_CONTRACT,
+    common_ancestor:git(["merge-base",prior.head,p.base]).toString().trim(),
     historical:{head:prior.head,tree:prior.tree,inventory_sha256:digest(historical)},
     base:{head:p.base,tree:git(["rev-parse",p.base+"^{tree}"]).toString().trim()},
     candidate:{head:p.head,tree:p.tree,inventory_sha256:PROJECT_EXPERIENCE_COMMITMENT},
@@ -131,7 +132,7 @@ export function serialEvolutionEvidence(p,prior,historical,git) {
 export function verifySerialEvolution(p,prior,historical,evidence,git) {
   if(historical.length!==3 || PROJECT_EXPERIENCE_SERIAL.children.length!==4 || PROJECT_EXPERIENCE_ENVELOPE_MS!==730000)
     refuse("serial_evolution_inventory_invalid");
-  git(["merge-base","--is-ancestor",prior.head,p.base]);git(["merge-base","--is-ancestor",p.base,p.head]);
+  git(["merge-base","--is-ancestor",prior.head,p.head]);git(["merge-base","--is-ancestor",p.base,p.head]);
   const expected=serialEvolutionEvidence(p,prior,historical,git);
   if(!equal(evidence,expected))refuse("serial_evolution_binding_invalid");
   for(const [i,entry] of reviewed.entries()) {

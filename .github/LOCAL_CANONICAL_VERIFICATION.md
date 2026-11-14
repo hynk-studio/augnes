@@ -1373,7 +1373,10 @@ original interpretation and incident-summary digests.
 
 The artifact binds historical, declared-base and candidate source identities
 and raw byte hashes to an exact-content reviewed evolution profile. The existing
-source-material owner independently verifies the complete Git deltas. The
+source-material owner independently verifies the complete Git deltas. Both
+historical and declared-base commits must be ancestors of the integrated
+candidate; their actual common ancestor is bound without requiring the
+historical branch to have been merged into the declared base. The
 two evolved drivers and their bounded result-draft/observation/CDP/draft-safety
 helpers must match that profile and the declared base, with the unchanged first
 child still checked byte-for-byte. The findings explicitly describe retained
