@@ -9,7 +9,7 @@ import {isFailedIntegrationFixture,validateSettledFixtureFailure,readFixturePrep
 import {maintenanceFixtureBudgetRegistration,maintenanceCompletion,validateMaintenanceWatchdogLog} from "./local-canonical-fixture-budget-witness.mjs";
 import {maintenanceReaderRemedyPaths,maintenanceReaderRemedySource,validateMaintenanceReaderRemedyPlacement,
   maintenanceReaderProfileTargets,maintenanceReaderProfileLoader,maintenanceReaderProfileObserver,transformMaintenanceReaderProfile,
-  maintenanceReaderContractRegistration} from "./local-canonical-maintenance-reader-observer.mjs";
+  maintenanceReaderContractRegistration,maintenanceReaderSelectedRefusals} from "./local-canonical-maintenance-reader-observer.mjs";
 
 export const FAILED_MAINTENANCE_READER_CASE="failed-maintenance-reader-immutable-work-v1";
 export const isFailedMaintenanceReader=p=>p?.schema==="augnes.local-canonical-source-correction.v2"&&p.kind==="prospective_maintenance"&&p.incident_case===FAILED_MAINTENANCE_READER_CASE;
@@ -18,6 +18,7 @@ const fail=code=>{throw Object.assign(new Error("maintenance_reader_"+code),{cod
 const requireThat=(ok,code)=>{if(!ok)fail(code);};
 const equal=(a,b)=>a!==undefined&&b!==undefined&&digest(a)===digest(b);
 const keys=(v,s)=>requireThat(v&&typeof v==="object"&&!Array.isArray(v)&&equal(Object.keys(v).sort(),s.split(" ").sort()),"shape_invalid");
+const sha=x=>typeof x==="string"&&/^[a-f0-9]{64}$/u.test(x);
 const gitId=x=>typeof x==="string"&&/^[a-f0-9]{40}$/u.test(x);
 const finite=x=>Number.isFinite(x)&&x>=0;
 const count=x=>Number.isSafeInteger(x)&&x>=0;
@@ -115,6 +116,19 @@ function profileOperations(refs,observed,{read,git,head,after}){
   return complete;
 }
 
+function selectedCompletion(output,after){
+  const rows=jsonLines(output),selected=only(rows.filter(row=>Object.hasOwn(row,"failed_integration_maintenance")),"selected_coverage_invalid").failed_integration_maintenance;
+  keys(selected,"synthetic_only evidence_refusals refusal_count refusals input_scopes");
+  const expected=maintenanceReaderSelectedRefusals(after);
+  requireThat(selected.synthetic_only===true&&selected.evidence_refusals===16&&selected.refusal_count===expected.length&&equal(selected.refusals,expected),"selected_coverage_invalid");
+  const scopes=selected.input_scopes;keys(scopes,"preparation_binding_keys full_binding_keys shared_inventory preparation_input_fingerprint full_input_fingerprint");
+  requireThat(equal(scopes.preparation_binding_keys,[])&&equal(scopes.full_binding_keys,["environment_keys","executor_fingerprint","head","phase_environment_fingerprints","runtime_inputs","tree"])&&
+    scopes.shared_inventory===true&&sha(scopes.preparation_input_fingerprint)&&sha(scopes.full_input_fingerprint)&&scopes.preparation_input_fingerprint!==scopes.full_input_fingerprint,"selected_input_scopes_invalid");
+  const additional=only(rows.filter(row=>Object.hasOwn(row,"maintenance_additional_refusals")),"selected_coverage_invalid").maintenance_additional_refusals;
+  requireThat(equal(additional,{synthetic_only:true,refusal_count:1,refusals:[{name:"ordinary empty repairs cannot use selected-case waiver",code:"maintenance_repairs_missing"}]}),"selected_coverage_invalid");
+  return selected.refusals;
+}
+
 export function readFailedMaintenanceReaderIncident({p,e,prior,completion,receipt,stock,read,git,root,runtime,dependencies,remember}){
   requireThat(isFailedMaintenanceReader(p)&&equal(e.repairs,[])&&isFailedIntegrationFixture(prior.source_correction),"case_invalid");
   validateSettledFixtureFailure(p,prior,completion,receipt,stock,{maintenance:true});
@@ -150,11 +164,13 @@ export function readFailedMaintenanceReaderIncident({p,e,prior,completion,receip
   requireThat(fresh.some(row=>old.some(before=>equal(before.paths,row.paths))),"immutable_work_unmatched");
   const baseline=maintenanceCompletion(a.output,git,prior.head),corrected=maintenanceCompletion(b.output,git,remedy.source_head);
   requireThat(equal(baseline.cases,corrected.cases)&&equal(baseline.refusals,corrected.refusals),"coverage_changed");
+  selectedCompletion(a.output,false);const selected=selectedCompletion(b.output,true);
   keys(remedy.positives,"maintenance contract");
   const positive=sample(remedy.positives.maintenance,{read,git,head:remedy.source_head,runtime,root,test:maintenanceTest,bound:oldRegistration.bound_ms,after:b.finished});
   const contract=maintenanceReaderContractRegistration(sourceAt(git,remedy.source_head,suite).toString());
   const verified=sample(remedy.positives.contract,{read,git,head:remedy.source_head,runtime,root,test:contractTest,bound:contract.bound_ms,after:positive.finished});
   requireThat(equal(maintenanceCompletion(positive.output,git,remedy.source_head).refusals,baseline.refusals)&&verified.output.includes('"status": "pass"'),"positive_invalid");
+  requireThat(equal(selectedCompletion(positive.output,true),selected),"selected_coverage_invalid");
   let latest=verified.finished;
   // Correctness evidence is separately attributed and cannot stand in for a
   // natural RED or a causal explanation of the retained watchdog failure.

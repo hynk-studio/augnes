@@ -15,7 +15,7 @@ import {checkoutVerificationFingerprint} from "../local-canonical-checkout-owner
 import {physicalFingerprint} from "../local-canonical-verification-context.mjs";
 import {gitRevisionInventory} from "../local-canonical-git-observation.mjs";
 import {maintenanceFixtureBudgetRegistration,maintenanceFixtureCompletionNames} from "../local-canonical-fixture-budget-witness.mjs";
-import {maintenanceReaderRemedyPaths,maintenanceReaderRemedySource,maintenanceReaderProfileLoader,maintenanceReaderProfileObserver,maintenanceReaderProfileTargets,transformMaintenanceReaderProfile} from "../local-canonical-maintenance-reader-observer.mjs";
+import {maintenanceReaderRemedyPaths,maintenanceReaderRemedySource,maintenanceReaderProfileLoader,maintenanceReaderProfileObserver,maintenanceReaderProfileTargets,transformMaintenanceReaderProfile,maintenanceReaderSelectedRefusals} from "../local-canonical-maintenance-reader-observer.mjs";
 import {canonicalChildAcceptanceFailure} from "../canonical-child-runner.mjs";
 import {artifactReader} from "../local-canonical-improvement.mjs";
 import {readFailedMaintenanceReaderIncident} from "../local-canonical-maintenance-reader-incident.mjs";
@@ -42,7 +42,7 @@ function request(c,f,extra={}){
   return {anchorRoot:c.anchor,repositoryRoot:c.checkout,checkoutOwner:c.owner,branch:c.branch,head:f.head,tree:f.tree,acceptedMain:f.base,
     runId:"synthetic-maintenance-reader",sourceCorrection:f.proof,contractFingerprint:f.fullInputInventory.fingerprint,revisionInputs:f.inputs,revisionLive:f.live,assertCurrent(){},...extra};
 }
-const reserve=(c,f,extra={})=>beginAttempt(request(c,f,{observeRevision:async()=>({authorization:await authorizeMaintenance(f.proof,f.material(),transport(f.records)),live:clone(f.live)}),...extra}));
+const reserve=async(c,f,extra={})=>beginAttempt(request(c,f,{observeRevision:async()=>({authorization:await authorizeMaintenance(f.proof,f.material(),transport(f.records)),live:clone(f.live)}),...extra}));
 
 function watchdog(c,head){
   const registration=maintenanceFixtureBudgetRegistration(args=>c.git(args),head),label=JSON.stringify(registration.label),bound=registration.bound_ms;
@@ -84,8 +84,10 @@ function successLog(label,body){
 function completeMaintenanceLog(c,head,selectedCount){
   const cases=maintenanceFixtureCompletionNames(args=>c.git(args),head).map(name=>({name,status:"pass"}));
   const refusals=Array.from({length:30},(_,i)=>({name:"controlled core refusal "+i,code:"controlled_refusal"}));
-  const selected=Array.from({length:selectedCount},(_,i)=>({name:"controlled selected refusal "+i,code:"controlled_refusal"}));
-  return [...cases.map(row=>JSON.stringify(row)),JSON.stringify({failed_integration_maintenance:{synthetic_only:true,evidence_refusals:16,refusal_count:selectedCount,refusals:selected}}),
+  const selected=maintenanceReaderSelectedRefusals(selectedCount===35);assert.equal(selected.length,selectedCount);
+  const input_scopes={preparation_binding_keys:[],full_binding_keys:["environment_keys","executor_fingerprint","head","phase_environment_fingerprints","runtime_inputs","tree"],shared_inventory:true,
+    preparation_input_fingerprint:digest("controlled raw preparation inventory"),full_input_fingerprint:digest("controlled bound Full inventory")};
+  return [...cases.map(row=>JSON.stringify(row)),JSON.stringify({failed_integration_maintenance:{synthetic_only:true,evidence_refusals:16,refusal_count:selectedCount,refusals:selected,input_scopes}}),
     JSON.stringify({maintenance_additional_refusals:{synthetic_only:true,refusal_count:1,refusals:[{name:"ordinary empty repairs cannot use selected-case waiver",code:"maintenance_repairs_missing"}]}}),
     JSON.stringify({status:"pass",synthetic_only:true,qualification:false,cases,refusals})].join("\n");
 }
@@ -251,6 +253,19 @@ export async function runMaintenanceReaderControls(c,h){
             if(row.status==="pass"&&Array.isArray(row.cases)){assert.equal(row.refusals.length,30);row.refusals[0].code="substituted_refusal_meaning";}
             return JSON.stringify(row);
           }).join("\n"),false);
+        }],
+        ["same-count selected refusal meaning",()=>{
+          f.remedy.work_reduction.after.log=rewrite(f.remedy.work_reduction.after.log,value=>value.split("\n").map(line=>{
+            if(!line.startsWith("{"))return line;const row=JSON.parse(line),selected=row.failed_integration_maintenance;
+            if(selected){assert.equal(selected.refusal_count,35);assert.equal(selected.refusals.length,35);selected.refusals[0].code="substituted_selected_meaning";}
+            return JSON.stringify(row);
+          }).join("\n"),false);
+        }],
+        ["complete selected summary",()=>{
+          f.remedy.work_reduction.after.log=rewrite(f.remedy.work_reduction.after.log,value=>{
+            const lines=value.split("\n"),index=lines.findIndex(line=>line.startsWith("{")&&Object.hasOwn(JSON.parse(line),"failed_integration_maintenance"));
+            assert(index>=0);lines.splice(index,1);return lines.join("\n");
+          },false);
         }],
         ["complete plain positive notes",()=>{
           f.remedy.positives.maintenance.log=rewrite(f.remedy.positives.maintenance.log,value=>{

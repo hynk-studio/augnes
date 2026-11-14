@@ -216,3 +216,141 @@ export function maintenanceReaderContractRegistration(source){
     throw Error("maintenance_reader_contract_registration_invalid");
   return {label:label.initializer.text,bound_ms:Number(bound.initializer.text)};
 }
+
+// Closed vocabulary of the existing synthetic selected controls, not real
+// commission identities. Preserve its names/codes, not just its cardinality.
+const selectedRefusals=[
+  {
+    "name": "unauthorized admission",
+    "code": "maintenance_shape_invalid"
+  },
+  {
+    "name": "UNKNOWN cause retained",
+    "code": "maintenance_fixture_incident_invalid"
+  },
+  {
+    "name": "UNKNOWN operation retained",
+    "code": "maintenance_fixture_incident_invalid"
+  },
+  {
+    "name": "whole stock issue set",
+    "code": "maintenance_fixture_stock_invalid"
+  },
+  {
+    "name": "same-count stock meanings",
+    "code": "maintenance_fixture_stock_invalid"
+  },
+  {
+    "name": "stock dimensions retained",
+    "code": "maintenance_fixture_stock_invalid"
+  },
+  {
+    "name": "complete ordered positive groups",
+    "code": "maintenance_fixture_positive_registration_invalid"
+  },
+  {
+    "name": "positive swap refused",
+    "code": "maintenance_fixture_positive_registration_invalid"
+  },
+  {
+    "name": "existing inner deadline retained",
+    "code": "maintenance_fixture_positive_binding_invalid"
+  },
+  {
+    "name": "positive cleanup required",
+    "code": "maintenance_fixture_positive_not_natural"
+  },
+  {
+    "name": "full source inventory",
+    "code": "maintenance_fixture_positive_source_invalid"
+  },
+  {
+    "name": "actual partition parent",
+    "code": "maintenance_fixture_partition_source_invalid"
+  },
+  {
+    "name": "prepared source bound",
+    "code": "maintenance_fixture_preparation_invalid"
+  },
+  {
+    "name": "prepared inventory bound",
+    "code": "maintenance_fixture_preparation_invalid"
+  },
+  {
+    "name": "caller-invented preparation binding",
+    "code": "maintenance_fixture_preparation_invalid"
+  },
+  {
+    "name": "contract creates no grant",
+    "code": "maintenance_fixture_positive_contract_invalid"
+  },
+  {
+    "name": "physical incident log substitution",
+    "code": "improvement_artifact_changed"
+  },
+  {
+    "name": "live prepared inventory drift",
+    "code": "integration_prepared_inputs_changed"
+  },
+  {
+    "name": "live runtime drift",
+    "code": "maintenance_current_runtime_invalid"
+  },
+  {
+    "name": "unsafe input preparation",
+    "code": "dependency_input_entry_unsafe"
+  },
+  {
+    "name": "unsafe input admission",
+    "code": "dependency_input_entry_unsafe"
+  },
+  {
+    "name": "old grant reuse 3002",
+    "code": "maintenance_grant_reused"
+  },
+  {
+    "name": "old grant reuse 102",
+    "code": "maintenance_grant_reused"
+  },
+  {
+    "name": "current PR authority unavailable",
+    "code": "wrong synthetic current PR"
+  },
+  {
+    "name": "evidence drift during authority observation",
+    "code": "improvement_artifact_changed"
+  },
+  {
+    "name": "interruption after exclusive edge",
+    "code": "synthetic selected-case interruption"
+  },
+  {
+    "name": "interrupted cold lineage",
+    "code": "improvement_reserved_unsettled"
+  },
+  {
+    "name": "interrupted commission replay",
+    "code": "improvement_reserved_unsettled"
+  },
+  {
+    "name": "competing reservation",
+    "code": "revision_material_changed_during_validation"
+  },
+  {
+    "name": "cold malformed failure prefix",
+    "code": "attempt_records_refused"
+  },
+  {
+    "name": "spent commission admission",
+    "code": "attempt_latest_tip_required"
+  },
+  {
+    "name": "spent commission preparation",
+    "code": "maintenance_latest_tip_required"
+  }
+];
+export function maintenanceReaderSelectedRefusals(after=false){
+  const rows=structuredClone(selectedRefusals);
+  if(after)rows.splice(rows.findIndex(row=>row.name==="cold malformed failure prefix"),0,...["verification-context fingerprint is not checkout ownership","capacity fingerprint is not checkout ownership","missing recorded checkout ownership"].map(name=>({name,code:"attempt_records_refused"})));
+  return rows;
+}
