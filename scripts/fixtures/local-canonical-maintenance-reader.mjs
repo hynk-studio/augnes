@@ -205,6 +205,7 @@ function candidate(c,prior,receipt,context){
 }
 
 export async function runMaintenanceReaderControls(c,h){
+  const started=performance.now(),stage=name=>console.log(JSON.stringify({maintenance_reader_stage:name,elapsed_ms:Math.round(performance.now()-started),synthetic_only:true}));
   const sources=new Map(maintenanceReaderRemedyPaths.map(file=>[file,maintenanceReaderRemedySource(file,fs.readFileSync(path.join(repository,file),"utf8"),{reverse:true})]));
   await runMaintenanceReaderIntegrationFixture(c,h,async({receipt,context,partitionSources})=>{
     let prior;
@@ -224,8 +225,9 @@ export async function runMaintenanceReaderControls(c,h){
       const direct=()=>readFailedMaintenanceReaderIncident({p:f.proof,e:f.e,prior:failure.attempt,completion:read(completionFile),receipt:failure,stock:f.stock,
         read:artifactReader(f.folder),git:args=>c.git(["--no-replace-objects",...args]),root:c.checkout,runtime:f.inputs,dependencies:f.preparation.dependencies});
       assert.equal(direct().preparation_sha256,f.incident.preparation.sha256);
+      stage("evidence_constructed");
       const edge=path.join(f.priorRoot,"correction-successor.json"),noEdge=()=>assert(!fs.existsSync(edge));
-      const refusals=[],rejected=async(name,run)=>{let error;await assert.rejects(run,value=>{error=value;return true;});refusals.push({name,code:error.code??error.message});noEdge();preserved();};
+      const refusals=[],rejected=async(name,run)=>{let error;await assert.rejects(async()=>run(),value=>{error=value;return true;});refusals.push({name,code:error.code??error.message});noEdge();preserved();};
       const keys="p e r stock history preparation remedy incident records proof".split(" "),saved=clone(Object.fromEntries(keys.map(key=>[key,f[key]]))),restoreArtifacts=snapshot(f.folder);
       const reset=()=>{restoreArtifacts();for(const key of keys)f[key]=clone(saved[key]);};
       const rewrite=(ref,mutate,json=true)=>{const file=path.join(f.folder,ref.artifact),value=json?read(file):fs.readFileSync(file,"utf8"),next=mutate(value)??value;return f.ref(ref.artifact,next);};
@@ -280,14 +282,16 @@ export async function runMaintenanceReaderControls(c,h){
         const restore=mutate();let error;try{f.rebuild();direct();}catch(value){error=value;}finally{if(typeof restore==="function")restore();}
         assert(error,name);refusals.push({name,code:error.code??error.message});noEdge();preserved();reset();
       }
+      stage("evidence_refusals_complete");
       f.rebuild(false);
-      const prepare=()=>prepareMaintenanceCandidate({anchorRoot:c.anchor,repositoryRoot:c.checkout,proof:f.proof,runtimeInputs:f.inputs,live:()=>clone(f.live)});
+      const prepare=async()=>prepareMaintenanceCandidate({anchorRoot:c.anchor,repositoryRoot:c.checkout,proof:f.proof,runtimeInputs:f.inputs,live:()=>clone(f.live)});
       const prepared=await prepare();assert.equal(prepared.eligible_evidence,true);assert.equal(prepared.admission,false);assert.equal(prepared.reserved,false);noEdge();
       await rejected("absent prospective authority",()=>reserve(c,f));f.rebuild();await delay(3);
       const previousId=f.records.grant.id;f.records.grant.id=prior.records.grant.id;f.proof.authorization.grant_comment_id=prior.records.grant.id;
       f.proof.authorization.grant_comment_sha256=digest(maintenanceAuthorityObservation(f.records.grant,"prospective_grant"));write(f.file,Object.fromEntries(Object.entries(f.proof).filter(([key])=>key!=="local_relative_path")));
       await rejected("spent old maintenance grant",prepare);assert.notEqual(previousId,prior.records.grant.id);reset();
       await rejected("current prepared inventory drift",()=>prepareMaintenanceCandidate({anchorRoot:c.anchor,repositoryRoot:c.checkout,proof:f.proof,runtimeInputs:f.inputs,live:{...f.live,inventory:"a".repeat(64)}}));
+      stage("preparation_and_authority_refusals_complete");
       const sealedLog=path.join(f.folder,f.remedy.work_reduction.after.profile.artifact),sealedBytes=fs.readFileSync(sealedLog);
       try{
         await rejected("evidence drift after authenticated observation",()=>reserve(c,f,{observeRevision:async()=>{
@@ -300,6 +304,7 @@ export async function runMaintenanceReaderControls(c,h){
         try{await assert.rejects(()=>reserve(c,f),/synthetic new maintenance interruption/);}finally{fs.writeFileSync=original;syncBuiltinESMExports();}
         assert(fs.existsSync(edge));assert.throws(()=>reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}));await assert.rejects(()=>reserve(c,f));
       }finally{restoreLedger();}
+      stage("interruption_refusals_complete");
       const {receipt:assembledSuccess,context:successContext}=await completeSyntheticReceipt(f,async extra=>{
         const settled=await Promise.allSettled([reserve(c,f,{...extra,contractFingerprint:f.fullInputInventory.fingerprint}),reserve(c,f,{...extra,contractFingerprint:f.fullInputInventory.fingerprint})]);
         assert.equal(settled.filter(row=>row.status==="fulfilled").length,1);assert.equal(settled.filter(row=>row.status==="rejected").length,1);
@@ -310,9 +315,11 @@ export async function runMaintenanceReaderControls(c,h){
       Object.assign(successContext,{currentVerificationContext:success.verification_context,currentCheckoutFingerprint:f.preparation.checkout_fingerprint});
       const successCompletion=path.join(c.anchor,".augnes-local-verification/families",success.attempt.family_id,"completion-1.json");write(successCompletion,{...read(successCompletion),receipt_fingerprint:success.integrity.content_fingerprint});
       const packet=path.join(f.folder,"cold-packet.json");write(packet,{anchor:c.anchor,checkout:c.checkout,branch:c.branch,receipt:success,prior:failure,context:successContext,runtime:f.inputs,live:f.live,records:f.records});
+      stage("successor_settled");
       const result=await h.run({suite:"maintenance-reader",label:"selected maintenance cold lineage and stock",command:process.execPath,args:[self,"--cold",packet],cwd:repository,env:c.env,
         timeoutMs:10000,stdout:{write(chunk){process.stdout.write(chunk);}},stderr:process.stderr,log(){}});
       assert.equal(canonicalChildAcceptanceFailure(result,{requireNaturalExit:true,requireCompleteCleanup:true,timeoutMs:10000}),null);
+      stage("cold_validation_complete");
       await assert.rejects(()=>reserve(c,f));await assert.rejects(prepare);preserved();
       console.log(JSON.stringify({maintenance_reader_controls:{synthetic_only:true,qualification:false,reviewed_ancestry:true,prior_stock_issue_count:f.stock.issues.length,refusals,
         one_shot:true,interruption_consumes:true,competing_successors:1,cold_stock:true,originals_unchanged:true}}));
