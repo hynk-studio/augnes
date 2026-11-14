@@ -81,7 +81,9 @@ function candidate(c,saved,packet,failure,completion){
   const observations=[{id:"failed-maintenance-reader",original:f.ref("retained-failure.json",failure),adverse:true,limitations:"Synthetic complete settled failure retains all fourteen false-stock meanings; timeout cause and operation stay UNKNOWN."},
     {id:"retained-registered-completion",original:measurement.result,adverse:false,limitations:"Synthetic parser data represents an earlier registered natural completion, never a causal explanation or a new deciding witness."}];
   f.history={parent_evidence_sha256:old.source_correction.evidence.sha256,observations,adverse:["failed-maintenance-reader"],known_index:null,cumulative_cost:"All earlier typed grants and consumed attempts remain retained; this separate synthetic grant does not reset them.",historical_causes:"retained_without_reclassification"};
-  f.e={target:maintenanceTarget(f.p),originals:{attempt:f.ref("prior-attempt.json",old),completion:f.ref("prior-completion.json",completion),receipt:f.ref("prior-receipt.json",failure),stock:null},
+  f.e={target:maintenanceTarget(f.p),originals:{attempt:f.ref("prior-attempt.json",fs.readFileSync(path.join(f.priorRoot,"attempt-1.json"))),
+      completion:f.ref("prior-completion.json",fs.readFileSync(path.join(f.priorRoot,"completion-1.json"))),
+      receipt:f.ref("prior-receipt.json",fs.readFileSync(path.join(c.checkout,f.p.prior_receipt_path))),stock:null},
     source:{delta_sha256:f.remedy.delta_sha256,changed_paths:[...maintenanceAggregateBudgetPaths]},repairs:[],inputs:{runtime:f.ref("runtime.json",f.inputs),dependencies:f.ref("dependencies.json",f.preparation.dependencies)},history:null,
     planner:f.ref("planner.json",{base:f.base,head,selected_plan:"full-canonical",phases:[...REVIEWED_REVISION_PHASES],owners:["local-canonical-integrity"]}),implementation_actor:"synthetic-implementer",incident:null};
   f.r={target:maintenanceTarget(f.p),evidence_sha256:null,delta_sha256:f.e.source.delta_sha256,reviewer:"synthetic-independent-reviewer",implementation_actor:f.e.implementation_actor,reviewed_at:null,no_write:true,source_review:"complete",disposition:"accept",

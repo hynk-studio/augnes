@@ -354,7 +354,9 @@ export async function runMaintenanceReaderControls(c,h){
     const witness="scripts/local-canonical-fixture-budget-witness.mjs";write(path.join(c.checkout,witness),fs.readFileSync(path.join(repository,witness)));
     const bindings=["scripts/capture-local-canonical-fixture-budget.mjs","tsconfig.json","scripts/browser-verification-owners.v1.json","scripts/local-canonical-change-owners.v1.json","scripts/canonical-research-tests.v1.json"];
     for(const file of bindings)write(path.join(c.checkout,file),fs.readFileSync(path.join(repository,file)));
-    c.git(["add",...maintenanceReaderRemedyPaths,witness,...bindings]);
+    const placeholders=["app","components","lib","types","apps/augnes_apps/src","apps/augnes_apps/public"].map(dir=>path.posix.join(dir,"maintenance-budget-fixture.ts"));
+    for(const file of placeholders)write(path.join(c.checkout,file),"export {};\n");
+    c.git(["add",...maintenanceReaderRemedyPaths,witness,...bindings,...placeholders]);
   },prepareDependencies(packages){
     // Inert metadata only: this loader is read and hashed, never imported.
     const version="0.0.0-fixture",lock=read(path.join(c.checkout,"package-lock.json"));
