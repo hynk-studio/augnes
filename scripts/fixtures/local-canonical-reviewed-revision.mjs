@@ -22,7 +22,7 @@ import {GIT_ACQUISITION_REPAIR,gitAcquisitionIncident,gitRevisionInventory} from
 import {CANONICAL_NODE_VERSION} from "../local-canonical-environment.mjs";
 import {inspectGitRevisionPreparation} from "../local-canonical-attempts.mjs";
 import {baseReceipt} from "./local-canonical-receipt-v3.mjs";
-import {runMaterialSourceControls,seedMaterialSourceFiles,prepareMaterialSourcePredecessor} from "./local-canonical-material-source.mjs";
+import {runMaterialSourceControls,seedMaterialSourceFiles,prepareMaterialSourcePredecessor,inspectMaterialIntegrationCold} from "./local-canonical-material-source.mjs";
 import {runMaintenanceAllowanceControls} from "./local-canonical-maintenance-allowance.mjs";
 
 const self=fileURLToPath(import.meta.url), quiet={write(){}}, clone=v=>structuredClone(v);
@@ -341,7 +341,10 @@ async function acquisitionProposalControls(parentRoot, lifecycle, retainMaterial
 }
 
 if(process.argv[2]==="--cold"){
-  const c=read(process.argv[3]),p=proof(c),a=await auth(c,p);
+  const c=read(process.argv[3]);
+  if(c.integrationRecords) await inspectMaterialIntegrationCold(c);
+  else {
+  const p=proof(c),a=await auth(c,p);
   if (c.stockContext) {
     const r=read(path.join(c.checkout,".augnes-local-verification/receipts",c.stockContext.expectedRunId+".json"));
     const stale=observeFixtureLive(c), observation=stale?.service?.diagnostics ?? stale?.diagnostics;
@@ -360,6 +363,7 @@ if(process.argv[2]==="--cold"){
   if(c.lateContender){c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});
     try{assert.throws(()=>begin(c,p,a,{runId:"late-material-contender"}),/attempt_latest_tip_required/);}
     finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);}}
+  }
   console.log("fresh reader PASS");
 }else if(process.argv[2]==="--race"){
   const c=read(process.argv[3]);c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});

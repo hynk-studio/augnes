@@ -414,7 +414,7 @@ function selectiveHistoricalStockControls(prior,runtime,inputs) {
   const stock={status:"non_deciding_or_stale",valid_deciding_evidence:false,dimensions:{historical_integrity:"intact",execution:"incomplete_or_failed",evidence_validity:"invalid_or_incomplete",
     safety:"preserved_within_observed_scope",current_merge_applicability:"blocked"},issues:[...phases.slice(7).map(p=>"phase_not_passing:"+p.id),"receipt_attempt_records_unverified",
       "receipt_stale_integration_base","receipt_classified_outcome_not_passing","receipt_final_result_not_pass","receipt_non_deciding","receipt_phase_environment_binding_invalid"].sort()};
-  const verify=(r=receipt,s=stock,kind=SELECTIVE_FIXTURE_WORKLOAD)=>verifyGitRevisionFailure(r,s,runtime,REVIEWED_REVISION_PHASES,1,false,false,false,kind);
+  const verify=(r=receipt,s=stock,kind=SELECTIVE_FIXTURE_WORKLOAD)=>verifyGitRevisionFailure(r,s,runtime,REVIEWED_REVISION_PHASES,1,false,false,false,false,null,kind);
   verify();assert.equal(stock.issues.length,15);assert.throws(()=>verify(receipt,stock,null));let refusals=1;
   for(const mutate of [s=>s.issues.pop(),s=>s.issues.push("unexplained_issue"),s=>s.issues=s.issues.filter(v=>v!=="receipt_attempt_records_unverified"),
     s=>s.issues=s.issues.filter(v=>v!=="receipt_stale_integration_base"),s=>s.dimensions.current_merge_applicability="matches_observed_context",s=>s.dimensions.safety="blocked"]) {

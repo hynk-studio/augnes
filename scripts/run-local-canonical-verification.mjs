@@ -781,7 +781,8 @@ export async function executeLocalCanonicalVerification({
                   const material=integrationMaterial(repositoryRoot,sourceCorrection,verificationAnchorRoot(verificationContext));
                   const workload={base:baseSha,head:headSha,selected_plan:plan.selected_plan,phases:phaseDefinitions.map(p=>p.id),owners:[...plan.planner_owner_ids].sort()};
                   if(digest(workload)!==digest(material.planner))throw Object.assign(new Error("integration_planner_changed"),{code:"integration_planner_changed"});
-                  return {authorization:await authorizeIntegration(sourceCorrection,material),live:null};
+                  return {authorization:await authorizeIntegration(sourceCorrection,material),live:material.preparation ?
+                    await observeGitRevisionTarget(verificationContext,hostResult.browserExecutablePath,runtimeInputs) : null};
                 }
                 if (isMaintenance(sourceCorrection)) {
                   const material=maintenanceMaterial(repositoryRoot,sourceCorrection);
@@ -1573,6 +1574,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
     if (!currentInputStateValid) throw Object.assign(new Error("revision_stock_inputs_changed"), {code:"revision_stock_inputs_changed"});
   };
   let improvementCurrentIssue = null, maintenanceCurrentIssues = [], integrationCurrentIssues = [], currentAttemptRecordsValid = null;
+  let historicalMaterialIntegrationPrefix = false;
   const gitCurrentStockContract = receipt.receipt_version === 4 && isMaterialSourceRevision(receipt.attempt?.source_correction)
     ? GIT_CURRENT_STOCK_COMPARISON : null;
   let gitCurrentStockComparison = null;
@@ -1586,6 +1588,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
     }));
   } else if (receipt.receipt_version === 4) currentAttemptRecordsValid = await inspectAttemptRecords({
     anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, revisionInputs: runtimeInputs,
+    onHistoricalPrefix:()=>{historicalMaterialIntegrationPrefix=true;},
     gitCurrentStockContract,
     observeRevision: reviewed ? async () => {
       const proof = receipt.attempt.source_correction;
@@ -1610,6 +1613,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   const currentStock = inspectReceiptForDecision(receipt, {
     currentInputStateValid,
     currentAttemptRecordsValid,
+    historicalMaterialIntegrationPrefix,
     improvementCurrentIssue,
     maintenanceCurrentIssues,
     integrationCurrentIssues,

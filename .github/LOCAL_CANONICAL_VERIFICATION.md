@@ -1121,6 +1121,31 @@ candidate with its existing initial1/recovery1 ceiling; it is not a renewed
 maintenance grant, and any execution or substantiated recovery still needs
 separate applicable human authority.
 
+The explicit reviewed integration also accepts the latest completely settled,
+successful, exhausted material-source v7 predecessor. Its original stored proof,
+authenticated authority records and reservation observations, complete Full and
+Browser coverage, dependency identities, natural settlement and retained valid
+stock are revalidated; a completion label alone is insufficient. Original v1
+integration-base evidence keeps its recorded meaning. The new one-shot edge
+preserves every reviewed count, commission and grant identity and cannot supply
+an ordinary, legacy, unchanged-target or recovery allowance.
+
+For that predecessor, the existing complete source review binds original stock
+and authority artifacts plus the actual supported preparation: exact target,
+runtime, full protected-input inventory, physical checkout and all three safe
+dependency trees. Preparation and admission compare current inputs, and the
+deciding receipt retains the same prerequisites. Publication/configuration must
+finish first. The separate later authenticated acceptance and commission bind
+the review/preparation bytes; neither prior authority nor preparation authorizes
+reservation. Old grant IDs, unsafe or changed inputs and competing edges refuse.
+
+Historical-prefix inspection of the superseded material-v7 receipt replays its
+specific validated reviewed-integration successor and the immutable originals.
+It does not fabricate a historical current-PR projection or reauthenticate an old
+grant as current. Historical integrity stays separate from current source/input
+applicability; it neither upgrades v1 evidence to declared-range v2 nor makes
+the old receipt qualification of the combined source.
+
 `prepareAcceptedMainIntegrationCandidate` reuses the complete integration
 eligibility reader without a reservation, attempt capability or lease. Its
 result is evidence preparation, not authentication or permission to execute.
