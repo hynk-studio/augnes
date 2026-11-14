@@ -107,6 +107,17 @@ function candidate(c,saved,packet,failure,completion){
 
 export async function runMaintenanceBudgetControls(c,h,saved){
   assert(path.isAbsolute(saved.packet)&&saved.packet.startsWith(c.checkout+path.sep));
+  assert.equal(saved.snapshot.root,path.join(h.sharedRoot,"maintenance-reader-retained"));
+  // The previous owner has completed its original cleanup. Restore only this
+  // retained synthetic state at the same checkout path/root, using its existing
+  // immutable Git objects. No ancestry setup or deciding work is repeated.
+  c.git(["reset","--hard",saved.fixture.head]);c.git(["update-ref","refs/remotes/origin/main",saved.fixture.base]);
+  fs.cpSync(path.join(saved.snapshot.root,"families"),path.join(c.anchor,".augnes-local-verification/families"),{recursive:true,preserveTimestamps:true});
+  fs.cpSync(path.join(saved.snapshot.root,"proofs"),path.join(c.checkout,".augnes-local-verification"),{recursive:true,preserveTimestamps:true});
+  write(path.join(c.checkout,".git/info/exclude"),saved.snapshot.exclude);
+  for(const[index,dir]of ["","apps/augnes_apps","apps/web_planning"].entries()){
+    const target=path.join(c.checkout,dir,"node_modules");assert(!fs.existsSync(target));fs.renameSync(path.join(saved.snapshot.root,"dependencies-"+index),target);
+  }
   const packet=read(saved.packet);assert.equal(packet.receipt.repository.head_sha,saved.fixture.head);assert.equal(c.git(["rev-parse","HEAD"]).toString().trim(),saved.fixture.head);
   const log=maintenanceReaderFixtureWatchdog(c,saved.fixture.head),failure=maintenanceReaderFixtureFailure(packet.receipt,log);
   const family=path.join(c.anchor,".augnes-local-verification/families",failure.attempt.family_id),completionFile=path.join(family,"completion-1.json"),receiptFile=path.join(c.checkout,".augnes-local-verification/receipts",failure.run.id+".json");
@@ -168,7 +179,7 @@ if(process.argv[2]==="--cold"){
     assert.equal(current.currentAttemptRecordsValid,true);assert.deepEqual(inspectReceiptForDecision(packet.receipt,{...packet.context,...current}).issues,[]);
     console.log(JSON.stringify({maintenance_budget_cold_current:{synthetic_only:true,current_stock:true}}));
   }else{
-    const malformed=clone(packet.prior);malformed.phases.pop();let promoted=false;
+    const malformed=clone(packet.prior);malformed.attempt.source_correction.incident_case="unrelated-maintenance-incident";let promoted=false;
     assert.equal(await inspectAttemptRecords({...api,receipt:finalizeReceipt(malformed),onHistoricalPrefix(){promoted=true;}}),false);assert.equal(promoted,false);
     let authorityReads=0;
     const historical=await inspectMaintenanceStock({...api,receipt:packet.prior,runtimeInputs:packet.runtime,assertCurrent(){},transport:{review:async()=>{authorityReads++;throw Error("failed prefix grants no current authority");}}});

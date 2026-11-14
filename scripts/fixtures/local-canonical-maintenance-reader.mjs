@@ -334,9 +334,20 @@ export async function runMaintenanceReaderControls(c,h){
         one_shot:true,interruption_consumes:true,competing_successors:1,cold_stock:true,originals_unchanged:true}}));
       // The next separately bounded owner reuses this checked, suite-owned
       // ancestry after every existing assertion and cold reader has completed.
-      if(h.sharedRoot)write(path.join(h.sharedRoot,"maintenance-reader-successor.json"),{packet,
-        fixture:{base:f.base,head:f.head,tree:f.tree,preparation:f.preparation,fullInputInventory:f.fullInputInventory,
-          executable:f.executable,headers:f.headers,proof:f.proof,folder:f.folder,file:f.file}});
+      if(h.sharedRoot){
+        const retained=path.join(h.sharedRoot,"maintenance-reader-retained"),proofs=path.join(c.checkout,".augnes-local-verification");
+        assert(!fs.existsSync(retained));fs.mkdirSync(retained,{mode:0o700});
+        fs.cpSync(path.join(c.anchor,".augnes-local-verification/families"),path.join(retained,"families"),{recursive:true,preserveTimestamps:true});
+        fs.cpSync(proofs,path.join(retained,"proofs"),{recursive:true,preserveTimestamps:true,filter:file=>file!==path.join(proofs,"checkout-owner.json")});
+        // Keep actual dependency directory objects and their platform security.
+        // The old owner's finally still observes its ordinary absent paths and
+        // performs every original restoration/assertion before the next child.
+        for(const[index,dir]of ["","apps/augnes_apps","apps/web_planning"].entries())
+          fs.renameSync(path.join(c.checkout,dir,"node_modules"),path.join(retained,"dependencies-"+index));
+        write(path.join(h.sharedRoot,"maintenance-reader-successor.json"),{packet,snapshot:{root:retained,exclude:fs.readFileSync(path.join(c.checkout,".git/info/exclude"),"utf8")},
+          fixture:{base:f.base,head:f.head,tree:f.tree,preparation:f.preparation,fullInputInventory:f.fullInputInventory,
+            executable:f.executable,headers:f.headers,proof:f.proof,folder:f.folder,file:f.file}});
+      }
     }finally{prior?.restoreExclude();}
   },{seedSources(){
     for(const[file,source]of sources)write(path.join(c.checkout,file),source);
