@@ -1095,6 +1095,53 @@ to separate discovery, actual returned material, checked adoption, later use,
 correction and total burden only where needed for the claim. These are not new
 mandatory stages for every PR or authorization to recruit, publish or execute.
 
+#### Real-project outward-request follow-through — 2026-11-12
+
+The next bounded delivery connects an actual continuing project's need to an
+understandable external request, a supported response path and subsequent work.
+This advances the existing #1443/#1453 direction; it is not another phase,
+marketplace or evaluation program. #1630 and its candidate
+[#1640](https://github.com/hynk-studio/augnes/pull/1640) retain their own
+implementation, review and final-target qualification scope.
+
+| Bounded delivery | Existing ownership | Connection to complete |
+|---|---|---|
+| [Real-project public request #1641](https://github.com/hynk-studio/augnes/issues/1641) | #1443 participation request; #1212 / #1447 public entry | Selected actual project/request material is externally readable, with current status, scope, source basis, attributable request authorization and a supported response route. |
+| [One-channel outward request and continuation #1642](https://github.com/hynk-studio/augnes/issues/1642) | #1443 / #1453 | Current work informs a permitted action, a correlated response and checked downstream use or justified non-use; a fresh executor continues from the retained basis and unresolved obligations. |
+
+Public first-read preparation may proceed alongside the independent-project
+cooperation candidate. Reuse the existing public projection and participation
+owners, including #1509/merged #1510's task-specific request/return/use/manual
+feedback guidance. The fictional case's deployment in #1288/#1289 does not
+establish publication of a real project's request. Public reading or possession
+of a link grants no private access, project mutation or external-effect
+authority; attribution to an authorizing project principal is not universal
+identity. Withdrawal stops supported fresh access/effects, not existing copies.
+
+Use one currently supported host/channel and actual material/return contract.
+Reuse #1433 where its bounded review contract fits, rather than forcing other
+artifacts into review text. Use existing notes, writers and transport; add only
+the missing producer-to-consumer connection. An existing read/append succession
+grant does not authorize contact or spending.
+
+An agent's relevant choice follows the project's current need and conditions.
+Direct work, existing material, a scoped request, permission-seeking or non-use
+may be appropriate; do not invent a shortage to manufacture an outward request.
+Prepared, sent, received, promised, returned, checked and used remain distinct
+facts, not new mandatory record types. Preserve accepted terms and outstanding
+effects, reconciling uncertainty before repetition could duplicate commitments.
+
+These slices do not reopen #1453's frozen consumer case or add conditions to
+#1640. Their own changed paths receive proportionate verification under the
+existing evaluation owner. Deployment, audience/admission changes, actual
+outreach and paid effects need applicable operational authority. Controlled
+completion, hosted operation, independent participation and economic demand
+remain separate claims; lack of organic response is not a gate for authorized
+implementation or public-entry preparation. #1629 and unrelated qualification
+remain separate. #1426 coordinates this sequence; #1633's AS-01 is a candidate
+real-work consumer only if an actual need arises, without changing its research
+criteria or authorizing outreach.
+
 #### Contribution and undertaking follow-through — 2026-10-20
 
 This direction from [#1504](https://github.com/hynk-studio/augnes/pull/1504) is
