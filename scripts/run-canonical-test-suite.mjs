@@ -1553,8 +1553,9 @@ const suites = {
       // Consume the checked reader ancestry above; do not repeat its setup or
       // enlarge its 75s child or existing 10s setup/cold limits. The new deeper
       // stock operation exceeded its initial 10s aggregate. Bound each new
-      // composite reader at 20s and this owner at 90s: observed pre-cold work
-      // (~46s) plus both finite readers, rounded up, with suite-owned cleanup.
+      // composite reader at 20s and this owner at 90s: retained non-cold work
+      // (~46s; includes cleanup) plus both finite readers, rounded up. A later
+      // stage capture measured pre-cold work at 44.192s. Cleanup stays owned.
       timeoutMs: 90_000,
       requireNaturalExit: true,
     },

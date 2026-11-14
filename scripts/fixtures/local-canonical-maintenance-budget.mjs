@@ -173,7 +173,7 @@ export async function runMaintenanceBudgetControls(c,h,saved){
   const cold=path.join(f.folder,"cold-packet.json");write(cold,{anchor:c.anchor,checkout:c.checkout,branch:c.branch,receipt:success,prior:failure,context,runtime:f.inputs,live:f.live,records:f.records});
   for(const kind of ["current","history"]){
     stage("cold_"+kind+"_start");
-    const result=await h.run({suite:"maintenance-budget",label:"maintenance allowance cold "+kind,command:process.execPath,args:[self,"--cold",cold,kind],cwd:repository,env:c.env,timeoutMs:20000,
+    const result=await h.run({suite:"maintenance-budget",label:"maintenance allowance cold "+kind,command:process.execPath,args:[self,"--cold-maintenance-budget",cold,kind],cwd:repository,env:c.env,timeoutMs:20000,
       stdout:{write(chunk){process.stdout.write(chunk);}},stderr:process.stderr,log(){}});
     console.log(JSON.stringify({maintenance_budget_cold_result:{kind,...result}}));assert.equal(canonicalChildAcceptanceFailure(result,{requireNaturalExit:true,requireCompleteCleanup:true,timeoutMs:20000}),null);
     stage("cold_"+kind+"_complete");
@@ -183,7 +183,9 @@ export async function runMaintenanceBudgetControls(c,h,saved){
     separate_grant:true,one_shot:true,cold_stock:true,failed_prefix_non_deciding:true,originals_unchanged:true}}));
 }
 
-if(process.argv[2]==="--cold"){
+// The imported reader fixture owns --cold. This distinct entry invokes only
+// this case's independent reader, rather than also executing the imported CLI.
+if(process.argv[2]==="--cold-maintenance-budget"){
   const packet=read(process.argv[3]),api={anchorRoot:packet.anchor,repositoryRoot:packet.checkout},kind=process.argv[4];assert(["current","history"].includes(kind));
   if(kind==="current"){
     // One fresh physical/current inspection; no duplicate lineage traversal.
