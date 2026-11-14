@@ -1551,9 +1551,11 @@ const suites = {
       sharedFixture: true,
       ...rootNode("scripts/fixtures/local-canonical-reviewed-revision.mjs", "--run-maintenance-budget-fixtures"),
       // Consume the checked reader ancestry above; do not repeat its setup or
-      // enlarge its 75s child. New finite evidence and two independent 10s
-      // readers have a separate lifecycle bound and suite-owned cleanup.
-      timeoutMs: 60_000,
+      // enlarge its 75s child or existing 10s setup/cold limits. The new deeper
+      // stock operation exceeded its initial 10s aggregate. Bound each new
+      // composite reader at 20s and this owner at 90s: observed pre-cold work
+      // (~46s) plus both finite readers, rounded up, with suite-owned cleanup.
+      timeoutMs: 90_000,
       requireNaturalExit: true,
     },
     {

@@ -108,6 +108,7 @@ function candidate(c,saved,packet,failure,completion){
 }
 
 export async function runMaintenanceBudgetControls(c,h,saved){
+  const started=performance.now(),stage=name=>console.log(JSON.stringify({maintenance_budget_stage:name,elapsed_ms:Math.round(performance.now()-started),synthetic_only:true}));
   assert(path.isAbsolute(saved.packet)&&saved.packet.startsWith(c.checkout+path.sep));
   assert.equal(saved.snapshot.root,path.join(h.sharedRoot,"maintenance-reader-retained"));
   // The previous owner has completed its original cleanup. Restore only this
@@ -121,6 +122,7 @@ export async function runMaintenanceBudgetControls(c,h,saved){
     const target=path.join(c.checkout,dir,"node_modules");assert(!fs.existsSync(target));fs.renameSync(path.join(saved.snapshot.root,"dependencies-"+index),target);
   }
   const packet=read(saved.packet);assert.equal(packet.receipt.repository.head_sha,saved.fixture.head);assert.equal(c.git(["rev-parse","HEAD"]).toString().trim(),saved.fixture.head);
+  stage("ancestry_restored");
   const log=maintenanceReaderFixtureWatchdog(c,saved.fixture.head),failure=maintenanceReaderFixtureFailure(packet.receipt,log);
   const family=path.join(c.anchor,".augnes-local-verification/families",failure.attempt.family_id),completionFile=path.join(family,"completion-1.json"),receiptFile=path.join(c.checkout,".augnes-local-verification/receipts",failure.run.id+".json");
   assert.notEqual(receiptFile,path.join(c.checkout,failure.attempt.source_correction.prior_receipt_path),"synthetic invocations retain distinct original receipt paths");
@@ -150,24 +152,31 @@ export async function runMaintenanceBudgetControls(c,h,saved){
   ]){
     mutate();f.rebuild();let error;try{direct();}catch(value){error=value;}assert(error,name);refusals.push({name,code:error.code??error.message});noEdge();preserved();reset();
   }
+  stage("evidence_refusals_complete");
   f.rebuild(false);const prepare=async()=>prepareMaintenanceCandidate({anchorRoot:c.anchor,repositoryRoot:c.checkout,proof:f.proof,runtimeInputs:f.inputs,live:()=>clone(f.live)});
   const prepared=await prepare();assert.equal(prepared.eligible_evidence,true);assert.equal(prepared.admission,false);assert.equal(prepared.reserved,false);noEdge();
+  stage("non_reserving_preparation_complete");
   await assert.rejects(()=>reserve(c,f));noEdge();reset();
   await assert.rejects(async()=>prepareMaintenanceCandidate({anchorRoot:c.anchor,repositoryRoot:c.checkout,proof:f.proof,runtimeInputs:f.inputs,live:{...f.live,inventory:"a".repeat(64)}}));noEdge();
   f.records.grant.id=packet.records.grant.id;f.p.authorization.grant_comment_id=packet.records.grant.id;f.p.authorization.grant_comment_sha256=digest(maintenanceAuthorityObservation(f.records.grant,"prospective_grant"));
   write(f.file,f.p);f.proof={...f.p,local_relative_path:path.relative(c.checkout,f.file)};await assert.rejects(prepare,error=>error.code==="maintenance_grant_reused");noEdge();reset();
+  stage("authority_and_input_refusals_complete");
   const {receipt:assembled,context}=await completeSyntheticReceipt(f,extra=>reserve(c,f,{...extra,contractFingerprint:f.fullInputInventory.fingerprint}));
   const success=finalizeReceipt({...assembled,inputs:clone(f.fullInputInventory),phases:assembled.phases.map(row=>({...row,browser_use:clone(packet.receipt.phases.find(old=>old.id===row.id).browser_use)})),
     verification_context:{...assembled.verification_context,checkout_fingerprint:physicalFingerprint(c.checkout)},checkout_ownership:{...assembled.checkout_ownership,checkout_fingerprint:f.preparation.checkout_fingerprint}});
   Object.assign(context,{currentVerificationContext:success.verification_context,currentCheckoutFingerprint:f.preparation.checkout_fingerprint});
   const successCompletion=path.join(c.anchor,".augnes-local-verification/families",success.attempt.family_id,"completion-1.json");write(successCompletion,{...read(successCompletion),receipt_fingerprint:success.integrity.content_fingerprint});
+  stage("successor_settled");
   const tip=reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch});assert.equal(tip.attempt_id,success.run.id);assert.equal(tip.maintenance_consumed,true);
   assert.deepEqual(tip.historical_grants.slice(-3).map(row=>row.grant.id),[4002,5002,6002]);assert(tip.historical_grants.every(row=>row.consumed===1));
+  stage("typed_lineage_complete");
   const cold=path.join(f.folder,"cold-packet.json");write(cold,{anchor:c.anchor,checkout:c.checkout,branch:c.branch,receipt:success,prior:failure,context,runtime:f.inputs,live:f.live,records:f.records});
   for(const kind of ["current","history"]){
-    const result=await h.run({suite:"maintenance-budget",label:"maintenance allowance cold "+kind,command:process.execPath,args:[self,"--cold",cold,kind],cwd:repository,env:c.env,timeoutMs:10000,
+    stage("cold_"+kind+"_start");
+    const result=await h.run({suite:"maintenance-budget",label:"maintenance allowance cold "+kind,command:process.execPath,args:[self,"--cold",cold,kind],cwd:repository,env:c.env,timeoutMs:20000,
       stdout:{write(chunk){process.stdout.write(chunk);}},stderr:process.stderr,log(){}});
-    console.log(JSON.stringify({maintenance_budget_cold_result:{kind,...result}}));assert.equal(canonicalChildAcceptanceFailure(result,{requireNaturalExit:true,requireCompleteCleanup:true,timeoutMs:10000}),null);
+    console.log(JSON.stringify({maintenance_budget_cold_result:{kind,...result}}));assert.equal(canonicalChildAcceptanceFailure(result,{requireNaturalExit:true,requireCompleteCleanup:true,timeoutMs:20000}),null);
+    stage("cold_"+kind+"_complete");
   }
   await assert.rejects(()=>reserve(c,f));preserved();
   console.log(JSON.stringify({maintenance_budget_controls:{synthetic_only:true,qualification:false,reused_checked_reader_ancestry:true,prior_stock_issue_count:14,refusals,

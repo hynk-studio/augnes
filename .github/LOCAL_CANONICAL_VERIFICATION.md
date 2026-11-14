@@ -1156,8 +1156,10 @@ and registrations retain their original deadline interpretation. The complete
 final support delta is separately reviewed, and the existing direct collector
 observes the actual final registered workload and protected inputs before/after;
 no historical workload or natural RED is rerun to fit another evidence recipe.
-Controls reuse the checked owned reader ancestry in a separate 60-second child
-with independent 10-second readers, retaining the preceding 75-second owner.
+Controls reuse the checked owned reader ancestry in a separate 90-second child.
+Its new composite current and historical stock readers have finite 20-second
+allowances for the deeper lineage and live-authorization read; the preceding
+75-second owner and every existing 10-second setup/cold limit remain unchanged.
 Preparation, admission, cold reconstruction and stock apply the same finite
 reader-to-allowance successor predicate; it is not a generic retry route.
 
