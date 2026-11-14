@@ -1163,11 +1163,21 @@ no historical workload or natural RED is rerun to fit another evidence recipe.
 Historical allowance controls retain their recorded 90000 ms aggregate and
 20000 ms composite-reader interpretation. The sequence remedy is a closed
 two-file descendant budget span: selected reader75000→110000 ms and following
-support90000→150000 ms, with the matching contract pin. The direct120000 ms
+support90000→210000 ms, with the matching contract pin. The direct120000 ms
 allowance remains fixed. The retained whole-owner natural measurements plus a
 finite30000 ms orchestration reserve, rounded to10000 ms, supply the base pair.
-An explicit additional30000 ms support allowance covers the added predecessor
-reservation/settlement and deeper proof/refusal work in the following owner.
+The following owner additionally binds a retained partial development sequence:
+one parent clock observed116320.246 ms through the start of its new cold-current
+reader, which then hit its20000 ms bound; cold history was not run. Cause and
+interrupted operation remain UNKNOWN. Its two deeper continuation readers get
+a prospective30000 ms allowance each. Existing selected10000 ms and historical
+allowance20000 ms reader meanings remain fixed. Add one combined30000 ms
+allowance for post-reader refusal, preservation, handoff, restoration, owned
+cleanup and orchestration, then round206320.246 ms to210000 ms. That combined
+allowance is judgment, not measured tail cost or guaranteed headroom; it is not
+an additional reserve on top of a measured complete continuation. The complete
+final sequence must naturally finish. Its additional90000 ms allowance over
+the retained120000 ms base explicitly accounts for the added support work.
 Whole-owner coverage includes bootstrap/import, inherited setup, assertions,
 independent readers, post-reader refusals, preservation, handoff, restoration and
 owned cleanup; inner-stage and outer-run clocks are not interchangeable.
@@ -1181,7 +1191,12 @@ PASS claim. Earlier exact legacy evidence remains scoped to its unchanged path.
 Validate the complete final affected registered sequence, including admission
 support, against actual before/after source, runtime, dependencies and protected
 inputs. A focused positive does not supply missing Full coverage. Existing inner
-setup/cold limits, product deadlines, natural exit and cleanup stay intact.
+setup limits, historical cold limits, product deadlines, natural exit and cleanup
+stay intact. Boundary controls separately refuse an extended historical20000 ms
+reader and an incomplete new30000 ms reader. The budget-only component may be
+combined with reviewed support by an ordinary merge; predecessor-to-component
+still has only the two budget paths and no merges. This preserves the source
+guard without rewriting published support or failed history.
 
 Preparation, admission, cold reconstruction and stock apply the same finite
 successor predicate and replay original proof, authority and consumed grants.

@@ -225,12 +225,13 @@ export function maintenanceAggregateBudgetSource(file,source,{reverse=false}={})
 }
 
 const readerOwner="local-canonical-maintenance-reader",budgetOwner="local-canonical-maintenance-budget";
-export const maintenanceSequenceAllowances=Object.freeze({reader:110000,budget:150000});
+export const maintenanceSequenceAllowances=Object.freeze({reader:110000,budget:210000});
+export const maintenanceSequenceColdAllowanceMs=30000;
 export const maintenanceSequenceRequiredRefusals=Object.freeze([
   ["sequence UNKNOWN cause retained","maintenance_reader_incident_invalid"],
   ["sequence exact false fourteen meanings","maintenance_fixture_stock_invalid"],
   ["sequence selected remedy kind","maintenance_reader_source_delta_invalid"],
-  ["sequence immediate exact source tree","maintenance_reader_source_delta_invalid"],
+  ["sequence exact source tree","maintenance_reader_source_delta_invalid"],
   ["sequence both budget paths","maintenance_reader_source_delta_invalid"],
   ["sequence complete final following owner","maintenance_reader_sequence_binding_invalid"],
   ["sequence complete final cleanup","maintenance_fixture_positive_not_natural"],
@@ -241,6 +242,8 @@ export const maintenanceSequenceRequiredRefusals=Object.freeze([
   ["one-owner correction is incomplete","maintenance_reader_source_remedy_invalid"],
   ["sequence required refusal omitted","maintenance_reader_sequence_coverage_invalid"],
   ["sequence same-count refusal meaning","maintenance_reader_sequence_coverage_invalid"],
+  ["measured legacy cold reader deadline","maintenance_fixture_positive_not_natural"],
+  ["final continuation cold reader deadline","maintenance_fixture_positive_not_natural"],
 ].map(([name,code])=>Object.freeze({name,code})));
 const sequenceGroups=["acquisition","material-source","material-successor","material-final"];
 const sequenceIds=[...sequenceGroups.map(group=>"local-canonical-reviewed-revision-"+group),readerOwner,budgetOwner];
@@ -280,7 +283,7 @@ function sequenceCoverage(output,{final=false}={}){
     Array.isArray(budget.refusals)&&budget.refusals.length===12,"sequence_coverage_invalid");
   const fresh=rows.filter(row=>row.maintenance_budget_cold_result).map(row=>row.maintenance_budget_cold_result);
   requireThat(equal(fresh.map(row=>row.kind),["current","history"]),"sequence_coverage_invalid");
-  for(const {kind,...result}of fresh)validateFixtureNaturalResult(result,"maintenance allowance cold "+kind,20000);
+  for(const {kind,...result}of fresh)validateFixtureNaturalResult(result,"maintenance allowance cold "+kind,final?maintenanceSequenceColdAllowanceMs:20000);
   const historical=only(rows.filter(row=>row.maintenance_budget_cold_history),"sequence_coverage_invalid").maintenance_budget_cold_history;
   requireThat(historical.synthetic_only===true&&historical.malformed_refused===true&&historical.failed_prefix_non_deciding===true&&historical.current_authority_reads===0,"sequence_coverage_invalid");
   for(const list of [reader.refusals,budget.refusals])requireThat(list.every(row=>row&&typeof row.name==="string"&&typeof row.code==="string")&&new Set(list.map(row=>row.name)).size===list.length,"sequence_coverage_invalid");

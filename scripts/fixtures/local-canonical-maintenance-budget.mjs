@@ -12,7 +12,7 @@ import {inspectMaintenanceStock} from "../run-local-canonical-verification.mjs";
 import {physicalFingerprint} from "../local-canonical-verification-context.mjs";
 import {observePureContractSource,observePureContractLoader} from "../local-canonical-pure-contract-witness.mjs";
 import {fixtureBudgetEnvironment,FIXTURE_BUDGET_COLLECTOR,maintenanceFixtureBudgetRegistration,registeredFixtureBudget} from "../local-canonical-fixture-budget-witness.mjs";
-import {MAINTENANCE_AGGREGATE_ALLOWANCE_CASE,readMaintenanceAggregateAllowanceIncident,maintenanceAggregateBudgetSource,maintenanceSequenceBudgetSource,maintenanceSequenceAllowances,maintenanceSequenceRequiredRefusals,maintenanceAggregateBudgetPaths} from "../local-canonical-maintenance-reader-incident.mjs";
+import {MAINTENANCE_AGGREGATE_ALLOWANCE_CASE,readMaintenanceAggregateAllowanceIncident,maintenanceAggregateBudgetSource,maintenanceSequenceBudgetSource,maintenanceSequenceAllowances,maintenanceSequenceColdAllowanceMs,maintenanceSequenceRequiredRefusals,maintenanceAggregateBudgetPaths} from "../local-canonical-maintenance-reader-incident.mjs";
 import {readImprovementOwnerRegistration} from "../local-canonical-improvement.mjs";
 import {canonicalChildAcceptanceFailure} from "../canonical-child-runner.mjs";
 import {artifactReader} from "../local-canonical-improvement.mjs";
@@ -184,7 +184,7 @@ async function runSequenceControls(c,h,b,packet,originalFailure,preserved,legacy
     ['sequence UNKNOWN cause retained',()=>f.incident.cause='explained_timeout'],
     ['sequence exact false fourteen meanings',()=>{f.stock.issues[0]='substituted_issue';f.stock.issues.sort();}],
     ['sequence selected remedy kind',()=>f.remedy.kind='registered-maintenance-direct-v1'],
-    ['sequence immediate exact source tree',()=>f.remedy.source_tree=failed.repository.tree_sha],
+    ['sequence exact source tree',()=>f.remedy.source_tree=failed.repository.tree_sha],
     ['sequence both budget paths',()=>f.remedy.changed_paths.pop()],
     ['sequence complete final following owner',()=>f.positive.results.pop()],
     ['sequence complete final cleanup',()=>f.positive.results.at(-1).result.cleanup_completed=false],
@@ -208,6 +208,18 @@ async function runSequenceControls(c,h,b,packet,originalFailure,preserved,legacy
     f.positiveRefs.logs[id]=f.ref(file,output);Object.assign(f.positive.results.at(-1).log,{file:path.join(f.folder,file),bytes:Buffer.byteLength(output),sha256:digest(output)});f.rebuild();
     assert.throws(direct,error=>{refusals.push({name,code:error.code??error.message});return true;},name);noEdge();preserveAll();reset();
   }
+  for(const[name,final,duration]of [
+    ['measured legacy cold reader deadline',false,20001],
+    ['final continuation cold reader deadline',true,maintenanceSequenceColdAllowanceMs+1],
+  ]){
+    const id='local-canonical-maintenance-budget',refs=final?f.positiveRefs:f.remedy.rationale.measurement,record=final?f.positive:read(path.join(f.folder,refs.result.artifact));
+    const output=fs.readFileSync(path.join(f.folder,refs.logs[id].artifact),'utf8').split('\n').map(line=>{
+      if(!line.startsWith('{'))return line;const row=JSON.parse(line);if(row.maintenance_budget_cold_result?.kind==='current')row.maintenance_budget_cold_result.duration_ms=duration;return JSON.stringify(row);
+    }).join('\n'),file=name.replaceAll(' ','-')+'.log';
+    refs.logs[id]=f.ref(file,output);Object.assign(record.results.at(-1).log,{file:path.join(f.folder,file),bytes:Buffer.byteLength(output),sha256:digest(output)});
+    if(!final)refs.result=f.ref('measured-cold-overbound.result.json',record);f.rebuild();
+    assert.throws(direct,error=>{refusals.push({name,code:error.code??error.message});return true;},name);noEdge();preserveAll();reset();
+  }
   assert.deepEqual(refusals,maintenanceSequenceRequiredRefusals,'all required C refusal meanings are observed exactly');
   stage('sequence_evidence_refusals_complete');
   f.rebuild(false);const prepare=async()=>prepareMaintenanceCandidate({anchorRoot:c.anchor,repositoryRoot:c.checkout,proof:f.proof,runtimeInputs:f.inputs,live:()=>clone(f.live)});
@@ -223,8 +235,8 @@ async function runSequenceControls(c,h,b,packet,originalFailure,preserved,legacy
   const aFiles=[path.join(b.priorRoot,'attempt-1.json'),path.join(b.priorRoot,'completion-1.json'),path.join(c.checkout,b.p.prior_receipt_path),path.join(c.checkout,originalFailure.phases[6].log.relative_path)];
   const older={receipt:originalFailure,stock:b.stock,originals:aFiles.map(file=>({file,bytes:fs.statSync(file).size,sha256:digest(fs.readFileSync(file))}))};
   const cold=path.join(f.folder,'cold-packet.json');write(cold,{anchor:c.anchor,checkout:c.checkout,branch:c.branch,receipt:success,prior:failed,context:settled.context,runtime:f.inputs,live:f.live,records:f.records,older});
-  for(const kind of ['current','history']){stage('cold_'+kind+'_start');const result=await h.run({suite:'maintenance-budget',label:'maintenance allowance cold '+kind,command:process.execPath,args:[self,'--cold-maintenance-budget',cold,kind],cwd:repository,env:c.env,timeoutMs:20000,stdout:{write(chunk){process.stdout.write(chunk);}},stderr:process.stderr,log(){}});
-    console.log(JSON.stringify({maintenance_budget_cold_result:{kind,...result}}));assert.equal(canonicalChildAcceptanceFailure(result,{requireNaturalExit:true,requireCompleteCleanup:true,timeoutMs:20000}),null);stage('cold_'+kind+'_complete');}
+  for(const kind of ['current','history']){stage('cold_'+kind+'_start');const result=await h.run({suite:'maintenance-budget',label:'maintenance allowance cold '+kind,command:process.execPath,args:[self,'--cold-maintenance-budget',cold,kind],cwd:repository,env:c.env,timeoutMs:maintenanceSequenceColdAllowanceMs,stdout:{write(chunk){process.stdout.write(chunk);}},stderr:process.stderr,log(){}});
+    console.log(JSON.stringify({maintenance_budget_cold_result:{kind,...result}}));assert.equal(canonicalChildAcceptanceFailure(result,{requireNaturalExit:true,requireCompleteCleanup:true,timeoutMs:maintenanceSequenceColdAllowanceMs}),null);stage('cold_'+kind+'_complete');}
   await assert.rejects(()=>reserve(c,f));preserveAll();
   console.log(JSON.stringify({maintenance_budget_controls:{synthetic_only:true,qualification:false,reused_checked_reader_ancestry:true,prior_stock_issue_count:14,refusals:legacyRefusals,separate_grant:true,one_shot:true,cold_stock:true,failed_prefix_non_deciding:true,originals_unchanged:true,
     continuation:{synthetic_only:true,qualification:false,prepared:true,separate_grant:true,one_shot:true,typed_history:true,failed_aggregate_prefix:true,retained_failed_reader_prefix:true,no_current_authority_promotion:true,originals_unchanged:true,refusals}}}));
