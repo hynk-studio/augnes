@@ -211,9 +211,9 @@ async function runSequenceControls(c,h,b,packet,originalFailure,preserved,legacy
   assert.deepEqual(refusals,maintenanceSequenceRequiredRefusals,'all required C refusal meanings are observed exactly');
   stage('sequence_evidence_refusals_complete');
   f.rebuild(false);const prepare=()=>prepareMaintenanceCandidate({anchorRoot:c.anchor,repositoryRoot:c.checkout,proof:f.proof,runtimeInputs:f.inputs,live:()=>clone(f.live)});
-  const prepared=await prepare();assert.equal(prepared.eligible_evidence,true);assert.equal(prepared.admission,false);assert.equal(prepared.reserved,false);noEdge();
+  const prepared=await prepare();assert.equal(prepared.eligible_evidence,true);assert.equal(prepared.admission,false);assert.equal(prepared.reserved,false);noEdge();stage('sequence_non_reserving_preparation_complete');
   await assert.rejects(()=>reserve(c,f));noEdge();reset();
-  await assert.rejects(()=>prepareMaintenanceCandidate({anchorRoot:c.anchor,repositoryRoot:c.checkout,proof:f.proof,runtimeInputs:f.inputs,live:{...f.live,inventory:'a'.repeat(64)}}));noEdge();
+  await assert.rejects(async()=>prepareMaintenanceCandidate({anchorRoot:c.anchor,repositoryRoot:c.checkout,proof:f.proof,runtimeInputs:f.inputs,live:{...f.live,inventory:'a'.repeat(64)}}),error=>error.code==='integration_prepared_inputs_changed');noEdge();
   f.records.grant.id=b.records.grant.id;f.p.authorization.grant_comment_id=b.records.grant.id;f.p.authorization.grant_comment_sha256=digest(maintenanceAuthorityObservation(f.records.grant,'prospective_grant'));
   write(f.file,f.p);f.proof={...f.p,local_relative_path:path.relative(c.checkout,f.file)};await assert.rejects(prepare,error=>error.code==='maintenance_grant_reused');noEdge();reset();
   stage('sequence_preparation_and_authority_refusals_complete');
