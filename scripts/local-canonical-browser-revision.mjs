@@ -1,5 +1,7 @@
 import { digest, classifyInputChange, nonFaultInputChange, inputEventIdentity, validBrowserTarget } from "./local-canonical-inputs.mjs";
 import { browserConsumersForPhase, validBrowserUse, validPhaseBrowserUse, parseBrowserUseLine, BROWSER_IDENTITY_PREFIX } from "./local-canonical-browser-identity.mjs";
+import { usesDeclaredIntegrationBase } from "./local-canonical-integration-base.mjs";
+import { verifiedStockPredecessor } from "./local-canonical-material-stock-predecessor.mjs";
 
 export const BROWSER_REVISION_SCHEMA = "augnes.local-canonical-source-correction.v8";
 export const BROWSER_SUCCESSOR_SCHEMA = "augnes.local-canonical-source-correction.v9";
@@ -197,22 +199,35 @@ export function verifyReviewedBrowserFailure(r, stock, inputs, phaseIds) {
 
 // Both reviewed continuations require the physical ordinal-one Full to have
 // stopped at a natural child failure with settled resources and accounted stock.
-export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBrowser, allowIncompleteBrowser = false, expectedOrdinal = 1, generatedStockSerial = false, historicalStockKind = null) {
+export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBrowser, allowIncompleteBrowser = false, expectedOrdinal = 1, generatedStockSerial = false, ordinaryFixture = false, declaredMaterial = false, stockPredecessor = null, historicalStockKind = null) {
   const failed = r.phases?.findIndex(p => p.status === "failure") ?? -1;
-  const reason = generatedStockSerial ? "serial_execution_incomplete" : "phase_failed";
+  const stockVerifier = verifiedStockPredecessor(stockPredecessor,r,stock);
+  if(stockPredecessor && (!stockVerifier||!declaredMaterial||generatedStockSerial||ordinaryFixture))throw fail("revision_browser_failure_invalid");
+  const reason = generatedStockSerial || stockVerifier ? "serial_execution_incomplete" : "phase_failed";
+  const ordinary = r.attempt?.source_correction;
   // Only this typed, exhausted direct-Git predecessor can retain the two
   // historical stock consequences. The original observation is never projected
   // into a different issue set or applicability dimension.
   const selectiveHistory = historicalStockKind === "selective-fixture-workload-v1";
-  const previous = r.attempt?.source_correction;
-  if (historicalStockKind !== null && (!selectiveHistory || generatedStockSerial || expectedOrdinal !== 1 ||
+  const previous = ordinary;
+  if (historicalStockKind !== null && (!selectiveHistory || generatedStockSerial || ordinaryFixture || declaredMaterial || stockPredecessor || expectedOrdinal !== 1 ||
       previous?.schema !== "augnes.local-canonical-source-correction.v10" ||
       previous.commission?.input_revision !== "direct-protected-git-input-v1" ||
       previous.commission.ordinal !== 1 || previous.commission.maximum_invocations !== 1 ||
       r.phases?.[failed]?.id !== "integration")) throw fail("revision_browser_failure_invalid");
-  if (r.attempt?.source_correction?.commission?.ordinal !== expectedOrdinal ||
+  const oldRuntime=r.inputs?.binding?.runtime_inputs,oldNode=r.inputs?.resources?.find(v=>v.id==="node-executable");
+  const declaredRange = usesDeclaredIntegrationBase(r);
+  if (declaredMaterial && !declaredRange) throw fail("revision_browser_failure_invalid");
+  // Ordinary execution omitted the optional runtime binding or recorded null. Reuse its
+  // actual Node identity, not invented historical header/runtime observations.
+  // Current headers remain independently observed by the selected v7 proof.
+  const runtimeMatches=ordinaryFixture&&oldRuntime==null ? oldNode?.before?.present===true&&
+    oldNode.location_fingerprint===inputs?.node?.location_fingerprint&&oldNode.before.sha256===inputs.node.observation.sha256&&
+    same(oldNode.before.metadata,inputs.node.observation.metadata) : same(inputs,oldRuntime);
+  if ((ordinaryFixture ? ordinary?.schema !== "augnes.local-canonical-source-correction.v2" || ordinary.kind !== "source_revision" || Object.hasOwn(ordinary,"commission") :
+      ordinary?.commission?.ordinal !== expectedOrdinal) ||
       r.run?.id !== r.attempt.attempt_id || r.attempt.contract_fingerprint !== r.inputs?.fingerprint ||
-      r.evidence?.mode !== "full" || r.evidence.selected_plan !== "full-canonical" || r.evidence.deciding !== false ||
+      !(r.evidence?.mode === "full" || ordinaryFixture && r.evidence?.mode === "changed") || r.evidence.selected_plan !== "full-canonical" || r.evidence.deciding !== false ||
       r.verification_context?.kind !== "isolated-worktree" || r.repository.worktree_before !== "clean" || r.repository.worktree_after !== "clean" ||
       r.outcome?.disposition !== "product_failure" || r.outcome.validity !== "valid_within_observed_scope" ||
       r.outcome.safety !== "preserved_within_observed_scope" || r.outcome.execution !== "incomplete_or_failed" ||
@@ -226,8 +241,8 @@ export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBr
       !same(r.final.reason_codes, [reason, "selected_phases_incomplete"].sort()) ||
       !settledIsolatedResources(r) || r.historical_inputs?.required !== true ||
       failed < 0 || !same(r.phases.map(p => p.id), phaseIds) ||
-      (generatedStockSerial && r.phases[failed].id !== "e2e-project-experience") ||
-      !same(inputs, r.inputs.binding?.runtime_inputs))
+      ((generatedStockSerial || stockVerifier) && r.phases[failed].id !== "e2e-project-experience") ||
+      !runtimeMatches)
     throw fail("revision_browser_failure_invalid");
 
   const environments = r.inputs.binding.phase_environment_fingerprints;
@@ -236,7 +251,7 @@ export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBr
   const issues = new Set(["receipt_classified_outcome_not_passing", "receipt_final_result_not_pass", "receipt_non_deciding"]);
   // The generated-stock evidence reader separately proves the exact serial
   // prefix and the causal attempt-reader defect. Ordinary stock stays strict.
-  if (generatedStockSerial) issues.add("receipt_attempt_records_unverified");
+  if (generatedStockSerial || stockVerifier) issues.add("receipt_attempt_records_unverified");
   if (selectiveHistory) {
     issues.add("receipt_attempt_records_unverified");
     issues.add("receipt_stale_integration_base");
@@ -259,6 +274,13 @@ export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBr
         (index < failed ? phase.status !== "pass" || phase.exit_status !== 0 || phase.failure_code !== null :
           phase.failure_code !== reason || !Number.isSafeInteger(phase.exit_status) || phase.exit_status <= 0))
       throw fail("revision_browser_failure_invalid");
+    if (declaredMaterial && index === failed && phase.id === "integration") {
+      // The registered integration consumers execute sequentially. A failed
+      // phase may retain their actual prefix, never a hole or reordered suffix.
+      const sequence = Object.entries(browserConsumersForPhase(phase.id)).flatMap(([name, count]) => Array(count).fill(name));
+      if (!Array.isArray(records) || records.some((record, i) => record.consumer !== sequence[i]))
+        throw fail("revision_browser_failure_invalid");
+    }
     if (!validPhaseBrowserUse(phase, records, expectedBrowser)) {
       const required = browserConsumersForPhase(phase.id);
       if (!allowIncompleteBrowser || index !== failed || !Array.isArray(records) ||
@@ -270,7 +292,9 @@ export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBr
   }
   if (stock.status !== "non_deciding_or_stale" || stock.valid_deciding_evidence !== false ||
       !same(stock.dimensions, { historical_integrity: "intact", execution: "incomplete_or_failed", evidence_validity: "invalid_or_incomplete",
-        safety: "preserved_within_observed_scope", current_merge_applicability: selectiveHistory ? "blocked" : "matches_observed_context" }) ||
+        safety: "preserved_within_observed_scope", current_merge_applicability: selectiveHistory ? "blocked" : (ordinaryFixture || declaredMaterial) && declaredRange &&
+          ["different_current_main","current_main_unobserved"].includes(stock.dimensions?.current_merge_applicability) ?
+          stock.dimensions.current_merge_applicability : "matches_observed_context" }) ||
       !same(stock.issues, [...issues].sort())) throw fail("revision_browser_stock_unaccounted");
 }
 

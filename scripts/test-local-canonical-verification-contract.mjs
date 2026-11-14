@@ -11,6 +11,8 @@ import { integrationBudgetRegistration, registeredFixtureBudget, REGISTERED_INTE
 import { integrationBudgetAuthorityBindings, integrationBudgetAuthorityScope, INTEGRATION_BUDGET_GRANT,
   INTEGRATION_BUDGET_LIMIT, MATERIAL_HISTORY_BOUNDARY } from "./local-canonical-git-observation.mjs";
 import { spawnSync } from "node:child_process";
+import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
+import { createCanonicalTestResourceRoot, buildCanonicalChildEnvironment, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
 import {
   existsSync,
   readFileSync,
@@ -737,6 +739,8 @@ for (const authorityChild of [
   "scripts/test-canonical-change-planner.mjs",
   "scripts/test-dependency-lock-compatibility.mjs",
   "scripts/test-local-canonical-executor.mjs",
+  "scripts/test-local-canonical-improvement.mjs",
+  "scripts/test-local-canonical-maintenance.mjs",
   "scripts/test-local-canonical-receipt.mjs",
   "scripts/test-local-canonical-isolation.mjs",
   "scripts/test-github-main-branch-transport.mjs",
@@ -748,6 +752,18 @@ for (const authorityChild of [
   );
 }
 
+const improvementChildStart = canonicalSuite.indexOf('id: "local-canonical-improvement"');
+assert.notEqual(improvementChildStart,-1);
+const improvementChild=canonicalSuite.slice(improvementChildStart,canonicalSuite.indexOf("    },",improvementChildStart));
+for(const fragment of ['timeoutMs: 90_000','requireNaturalExit: true','"scripts/test-local-canonical-improvement.mjs"'])
+  requireText(improvementChild,fragment,"PASS/PASS contract controls have a separate finite authority owner");
+
+const maintenanceChildStart=canonicalSuite.indexOf('id: "local-canonical-maintenance"');
+assert.notEqual(maintenanceChildStart,-1);
+const maintenanceChild=canonicalSuite.slice(maintenanceChildStart,canonicalSuite.indexOf("    },",maintenanceChildStart));
+for(const fragment of ['timeoutMs: 90_000','requireNaturalExit: true','"scripts/test-local-canonical-maintenance.mjs"'])
+  requireText(maintenanceChild,fragment,"maintenance controls have their own finite authority owner, outside the product child");
+
 const isolatedChildStart = canonicalSuite.indexOf('id: "local-canonical-isolation"');
 assert.notEqual(isolatedChildStart, -1);
 const isolatedChild = canonicalSuite.slice(isolatedChildStart, canonicalSuite.indexOf("    },", isolatedChildStart));
@@ -755,7 +771,7 @@ for (const fragment of ['timeoutMs: 30_000', 'requireNaturalExit: true', '"scrip
   requireText(isolatedChild, fragment, "isolated verification has a bounded authority child and complete cleanup");
 
 const revisionSteps = canonicalSuite.slice(canonicalSuite.indexOf("const reviewedRevisionSteps ="), canonicalSuite.indexOf("const suites ="));
-for (const fragment of ['["revision", "settlement", "browser", "git", "git-input", "git-input-direct", "git-input-lifecycle", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation", "serial-aggregate", "serial-material"].map(group', '"--reviewed-revision-controls", group',
+for (const fragment of ['["revision", "settlement", "browser", "git", "git-input", "git-input-direct", "git-input-lifecycle", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-stock", "material-reservation", "serial-aggregate", "serial-material"].map(group', '"--reviewed-revision-controls", group',
   'requireNaturalExit: true'])
   requireText(revisionSteps, fragment, "each reviewed fixture group has its own bounded natural-exit registration");
 // Inspect effective values through the existing finite registration reader,
@@ -956,6 +972,10 @@ for (const [id, script] of [
   assert.equal(registrations[0][1], script, `${id}: exact existing child`);
   assert.equal(registrations[0][2], "30_000", `${id}: unchanged child bound`);
 }
+// The stock-verifier protocol is a separate finite unit owner. It must not
+// add recursive work to the existing HTTP or product Browser child.
+assert.equal([...canonicalSuite.matchAll(/id:"local-canonical-stock-verifier"/gu)].length,1);
+assert(canonicalSuite.includes('...rootNode("scripts/test-local-canonical-stock-verifier.mjs"),\n      timeoutMs:30000,requireNaturalExit:true'));
 assert(canonicalSuite.includes("suites.unit.filter((step) => step.id === id)"));
 assert(canonicalSuite.includes("checks.length !== 1"));
 assert.deepEqual(
@@ -1153,6 +1173,7 @@ const integrationChildren = [
   "ordinary-successor-expectation-final-slot",
   "project-work-scoped-host",
     "executed-reviewed-follow-up",
+  "project-work-semantic-state-read",
   "unexecuted-successor-revision",
   "authored-successor-handoff",
   "settled-expired-successor",
@@ -1346,6 +1367,9 @@ for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 120_000', 'req
   requireText(successorExpectationLimitRegistration.block, fragment, "the final ordinary revision boundary has a separate bounded owner");
 assert.equal(countOccurrences(firstWorkFixture, "await assertSuccessorExpectationV01(true);"), 1);
 const successorRevisionRegistration = readCanonicalChildRegistration(integrationSource, "unexecuted-successor-revision");
+const semanticStateReadRegistration = readCanonicalChildRegistration(integrationSource, "project-work-semantic-state-read");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--semantic-state-read-only"'])
+  requireText(semanticStateReadRegistration.block, fragment, "shared-state read regressions retain a separate bounded owner");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--successor-revision-only"'])
   requireText(successorRevisionRegistration.block, fragment, "saved successor revision retains one bounded complete owner");
 assert.equal(countOccurrences(firstWorkFixture, "await assertUnexecutedSuccessorRevisionV01();"), 3,
@@ -1907,6 +1931,26 @@ for (const fragment of [
     `package-history requirement is missing: ${fragment}`,
   );
 }
+
+// Evidence-contract controls remain outside the maintenance aggregate whose
+// allowance they inspect. The child owns disposable synthetic accounting only.
+const allowanceResource=createCanonicalTestResourceRoot("ag-resource-test-");
+try {
+  const result=await runCanonicalChild({suite:"verification-contract",label:"direct maintenance measured allowance controls",command:process.execPath,
+    args:["--import","tsx","scripts/fixtures/local-canonical-reviewed-revision.mjs","--run-maintenance-allowance-fixtures"],cwd:repositoryRoot,
+    env:buildCanonicalChildEnvironment({temporaryRoot:allowanceResource.root}),resourceOwner:allowanceResource,timeoutMs:30000,
+    stdout:process.stdout,stderr:process.stderr,log(){}});
+  assert.equal(canonicalChildAcceptanceFailure(result,{requireNaturalExit:true,requireCompleteCleanup:true,timeoutMs:30000}),null);
+} finally { assert(cleanupCanonicalTestResources([allowanceResource]).every(v=>v.completed)); }
+
+const commonDriverResource=createCanonicalTestResourceRoot("ag-resource-test-");
+try {
+  const result=await runCanonicalChild({suite:"verification-contract",label:"material common-driver attribution controls",command:process.execPath,
+    args:["scripts/test-local-canonical-common-driver.mjs"],cwd:repositoryRoot,
+    env:buildCanonicalChildEnvironment({temporaryRoot:commonDriverResource.root}),resourceOwner:commonDriverResource,timeoutMs:10000,
+    stdout:process.stdout,stderr:process.stderr,log(){}});
+  assert.equal(canonicalChildAcceptanceFailure(result,{requireNaturalExit:true,requireCompleteCleanup:true,timeoutMs:10000}),null);
+} finally { assert(cleanupCanonicalTestResources([commonDriverResource]).every(v=>v.completed)); }
 
 console.log(
   JSON.stringify(

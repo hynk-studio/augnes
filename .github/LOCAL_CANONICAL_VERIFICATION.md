@@ -25,7 +25,7 @@ The receipt preserves the established evidence vocabulary:
 
 - exact repository identity
 - exact base SHA
-- authenticated current integration-base observation and base-to-head ancestry
+- declared base-to-head ancestry and, when available, authenticated current-main observation
 - exact head SHA
 - dirty-worktree status
 - operating system and architecture
@@ -72,9 +72,7 @@ The executor first requires the authorized verification context and exact author
 `origin`. The default context retains the exact fixed local root. It verifies that base and head are lowercase 40-character commit
 identities available locally. `changed` and `full` additionally require:
 
-- the requested base equals the current `main` observed through the existing
-  read-only authenticated GitHub main-branch transport for `hynk-studio/augnes`;
-- that base is an ancestor of the exact requested head;
+- the explicitly requested base is an ancestor of the distinct exact requested head;
 - current `HEAD` equals the requested head;
 - the worktree is clean before and after execution;
 - the current host satisfies the Canonical platform and resource policy;
@@ -89,13 +87,21 @@ discards, or moves user source changes.
 The ordinary PR lane observes `main` before responsibility planning through
 `scripts/github-main-branch-transport.mjs`: a bounded authenticated `gh api`
 GET, pinned to `github.com`, the canonical repository and `main`, without a
-cached-response request. Local tracking refs do not substitute for an unavailable
-or invalid remote response. Wrong/stale bases and unproven ancestry produce a
-failed receipt with no planner classification or deciding phases. No automatic
+cached-response request. New integration-base v2 records qualify the declared
+base/head range: a different or unavailable current main is informational and
+does not block execution or fresh receipt validation. This does not claim that
+an untested combination with newer main has passed. Local tracking refs do not
+substitute for an authenticated main observation. Identical commits, unavailable
+local commits and unproven ancestry still refuse before planning or phases.
+Retained integration-base v1 records keep their original current-main admission
+and stock requirements; historical receipts are never upgraded to v2. Existing
+route-specific accepted-main authority bindings remain unchanged. No automatic
 fetch, source integration, retry, or GitHub write is performed.
 
 Admission and later receipt validation are observations at recorded times.
-Validation re-observes current `main` and rechecks ancestry. Neither read reserves
+Validation re-observes current `main` when available and rechecks declared ancestry.
+For v2 it reports differing/unobserved main as applicability information, separate
+from validity of the exact tested range. Neither read reserves
 the base or proves the eventual GitHub merge result: `main` may move after the
 last read, and the later merge-time TOCTOU boundary remains unclosed here.
 
@@ -796,6 +802,19 @@ whole-file protection. Earlier declarations without this resource marker keep
 their original comparison and recorded failures. This adds neither a retry nor
 a proof kind, and never authorizes changing the shared configuration.
 
+The current stock reader for material-source v7 receipts explicitly selects
+`complete-git-config-current-stock-v1` when comparing complete v3 isolated Git
+observations under that resource marker. Only `inode`, `mtime_ns` and `ctime_ns`
+may differ. Complete file SHA-256 and byte length, location, resource role and
+protected branches, projection and scope, mode/owner/group/device/link count,
+and permission identity remain exact. Every other resource keeps its existing
+inventory identity. Unsupported versions, incomplete or unknown Git shapes and
+unsafe or racing acquisition receive no relaxation. The reader reports its
+comparison version and both raw inventory hashes separately from the receipt.
+Historical proof/receipt/ledger pins and raw inventory verification stay exact;
+preparation and deciding admission do not use this current-stock equivalence.
+It neither makes an incomplete receipt pass nor renews an allowance.
+
 Version 2 material retains its original raw preparation/admission hash and
 preference-only comparison (leading `model`, `model_reasoning_effort` and
 `service_tier` values; remainder changes refuse). Version 3 never reinterprets
@@ -826,9 +845,11 @@ controller and owned-child settlement path, never by a foreign PID. Observer
 failure, source/input invalidation, safety faults, cancellation, missing coverage
 and incomplete cleanup cannot yield PASS. Raw phase statuses remain intact.
 Receipt inspection reports execution/coverage, historical integrity, evidence
-validity, safety and current merge applicability separately. Later main movement
-blocks current applicability without rewriting the historical receipt. The
-unchanged exact-head/current-main/context gates still apply to deciding use.
+validity, safety and current merge applicability separately. For retained v1
+integration-base records, later main movement blocks current applicability.
+New v2 records retain valid evidence for the declared range and report differing
+or unobserved main separately. Exact-head, ancestry and context gates remain;
+no historical receipt is rewritten or promoted.
 
 ### Time budgets and timeout triage
 
@@ -948,6 +969,214 @@ authorized prospective aggregate change to 45,000 ms remains adopted; its
 historical authorization is preserved at the pinned Git revision in
 [Retired qualification routes](#retired-qualification-routes). No other
 child/phase bound changes.
+
+### Prospective behavior-preserving improvement (source-correction v2)
+
+The separately dispatched `behavior_preserving_improvement` case represents a
+material production improvement with natural PASS/PASS focused evidence. It
+does not repair or reclassify the predecessor's failure. Ordinary
+`source_revision` and `verifier_correction` still require their natural
+RED/GREEN witnesses; `accepted_main_integration` retains its merge-tree rule.
+The production-module predicate is exactly the existing ordinary-v2 predicate.
+Tests, contracts, cosmetic changes or unrelated work cannot substitute for a
+connected, independently reviewed executable production improvement.
+
+The only eligible predecessor is the latest settled ordinary-v2
+`source_revision` with `product_failure`, original false stock and complete
+cleanup. Preserve its physical attempt/completion/receipt bytes, all known
+observations, consumed authority and UNKNOWN inner causes. Read the original
+physical ledger and receipt again at admission and stock; projections cannot
+replace them. Safety/input-invalid, reviewed, unsettled and prior improvement
+predecessors are excluded. No incident, branch or PR-specific exception exists.
+
+The closed evidence commitment binds the exact whole Git delta, partitions and
+any accepted-main integration; production blobs; common executable driver and
+transitive helpers; Canonical runtime, compiler, dependencies and locks; corpus,
+initial database, seeds and scope/history cases; frozen selectors, bounds,
+assertions and measured operation; and both contemporaneous natural witnesses.
+Exactly one purpose-defined old/final pair is collected after freezing the plan.
+Any new harness on old production is an explicit overlay. A failed collection
+plan is retained and stopped, not repeated for a favorable result. Historical
+records cannot acquire missing execution-time observations retrospectively.
+
+Positive and negative behavior, writes, isolation and public/standalone/fresh
+process reads must be preserved, with the complete affected registered owner
+settling under its unchanged bound. Only explicitly reviewed nonsemantic
+ephemeral differences may normalize. Actual per-case work traces must show a
+strict reduction. An arbitrary old count is never a new functional RED.
+Independent review judges semantic materiality and known-campaign completeness;
+hashes prove neither. Adverse samples, authoring failures, refused starts and
+provenance limitations remain. Reduced work is not timeout repair or a latency
+or reliability guarantee, and does not increase a deadline.
+
+Commitments are acyclic: campaign, independent report/review binding, authenticated
+candidate acceptance, distinct prospective grant, final proof, exclusive edge.
+New JSON records and the two operative bodies use closed safe shapes and
+canonical bytes. Candidate acceptance begins exactly with
+`Accept this prospective improvement candidate and its evidence.` followed by
+one canonical JSON object. A grant begins exactly with
+`Authorize one prospective qualification of this behavior-preserving improvement.`
+and one canonical JSON object. Quoted examples, DECLINE, generic acceptance,
+duplicate keys, extra decisions and unknown fields do not authorize anything.
+The existing bounded GET transport authenticates current User/admin-or-maintain
+authority, exact PR/commit/body and chronology. Acceptance binds the independent
+report and claim limits; the later unedited grant binds acceptance, complete
+campaign/review and planner/phase/owner inventory, explicitly choosing
+`proceed_once_under_unchanged_bounds` for the disclosed timing risk.
+
+Only normal admission can create the invocation-local capability and reserve.
+Read-only preparation cannot create either. The physical predecessor's existing
+exclusive `correction-successor.json` consumes one invocation, including a stop
+between edge and attempt. The target must not already exist. The attempt has
+budget initial1/recovery0 and separate `improvement_authority`; that attempt and
+grant remain terminal. Only the separately commissioned maintenance case below
+can admit a repaired future target. Orphan, partial or truncated records
+remain blocked and retained; no fabricated completion or reclamation. No global
+grant registry, new execution CLI, expiry protocol or additional recovery exists.
+
+Receipt version4 and the final planner workload are unchanged. Historical
+evidence/authority/ledger replay is separate from fresh current permission and
+PR/main applicability. Later live drift cannot rewrite an earlier execution or
+claim historical corruption; tampered originals remain integrity failures.
+Current authorization must be fetched again, never inferred from a cache. Stock
+reads existing machine identity without creating it or repairing permissions.
+Fresh receipt validation, independent result audit, owned cleanup and installed
+Companion preservation remain mandatory regardless of outcome. A deciding
+failure/interruption stops further execution. The historical lossy private-review
+projection refuses this case; retain the original receipt and private artifacts.
+
+### Separately commissioned maintenance (source-correction v2)
+
+`prospective_maintenance` represents a substantive functional or environment
+repair after a settled improvement or maintenance attempt. It does not renew
+that attempt or grant. The original disposition, receipt, false stock, adverse
+observations, UNKNOWN causes and cumulative accounting remain immutable. The
+case accepts only `product_failure`, `input_invalidation` or `safety_violation`
+with completed cleanup, and binds the latest physical tip. Other dispositions,
+unsettled records and unchanged or cosmetic candidates remain refused.
+
+The existing v2 envelope binds exact branch/base/head/tree, PR, predecessor,
+and strict private `evidence` and `review` artifact references. The evidence
+contains original attempt/completion/receipt/false stock bytes, the complete
+committed delta and path inventory, canonical runtime and all three prepared
+dependency observations, and individually attributed repairs. Every failed
+phase and recorded input fault must be addressed. Each repair retains the
+ordinary production-source predicate and natural RED/GREEN requirement, with
+exact old/final blobs, common executable fixture, environment/input artifacts,
+execution-time start/end bindings, chronology, logs and completed cleanup.
+PASS/PASS improvement samples and killed children cannot be relabeled as RED.
+The historical evidence index commits all known adverse observations, their
+limitations, the predecessor's evidence commitment and cumulative cost. A
+separate source/evidence review must accept the complete delta, affected
+consumers, all repairs, preserved checks, history and safe-input order. Review
+and authority are responsible for the completeness of known history; a digest
+alone does not prove an unobserved fact.
+
+Safe setup precedes admission. Normal development preparation may establish
+lockfile-fixed dependencies in an authorized task-owned checkout without an
+attempt capability. It must preserve retained evidence and foreign resources;
+permission to implement this case does not authorize modifying unsafe retained
+stock. The read-only setup observer reports all three actual dependency trees.
+Admission requires them to match the reviewed safe observations before any
+authority await, and rechecks them immediately before the exclusive edge.
+The deciding executor still runs its normal clean `npm ci` phases. Its existing
+prepared-input owner then compares each result with the admitted prerequisite
+and protects it thereafter. No deciding work or capability is needed to make
+the prerequisite safe, and a promise that later installation will fix unsafe
+stock never satisfies admission.
+
+The new operative acceptance begins exactly with
+`Accept this substantively repaired maintenance candidate and its evidence.`
+and one closed canonical JSON object. The later distinct commission begins
+exactly with
+`Commission one prospective maintenance qualification without reopening the terminal attempt.`
+and one closed canonical JSON object. The existing authenticated GitHub GET
+transport verifies current maintainer permission, exact Draft PR/base/head,
+unedited record bytes and chronology. Acceptance binds the complete independent
+report. The commission binds acceptance, evidence, review, planner/phase/owner
+inventory, history and the terminal predecessor; it must explicitly choose
+`accept_once_under_unchanged_bounds` for cumulative cost and timing risk,
+maximum1/recovery0/unchanged_retry0, failure/interruption stop, fresh validation,
+result audit and cleanup. No old grant, generic acceptance or fallback route
+supplies these conditions.
+
+Only the normal executor reserves the existing exclusive physical successor
+edge. Concurrent contenders, replay and preexisting target state refuse. An
+interruption after that edge, even before an attempt file, consumes the
+commission; orphan/truncated state is retained and never reclaimed. The new
+attempt derives initial1/recovery0 and records `maintenance_authority`.
+Ordinary recovery, source_revision and verifier-correction cannot bypass a
+terminal tip. A further repaired target requires another explicit maintenance
+decision and new exact-target commission.
+
+A completed-success maintenance attempt with complete cleanup may instead be
+the predecessor of the existing reviewed `accepted_main_integration` case.
+Admission, cold lineage reconstruction and stock inspection require the same
+original receipt, exact later review, exclusive successor, accepted main and
+selected integration case described below. Failed, incomplete or unsafe
+predecessors do not qualify; selecting an integration label does not reopen the
+spent maintenance commission. Its original attempt, completion, authority,
+receipt and budget remain immutable. The legacy pure integration is an ordinary v2
+candidate with its existing initial1/recovery1 ceiling; it is not a renewed
+maintenance grant, and any execution or substantiated recovery still needs
+separate applicable human authority.
+
+`prepareAcceptedMainIntegrationCandidate` reuses the complete integration
+eligibility reader without a reservation, attempt capability or lease. Its
+result is evidence preparation, not authentication or permission to execute.
+An existing successor or target family refuses preparation. With no
+`integration_case` selector the historical pure two-parent, whole-entry union
+rule and receipt interpretation remain unchanged. Amended commits and differing
+overlaps still refuse that legacy case.
+
+The explicit `integration_case:"reviewed"` selects a reviewed integration, never
+a pure merge or a repair of the successful predecessor. Source delivery is one
+real integration commit with ordered successful-predecessor/accepted-main
+parents, followed by one separately attributable compatibility correction commit.
+The proof binds the actual merge base, integration commit/tree, every differing
+overlap's base/predecessor/main/result tree entries, complete integration and
+resolution diffs, complete correction diff/paths, and final head/tree. Every
+non-overlapping entry must still equal the read-only union. Independent complete
+source review binds all these identities, the full predecessor-to-final diff,
+affected consumers and necessary verifier/policy adjustments only. No issue or
+file exemption, mutable merge replay, external verifier overlay or prerequisite
+main merge is used. Preparation and stock read existing objects and never create
+Git objects or reserve accounting.
+
+That review file is evidence, not authority. Acceptance must begin with
+`Accept this reviewed integration candidate and its complete source delivery.`
+and the distinct later commission with
+`Commission one qualification of this reviewed integration with an explicit budget.`
+Each is followed by one canonical JSON object. They bind the exact repository,
+PR, predecessor, main, final source, integration digest, review/report and planner.
+The same bounded authenticated GitHub transport checks the exact-head review,
+unedited comment, User/admin-or-maintain permissions and strict timestamp order,
+including conservative second-precision chronology. Provider bytes and timestamps
+are not normalized before hashing. The commission explicitly sets maximum1,
+recovery0, unchanged_retry0, stop, fresh validation, independent audit, cleanup and
+`accept_once_under_unchanged_bounds` for cumulative cost/timing risk. The proof's
+explicit budget is initial1/recovery0; neither implementation nor preparation
+grants an invocation or any recovery. `authorization:null` is valid preparation.
+
+Normal admission alone mints the invocation-local capability and appends the
+existing exclusive successor. Cold history and receipt inspection replay the
+same source and authenticated historical records. Unsafe current inputs, stale
+main/target, missing review, unaccounted changes, competing succession and replay
+refuse; a partial edge remains retained and cannot be reclaimed. Current stock
+separately observes live authority/applicability without invalidating an intact
+historical recorded-context result. Final planner-selected Full coverage and a
+separate fresh receipt process remain mandatory under later explicit authority.
+Do not fabricate repair RED or renew the predecessor's spent commission.
+
+Receipt version4 and the complete final planner workload stay unchanged.
+Stock checks the one-shot budget, physical history, historical authenticated
+records, dependency prerequisites, all phases and natural cleanup. It separately
+fetches current authority and checks current inputs and applicability; later
+drift cannot rewrite historical integrity. Stock never creates machine identity.
+Original receipts and artifacts are required; lossy review export refuses.
+`prepareMaintenanceCandidate` is read-only and accepts `authorization:null`:
+committed-evidence eligibility, live-input readiness and missing prospective
+authority are separate results. It cannot mint a capability or reserve.
 
 ### Reviewed source and execution-input revision (source-correction v7)
 
@@ -1179,6 +1408,83 @@ mandatory. Observer cancellations, safety violations, successful receipts,
 interruption and incomplete settlement are not material-source incidents. The
 older dependency/restoration exceptions are not widened.
 
+For a material continuation whose predecessor has a valid version 4 receipt
+with admitted integration-base v2 provenance, a naturally failed integration
+phase may retain incomplete Browser use. Earlier passing phases still require every registered
+consumer; later phases remain NOT_RUN with no records. The failed integration
+phase retains only its actual ordered consumer prefix, including an empty prefix
+when it failed before Browser launch. Every retained record must identify the
+protected Browser; missing, excessive, reordered or unexplained records refuse.
+This represents failed/incomplete evidence, never completed Browser coverage.
+Dedicated Browser phases retain their existing complete-use requirements.
+
+The explicitly selected `git-config-stock-verifier-repair-v1` material case
+also recognizes an intact settled dedicated-Browser serial timeout predecessor.
+Its `settled-browser-timeout-stock-verifier-v1` interpretation validates the
+preceding passing phases, exact completed consumer prefix, bounded interrupted
+inner child, naturally failed outer coordinator, unexecuted suffix and complete
+owned settlement. The inner timeout is never natural repair RED. Default and
+legacy material cases do not gain partial dedicated-Browser coverage, and final
+qualification still requires every applicable phase and Browser consumer.
+
+This historical case binds both original logs: the truncated native phase
+capture (2 MiB), and one complete outer original (at most 5 MiB for this case
+only). An exact byte-offset terminal slice is bounded to 64 KiB. Its source,
+invocation, phase, receipt, lifecycle and complete original hash remain bound.
+To verify the native prefix, the reader removes only validated outer-owner
+framing/heartbeat records in that unique phase interval, preserving all child
+bytes, including a partial final native line. The terminal slice must equal its
+original byte range; no missing output is reconstructed and no global capture
+allowance changes. Serial accounting and process durations retain their separate
+monotonic clocks and existing bounds.
+
+The original false stock remains immutable. The additional attempt-record issue
+is accounted for only after exact original receipt/proof/authority/physical
+validation and complete recorded Git metadata-only reconciliation. That is a
+source/record-derived explanation, not recovery of an unrecorded exception or a
+claim of ledger corruption. Other missing/extra issues, unsafe inputs, bad
+coverage, unverified history and unsupported interpretations refuse.
+
+The corresponding `material-common-stock-verifier-driver-v1` attribution uses
+one reviewed common candidate driver with predecessor/final implicated attempt
+and Git-observation modules. It is not an untouched predecessor checkout. It
+binds the complete effective source catalogue and imports separately from those
+variants, common runtime/headers, all three dependencies, environment, isolated
+physical ledger/input corpus and natural cleanup. Both roles must pass exact
+raw inspection and the declared content/security/location/scope/forged-binding
+and malformed-observation refusals before the same desired metadata-only assertion. Repair RED requires
+the actual old production `inspectAttemptRecords` result to refuse that same
+byte-identical metadata-only case; final GREEN completes it and all cleanup.
+Setup/import/selector/timeout/cleanup/output failures are not repair RED. The
+common summary write must settle before the original primary is rethrown; the
+reader requires complete UTF-8 output with its terminal newline, binds original
+stderr, and refuses explicit recording failures even if JSON is parseable. Synthetic
+ledger accounting is not real authority or qualification. The existing HTTP
+common-driver attribution and its EPIPE conditions retain their meaning.
+
+Verifier-specific delegation, acceptance and prospective commission name this
+case and retain the historical Browser cause and interrupted operation as
+UNKNOWN. Separate model review is identified accurately; it does not become
+human or external-device validation. Exact material/preparation/source/runtime
+and current input bindings, authenticated identity, chronology, exclusive
+physical succession and maximum1/recovery0/unchanged-retry0 remain required.
+This case accepts the existing integration-base-v2 declared range without
+requiring the PR's observed main commit to equal that base; published exact
+head/branch/repository, valid main identity and actual source ancestry remain
+mandatory. Legacy publication meanings are unchanged. Safe three-tree input
+prerequisites are observed before admission, rechecked after asynchronous
+observation and retained through fixed-lock setup and later stock. Eligibility
+does not establish a Browser timeout repair or change a deadline or timing risk.
+
+For that versioned material case, `different_current_main` and
+`current_main_unobserved` are applicability information in the original false
+stock. Preparation retains the declared base and exact source ancestry without
+requiring the tracking main ref to equal that base. Authenticated Draft source,
+route-specific publication, current inputs, authority and physical succession
+checks remain. Retained integration-base v1 and other route meanings keep their
+existing restrictions. No missing provenance is upgraded to v2, and final
+qualification still requires its complete applicable phase and Browser coverage.
+
 The new commission has ordinal one and maximum one for one exact accepted target
 and preparation commitment. Reservation or interruption consumes it. A further
 in-scope material correction requires another complete proof, separate independent
@@ -1232,6 +1538,44 @@ modules and consumed source files. A later documentation-only target under `docs
 may retain the after witness only with the complete exact Git delta and identical
 consumed bytes; executable changes require relevant new evidence. Witness originals
 are never relabeled.
+
+The explicit material attribution `material-common-candidate-driver-v1` permits
+one reviewed candidate MJS driver with predecessor/final implicated modules.
+It is not the v10 successor case. The before role is a candidate harness with
+only named materially changed modules replaced by exact predecessor bytes; its
+Git HEAD remains the candidate and it is never described as a clean predecessor
+checkout. Both roles bind the complete effective physical source catalogue,
+common candidate source digest, separate driver and tested-module identities,
+actual Node-loaded project sources, unchanged runtime/environment and all three
+prepared dependency trees. Source substitutions outside that partition refuse.
+The compiled Worker input inventory and executed bundle identity must also
+remain equal. Equal lexical child environments require a freshly created empty
+owned directory per role, with prior settlement, removal and observed absence
+before the same path can be recreated; mutable HOME/temp/cache/runtime state
+cannot carry between roles.
+Supported preparation rereads the three current prepared dependency identities
+against the after witness after its asynchronous live observation; subsequent
+fixed-lock qualification preparation retains its existing meaning.
+Worker inputs retain their original esbuild identifiers separately from physical
+paths. Only the source-declared `.txt?raw` and `.mjs?raw` text forms may map that
+suffix to the corresponding regular file; other suffixes and unsafe paths refuse.
+
+The concrete request-transport driver preserves real Worker/session/request
+assertions. It selects only a body-bearing local POST `/api/drafts` with declared
+length above the reader limit, converts those same bytes to a scheduled stream,
+and releases the remainder only after that exact actual Undici request's 413
+headers. Unknown-length streaming is not selected. Fresh ports/session/CSRF
+values remain raw per-run observations; matching semantic setup does not imply
+identical secret or header digests across roles or reconstruct historical order.
+The evidence reader requires a natural selected-response-body EPIPE after setup,
+correlation and actual 413, plus complete final assertions and natural cleanup.
+Setup, loader, harness, timeout or cleanup failure cannot supply RED. Every
+outcome and original counter/error remains retained. Typed-kind mixtures,
+post-pass/acquisition fallback, unknown attribution and after-equivalence refuse.
+The complete final executable delta, including these readers, requires separate
+review. This attribution supplies no acceptance, execution allowance or retry;
+existing preparation, authenticated authority, physical lineage and final Full
+requirements remain controlling.
 
 The existing candidate-driver/prior-implicated-source collector also supports
 one bounded material-v7 sequencing witness: unchanged command
@@ -1403,6 +1747,59 @@ identity, original proof replay, receipt/stock and the sanitized export, whose
 structural status still supplies no independent attestation or deciding stock.
 Inherited serial accounting, exclusive successor and one-shot consumption are
 unchanged. No acceptance/grant is required to produce a non-reserving target.
+
+The explicitly selected `commission.allowance_case =
+"registered-maintenance-direct-v1"` extends this same evidence kind to the
+registered `local-canonical-maintenance` direct authority child after a latest,
+fully settled ordinary v2 `source_revision` product failure. It does not select
+the serial wrapper grammar. The retained complete physical authority log must
+show that exact direct child bounded at 60000 ms, its forced timeout settlement,
+the natural outer phase failure and complete cleanup. The existing strict
+settled-failure reader verifies all phases, runtime, Browser/environment and
+stock consequences. Its original failure, false stock and UNKNOWN timing cause
+remain unchanged. Ordinary RED/GREEN and every legacy route keep their meanings.
+
+Only the direct registration's 60000-to-90000 ms allowance changes. The complete
+suite outside that literal, maintenance workload and internal 10000 ms limits
+remain fixed. The complete source partition separately commits the registration
+delta and the closed set of evidence readers, controls and policy changes for
+independent review. Retained timing-only loader diagnostics retain their original
+source and missing observations; their finite inert loader grammar is validated
+without executing historical source. Complete stages, source preimages, actual
+collector/observer/output bytes, natural settlement, measured rationale and
+contradictory passing observations are required. No natural RED, fabricated
+90-second assertion or observation exceeding the old bound is required.
+
+The existing fixture-budget collector captures the complete direct registered
+command on the final source with unchanged before/after source, loader, runtime,
+configuration, dependencies and complete current input inventory. There is no
+second serial parent capture or Full rehearsal. The affected maintenance test
+does not recursively execute these contract controls. Final changed consumed
+code requires its relevant focused observation; old measurements are not retagged.
+
+The existing material preparation, authenticated authority, exclusive lineage,
+receipt and stock owners carry this selected case. A genuinely new unedited
+conditional delegation precedes non-reserving preparation; separate independent
+review includes the complete final delta, evidence and readers themselves.
+The exact-target acceptance and separate prospective grant bind the existing
+evidence kind, allowance case, 90000/10000 ms limits, complete preparation
+commitment, predecessor, declared base, head/tree, inventory and original records.
+The grant begins `Authorize one NEW prospective v7 reviewed_revision commission
+for the measured registered maintenance allowance.` It permits exactly one
+admitted invocation, recovery zero and unchanged admitted retry zero; reservation
+or interruption consumes it. It cannot follow another reviewed commission or
+renew the predecessor. At most two command launches are allowed, with the second
+only after a conclusively pre-reservation/pre-admission/pre-phase refusal caused
+by a demonstrated task-owned setup defect, corrected with complete cleanup and
+still-valid authority. Any admitted failure or interruption stops execution.
+
+For this explicit case, current PR/base-branch movement is informational under
+integration-base v2. Preparation and admission retain the declared base and exact
+source ancestry, authenticated Draft head/repository/ref, complete input,
+Companion, ownership and capacity checks. They do not require current main to
+equal the declared base or claim an untested current-main integration. Other
+inventory-bound route publication and base rules are unchanged. Separate fresh
+receipt validation, independent result audit and cleanup remain mandatory.
 
 The production reader owns the four-paragraph material-source delegation. It must
 be unedited, genuinely new and later than the physical predecessor's completion.
@@ -2182,12 +2579,15 @@ Validation exits nonzero unless the receipt is currently valid deciding
 evidence. It rejects or marks non-deciding a receipt when:
 
 - current `HEAD`, origin, branch/detached state, worktree cleanliness, or environment identity differs;
-- the fresh authenticated `main` observation is unavailable or differs from the
-  recorded base, or current ancestry cannot be established;
+- current declared base-to-head ancestry cannot be established; for retained
+  integration-base v1 receipts, the fresh authenticated `main` observation is
+  also required to match the recorded base;
 - integration-base provenance is missing, inconsistent, wrongly timed, or
   tampered; historical version 1/2 receipts remain historical and are not upgraded
   into newer evidence; version 3 keeps its original interpretation and is never
   rewritten or promoted into version 4;
+- integration-base v2 appears in a historical version 3 receipt, its recorded
+  check falls outside the run, or its fresh local-source check predates settlement;
 - required checkout ownership was not acquired/released for the phase lifetime,
   failed, or belongs to another physical checkout;
 - the admitted context, physical checkout, receipt filename/run identity,

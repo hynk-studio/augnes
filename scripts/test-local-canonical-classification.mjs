@@ -17,6 +17,7 @@ import { canonicalSerialize, finalizeReceipt, inspectReceiptForDecision, verifyR
 import { createPrivateReviewExport, inspectPrivateReviewExport } from "./local-canonical-review-export.mjs";
 import { beginBrowserUse, validBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { baseReceipt, validContext } from "./fixtures/local-canonical-receipt-v3.mjs";
+import { INTEGRATION_BASE_CONTRACT } from "./local-canonical-integration-base.mjs";
 
 const owner = createCanonicalTestResourceRoot("ag-resource-test-");
 const root = owner.root;
@@ -403,6 +404,41 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
   validContext.currentInputStateValid = true;
   const passing = finalizeReceipt(receipt);
   assert.deepEqual(inspectReceiptForDecision(passing, validContext).issues, []);
+  const declared = structuredClone(receipt);
+  declared.integration_base.contract = INTEGRATION_BASE_CONTRACT;
+  declared.integration_base.observation.sha = "8".repeat(40);
+  declared.integration_base.base_matches_current_main = false;
+  const currentDeclared = structuredClone(validContext.currentIntegrationBase);
+  currentDeclared.contract = INTEGRATION_BASE_CONTRACT;
+  currentDeclared.observation.sha = "9".repeat(40);
+  currentDeclared.base_matches_current_main = false;
+  const declaredContext = { ...validContext, currentIntegrationBase: currentDeclared };
+  const declaredResult = inspectReceiptForDecision(finalizeReceipt(declared), declaredContext);
+  assert.deepEqual(declaredResult.issues, []);
+  assert.equal(declaredResult.valid_deciding_evidence, true);
+  assert.equal(declaredResult.dimensions.current_merge_applicability, "different_current_main");
+  const unobserved = structuredClone(declared), unobservedCurrent = structuredClone(currentDeclared);
+  for (const value of [unobserved.integration_base, unobservedCurrent]) {
+    value.observation = null; value.base_matches_current_main = null;
+  }
+  const unobservedResult = inspectReceiptForDecision(finalizeReceipt(unobserved), { ...declaredContext, currentIntegrationBase: unobservedCurrent });
+  assert.deepEqual(unobservedResult.issues, []);
+  assert.equal(unobservedResult.dimensions.current_merge_applicability, "current_main_unobserved");
+  for (const mutate of [
+    r => { r.integration_base.checked_at = "2026-07-23T00:00:00.000Z"; },
+    r => { r.integration_base.base_is_ancestor_of_head = false; },
+    r => { r.integration_base.requested_base_sha = "9".repeat(40); },
+    r => { r.repository.repository_id = "other/repository"; },
+    r => { r.integration_base.contract = "unknown"; },
+    r => { r.integration_base.base_matches_current_main = true; },
+  ]) {
+    const invalid = structuredClone(unobserved); mutate(invalid);
+    assert(inspectReceiptForDecision(finalizeReceipt(invalid), declaredContext).issues.includes("receipt_integration_base_provenance_invalid"));
+  }
+  const earlyFresh = structuredClone(unobservedCurrent);
+  earlyFresh.checked_at = receipt.run.started_at;
+  assert(inspectReceiptForDecision(finalizeReceipt(unobserved), { ...declaredContext, currentIntegrationBase: earlyFresh }).issues.includes("receipt_current_integration_base_invalid"));
+  note("declared-base v2 accepts moved or unobserved main without promoting legacy receipts or losing exact-source/timing refusal");
   const diagnosed = structuredClone(receipt), failureEvidence = diagnosedReader.snapshot();
   diagnosed.inputs.events = failureEvidence.events;
   diagnosed.inputs.first_fault = failureEvidence.first_fault;

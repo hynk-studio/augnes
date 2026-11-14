@@ -20,7 +20,10 @@ const phaseIds = REVIEWED_REVISION_PHASES;
 
 export function gitFixtureDeclaration(c) {
   const node = c.inputs.node;
-  const config = { ...structuredClone(node.observation), git_projection:{policy:"isolated-current-branches-v1", applicable:true,
+  // A Git observation is not an executable observation. Keep the synthetic
+  // declaration under the same complete shape as the physical Git reader.
+  const { executable_identity_policy, ...gitObservation } = structuredClone(node.observation);
+  const config = { ...gitObservation, git_projection:{policy:"isolated-current-branches-v1", applicable:true,
     effective_sha256:digest("original effective config"), scope_fingerprint:digest("branches")} };
   const resource = (id, before) => ({id, classification:"execution", location_fingerprint:digest(id), before});
   return {contract:INPUT_CONTRACT, path_kind:"isolated-model-free-v1", binding:{head:c.acceptedHead,...(c.directGitInput ? {tree:c.acceptedTree} : {})},

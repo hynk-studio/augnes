@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import type { WorkComposerDraft } from "./work-composer-draft";
 
-// Opt in only the work-definition composers. Baselines have the same lifetime
+// Opt in only the work and optional observation composers. Baselines have the same lifetime
 // as their in-memory draft; nothing is stored or sent outside this document.
 const baselines = new WeakMap<WorkComposerDraft, Map<string, unknown>>();
-const authoredFields = new Set(["goal", "criteria", "nonGoals", "notes", "noteDraft", "noteTime", "omissions"]);
+const authoredFields = new Set(["goal", "criteria", "nonGoals", "notes", "noteDraft", "noteTime", "omissions",
+  "expectationCriterion", "expectationPrediction", "expectationReason", "expectationConditions",
+  "reportOutcome", "reportObservation", "reportApplied"]);
 
 export function trackWorkPreparation(draft: WorkComposerDraft) {
   if (!baselines.has(draft)) baselines.set(draft, new Map());
@@ -15,6 +17,15 @@ export function trackWorkPreparation(draft: WorkComposerDraft) {
 export function observeWorkPreparationField(draft: WorkComposerDraft, key: string, value: unknown) {
   const baseline = baselines.get(draft);
   if (baseline && authoredFields.has(key) && !baseline.has(key)) baseline.set(key, value);
+}
+
+// A confirmed save accepts only the submitted values. Later edits retain their
+// own comparison baseline, including selector-only and checkbox-only edits.
+export function acceptWorkPreparationFields(draft: WorkComposerDraft | undefined, values: Record<string, unknown>) {
+  const baseline = draft && baselines.get(draft);
+  if (baseline) for (const [key, value] of Object.entries(values)) {
+    if (authoredFields.has(key)) baseline.set(key, value);
+  }
 }
 
 export function hasUnsavedWorkPreparation(draft: WorkComposerDraft | null | undefined): boolean {

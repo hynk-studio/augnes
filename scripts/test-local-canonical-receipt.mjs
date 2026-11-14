@@ -22,6 +22,7 @@ import {
 } from "./local-canonical-receipt.mjs";
 
 import { baseReceipt, validContext, policyPhaseIds } from "./fixtures/local-canonical-receipt-v3.mjs";
+import { INTEGRATION_BASE_CONTRACT } from "./local-canonical-integration-base.mjs";
 
 assert.equal(
   canonicalSerialize({ z: 1, a: { d: 2, c: 3 } }),
@@ -49,6 +50,10 @@ assert.deepEqual(inspectReceiptForDecision(finalized, validContext), {
   dimensions: { execution: "complete_pass", historical_integrity: "intact", evidence_validity: "valid_in_recorded_context", safety: "legacy_recorded_scope", current_merge_applicability: "matches_observed_context" },
 });
 assert.deepEqual(finalized.integration_base, baseReceipt.integration_base);
+const mixedBaseContract = structuredClone(baseReceipt);
+mixedBaseContract.integration_base.contract = INTEGRATION_BASE_CONTRACT;
+assert(inspectReceiptForDecision(finalizeReceipt(mixedBaseContract), validContext).issues.includes("receipt_integration_base_provenance_invalid"),
+  "historical v3 receipts cannot acquire declared-base v2 semantics");
 for (const mutate of [
   (value) => { value.requested_base_sha = "9".repeat(40); },
   (value) => { value.tested_head_sha = "9".repeat(40); },
@@ -86,6 +91,7 @@ for (const [current, issue] of [
   [{ ...validContext.currentIntegrationBase, status: "refused", observation: null }, "receipt_current_integration_base_unavailable"],
   [{ ...validContext.currentIntegrationBase, observation: { ...validContext.currentIntegrationBase.observation, sha: "9".repeat(40) } }, "receipt_stale_integration_base"],
   [{ ...validContext.currentIntegrationBase, base_is_ancestor_of_head: false }, "receipt_current_integration_base_invalid"],
+  [{ ...validContext.currentIntegrationBase, contract: INTEGRATION_BASE_CONTRACT }, "receipt_current_integration_base_invalid"],
   [{ ...validContext.currentIntegrationBase, checked_at: "2026-07-23T00:00:00.000Z" }, "receipt_current_integration_base_invalid"],
 ]) {
   assert(inspectReceiptForDecision(finalized, { ...validContext, currentIntegrationBase: current }).issues.includes(issue));

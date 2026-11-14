@@ -132,6 +132,18 @@ export async function checkPreparationStay(browser) {
   } finally { dialogs.stop(); }
 }
 
+export async function checkOptionalPreparationStay(browser, selector) {
+  const { cdp, evaluate } = browser;
+  const ui = nativePreparationBrowser(browser), dialogs = preparationDialogs(cdp);
+  try {
+    await ui.click(selector); // A real user gesture enables Chrome's unload protection.
+    const snapshot = `Array.from(document.querySelector(${JSON.stringify(selector)}).form.elements).map(e => [e.id, e.value, e.checked])`;
+    const before = await evaluate(snapshot);
+    await dialogs.expect(() => cdp.send("Page.navigate", { url: "about:blank" }));
+    assert.deepEqual(await evaluate(snapshot), before, "Stay preserves every optional draft field");
+  } finally { dialogs.stop(); }
+}
+
 export async function checkPreparationPreviewResponse(browser, kind) {
   const { evaluate, waitForCondition } = browser;
   const ui = nativePreparationBrowser(browser);

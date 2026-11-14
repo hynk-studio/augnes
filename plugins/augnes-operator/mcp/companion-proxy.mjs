@@ -1831,6 +1831,19 @@ function advertisedToolsV01() {
   return [...lifecycleToolDescriptionsV01(), toolDescriptionV01(), sourceReadToolDescriptionV01(), methodOutlookToolDescriptionV01(), retainedSourceLookupToolDescriptionV01(), ...initialWorkToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(true), ...resultWorkToolDescriptionsV01(), executionChoiceToolDescription(), externalToolDescription(), reviewWorkToolDescriptionV01(), ...repositoryExecutionToolDescriptionsV01()];
 }
 
+function hasRequiredToolArgumentsV01(args, schema) {
+  // Check only the advertised top-level required shape before discovery.
+  // Optional, nested and semantic constraints remain with their current owners.
+  return schema.required.every(name => {
+    if (!Object.hasOwn(args, name)) return false;
+    const value = args[name], type = schema.properties[name].type;
+    if (type === "object") return value !== null && typeof value === "object" && !Array.isArray(value);
+    if (type === "array") return Array.isArray(value);
+    if (type === "integer") return Number.isInteger(value);
+    return typeof value === type;
+  });
+}
+
 export async function handleMessageV01(message) {
   const object = message !== null && typeof message === "object" && !Array.isArray(message);
   const hasId = object && Object.hasOwn(message, "id");
@@ -1858,12 +1871,19 @@ export async function handleMessageV01(message) {
   if (message.method === "tools/call") {
     const args = message.params?.arguments;
     const toolName = message.params?.name;
+    const tool = advertisedToolsV01().find(candidate => candidate.name === toolName);
     // Reject an unadvertised name before any Companion discovery or repair guidance.
-    if (!advertisedToolsV01().some(tool => tool.name === toolName)) {
+    if (!tool) {
       return { jsonrpc: "2.0", id: message.id, error: { code: -32602, message: "unknown_tool_name" } };
     }
     if (!args || typeof args !== "object" || Array.isArray(args)) {
       return { jsonrpc: "2.0", id: message.id, error: { code: -32602, message: "invalid_repository_tool_request" } };
+    }
+    if (!hasRequiredToolArgumentsV01(args, tool.inputSchema)) {
+      const reason = [LIFECYCLE_STATUS_TOOL_NAME, LIFECYCLE_START_TOOL_NAME].includes(toolName)
+        ? "invalid_companion_lifecycle_request"
+        : toolName === "augnes_review_repository_work" ? "invalid_review_tool_request" : "invalid_repository_tool_request";
+      return { jsonrpc: "2.0", id: message.id, error: { code: -32602, message: reason } };
     }
     if (toolName === EXTERNAL_TOOL) {
       const found = await selectCompanionForReadonlyRouteV01();

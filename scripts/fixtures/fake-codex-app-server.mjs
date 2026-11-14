@@ -746,7 +746,16 @@ async function handle(message) {
           scenario === "status_only_notifications"
         )
           completeSuccess();
-        else if (scenario === "result_admission") completeSuccess();
+        else if (scenario === "result_admission") {
+          // Targeted recorder-order controls release this signal only after the
+          // real adapter observes turn_started. No timed scheduling guess.
+          const terminalRelease = process.env.FAKE_CODEX_RESULT_TERMINAL_RELEASE_PATH;
+          if (terminalRelease) {
+            void waitForBoundedFileSignal(terminalRelease, { timeoutMs: 5_000 })
+              .then(() => completeSuccess())
+              .catch(() => { process.exitCode = 1; process.stdin.destroy(); });
+          } else completeSuccess();
+        }
         else if (scenario.startsWith("terminal_diagnostic_")) completeDiagnosticFailure();
         else if (scenario === "turn_failure" || scenario === "candidate_canary_failed") completeFailure();
         else if (scenario === "scoped_command_cwd" || scenario === "command_cwd") {

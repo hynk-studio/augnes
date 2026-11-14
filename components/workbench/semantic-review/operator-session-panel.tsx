@@ -275,6 +275,9 @@ function publicErrorCode(value: unknown): string {
 function sessionErrorMessage(value: unknown): string {
   const code = publicErrorCode(value);
   const keepDraft = "Keep this tab open to retain any draft.";
+  if (code === "operator_session_required") {
+    return `Local review access is required for this project. ${keepDraft} Obtain fresh local review access for the original project and operator before retrying. (${code})`;
+  }
   if (code === "operator_session_scope_mismatch") {
     return `This local review access belongs to another project. ${keepDraft} Unlock this exact project with its own local review token. (${code})`;
   }

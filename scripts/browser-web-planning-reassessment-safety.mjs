@@ -1,3 +1,4 @@
+import { settleWebPlanningBrowser } from './web-planning-browser-observation.mjs';
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -5,11 +6,11 @@ import { startLocal } from './web-planning-local-runtime.mjs';
 
 // Real file selection, keyboard input, Chrome unload dialogs and server replies.
 // The ordinary browser owner supplies bounded lifetime/cleanup; no mock writer.
-export async function browserReassessmentSafety({c,seed,root,newPage,login,click,set,settled,wait,navigate,barrier,checks,requests}) {
+export async function browserReassessmentSafety({c,seed,root,newPage,login,click,set,settled,wait,navigate,barrier,checks,requests,observe=async(name,run)=>run(),failure=()=>{}}) {
   const failures=[], observations=[];
   async function check(name,fn) {
-    try { const evidence=await fn(); observations.push({name,result:'PASS',...evidence}); }
-    catch(e) { failures.push(e);observations.push({name,result:'FAIL',error:e.message}); }
+    try { const evidence=await observe('reassessment.case.'+name,fn); observations.push({name,result:'PASS',...evidence}); }
+    catch(e) { failures.push(e);observations.push({name,result:'FAIL',error:e.message});failure('reassessment.case.'+name,e); }
   }
   async function open(id=seed.b.work_id) {
     await c.eval(`openWork(${JSON.stringify(id)})`);await settled(c);
@@ -120,7 +121,7 @@ export async function browserReassessmentSafety({c,seed,root,newPage,login,click
       await c.send('Network.clearBrowserCookies');
       assert.equal(await c.eval("request('/api/works').then(()=>null,e=>e.message)"),'access_denied');
       assert.equal(await c.eval('accessLost&&work===null&&reassessmentPrepared===null&&reassessmentPending===null&&reassessmentRows.length===0'),true);
-    } catch(e){journalPrimary=e;throw e;} finally {
+    } catch(e){journalPrimary=e;failure('reassessment.journal',e);throw e;} finally {
       // Release even when an assertion fails; wait for the actual transaction's
       // finalizer before check() proceeds to another case.
       try{await c.eval('journalGate.release=true');await wait(()=>c.eval('journalGate.closed'),'owned journal barrier closes');}
@@ -162,22 +163,26 @@ export async function browserReassessmentSafety({c,seed,root,newPage,login,click
     ['v09-directions-budget',direction,3000001,'/api/reconstruct-directions'],
     ['legacy',legacy,0,'/api/reconstruct-files'],
   ]) await check('file picker import '+name,async()=>{
-    const local=await startLocal({root:path.join(root,'import-'+name)});let dest;
+    const local=await observe('import.'+name+'.runtime_setup',()=>startLocal({root:path.join(root,'import-'+name)}));let dest,primary;
     try {
-      dest=await newPage(local.origin);await login(dest,local.origin);
+      dest=await observe('import.'+name+'.page',()=>newPage(local.origin));await observe('import.'+name+'.login',()=>login(dest,local.origin));
       const file=path.join(root,name+'.json');await writeFile(file,JSON.stringify(value)+' '.repeat(padding),{mode:0o600});
       const {root:doc}=await dest.send('DOM.getDocument');const {nodeId}=await dest.send('DOM.querySelector',{nodeId:doc.nodeId,selector:'#import-file'});
       await dest.send('DOM.setFileInputFiles',{nodeId,files:[file]});
-      const start=requests.length;await click(dest,'import');await settled(dest);
+      const start=requests.length;await observe('import.'+name+'.settlement',async()=>{await click(dest,'import');await settled(dest);});
       const observed=requests.slice(start).filter(r=>r.path.startsWith('/api/reconstruct')).map(r=>r.path),status=await dest.eval("$('status').textContent");
       console.log(JSON.stringify({reassessment_import:{name,format:value.format,padding,observed,status}}));
-      assert.deepEqual(observed,[route],'ordinary import must use the compatible bounded route');
+      await observe('import.'+name+'.route_assertion',async()=>assert.deepEqual(observed,[route],'ordinary import must use the compatible bounded route'));
       const works=value.works??[value];for(const expected of works){
-        const actual=await dest.eval(`api('/api/work/${expected.revisions[0].work_id}/export')`);assert.deepEqual(actual,expected,'complete historical bytes and lineage survive browser reconstruction');
+        await observe('import.'+name+'.history_assertion',async()=>{const actual=await dest.eval(`api('/api/work/${expected.revisions[0].work_id}/export')`);assert.deepEqual(actual,expected,'complete historical bytes and lineage survive browser reconstruction');});
       }
-      assert.equal((await local.db.prepare('SELECT count(*) n FROM web_planning_participation WHERE revoked_at IS NULL').first()).n,0,'history cannot create live access');
+      await observe('import.'+name+'.access_assertion',async()=>assert.equal((await local.db.prepare('SELECT count(*) n FROM web_planning_participation WHERE revoked_at IS NULL').first()).n,0,'history cannot create live access'));
       return {format:value.format,route,padding,historical_exports_equal:true};
-    }finally{if(dest)await navigate(dest,'about:blank');await local.close();}
+    } catch(error){primary=error;failure('import.'+name+'.body',error);throw error;}
+    finally{await settleWebPlanningBrowser({primary,observe,steps:[
+      ...(dest?[{name:'import.'+name+'.navigation',run:()=>navigate(dest,'about:blank')}]:[]),
+      {name:'import.'+name+'.dispose',run:()=>local.close()},
+    ]});}
   });
   console.log(JSON.stringify({reassessment_browser_safety:observations}));
   if(failures.length)throw new AggregateError(failures,'consumer browser safety regressions: '+failures.length);
