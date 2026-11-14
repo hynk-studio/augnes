@@ -123,6 +123,7 @@ export async function runMaintenanceBudgetControls(c,h,saved){
   const packet=read(saved.packet);assert.equal(packet.receipt.repository.head_sha,saved.fixture.head);assert.equal(c.git(["rev-parse","HEAD"]).toString().trim(),saved.fixture.head);
   const log=maintenanceReaderFixtureWatchdog(c,saved.fixture.head),failure=maintenanceReaderFixtureFailure(packet.receipt,log);
   const family=path.join(c.anchor,".augnes-local-verification/families",failure.attempt.family_id),completionFile=path.join(family,"completion-1.json"),receiptFile=path.join(c.checkout,".augnes-local-verification/receipts",failure.run.id+".json");
+  assert.notEqual(receiptFile,path.join(c.checkout,failure.attempt.source_correction.prior_receipt_path),"synthetic invocations retain distinct original receipt paths");
   const completion={...read(completionFile),receipt_fingerprint:failure.integrity.content_fingerprint,disposition:"product_failure",finished_at:now()};
   write(completionFile,completion);write(receiptFile,failure);write(path.join(c.checkout,failure.phases[6].log.relative_path),log);
   const originals=new Map([completionFile,receiptFile,path.join(family,"attempt-1.json"),path.join(c.checkout,failure.phases[6].log.relative_path)].map(file=>[file,fs.readFileSync(file)]));

@@ -40,7 +40,8 @@ const transport=records=>({review:async()=>clone(records.acceptance),grant:async
   permission:async login=>clone([records.acceptance_permission,records.grant_permission].find(row=>row.user.login===login)),pullRequest:async()=>clone(records.pull_request)});
 function request(c,f,extra={}){
   return {anchorRoot:c.anchor,repositoryRoot:c.checkout,checkoutOwner:c.owner,branch:c.branch,head:f.head,tree:f.tree,acceptedMain:f.base,
-    runId:"synthetic-maintenance-reader",sourceCorrection:f.proof,contractFingerprint:f.fullInputInventory.fingerprint,revisionInputs:f.inputs,revisionLive:f.live,assertCurrent(){},...extra};
+    runId:f.proof.incident_case==="failed-reviewed-integration-material-stock-partition-v1"?"synthetic-maintenance-reader-integration":"synthetic-maintenance-reader",
+    sourceCorrection:f.proof,contractFingerprint:f.fullInputInventory.fingerprint,revisionInputs:f.inputs,revisionLive:f.live,assertCurrent(){},...extra};
 }
 const reserve=async(c,f,extra={})=>beginAttempt(request(c,f,{observeRevision:async()=>({authorization:await authorizeMaintenance(f.proof,f.material(),transport(f.records)),live:clone(f.live)}),...extra}));
 
