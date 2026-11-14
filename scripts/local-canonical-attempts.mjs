@@ -2148,7 +2148,9 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
   // continuation; normal npm preparation produces dependencies separately.
   const pinnedPaths = ["package.json", "package-lock.json", "apps/augnes_apps/package.json", "apps/augnes_apps/package-lock.json",
     "apps/web_planning/package.json", "apps/web_planning/package-lock.json", ".node-version", ".nvmrc"];
-  if (git(["diff", "--name-only", boundedV7 || serial ? prior.head : initial.head, p.head, "--", ...pinnedPaths]).length) throw fail("revision_pinned_inputs_changed");
+  const pinnedChanges=git(["diff", "--name-only", boundedV7 || serial ? prior.head : initial.head, p.head, "--", ...pinnedPaths]).toString().trim();
+  if (pinnedChanges && !(serial && serialIncident?.source_evolution?.contract === "serial-historical-three-source-evolution-v1" &&
+      pinnedChanges === serialIncident.source_evolution.inherited_build_path)) throw fail("revision_pinned_inputs_changed");
   if (focused.schema !== "augnes.local-canonical-reviewed-revision-focused.v1" || focused.basis !== "implementation_owner_not_independent_review" ||
       focused.predecessor_receipt_fingerprint !== p.prior_receipt_fingerprint || focused.runtime_inputs_sha256 !== p.inputs.identity_sha256 ||
       !revisionTime(focused.finished_at) || Date.parse(focused.finished_at) <= Date.parse(completion.finished_at) ||

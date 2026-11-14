@@ -1,6 +1,9 @@
 // Synthetic repositories, physical ledgers and authenticated read transport.
 // No production family, reservation, service, browser or GitHub write is used.
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { historicalSuite, historicalChildren } from "./serial-historical-inventory.mjs";
+import { serialEvolutionEvidence, verifySerialEvolution } from "../local-canonical-serial-evolution.mjs";
 import path from "node:path";
 import fs from "node:fs";
 import {syncBuiltinESMExports} from "node:module";
@@ -11,7 +14,7 @@ import { beginAttempt, finishAttempt, readSourceCorrectionProof, reconstructAtte
   reviewedRevisionAuthorityObservation, REVIEWED_REVISION_PHASES } from "../local-canonical-attempts.mjs";
 import { finalizeReceipt, inspectClassifiedEvidence } from "../local-canonical-receipt.mjs";
 import { createPrivateReviewExport, inspectPrivateReviewExport } from "../local-canonical-review-export.mjs";
-import { SERIAL_AGGREGATE_ROUTE, SERIAL_HISTORY, serialReviewTarget, readSerialAggregateIncident } from "../local-canonical-serial-aggregate.mjs";
+import { SERIAL_AGGREGATE_ROUTE, SERIAL_HISTORY, serialReviewTarget, readSerialAggregateIncident, legacySerialChildren } from "../local-canonical-serial-aggregate.mjs";
 import { PROJECT_EXPERIENCE_SERIAL, PROJECT_EXPERIENCE_COMMITMENT } from "../project-experience-serial-budget.mjs";
 import { gitFixtureDeclaration, } from "./local-canonical-git-observation.mjs";
 import { browserFixtureReceipt } from "./local-canonical-browser-revision.mjs";
@@ -26,12 +29,18 @@ export async function runSerialAggregateControls(c,h,materialMode=false) {
   const {write,read,artifact}=h, findings=[], phases=REVIEWED_REVISION_PHASES;
   const sourceRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../..");
   if (materialMode) seedSerialMaterialCompiler(c,h,sourceRoot);
-  const commit=message=>{c.git(["add","scripts"]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m",message]);return c.git(["rev-parse","HEAD"]).toString().trim();};
+  const commit=message=>{c.git(["add","scripts",...(existsSync(path.join(c.checkout,"apps/web_planning/package.json"))?["apps/web_planning/package.json"]:[])]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m",message]);return c.git(["rev-parse","HEAD"]).toString().trim();};
   const suite="scripts/run-canonical-test-suite.mjs", parent="scripts/run-local-canonical-verification.mjs", budget="scripts/project-experience-serial-budget.mjs";
-  const legacy=PROJECT_EXPERIENCE_SERIAL.children.map((v,i)=> i === 3 ? `const ${names[i]} = {\n  ...webPlanningBrowserStep, id: ${JSON.stringify(v.id)}, label: ${JSON.stringify(v.label)},\n  ...rootNode(${v.args.slice(2).map(JSON.stringify).join(', ')}), timeoutMs: ${v.timeoutMs},\n};` : `const ${names[i]} = {\n  id: ${JSON.stringify(v.id)}, group: ${JSON.stringify(v.group)}, requirements: ${JSON.stringify(v.requirements)}, label: ${JSON.stringify(v.label)},\n  ...rootNode(${JSON.stringify(v.args[2])}), timeoutMs: ${v.timeoutMs}, requireNaturalExit: true,\n};`).join("\n");
-  write(path.join(c.checkout,suite),legacy+'\nconst suites = { "e2e-project-experience": ['+names.map(name=>'{ ...'+name+' }').join(', ')+'] };\n');
+  const historicalCount=materialMode?4:3;
+  write(path.join(c.checkout,suite),historicalSuite(historicalCount));
   write(path.join(c.checkout,parent),'const definitions = { "e2e-project-experience": { label: "fixture", suite: "e2e-project-experience", timeoutMs: 480000, } };\n');
-  for(const child of PROJECT_EXPERIENCE_SERIAL.children) write(path.join(c.checkout,child.args[2]),'console.log("unchanged useful assertions");\n');
+  for(const child of historicalChildren.slice(0,historicalCount)) write(path.join(c.checkout,child.args[2]),'console.log("unchanged useful assertions");\n');
+  const evolutionPaths=["scripts/test-project-client-browser.ts","scripts/browser-validate-web-planning.mjs","scripts/result-work-draft-browser-checks.ts","scripts/result-draft-capture-scheduler.mjs","scripts/web-planning-browser-observation.mjs","scripts/web-planning-cdp.mjs","scripts/browser-web-planning-draft-safety.mjs","apps/web_planning/package.json"];
+  const sourceAt=(head,name)=>execFileSync("git",["show",head+":"+name],{cwd:sourceRoot,stdio:["ignore","pipe","pipe"]});
+  if(!materialMode)for(const name of evolutionPaths) {
+    try {write(path.join(c.checkout,name),sourceAt("ce6d0d3d6da8ae91680f16b8ccfa347f4c03f6ca",name));}
+    catch(error){if(!["scripts/result-draft-capture-scheduler.mjs","scripts/web-planning-browser-observation.mjs","scripts/browser-web-planning-draft-safety.mjs"].includes(name))throw error;}
+  }
   c.head=commit("synthetic v2 source correction");c.tree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();
   // Admit the actual ordinary v2 edge first, including natural RED/GREEN.
   c.artifacts=path.join(c.checkout,".augnes-local-verification/v2");
@@ -62,7 +71,7 @@ export async function runSerialAggregateControls(c,h,materialMode=false) {
   const raw=browserFixtureReceipt(c,second), browser=declared.resources.find(r=>r.id==="browser-executable");
   const use={contract:"augnes.local-canonical-browser-use.v2",consumer:"project-experience",executable_name:"Fixture",location_fingerprint:browser.location_fingerprint,
     before:browser.before,after:browser.before,actual_version:"Chrome/1",runtime_versions:{http:"Chrome/1",cdp:"Chrome/1"},disposition:"unchanged",unchanged:true};
-  const log="original phase output checkpoint\n"+"x".repeat(2*1024*1024)+"\n"+Array.from(["project-experience","project-client","project-client"],consumer=>"[local-canonical-browser-use] "+JSON.stringify({...use,consumer})+"\n").join("")+PROJECT_EXPERIENCE_SERIAL.children.slice(0,3).map((v,i)=>`[canonical:e2e-project-experience] child_start label=${JSON.stringify(v.label)} timeout_ms=${v.timeoutMs}\n`+
+  const log="original phase output checkpoint\n"+"x".repeat(2*1024*1024)+"\n"+Array.from(["project-experience","project-client","project-client"],consumer=>"[local-canonical-browser-use] "+JSON.stringify({...use,consumer})+"\n").join("")+historicalChildren.slice(0,3).map((v,i)=>`[canonical:e2e-project-experience] child_start label=${JSON.stringify(v.label)} timeout_ms=${v.timeoutMs}\n`+
     (i<2?`[canonical:e2e-project-experience] child_result label=${JSON.stringify(v.label)} duration_ms=${[328081,14302][i]} exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit\n`:"last observable ordinary-files checkpoint\n")).join("");
   const capped=Buffer.from(log).subarray(0,2*1024*1024);
   const logPath=".augnes-local-verification/logs/synthetic-v2-timeout/e2e-project-experience.log";write(path.join(c.checkout,logPath),capped);
@@ -89,6 +98,10 @@ export async function runSerialAggregateControls(c,h,materialMode=false) {
   const priorRoot=path.join(c.anchor,".augnes-local-verification/families",second.family_id);
   const completion=path.join(priorRoot,"completion-1.json");write(completion,{...read(completion),finished_at:time(-3000)});
   assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}).reviewed_revision_consumed,undefined);
+  if(!materialMode) {
+    for(const name of evolutionPaths)write(path.join(c.checkout,name),sourceAt("6112ab62c9dadac46f7c9c04d8c8a3969b535d5f",name));
+    c.base=commit("reviewed declared-base child and build evolution");
+  }
   // Copy the actual reusable serial owner and driver into this synthetic source.
   const driver="scripts/test-project-experience-serial-budget.mjs";
   const ownerPaths=[budget,"scripts/canonical-child-runner.mjs",suite,parent,"scripts/canonical-test-environment.mjs","scripts/test-harness-process-lifecycle.mjs","scripts/project-experience-connection.mjs"];
@@ -116,6 +129,7 @@ export async function runSerialAggregateControls(c,h,materialMode=false) {
     original_plan:artifact(c,"original-plan.json",plan),log:artifact(c,"original-log.log",capped),log_identity:{relative_path:logPath,bytes:capped.length,sha256:digest(capped)},
     capture:artifact(c,"original-capture.log",capture),capture_identity:{path:capturePath,bytes:Buffer.byteLength(capture),sha256:digest(capture)},
     source:{head:second.head,tree:second.tree,suite_sha256:digest(c.git(["show",second.head+":"+suite])),parent_sha256:digest(c.git(["show",second.head+":"+parent]))}};
+  if(!materialMode)incident.compatibility=artifact(c,"source-evolution.json",serialEvolutionEvidence(p,second,legacySerialChildren(historicalSuite(3)),c.git));
   p.incident=artifact(c,"incident.json",incident);
   const originalStock={content_fingerprint:p.prior_receipt_fingerprint,valid_deciding_evidence:false,dimensions:{historical_integrity:"intact",safety:"preserved_within_observed_scope"},
     issues:["receipt_classified_outcome_not_passing","receipt_final_result_not_pass","receipt_non_deciding","receipt_phase_environment_binding_invalid","receipt_browser_identity_invalid:e2e-project-experience",
@@ -123,7 +137,9 @@ export async function runSerialAggregateControls(c,h,materialMode=false) {
   p.originals.stock=artifact(c,"prior-stock.log",JSON.stringify(originalStock));
   const bytes=(ref)=>readFileSync(path.join(c.artifacts,ref.artifact)),parse=ref=>JSON.parse(bytes(ref));
   const incidentRead=()=>readSerialAggregateIncident(p,c.prior,second,read(completion),{parse,bytes,git:c.git,phases,stock:originalStock});
-  p.inputs.predecessor_sha256=digest(incidentRead());
+  const interpreted=incidentRead();
+  p.inputs.predecessor_sha256=digest(interpreted);
+  if(materialMode)assert.equal(digest(interpreted),digest({contract:SERIAL_AGGREGATE_ROUTE,predecessor:p.prior_receipt_fingerprint,source:incident.source,phase_inventory:c.prior.inputs.binding.phase_inventory,log_sha256:digest(capped),capture_sha256:incident.capture.sha256,complete_phase_log_sha256:digest(log),completed_children:2,interrupted_child:"web-planning-browser",interrupted_outcome:"UNKNOWN",remaining_upper_bound_ms:137617,envelope_sha256:PROJECT_EXPERIENCE_COMMITMENT}),"existing historical-four incident summary digest");
   let output="";
   const result=await h.run({command:process.execPath,args:[driver],cwd:c.checkout,env:c.env,timeoutMs:15000,
     stdout:{write(chunk){output+=chunk;}},stderr:process.stderr,log(){}});
@@ -165,8 +181,34 @@ export async function runSerialAggregateControls(c,h,materialMode=false) {
     const proof=h.proof(c), authority=await h.auth(c,proof);
     return runSerialMaterialControls(c,h,proof,authority,sourceRoot,use);
   }
+  for(const count of [3,4])assert.deepEqual(legacySerialChildren(historicalSuite(count)),historicalChildren.slice(0,count));
+  for(const change of [text=>text+historicalSuite(4),text=>text.replace('timeoutMs: 60000','timeoutMs: 60001'),text=>text.replace('requireNaturalExit: true','requireNaturalExit: false'),text=>text.replace('"filesystem"','"unbound"'),text=>text.replace('{ ...projectExperienceStep }, { ...projectClientBrowserStep }','{ ...projectClientBrowserStep }, { ...projectExperienceStep }')])
+    assert.throws(()=>legacySerialChildren(change(historicalSuite(3))));
+  const retainedCompatibility=incident.compatibility;
+  for(const mutate of [e=>e.findings.pop(),e=>e.sources[0].candidate.sha256=digest("lost assertion"),e=>e.sources.pop(),e=>e.historical.inventory_sha256=digest("invented fourth"),e=>e.base.head=p.head]) {
+    const changed=parse(retainedCompatibility);mutate(changed);p.incident=artifact(c,"unbound-evolution-incident.json",{...incident,compatibility:artifact(c,"unbound-evolution.json",changed)});assert.throws(incidentRead,/serial_evolution_binding_invalid/u);
+  }
+  p.incident=artifact(c,"missing-evolution.json",Object.fromEntries(Object.entries(incident).filter(([key])=>key!=="compatibility")));assert.throws(incidentRead,/serial_original_source_invalid/u);
+  p.incident=artifact(c,"incident.json",incident);
+  // Rebinding an altered source to base cannot waive the closed semantic profile.
+  for(const name of [evolutionPaths[0],evolutionPaths[1],evolutionPaths[2],evolutionPaths[6],evolutionPaths[7]]) {
+    const git=args=>{
+      const value=c.git(args);
+      if(args[0]==="show" && [p.base+":"+name,p.head+":"+name].includes(args[1]))return Buffer.from("removed assertion or changed declaration");
+      return value;
+    };
+    const changed=serialEvolutionEvidence(p,second,historicalChildren.slice(0,3),git);
+    assert.throws(()=>verifySerialEvolution(p,second,historicalChildren.slice(0,3),changed,git),/serial_evolution_unreviewed_source/u);
+  }
+  for(const change of [v=>v.scripts.build="vite build --other",v=>v.dependencies={...v.dependencies,unreviewed:"1"},v=>v.engines.node="*",v=>v.scripts.install="unreviewed"]) {
+    const name="apps/web_planning/package.json",changed=JSON.parse(sourceAt("6112ab62c9dadac46f7c9c04d8c8a3969b535d5f",name));change(changed);
+    const git=args=>args[0]==="show"&&[p.base+":"+name,p.head+":"+name].includes(args[1])?Buffer.from(JSON.stringify(changed)):c.git(args);
+    assert.throws(()=>verifySerialEvolution(p,second,historicalChildren.slice(0,3),serialEvolutionEvidence(p,second,historicalChildren.slice(0,3),git),git),/serial_evolution_unreviewed_source/u);
+  }
+  assert.throws(()=>verifySerialEvolution(p,second,historicalChildren,parse(incident.compatibility),c.git),/serial_evolution_inventory_invalid/u);
+  findings.push("independent historical three/four registrations, exact reviewed child/helper/build evolution, and unbound or lost coverage refusals pass");
   const originalHashes=[completion,path.join(priorRoot,"attempt-1.json")].map(f=>digest(readFileSync(f)));
-  for(const mutate of [q=>q.prior_attempt_id="wrong-tip",q=>q.commission.envelope_sha256=digest("changed inventory"),q=>q.head=c.base,q=>q.commission.ordinal=2,q=>q.commission.maximum_invocations=2]) {
+  for(const mutate of [q=>q.prior_attempt_id="wrong-tip",q=>q.commission.envelope_sha256=digest("changed inventory"),q=>q.head=c.base,q=>q.commission.ordinal=2,q=>q.commission.maximum_invocations=2,q=>q.inputs.identity_sha256=digest("runtime drift")]) {
     const q=clone(p);mutate(q);assert.throws(()=>prep(q));assert(!existsSync(edge));
   }
   assert.throws(()=>prep(p,{...c.live,inventory:digest("drift")}));
@@ -179,12 +221,15 @@ export async function runSerialAggregateControls(c,h,materialMode=false) {
   const originalIncidentRef=p.incident;
   for(const tail of [
     `[canonical:e2e-project-experience] child_exit label=${JSON.stringify(PROJECT_EXPERIENCE_SERIAL.children[2].label)} elapsed_ms=42 exit_code=1 signal=null stdout_closed=false stderr_closed=false\n`,
-    `[canonical:e2e-project-experience] child_cleanup_start label=${JSON.stringify(PROJECT_EXPERIENCE_SERIAL.children[2].label)} elapsed_ms=42 reason=post_exit_settlement\n`]) {
+    `[canonical:e2e-project-experience] child_cleanup_start label=${JSON.stringify(PROJECT_EXPERIENCE_SERIAL.children[2].label)} elapsed_ms=42 reason=post_exit_settlement\n`,
+    `[canonical:e2e-project-experience] child_exit label=${JSON.stringify(historicalChildren[3].label)} elapsed_ms=42 exit_code=0 signal=null stdout_closed=true stderr_closed=true\n`,
+    `[canonical:e2e-project-experience] child_cleanup_start label="unregistered child" elapsed_ms=42 reason=post_exit_settlement\n`,
+  ]) {
     const altered=log+tail, candidate=clone(incident);c.prior=clone(retained);
     c.prior.phases[9].log={...c.prior.phases[9].log,bytes:Buffer.byteLength(altered),truncated:false};
     delete candidate.capture;delete candidate.capture_identity;
     candidate.log=artifact(c,"altered-log.log",altered);candidate.log_identity={...candidate.log_identity,bytes:Buffer.byteLength(altered),sha256:digest(altered)};
-    p.incident=artifact(c,"altered-incident.json",candidate);assert.throws(incidentRead,/serial_interrupted_child_already_settling/u);
+    p.incident=artifact(c,"altered-incident.json",candidate);assert.throws(incidentRead,/serial_(?:interrupted_child_already_settling|unregistered_historical_child_observed)/u);
   }
   p.incident=originalIncidentRef;c.prior=retained;
   // Only the complete physical capture can fill the capped file's missing tail.
