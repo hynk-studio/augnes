@@ -39,7 +39,7 @@ const reserve=async(c,f,extra={})=>beginAttempt({anchorRoot:c.anchor,repositoryR
 
 function controlledSequence(f,c,head,tree,refusals,{final=false}={}){
   const ids=[...['acquisition','material-source','material-successor','material-final'].map(group=>'local-canonical-reviewed-revision-'+group),'local-canonical-maintenance-reader','local-canonical-maintenance-budget'];
-  const source=c.git(['show',head+':'+suite]).toString(),groups=fixtureRegistration(c,head),shared={root:path.join(f.folder,final?'synthetic-final-sequence':'synthetic-retained-sequence'),device:'1',inode:'1'},prefix=final?'sequence-positive':'sequence-measured',clock=Date.now();
+  const source=c.git(['show',head+':'+suite]).toString(),groups=fixtureRegistration(c,head),shared={device:'1',inode:'1',root:path.join(f.folder,final?'synthetic-final-sequence':'synthetic-retained-sequence')},prefix=final?'sequence-positive':'sequence-measured',clock=Date.now();
   const at=n=>new Date(clock+n).toISOString(),steps=[],results=[],logs={},readerRefusals=Array.from({length:24},(_,i)=>({name:'controlled retained reader refusal '+i,code:'controlled_refusal'}));
   const reader={synthetic_only:true,qualification:false,reviewed_ancestry:true,prior_stock_issue_count:15,refusals:readerRefusals,one_shot:true,interruption_consumes:true,competing_successors:1,cold_stock:true,originals_unchanged:true};
   const budget={synthetic_only:true,qualification:false,reused_checked_reader_ancestry:true,prior_stock_issue_count:14,refusals:clone(refusals),separate_grant:true,one_shot:true,cold_stock:true,failed_prefix_non_deciding:true,originals_unchanged:true,
