@@ -214,6 +214,8 @@ export async function runSerialAggregateControls(c,h,materialMode=false) {
     assert.throws(()=>verifySerialEvolution(p,second,historicalChildren.slice(0,3),serialEvolutionEvidence(p,second,historicalChildren.slice(0,3),git),git),/serial_evolution_unreviewed_source/u);
   }
   assert.throws(()=>verifySerialEvolution(p,second,historicalChildren,parse(incident.compatibility),c.git),/serial_evolution_inventory_invalid/u);
+  const ambiguous=args=>args[0]==="merge-base"&&args[1]==="--all"?Buffer.from("1".repeat(40)+"\n"+"2".repeat(40)):c.git(args);
+  assert.throws(()=>serialEvolutionEvidence(p,second,historicalChildren.slice(0,3),ambiguous),/serial_evolution_ancestry_ambiguous/u);
   findings.push("independent historical three/four registrations, exact reviewed child/helper/build evolution, and unbound or lost coverage refusals pass");
   const originalHashes=[completion,path.join(priorRoot,"attempt-1.json")].map(f=>digest(readFileSync(f)));
   for(const mutate of [q=>q.prior_attempt_id="wrong-tip",q=>q.commission.envelope_sha256=digest("changed inventory"),q=>q.head=c.base,q=>q.commission.ordinal=2,q=>q.commission.maximum_invocations=2,q=>q.inputs.identity_sha256=digest("runtime drift")]) {

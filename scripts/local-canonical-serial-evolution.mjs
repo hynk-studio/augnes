@@ -114,13 +114,15 @@ export function serialEvolutionEvidence(p,prior,historical,git) {
   if(!scope){scope=new Map();immutableEvidence.set(git,scope);}
   if(scope.has(key))return structuredClone(scope.get(key));
   const trees=[prior.head,p.base,p.head].map(head=>entries(git,head)),blobs=new Map();
+  const common=git(["merge-base","--all",prior.head,p.base]).toString().trim().split(/\s+/u);
+  if(common.length!==1 || !/^[a-f0-9]{40}$/u.test(common[0]))refuse("serial_evolution_ancestry_ambiguous");
   const binding=(index,name)=>{
     const oid=trees[index].get(name);if(!oid)return null;
     if(!blobs.has(oid))blobs.set(oid,identity(git(["show",[prior.head,p.base,p.head][index]+":"+name])));
     return blobs.get(oid);
   };
   const evidence={contract:SERIAL_EVOLUTION_CONTRACT,
-    common_ancestor:git(["merge-base",prior.head,p.base]).toString().trim(),
+    common_ancestor:common[0],
     historical:{head:prior.head,tree:prior.tree,inventory_sha256:digest(historical)},
     base:{head:p.base,tree:git(["rev-parse",p.base+"^{tree}"]).toString().trim()},
     candidate:{head:p.head,tree:p.tree,inventory_sha256:PROJECT_EXPERIENCE_COMMITMENT},
