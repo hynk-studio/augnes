@@ -1540,7 +1540,9 @@ const suites = {
       ...rootNode("scripts/fixtures/local-canonical-reviewed-revision.mjs", "--run-maintenance-reader-fixtures"),
       // Reuse the owned synthetic reviewed ancestry in a separate child. The
       // existing maintenance aggregate and all reviewed controls keep their bounds.
-      timeoutMs: 30_000,
+      // This child also replays preparation, interruption, competing reservation
+      // and a separate cold reader; it has its own finite lifecycle allowance.
+      timeoutMs: 60_000,
       requireNaturalExit: true,
     },
     {
