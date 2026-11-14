@@ -322,7 +322,7 @@ export async function runMaintenanceReaderControls(c,h){
       stage("successor_settled");
       // Both readers reopen the packet and physical originals independently.
       // Separate children keep each existing cold-reader deadline finite.
-      for(const kind of ["current","history","malformed"]){
+      for(const kind of ["lineage","current","history","malformed"]){
         const result=await h.run({suite:"maintenance-reader",label:"selected maintenance cold "+kind,command:process.execPath,args:[self,"--cold",packet,kind],cwd:repository,env:c.env,
           timeoutMs:10000,stdout:{write(chunk){process.stdout.write(chunk);}},stderr:process.stderr,log(){}});
         console.log(JSON.stringify({maintenance_reader_cold_result:{kind,...result}}));
@@ -372,15 +372,17 @@ export {watchdog as maintenanceReaderFixtureWatchdog,failedMaintenance as mainte
 
 if(process.argv[2]==="--cold"){
   const packet=read(process.argv[3]),api={anchorRoot:packet.anchor,repositoryRoot:packet.checkout};
-  const kind=process.argv[4];assert(["current","history","malformed"].includes(kind));
-  if(kind==="current"){
+  const kind=process.argv[4];assert(["lineage","current","history","malformed"].includes(kind));
+  if(kind==="lineage"){
   const tip=reconstructAttemptTip({...api,branch:packet.branch});
   assert.equal(tip.attempt_id,packet.receipt.run.id);assert.equal(tip.maintenance_consumed,true);assert.deepEqual(tip.revision_grants,[11,32,62,72]);
   assert.deepEqual(tip.historical_grants.map(row=>row.kind),[...Array(6).fill("reviewed_revision"),"accepted_main_integration","prospective_maintenance","prospective_maintenance"]);
   assert.deepEqual(tip.historical_grants.map(row=>row.grant.id),[11,11,32,32,62,72,3002,4002,5002]);assert(tip.historical_grants.every(row=>row.consumed===1));
+    console.log(JSON.stringify({maintenance_reader_cold_lineage:{synthetic_only:true,typed_history:true}}));
+  }else if(kind==="current"){
     const current=await inspectMaintenanceStock({...api,receipt:packet.receipt,runtimeInputs:packet.runtime,observeCurrentInputs:()=>clone(packet.live),assertCurrent(){},transport:transport(packet.records)});
     assert.equal(current.currentAttemptRecordsValid,true);assert.deepEqual(inspectReceiptForDecision(packet.receipt,{...packet.context,...current}).issues,[]);
-    console.log(JSON.stringify({maintenance_reader_cold_current:{synthetic_only:true,current_stock:true,typed_history:true}}));
+    console.log(JSON.stringify({maintenance_reader_cold_current:{synthetic_only:true,current_stock:true}}));
   }else if(kind==="history"){
   let authorityReads=0;
   const historical=await inspectMaintenanceStock({...api,receipt:packet.prior,runtimeInputs:packet.runtime,assertCurrent(){},transport:{review:async()=>{authorityReads++;throw Error("historical failure gives no current authority");}}});
