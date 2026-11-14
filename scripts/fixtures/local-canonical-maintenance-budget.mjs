@@ -32,7 +32,7 @@ function lifecycle(owner,label,bound,duration){
     `${p}child_cleanup_result label=${q} elapsed_ms=${duration} reason=post_exit_settlement term_sent=false kill_sent=false streams_closed=true remaining_owned_processes=0\n`+
     `${p}child_result label=${q} duration_ms=${duration} exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit\n`;
 }
-const reserve=(c,f,extra={})=>beginAttempt({anchorRoot:c.anchor,repositoryRoot:c.checkout,checkoutOwner:c.owner,branch:c.branch,head:f.head,tree:f.tree,acceptedMain:f.base,
+const reserve=async(c,f,extra={})=>beginAttempt({anchorRoot:c.anchor,repositoryRoot:c.checkout,checkoutOwner:c.owner,branch:c.branch,head:f.head,tree:f.tree,acceptedMain:f.base,
   runId:"synthetic-maintenance-budget",sourceCorrection:f.proof,contractFingerprint:f.fullInputInventory.fingerprint,revisionInputs:f.inputs,revisionLive:f.live,assertCurrent(){},
   observeRevision:async()=>({authorization:await authorizeMaintenance(f.proof,f.material(),transport(f.records)),live:clone(f.live)}),...extra});
 
@@ -150,10 +150,10 @@ export async function runMaintenanceBudgetControls(c,h,saved){
   ]){
     mutate();f.rebuild();let error;try{direct();}catch(value){error=value;}assert(error,name);refusals.push({name,code:error.code??error.message});noEdge();preserved();reset();
   }
-  f.rebuild(false);const prepare=()=>prepareMaintenanceCandidate({anchorRoot:c.anchor,repositoryRoot:c.checkout,proof:f.proof,runtimeInputs:f.inputs,live:()=>clone(f.live)});
+  f.rebuild(false);const prepare=async()=>prepareMaintenanceCandidate({anchorRoot:c.anchor,repositoryRoot:c.checkout,proof:f.proof,runtimeInputs:f.inputs,live:()=>clone(f.live)});
   const prepared=await prepare();assert.equal(prepared.eligible_evidence,true);assert.equal(prepared.admission,false);assert.equal(prepared.reserved,false);noEdge();
   await assert.rejects(()=>reserve(c,f));noEdge();reset();
-  await assert.rejects(()=>prepareMaintenanceCandidate({anchorRoot:c.anchor,repositoryRoot:c.checkout,proof:f.proof,runtimeInputs:f.inputs,live:{...f.live,inventory:"a".repeat(64)}}));noEdge();
+  await assert.rejects(async()=>prepareMaintenanceCandidate({anchorRoot:c.anchor,repositoryRoot:c.checkout,proof:f.proof,runtimeInputs:f.inputs,live:{...f.live,inventory:"a".repeat(64)}}));noEdge();
   f.records.grant.id=packet.records.grant.id;f.p.authorization.grant_comment_id=packet.records.grant.id;f.p.authorization.grant_comment_sha256=digest(maintenanceAuthorityObservation(f.records.grant,"prospective_grant"));
   write(f.file,f.p);f.proof={...f.p,local_relative_path:path.relative(c.checkout,f.file)};await assert.rejects(prepare,error=>error.code==="maintenance_grant_reused");noEdge();reset();
   const {receipt:assembled,context}=await completeSyntheticReceipt(f,extra=>reserve(c,f,{...extra,contractFingerprint:f.fullInputInventory.fingerprint}));
