@@ -11,7 +11,8 @@ export interface Statement {
   run(): Promise<{ meta: { changes: number } }>;
 }
 export interface Database { prepare(sql: string): Statement; batch(statements: Statement[]): Promise<unknown[]> }
-export type Store = Scope & { DB: Database; historyRead?: { rows:number; bytes:number }; participantGrant?: { id:string; recipient_hash:string; disclosure_fingerprint:string } };
+export type Store = Scope & { DB: Database; contributionSource?: Scope & WorkRef;
+  disclosureGrant?: {workspace_id:string;project_id:string;work_id:string;id:string;recipient_hash:string;disclosure_fingerprint:string;request:WorkRef}; historyRead?: { rows:number; bytes:number }; continuationGrant?: { id:string; recipient_hash:string; issuer_hash:string }; participantGrant?: { id:string; recipient_hash:string; disclosure_fingerprint:string } };
 // Includes authentication and batch statements; leave ten queries below D1's
 // Free invocation ceiling. No retry or replica/session substitution is used.
 export function boundedDatabase(db:Database):Database {
@@ -93,6 +94,8 @@ export async function readNoteHistory(s: Store, id: string) {
   if(!chain.length)fail("work_not_found",404);
   return chain.map(r=>({...headBinding(r),work_id:id,workspace_id:r.workspace_id,project_id:r.project_id,
     author_ref:r.author_ref,recorded_at:r.recorded_at,definition:r.definition,sources:r.sources,
+    ...(r.contribution_request?{contribution_request:r.contribution_request}:{}),
+    ...(r.continuation?{continuation:r.continuation}:{}),
     ...(r.relations?{relations:{materials:r.relations.materials}}:{})}));
 }
 export async function readWork(s: Store, id: string): Promise<Revision[]> {
@@ -108,6 +111,8 @@ export async function headsCurrent(s:Store,target:WorkRef,source:WorkRef):Promis
   return !!await s.DB.prepare(`SELECT 1 AS current WHERE ${sourceGate} AND ${sourceGate}`).bind(...sourceArgs(s,target),...sourceArgs(s,source)).first();
 }
 export async function append(s: Store, chain: Revision[], r: Revision, source?: WorkRef, bodies:FileBody[]=[], selections:WorkRef[]=[]): Promise<void> {
+  if(!!r.continuation!==!!s.continuationGrant || r.continuation && (r.continuation.grant_id!==s.continuationGrant!.id ||
+    r.continuation.principal_ref!==s.continuationGrant!.recipient_hash || r.continuation.issuer_ref!==s.continuationGrant!.issuer_hash))fail('scope_denied',403);
   validateRetainedContext(chain,r.work_id,r,s);
   validateRetainedIncorporations(chain.at(-1),r);
   assertHistoryBudget([...chain,r]);
@@ -119,6 +124,15 @@ export async function append(s: Store, chain: Revision[], r: Revision, source?: 
     AND (? = 0 OR EXISTS (SELECT 1 FROM web_planning_revision WHERE ${where} AND revision = ? AND fingerprint = ?))
     ${s.participantGrant ? `AND EXISTS (SELECT 1 FROM web_planning_participation WHERE workspace_id=? AND project_id=? AND grant_id=? AND work_id=?
       AND recipient_hash=? AND disclosure_fingerprint=? AND revoked_at IS NULL AND expires > (julianday('now')-2440587.5)*86400000)` : ""}
+    ${s.continuationGrant ? `AND EXISTS (SELECT 1 FROM web_planning_continuation g WHERE g.workspace_id=? AND g.project_id=? AND g.grant_id=? AND g.work_id=?
+      AND g.recipient_hash=? AND g.issuer_hash=? AND g.revoked_at IS NULL AND g.expires > (julianday('now')-2440587.5)*86400000
+      AND g.max_updates > (SELECT COUNT(*) FROM web_planning_revision v WHERE v.workspace_id=g.workspace_id AND v.project_id=g.project_id
+        AND v.work_id=g.work_id AND json_extract(v.envelope,'$.continuation.grant_id')=g.grant_id))` : ""}
+    ${s.disclosureGrant ? `AND EXISTS (SELECT 1 FROM web_planning_participation g WHERE g.workspace_id=? AND g.project_id=? AND g.grant_id=? AND g.work_id=?
+      AND g.recipient_hash=? AND g.disclosure_fingerprint=? AND g.revoked_at IS NULL AND g.expires > (julianday('now')-2440587.5)*86400000
+      AND NOT EXISTS(SELECT 1 FROM web_planning_erased e WHERE e.workspace_id=g.workspace_id AND e.project_id=g.project_id AND e.work_id=g.work_id)
+      AND EXISTS(SELECT 1 FROM web_planning_revision v WHERE v.workspace_id=g.workspace_id AND v.project_id=g.project_id AND v.work_id=g.work_id AND v.revision=? AND v.fingerprint=?))` : ""}
+    ${s.contributionSource ? `AND ${sourceGate}` : ""}
     ${source ? `AND ${sourceGate}` : ""}
     ${selections.length ? `AND NOT EXISTS (SELECT 1 FROM json_each(?) pick WHERE NOT EXISTS
       (SELECT 1 FROM web_planning_revision src WHERE src.workspace_id=? AND src.project_id=?
@@ -127,7 +141,9 @@ export async function append(s: Store, chain: Revision[], r: Revision, source?: 
        (SELECT 1 FROM web_planning_erased e WHERE e.workspace_id=src.workspace_id AND e.project_id=src.project_id AND e.work_id=src.work_id)))` : ""}
     ON CONFLICT DO NOTHING`).bind(s.workspace_id,s.project_id,r.work_id,r.revision,r.fingerprint,r.request_key,r.request_fingerprint,canonical(r),
       ...args(s,r.work_id),...args(s,r.work_id),r.revision-1,r.revision-1,...args(s,r.work_id),r.revision-1,r.predecessor,
-      ...(s.participantGrant?[s.workspace_id,s.project_id,s.participantGrant.id,r.work_id,s.participantGrant.recipient_hash,s.participantGrant.disclosure_fingerprint]:[]),...(source?sourceArgs(s,source):[]),
+      ...(s.participantGrant?[s.workspace_id,s.project_id,s.participantGrant.id,r.work_id,s.participantGrant.recipient_hash,s.participantGrant.disclosure_fingerprint]:[]),
+      ...(s.continuationGrant?[s.workspace_id,s.project_id,s.continuationGrant.id,r.work_id,s.continuationGrant.recipient_hash,s.continuationGrant.issuer_hash]:[]),...(s.disclosureGrant?[s.disclosureGrant.workspace_id,s.disclosureGrant.project_id,s.disclosureGrant.id,s.disclosureGrant.work_id,s.disclosureGrant.recipient_hash,s.disclosureGrant.disclosure_fingerprint,s.disclosureGrant.request.revision,s.disclosureGrant.request.fingerprint]:[]),
+      ...(s.contributionSource?sourceArgs(s.contributionSource,s.contributionSource):[]),...(source?sourceArgs(s,source):[]),
       ...(selections.length?[canonical(selections),s.workspace_id,s.project_id]:[]));
   if(r.files===undefined)await statement.run();
   else {
@@ -157,7 +173,7 @@ export async function reconstruct(s: Store, chain: Revision[], bodies:FileBody[]
 export async function reconstructWorks(s:Store,works:{chain:Revision[];bodies:FileBody[]}[]):Promise<void>{
   if(works.length<1||works.length>2)fail("reconstruction_budget_exceeded");
   const chain=works.flatMap(w=>w.chain);assertHistoryBudget(chain);
-  for(const w of works)validateSceneHistory(w.chain,w.bodies);
+  for(const w of works){validateChain(s,w.chain[0]?.work_id,w.chain);validateSceneHistory(w.chain,w.bodies);}
   // json_each avoids eight parameters and one query per revision. Chunk by
   // actual canonical bytes and rows, keeping every bound string below D1's
   // 2 MB limit. All chunks still commit or roll back in one D1 transaction.
@@ -171,12 +187,19 @@ export async function reconstructWorks(s:Store,works:{chain:Revision[];bodies:Fi
   if(chunks.length>16)fail("reconstruction_budget_exceeded",422);
   // A CHECK-constrained assertion is the first statement in the same transaction.
   // Emptiness includes erased IDs: reconstruction cannot resurrect erased work.
-  const grants=await s.DB.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='web_planning_participation'").first();
+  const accessTables=await s.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('web_planning_continuation','web_planning_participation','web_planning_public_request')").all<{name:string}>();
+  const availableTables=new Set(accessTables.results.map(row=>row.name));
+  const continuations=availableTables.has('web_planning_continuation'),grants=availableTables.has('web_planning_participation'),publications=availableTables.has('web_planning_public_request');
   await s.DB.batch([
-    ...(grants?[s.DB.prepare("UPDATE web_planning_participation SET revoked_at=COALESCE(revoked_at,?)").bind(new Date().toISOString())]:[]),
     s.DB.prepare(`UPDATE web_planning_workspace SET singleton = CASE WHEN
-      EXISTS(SELECT 1 FROM web_planning_revision) OR EXISTS(SELECT 1 FROM web_planning_erased) OR EXISTS(SELECT 1 FROM web_planning_file)
-      THEN 0 ELSE 1 END WHERE singleton=1`),
+      EXISTS(SELECT 1 FROM web_planning_revision WHERE workspace_id=? AND project_id=?)
+      OR EXISTS(SELECT 1 FROM web_planning_erased WHERE workspace_id=? AND project_id=?)
+      OR EXISTS(SELECT 1 FROM web_planning_file WHERE workspace_id=? AND project_id=?)
+      THEN 0 ELSE singleton END WHERE workspace_id=? AND project_id=?`)
+      .bind(...Array(4).fill([s.workspace_id,s.project_id]).flat()),
+    ...(grants?[s.DB.prepare("UPDATE web_planning_participation SET revoked_at=COALESCE(revoked_at,?) WHERE workspace_id=? AND project_id=?").bind(new Date().toISOString(),s.workspace_id,s.project_id)]:[]),
+    ...(continuations?[s.DB.prepare("UPDATE web_planning_continuation SET revoked_at=COALESCE(revoked_at,?) WHERE workspace_id=? AND project_id=?").bind(new Date().toISOString(),s.workspace_id,s.project_id)]:[]),
+    ...(publications?[s.DB.prepare("UPDATE web_planning_public_request SET revoked_at=COALESCE(revoked_at,?) WHERE workspace_id=? AND project_id=?").bind(new Date().toISOString(),s.workspace_id,s.project_id)]:[]),
     ...chunks.map(rows => s.DB.prepare(`INSERT INTO web_planning_revision
       (workspace_id,project_id,work_id,revision,fingerprint,request_key,request_fingerprint,envelope)
       SELECT json_extract(value,'$.workspace_id'),json_extract(value,'$.project_id'),json_extract(value,'$.work_id'),

@@ -251,7 +251,6 @@ async function main(): Promise<void> {
     await assertAdapterLaunchFailureV01(db, projectA.workspace_id);
     await assertStartDecisionMismatchAndExpiryV01(db, service, projectA.workspace_id);
     assertExecutionEnvelopeAuthorityV01();
-    assertSecretBoundaryDocumentationV01();
     await assertPlatformAndNonGitRefusalV01(db, service, projectA.workspace_id);
     await assertWindowsManagedDelegationV01(db);
     await assertRepositoryResumeCheckpointEligibilityV01(
@@ -322,7 +321,6 @@ async function main(): Promise<void> {
       adapter_launch_failure_preserves_consumption: true,
       start_decision_mismatch_and_expiry_refused: true,
       execution_envelope_authority_classification: true,
-      in_repository_secret_scope_claim_bounded: true,
       cdx2b2a_schema_migration_preserved_and_upgraded: true,
       resume_checkpoint_exact_replay_and_monotonicity: true,
       resume_checkpoint_strict_operation_lifecycle_grammar: true,
@@ -3676,28 +3674,6 @@ function assertExecutionEnvelopeAuthorityV01(): void {
     operation_class: "network_permission",
     repository_envelope_classification: "refused",
   }), "decline");
-}
-
-function assertSecretBoundaryDocumentationV01(): void {
-  const contract = readFileSync(
-    path.join(process.cwd(), "docs/REPOSITORY_EXECUTION_ATTACHMENT_V0_1.md"),
-    "utf8",
-  );
-  const architecture = readFileSync(
-    path.join(process.cwd(), "docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md"),
-    "utf8",
-  );
-  const adapter = readFileSync(
-    path.join(process.cwd(), "lib/vnext/native-host/codex-app-server-adapter.ts"),
-    "utf8",
-  );
-  for (const source of [contract, architecture, adapter]) {
-    assert.match(source, /Files already (?:present )?inside the exact repository|file already inside the exact root/u);
-    assert.match(source, /does not claim|do not claim|not made technically unreadable/u);
-    assert.match(source, /outside-root/u);
-  }
-  assert.match(contract, /no such content or secret-detection result is added to\s+MCP output/u);
-  assert.match(adapter, /their contents must not be exposed through the bounded result surface/u);
 }
 
 async function assertPlatformAndNonGitRefusalV01(

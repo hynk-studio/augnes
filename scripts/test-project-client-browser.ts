@@ -2,10 +2,13 @@ import { selectBrowserPath, strictNetworkSandboxLaunch } from "./local-canonical
 // One disposable workspace, one ordinary browser profile, two independently
 // authenticated tabs. Production components and route handlers own all writes.
 import assert from "node:assert/strict";
+import { checkControlBoundaryContrast } from "./browser-control-contrast.mjs";
 import { nativePreparationBrowser, checkPreparationPreviewResponse, checkPreparationSaveResponse } from "./native-work-preparation-browser-checks.mjs";
 import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
+import { browserEvaluationDiagnostic } from "./browser-evaluation-diagnostic.mjs";
 import { checkAncillaryWorkDraftRecovery } from "./ancillary-work-draft-browser-checks";
 import { checkResultWorkDraftRecovery } from "./result-work-draft-browser-checks";
+import { withResultDraftCapture } from "./result-draft-capture-scheduler.mjs";
 import { checkWorkExpectationDraftRecovery } from "./work-expectation-draft-browser-checks";
 import { seedProjectTransition } from "./project-transition-fixture";
 import { createServer } from "node:http";
@@ -41,7 +44,11 @@ class CDP {
     this.ws.addEventListener("message", event => { const m = JSON.parse(String(event.data)); if (m.id) { const p = this.pending.get(m.id); if (p) { clearTimeout(p.timer); this.pending.delete(m.id); m.error ? p.no(new Error("browser_protocol_error")) : p.ok(m.result); } } else this.handlers.forEach(f => f(m)); });
   }
   send(method: string, params: object = {}): Promise<any> { return new Promise((ok, no) => { const id = ++this.next, timer = setTimeout(() => { this.pending.delete(id); no(new Error(`browser_timeout:${method}`)); }, 10000); this.pending.set(id, { ok, no, timer }); this.ws.send(JSON.stringify({ id, method, params })); }); }
-  async eval(expression: string) { const r = await this.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }); assert.ok(!r.exceptionDetails, "browser_evaluation_failed"); return r.result.value; }
+  async eval(expression: string) {
+    const r = await this.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
+    if (r.exceptionDetails) throw new Error(`browser_evaluation_failed:${JSON.stringify(browserEvaluationDiagnostic(r.exceptionDetails))}`);
+    return r.result.value;
+  }
   close() { for (const p of this.pending.values()) { clearTimeout(p.timer); p.no(new Error("browser_closed")); } this.pending.clear(); this.ws.close(); }
 }
 async function until(fn: () => Promise<unknown>, label: string) { const end = performance.now() + 15000; while (performance.now() < end) { if (await fn()) return; await delay(50); } throw new Error(`browser_wait:${label}`); }
@@ -293,6 +300,7 @@ async function main(semanticOnly = false) {
       const priorB = current(b)!.packet_id;
       await clickText(tabB, "Prepare a different task");
       await set(tabB, "#new-work-goal", "B different new work"); await set(tabB, "#new-work-success-criteria", "A history remains separate");
+      await checkControlBoundaryContrast((expression: string) => tabB.eval(expression), '#new-work-goal');
       await tabB.eval("document.querySelector('[data-selected-work-sources]').open=true");
       await set(tabB, 'input[maxlength="500"]', 'B prior note does not support the different task');
       // Keep the genuine comparison response pending. A real user cannot
@@ -327,6 +335,17 @@ async function main(semanticOnly = false) {
       await previewCheck;
       assert.equal(disabledPreviewClicks, 0, 'The driver waits for the ordinary preview action instead of losing a disabled click');
       await until(() => tabB.eval("!!document.querySelector('[data-new-work-preview]')"), "B_new_work_preview");
+      // Keyboard activation removes the clicked control while its composer stays
+      // mounted. Verify the real React handoff and retained draft before saving.
+      await tabB.eval("[...document.querySelectorAll('[data-new-work-preview] button')].find(b=>b.textContent==='Edit preparation').focus()");
+      await tabB.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' });
+      await tabB.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+      await until(() => tabB.eval("!document.querySelector('[data-new-work-preview]')"), 'return_to_preparation');
+      console.log(JSON.stringify({different_task_focus: await tabB.eval("({active:document.activeElement.id,visible:document.activeElement.getClientRects().length>0,goal:document.querySelector('#new-work-goal').value})")}));
+      assert.equal(await tabB.eval("document.activeElement.id"), 'new-work-goal', 'H11 keyboard focus returns to the visible retained draft');
+      assert.equal(await tabB.eval("document.querySelector('#new-work-goal').value"), 'B different new work');
+      await click(tabB, '[data-augnes-primary-action="preview-new-work"]');
+      await until(() => tabB.eval("!!document.querySelector('[data-new-work-preview]')"), 'B_preview_after_edit');
       const newWorkConflict = await tabB.eval(`(async()=>{const h={'Augnes-Project-Id':${JSON.stringify(b.project_id)},'content-type':'application/json'};const r=await fetch('/api/vnext/operator/project-continuity',{headers:h});const w=(await r.json()).work_initialization;return(await fetch('/api/vnext/operator/project-continuity',{method:'POST',headers:h,body:JSON.stringify({action:'revise_pre_execution_project_work',workspace_id:w.workspace_id,project_id:w.project_id,expected_active_project_id:w.project_id,expected_active_selection_revision:w.active_selection_revision,expected_project_work_binding:w.project_work_binding,expected_current_packet_id:w.current_packet.packet_id,expected_current_packet_fingerprint:w.current_packet.packet_fingerprint,expected_current_lineage_kind:w.current_packet.lineage_kind,...w.current_work,goal:'B competing preparation'})})).status})()`);
       assert.equal(newWorkConflict, 201); await click(tabB, '[data-new-work-action="save"]');
       await until(() => tabB.eval("!!document.querySelector('[data-work-draft-conflict]')"), "new_work_conflict");
@@ -407,7 +426,7 @@ async function main(semanticOnly = false) {
       }
       assert.equal(readActiveProjectSelectionV01(db, workspace.workspace_id)!.project_id, b.project_id, "Opening an inactive A URL cannot switch the workspace selection");
       assert.equal(await freshB.eval("document.body.textContent.includes('Retain A exception exactly')"), false);
-      const resultDraftComponent = await checkResultWorkDraftRecovery(tabA);
+      const resultDraftComponent = await withResultDraftCapture(tabA, checkResultWorkDraftRecovery);
       const expectationDraftComponent = await checkWorkExpectationDraftRecovery(tabA);
       const ancillaryDraftComponent = await checkAncillaryWorkDraftRecovery(tabA);
       assert.equal(errors, 0, JSON.stringify(responseLog)); assert.equal(external, 0); assert.equal(guard.attempts.length, 0);

@@ -25,6 +25,9 @@ export const PROJECT_EXPERIENCE_SERIAL = freeze({
     { id: "web-planning-browser", group: "project-experience", requirements: [...common],
       label: "durable web planning real D1 Browser producer and consumer",
       args: ["--import", "tsx", "scripts/browser-validate-web-planning.mjs"], timeoutMs: 180000, requireNaturalExit: true },
+    { id: "web-planning-draft-safety", group: "project-experience", requirements: [...common],
+      label: "Web draft mutation, provenance and erasure Browser controls",
+      args: ["--import", "tsx", "scripts/browser-validate-web-planning.mjs", "--draft-safety"], timeoutMs: 60000, requireNaturalExit: true },
   ],
   naturalSettlementPerChildMs: 10000,
   coordinatorMs: 30000,
@@ -49,7 +52,7 @@ export function assertProjectExperienceInventory(steps, root, node = process.exe
 // interval has exactly one owner. Parent post-exit settlement is outside it.
 export function createProjectExperienceBudget({ now = () => performance.now(), startedAt = now(), onFailure = () => {}, timers = globalThis } = {}) {
   let last = startedAt, state = "coordinator", index = 0, ready = false, complete = false, stopped = false, error = null, timer;
-  const execution = [0, 0, 0], settlement = [0, 0, 0]; let coordinator = 0;
+  const execution = PROJECT_EXPERIENCE_SERIAL.children.map(() => 0), settlement = PROJECT_EXPERIENCE_SERIAL.children.map(() => 0); let coordinator = 0;
   const elapsed = () => { const at = now(), delta = at - last; if (!Number.isFinite(delta) || delta < 0) throw failure("serial_clock_invalid");
     if (state === "execution") execution[index] += delta; else if (state === "settlement") settlement[index] += delta; else coordinator += delta;
     last = at;
@@ -77,10 +80,10 @@ export function createProjectExperienceBudget({ now = () => performance.now(), s
       Object.keys(message).sort().join(",") !== "commitment,contract,index,state") return fault("serial_inventory_disagreement");
     if (message.state === "ready" && message.index === 0 && !ready && index === 0 && state === "coordinator") ready = true;
     else if (message.index !== index || !ready || complete) return fault("serial_transition_invalid");
-    else if (message.state === "execution" && state === "coordinator" && index < 3) state = "execution";
+    else if (message.state === "execution" && state === "coordinator" && index < PROJECT_EXPERIENCE_SERIAL.children.length) state = "execution";
     else if (message.state === "settlement" && state === "execution") state = "settlement";
     else if (message.state === "coordinator" && state === "settlement") { state = "coordinator"; index++; }
-    else if (message.state === "complete" && state === "coordinator" && index === 3) complete = true;
+    else if (message.state === "complete" && state === "coordinator" && index === PROJECT_EXPERIENCE_SERIAL.children.length) complete = true;
     else return fault("serial_transition_invalid");
     schedule(); return error;
   };
@@ -101,10 +104,10 @@ export const projectExperienceBudgetEvent = (state, index) => ({ contract: PROJE
 export function validProjectExperienceAccounting(value) {
   const finite = n => Number.isFinite(n) && n >= 0;
   return value?.contract === PROJECT_EXPERIENCE_SERIAL.contract && value.commitment === PROJECT_EXPERIENCE_COMMITMENT &&
-    value.complete === true && value.completed_children === 3 && value.failure_code === null &&
-    Array.isArray(value.execution_ms) && value.execution_ms.length === 3 &&
+    value.complete === true && value.completed_children === PROJECT_EXPERIENCE_SERIAL.children.length && value.failure_code === null &&
+    Array.isArray(value.execution_ms) && value.execution_ms.length === PROJECT_EXPERIENCE_SERIAL.children.length &&
     value.execution_ms.every((n,i) => finite(n) && n <= PROJECT_EXPERIENCE_SERIAL.children[i].timeoutMs) &&
-    Array.isArray(value.natural_settlement_ms) && value.natural_settlement_ms.length === 3 &&
+    Array.isArray(value.natural_settlement_ms) && value.natural_settlement_ms.length === PROJECT_EXPERIENCE_SERIAL.children.length &&
     value.natural_settlement_ms.every(n => finite(n) && n <= PROJECT_EXPERIENCE_SERIAL.naturalSettlementPerChildMs) &&
     finite(value.coordinator_ms) && value.coordinator_ms <= PROJECT_EXPERIENCE_SERIAL.coordinatorMs &&
     finite(value.parent_post_exit_settlement_ms) &&

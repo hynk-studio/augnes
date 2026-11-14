@@ -1,3 +1,4 @@
+import { downloadBrowserFiles } from './web-planning-cdp.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -129,8 +130,8 @@ export async function browserCapacityJourney({a,click,set,settled,saved,wait,nav
  await navigate(a,origin+'/');await wait(()=>a.eval("$('work-list').children.length>0"),'capacity reopen list');
  await a.eval(`[...$('work-list').querySelectorAll('button')].find(b=>b.textContent===${JSON.stringify(capacityDefinition.goal)}).click()`);await saved(a,2);await capacity('fits');
  await click(a,'saved-context');await settled(a);assert.match(await a.eval("$('context-view').innerText"),/mean waits are 2.5/);
- await mkdir(downloads,{recursive:true});await a.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads});await a.eval("$('history-tools').open=true");await click(a,'export');
- await wait(async()=> (await readdir(downloads)).some(p=>p.endsWith('.json')),'capacity export download');
+ await mkdir(downloads,{recursive:true});await a.eval("$('history-tools').open=true");await downloadBrowserFiles(a,downloads,['planning-work.json'],wait,()=>click(a,'export'),'capacity export download');
+ assert((await readdir(downloads)).some(p=>p.endsWith('.json')));
  const exported=JSON.parse(await readFile(path.join(downloads,(await readdir(downloads)).find(p=>p.endsWith('.json'))),'utf8'));
  assert.equal(exported.revisions[0].work_id,id);assert.deepEqual(validateExport(fixtureScope,exported),exported.revisions);assert.equal(exported.revisions.length,2);assert.deepEqual(exported.revisions[0],before.revisions[0]);
  const head=exported.revisions[1],adapted=head.relations.materials.find(m=>m.kind==='adapted');assert.equal(adapted.from.fingerprint,first.fingerprint);assert.equal(adapted.dependencies.length,3);

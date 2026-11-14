@@ -16,7 +16,9 @@ export async function buildWebPlanning(out=path.join(webRoot,"dist")) {
   const {createBuilder}=await import(pathToFileURL(viteEntry).href);
   const dist=path.join(webRoot,'dist');
   await rm(dist,{recursive:true,force:true});
-  const builder=await createBuilder({configFile:path.join(webRoot,'vite.config.mjs')});
+  // This config is native ESM. Bundling it stages executable output inside the
+  // nearest node_modules/.vite-temp, which is a protected dependency input.
+  const builder=await createBuilder({configFile:path.join(webRoot,'vite.config.mjs'),configLoader:'native'});
   await builder.buildApp();
   // Copy only the official build output when a lifecycle-owned test needs its
   // own artifact. The Sites plugin itself owns .openai staging.

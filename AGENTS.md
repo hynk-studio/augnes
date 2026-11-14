@@ -8,35 +8,39 @@ verification principles. Product doctrine, Core/protocol meaning,
 implementation status, and evaluation belong to their active owners;
 temporary program history belongs to supporting historical records.
 
-- ChatGPT and the user own the goal, scope, invariants, authority, non-goals,
-  and deciding-evidence requirements. ChatGPT and the user also own
-  post-implementation audit and evidence review.
-- Codex owns current-source inspection, implementation search, file, function,
-  and test choice, implementation, verification, and Draft pull-request
-  creation.
-- Issues and pull requests constrain outcomes and invariants. They do not force
-  stale preselected mechanisms unless a current compatibility or authority
-  boundary fixes the mechanism.
-- Codex does not claim user judgments, repository approval, or merge authority.
+- Task owners define the goal, acceptance criteria, scope, non-goals, invariants,
+  authority, required evidence, total budget, and stopping conditions at a scale
+  appropriate to the task. Reviewers independently audit source and evidence.
+- Contributors own current-source inspection, implementation search, file,
+  function, and test choice, implementation, verification, and Draft
+  pull-request creation within their authorized scope.
+- Issues and pull requests constrain outcomes and invariants. Proposed methods,
+  files, and tests are revisable on evidence unless an explicit scope limit,
+  current compatibility contract, or authority boundary fixes them.
+- Implementation and verification do not grant user-decision, repository
+  approval, or merge authority.
+
+These responsibilities apply to human and automated contributors. Versioned
+repository contracts remain the reference for development and review.
 
 ## Repository and workspace identity
 
-- The sole current repository is `hynk-studio/augnes`. The actual Mac
-  installed runtime and Local Canonical host remain rooted at
-  `/Users/hynk/code/augnes`. Verification-only linked worktrees on that Mac require
-  explicit admission under the Local Canonical policy; they do not change
-  installed-production identity or grant adoption authority.
-- Explicitly user-authorized isolated Codex Cloud checkouts of this repository
-  may inspect source, implement changes, run focused development tests, and
-  create branches, commits, pushes, and Draft pull requests within task scope.
-  Resolve the authorized checkout root rather than requiring the Mac root for
-  that development work. Cloud feedback is not actual Mac integration evidence
-  or a Mac Local Canonical receipt; checkout access grants no additional
-  production, provider, deployment, or merge authority.
-- `hynk-studio/augnes-perspective-lab` and
-  `/Users/hynk/code/augnes-temp` are historical provenance and rollback
-  material only. They grant no current development, project, execution,
-  verification, provider, or GitHub-write authority.
+- The sole current repository is `hynk-studio/augnes`. The registered reference
+  installation and deciding verification host are defined by the
+  [Local Canonical policy](.github/LOCAL_CANONICAL_VERIFICATION.md).
+  Verification-only linked worktrees require explicit admission under that
+  policy; they do not change installed-production identity or grant adoption
+  authority.
+- Use the checkout authorized for the task. Isolated development, including
+  authorized Codex Cloud work, may inspect source, implement changes, run
+  focused development tests, and create branches, commits, pushes, and Draft
+  pull requests within scope. Development feedback is not actual reference-host
+  integration evidence or a Local Canonical receipt; checkout access grants no
+  additional production, provider, deployment, or merge authority.
+- Historical repositories and retired workspaces, including
+  `hynk-studio/augnes-perspective-lab`, remain provenance and rollback material
+  only. They grant no current development, project, execution, verification,
+  provider, or GitHub-write authority.
 - Before repository work and again before deciding verification, resolve the
   exact repository root, origin, branch, `HEAD`, base, and clean/dirty
   worktree state. Stop on a mismatch.
@@ -103,28 +107,67 @@ capability or simpler path can justify improvement without inventing a defect;
 vague possibility alone cannot expand scope. Scale this to the task, without a
 research form for ordinary fixes or documentation or universal search counts.
 
-- ChatGPT refines the target, separates observation from interpretation, offers
-  falsifiable or discriminable hypotheses and expected behavior, interprets
-  returned evidence, and recommends the next concrete direction with a reason
-  to continue or stop. It distinguishes implementation failure, method failure,
-  insufficient observation, and negative evidence; pass/fail alone is not enough.
-- Codex diagnoses current source and the actual execution path, challenges a
-  contradicted cause or layer, and chooses files, functions, tests, and methods
-  from that evidence. It may propose a simpler approach, find the requirement
-  already satisfied, or conclude that observation or no implementation is
-  justified. Within approved scope and budget it implements the smallest
-  sufficient change, runs focused checks, revises when observations warrant it,
-  and explains why the change should affect the target behavior.
-- These are model-neutral roles, not permanent model or subscription choices.
-  Method exploration never expands goal, authority, tools, data, provider use,
-  cost ceilings, or external effects. A failure alone need not stop a supported
-  bounded attempt; lack of evidence for further investment forbids indefinite
-  iteration. A next evidence-based decision is required, not another patch.
+- Task owners and reviewers distinguish observation from interpretation,
+  implementation or method failure, insufficient observation, and negative
+  evidence. Contributors diagnose the actual path and may challenge a proposed
+  cause, choose a simpler method, or find that no implementation is needed.
+  Explain the expected behavioral effect and the evidence for continuing or
+  stopping. Method exploration does not expand scope, authority, or resources.
 - Keep development iteration, exact-source correctness verification, and fixed
   usefulness evaluation distinct. Read the
   [method-improvement evidence guidance](docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#method-improvement-evidence)
   for comparisons, exposure, burden, and next-decision reporting; existing
   verification, provenance, and deciding-run refusal rules still apply.
+
+### Bounded completion and problem response
+
+- Within the approved goal, contracts, authority, and budget, contributors choose
+  methods, correct defects and affected callers, restore task-owned setup with
+  fixed inputs, verify, self-review, and finish the PR handoff. Do not stop for
+  repeated approval of already delegated work. Hold only the action that exceeds
+  the grant unless an applicable stop instruction requires a wider stop. Changes
+  to product meaning, public contracts, support, shared state, or external effects
+  still need the applicable authority; do not weaken assertions or gates to pass.
+- Before an additional check, rerun, or measurement, identify the concrete risk,
+  what existing evidence cannot answer, and the decision the result could change.
+  Keep this in the existing task or PR notes; no additional form is required.
+  Count cumulative preparation, diagnosis, repair, verification, review, and user
+  effort for the same problem across renamed tasks, candidates, and delegations.
+- Distinguish a caller's wait timeout from actual termination, an observed test
+  failure, a required deadline violation, and unknown completion. Inspect the
+  existing execution and retained results before considering another invocation.
+  A timeout alone establishes neither a product defect, a shared-tooling need,
+  nor retry authority. Preserve observed failures and incomplete coverage.
+- Shared verification changes need a demonstrated recurring cause, cumulative
+  cost, material authority/data/evidence defect, or unreliable required check.
+  Explain which existing procedure, duplicate check, or manual effort they reduce.
+  An adjacent improvement does not automatically become a completion condition
+  or a follow-up task. Existing gates, grants, and attempt limits remain binding;
+  general guidance neither renews spent authority nor creates a new retry.
+
+### Practical review and closure
+
+- Block on material outcome, regression, or contract defects; missing or
+  conflicting required evidence; or an applicable authority violation. State the
+  evidence, consequence, and condition that resolves each blocker. A concrete
+  source path can suffice; full incident reproduction is not universally needed.
+  Mark optional improvements separately from required corrections.
+- Collect material findings in the first review where possible. Accept sound
+  rebuttals and smaller alternatives, withdrawing or downgrading unsupported
+  findings. Follow-up review covers resolved blockers, the changed delta and its
+  effects, including which prior evidence the change invalidates. Reopen settled
+  conditions only for a concrete new reason.
+- Independent review evaluates source and evidence independently; it need not
+  duplicate every execution unless required or justified by a specific evidence
+  concern. Reuse evidence only within its valid scope and still satisfy mandatory
+  final-target verification. A missing report link can be repaired from existing
+  results without rerunning the workload.
+- When the goal and required conditions are met and no material blocker remains,
+  accept and close the review. If budget or authority is exhausted, or another
+  attempt cannot inform a decision, close the attempt with remaining blockers
+  and resumption conditions. Optional suggestions do not prevent acceptance.
+  Technical acceptance does not grant a state transition; already valid
+  conditional authority need not be requested again once its conditions are met.
 
 ## Durable technical principles
 
@@ -169,6 +212,10 @@ research form for ordinary fixes or documentation or universal search counts.
 - Ordinary explanatory documentation needs exact diff review and appropriate
   content checks, not Local Canonical execution or a receipt. Authority/contracts and
   dispositions follow the documentation responsibilities in the policy below.
+- Do not make explanatory wording, heading style, or PR-template length a test
+  contract. Test executable behavior and actual machine-consumed interfaces;
+  review document meaning directly. A documentation link alone does not require
+  runtime verification or tests of unrelated implementation.
 - For changes requiring deciding pull-request verification, ask the Local
   Canonical planner for the final exact head and follow the
   [Local Canonical verification policy](.github/LOCAL_CANONICAL_VERIFICATION.md).
@@ -193,4 +240,5 @@ request Draft unless the user explicitly authorizes otherwise. Report the
 changed files, user/workflow and authority impact, data/Core/execution/
 compatibility impact, focused checks, planner-selected exact-head verification
 when applicable (otherwise state why it is not applicable),
-skipped checks, and unresolved risks. Never merge or enable auto-merge.
+skipped checks, and unresolved risks. Ready, merge, and auto-merge remain subject
+to the explicit authority requirements above.

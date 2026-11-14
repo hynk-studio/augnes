@@ -1,3 +1,4 @@
+import { downloadBrowserFiles } from './web-planning-cdp.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -30,7 +31,7 @@ export async function browserRetainedRevisionJourney({debug,origin,page,click,se
  const expected=[{head:result,draft:await primary.eval("$('authored-text').value"),book:afterBook},{head:await alternate.eval('saved'),draft:additionalDraft,book:await alternate.eval('sceneBook')}];
  await compare(primary,expanded);const post=await pair(primary),again=await preview(primary);assert.match(again.state,/unchanged/);assert.deepEqual(await confirm(primary),result);await compare(primary,expanded);assert.deepEqual(await pair(primary),post);
  // Actual download, fresh empty store, import picker, new process and new tabs.
- const downloads=path.join(root,'retained-revision-downloads');await mkdir(downloads);await primary.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads});await click(primary,'direction-export');await settled(primary);await wait(async()=>(await readdir(downloads)).includes('story-directions.json'),'retained pair download');
+ const downloads=path.join(root,'retained-revision-downloads');await mkdir(downloads);await downloadBrowserFiles(primary,downloads,['story-directions.json'],wait,async()=>{await click(primary,'direction-export');await settled(primary);},'retained pair download');assert((await readdir(downloads)).includes('story-directions.json'));
  const bundle=JSON.parse(await readFile(path.join(downloads,'story-directions.json'),'utf8'));assert.deepEqual(bundle,post.recovery);
  await replaceRuntime(true);const dest=await page(debug,origin);await navigate(dest,origin+'/');await wait(()=>dest.eval("$('list-state').textContent==='No saved work yet.'"),'empty retained recovery');
  await dest.eval("$('reconstruction').open=true");const {root:dom}=await dest.send('DOM.getDocument'),{nodeId}=await dest.send('DOM.querySelector',{nodeId:dom.nodeId,selector:'#import-file'});await dest.send('DOM.setFileInputFiles',{nodeId,files:[path.join(downloads,'story-directions.json')]});await click(dest,'import');await settled(dest);assert.equal(await dest.eval('work'),result.work_id);

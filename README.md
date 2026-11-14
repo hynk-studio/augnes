@@ -18,12 +18,23 @@ interface. The product is continuous work, not a collection of surfaces.
 **Resume / Verify / Decide.**
 
 [Try a method without installing Augnes](#try-a-method-without-setup) ·
+[Software Change Check](docs/SOFTWARE_CHANGE_SKILL_DISTRIBUTION.md) ·
 [Why Augnes](#why-augnes) · [What works today](#what-works-today) · [Quickstart](#quickstart) ·
 [Product direction](#product-direction) ·
 [Authority](#repository-authority) ·
 [Verification](#canonical-verification)
 
 ## Try a method without setup
+
+**Software Change Check:** Check an installation, package delivery or version
+change with your coding agent and the project's existing checks.
+[Free Agensi listing](https://www.agensi.io/skills/augnes-software-change-check) ·
+[Source and examples](skills/verify-software-change/SKILL.md) ·
+[Distribution status and result/correction path](docs/SOFTWARE_CHANGE_SKILL_DISTRIBUTION.md).
+This is separate from the workflow-cost calculator below. It requires a
+code-capable agent with authorized access to the subject and its checks;
+the optional input snapshot helper needs Python 3.9+. No Augnes runtime or
+account is required. Delivery through Agensi requires an Agensi connection.
 
 **Without installing Augnes does not mean zero prerequisites.** This small,
 optional workflow-cost calculator estimates **expected total work** for repeated
@@ -79,7 +90,7 @@ Work-preparation fields pause while a preview or save is pending. Add an unfinis
 source note, or use **Clear unfinished note**, before saving. Pending source
 selection/comparison also pauses preview/save until the selection is compared.
 Supported Native navigation and browser reload/close ask before discarding meaningful unsaved
-preparation. Staying keeps the exact draft; leaving or explicitly discarding does
+preparation, including optional forecasts and result observations. Staying keeps the exact draft; leaving or explicitly discarding does
 not save it or cancel a pending write. Clean editors and confirmed saves need no
 extra prompt. If a response is lost or cannot confirm the save, read current work
 before deciding on another action: the write may already have committed. This is
@@ -240,12 +251,30 @@ remove it reversibly with `npm run augnes:service:stop` or
 `npm run augnes:service:uninstall`. Linux and Windows service installation are
 unsupported; their source development flow remains foreground-only.
 
+For foreground source development, including Linux and Windows, install the
+same two dependency sets above and run `npm run dev` from this checkout instead
+of the service-install command. Keep that terminal open while using Augnes.
+
 Normal startup prepares the application-owned local database and does not
 reset or seed operator data. Ordinary reads and writes then connect only to that
 prepared store; missing or incompatible storage is refused without implicit
 creation or repair. See [database lifecycle ownership](docs/DATABASE_ACCESS_LIFECYCLE.md). `npm run augnes:service:status` returns bounded
 lifecycle state without exposing service paths, Node paths, PIDs, ports,
 tokens, manifests, or database paths.
+
+To find the running UI address, read runtime status from the application
+checkout (use another terminal for foreground development):
+
+```bash
+npm run augnes -- status
+```
+
+When the runtime is ready and verified, open the returned `effective_url` in
+your browser. The address is selected at startup; do not assume a fixed port.
+If no verified address is returned, check the foreground terminal's startup
+result or, for an installed service, run `npm run augnes:service:status` and
+follow its supported recovery action. Service lifecycle status alone does not
+return the UI address.
 
 <details>
 <summary>Companion lifecycle and recovery boundaries</summary>
@@ -288,7 +317,7 @@ Restore/update still require their separate explicit action and full target
 revalidation under the existing recovery lifecycle. Unknown/interrupted requests
 remain unresolved; do not send a replacement merely to hide a lost response.
 
-Open the URL and connect a local project. The primary path uses **Choose a
+In the opened UI, connect a local project. The primary path uses **Choose a
 folder**. If the native picker is unavailable, remains invisible, is cancelled,
 or does not return, **Enter the folder path instead** accepts one exact absolute
 path from the computer running Augnes. Both paths converge on the same review
@@ -514,6 +543,12 @@ active owner per durable topic:
 Implementation contracts, research, operator manuals, compatibility material,
 and historical records do not silently override those owners.
 
+For contributions, start with [AGENTS.md](AGENTS.md) and the owner relevant to
+the change. Task definition, implementation, independent review, and authorized
+merge are separate responsibilities for human and automated contributors.
+Contributors can use their preferred tools while following the repository's
+contribution and verification rules.
+
 RR0 was completed in
 [issue #69](https://github.com/hynk-studio/augnes-perspective-lab/issues/69)
 and [PR #70](https://github.com/hynk-studio/augnes-perspective-lab/pull/70).
@@ -533,21 +568,19 @@ verification rules. Current research status remains owned by `03`.
 
 ## Canonical repository migration
 
-`hynk-studio/augnes` is the canonical repository and
-`/Users/hynk/code/augnes` is the canonical macOS root. The complete
+`hynk-studio/augnes` is the canonical repository. The complete
 perspective-lab Git history through the migration point remains ancestry and
 historical provenance; historical Issue, PR, release, receipt, and research
 links stay bound to `hynk-studio/augnes-perspective-lab`.
 
-The local cutover is complete: the existing workspace/project identity,
-database, project-root binding, Companion, Codex operator plugin, and active
-RW1/RW1A artifacts now continue at the canonical root. [Augnes Issue
-#1130](https://github.com/hynk-studio/augnes/issues/1130) is the Current RW1B
-owner; perspective-lab Issue #268 is historical/migrated, not completed
-research. Completed perspective-lab artifacts remain readable only as isolated
-historical evidence. Neither the legacy repository/root nor historical
-readability grants current execution, Local Canonical, project, Companion,
-provider, or GitHub transport authority. No general multi-repository or
+The completed reference-installation cutover and retained research
+responsibilities are recorded in the
+[migration record](docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#canonical-repository-migration-and-local-cutover).
+Historical readability grants no current execution, Local Canonical, project,
+Companion, provider, or GitHub transport authority. The registered reference
+host remains governed by the
+[verification policy](.github/LOCAL_CANONICAL_VERIFICATION.md); an ordinary
+development checkout does not become that host. No general multi-repository or
 configurable-root mode exists.
 
 ## Canonical verification

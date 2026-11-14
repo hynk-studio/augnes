@@ -1,3 +1,5 @@
+import { CONTRIBUTION_FORMAT, CONTRIBUTION_COMPATIBILITY, contributionRequest, sameContributionFiles, type ContributionRequest } from './contribution-contract';
+import { CONTINUATION_FORMAT, CONTINUATION_COMPATIBILITY, continuationRecord, type Continuation } from './continuation-contract';
 import { PARTICIPATION_FORMAT, PARTICIPATION_COMPATIBILITY } from "./participation-contract";
 import { REASSESSMENT_FORMAT, REASSESSMENT_COMPATIBILITY, reassessmentRecord, type Reassessment } from "./return-reassessment";
 import { USE_FORMAT, USE_COMPATIBILITY, returnUse, type ReturnUse } from "./return-use";
@@ -46,9 +48,9 @@ export interface Relations {
   review: ComparisonReview | null;
   file_materials?: FileMaterial[];
 }
-export interface Payload { definition: ProjectWorkDefinitionV01; sources: TaskContextPacketSelectedEntryV01[]; relations?: Relations; files?: FileEntry[]; exchange?: Exchange; return_use?: ReturnUse; return_reassessment?: Reassessment }
+export interface Payload { contribution_request?:ContributionRequest; definition: ProjectWorkDefinitionV01; sources: TaskContextPacketSelectedEntryV01[]; relations?: Relations; files?: FileEntry[]; exchange?: Exchange; return_use?: ReturnUse; return_reassessment?: Reassessment; continuation?: Continuation }
 export interface Revision extends Scope, Payload {
-  format: typeof REASSESSMENT_FORMAT | typeof PARTICIPATION_FORMAT | typeof USE_FORMAT | typeof LARGE_FORMAT | typeof EXCHANGE_FORMAT | typeof FORMAT | typeof RELATION_FORMAT | typeof FILE_FORMAT | typeof FILE_RELATION_FORMAT; schema: 1; compatibility: typeof REASSESSMENT_COMPATIBILITY | typeof PARTICIPATION_COMPATIBILITY | typeof USE_COMPATIBILITY | typeof LARGE_COMPATIBILITY | typeof EXCHANGE_COMPATIBILITY | typeof COMPATIBILITY | typeof RELATION_COMPATIBILITY | typeof FILE_COMPATIBILITY | typeof FILE_RELATION_COMPATIBILITY;
+  format: typeof CONTRIBUTION_FORMAT | typeof CONTINUATION_FORMAT | typeof REASSESSMENT_FORMAT | typeof PARTICIPATION_FORMAT | typeof USE_FORMAT | typeof LARGE_FORMAT | typeof EXCHANGE_FORMAT | typeof FORMAT | typeof RELATION_FORMAT | typeof FILE_FORMAT | typeof FILE_RELATION_FORMAT; schema: 1; compatibility: typeof CONTRIBUTION_COMPATIBILITY | typeof CONTINUATION_COMPATIBILITY | typeof REASSESSMENT_COMPATIBILITY | typeof PARTICIPATION_COMPATIBILITY | typeof USE_COMPATIBILITY | typeof LARGE_COMPATIBILITY | typeof EXCHANGE_COMPATIBILITY | typeof COMPATIBILITY | typeof RELATION_COMPATIBILITY | typeof FILE_COMPATIBILITY | typeof FILE_RELATION_COMPATIBILITY;
   work_id: string; revision: number; predecessor: string | null;
   recorded_at: string; request_key: string; request_fingerprint: string; fingerprint: string;
 }
@@ -235,9 +237,20 @@ export function makeRevision(scope: Scope, work_id: string, expected: Binding, r
   if(related&&payload.files===undefined)fail("explicit_file_selection_required");
   if(payload.return_use){if(payload.exchange||payload.files===undefined)fail("incompatible_format",409);returnUse(payload.return_use,payload,work_id);}
   if(payload.return_reassessment){if(payload.exchange||payload.return_use||!related)fail("incompatible_format",409);reassessmentRecord(payload.return_reassessment,payload,work_id);}
+  if(payload.continuation){
+    continuationRecord(payload.continuation);
+    if(payload.exchange||payload.return_use||payload.return_reassessment||payload.files===undefined)fail("incompatible_format",409);
+  }
+  if(payload.contribution_request){
+    contributionRequest(payload.contribution_request);
+    if(expected.revision!==0||payload.exchange||payload.return_use||payload.return_reassessment||payload.continuation||payload.files===undefined||
+      payload.contribution_request.project_id===scope.project_id||payload.contribution_request.workspace_id!==scope.workspace_id)fail('invalid_contribution_request');
+    sameContributionFiles(payload.contribution_request,payload.files);
+  }
+  const contribution=!!(payload.contribution_request||payload.exchange?.contributor?.project||payload.return_use?.contributor?.project);
   const participation=!!(payload.exchange?.contributor || payload.return_use?.participant_feedback || payload.return_use?.contributor);
   const large=payload.exchange && largeExchange(payload.exchange);
-  const material = { ...scopeMaterial(scope), format: payload.return_reassessment ? REASSESSMENT_FORMAT : participation ? PARTICIPATION_FORMAT : payload.return_use ? USE_FORMAT : large ? LARGE_FORMAT : payload.exchange ? EXCHANGE_FORMAT : related ? FILE_RELATION_FORMAT : payload.files!==undefined ? FILE_FORMAT : payload.relations ? RELATION_FORMAT : FORMAT, schema: 1, compatibility: payload.return_reassessment ? REASSESSMENT_COMPATIBILITY : participation ? PARTICIPATION_COMPATIBILITY : payload.return_use ? USE_COMPATIBILITY : large ? LARGE_COMPATIBILITY : payload.exchange ? EXCHANGE_COMPATIBILITY : related ? FILE_RELATION_COMPATIBILITY : payload.files!==undefined ? FILE_COMPATIBILITY : payload.relations ? RELATION_COMPATIBILITY : COMPATIBILITY,
+  const material = { ...scopeMaterial(scope), format: contribution ? CONTRIBUTION_FORMAT : payload.continuation ? CONTINUATION_FORMAT : payload.return_reassessment ? REASSESSMENT_FORMAT : participation ? PARTICIPATION_FORMAT : payload.return_use ? USE_FORMAT : large ? LARGE_FORMAT : payload.exchange ? EXCHANGE_FORMAT : related ? FILE_RELATION_FORMAT : payload.files!==undefined ? FILE_FORMAT : payload.relations ? RELATION_FORMAT : FORMAT, schema: 1, compatibility: contribution ? CONTRIBUTION_COMPATIBILITY : payload.continuation ? CONTINUATION_COMPATIBILITY : payload.return_reassessment ? REASSESSMENT_COMPATIBILITY : participation ? PARTICIPATION_COMPATIBILITY : payload.return_use ? USE_COMPATIBILITY : large ? LARGE_COMPATIBILITY : payload.exchange ? EXCHANGE_COMPATIBILITY : related ? FILE_RELATION_COMPATIBILITY : payload.files!==undefined ? FILE_COMPATIBILITY : payload.relations ? RELATION_COMPATIBILITY : COMPATIBILITY,
     work_id, revision: expected.revision + 1, predecessor: expected.fingerprint, ...payload,
     recorded_at, request_key, request_fingerprint: requestFingerprint(scope, work_id, expected, request_key, payload) };
   return { ...material, fingerprint: hash(canonical(material)) } as Revision;
@@ -251,24 +264,33 @@ export function validateChain(scope: Scope, work_id: string, values: unknown[]):
   assertHistoryBudget(values);
   const revisions: Revision[] = []; const keys = new Set();
   for (const value of values) {
+    const contribution=(value as Revision)?.format===CONTRIBUTION_FORMAT;
+    const retained=contribution && !!(value as Revision)?.contribution_request;
+    const continued=(value as Revision)?.format===CONTINUATION_FORMAT;
     const reassessed=(value as Revision)?.format===REASSESSMENT_FORMAT;
-    const participation=(value as Revision)?.format===PARTICIPATION_FORMAT;
+    const participation=contribution || (value as Revision)?.format===PARTICIPATION_FORMAT;
     const used=(value as Revision)?.format===USE_FORMAT || (participation && !!(value as Revision)?.return_use);
     const large=(value as Revision)?.format===LARGE_FORMAT;
     const exchanged=(participation && !!(value as Revision)?.exchange) || large || (value as Revision)?.format===EXCHANGE_FORMAT;
-    const fileRelated=reassessed || (value as Revision)?.format===FILE_RELATION_FORMAT || ((exchanged||used) && (value as Revision).relations?.file_materials!==undefined);
-    const filed=used||(value as Revision)?.format===FILE_FORMAT||fileRelated||exchanged;
+    const fileRelated=reassessed || (value as Revision)?.format===FILE_RELATION_FORMAT || ((exchanged||used||continued) && (value as Revision).relations?.file_materials!==undefined);
+    const filed=retained||continued||used||(value as Revision)?.format===FILE_FORMAT||fileRelated||exchanged;
     const relational=(value as Revision)?.format===RELATION_FORMAT || (filed && "relations" in (value as Revision));
     if ((value as Revision)?.format!==FORMAT && !relational && !filed) fail("incompatible_format",409);
-    exact(value, "workspace_id,project_id,author_ref,format,schema,compatibility,work_id,revision,predecessor,definition,sources,recorded_at,request_key,request_fingerprint,fingerprint"+(relational?",relations":"")+(filed?",files":"")+(exchanged?",exchange":"")+(used?",return_use":"")+(reassessed?",return_reassessment":""));
-    if (value.schema !== 1 || value.compatibility !== (reassessed?REASSESSMENT_COMPATIBILITY:participation?PARTICIPATION_COMPATIBILITY:used?USE_COMPATIBILITY:large?LARGE_COMPATIBILITY:exchanged?EXCHANGE_COMPATIBILITY:fileRelated?FILE_RELATION_COMPATIBILITY:filed?FILE_COMPATIBILITY:relational?RELATION_COMPATIBILITY:COMPATIBILITY) || fileRelated!==(value.relations?.file_materials!==undefined)) fail("incompatible_format", 409);
+    exact(value, "workspace_id,project_id,author_ref,format,schema,compatibility,work_id,revision,predecessor,definition,sources,recorded_at,request_key,request_fingerprint,fingerprint"+(relational?",relations":"")+(filed?",files":"")+(exchanged?",exchange":"")+(used?",return_use":"")+(reassessed?",return_reassessment":"")+(continued?",continuation":"")+(retained?",contribution_request":""));
+    if (value.schema !== 1 || value.compatibility !== (contribution?CONTRIBUTION_COMPATIBILITY:continued?CONTINUATION_COMPATIBILITY:reassessed?REASSESSMENT_COMPATIBILITY:participation?PARTICIPATION_COMPATIBILITY:used?USE_COMPATIBILITY:large?LARGE_COMPATIBILITY:exchanged?EXCHANGE_COMPATIBILITY:fileRelated?FILE_RELATION_COMPATIBILITY:filed?FILE_COMPATIBILITY:relational?RELATION_COMPATIBILITY:COMPATIBILITY) || fileRelated!==(value.relations?.file_materials!==undefined)) fail("incompatible_format", 409);
     if (value.workspace_id !== scope.workspace_id || value.project_id !== scope.project_id || value.author_ref !== scope.author_ref || value.work_id !== work_id ||
       !UUID.test(value.request_key) || keys.has(value.request_key) || parseStrictIsoTimestampV01(value.recorded_at) === null ||
       new Date(value.recorded_at).toISOString() !== value.recorded_at || !Array.isArray(value.sources)) fail("invalid_history", 503);
     const payload = normalizePayload(scope, value.definition, value.sources.map(selectedWorkSourceInput));
+    if(retained)payload.contribution_request=contributionRequest(value.contribution_request);
     if (filed) payload.files=fileManifest(value.files);
     if (relational) payload.relations=validateRelations(value.relations,payload,work_id);
     const prior=revisions.at(-1);
+    if(continued){
+      payload.continuation=continuationRecord(value.continuation);
+      if(!prior||canonical(payload.definition)!==canonical(prior.definition)||canonical(payload.sources)!==canonical(prior.sources)||
+        canonical(payload.files)!==canonical(prior.files??[])||canonical(payload.relations??null)!==canonical(prior.relations??null))fail("continuation_changed_work",409);
+    }
     validateRetainedContext(revisions,work_id,payload,scope);
     if(used)payload.return_use=returnUse(value.return_use,payload,work_id,revisions);
     if(reassessed)payload.return_reassessment=reassessmentRecord(value.return_reassessment,payload,work_id,revisions);

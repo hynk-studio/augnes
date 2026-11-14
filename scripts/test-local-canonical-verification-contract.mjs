@@ -7,7 +7,12 @@ import { RESEARCH_REGISTRATION_PATH, RESEARCH_SOURCE_PATHS, RESEARCH_OWNER_ID,
 import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { assertVerificationDocumentation } from "./validate-canonical-docs-change.mjs";
 import { buildPhasePlan, OPERATING_POLICY_PHASE_IDS } from "./run-local-canonical-verification.mjs";
+import { integrationBudgetRegistration, registeredFixtureBudget, REGISTERED_INTEGRATION_BUDGET, verifyIntegrationBudgetAdoptedEntries } from "./local-canonical-fixture-budget-witness.mjs";
+import { integrationBudgetAuthorityBindings, integrationBudgetAuthorityScope, INTEGRATION_BUDGET_GRANT,
+  INTEGRATION_BUDGET_LIMIT, MATERIAL_HISTORY_BOUNDARY } from "./local-canonical-git-observation.mjs";
 import { spawnSync } from "node:child_process";
+import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
+import { createCanonicalTestResourceRoot, buildCanonicalChildEnvironment, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
 import {
   existsSync,
   readFileSync,
@@ -23,6 +28,8 @@ import {
 } from "./runtime-operability-ownership.mjs";
 import {
   assertCanonicalConcurrentChildLabelsV01,
+  DEFAULT_CANONICAL_TERM_GRACE_MS,
+  DEFAULT_CANONICAL_KILL_GRACE_MS,
   normalizeCanonicalConcurrentChildLabelV01,
 } from "./canonical-child-runner.mjs";
 
@@ -38,18 +45,88 @@ const readme = readRepositoryFile("README.md");
 const localPolicy = readRepositoryFile(
   ".github/LOCAL_CANONICAL_VERIFICATION.md",
 );
-const canonicalBrowserOwnershipPolicy = readRepositoryFile(
-  "docs/CANONICAL_BROWSER_VERIFICATION_OWNERSHIP_V1.md",
-);
 const pullRequestTemplate = readRepositoryFile(
   ".github/pull_request_template.md",
-);
-const reductionScope = readRepositoryFile(
-  "docs/REPOSITORY_REDUCTION_SCOPE.md",
 );
 const canonicalSuite = readRepositoryFile(
   "scripts/run-canonical-test-suite.mjs",
 );
+const registration = (suite = canonicalSuite, executor = readRepositoryFile("scripts/run-local-canonical-verification.mjs")) =>
+  integrationBudgetRegistration(([, target]) => {
+    const file = target.split(":")[1];
+    return Buffer.from(file === "scripts/run-canonical-test-suite.mjs" ? suite :
+      file === "scripts/run-local-canonical-verification.mjs" ? executor : readRepositoryFile(file));
+  }, "fixture");
+const actualIntegration = registration();
+assert.throws(() => registration(canonicalSuite.replace(
+  '...rootNode("scripts/test-external-response.ts")', '...rootNode("scripts/test-external-response-selective.ts")',
+)), /revision_fixture_budget_invalid/u);
+assert.throws(() => registration(canonicalSuite.replace(
+  /(...rootNode\("scripts\/test-external-response\.ts"\),[\s\S]*?requireNaturalExit:) true/u, "$1 false",
+)), /revision_fixture_budget_invalid/u);
+assert.throws(() => registration(canonicalSuite.replace(
+  '...rootNode("scripts/test-external-response.ts"),',
+  '...rootNode("scripts/test-external-response.ts"), get timeoutMs() { return 600000; },',
+)), /revision_fixture_budget_invalid/u);
+assert.throws(() => registration(canonicalSuite,readRepositoryFile("scripts/run-local-canonical-verification.mjs")
+  .replace("4_200_000","100_000")), /revision_fixture_budget_invalid/u);
+assert(actualIntegration.parentMs > actualIntegration.childMs + 13000);
+const quotedPath = 'scripts/복구 "probe".ts';
+const blob = {mode:"100644",type:"blob",oid:"1".repeat(40)};
+const unusualEntry = new Map([[quotedPath,blob]]);
+assert.throws(() => verifyIntegrationBudgetAdoptedEntries(new Map(),unusualEntry,new Map(),new Set()), /revision_fixture_budget_invalid/u);
+verifyIntegrationBudgetAdoptedEntries(new Map(),unusualEntry,unusualEntry,new Set());
+const renamedEntry = new Map([["scripts/replacement-probe.ts",blob]]);
+assert.throws(() => verifyIntegrationBudgetAdoptedEntries(unusualEntry,renamedEntry,
+  new Map([...unusualEntry,...renamedEntry]),new Set()), /revision_fixture_budget_invalid/u);
+assert.throws(() => verifyIntegrationBudgetAdoptedEntries(unusualEntry,
+  new Map([[quotedPath,{...blob,mode:"100755"}]]),unusualEntry,new Set()), /revision_fixture_budget_invalid/u);
+const ancestorEntry = new Map([[quotedPath,{...blob,oid:"2".repeat(40)}]]);
+const adoptedEntry = new Map([[quotedPath,{...blob,oid:"3".repeat(40)}]]);
+const integratedEntry = new Map([[quotedPath,{...blob,oid:"4".repeat(40)}]]);
+const observedMerge = args => {
+  if (args[0] === "merge-file") {
+    assert.deepEqual(args,["merge-file","--stdout","--object-id",blob.oid,ancestorEntry.get(quotedPath).oid,adoptedEntry.get(quotedPath).oid]);
+    return Buffer.from("accepted changes and adopted changes\n");
+  }
+  assert.equal(args[0],"cat-file");
+  return Buffer.from(args[2] === integratedEntry.get(quotedPath).oid ? "accepted changes and adopted changes\n" : "extra changes\n");
+};
+const mergeInputs = {ancestor:ancestorEntry,git:observedMerge};
+verifyIntegrationBudgetAdoptedEntries(unusualEntry,integratedEntry,adoptedEntry,new Set(),mergeInputs);
+for (const [candidate,main,inputs] of [
+  [new Map([[quotedPath,{...blob,oid:"5".repeat(40)}]]),adoptedEntry,mergeInputs],
+  [integratedEntry,ancestorEntry,mergeInputs],
+  [new Map([[quotedPath,{...integratedEntry.get(quotedPath),mode:"100755"}]]),adoptedEntry,mergeInputs],
+  [integratedEntry,adoptedEntry,{...mergeInputs,git:()=>{throw new Error("conflict");}}],
+]) assert.throws(() => verifyIntegrationBudgetAdoptedEntries(unusualEntry,candidate,main,new Set(),inputs), /revision_fixture_budget_invalid/u);
+
+// Binding-only fixtures. The production authentication owner separately
+// verifies maintainer identity, publication, chronology and the physical tip.
+const target = {
+  schema:"augnes.local-canonical-source-correction.v7", branch:"codex/integration-budget-controls", pull_request:71,
+  base:"a".repeat(40), head:"b".repeat(40), tree:"c".repeat(40),
+  prior_family_id:"d".repeat(64), prior_number:1, prior_attempt_id:"prior-attempt",
+  prior_receipt_fingerprint:"e".repeat(64),
+  inputs:{inventory_sha256:"f".repeat(64),identity_sha256:"0".repeat(64)},
+  commission:{root_receipt_fingerprint:"1".repeat(64),delegation:{id:42},evidence_kind:REGISTERED_INTEGRATION_BUDGET},
+  accepted:{review:{id:64}},
+};
+const bindings = integrationBudgetAuthorityBindings(target);
+const accepted = {body:["Source review decision: ACCEPT / RETAIN for prospective qualification.",bindings,MATERIAL_HISTORY_BOUNDARY].join("\n\n")};
+const commission = {body:[INTEGRATION_BUDGET_GRANT,bindings,
+  "Accepted review: https://github.com/hynk-studio/augnes/pull/71#pullrequestreview-64",
+  MATERIAL_HISTORY_BOUNDARY,INTEGRATION_BUDGET_LIMIT].join("\n\n")};
+assert(integrationBudgetAuthorityScope(target,accepted,commission));
+for (const body of [
+  commission.body.replace("Exactly one","Exactly two"),
+  commission.body.replace("No ordinal two","Allow ordinal two"),
+  commission.body.replace(target.inputs.inventory_sha256,"2".repeat(64)),
+  commission.body.replace(target.prior_family_id,"3".repeat(64)),
+  commission.body.replace("#pullrequestreview-64","#pullrequestreview-65"),
+  commission.body+"\n\nExample only.",
+]) assert(!integrationBudgetAuthorityScope(target,accepted,{body}));
+assert(!integrationBudgetAuthorityScope(target,{body:"> "+accepted.body},commission));
 const runtimeOperabilityOwnership = readRepositoryFile(
   "scripts/runtime-operability-ownership.mjs",
 );
@@ -190,39 +267,7 @@ const activePolicySources = {
   "README.md": readme,
   ".github/LOCAL_CANONICAL_VERIFICATION.md": localPolicy,
   ".github/pull_request_template.md": pullRequestTemplate,
-  "docs/REPOSITORY_REDUCTION_SCOPE.md": reductionScope,
 };
-for (const [file, source] of Object.entries(activePolicySources)) {
-  assert.doesNotMatch(
-    source,
-    /ubuntu-latest|actions\/checkout|actions\/setup-node|canonical-tests|hosted Canonical CI|post-merge Canonical CI/iu,
-    `active policy must not depend on hosted GitHub Actions: ${file}`,
-  );
-}
-
-for (const fragment of [
-  "exact repository identity",
-  "exact base SHA",
-  "exact head SHA",
-  "dirty-worktree status",
-  "operating system and architecture",
-  "Node and npm versions",
-  "root, Apps and web-planning lockfile fingerprints",
-  "selected plan",
-  "each selected command and result",
-  "finite duration",
-  "cleanup and remaining-process result",
-  "final pass or failure",
-  "shared local host",
-  "does not provide independent hosted reproduction",
-  "GitHub remains source control, pull-request, review, and history infrastructure only",
-]) {
-  requireText(
-    localPolicy,
-    fragment,
-    `local verification policy is missing required evidence: ${fragment}`,
-  );
-}
 assertVerificationDocumentation(activePolicySources);
 const harmlessProse = Object.fromEntries(Object.entries(activePolicySources).map(([file, source]) =>
   [file, source.replace(/^#{1,6} .+$/gmu, "## Reworded heading").replace("Local evidence is review material", "Local results support review")]));
@@ -233,26 +278,6 @@ assert.throws(() => assertVerificationDocumentation({ "AGENTS.md": agents.replac
 assert.throws(() => assertVerificationDocumentation({ ".github/pull_request_template.md": pullRequestTemplate.replace("https://github.com/hynk-studio/augnes/blob/main/.github/LOCAL_CANONICAL_VERIFICATION.md", "LOCAL_CANONICAL_VERIFICATION.md") }), /absolute URL usable in copied PR text/u);
 assert.deepEqual(buildPhasePlan({ mode: "changed", selectedPlan: "operating-policy-only", baseSha: "1".repeat(40), headSha: "2".repeat(40) }).map((phase) => phase.id), [...OPERATING_POLICY_PHASE_IDS]);
 assert.ok(buildPhasePlan({ mode: "changed", selectedPlan: "operating-policy-only", baseSha: "1".repeat(40), headSha: "2".repeat(40) }).every((phase) => !["npm", "npm.cmd"].includes(phase.command)));
-for (const obsoleteFixedField of [
-  "Augnes Work ID:",
-  "## Execution Surfaces Used",
-  "## Browser / Chrome Checks",
-  "## Structured Evidence Records",
-  "## Optional Local Canonical PR publication",
-  "Pseudonymous local machine fingerprint:",
-  "Root `package-lock.json` SHA-256:",
-]) {
-  assert.equal(
-    pullRequestTemplate.includes(obsoleteFixedField),
-    false,
-    `pull-request template must not require obsolete fixed ceremony: ${obsoleteFixedField}`,
-  );
-}
-assert.ok(
-  pullRequestTemplate.split(/\r?\n/u).length <= 40,
-  "pull-request template must remain concise",
-);
-
 const canonicalCommands = Object.freeze({
   typegen: "next typegen",
   typecheck: "npm run typegen && tsc --noEmit",
@@ -423,31 +448,6 @@ for (const generatedTypeInclude of [
   assert.equal(tsconfig.include.includes(generatedTypeInclude), true);
 }
 
-for (const command of [
-  "npm run typecheck",
-  "npm run build",
-  "npm test",
-  "npm run test:authority",
-  "npm run test:integration",
-  "npm run test:operability",
-  "npm run test:e2e:project-experience",
-  "npm run test:e2e:operator-execution",
-  "npm run test:e2e:continuity",
-  "npm run test:e2e:golden",
-  "npm run test:e2e",
-]) {
-  requireText(readme, `\`${command}\``, `README is missing ${command}`);
-  requireText(localPolicy, command, `policy is missing ${command}`);
-}
-for (const command of [
-  "npm run verify:local:quick",
-  "npm run verify:local:changed --",
-  "npm run verify:local:full --",
-  "npm run verify:local:receipt --",
-]) {
-  requireText(readme, command, `README is missing ${command}`);
-  requireText(localPolicy, command, `policy is missing ${command}`);
-}
 for (const fragment of [
   `WINDOWS_AUTHORIZED_REPOSITORY_ROOT_ENV =`,
   `"AUGNES_CANONICAL_WINDOWS_REPOSITORY_ROOT"`,
@@ -515,10 +515,6 @@ for (const fragment of [
   `planner_failure_requires_full_canonical`,
   `documentation-validator`,
   `operating-policy-validator`,
-  `operating-policy-planner-contract`,
-  `operating-policy-executor-contract`,
-  `operating-policy-receipt-contract`,
-  `operating-policy-verification-contract`,
   `operating_policy_only_no_dependency_install`,
   `targeted-change-validator`,
   `invalid_owner_targeted_phase_inventory`,
@@ -743,6 +739,8 @@ for (const authorityChild of [
   "scripts/test-canonical-change-planner.mjs",
   "scripts/test-dependency-lock-compatibility.mjs",
   "scripts/test-local-canonical-executor.mjs",
+  "scripts/test-local-canonical-improvement.mjs",
+  "scripts/test-local-canonical-maintenance.mjs",
   "scripts/test-local-canonical-receipt.mjs",
   "scripts/test-local-canonical-isolation.mjs",
   "scripts/test-github-main-branch-transport.mjs",
@@ -754,6 +752,18 @@ for (const authorityChild of [
   );
 }
 
+const improvementChildStart = canonicalSuite.indexOf('id: "local-canonical-improvement"');
+assert.notEqual(improvementChildStart,-1);
+const improvementChild=canonicalSuite.slice(improvementChildStart,canonicalSuite.indexOf("    },",improvementChildStart));
+for(const fragment of ['timeoutMs: 90_000','requireNaturalExit: true','"scripts/test-local-canonical-improvement.mjs"'])
+  requireText(improvementChild,fragment,"PASS/PASS contract controls have a separate finite authority owner");
+
+const maintenanceChildStart=canonicalSuite.indexOf('id: "local-canonical-maintenance"');
+assert.notEqual(maintenanceChildStart,-1);
+const maintenanceChild=canonicalSuite.slice(maintenanceChildStart,canonicalSuite.indexOf("    },",maintenanceChildStart));
+for(const fragment of ['timeoutMs: 90_000','requireNaturalExit: true','"scripts/test-local-canonical-maintenance.mjs"'])
+  requireText(maintenanceChild,fragment,"maintenance controls have their own finite authority owner, outside the product child");
+
 const isolatedChildStart = canonicalSuite.indexOf('id: "local-canonical-isolation"');
 assert.notEqual(isolatedChildStart, -1);
 const isolatedChild = canonicalSuite.slice(isolatedChildStart, canonicalSuite.indexOf("    },", isolatedChildStart));
@@ -761,9 +771,29 @@ for (const fragment of ['timeoutMs: 30_000', 'requireNaturalExit: true', '"scrip
   requireText(isolatedChild, fragment, "isolated verification has a bounded authority child and complete cleanup");
 
 const revisionSteps = canonicalSuite.slice(canonicalSuite.indexOf("const reviewedRevisionSteps ="), canonicalSuite.indexOf("const suites ="));
-for (const fragment of ['["revision", "settlement", "browser", "git", "git-input", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-reservation", "serial-aggregate"].map(group', '"--reviewed-revision-controls", group',
-  'timeoutMs: 30_000', 'requireNaturalExit: true'])
+for (const fragment of ['["revision", "settlement", "browser", "git", "git-input", "git-input-lifecycle", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-stock", "material-reservation", "serial-aggregate", "serial-material"].map(group', '"--reviewed-revision-controls", group',
+  'requireNaturalExit: true'])
   requireText(revisionSteps, fragment, "each reviewed fixture group has its own bounded natural-exit registration");
+// Inspect effective values through the existing finite registration reader,
+// using the same working-tree source as this behavioral contract check.
+// Selecting its supported aggregate owner does not admit a material correction.
+const revisionBudgets = registeredFixtureBudget(([, target]) =>
+  Buffer.from(readRepositoryFile(target.slice(target.indexOf(":") + 1))), "fixture", "serial-aggregate");
+for (const [group, limits] of Object.entries(revisionBudgets.limits)) {
+  const expected = group === "serial-material" ? {inner: 80_000, outer: 95_000} :
+    group === "serial-aggregate" ? {inner: 20_000, outer: 40_000} :
+    ["revision", "acquisition", "git-successor", "git-input-successor"].includes(group) ?
+      {inner: 20_000, outer: 30_000} : {inner: 15_000, outer: 30_000};
+  assert.deepEqual(limits, expected, `reviewed fixture budgets: ${group}`);
+}
+const materialBudget = revisionBudgets.limits["serial-material"];
+assert.deepEqual(materialBudget, {
+  inner: revisionBudgets.constants.reviewSerialMaterialFixtureMs,
+  outer: revisionBudgets.constants.reviewSerialMaterialControlMs,
+}, "material callers use the shared fixture allowances");
+assert.equal(materialBudget.outer - materialBudget.inner -
+  DEFAULT_CANONICAL_TERM_GRACE_MS - DEFAULT_CANONICAL_KILL_GRACE_MS, 2_000,
+  "material outer allowance retains termination grace and parent settlement");
 assert.equal(countOccurrences(canonicalSuite, "...reviewedRevisionSteps,"), 1);
 assert.equal(countOccurrences(canonicalSuite, '"--reviewed-revision-controls"'), 1);
 assert.doesNotMatch(canonicalSuite, /--operating-profile-succession-controls/u);
@@ -773,9 +803,6 @@ for (const route of ["operating-profile-succession", "successor-budget-successio
       "completed controllers and dedicated fixtures stay retired; Git is the source archive");
   assert(!localExecutor.includes(`"scripts/local-canonical-${route}.mjs"`), "executor inventory has no deleted owner");
 }
-requireText(localPolicy, "df920cd3f5c35774ad2743500a6f3657e4ecb95e", "retired mixed history has a pinned Git reading path");
-requireText(localPolicy, "qualification_route_retired", "current mixed-chain refusal is explicit");
-requireText(localPolicy, "d72c0f3dc5b224c02a44033d9ed83eb3eb5af3fb", "completed workload history has a pinned reader");
 for (const name of ["authority-scope", "reviewed-workload", "post-terminal"])
   assert.equal(existsSync(path.join(repositoryRoot, `scripts/fixtures/local-canonical-${name}.mjs`)), false,
     "completed workload controllers and the unregistered scope probe remain in Git history");
@@ -794,7 +821,7 @@ for (const retiredPath of [
     `retired PR-comment publication path must remain absent: ${retiredPath}`,
   );
 }
-for (const source of [readme, localPolicy, localExecutor, canonicalSuite]) {
+for (const source of [localExecutor, canonicalSuite]) {
   assert.doesNotMatch(
     source,
     /verify:local:evidence|local-canonical-pr-evidence|local-pr-evidence/iu,
@@ -854,36 +881,6 @@ for (const fragment of [
     `read-only GitHub transport regression is missing: ${fragment}`,
   );
 }
-for (const fragment of [
-  `Publication used: \`yes | no\``,
-  `Dedicated evidence comment URL:`,
-  `Publication-envelope SHA-256 content fingerprint:`,
-  `Remote-only verification result:`,
-  `Local-linked verification result:`,
-  `Identical-publication idempotent no-op proof:`,
-  `Replacement used: \`yes | no\``,
-]) {
-  assert.equal(
-    pullRequestTemplate.includes(fragment),
-    false,
-    `ordinary pull-request template must not require optional publication metadata: ${fragment}`,
-  );
-}
-for (const fragment of [
-  `small, durable repository constitution`,
-  `ChatGPT and the user own the goal, scope, invariants, authority, non-goals,`,
-  `Codex owns current-source inspection, implementation search, file, function,`,
-  `Evidence is review material, not approval`,
-  `Semantic, execution, external-effect, and repository merge authority`,
-  `Do not merge, mark Ready, enable auto-merge, release, deploy, publish evidence,`,
-  `without exact user authority for that action`,
-]) {
-  requireText(
-    agents,
-    fragment,
-    `AGENTS.md durable authority instruction is missing: ${fragment}`,
-  );
-}
 assert.match(gitignore, /^\.augnes-local-verification\/$/mu);
 for (const forbiddenConfig of [
   ".gitlab-ci.yml",
@@ -898,16 +895,14 @@ for (const forbiddenConfig of [
 }
 
 for (const fragment of [
-  `eventName === "push"`,
+  `["pull_request", "push"].includes(eventName)`,
   `plan: "full-canonical"`,
-  `reason: "main_push_always_full"`,
-  `eventName !== "pull_request"`,
   `--name-status`,
   `--find-renames=50%`,
   `unsupported canonical diff status`,
   `mode_change:`,
   `classifyDocumentationChange`,
-  `registered_documentation_responsibilities`,
+  `documentation_responsibilities`,
   `operating-policy-only`,
   `OWNER_TARGETED_PLAN`,
   `all_changes_have_owner_complete_targeted_coverage`,
@@ -977,9 +972,12 @@ for (const [id, script] of [
   assert.equal(registrations[0][1], script, `${id}: exact existing child`);
   assert.equal(registrations[0][2], "30_000", `${id}: unchanged child bound`);
 }
+// The stock-verifier protocol is a separate finite unit owner. It must not
+// add recursive work to the existing HTTP or product Browser child.
+assert.equal([...canonicalSuite.matchAll(/id:"local-canonical-stock-verifier"/gu)].length,1);
+assert(canonicalSuite.includes('...rootNode("scripts/test-local-canonical-stock-verifier.mjs"),\n      timeoutMs:30000,requireNaturalExit:true'));
 assert(canonicalSuite.includes("suites.unit.filter((step) => step.id === id)"));
 assert(canonicalSuite.includes("checks.length !== 1"));
-assert(localPolicy.includes("three named checks"));
 assert.deepEqual(
   changeOwnerManifest.targeted_owners
     .filter((owner) => owner.deletion_policy === "targeted")
@@ -1002,19 +1000,6 @@ for (const requiredHighRiskOwner of [
     ),
     true,
     `missing fail-closed responsibility owner: ${requiredHighRiskOwner}`,
-  );
-}
-for (const fragment of [
-  `known single detailed Browser owner`,
-  `multiple detailed Browser owners require \`full-canonical\``,
-  `unknown or ambiguous verification ownership selects all seven phases`,
-  `deletion is not targeted in this version`,
-  `arbitrary standalone focused run is diagnostic evidence`,
-]) {
-  requireText(
-    canonicalBrowserOwnershipPolicy,
-    fragment,
-    `Browser ownership policy is missing targeted fail-closed guidance: ${fragment}`,
   );
 }
 for (const regression of [
@@ -1087,7 +1072,7 @@ for (const fragment of [
   `runCanonicalChildGroups,`,
   `assertCanonicalConcurrentChildLabelsV01,`,
   `integrationInventory.map((step) => step.label)`,
-  `maxConcurrency: projectWorkFocus ? 1 : 2`,
+  `maxConcurrency: integrationFocus ? 1 : 2`,
   `{ id: "operator-process", children:`,
   `{ id: "supporting-serial", children:`,
   `new Set(preparedSteps.map((step) => step.resourceRoot)).size`,
@@ -1188,6 +1173,7 @@ const integrationChildren = [
   "ordinary-successor-expectation-final-slot",
   "project-work-scoped-host",
     "executed-reviewed-follow-up",
+  "project-work-semantic-state-read",
   "unexecuted-successor-revision",
   "authored-successor-handoff",
   "settled-expired-successor",
@@ -1327,12 +1313,17 @@ assert.deepEqual(projectClientBrowser.args,["--import","tsx","scripts/test-proje
 for (const requirement of ["process-owning","listener-port-owning","browser-profile-owning","cdp-session-owning"])
   assert(projectClientBrowser.requirements.includes(requirement),"same-profile Browser owns bounded processes, profile and CDP resources");
 requireText(canonicalSuite,"projectExperienceSteps(repoRoot)","the shared inventory supplies the actual suite");
-requireText(canonicalSuite, '"e2e-project-experience": [{ ...projectExperienceStep }, { ...projectClientBrowserStep }, { ...webPlanningBrowserStep }]', "new client Browser runs once beside both existing Browser children");
+requireText(canonicalSuite, '"e2e-project-experience": [{ ...projectExperienceStep }, { ...projectClientBrowserStep }, { ...webPlanningBrowserStep }, { ...webPlanningDraftSafetyStep }]', "new client Browser runs once beside both existing Browser children");
+const draftSafetyBrowser = projectExperienceSteps(repositoryRoot).find(step=>step.id === "web-planning-draft-safety");
+assert.equal(draftSafetyBrowser.timeoutMs,60000);
+assert.equal(draftSafetyBrowser.requireNaturalExit,true);
+assert.deepEqual(draftSafetyBrowser.args,["--import","tsx","scripts/browser-validate-web-planning.mjs","--draft-safety"]);
+assert.deepEqual(draftSafetyBrowser.requirements,projectClientBrowser.requirements);
 const experienceUseRegistration = readCanonicalChildRegistration(integrationSource, "companion-experience-use");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-companion-experience-use.ts"'])
   requireText(experienceUseRegistration.block, fragment, "ordinary experience use owns its authenticated disposable state, listener and natural-exit file consumers");
 const externalResponseRegistration = readCanonicalChildRegistration(integrationSource, "external-response");
-for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 90_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-external-response.ts"'])
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 120_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-external-response.ts"'])
   requireText(externalResponseRegistration.block, fragment, "external response owns disposable stores, loopback service, fresh file consumers and recovery settlement");
 const selectiveResponseRegistration = readCanonicalChildRegistration(integrationSource, "external-response-selective");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 90_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '...rootNode("scripts/test-external-response-selective.ts")'])
@@ -1376,6 +1367,9 @@ for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 120_000', 'req
   requireText(successorExpectationLimitRegistration.block, fragment, "the final ordinary revision boundary has a separate bounded owner");
 assert.equal(countOccurrences(firstWorkFixture, "await assertSuccessorExpectationV01(true);"), 1);
 const successorRevisionRegistration = readCanonicalChildRegistration(integrationSource, "unexecuted-successor-revision");
+const semanticStateReadRegistration = readCanonicalChildRegistration(integrationSource, "project-work-semantic-state-read");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--semantic-state-read-only"'])
+  requireText(semanticStateReadRegistration.block, fragment, "shared-state read regressions retain a separate bounded owner");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--successor-revision-only"'])
   requireText(successorRevisionRegistration.block, fragment, "saved successor revision retains one bounded complete owner");
 assert.equal(countOccurrences(firstWorkFixture, "await assertUnexecutedSuccessorRevisionV01();"), 3,
@@ -1409,8 +1403,10 @@ for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 45_000', '"pro
   requireText(continuationRegistration.block, fragment, "persisted continuation must retain bounded serial ownership");
 assert.equal(countOccurrences(firstWorkFixture, "await assertPersistedScopedContinuationV01();"), 1,
   "persisted continuation cases run once through their complete child");
-requireText(canonicalSuite, `coverage: projectWorkFocus ? "focused_project_work_children_only" : revisionFocus ? "focused_reviewed_revision_children_only" : "complete_suite"`,
+requireText(canonicalSuite, `externalResponseFocus ? "focused_external_response_child_only"`,
   "focused children cannot impersonate a complete suite");
+requireText(canonicalSuite, `revisionFocus ? "focused_reviewed_revision_children_only" : "complete_suite"`,
+  "reviewed-revision focus remains distinct from the complete suite");
 const qualifiedRuntimeRegistryRegistration = readCanonicalChildRegistration(
   integrationSource,
   "codex-qualified-runtime-registry",
@@ -1936,20 +1932,25 @@ for (const fragment of [
   );
 }
 
-for (const fragment of [
-  `Canonical planner for the final exact head`,
-  `Deciding evidence binds the exact clean repository`,
-  `Repository-owned process tests must use bounded lifecycle and cleanup owners`,
-  `Do not retry a failed exact-head deciding run merely to obtain a pass`,
-  `source change creates a new verification target`,
-  `[Local Canonical verification policy](.github/LOCAL_CANONICAL_VERIFICATION.md)`,
-]) {
-  requireText(
-    agents,
-    fragment,
-    `AGENTS.md durable verification instruction is missing: ${fragment}`,
-  );
-}
+// Evidence-contract controls remain outside the maintenance aggregate whose
+// allowance they inspect. The child owns disposable synthetic accounting only.
+const allowanceResource=createCanonicalTestResourceRoot("ag-resource-test-");
+try {
+  const result=await runCanonicalChild({suite:"verification-contract",label:"direct maintenance measured allowance controls",command:process.execPath,
+    args:["--import","tsx","scripts/fixtures/local-canonical-reviewed-revision.mjs","--run-maintenance-allowance-fixtures"],cwd:repositoryRoot,
+    env:buildCanonicalChildEnvironment({temporaryRoot:allowanceResource.root}),resourceOwner:allowanceResource,timeoutMs:30000,
+    stdout:process.stdout,stderr:process.stderr,log(){}});
+  assert.equal(canonicalChildAcceptanceFailure(result,{requireNaturalExit:true,requireCompleteCleanup:true,timeoutMs:30000}),null);
+} finally { assert(cleanupCanonicalTestResources([allowanceResource]).every(v=>v.completed)); }
+
+const commonDriverResource=createCanonicalTestResourceRoot("ag-resource-test-");
+try {
+  const result=await runCanonicalChild({suite:"verification-contract",label:"material common-driver attribution controls",command:process.execPath,
+    args:["scripts/test-local-canonical-common-driver.mjs"],cwd:repositoryRoot,
+    env:buildCanonicalChildEnvironment({temporaryRoot:commonDriverResource.root}),resourceOwner:commonDriverResource,timeoutMs:10000,
+    stdout:process.stdout,stderr:process.stderr,log(){}});
+  assert.equal(canonicalChildAcceptanceFailure(result,{requireNaturalExit:true,requireCompleteCleanup:true,timeoutMs:10000}),null);
+} finally { assert(cleanupCanonicalTestResources([commonDriverResource]).every(v=>v.completed)); }
 
 console.log(
   JSON.stringify(

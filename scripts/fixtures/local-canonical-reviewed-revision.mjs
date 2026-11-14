@@ -23,8 +23,15 @@ import {CANONICAL_NODE_VERSION} from "../local-canonical-environment.mjs";
 import {inspectGitRevisionPreparation} from "../local-canonical-attempts.mjs";
 import {baseReceipt} from "./local-canonical-receipt-v3.mjs";
 import {runMaterialSourceControls,seedMaterialSourceFiles,prepareMaterialSourcePredecessor} from "./local-canonical-material-source.mjs";
+import {runMaintenanceAllowanceControls} from "./local-canonical-maintenance-allowance.mjs";
 
 const self=fileURLToPath(import.meta.url), quiet={write(){}}, clone=v=>structuredClone(v);
+// Fixed, value-free development diagnostics. performance.now includes this
+// process's startup/import time; the outer child owner reports its full lifetime.
+const browserProgress = process.argv[2] === "--run-browser-fixtures"
+  ? stage => console.error("AUGNES_REVIEW_FIXTURE_STAGE " + JSON.stringify({ stage, at: performance.now() }))
+  : () => {};
+browserProgress("imports_complete");
 const write=(f,v)=>{mkdirSync(path.dirname(f),{recursive:true,mode:0o700});writeFileSync(f,typeof v==="string"||Buffer.isBuffer(v)?v:JSON.stringify(v),{mode:0o600});};
 const read=f=>JSON.parse(readFileSync(f,"utf8")), time=n=>new Date(fixtureNow()+n).toISOString();
 // A handoff retains synthetic service identity, not a reusable current observation.
@@ -352,9 +359,9 @@ if(process.argv[2]==="--cold"){
 }else if(process.argv[2]==="--race"){
   const c=read(process.argv[3]);c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});
   try{const p=proof(c),a=await auth(c,p);write(c.ready,"ready");while(!existsSync(c.go))await new Promise(r=>setTimeout(r,5));
-    try{begin(c,p,a);console.log("admitted");}catch(e){assert(["EEXIST","ENOENT","attempt_latest_tip_required"].includes(e.code),e.message);console.log("refused");}
+    try{begin(c,p,a);console.log("admitted");}catch(e){assert(["EEXIST","ENOENT","attempt_latest_tip_required","revision_validated_lineage_changed","revision_material_changed_during_validation"].includes(e.code),e.message);console.log("refused");}
   }finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
-}else if (["git","git-input","git-input-successor","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor","material-source","material-controls","material-successor","material-final","material-reservation"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
+}else if (["git","git-input","git-input-lifecycle","git-input-successor","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor","material-source","material-controls","material-successor","material-final","material-stock","material-reservation"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
   const group = process.argv[2].slice(6,-9), handoff = JSON.parse(process.argv[3]);
   const outer = process.env.AUGNES_CANONICAL_TEMP_ROOT, physical = lstatSync(handoff.root);
   assert(handoff.root === outer || path.dirname(handoff.root) === path.dirname(path.dirname(outer)) &&
@@ -366,7 +373,7 @@ if(process.argv[2]==="--cold"){
   const runOwned=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);
   let c;
   try {
-    if (["git","git-input","git-input-successor"].includes(group)) {mkdirSync(dir,{mode:0o700}); c=setup(dir,group);}
+    if (["git","git-input","git-input-lifecycle","git-input-successor"].includes(group)) {mkdirSync(dir,{mode:0o700}); c=setup(dir,group === "git-input-lifecycle" ? "git-input" : group);}
     else {
       assert.equal(realpathSync(dir),dir);
       c = read(path.join(dir,"context.json")); c.root=dir;
@@ -381,7 +388,7 @@ if(process.argv[2]==="--cold"){
       run:runOwned,behavior:(subject,syntaxOnly=false)=>behavior(subject,syntaxOnly,runOwned),fresh:packet=>freshReader(c,packet,runOwned),
       snapshot:path.join(handoff.root,"prospective-fixture"),fork:path.join(handoff.root,"final-case"),positive:path.join(handoff.root,"post-pass-case")};
     if (group==="git") await runGitRevisionControls(c,helpers);
-    else if (group.startsWith("git-input")) await runGitInputRevisionControls(c,helpers,group==="git-input-successor");
+    else if (group.startsWith("git-input")) await runGitInputRevisionControls(c,helpers,group==="git-input-successor",group==="git-input-lifecycle");
     else if (group==="git-successor") await completeGitRevisionControls(c,helpers);
     else if (group.startsWith("material-")) await runMaterialSourceControls(c,helpers,group);
     else if (group.startsWith("final")) await checkFinalDependency(c,helpers,group);
@@ -397,20 +404,47 @@ if(process.argv[2]==="--cold"){
       cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});
     assert(cleanupCanonicalTestResources([owner])[0].completed);
   }
-}else if(process.argv[2]==="--run-serial-aggregate-fixtures"){
+}else if(process.argv[2]==="--run-maintenance-allowance-fixtures"){
+  const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
+  const lifecycle={pendingChildren:0},run=createTrackedReviewChildRunner(lifecycle,runCanonicalChild),c=setup(owner.root);
+  try { await runMaintenanceAllowanceControls(c,{prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,run,
+    fresh:packet=>freshReader(c,packet,run)},path.resolve(path.dirname(self),"../..")); }
+  finally {releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});assert(cleanupCanonicalTestResources([owner])[0].completed);}
+}else if(["--run-serial-aggregate-fixtures","--run-serial-material-fixtures"].includes(process.argv[2])){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
   const lifecycle={pendingChildren:0}, run=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);
   const c=setup(owner.root);
-  try { await runSerialAggregateControls(c,{prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,run,
-    fresh:packet=>freshReader(c,packet,run),behavior:(subject)=>behavior(subject,false,run)}); }
+  const material=process.argv[2]==="--run-serial-material-fixtures";
+  const capture=path.join(c.checkout,".augnes-local-verification/full-output.log");
+  const writePredecessor=(file,value)=>{
+    // A material successor consumes an intact aggregate predecessor. Mutating
+    // that capture to test aggregate refusals belongs to the aggregate owner.
+    if(material && file===capture && existsSync(file))
+      assert(readFileSync(file).equals(Buffer.from(value)),"material_predecessor_capture_mutation");
+    write(file,value);
+  };
+  try { await runSerialAggregateControls(c,{prepare,artifact,read,write:writePredecessor,proof,auth,begin,stock,receipt,storeReceipt,run,
+    fresh:packet=>freshReader(c,packet,run),behavior:(subject)=>behavior(subject,false,run)},material); }
   finally {releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});assert(cleanupCanonicalTestResources([owner])[0].completed);}
 }else if(process.argv[2]==="--run-browser-fixtures"){
+  browserProgress("setup_start");
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
-  const c=setup(owner.root,true);
+  const lifecycle={pendingChildren:0}, run=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);
+  let c;
   try {
+    c=setup(owner.root,true);
+    browserProgress("setup_complete");
     await runBrowserRevisionControls(c,{prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,baseReceipt,
-      fresh:packet=>freshReader(c,packet)});
-  }finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0});assert(cleanupCanonicalTestResources([owner])[0].completed);}
+      fresh:packet=>freshReader(c,packet,run),behavior:subject=>behavior(subject,false,run),progress:browserProgress});
+    browserProgress("controls_complete");
+  }finally{
+    browserProgress("cleanup_start");
+    const settled=lifecycle.pendingChildren===0;
+    if(settled&&c?.owner)releaseCheckoutVerificationOwnership(c.owner,c.checkout);
+    settleCanonicalTestResourceUse(owner,{exit_observed:settled,streams_closed:settled,cleanup_completed:settled,remaining_owned_processes:lifecycle.pendingChildren});
+    assert(cleanupCanonicalTestResources([owner])[0].completed);
+    browserProgress("cleanup_complete");
+  }
 }else if(process.argv[2]==="--run-settlement-fixtures"){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
   const c=setup(owner.root);let children=0;

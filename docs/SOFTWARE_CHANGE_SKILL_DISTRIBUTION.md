@@ -8,11 +8,24 @@ component and the installed Augnes Operator.
 
 ## Current disposition
 
-Source, four-file packaging, isolated delivery checks, reproducible development
-examples and the listing text below are prepared for review. This is not a live listing
-or a new GitHub release. Local development checks do not establish Mac Local
-Canonical qualification or actual Agensi consumption. Keep the PR Draft until
-the repository's required verification and review are complete.
+**Reported public-page observation, 2026-11-11 12:11 UTC:** An externally
+supplied observation of the
+[Augnes Software Change Check listing](https://www.agensi.io/skills/augnes-software-change-check)
+returned HTTP 200 and displayed the free listing and its example. This records
+page availability and displayed content at that time. It does not establish
+Agensi MCP retrieval or execution, identity of a delivered package with this
+repository, an installed connection, customer use, compatibility, security or
+productivity improvement.
+
+### Historical preparation observations
+
+**Source preparation merged:** [#1606](https://github.com/hynk-studio/augnes/pull/1606)
+integrated the source, four-file packaging, isolated delivery checks, reproducible
+development examples and listing text. The merge records repository integration;
+it does not establish a live listing, a new GitHub release or actual Agensi
+consumption. Current marketplace publication and delivery remain unverified in
+this 2026-11-10 status update. The original preparation observation is preserved
+below; local development checks retain their original scope.
 
 The approved direction is one **free** listing. No payout setup, subscription,
 outreach, support commitment, automatic publisher or new runtime is needed.
@@ -114,11 +127,31 @@ do not generate a successful outcome that did not happen.
   at observation time. It does not prove whole-directory state, transitive
   dependencies, or absence of changes that were restored between observations.
 
+## Return a result or correction
+
+Use the existing [#1447](https://github.com/hynk-studio/augnes/issues/1447) for a
+Software Change Check result, blocked check, counterexample or proposed
+correction. Identify the Skill and version/source used, then include:
+
+- The software change, relevant environment and smallest shareable reproduction.
+- The commands actually run, expected and observed results, and checks not run
+  with their reasons.
+- The proposed correction or next question, keeping observation separate from
+  interpretation.
+
+Share only material you are permitted to publish; omit secrets, private paths,
+personal data and raw private logs. The listing's **Reviews** channel is also a
+place for listing feedback. Repository corrections can be tracked in #1447;
+the existing [workflow-cost participation guide](WORKFLOW_COST_PARTICIPATION.md)
+serves its separate calculator request. A returned result is review material,
+not verified adoption or a support commitment.
+
 ## Submission and follow-through
 
-Use [Agensi's web submission](https://www.agensi.io/dashboard/submit) with the
-prepared ZIP, or its creator connector if already available. Inspect the actual
-permissions inferred from the package. Select Free and the categories above;
+For a separately authorized submission or update, reconcile the existing
+listing first. Use [Agensi's web submission](https://www.agensi.io/dashboard/submit)
+with the prepared ZIP, or its creator connector if already available. Inspect
+the actual permissions inferred from the package. Select Free and the categories above;
 do not accept an automatic paid price, generated outcome or external checkout.
 Review the concrete preview and record the actual returned listing URL/status.
 Submission, pending review, live availability and consumer execution are separate.

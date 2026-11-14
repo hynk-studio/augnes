@@ -2,8 +2,10 @@
 // No production family, reservation, service, browser or GitHub write is used.
 import assert from "node:assert/strict";
 import path from "node:path";
+import fs from "node:fs";
+import {syncBuiltinESMExports} from "node:module";
 import {fileURLToPath} from "node:url";
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, chmodSync, symlinkSync } from "node:fs";
 import { digest } from "../local-canonical-inputs.mjs";
 import { beginAttempt, finishAttempt, readSourceCorrectionProof, reconstructAttemptTip, inspectSerialAggregatePreparation, prepareSerialAggregateRevision,
   reviewedRevisionAuthorityObservation, REVIEWED_REVISION_PHASES } from "../local-canonical-attempts.mjs";
@@ -13,17 +15,21 @@ import { SERIAL_AGGREGATE_ROUTE, SERIAL_HISTORY, serialReviewTarget, readSerialA
 import { PROJECT_EXPERIENCE_SERIAL, PROJECT_EXPERIENCE_COMMITMENT } from "../project-experience-serial-budget.mjs";
 import { gitFixtureDeclaration, } from "./local-canonical-git-observation.mjs";
 import { browserFixtureReceipt } from "./local-canonical-browser-revision.mjs";
-import { browserConsumersForPhase } from "../local-canonical-browser-identity.mjs";
+import { browserConsumersForPhase, BROWSER_IDENTITY_PREFIX } from "../local-canonical-browser-identity.mjs";
 import { behavior, dependencyRecords, executeFixture } from "./local-canonical-browser-successor.mjs";
+import { gitRevisionInventory } from "../local-canonical-git-observation.mjs";
+import { seedSerialMaterialCompiler, runSerialMaterialControls } from "./local-canonical-serial-material.mjs";
 
 const clone=v=>structuredClone(v), time=n=>new Date(Date.now()+n).toISOString();
-const names=["projectExperienceStep","projectClientBrowserStep","webPlanningBrowserStep"];
-export async function runSerialAggregateControls(c,h) {
+const names=["projectExperienceStep","projectClientBrowserStep","webPlanningBrowserStep","webPlanningDraftSafetyStep"];
+export async function runSerialAggregateControls(c,h,materialMode=false) {
   const {write,read,artifact}=h, findings=[], phases=REVIEWED_REVISION_PHASES;
+  const sourceRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../..");
+  if (materialMode) seedSerialMaterialCompiler(c,h,sourceRoot);
   const commit=message=>{c.git(["add","scripts"]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m",message]);return c.git(["rev-parse","HEAD"]).toString().trim();};
   const suite="scripts/run-canonical-test-suite.mjs", parent="scripts/run-local-canonical-verification.mjs", budget="scripts/project-experience-serial-budget.mjs";
-  const legacy=PROJECT_EXPERIENCE_SERIAL.children.map((v,i)=>`const ${names[i]} = {\n  id: ${JSON.stringify(v.id)}, group: ${JSON.stringify(v.group)}, requirements: ${JSON.stringify(v.requirements)}, label: ${JSON.stringify(v.label)},\n  ...rootNode(${JSON.stringify(v.args[2])}), timeoutMs: ${v.timeoutMs}, requireNaturalExit: true,\n};`).join("\n");
-  write(path.join(c.checkout,suite),legacy+'\nconst suites = { "e2e-project-experience": [{ ...projectExperienceStep }, { ...projectClientBrowserStep }, { ...webPlanningBrowserStep }] };\n');
+  const legacy=PROJECT_EXPERIENCE_SERIAL.children.map((v,i)=> i === 3 ? `const ${names[i]} = {\n  ...webPlanningBrowserStep, id: ${JSON.stringify(v.id)}, label: ${JSON.stringify(v.label)},\n  ...rootNode(${v.args.slice(2).map(JSON.stringify).join(', ')}), timeoutMs: ${v.timeoutMs},\n};` : `const ${names[i]} = {\n  id: ${JSON.stringify(v.id)}, group: ${JSON.stringify(v.group)}, requirements: ${JSON.stringify(v.requirements)}, label: ${JSON.stringify(v.label)},\n  ...rootNode(${JSON.stringify(v.args[2])}), timeoutMs: ${v.timeoutMs}, requireNaturalExit: true,\n};`).join("\n");
+  write(path.join(c.checkout,suite),legacy+'\nconst suites = { "e2e-project-experience": ['+names.map(name=>'{ ...'+name+' }').join(', ')+'] };\n');
   write(path.join(c.checkout,parent),'const definitions = { "e2e-project-experience": { label: "fixture", suite: "e2e-project-experience", timeoutMs: 480000, } };\n');
   for(const child of PROJECT_EXPERIENCE_SERIAL.children) write(path.join(c.checkout,child.args[2]),'console.log("unchanged useful assertions");\n');
   c.head=commit("synthetic v2 source correction");c.tree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();
@@ -56,9 +62,10 @@ export async function runSerialAggregateControls(c,h) {
   const raw=browserFixtureReceipt(c,second), browser=declared.resources.find(r=>r.id==="browser-executable");
   const use={contract:"augnes.local-canonical-browser-use.v2",consumer:"project-experience",executable_name:"Fixture",location_fingerprint:browser.location_fingerprint,
     before:browser.before,after:browser.before,actual_version:"Chrome/1",runtime_versions:{http:"Chrome/1",cdp:"Chrome/1"},disposition:"unchanged",unchanged:true};
-  const log=Array.from(["project-experience","project-client","project-client"],consumer=>"[local-canonical-browser-use] "+JSON.stringify({...use,consumer})+"\n").join("")+PROJECT_EXPERIENCE_SERIAL.children.map((v,i)=>`[canonical:e2e-project-experience] child_start label=${JSON.stringify(v.label)} timeout_ms=${v.timeoutMs}\n`+
+  const log="original phase output checkpoint\n"+"x".repeat(2*1024*1024)+"\n"+Array.from(["project-experience","project-client","project-client"],consumer=>"[local-canonical-browser-use] "+JSON.stringify({...use,consumer})+"\n").join("")+PROJECT_EXPERIENCE_SERIAL.children.slice(0,3).map((v,i)=>`[canonical:e2e-project-experience] child_start label=${JSON.stringify(v.label)} timeout_ms=${v.timeoutMs}\n`+
     (i<2?`[canonical:e2e-project-experience] child_result label=${JSON.stringify(v.label)} duration_ms=${[328081,14302][i]} exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit\n`:"last observable ordinary-files checkpoint\n")).join("");
-  const logPath=".augnes-local-verification/logs/synthetic-v2-timeout/e2e-project-experience.log";write(path.join(c.checkout,logPath),log);
+  const capped=Buffer.from(log).subarray(0,2*1024*1024);
+  const logPath=".augnes-local-verification/logs/synthetic-v2-timeout/e2e-project-experience.log";write(path.join(c.checkout,logPath),capped);
   raw.executor={source_fingerprint:declared.binding.executor_fingerprint};
   raw.inputs={...declared,fingerprint:digest(declared),checks:1,events:[],first_fault:null,secondary_faults:[]};
   raw.phases=phases.map((id,i)=>({id,base_sha:c.base,head_sha:c.head,command:plan[i].display,browser:id.startsWith("e2e-"),
@@ -67,11 +74,13 @@ export async function runSerialAggregateControls(c,h) {
     ...(i<=9?{environment_fingerprint:digest(id)}:{}),spawn_error_code:null,
     cleanup:i<=9?{completed:true,remaining_owned_processes:0,exit_observed:true,streams_closed:true,termination_reason:i===9?"bounded_timeout":"natural_exit"}:null,
     browser_use:i>9?[]:Object.entries(i===9?{"project-experience":1,"project-client":2}:browserConsumersForPhase(id)).flatMap(([consumer,n])=>Array.from({length:n},()=>({...use,consumer}))),
-    ...(i===9?{log:{bytes:Buffer.byteLength(log),relative_path:logPath,truncated:false}}:{})}));
+    ...(i===9?{log:{bytes:capped.length,relative_path:logPath,truncated:true}}:{})}));
   for (const phase of raw.phases.slice(10)) {
+    delete phase.browser_use;
     phase.cleanup={completed:false,remaining_owned_processes:null,termination_reason:null,exit_observed:false,streams_closed:false,listener_residue_count:null};
     phase.log={relative_path:null,bytes:0,truncated:false};
   }
+  raw.run.duration_ms=500000;
   raw.historical_inputs={required:true,unchanged:true,completed:true,failures:[]};
   raw.evidence={mode:"changed",selected_plan:"full-canonical",deciding:false};
   raw.final={result:"failure",exit_status:1,reason_codes:["phase_timed_out","selected_phases_incomplete"]};
@@ -81,17 +90,31 @@ export async function runSerialAggregateControls(c,h) {
   const completion=path.join(priorRoot,"completion-1.json");write(completion,{...read(completion),finished_at:time(-3000)});
   assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}).reviewed_revision_consumed,undefined);
   // Copy the actual reusable serial owner and driver into this synthetic source.
-  const sourceRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../..");
   const driver="scripts/test-project-experience-serial-budget.mjs";
   const ownerPaths=[budget,"scripts/canonical-child-runner.mjs",suite,parent,"scripts/canonical-test-environment.mjs","scripts/test-harness-process-lifecycle.mjs","scripts/project-experience-connection.mjs"];
   for(const name of [...ownerPaths,driver]) write(path.join(c.checkout,name),readFileSync(path.join(sourceRoot,name)));
+  if (materialMode) {
+    const runner=path.join(c.checkout,"scripts/canonical-child-runner.mjs");
+    write(runner,readFileSync(runner,"utf8").replace(/^  onMessage =.*$/mu,"  onMessage,"));
+  }
   c.head=c.commit(4);c.tree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();c.acceptedHead=c.head;c.acceptedTree=c.tree;
-  c.git(["update-ref","refs/remotes/origin/main",c.base]);write(path.join(c.checkout,".git/info/exclude"),".augnes-local-verification/\n");
+  c.git(["update-ref","refs/remotes/origin/main",c.base]);write(path.join(c.checkout,".git/info/exclude"),".augnes-local-verification/\nnode_modules\n.next/\nnext-env.d.ts\ntsconfig.tsbuildinfo\n");
   h.prepare(c);let p=c.proof;
   p.commission={...p.commission,maximum_invocations:1,route:SERIAL_AGGREGATE_ROUTE,envelope_sha256:PROJECT_EXPERIENCE_COMMITMENT};
-  p.inputs.inventory_sha256=digest("fresh fixture inventory");
+  p.inputs.inventory_sha256=gitRevisionInventory(declared);
+  const outer='[canonical:local-changed] ', parentLabel='label="Canonical project experience Browser owner"';
+  const capture=c.prior.phases.slice(0,9).flatMap(v=>v.browser_use).map(v=>'[local-canonical-browser-use] '+JSON.stringify(v)+'\n').join('')+'[local-canonical] phase_start id=e2e-project-experience timeout_ms=480000\n'+outer+'child_start '+parentLabel+' timeout_ms=480000\n'+outer+'child_spawn '+parentLabel+' pid=123 wait=process_exit\n'+log+
+    outer+'child_cleanup_start '+parentLabel+' elapsed_ms=480000 reason=bounded_timeout exit_observed=false stdout_closed=false stderr_closed=false\n'+
+    outer+'child_cleanup_result '+parentLabel+' elapsed_ms=480656 reason=bounded_timeout streams_closed=true remaining_owned_processes=0\n'+
+    outer+'child_result '+parentLabel+' duration_ms=480656 exit_code=null signal=SIGTERM timed_out=true exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=bounded_timeout\n'+
+    '[local-canonical] phase_result id=e2e-project-experience status=failure duration_ms=480656\n'+
+    '[local-canonical] failure phase=e2e-project-experience code=phase_timed_out\n[local-canonical] cleanup_start\n[local-canonical] cleanup_result completed=true remaining_owned_processes=0 generated_next_present_after_execution_cleanup=false generated_next_present_after_service_restore=false generated_windows_helper_present=false\n'+
+    '[local-canonical] receipt=.augnes-local-verification/receipts/'+c.prior.run.id+'.json fingerprint='+c.prior.integrity.content_fingerprint+'\n'+
+    '[local-canonical] final result=failure deciding=false duration_ms=500000\n';
+  const capturePath=path.join(c.checkout,'.augnes-local-verification/full-output.log');write(capturePath,capture);
   const incident={contract:SERIAL_AGGREGATE_ROUTE,predecessor:p.prior_receipt_fingerprint,interrupted_outcome:"UNKNOWN",envelope_sha256:PROJECT_EXPERIENCE_COMMITMENT,
-    original_plan:artifact(c,"original-plan.json",plan),log:artifact(c,"original-log.log",log),log_identity:{relative_path:logPath,bytes:Buffer.byteLength(log),sha256:digest(log)},
+    original_plan:artifact(c,"original-plan.json",plan),log:artifact(c,"original-log.log",capped),log_identity:{relative_path:logPath,bytes:capped.length,sha256:digest(capped)},
+    capture:artifact(c,"original-capture.log",capture),capture_identity:{path:capturePath,bytes:Buffer.byteLength(capture),sha256:digest(capture)},
     source:{head:second.head,tree:second.tree,suite_sha256:digest(c.git(["show",second.head+":"+suite])),parent_sha256:digest(c.git(["show",second.head+":"+parent]))}};
   p.incident=artifact(c,"incident.json",incident);
   const originalStock={content_fingerprint:p.prior_receipt_fingerprint,valid_deciding_evidence:false,dimensions:{historical_integrity:"intact",safety:"preserved_within_observed_scope"},
@@ -130,14 +153,25 @@ export async function runSerialAggregateControls(c,h) {
   c.proof=p;write(c.file,p);
   const prepFile=path.join(c.artifacts,"preparation.json"), edge=path.join(priorRoot,"correction-successor.json");
   const prep=(q=p,live=c.live)=>{q=clone(q);delete q.authorization;delete q.accepted.review;write(prepFile,q);return inspectSerialAggregatePreparation({file:prepFile,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live});};
+  assert.equal(c.git(["status","--porcelain=v1"]).toString().trim(),"","fixture must be clean before preparation");
   const preparation=prep();assert.equal(preparation.consumed,0);assert.equal(preparation.reserved,false);assert(!existsSync(edge));
+  const material={...clone(p)};delete material.authorization;delete material.accepted.review;write(prepFile,material);
+  const prepArgs={file:prepFile,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live:c.live};
+  assert.equal((await prepareSerialAggregateRevision(prepArgs,{transport:{pullRequest:async()=>clone(c.authority.pr)}})).published_head_checked,true);
+  c.gitDeclaration=declared;
+  // Material controls inherit the positive serial predecessor. The registered
+  // serial-aggregate owner alone exercises its preparation and capture refusals.
+  if (materialMode) {
+    const proof=h.proof(c), authority=await h.auth(c,proof);
+    return runSerialMaterialControls(c,h,proof,authority,sourceRoot,use);
+  }
   const originalHashes=[completion,path.join(priorRoot,"attempt-1.json")].map(f=>digest(readFileSync(f)));
   for(const mutate of [q=>q.prior_attempt_id="wrong-tip",q=>q.commission.envelope_sha256=digest("changed inventory"),q=>q.head=c.base,q=>q.commission.ordinal=2,q=>q.commission.maximum_invocations=2]) {
     const q=clone(p);mutate(q);assert.throws(()=>prep(q));assert(!existsSync(edge));
   }
   assert.throws(()=>prep(p,{...c.live,inventory:digest("drift")}));
   const retained=c.prior;
-  for(const mutate of [r=>r.phases[0].environment_fingerprint=digest("wrong"),r=>r.phases[9].browser_use[0].runtime_versions.cdp="Chrome/2",
+  for(const mutate of [r=>r.phases[0].environment_fingerprint=digest("wrong"),r=>r.phases[9].browser_use.pop(),r=>r.phases.find(v=>v.browser_use.length && v.id!=="e2e-project-experience").browser_use.pop(),r=>r.phases[9].browser_use[0].runtime_versions.cdp="Chrome/2",
     r=>r.phases[10].environment_fingerprint=digest("invented"),r=>r.phases[1].cleanup.completed=false,r=>r.cleanup.failure_codes.push("unsettled"),r=>r.cleanup.isolated_resources.failure_count=1,r=>r.cleanup.companion_service.before={...r.cleanup.companion_service.before,preservation_binding:digest("changed")},r=>r.cleanup.companion_service.observations.before.coherent=false,r=>r.phases[10].failure_code="unknown",r=>r.phases[9].browser_use.push({...use,consumer:"web-planning"})]) {
     c.prior=clone(retained);mutate(c.prior);assert.throws(incidentRead);
   }
@@ -147,21 +181,76 @@ export async function runSerialAggregateControls(c,h) {
     `[canonical:e2e-project-experience] child_exit label=${JSON.stringify(PROJECT_EXPERIENCE_SERIAL.children[2].label)} elapsed_ms=42 exit_code=1 signal=null stdout_closed=false stderr_closed=false\n`,
     `[canonical:e2e-project-experience] child_cleanup_start label=${JSON.stringify(PROJECT_EXPERIENCE_SERIAL.children[2].label)} elapsed_ms=42 reason=post_exit_settlement\n`]) {
     const altered=log+tail, candidate=clone(incident);c.prior=clone(retained);
-    c.prior.phases[9].log.bytes=Buffer.byteLength(altered);
+    c.prior.phases[9].log={...c.prior.phases[9].log,bytes:Buffer.byteLength(altered),truncated:false};
+    delete candidate.capture;delete candidate.capture_identity;
     candidate.log=artifact(c,"altered-log.log",altered);candidate.log_identity={...candidate.log_identity,bytes:Buffer.byteLength(altered),sha256:digest(altered)};
     p.incident=artifact(c,"altered-incident.json",candidate);assert.throws(incidentRead,/serial_interrupted_child_already_settling/u);
   }
   p.incident=originalIncidentRef;c.prior=retained;
-  const material={...clone(p)};delete material.authorization;delete material.accepted.review;write(prepFile,material);
-  const prepArgs={file:prepFile,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live:c.live};
-  assert.equal((await prepareSerialAggregateRevision(prepArgs,{transport:{pullRequest:async()=>clone(c.authority.pr)}})).published_head_checked,true);
+  // Only the complete physical capture can fill the capped file's missing tail.
+  for(const mutate of [
+    text=>text.replace('pid=123 wait=process_exit','pid=124 wait=unknown'),
+    text=>text.replace('original phase output checkpoint','different phase output checkpoint'),
+    text=>text.replace(c.prior.integrity.content_fingerprint,digest('wrong receipt')),
+    text=>text.replace(log,log+`[canonical:e2e-project-experience] child_exit label=${JSON.stringify(PROJECT_EXPERIENCE_SERIAL.children[2].label)} elapsed_ms=42 exit_code=1 signal=null stdout_closed=false stderr_closed=false\n`),
+    text=>text.replace(log,log+`[canonical:e2e-project-experience] child_start label=${JSON.stringify(PROJECT_EXPERIENCE_SERIAL.children[3].label)} timeout_ms=60000\n`),
+    text=>text+"extra unbounded tail\n",
+    text=>text.slice(0,text.lastIndexOf('[local-canonical] final')),
+    text=>text.replace(outer+'child_spawn',outer+'child_spawn '+parentLabel+' pid=123 wait=process_exit\n'+outer+'child_spawn'),
+    text=>text.replace(log,log+outer+'child_exit '+parentLabel+' elapsed_ms=480010 exit_code=1 signal=null\n'),
+    text=>text.replace('elapsed_ms=480656 reason=bounded_timeout','elapsed_ms=479999 reason=bounded_timeout'),
+    text=>text.replace('"consumer":"project-experience"','"consumer":"web-planning"'),
+  ]) {
+    const altered=mutate(capture),candidate=clone(incident);
+    candidate.capture=artifact(c,'altered-capture.log',altered);candidate.capture_identity={...candidate.capture_identity,bytes:Buffer.byteLength(altered),sha256:digest(altered)};
+    p.incident=artifact(c,'altered-capture-incident.json',candidate);assert.throws(incidentRead);
+  }
+  p.incident=originalIncidentRef;
+  const uncapped=clone(incident);delete uncapped.capture;delete uncapped.capture_identity;
+  uncapped.log=artifact(c,'uncapped.log',log);uncapped.log_identity={...uncapped.log_identity,bytes:Buffer.byteLength(log),sha256:digest(log)};
+  c.prior=clone(retained);c.prior.phases[9].log={...c.prior.phases[9].log,bytes:Buffer.byteLength(log),truncated:false};
+  p.incident=artifact(c,'uncapped-incident.json',uncapped);assert.equal(incidentRead().completed_children,2);
+  p.incident=originalIncidentRef;c.prior=retained;
+
   for(const mutate of [v=>v.head.sha=c.base,v=>v.draft=false,v=>v.auto_merge={}]) {
     const published=clone(c.authority.pr);mutate(published);
     await assert.rejects(prepareSerialAggregateRevision(prepArgs,{transport:{pullRequest:async()=>published}}),/revision_published_source_invalid/u);
   }
   const originalFile=path.join(c.checkout,logPath), originalBytes=readFileSync(originalFile);
-  try {write(originalFile,originalBytes.toString().replace("checkpoint","checkpoinX"));assert.throws(()=>prep(),/serial_original_log_changed/u);}
+  const serialTransport={pullRequest:async()=>clone(c.authority.pr)};
+  let observed=0;
+  const deferred=await prepareSerialAggregateRevision({...prepArgs,live:async()=>{observed++;return c.live;}},{transport:serialTransport});
+  assert.equal(observed,1);assert.equal(deferred.target,prep().target);
+  assert.equal(deferred.authorized,false);assert.equal(deferred.reserved,false);assert(!existsSync(edge));
+  try {
+    await assert.rejects(prepareSerialAggregateRevision({...prepArgs,live:async()=>{
+      write(originalFile,Buffer.from("!"+originalBytes.toString().slice(1)));return c.live;
+    }},{transport:serialTransport}),/revision_validated_material_changed/u);
+  } finally {write(originalFile,originalBytes);}
+  // Seal precisely the bytes just validated, even if the original changes
+  // after that read. No host files or real attempt lineage are involved.
+  const originalRead=fs.readFileSync;let injected=false;
+  fs.readFileSync=(file,...args)=>{
+    const bytes=originalRead(file,...args);
+    if(file===originalFile && !injected){injected=true;write(originalFile,Buffer.from("!"+originalBytes.toString().slice(1)));}
+    return bytes;
+  };
+  syncBuiltinESMExports();
+  try {assert.throws(()=>prep(),/revision_validated_material_changed/u);assert(injected);}
+  finally {fs.readFileSync=originalRead;syncBuiltinESMExports();write(originalFile,originalBytes);}
+  try {write(originalFile,Buffer.from("!"+originalBytes.toString().slice(1)));assert.throws(()=>prep(),/serial_original_log_changed/u);}
   finally {write(originalFile,originalBytes);}
+  try {write(capturePath,capture+'changed');assert.throws(()=>prep(),/serial_original_capture_changed/u);}
+  finally {write(capturePath,capture);}
+  try {chmodSync(capturePath,0o666);assert.throws(()=>prep(),/serial_original_capture_changed/u);}
+  finally {chmodSync(capturePath,0o600);}
+  const linked=capturePath+'.linked.log';symlinkSync(capturePath,linked);
+  try {
+    p.incident=artifact(c,'linked-incident.json',{...incident,capture_identity:{...incident.capture_identity,path:linked}});
+    assert.throws(()=>prep(),/serial_original_capture_changed/u);
+  } finally {rmSync(linked);p.incident=originalIncidentRef;}
+  findings.push("capped original requires complete physical capture, unique parent boundaries, exact capped prefix and receipt binding; missing, extra and concealed child outcomes refuse; uncapped originals remain supported");
+
   const focusRef=p.focused;
   for(const mutate of [f=>f.serial_control.driver.path="scripts/fixture.mjs",f=>f.serial_control.owners[0].sha256=digest("unused export")]) {
     const f=clone(focus);mutate(f);p.focused=artifact(c,"unrelated-focus.json",f);write(c.file,p);assert.throws(()=>h.proof(c),/serial_control_source_invalid/u);
@@ -173,7 +262,6 @@ export async function runSerialAggregateControls(c,h) {
     await assert.rejects(h.auth(c,proof,(v,e)=>{if(e.includes("/comments/")) mutate(v);return v;}));
   assert.throws(()=>h.begin(c,proof,{}));assert(!existsSync(edge));
   // Existing complete receipt/stock fixture uses the actual reservation owner.
-  c.gitDeclaration=declared;
   const execution=await executeFixture(c,h,proof,authority,use,dependencyRecords(c));
   assert.equal(execution.stock.valid_deciding_evidence,true);
   // Reuse actual parent IPC accounting from the source-bound focused driver.
@@ -193,9 +281,23 @@ export async function runSerialAggregateControls(c,h) {
     expected:declared.resources.find(v=>v.id==="browser-executable"),
     cases:[{mutation:"serial-complete",pass:true},{mutation:"serial-malformed",pass:false},{mutation:"serial-duplicate",pass:false}],
   });
+  let phaseOutput="", phaseBytes=0;
+  const phaseCapture={write(chunk){phaseBytes+=Buffer.byteLength(chunk);if(phaseBytes<=1048576) phaseOutput+=chunk;}};
   const phaseResult=await h.run({command:process.execPath,args:[path.join(sourceRoot,"scripts/test-local-canonical-review-corrections.mjs"),"--phase-probe",path.join(c.artifacts,probe.artifact)],
-    cwd:c.checkout,env:c.env,timeoutMs:10000,stdout:process.stdout,stderr:process.stderr,log(){}});
+    cwd:c.checkout,env:c.env,timeoutMs:10000,stdout:phaseCapture,stderr:phaseCapture,log(){}});
+  artifact(c,"terminal-phase-output.log",phaseOutput);
+  assert(phaseBytes<=1048576,"terminal phase probe output exceeded its evidence bound");
   assert.equal(phaseResult.exit_code,0);assert(phaseResult.cleanup_completed);assert.equal(phaseResult.remaining_owned_processes,0);
+  const lines=phaseOutput.split("\n"), results=lines.filter(line=>line.startsWith('{"terminal_ipc_phase":')).map(line=>JSON.parse(line));
+  assert.deepEqual(results.map(v=>v.terminal_ipc_phase),["serial-complete","serial-malformed","serial-duplicate"]);
+  const quarantined=lines.filter(line=>line.startsWith(BROWSER_IDENTITY_PREFIX)).length;
+  assert.equal(quarantined,results.length*execution.receipt.phases.find(v=>v.id==="e2e-project-experience").browser_use.length);
+  // Only bounded result projections leave the fixture. Raw synthetic Browser
+  // records cannot become actual-use evidence in the outer authority phase.
+  console.log(JSON.stringify({terminal_ipc_phases:results.map(({terminal_ipc_phase,result})=>({
+    case:terminal_ipc_phase,status:result.status,failure_code:result.failure_code,exit_status:result.exit_status,
+    timed_out:result.timed_out,cleanup:result.cleanup,serial_budget:result.serial_budget,
+  })),quarantined_browser_records:quarantined,capture_bytes:phaseBytes,capture_sha256:digest(phaseOutput)}));
   findings.push("real phase execution and receipt accounting refuse late IPC while natural exit and complete cleanup remain truthful");
   assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}).reviewed_revision_consumed,1);
   assert.throws(()=>h.begin(c,proof,authority),/attempt_latest_tip_required/u);

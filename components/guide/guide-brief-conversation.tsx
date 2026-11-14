@@ -241,7 +241,9 @@ export function GuideBriefConversation({
     setAnswerWasModelAssisted(false);
     setActionProposalWasModelAssisted(false);
     setInterpretationStatus(null);
-    setInteractionBusy(false);
+    setInteractionBusy(
+      executionLedger.current.in_flight_plan_id !== null,
+    );
     setContext(createGuideBriefConversationContextV01(scopeKey));
   }, [candidateSetFingerprint, scopeKey]);
   useEffect(() => {

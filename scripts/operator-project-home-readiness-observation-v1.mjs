@@ -12,10 +12,11 @@ export function createOperatorProjectHomeReadinessObservationV1({ project_id }) 
   const contexts = new Map();
   let navigation = null, frame = null, loader = null;
   let started = null, finished = false, record = null, lastKey = null;
+  const previous = [];
   let eventErrors = 0, contextOverflow = 0;
 
   const noteError = (code) => {
-    if (!record) { eventErrors++; return; }
+    if (!record || finished) { eventErrors++; return; }
     record.observation_error_count++;
     if (!record.observation_error_codes.includes(code)) record.observation_error_codes.push(code);
   };
@@ -53,28 +54,26 @@ export function createOperatorProjectHomeReadinessObservationV1({ project_id }) 
 
   const observer = {
     navigationStarted({ epoch, url }) {
-      if (finished) return;
       try {
         navigation = { epoch, started_at: Date.now(), intended_path_matches: new URL(url).pathname === expectedPath };
         frame = null; loader = null;
       } catch { noteError("navigation_capture_failed"); }
     },
     navigationExpected(value) {
-      if (finished || !navigation) return;
+      if (!navigation) return;
       try {
         navigation.frame_id = value.frameId ?? null;
         navigation.loader_id = value.loaderId ?? null;
       } catch { noteError("navigation_capture_failed"); }
     },
     documentResponse(value) {
-      if (finished || !navigation) return;
+      if (!navigation) return;
       try {
         navigation.http_status = value?.status ?? null;
         navigation.response_matches = value?.frame_id === navigation.frame_id && value?.loader_id === navigation.loader_id;
       } catch { noteError("document_capture_failed"); }
     },
     observe(payload) {
-      if (finished) return;
       try {
         const { method, params = {} } = payload;
         if (method === "Runtime.executionContextCreated" && params.context.auxData?.isDefault) {
@@ -88,7 +87,9 @@ export function createOperatorProjectHomeReadinessObservationV1({ project_id }) 
       } catch { noteError("event_capture_failed"); }
     },
     begin({ expression, timeout_ms }) {
-      if (record) return null;
+      if (record && !finished || previous.length >= 3) return null;
+      if (record) previous.push(structuredClone(record));
+      finished = false; lastKey = null;
       started = Date.now();
       record = {
         observation_version: "operator_project_home_readiness_observation.v1",
@@ -162,15 +163,15 @@ export function createOperatorProjectHomeReadinessObservationV1({ project_id }) 
     },
     finish(outcome) {
       if (!record || finished) return;
-      finished = true;
       record.condition_outcome = outcome;
       record.context_overflow_count = contextOverflow;
       const document = record.last_sample?.navigation;
       if (!document?.expected_frame || !document.expected_loader || !document.observed_frame ||
           !document.observed_loader || document.default_contexts_for_frame.length === 0) noteError("navigation_evidence_unavailable");
       record.status = record.observation_error_count || !record.document_observation_count || contextOverflow ? "incomplete" : "complete";
+      finished = true;
     },
-    snapshot() { return record ? structuredClone(record) : null; },
+    snapshot() { return record ? { ...structuredClone(record), ...(previous.length ? { previous_observations: structuredClone(previous) } : {}) } : null; },
   };
   return Object.freeze(observer);
 }

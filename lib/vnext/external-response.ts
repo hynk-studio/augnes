@@ -18,6 +18,7 @@ import {
   response,
   stateOf,
   fail,
+  originalReceiptIdentity,
 } from "./external-response-rules.mjs";
 import {
   append,
@@ -31,6 +32,7 @@ import {
   readExternalConfiguration,
   currentEnvelope,
   configuredEnvelope,
+  configuredReceipt,
   contactProcessor,
 } from "./external-response-transport.mjs";
 import { inspectSelectedCorpus, selectedCorpusInspection, retrieveSelectedSources } from "./selected-source-retrieval.mjs";
@@ -185,8 +187,7 @@ function observationPermission(e: any, w: any, attempt: any) {
   return e.receipt_observations?.find((o: any) =>
     o.work_ref === w.ref && o.attempt_ref === attempt.ref);
 }
-function requireObservation(e: any, w: any, attempt: any, reservations: any[]) {
-  const permission = observationPermission(e, w, attempt);
+function requireObservationPermission(permission: any, reservations: any[]) {
   if (!permission) fail("external_observation_permission_unavailable", 403);
   if (reservations.some((r: any) =>
     canonical(r.payload.receipt_observation) !== canonical(permission)))
@@ -195,6 +196,9 @@ function requireObservation(e: any, w: any, attempt: any, reservations: any[]) {
     fail("external_observation_permission_expired", 403);
   return permission;
 }
+function requireObservation(e: any, w: any, attempt: any, reservations: any[]) {
+  return requireObservationPermission(observationPermission(e, w, attempt), reservations);
+}
 function receiptAdmission(db: Database.Database, scope: Scope, w: any, events: any[], s: any) {
   if (!s.attempt || !events.some((r: any) => r.kind === "sent" &&
     r.payload.mode === "send" && r.payload.attempt_ref === s.attempt.ref))
@@ -202,11 +206,17 @@ function receiptAdmission(db: Database.Database, scope: Scope, w: any, events: a
   if (!s.unresolved && s.returned?.payload.response.status !== "absent")
     fail("external_receipt_already_resolved");
   if (events.length > LIMITS.events - 3) fail("external_history_limit");
-  const e = configuredEnvelope(w.payload.envelope_id, w.payload.envelope_binding, scopeKey(scope));
+  const separate = configuredReceipt(w, s.attempt, scopeKey(scope));
+  const e: any = separate?.e ?? configuredEnvelope(w.payload.envelope_id, w.payload.envelope_binding, scopeKey(scope));
   const usage = retainedEnvelope(db, scope, e);
   const m = material(db, scope, s.attempt.payload.input_ref);
-  if (!e.input_sha256.includes(m.metadata.sha256)) fail("external_material_not_permitted", 403);
+  if (!separate && !e.input_sha256.includes(m.metadata.sha256)) fail("external_material_not_permitted", 403);
   const reservations = observationReservations(events, s.attempt.ref);
+  if (separate) {
+    const permission = requireObservationPermission(separate.permission, reservations);
+    if (reservations.length >= permission.max_queries) fail("external_observation_budget_exhausted");
+    return { ...separate, m, permission, consumed: reservations.length, remaining: permission.max_queries - reservations.length };
+  }
   if (observationPermission(e, w, s.attempt) || reservations.length) {
     const permission = requireObservation(e, w, s.attempt, reservations);
     if (reservations.length >= permission.max_queries) fail("external_observation_budget_exhausted");
@@ -220,7 +230,7 @@ function receiptAdmission(db: Database.Database, scope: Scope, w: any, events: a
 function receiptAvailability(db: Database.Database, scope: Scope, w: any, events: any[], s: any) {
   try {
     const a = receiptAdmission(db, scope, w, events, s);
-    return { eligible: true, reason: null, authority: a.permission ? "explicit_receipt_observation" : "legacy_envelope",
+    return { eligible: true, reason: null, authority: "authorityBinding" in a ? "separate_receipt_permission" : a.permission ? "explicit_receipt_observation" : "legacy_envelope",
       expires_at: a.permission?.expires_at ?? a.e.expires_at, consumed: a.consumed, remaining: a.remaining };
   } catch (error) {
     if (!(error instanceof ExternalError)) throw error;
@@ -289,7 +299,7 @@ function requireReady(view: any) {
   if (view.state.closed) fail("external_work_closed");
   if (!view.ready) fail("external_reconsideration_required");
 }
-export async function handleExternalOperation(value: unknown) {
+export async function handleExternalOperation(value: unknown, authorize: () => void = () => {}) {
   keys(value, ["repository_root", "action"], ["data", "expected_material_ref"]);
   const input = value as any;
   text(input.repository_root, 4096);
@@ -309,6 +319,7 @@ export async function handleExternalOperation(value: unknown) {
       },
       projectKey = scopeKey(scope);
     function context() {
+      authorize();
       const config = readExternalConfiguration(),
         project = config.projects.find(
           (p: any) =>
@@ -723,11 +734,15 @@ export async function handleExternalOperation(value: unknown) {
           Date.parse(data.terms.deadline) <= Date.now()
         )
           fail("external_terms_outside_envelope");
+        const priorWork = records(db, scope, `work:${data.key}`).find((r: any) => r.kind === "work");
         const saved = save("work", `work:${data.key}`, {
           purpose: data.purpose,
           experience_refs: data.experience_refs,
           envelope_id: e.id,
           envelope_binding: e.binding,
+          ...(!priorWork || priorWork.payload.receipt_owner ? {
+            receipt_owner: { endpoint: e.endpoint, instance: e.instance },
+          } : {}),
           input_ref: m.ref,
           terms: data.terms,
           expectation: data.expectation,
@@ -862,19 +877,19 @@ export async function handleExternalOperation(value: unknown) {
           return result("available", { work: view, effect_repeated: false });
         const observation = data.mode === "reconcile"
           ? receiptAdmission(db, scope, w, view.events, s) : null;
-        const e = observation?.e ?? currentEnvelope(
+        const e: any = observation?.e ?? currentEnvelope(
             w.payload.envelope_id,
             w.payload.envelope_binding,
             projectKey,
           ),
-          usage = ensureEnvelope(e),
+          usage = observation ? retainedEnvelope(db, scope, e) : ensureEnvelope(e),
           m = observation?.m ?? material(db, scope, s.attempt.payload.input_ref);
-        if (!e.input_sha256.includes(m.metadata.sha256))
+        if (!observation && !e.input_sha256.includes(m.metadata.sha256))
           fail("external_material_not_permitted", 403);
         const byteCost = data.mode === "send" ? m.metadata.size : 0;
         if (
-          (!observation?.permission && usage.calls >= e.max_calls) ||
-          usage.input_bytes + byteCost > e.max_input_bytes
+          !observation?.permission && (usage.calls >= e.max_calls ||
+          usage.input_bytes + byteCost > e.max_input_bytes)
         )
           fail("external_budget_exhausted");
         if (view.events.length > LIMITS.events - 3)
@@ -905,6 +920,8 @@ export async function handleExternalOperation(value: unknown) {
           projectKey,
           reconcile: data.mode === "reconcile",
           observation: observation?.permission ?? null,
+          authorityBinding: observation && "authorityBinding" in observation ? observation.authorityBinding : null,
+          receipt: w.payload.receipt_owner ? originalReceiptIdentity(w, s.attempt, projectKey) : null,
         };
         return null;
       }
@@ -1060,12 +1077,16 @@ export async function handleExternalOperation(value: unknown) {
     const d = dispatch;
     const recheck = (beforeEgress: boolean) => {
       context(); // Recheck current project/root admission as well as the credential.
-      const e = configuredEnvelope(d.e.id, d.e.binding, d.projectKey);
+      const separate = d.reconcile ? configuredReceipt(d.w, d.attempt, d.projectKey) : null;
+      if ((separate?.authorityBinding ?? null) !== d.authorityBinding)
+        fail("external_observation_permission_changed", 403);
+      const e = separate?.e ?? configuredEnvelope(d.e.id, d.e.binding, d.projectKey);
       retainedEnvelope(db, scope, e);
       material(db, scope, d.attempt.payload.input_ref);
       if (d.observation) {
         const reservations = observationReservations(records(db, scope, d.w.stream), d.attempt.ref);
-        const permission = requireObservation(e, d.w, d.attempt, reservations);
+        const permission = separate ? requireObservationPermission(separate.permission, reservations)
+          : requireObservation(e, d.w, d.attempt, reservations);
         if (canonical(permission) !== canonical(d.observation) || !reservations.length ||
           reservations.length > permission.max_queries) fail("external_observation_permission_changed", 403);
       } else if (beforeEgress) currentEnvelope(d.e.id, d.e.binding, d.projectKey);
@@ -1077,6 +1098,7 @@ export async function handleExternalOperation(value: unknown) {
         d.attempt,
         d.input,
         d.reconcile,
+        d.receipt,
       );
       response(received, d.attempt, d.e);
       return transact(() => {

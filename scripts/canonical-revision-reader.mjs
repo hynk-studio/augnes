@@ -94,7 +94,7 @@ export function createCanonicalRevisionReader(cwd) {
     if (batch.length) load(batch);
   }
 
-  function read(revision, file, maxBytes = MAX_BYTES) {
+  function readBytes(revision, file, maxBytes = MAX_BYTES) {
     if (!Number.isSafeInteger(maxBytes) || maxBytes < 0 || maxBytes > MAX_BYTES) {
       throw new Error("invalid canonical revision read bound");
     }
@@ -103,16 +103,21 @@ export function createCanonicalRevisionReader(cwd) {
     if (entry.type !== "blob") {
       // Preserve git show's existing tree/gitlink presentation when a caller
       // explicitly reads one (ordinary existence checks need no content).
-      return git(root, ["show", `${revision}:${file}`], { maxBuffer: maxBytes }).toString("utf8");
+      return git(root, ["show", `${revision}:${file}`], { maxBuffer: maxBytes });
     }
     if (entry.size > maxBytes) throw new Error("canonical revision blob exceeds the bounded input size");
     if (!blobs.has(entry.oid)) load([entry]);
     const bytes = blobs.get(entry.oid);
     blobs.delete(entry.oid); blobs.set(entry.oid, bytes);
-    return bytes.toString("utf8");
+    // Do not expose the operation-local cache to a caller's mutation.
+    return Buffer.from(bytes);
   }
 
-  return { tree, prefetch, read };
+  function read(revision, file, maxBytes = MAX_BYTES) {
+    return readBytes(revision, file, maxBytes).toString("utf8");
+  }
+
+  return { tree, prefetch, read, readBytes };
 }
 
 // Byte-oriented framing: blobs can contain NULs, newlines and header-like text.

@@ -10,8 +10,17 @@ const fingerprint = /^sha256:[a-f0-9]{64}$/;
 const accessToken = promisify(execFile);
 const fail = message => { throw new Error(message); };
 
-export async function openFileProject(origin = process.env.AUGNES_WEB_ORIGIN) { return openFileConnection(origin); }
-async function openFileConnection(origin,entryPath='/',selectedScope) {
+export async function openFileProject(origin = process.env.AUGNES_WEB_ORIGIN,projectId=process.env.AUGNES_WEB_PROJECT_ID) {
+  if(projectId&&!uuid.test(projectId))fail('Choose a listed project ID.');
+  return openFileConnection(origin,projectId?'/?project='+projectId:'/',undefined,projectId);
+}
+export async function openFileProjects(origin=process.env.AUGNES_WEB_ORIGIN){
+  const {request}=await openFileConnection(origin,'/projects',{},undefined,true);
+  return {list:async cursor=>(await request('/api/projects'+(cursor?'?cursor='+encodeURIComponent(cursor):''))).json(),
+    create:async input=>(await request('/api/projects',input)).json(),
+    open:projectId=>openFileProject(origin,projectId)};
+}
+async function openFileConnection(origin,entryPath='/',selectedScope,projectId,account=false) {
   const url = new URL(origin);
   const local = url.protocol === 'http:' && url.hostname === '127.0.0.1';
   if (url.origin !== origin || origin !== process.env.AUGNES_WEB_ORIGIN || (!local && url.protocol !== 'https:'))
@@ -39,8 +48,8 @@ async function openFileConnection(origin,entryPath='/',selectedScope) {
     }
     const response = await fetch(origin + path, { redirect: 'manual', signal: AbortSignal.timeout(60000),
       method: body === undefined ? 'GET' : 'POST',
-      headers: { cookie, ...(body === undefined ? {} : { origin, 'content-type': 'application/json', 'x-csrf-token': csrf }) },
-      ...(body === undefined ? {} : { body: JSON.stringify({ ...body, workspace_id:project.workspace_id, project_id:project.project_id }) }) });
+      headers: { cookie, ...(projectId?{'x-web-planning-project':projectId}:{}),...(body === undefined ? {} : { origin, 'content-type': 'application/json', 'x-csrf-token': csrf }) },
+      ...(body === undefined ? {} : { body: JSON.stringify(account?body:{ ...body, workspace_id:project.workspace_id, project_id:project.project_id }) }) });
     if (response.headers.get('x-web-planning-response') !== '1') fail('Private project login or supported Web deployment required.');
     if (!response.ok) {
       const refusal = (await response.json().catch(() => ({}))).error;
@@ -49,7 +58,7 @@ async function openFileConnection(origin,entryPath='/',selectedScope) {
     return response;
   }
   project ??= await (await request('/api/project')).json();
-  if (![project.workspace_id,project.project_id].every(id => typeof id === 'string' && uuid.test(id))) fail('Private project identity unavailable.');
+  if (!account&&![project.workspace_id,project.project_id].every(id => typeof id === 'string' && uuid.test(id))) fail('Private project identity unavailable.');
   async function tasks(cursor) {
     if (cursor && !uuid.test(cursor)) fail('Invalid task cursor.');
     return (await request('/api/works'+(cursor?'?cursor='+cursor:''))).json();
@@ -73,7 +82,7 @@ async function openFileConnection(origin,entryPath='/',selectedScope) {
       result.current?.work_id!==result.observed?.work_id || !['current','advanced'].includes(result.status))fail('Matched basis could not be confirmed.');
     return result;
   }
-  return { project, request, tasks, search, inspectMatch };
+  return { project, request, tasks, search, inspectMatch,continuation:async()=>(await request('/api/project/continuation')).json() };
 }
 export async function openFileTask(setupPath, expectedSetupDigest) {
   const selected = await readFile(setupPath);
@@ -83,7 +92,7 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
   if ((!participant && setup.format !== 'augnes_web_file_task.v1') || typeof setup.work_id !== 'string' || !uuid.test(setup.work_id))
     fail('Choose the private Web task setup.');
   if(participant && (!uuid.test(setup.grant_id)||setup.request?.work_id!==setup.work_id||!fingerprint.test(setup.request?.fingerprint)))fail('Invalid participant setup.');
-  const { project, request, tasks, search, inspectMatch } = participant?await openFileConnection(setup.origin,'/participate/'+setup.grant_id,{workspace_id:setup.workspace_id,project_id:setup.project_id,name:'Permitted file request'}):await openFileProject(setup.origin);
+  const { project, request, tasks, search, inspectMatch } = participant?await openFileConnection(setup.origin,'/participate/'+setup.grant_id,{workspace_id:setup.workspace_id,project_id:setup.project_id,name:'Permitted file request'}):await openFileProject(setup.origin,setup.project_id);
   if (project.workspace_id !== setup.workspace_id || project.project_id !== setup.project_id) fail('Project selection changed.');
   const work_id = setup.work_id, root = participant?'/api/participation/'+setup.grant_id:'/api/work/'+work_id;
   const json = async (path, body) => (await request(root+path, body)).json();
@@ -207,5 +216,29 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
     return (await request(root + (participant?'/':'/exchanges/') + (resolve ? 'resolve' : 'save'), body)).json();
   }
   async function feedback(cursor){if(!participant)fail('Choose a participant setup.');return (await request(root+'/feedback'+(cursor?'?cursor='+encodeURIComponent(cursor):''))).json();}
-  return { participant, feedback, project: project.name, work_id, setupDigest: digest(selected), planning, list, get, readPage, write, inspectReturn, prepareReturn, sendReturn, savedFile, recordedOrigin, readOrigin, evidenceFile, inspectUse, prepareReassessment, sendReassessment };
+  const cooperation={
+    async projects(cursor){if(!participant)fail('Choose a participant setup.');await list();return json('/projects'+(cursor?'?cursor='+encodeURIComponent(cursor):''));},
+    async works(destination_project_id,cursor=''){await list();return json('/project-works',{destination_project_id,cursor});},
+    async retain(input,resolve=false){await list();return json(resolve?'/retain-resolve':'/retain',{...input,request:setup.request});},
+    async returnSaved(input,resolve=false){await list();return json(resolve?'/project-return-resolve':'/project-return',{...input,request:setup.request});},
+  };
+  return { cooperation, participant, feedback, project: project.name, work_id, setupDigest: digest(selected), planning, list, get, readPage, write, inspectReturn, prepareReturn, sendReturn, savedFile, recordedOrigin, readOrigin, evidenceFile, inspectUse, prepareReassessment, sendReassessment };
+}
+
+// A separately authenticated successor uses only the one-work continuation routes.
+export async function openFileContinuation(setupPath, expectedSetupDigest) {
+  const bytes=await readFile(setupPath);
+  if(expectedSetupDigest&&digest(bytes)!==expectedSetupDigest)fail('Continuation setup changed.');
+  const setup=JSON.parse(bytes.toString('utf8'));
+  if(Object.keys(setup).sort().join(',')!=='format,grant_id,origin,project_id,work_id,workspace_id'||setup.format!=='augnes_web_continuation.v1'||
+    ![setup.workspace_id,setup.project_id,setup.work_id,setup.grant_id].every(v=>typeof v==='string'&&uuid.test(v)))fail('Invalid continuation setup.');
+  const root='/api/continuation/'+setup.grant_id;
+  const {request}=await openFileConnection(setup.origin,'/continue/'+setup.grant_id,setup,setup.project_id);
+  async function read(){
+    const value=await (await request(root)).json();
+    if(value.work_id!==setup.work_id||value.project_id!==setup.project_id||value.workspace_id!==setup.workspace_id||value.grant_id!==setup.grant_id)fail('Continuation selection changed.');
+    return value;
+  }
+  await read();
+  return {read,save:async input=>(await request(root+'/save',input)).json(),resolve:async request_key=>(await request(root+'/resolve',{request_key})).json()};
 }

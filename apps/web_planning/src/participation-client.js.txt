@@ -9,14 +9,14 @@ const journal=(action,value)=>participantJournal(grant,action,value);
 function choosePending(rows,key){
   pendingChoices=rows;pending=rows.find(v=>v.request_key===key)??null;participantPreferred(grant,pending?.request_key??null);
   $('pending-choice').replaceChildren(new Option('Select a pending return',''));
-  for(const row of rows)$('pending-choice').append(new Option(row.message+' · '+row.request_key,row.request_key));
+  for(const row of rows)$('pending-choice').append(new Option((row.message??row.title)+' · '+row.request_key,row.request_key));
   $('pending-choice').value=pending?.request_key??'';
-  $('pending-summary').textContent=pending?pending.message+'\nNext: '+pending.next_action+'\nRequest key: '+pending.request_key:'Choose the exact return to inspect, check or download.';
+  $('pending-summary').textContent=pending?(pending.message??pending.title)+'\nNext: '+pending.next_action+'\nRequest key: '+pending.request_key:'Choose the exact return to inspect, check or download.';
   $('retry').hidden=$('release').hidden=true;
 }
-function controls(){ $('fields').disabled=busy||pendingChoices.length>0||!state?.can_submit||accessLost;$('recovery').hidden=!pendingChoices.length;$('pending-choice').disabled=busy;for(const id of ['check','retry','recover','release'])$(id).disabled=busy||!pending; }
+function controls(){ $('own-project').disabled=$('own-work').disabled=busy||!!pendingChoices.length; $('retain-fields').disabled=busy||!!pendingChoices.length||!$('own-project').value||accessLost;$('project-return-fields').disabled=busy||!!pendingChoices.length||!state?.can_submit||!$('own-work').value||accessLost; $('fields').disabled=busy||pendingChoices.length>0||!state?.can_submit||accessLost;$('recovery').hidden=!pendingChoices.length;$('pending-choice').disabled=busy;for(const id of ['check','retry','recover','release'])$(id).disabled=busy||!pending; }
 async function run(fn){if(busy)return;busy=true;controls();try{await fn();}catch(e){status(e.message.replaceAll('_',' ')+(pending?'. Your pending return is retained.':'. Unsent fields remain in this tab; keep a copy before leaving.'));}finally{busy=false;controls();}}
-function loseAccess(){accessLost=true;state=null;edit=null;cursor=null;for(const id of ['files','returned','feedback','brief','conditions','identity'])$(id).replaceChildren();}
+function loseAccess(){accessLost=true;state=null;$('cooperation').hidden=true;$('own-works').replaceChildren();$('own-project').replaceChildren();$('own-work').replaceChildren();$('result-files').replaceChildren();edit=null;cursor=null;for(const id of ['files','returned','feedback','brief','conditions','identity'])$(id).replaceChildren();}
 async function request(path,body){
   const response=await fetch(root+path,{method:body===undefined?'GET':'POST',redirect:'manual',cache:'no-store',credentials:'same-origin',
     headers:body===undefined?{}:{'Content-Type':'application/json','X-CSRF-Token':csrf},...(body===undefined?{}:{body:JSON.stringify({...body,workspace_id:state.workspace_id,project_id:state.project_id})})});
@@ -63,7 +63,7 @@ async function feedback(append=false){
   cursor=result.next;$('more').hidden=!cursor;
 }
 async function refresh(){
-  state=await json('');accessLost=false;
+  state=await json('');accessLost=false;$('cooperation').hidden=!state.independent_projects;drawRetainFiles();
   const original=state.items[0];$('brief').textContent=original.message;$('conditions').textContent=original.next_action;
   $('identity').textContent='Request revision '+original.ref.revision+' · '+original.ref.fingerprint+' · Access ends '+new Date(state.expires).toLocaleString()+'. '+state.attribution;
   $('files').replaceChildren();for(const file of original.files)drawFile($('files'),file,true);
@@ -73,10 +73,12 @@ async function refresh(){
 async function send(resolve){
   const body=pending;if(!body)return;
   if(!resolve)await journal('put',body);
-  const result=await json(resolve?'/resolve':'/save',body);
+  const {operation,...input}=body;
+  const route=operation==='retain'?(resolve?'/retain-resolve':'/retain'):operation==='project-return'?(resolve?'/project-return-resolve':'/project-return'):(resolve?'/resolve':'/save');
+  const result=await json(route,input);
   $('retry').hidden=true;$('release').hidden=true;
   if(result.outcome==='saved'){
-    choosePending(await journal('delete',body),null);$('return').reset();edit=null;$('edit').hidden=true;await refresh();status('Return saved. The owner can now inspect and decide.');
+    choosePending(await journal('delete',body),null);$('return').reset();edit=null;$('edit').hidden=true;await refresh();if(operation){await loadOwnWorks();}status(operation==='retain'?'Your work is saved. Open it to prepare your contribution; return selected saved results here.':'Return saved. The owner can now inspect and decide.');
   }else{
     $('retry').hidden=!result.retry_allowed;$('release').hidden=result.retry_allowed;
     status(result.retry_allowed?'No matching save observed. Only retry this exact pending return; a request may still be in flight.':'This return was not recorded and its save basis is no longer eligible. Keep its recovery copy before starting again.');
@@ -99,11 +101,57 @@ $('cancel-edit').onclick=()=>{if(!busy&&!pending){edit=null;$('edit').hidden=tru
 $('check').onclick=()=>run(()=>send(true));$('retry').onclick=()=>run(()=>send(false));
 function recoveryCopy(){download(JSON.stringify({format:'augnes_participant_pending.v1',grant_id:grant,origin:location.origin,body:pending},null,2),'augnes-pending-return.json');}
 $('recover').onclick=()=>{if(pending)recoveryCopy();};
-$('release').onclick=()=>run(async()=>{const body=pending;if(!body)return;const result=await json('/resolve',body);if(result.outcome==='saved')return send(true);if(result.retry_allowed)throw Error('The same save is still eligible');recoveryCopy();choosePending(await journal('delete',body),null);await refresh();});
+$('release').onclick=()=>run(async()=>{const body=pending;if(!body)return;const {operation,...input}=body;const result=await json(operation==='retain'?'/retain-resolve':operation==='project-return'?'/project-return-resolve':'/resolve',input);if(result.outcome==='saved')return send(true);if(result.retry_allowed)throw Error('The same save is still eligible');recoveryCopy();choosePending(await journal('delete',body),null);await refresh();});
 $('pending-choice').onchange=()=>run(async()=>{choosePending(await journal('get'),$('pending-choice').value);status('Selected the local recovery copy. Check its outcome before retrying or releasing it.');});
 $('refresh').onclick=()=>run(refresh);$('more').onclick=()=>run(()=>feedback(true));
-run(async()=>{const rows=await journal('get');choosePending(rows,participantPreferred(grant)??rows[0]?.request_key);await refresh();if(pending)await send(true);});
+// Initialization follows cooperation bindings below.
+function initializeParticipant(){return run(async()=>{const rows=await journal('get');choosePending(rows,participantPreferred(grant)??rows[0]?.request_key);await refresh();if(pending)await send(true);});}
 
 $('signout').addEventListener('click',loseAccess);
 addEventListener('pagehide',loseAccess);
 addEventListener('pageshow',event=>{if(event.persisted)run(refresh);});
+
+let projectCursor=null,workCursor=null,ownWorks=[];
+function drawRetainFiles(){
+  const kept=new Set([...$('retain-files').querySelectorAll('input:checked')].map(e=>e.value));
+  const had=$('retain-files').children.length;$('retain-files').replaceChildren();
+  for(const f of state.items[0].files){const index=Number(f.download.split('/').at(-1)),label=document.createElement('label'),check=document.createElement('input');check.type='checkbox';check.value=index;check.checked=had?kept.has(String(index)):f.bytes<=262144;label.append(check,document.createTextNode(f.name+' · '+f.bytes+' bytes'));$('retain-files').append(label);}
+}
+async function loadProjects(append=false){
+  const result=await json('/projects'+(append&&projectCursor?'?cursor='+encodeURIComponent(projectCursor):''));
+  if(!append)$('own-project').replaceChildren(new Option('Select a project you own',''));
+  for(const p of result.projects)if(p.project_id!==state.project_id)$('own-project').append(new Option(p.name,p.project_id));
+  projectCursor=result.next;$('more-projects').hidden=!projectCursor;
+}
+function drawResultFiles(){
+  $('result-files').replaceChildren();const w=ownWorks.find(w=>w.ref.work_id===$('own-work').value);if(!w)return;
+  for(const [index,f] of w.files.entries()){const label=document.createElement('label'),check=document.createElement('input');check.type='checkbox';check.value=index;label.append(check,document.createTextNode(f.name+' · '+f.bytes+' bytes · '+f.digest));$('result-files').append(label);}
+  $('share-project-source').checked=false;
+}
+async function loadOwnWorks(append=false){
+  const project=$('own-project').value;if(!project)return;
+  const result=await json('/project-works',{destination_project_id:project,cursor:append?workCursor??'':''});
+  if(!append){ownWorks=[];$('own-works').replaceChildren();$('own-work').replaceChildren(new Option('Select a saved work',''));}
+  for(const w of result.works){ownWorks.push(w);const a=document.createElement('a');a.href='/?project='+project+'#work='+w.ref.work_id;a.textContent='Open '+w.title+' · revision '+w.ref.revision;a.target='_blank';a.rel='noopener';const p=document.createElement('p');p.append(a);$('own-works').append(p);$('own-work').append(new Option(w.title+' · revision '+w.ref.revision,w.ref.work_id));}
+  workCursor=result.next;$('more-own-works').hidden=!workCursor;drawResultFiles();
+}
+$('load-projects').onclick=()=>run(()=>loadProjects());$('more-projects').onclick=()=>run(()=>loadProjects(true));
+$('own-project').onchange=()=>run(()=>loadOwnWorks());$('load-own-works').onclick=()=>run(()=>loadOwnWorks());$('more-own-works').onclick=()=>run(()=>loadOwnWorks(true));
+$('own-work').onchange=()=>{drawResultFiles();controls();};
+$('retain-form').onsubmit=e=>{e.preventDefault();run(async()=>{
+  if(pendingChoices.length)return;
+  const body={operation:'retain',destination_project_id:$('own-project').value,request_key:crypto.randomUUID(),request:state.items[0].ref,
+    indices:[...$('retain-files').querySelectorAll('input:checked')].map(e=>Number(e.value)),title:$('own-title').value,next_action:$('own-next').value,confirm:'retain-selected-request'};
+  const selected=state.items[0].files.filter(f=>body.indices.includes(Number(f.download.split('/').at(-1))));
+  if(!body.title.trim()||!body.next_action.trim()||!body.indices.length||selected.some(f=>f.bytes>262144)||selected.reduce((n,f)=>n+f.bytes,0)>524288)throw Error('Choose at least one original within the retained-work limits, a title and a next step');
+  choosePending(await journal('put',body),body.request_key);await send(false);
+});};
+$('project-return-form').onsubmit=e=>{e.preventDefault();run(async()=>{
+  if(pendingChoices.length||!state.can_submit||!$('share-project-source').checked)return;
+  const w=ownWorks.find(w=>w.ref.work_id===$('own-work').value);if(!w)throw Error('Choose and read your saved contribution work');
+  const body={operation:'project-return',destination_project_id:$('own-project').value,request_key:crypto.randomUUID(),request:state.items[0].ref,expected:state.head,source:w.ref,
+    indices:[...$('result-files').querySelectorAll('input:checked')].map(e=>Number(e.value)),message:$('project-message').value,next_action:$('project-next').value,confirm:'share-selected-results-and-attribution'};
+  if(!body.indices.length||!body.message.trim()||!body.next_action.trim())throw Error('Choose saved files and describe the contribution and next action');
+  choosePending(await journal('put',body),body.request_key);await send(false);
+});};
+initializeParticipant();

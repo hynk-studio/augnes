@@ -99,7 +99,9 @@ function physicalInstallationFixture(root) {
 }
 
 export async function runBrowserRevisionControls(c, h) {
+  h.progress?.("controls_start");
   physicalInstallationFixture(c.root);
+  h.progress?.("physical_installation_complete");
   const old=c.prior, ledger=path.join(c.legacyRoot,"completion-1.json"), edge=path.join(c.legacyRoot,"correction-successor.json");
   const completion=h.read(ledger), stock=stockOf(old), incident=browserPredecessorEvidence(old,old.attempt,completion,stock);
   for(const mutate of [
@@ -115,6 +117,7 @@ export async function runBrowserRevisionControls(c, h) {
   assert.throws(()=>browserPredecessorEvidence(old,old.attempt,{...completion,cleanup_complete:false},stock));
   assert.throws(()=>browserPredecessorEvidence(old,old.attempt,completion,{...stock,issues:[...stock.issues,"receipt_unrelated_failure"]}));
   c.inputs.contract=BROWSER_RUNTIME_INPUTS;
+  h.progress?.("incident_controls_complete");
   const browser={actual_version:"Chrome/100.10.1.2",executable:{location_fingerprint:digest("protected launcher"),observation:{...c.inputs.node.observation,sha256:digest("protected launcher bytes")}},
     installation:{...c.inputs.headers.observation,contract:"augnes.local-canonical-browser-bundle.v1",location_fingerprint:digest("complete protected installation"),manifest_sha256:digest("portable content manifest")}};
   c.inputs.browser=browser;
@@ -131,6 +134,7 @@ export async function runBrowserRevisionControls(c, h) {
   }
   assert.throws(()=>verifyBrowserRemedy(incident,browser,"integration",[render(records.slice(1))],witness));
   assert.throws(()=>verifyBrowserRemedy(incident,browser,"integration",[render(records)],{...witness,full_bundle_sha256:digest("different contents")}),/focused_installation_mismatch/);
+  h.progress?.("remedy_controls_complete");
   h.prepare(c);const p=c.proof; p.schema=BROWSER_REVISION_SCHEMA;p.inputs.predecessor_sha256=digest(incident);
   p.originals.stock=h.artifact(c,"prior-stock.log",JSON.stringify(stock));
   const source=h.read(path.join(c.artifacts,p.source.artifact));source.reviewed_at=time(-15000);p.source=h.artifact(c,p.source.artifact,source);
@@ -148,9 +152,11 @@ export async function runBrowserRevisionControls(c, h) {
   checkPreservationDiagnostics(preservation.after, c.live);
   const materials=structuredClone(p);delete materials.authorization;
   const preparation=path.join(c.artifacts,"preparation.json");h.write(preparation,materials);
+  h.progress?.("preparation_start");
   const prepared=inspectBrowserRevisionPreparation({file:preparation,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live:c.live});
   assert.equal(prepared.target,browserReviewTarget(p));assert.equal(prepared.authorized,false);assert.equal(prepared.reserved,false);
   assert.throws(()=>readSourceCorrectionProof(preparation,c.checkout));assert(!existsSync(edge));
+  h.progress?.("preparation_complete");
   h.write(c.file,p);const proof=h.proof(c);
   const cap=await h.auth(c,proof);
   for(const mutate of [(r,e)=>{if(e.includes("/reviews/21"))r.commit_id=p.accepted.head;},(r,e)=>{if(e.includes("/comments/"))r.created_at=time(-65000);},
@@ -165,6 +171,7 @@ export async function runBrowserRevisionControls(c, h) {
   const wrong={...p,schema:"augnes.local-canonical-source-correction.v7"};h.write(c.file,wrong);assert.throws(()=>h.proof(c));h.write(c.file,p);
   assert(hasRetiredQualificationMarker({attempt:{source_correction:{...p,kind:"browser_input_replacement"}}}));
   assert(!existsSync(edge));
+  h.progress?.("authority_controls_complete");
   await checkBrowserSourceSuccessor(c, h, proof, cap, records[0]);
   assert.equal(h.read(ledger).disposition,"safety_violation");
   console.log(JSON.stringify({browser_revision_controls:["ordinary interrupted receipt and separate stock","exclusive admission and fresh reconstruction","changed browser contents, identities and actual consumers","unsettled cleanup, unrelated faults and changed historical bytes","separate exact contract review and prospective grant","v7/retired refusal; bounded non-deciding review export"],synthetic_only:true}));

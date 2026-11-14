@@ -46,7 +46,17 @@ export async function browserDirectionJourney({a,debug,origin,page,click,set,set
   await set(c,'authored-text',text);await click(c,'save');await settled(c);assert.equal(await c.eval('activeScene.review'),null);assert.equal(await c.eval("$('authored-text').value"),text);successors.push({client:c,context,draft:text,head:await c.eval('saved')});
  }
  const p=successors[0].client;await click(p,'choose-branch');await settled(p);await p.eval("$('branch-choices').querySelector('button').click()");await settled(p);
- const downloads=path.join(root,'direction-downloads');await mkdir(downloads);await p.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads});await click(p,'direction-export');await settled(p);await wait(async()=>(await readdir(downloads)).includes('story-directions.json'),'actual direction export download');
+ const downloads=path.join(root,'direction-downloads');await mkdir(downloads);let downloadId,downloadComplete=false;
+ const downloaded=m=>{
+  if(m.method==='Browser.downloadWillBegin'&&m.params.suggestedFilename==='story-directions.json')downloadId=m.params.guid;
+  if(m.method==='Browser.downloadProgress'&&m.params.guid===downloadId&&m.params.state==='completed')downloadComplete=true;
+ };
+ p.handlers.push(downloaded);
+ try{
+  await p.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads,eventsEnabled:true});await click(p,'direction-export');await settled(p);
+  await wait(()=>downloadComplete,'actual direction export download');
+ }finally{p.handlers.splice(p.handlers.indexOf(downloaded),1);}
+ assert((await readdir(downloads)).includes('story-directions.json'));
  const bundle=JSON.parse(await readFile(path.join(downloads,'story-directions.json'),'utf8'));assert.deepEqual(bundle.works[0].revisions.slice(0,7),before.revisions);
  await replaceRuntime(true);const dest=await page(debug,origin);await ready(dest);
  const pick=async file=>{await dest.eval("$('reconstruction').open=true");const {root:dom}=await dest.send('DOM.getDocument'),{nodeId}=await dest.send('DOM.querySelector',{nodeId:dom.nodeId,selector:'#import-file'});await dest.send('DOM.setFileInputFiles',{nodeId,files:[file]});};

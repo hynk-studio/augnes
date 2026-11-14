@@ -1,3 +1,4 @@
+import { downloadBrowserFiles } from './web-planning-cdp.mjs';
 import assert from 'node:assert/strict';
 import { mkdir,readFile,readdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -29,7 +30,7 @@ export async function browserSceneResponseJourney({a,debug,origin,page,click,set
  // Unchanged delayed responses remain usable, including the real download and
  // the explicit re-review's eventual request/persisted choices.
  const currentContext=await held(a,'/scene-context','scene-prepare');await currentContext.release();assert.equal(await a.eval('sceneContext.parameters.event_time'),1);
- const downloads=path.join(root,'scene-response-downloads');await mkdir(downloads);await a.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads});await click(a,'scene-context-download');await wait(async()=>(await readdir(downloads)).includes('scene-context.txt'),'current scene download');assert.equal(await readFile(path.join(downloads,'scene-context.txt'),'utf8'),await a.eval('sceneContext.text'));
+ const downloads=path.join(root,'scene-response-downloads');await mkdir(downloads);await downloadBrowserFiles(a,downloads,['scene-context.txt'],wait,()=>click(a,'scene-context-download'),'current scene download');assert((await readdir(downloads)).includes('scene-context.txt'));assert.equal(await readFile(path.join(downloads,'scene-context.txt'),'utf8'),await a.eval('sceneContext.text'));
  await set(a,'scene-event',2);await noContext(a);
  // Every preparation parameter, change-only selection events, and ABA edits.
  for(const [id,value,event] of [['scene-title','別の場面','input'],['scene-viewpoint','문지기','input'],['scene-event',1,'input'],['scene-reveal',0,'input'],['scene-sources',false,'change'],['scene-event',3,'aba']]){

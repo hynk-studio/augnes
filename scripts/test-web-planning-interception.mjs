@@ -1,20 +1,134 @@
+import { createServer } from 'node:net';
+import { createWebPlanningBrowserObservation, settleWebPlanningBrowser } from './web-planning-browser-observation.mjs';
 import assert from 'node:assert/strict';
+import { mock } from 'node:test';
 import { pathToFileURL } from 'node:url';
-import { CDP } from './web-planning-cdp.mjs';
+import { CDP, downloadBrowserFiles } from './web-planning-cdp.mjs';
 import { observeWebPlanningInterceptions } from './web-planning-interception.mjs';
+
+class ControlledSocket extends EventTarget {
+  static CONNECTING = 0;
+  static OPEN = 1;
+  static CLOSING = 2;
+  static CLOSED = 3;
+  readyState = ControlledSocket.CONNECTING;
+  sent = [];
+  constructor() {
+    super();
+    queueMicrotask(() => {
+      if (this.readyState !== ControlledSocket.CONNECTING) return;
+      this.readyState = ControlledSocket.OPEN;
+      this.dispatchEvent(new Event('open'));
+    });
+  }
+  send(raw) {
+    if (this.failSend) throw new Error('private socket detail');
+    this.sent.push(JSON.parse(raw));
+  }
+  message(data) {
+    this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(data) }));
+  }
+  remoteClose(code) {
+    this.readyState = ControlledSocket.CLOSED;
+    this.dispatchEvent(Object.assign(new Event('close'), { code, reason: 'private socket detail' }));
+  }
+  close() {
+    if (this.readyState >= ControlledSocket.CLOSING) return;
+    this.readyState = ControlledSocket.CLOSING;
+    queueMicrotask(() => this.remoteClose(1000));
+  }
+}
+
+export async function checkWebPlanningTouchTransport() {
+  const originalSocket = globalThis.WebSocket;
+  const commands = [], method = 'Input.dispatchTouchEvent';
+  const create = () => new CDP('ws://constructed.invalid', { observeTouch: event => commands.push(event) });
+  const outcome = promise => promise.then(value => ({ value }), error => ({ error }));
+  const nextTurn = () => new Promise(resolve => setImmediate(() => resolve({ pending: true })));
+  globalThis.WebSocket = ControlledSocket;
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const remote = await create().open();
+    const pending = outcome(remote.send(method, { type: 'touchStart', touchPoints: [{ x: 1, y: 1 }] }));
+    const id = remote.ws.sent[0].id;
+    remote.ws.remoteClose(1001);
+    const closed = await Promise.race([pending, nextTurn()]);
+    assert.equal(closed.error?.message, 'cdp_socket_closed:' + method, 'peer close must settle the original command before the response timeout');
+    assert.deepEqual(closed.error.cdpTerminal, { event: 'socket_closed', close_code: 1001 });
+    assert.match(closed.error.commandStack, /checkWebPlanningTouchTransport/);
+    await Promise.all([remote.close(), remote.close()]);
+    remote.ws.message({ id, result: {} });
+    assert.equal(remote.pending.size, 0);
+    assert.deepEqual(commands.splice(0).map(e => [e.subtype, e.stage]), [['touchStart', 'sent'], ['touchStart', 'terminal']]);
+
+    const target = await create().open();
+    for (const subtype of ['touchStart', 'touchEnd']) {
+      const reply = target.send(method, { type: subtype, private: 'private touch params' });
+      const sent = target.ws.sent.at(-1);
+      target.ws.message({ id: sent.id + 100, result: {} });
+      assert.equal(target.pending.size, 1, 'a response with another id cannot acknowledge a touch');
+      target.ws.message({ id: sent.id, result: {} });
+      await reply;
+    }
+    assert.deepEqual(commands.splice(0).map(e => [e.subtype, e.stage]), [
+      ['touchStart','sent'],['touchStart','acknowledged'],['touchEnd','sent'],['touchEnd','acknowledged'],
+    ]);
+    const protocol = outcome(target.send(method, { type: 'touchStart' }));
+    target.ws.message({ id: target.ws.sent.at(-1).id,
+      error: { code: -32602, message: 'private touch detail', data: 'private target detail' } });
+    assert.equal((await protocol).error.message, 'cdp_protocol_error:' + method);
+    assert.equal(commands.at(-1).protocol_code, -32602);
+    const lost = outcome(target.send(method, { type: 'touchEnd' }));
+    mock.timers.tick(14999);
+    assert.equal(target.pending.size, 1);
+    mock.timers.tick(1);
+    const timedOut = (await lost).error;
+    assert.equal(timedOut.message, 'cdp_timeout:' + method);
+    assert.match(timedOut.commandStack, /checkWebPlanningTouchTransport/);
+    target.ws.message({ id: target.ws.sent.at(-1).id, result: {} });
+    assert.equal(commands.at(-1).stage, 'timeout');
+    await target.close();
+
+    for (const terminal of ['Inspector.detached', 'Inspector.targetCrashed', 'socket_error']) {
+      const tab = await create().open();
+      const command = outcome(tab.send(method, { type: 'touchEnd', private: 'private touch params' }));
+      if (terminal === 'socket_error') tab.ws.dispatchEvent(new Event('error'));
+      else tab.ws.message({ method: terminal, params: { reason: 'private target detail' } });
+      assert.equal((await command).error.cdpTerminal.event, terminal);
+      assert.equal(tab.pending.size, 0);
+      await tab.close();
+    }
+    const neverOpened = create();
+    const opened = outcome(neverOpened.open());
+    neverOpened.ws.remoteClose(1006);
+    assert.equal((await opened).error.message, 'cdp_socket_closed');
+    await neverOpened.close();
+    const cannotSend = await create().open();
+    cannotSend.ws.failSend = true;
+    await assert.rejects(cannotSend.send(method, { type: 'touchStart' }), { message: 'cdp_send_failed:' + method });
+    assert.equal(cannotSend.pending.size, 0);
+    await cannotSend.close();
+    assert.doesNotMatch(JSON.stringify(commands), /private (socket|target|touch)/u);
+    return { constructed: true, response_timeout_ms: 15000, reply_id_matched: true, peer_close: true,
+      target_detach_and_crash: true, socket_error: true, close_before_open: true, failed_send: true,
+      late_reply_ignored: true, private_payloads_excluded: true, touch_protocol_error_sanitized: true, cleanup_complete: true };
+  } finally {
+    mock.timers.tick(15000);
+    mock.timers.reset();
+    globalThis.WebSocket = originalSocket;
+  }
+}
 
 // Pure constructed transport controls. These test diagnostic fidelity; they do
 // not reproduce or establish the cause of a real Chrome interception failure.
 export async function checkWebPlanningInterceptionDiagnostics() {
   const originalSocket = globalThis.WebSocket;
-  class Socket extends EventTarget {
-    constructor() { super(); queueMicrotask(() => this.dispatchEvent(new Event('open'))); }
+  class Socket extends ControlledSocket {
     send(raw) {
       const { id } = JSON.parse(raw);
       queueMicrotask(() => this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify({ id,
         error: { code: -32602, message: 'Invalid InterceptionId.', data: 'constructed Chrome detail' } }) })));
     }
-    close() { queueMicrotask(() => this.dispatchEvent(new Event('close'))); }
   }
   try {
     globalThis.WebSocket = Socket;
@@ -68,6 +182,104 @@ export async function checkWebPlanningInterceptionDiagnostics() {
   return { constructed: true, chrome_failure_rethrown: true, exact_context: true, lifecycle_transitions: true, private_headers_and_bodies_excluded: true, ignored_errors: 0 };
 }
 
+// Constructed download protocol controls, paired with the retained real Chrome
+// byte-read failure and focused four-file run. These are not historical replay.
+export async function checkWebPlanningDownloadCompletion() {
+  const other=()=>{},client={handlers:[other],async send(method,params){
+    assert.equal(method,'Browser.setDownloadBehavior');assert.equal(params.eventsEnabled,true);
+  }};
+  const emit=(method,params)=>client.handlers.forEach(fn=>fn({method,params}));
+  const begin=(guid,name)=>emit('Browser.downloadWillBegin',{guid,suggestedFilename:name});
+  const progress=(guid,state)=>emit('Browser.downloadProgress',{guid,state});
+  let checks=0;
+  await downloadBrowserFiles(client,'constructed-downloads',['a.txt','b.txt'],async predicate=>{
+    assert.equal(predicate(),false,'file creation/in-progress is not completion');checks++;
+    progress('foreign','completed');assert.equal(predicate(),false,'unmatched GUID cannot settle an expected name');checks++;
+    progress('a','completed');assert.equal(predicate(),false,'every requested download must complete');checks++;
+    progress('b','completed');assert.equal(predicate(),true);checks++;
+  },async()=>{begin('a','a.txt');begin('b','b.txt');progress('a','inProgress');},'constructed pair');
+  assert.deepEqual(client.handlers,[other]);
+  await downloadBrowserFiles(client,'constructed-downloads',['a.txt'],async predicate=>{
+    assert.equal(predicate(),false,'a previous operation cannot satisfy a new download of the same name');checks++;
+    progress('new-a','completed');assert.equal(predicate(),true);
+  },async()=>begin('new-a','a.txt'),'fresh operation');
+  await assert.rejects(downloadBrowserFiles(client,'constructed-downloads',['a.txt'],async predicate=>predicate(),
+    async()=>{begin('cancelled','a.txt');progress('cancelled','canceled');},'cancelled'),/browser_download_canceled:a.txt/);
+  assert.deepEqual(client.handlers,[other]);
+  const fault=new Error('constructed trigger failure');
+  await assert.rejects(downloadBrowserFiles(client,'constructed-downloads',['a.txt'],async()=>{},async()=>{throw fault;},'trigger'),e=>e===fault);
+  assert.deepEqual(client.handlers,[other]);
+  client.send=async()=>{throw fault;};
+  await assert.rejects(downloadBrowserFiles(client,'constructed-downloads',['a.txt'],async()=>{},async()=>{},'setup'),e=>e===fault);
+  assert.deepEqual(client.handlers,[other]);
+  return {constructed:true,real_browser:false,readiness_checks:checks,exact_guid_and_all_names:true,
+    cancellation_refused:true,fresh_operation:true,setup_and_trigger_failures_preserved:true,handlers_released:true};
+}
+
+
+export async function checkWebPlanningBrowserObservation() {
+  const events=[];let now=0,totalCpu={user:10,system:2};
+  const observation=createWebPlanningBrowserObservation({now:()=>now,cpu:previous=>previous?{user:totalCpu.user-previous.user,system:totalCpu.system-previous.system}:{...totalCpu},report:v=>events.push(v),maximumStages:2});
+  assert.equal(await observation.stage('constructed operation',async()=>{now=8;totalCpu.user+=3;return 42;}),42);
+  assert.equal(events[0].web_planning_stage.event,'start');assert.equal(events[1].web_planning_stage.duration_ms,8);
+  assert.deepEqual(events[1].web_planning_stage.cpu_us,{user:3,system:0});
+  const primary=new Error('constructed body failure'),secondary=new Error('constructed cleanup failure');
+  await assert.rejects(observation.stage('constructed refusal',async()=>{throw primary;}),e=>e===primary);
+  assert.equal(events.at(-1).web_planning_stage.event,'failure');
+  await assert.rejects(observation.stage('past bound',async()=>{}),/bound_exceeded/);
+  assert.throws(()=>createWebPlanningBrowserObservation({maximumStages:513}),/bound_invalid/);
+  const safe=[];const recorder=createWebPlanningBrowserObservation({report:v=>safe.push(v)});
+  recorder.failure('safe operation',new Error('authorization=private value'));
+  assert.match(safe[0].web_planning_primary_failure.error.message,/^redacted_/);
+  const empty=new Error('');await assert.rejects(recorder.stage('empty error',async()=>{throw empty;}),e=>e===empty);
+  const server=createServer();await new Promise(ok=>server.listen(0,'127.0.0.1',ok));
+  const order=[];
+  try {
+    await assert.rejects((async()=>{
+      let first;try{throw primary;}catch(error){first=error;throw error;}
+      finally{await settleWebPlanningBrowser({primary:first,observe:recorder.stage,steps:[
+        {name:'fails',run:async()=>{order.push('failed');throw secondary;}},
+        {name:'listener',run:async()=>{await new Promise((ok,no)=>server.close(e=>e?no(e):ok()));order.push('closed');}},
+      ]});}
+    })(),error=>error instanceof AggregateError&&error.errors[0]===primary&&error.errors[1]===secondary&&error.errors.length===2);
+    assert.deepEqual(order,['failed','closed']);assert.equal(server.listening,false);
+  } finally {if(server.listening)await new Promise(ok=>server.close(ok));}
+  await assert.rejects((async()=>{try{throw primary;}finally{await settleWebPlanningBrowser({steps:[]});}})(),error=>error===primary);
+  await assert.rejects(settleWebPlanningBrowser({steps:[{name:'alone',run:async()=>{throw secondary;}}]}),error=>error.errors[0]===secondary&&error.errors.length===1);
+  for(const mode of ['exhausted','throw-before','throw-after']) {
+    const listener=createServer();await new Promise(ok=>listener.listen(0,'127.0.0.1',ok));let closed=0;
+    const diagnostic=new Error('constructed observation failure');
+    const bounded=createWebPlanningBrowserObservation({report:()=>{},maximumStages:1});
+    await bounded.stage('spent',async()=>{});
+    const observe=mode==='exhausted'?bounded.stage:async(_name,run)=>{if(mode==='throw-after')await run();throw diagnostic;};
+    try {
+      await assert.rejects(settleWebPlanningBrowser({primary,observe,steps:[
+        {name:'listener',run:async()=>{closed++;await new Promise((ok,no)=>listener.close(e=>e?no(e):ok()));}},
+      ]}),error=>error.errors[0]===primary&&error.errors.length===2&&error.cleanup_completed===true&&error.cleanup_errors.length===0&&error.observation_errors.length===1);
+      assert.equal(closed,1,'diagnostics cannot skip or repeat actual cleanup');assert.equal(listener.listening,false);
+    } finally {if(listener.listening)await new Promise(ok=>listener.close(ok));}
+  }
+  const reportingFailure=new Error('constructed reporting failure');
+  const reporting=createWebPlanningBrowserObservation({report:event=>{if(event.web_planning_stage?.event!=='start')throw reportingFailure;}});
+  let acquired;
+  try {
+    acquired=await reporting.stage('actual resource acquisition',async()=>{
+      const value=createServer();await new Promise(ok=>value.listen(0,'127.0.0.1',ok));return value;
+    });
+    assert.equal(acquired.listening,true,'completion reporting cannot discard the acquired resource');
+    await settleWebPlanningBrowser({observe:reporting.stage,steps:[{name:'acquired',run:()=>new Promise(ok=>acquired.close(ok))}]});
+    assert.equal(acquired.listening,false);
+    await assert.rejects(reporting.stage('primary with reporter failure',async()=>{throw primary;}),error=>error===primary);
+    assert.throws(()=>reporting.assertComplete({primary}),error=>error.errors[0]===primary&&error.errors.includes(reportingFailure)&&error.cleanup_completed===true);
+    assert(reporting.summary().diagnostic_failures>0);
+  } finally {if(acquired?.listening)await new Promise(ok=>acquired.close(ok));}
+  assert.deepEqual(recorder.summary().failed,2);
+  return {constructed:true,real_loopback_cleanup:true,immediate_failure:true,primary_preserved:true,all_cleanup_attempted:true,observer_independent_cleanup:true,acquired_value_and_primary_survive_reporter_failure:true,bounded_observations:true,private_error_redacted:true};
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  console.log(JSON.stringify({ web_planning_browser_observation_contract: await checkWebPlanningBrowserObservation() }));
+  console.log(JSON.stringify({ web_planning_touch_transport_contract: await checkWebPlanningTouchTransport() }));
   console.log(JSON.stringify({ web_planning_interception_diagnostics_contract: await checkWebPlanningInterceptionDiagnostics() }));
+  console.log(JSON.stringify({ web_planning_download_completion_contract: await checkWebPlanningDownloadCompletion() }));
 }

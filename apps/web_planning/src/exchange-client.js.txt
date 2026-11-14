@@ -4,9 +4,6 @@ const exchangeStoragePrefix = 'augnes.pending-file.' + scope.workspace_id + '.' 
 function forgetExchange(id) {
   try { sessionStorage.removeItem(exchangeStoragePrefix + id); } catch {}
 }
-function forgetPrivateExchanges() {
-  try { for (const key of Object.keys(sessionStorage)) if (key.startsWith(exchangeStoragePrefix)) sessionStorage.removeItem(key); } catch {}
-}
 function clearExchange() {
   resetReturnPanel();
   resetReassessment();
@@ -296,7 +293,8 @@ $('exchange-setup').onclick = () => {
   const link = document.createElement('a'); link.href = url; link.download = 'file-task.json'; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
-$('signout').addEventListener('click',forgetPrivateExchanges);
+// Unresolved operation identities survive sign-out and access loss. Private
+// in-memory content is cleared by deny(); authenticated readback is still required.
 $('exchange-review').oninput=exchangeControls;
 $('exchange-new').onclick = () => beginExchange(null);
 $('exchange-cancel').onclick = () => { if (busy) return; forgetExchange(work); $('edit-fields').disabled = false; exchangeDraft = null; $('exchange-form').reset(); exchangeControls(); };

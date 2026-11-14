@@ -1,3 +1,4 @@
+import { createBrowserControlObservation } from "./operator-browser-control-observation.mjs";
 import { selectBrowserPath } from "./local-canonical-browser-input.mjs";
 import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import assert from "node:assert/strict";
@@ -681,7 +682,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
       while (Date.now() - started < timeoutMs) {
         if (await evaluate(expression, observation).catch(() => false)) {
           satisfied = true;
-          recordWait("wait_for_condition", label, started);
+          recordWait("wait_for_condition", label, started, options.observe_immediate === true);
           return;
         }
         await delay(100);
@@ -821,21 +822,11 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     throw new Error("operator_request_quiet_timeout");
   };
 
-  const setFormControlValue = async (selector, value, index = 0) => {
-    assert.equal(
-      await evaluate(`(() => {
-        const controls = Array.from(document.querySelectorAll(${JSON.stringify(selector)}));
-        const control = controls[${JSON.stringify(index)}];
-        if (!(control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement || control instanceof HTMLSelectElement)) return false;
-        const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(control), 'value')?.set;
-        setter?.call(control, ${JSON.stringify(value)});
-        control.dispatchEvent(new Event('input', { bubbles: true }));
-        control.dispatchEvent(new Event('change', { bubbles: true }));
-        return true;
-      })()`),
-      true,
-    );
-  };
+  const observeControl = createBrowserControlObservation({ evaluate });
+  const setFormControlValue = (selector, value, index = 0, scope = "form") =>
+    observeControl({ selector, value, index, scope, kind: "set_value" });
+  const clickVisibleControl = (selector, scope = "click") =>
+    observeControl({ selector, scope, kind: "click" });
 
   const authenticate = async ({ audit_bootstrap_replay = false } = {}) => {
     const config = readVNextLocalOperatorPilotConfigV01(
@@ -1113,9 +1104,9 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     return { ...observation, browser_failure_snapshot: failureSnapshot.snapshot() };
   };
 
-  function recordWait(kind, label, started) {
+  function recordWait(kind, label, started, includeImmediate = false) {
     const duration = Date.now() - started;
-    if (duration <= 500) return;
+    if (duration <= 500 && !includeImmediate) return;
     waitCount += 1;
     timing.duration(
       kind,
@@ -1167,6 +1158,8 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     waitForRequestQuiet,
     captureFailureEvidence,
     setFormControlValue,
+    clickVisibleControl,
+    observeControl,
     authenticate,
     pauseNextSemanticTransitionRequest,
     waitForPausedSemanticTransitionRequest,

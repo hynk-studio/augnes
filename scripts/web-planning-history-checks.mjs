@@ -104,7 +104,7 @@ const definition={goal:'Retain a qualified cumulative plan',success_criteria:['R
 const scope={workspace_id:fixtureScope.workspace_id,project_id:fixtureScope.project_id};
 const unchanged=async server=>{
  const result={};for(const table of ['web_planning_revision','web_planning_file','web_planning_workspace','web_planning_erased'])
-   result[table]=(await server.db.prepare(`SELECT * FROM ${table} ORDER BY 1,2,3`).all()).results;
+   result[table]=(await server.db.prepare(`SELECT ${table==='web_planning_workspace'?'singleton,workspace_id,project_id,author_ref,owner_login_hash':'*'} FROM ${table} ORDER BY 1,2,3`).all()).results;
  return result;
 };
 // Canonical constructed history, distinctly labelled; no claim that these

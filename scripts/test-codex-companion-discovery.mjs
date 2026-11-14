@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
@@ -15,8 +15,43 @@ import {
   parseRepositoryWorkRevisionResponseV01,
   parseRepositoryInitialWorkResponseV01,
   parseRepositoryRetainedSourcesResponseV01,
+  handleMessageV01,
 } from "../plugins/augnes-operator/mcp/companion-proxy.mjs";
 import { createConnectedProjectReaderV01 } from "../plugins/augnes-operator/mcp/connected-project-reader.mjs";
+import { registerOwnedChild, terminateOwnedProcessTree } from "./test-harness-process-lifecycle.mjs";
+
+async function rawStdioBoundary(environment, input) {
+  const owned = new Set(), child = spawn(process.execPath, [path.join(operatorPluginRoot, "mcp", "companion-proxy.mjs")],
+    { cwd: process.cwd(), env: environment, detached: process.platform !== "win32", stdio: ["pipe", "pipe", "pipe"] });
+  const record = registerOwnedChild(owned, child, { label: "operator-stdio-boundary" });
+  let stdout = "", stderr = "", timer, inputError, overflow = false;
+  child.stdout.on("data", chunk => { if (stdout.length < 100000) stdout += chunk; else overflow = true; });
+  child.stderr.on("data", chunk => { if (stderr.length < 100000) stderr += chunk; else overflow = true; });
+  child.stdin.on("error", error => { inputError = error; });child.stdin.end(input);
+  try {
+    const result = await Promise.race([record.closePromise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("operator_stdio_boundary_timeout")), 10000); })]);
+    assert.equal(overflow, false);assert.equal(inputError, undefined);
+    return { status: result.code, stdout, stderr };
+  } finally { clearTimeout(timer);await terminateOwnedProcessTree(record);assert.equal(owned.size, 0); }
+}
+
+// The Operator implements one legacy protocol contract. The separate review
+// adapter and installed SDK do not add protocol versions to this server.
+for (const protocolVersion of ["2025-06-18", "2025-03-26", "2999-01-01"]) {
+  const response = await handleMessageV01({ jsonrpc: "2.0", id: 0, method: "initialize", params: { protocolVersion } });
+  assert.equal(response.id, 0);assert.equal(response.result.protocolVersion, "2025-06-18");
+}
+for (const method of ["notifications/initialized", "notifications/cancelled", "notifications/unknown", "tools/call"]) {
+  assert.equal(await handleMessageV01({ jsonrpc: "2.0", method, params: { name: "augnes_start_companion_service", arguments: {} } }), null);
+}
+for (const message of [null, [], {}, { jsonrpc: "1.0", id: 0, method: "tools/list" },
+  { jsonrpc: "2.0", id: {}, method: "tools/list" }, { jsonrpc: "2.0", id: null, method: "tools/list" },
+  { jsonrpc: "2.0", id: 0, method: "tools/list", params: false }]) {
+  assert.equal((await handleMessageV01(message)).error.code, -32600);
+}
+assert.equal((await handleMessageV01({ jsonrpc: "2.0", id: 0, method: "notifications/initialized" })).error.code, -32601);
+const unknownTool = await handleMessageV01({ jsonrpc: "2.0", id: 0, method: "tools/call", params: { name: "not_advertised", arguments: {} } });
+assert.equal(unknownTool.error.message, "unknown_tool_name");assert.equal(unknownTool.result, undefined);
 
 // The connected entry point has its own closed dispatch, not filtered Operator
 // advertisement. Invalid requests must never reach discovery or local readers.
@@ -293,6 +328,72 @@ try {
     AUGNES_COMPANION_SERVICE_TEST_ROOT: path.join(root, "service-state"),
     AUGNES_COMPANION_SERVICE_TEST_SCOPE: "discovery-contract",
   };
+  const argumentBinding = `sha256:${"b".repeat(64)}`;
+  const cancelArguments = { workspaceId: "workspace", projectId: "project", attachmentId: "attachment",
+    expectedAttachmentBindingFingerprint: argumentBinding, runId: "run", controlRevision: 0 };
+  const invalidArgumentCases = [
+    ["augnes_resume_repository", {}],
+    ...[123, null, []].map(repositoryRoot => ["augnes_resume_repository", { repositoryRoot }]),
+    ["augnes_prepare_repository_execution", { repositoryRoot: false }],
+    ["augnes_validate_repository_execution_attachment", { attachmentId: 123 }],
+    ["augnes_request_repository_resume", { workspaceId: "workspace" }],
+    ["augnes_request_repository_resume", { workspaceId: "workspace", projectId: false }],
+    ["augnes_cancel_repository_delegation", { ...cancelArguments, controlRevision: "0" }],
+    ["augnes_preview_repository_initial_work", { repositoryRoot: process.cwd(), expectedSnapshotBinding: argumentBinding, changes: [] }],
+    ["augnes_external_repository_work", { action: "read" }],
+    ["augnes_prepare_repository_execution_choice", { action: "read", repositoryRoot: process.cwd(), expectedSnapshotBinding: 123 }],
+    ["augnes_review_repository_work", { action: 123 }, "invalid_review_tool_request"],
+    ["augnes_companion_lifecycle_status", {}, "invalid_companion_lifecycle_request"],
+  ];
+  const invalidArgumentCalls = invalidArgumentCases.map(([name, args], index) => ({
+    jsonrpc: "2.0", id: `invalid-arguments-${index}`, method: "tools/call", params: { name, arguments: args },
+  }));
+  const validOfflineCalls = [
+    ["augnes_resume_repository", { repositoryRoot: process.cwd() }],
+    ["augnes_read_repository_work_sources", { repositoryRoot: process.cwd(), expectedSnapshotBinding: argumentBinding, includeWorkDefinition: true }],
+    ["augnes_cancel_repository_delegation", cancelArguments],
+  ].map(([name, args], index) => ({ jsonrpc: "2.0", id: `valid-offline-${index}`, method: "tools/call", params: { name, arguments: args } }));
+  // Bad caller input must remain a parameter error even with no Companion.
+  // Valid input still reports service absence, including optional fields and 0.
+  const offline = await rawStdioBoundary({ ...environment,
+    AUGNES_COMPANION_RUNTIME_MANIFEST: path.join(root, "missing-runtime.json"),
+  }, [...invalidArgumentCalls, ...validOfflineCalls].map(JSON.stringify).join("\n") + "\n");
+  assert.equal(offline.status, 0, offline.stderr);
+  const offlineReplies = offline.stdout.trim().split("\n").map(line => JSON.parse(line));
+  assert.deepEqual(offlineReplies.map(reply => reply.id), [...invalidArgumentCalls, ...validOfflineCalls].map(call => call.id));
+  for (const [index, [, , reason = "invalid_repository_tool_request"]] of invalidArgumentCases.entries()) {
+    assert.deepEqual(offlineReplies[index].error, { code: -32602, message: reason });
+    assert.equal(offlineReplies[index].result, undefined, "invalid input must not recommend service repair");
+  }
+  for (const reply of offlineReplies.slice(invalidArgumentCases.length)) {
+    assert.equal(reply.error, undefined);
+    assert.equal(reply.result.structuredContent.repository_resolution.status, "companion_unavailable");
+  }
+  const trafficBeforeBoundary = transportCalls;
+  const wire = [
+    { jsonrpc: "2.0", id: 0, method: "initialize", params: { protocolVersion: "2025-06-18" } },
+    { jsonrpc: "2.0", id: 2, method: "initialize", params: { protocolVersion: "2999-01-01" } },
+    ...["notifications/initialized", "notifications/cancelled", "notifications/unknown", "tools/call"].map(method =>
+      ({ jsonrpc: "2.0", method, params: { name: "augnes_start_companion_service", arguments: {} } })),
+    { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "not_advertised", arguments: {} } },
+    { jsonrpc: "2.0", id: 4, method: "ping" },
+    { jsonrpc: "2.0", id: 5, method: "unsupported/request" },
+    null, { jsonrpc: "2.0", id: 6, method: "notifications/initialized" },
+    ...invalidArgumentCalls,
+  ].map(JSON.stringify).join("\n") + "\n{broken\n";
+  const stdio = await rawStdioBoundary(environment, wire);
+  assert.equal(stdio.status, 0, stdio.stderr);
+  const replies = stdio.stdout.trim().split("\n").map(line => JSON.parse(line));
+  assert.deepEqual(replies.map(r => r.id), [0, 2, 3, 4, 5, null, 6, ...invalidArgumentCalls.map(call => call.id), null]);
+  assert.deepEqual(replies.slice(0, 2).map(r => r.result.protocolVersion), ["2025-06-18", "2025-06-18"]);
+  assert.deepEqual(replies.slice(2).map(r => r.error?.code ?? null), [-32602, null, -32601, -32600, -32601,
+    ...invalidArgumentCases.map(() => -32602), -32700]);
+  for (const [index, [, , reason = "invalid_repository_tool_request"]] of invalidArgumentCases.entries())
+    assert.equal(replies[7 + index].error.message, reason);
+  assert.equal(transportCalls, trafficBeforeBoundary, "unknown tools, notifications and malformed known calls must not discover or call Companion");
+  assert.equal(existsSync(environment.AUGNES_COMPANION_SERVICE_TEST_ROOT), false, "notifications must not start lifecycle work");
+  console.log("operator_stdio_boundary_passed: supported/fallback handshake, silent notifications, zero ID, unknown tool/request, malformed input");
+  console.log(`operator_argument_preflight_passed: ${invalidArgumentCases.length} malformed known calls before discovery; ${validOfflineCalls.length} valid unavailable controls`);
 
   assert.deepEqual(candidateManifestPathsV01({
     ...process.env,

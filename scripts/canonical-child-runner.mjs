@@ -49,7 +49,7 @@ export async function runCanonicalChild({
   log = (line) => console.log(line),
   onSpawn = () => {},
   onBoundary = () => {},
-  onMessage,
+  onMessage = /** @type {((message: import("node:child_process").Serializable, sendHandle: import("node:child_process").SendHandle) => void) | undefined} */ (undefined),
   resourceOwner,
   signal = undefined,
 }) {

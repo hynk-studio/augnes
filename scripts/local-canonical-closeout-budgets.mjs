@@ -24,6 +24,21 @@ export const AUXILIARY_EXECUTION_BUDGETS = Object.freeze({
   // a claim about the old unknown delay. Keep each reader's 15s bound, behavior's
   // 5s bound, the 30s outer owner and every other group unchanged.
   reviewRevisionFixtureMs: 20_000,
+  // The serial fixture measured 13.54s including its 4.15s driver, 3.12s
+  // execution/fresh reader, 0.76s phase probe and 0.57s lineage/export tail.
+  // Keep the former 15s plus a 5s aggregate reserve for this complete workload;
+  // individual child limits and substantive refusals remain unchanged. This
+  // does not identify the cause of the retained intermittent 15s timeout.
+  reviewSerialAggregateFixtureMs: 20_000,
+  // Leave 20s outside the inner deadline for its existing 8s TERM / 5s KILL
+  // settlement, process observations and wrapper cleanup. These are bounded
+  // owners, not a universal wall-clock guarantee or permission to retry.
+  reviewSerialAggregateControlMs: 40_000,
+  // Complete material fixture: observed 58.343s prefix, existing 15s reader
+  // and about 2.857s other work leave 3.8s within this prospective allowance.
+  // The outer owner retains 8s TERM / 5s KILL / 2s parent settlement margin.
+  reviewSerialMaterialFixtureMs: 80_000,
+  reviewSerialMaterialControlMs: 95_000,
   reviewAdverseFixtureMs: 12_000,
   reviewChildResultHarnessMs: 60_000,
 });

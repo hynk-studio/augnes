@@ -198,8 +198,8 @@ try {
   for (const mutate of [r => delete r.browser_input_fingerprint, r => r.contract = "augnes.local-canonical-browser-use.v2", r => r.runtime_versions.cdp = "Chrome/1.0", r => r.bundle_after.content_sha256 = "0".repeat(64), r => r.cli_version = "Google Chrome for Testing 1.0.0.0"]) {
     const copy = structuredClone(record); mutate(copy); assert(!validBrowserUse(copy, expected));
   }
-  assert.equal(["integration", "e2e-project-experience", "e2e-operator-review-control", "e2e-operator-native-host-execution", "e2e-operator-work-expectation", "e2e-operator-multi-candidate", "e2e-continuity", "e2e-golden"].reduce((sum, id) => sum + Object.values(browserConsumersForPhase(id)).reduce((a, b) => a + b, 0), 0), 19);
-  results.push("v3 launch/settlement record, CLI/HTTP/CDP agreement, downgrade and bundle drift refusal, 19-record workload unchanged");
+  assert.equal(["integration", "e2e-project-experience", "e2e-operator-review-control", "e2e-operator-native-host-execution", "e2e-operator-work-expectation", "e2e-operator-multi-candidate", "e2e-continuity", "e2e-golden"].reduce((sum, id) => sum + Object.values(browserConsumersForPhase(id)).reduce((a, b) => a + b, 0), 0), 20);
+  results.push("v3 launch/settlement record, CLI/HTTP/CDP agreement, downgrade and bundle drift refusal; 20 uses include both registered Web journeys");
   releaseBrowserInputGuard(guard, { settled: true }); guard = null;
   assert.equal(selectBrowserPath([binding.executable], { repositoryRoot: root, env: {} }), binding.executable);
   const legacyLaunch = runLaunch(wrappedLaunches[1], { platform: "linux", inputEnv: { AUGNES_BROWSER_EXECUTABLE_PATH: explicit } });

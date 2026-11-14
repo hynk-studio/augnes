@@ -1,3 +1,4 @@
+import type { ContributionSource } from './contribution-contract';
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import { binding, boundedText, canonical, exact, fail, hash, headBinding, reference, sameBinding, UUID, workRef, type Binding, type Revision, type WorkRef } from './contract';
@@ -52,7 +53,7 @@ export async function createGrant(s:Access,id:string,input:Record<string,unknown
   await participationAvailable(s);
   exact(input,'workspace_id,project_id,grant_id,request,expected,recipient,brief,next_action,indices,expires');
   const ref=workRef(input.request),expected=binding(input.expected),recipient=login(input.recipient);
-  if(!UUID.test(String(input.grant_id))||ref.work_id!==id||!recipient||recipient===login(s.env.OWNER_EMAIL))fail('invalid_participant');
+  if(!UUID.test(String(input.grant_id))||ref.work_id!==id||!recipient||hash(recipient)===s.ownerHash)fail('invalid_participant');
   if(!Number.isSafeInteger(input.expires)||Number(input.expires)<=Date.now()||Number(input.expires)>Date.now()+90*86400000)fail('invalid_participation_expiry');
   const chain=await readWork(s,id),r=chain[ref.revision-1];
   if(!r||r.exchange?.kind!=='request'||canonical(reference(r))!==canonical(ref))fail('exchange_request_unavailable',409);
@@ -122,7 +123,7 @@ function participantItem(s:Access,c:ParticipantContext,r:Revision) {
       .map(({index,file})=>({...file,download:'/api/participation/'+c.g.grant_id+'/files/'+r.revision+'/'+r.fingerprint.slice(7)+'/'+index}))};
 }
 export function participantView(s:Access,c:ParticipantContext) {
-  return {workspace_id:s.workspace_id,project_id:s.project_id,work_id:c.g.work_id,task:c.d.brief,head:c.d.expected,
+  return {independent_projects:s.env.PROJECT_ENTRY_MODE==='admitted-private-v1',workspace_id:s.workspace_id,project_id:s.project_id,work_id:c.g.work_id,task:c.d.brief,head:c.d.expected,
     expires:c.g.expires,can_submit:c.canSubmit,attribution:(s.local?'A simulated local email principal controls this fixture grant.':'The verified ingress email controls this grant.')+' Human, agent and model authorship are not independently verified.',
     items:[participantItem(s,c,c.r),...(c.answer?[participantItem(s,c,c.answer)]:[])]};
 }
@@ -131,9 +132,9 @@ export function participantFile(c:ParticipantContext,revision:number,fingerprint
   if(!r||r.fingerprint!==fingerprint||!(r===c.r&&c.d.files.some(f=>f.index===index) || r===c.answer))fail('scope_denied',403);
   return r;
 }
-export async function participantWrite(s:Access,c:ParticipantContext,input:Record<string,unknown>,resolve:boolean) {
+export async function participantWrite(s:Access,c:ParticipantContext,input:Record<string,unknown>,resolve:boolean,project?:ContributionSource) {
   if(input.kind!=='return'||canonical(input.basis)!==canonical(c.d.request)||canonical(input.expected)!==canonical(c.d.expected))fail('scope_denied',403);
-  const attribution:Contributor={grant_id:c.g.grant_id,principal_ref:c.g.recipient_hash,authentication:s.local?'local_fixture_email':'verified_ingress_email'};
+  const attribution:Contributor={...(project?{project}:{}),grant_id:c.g.grant_id,principal_ref:c.g.recipient_hash,authentication:s.local?'local_fixture_email':'verified_ingress_email'};
   s.participantGrant={id:c.g.grant_id,recipient_hash:c.g.recipient_hash,disclosure_fingerprint:c.g.disclosure_fingerprint};
   const result=await writeExchange(s,c.g.work_id,input,resolve,attribution);
   const refreshed=await participantContext(s,c.g.grant_id);

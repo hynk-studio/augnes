@@ -1,10 +1,22 @@
 /// <reference path="./assets.d.ts" />
+import { CONTRIBUTION_EXPORT } from './contribution-contract';
+import { retainContribution, contributionWorks, returnContribution } from './contributions';
+import { CONTINUATION_EXPORT } from './continuation-contract';
+import { activeContinuation, continuationContext, continuationView, createContinuation, listContinuations, revokeContinuation, resolveContinuation, writeContinuation } from './continuation';
+import { continuationPage } from './continuation-page';
+import continuationClient from './continuation-client.js.txt?raw';
+import { createPublicRequest, listPublicRequests, readPublicRequest, resolvePublicRequest, revokePublicRequest } from './public-requests';
+import { publicationPage, publicRequestResponse } from './public-request-page';
+import publicationClient from './publication-client.js.txt?raw';
 import { PARTICIPATION_EXPORT } from "./participation-contract";
 import { activeGrant, knownRecipient, createGrant, listGrants, participantContext, participantFeedbackView, participantFile, participantView, participantWrite, revokeGrant } from "./participation";
 import { participantPage, participantRecoveryPage } from "./participation-page";
 import participantRecoveryClient from "./participation-recovery.js.txt?raw";
 import participantJournal from "./participation-journal.js.txt?raw";
 import participantClient from "./participation-client.js.txt?raw";
+import projectsClient from './projects-client.js.txt?raw';
+import { projectEntryPage } from './project-entry';
+import { createProject, listProjects } from './projects';
 import { applyReturn, inspectReturn } from "./return-continuation";
 import { inspectUse, previewReassessment, saveReassessment } from "./return-reassessment-ops";
 import { REASSESSMENT_EXPORT } from "./return-reassessment";
@@ -19,7 +31,7 @@ import { hasSceneFile } from "./file-relations";
 import { DIRECTION_EXPORT, directionExport, validateDirectionExport } from "./direction-recovery";
 import { prepareSceneContext, prepareSceneDraft, previewSceneReview, saveSceneReview } from "./scenes";
 import { type FileBody, FILE_EXPORT_REQUEST_BYTES, LARGE_EXPORT_REQUEST_BYTES, LARGE_PAIR_REQUEST_BYTES, EXCHANGE_REQUEST_BYTES, historyFiles, selectedFiles, validateFileExport } from "./files";
-import { authorize, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, type Environment, type Principal } from "./access";
+import { authorize, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, projectEntryEnabled, selectedProject, type Environment, type Principal } from "./access";
 import { binding, canonical, exact, exportWork, fail, hash, makeRevision, normalizePayload, reference, Refusal, REQUEST_BYTES, requestFingerprint, sameBinding, UUID, validateExport, validateRetainedIncorporations, type Revision } from "./contract";
 import { inspectDraftCapacity } from "./capacity";
 import { append, completeExport, downloadFile, eraseWork, headBinding, headsCurrent, listWork, readNoteHistory, readWork, reconstruct, reconstructWorks, requestRevision } from "./store";
@@ -38,8 +50,11 @@ const headers={"Cache-Control":"no-store, private","Vary":"Cookie, oai-authentic
   "Content-Security-Policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"};
 function json(value:unknown,status=200) { return new Response(JSON.stringify(value),{status,headers:{...headers,"Content-Type":"application/json"}}); }
 function html(value:string,extra:Record<string,string>={}) { return new Response(value,{headers:{...headers,"Content-Type":"text/html; charset=utf-8",...extra}}); }
+// RFC 9110 media types allow case-insensitive type/subtype and token/quoted parameters.
+// Parameters, including charset, do not change JSON's strict UTF-8 decoding below.
+const JSON_CONTENT_TYPE=/^[\t ]*application\/json[\t ]*(?:;[\t ]*(?:[!#$%&'*+.^_`|~0-9A-Za-z-]+=(?:[!#$%&'*+.^_`|~0-9A-Za-z-]+|"(?:[\t \x21\x23-\x5B\x5D-\x7E\x80-\xFF]|\\[\t \x21-\x7E\x80-\xFF])*")[\t ]*)?)*$/i;
 async function body(request:Request,limit=REQUEST_BYTES) {
-  if(request.headers.get("content-type")!=="application/json") fail("json_required",415);
+  if(!JSON_CONTENT_TYPE.test(request.headers.get("content-type")??"")) fail("json_required",415);
   const reader=request.body?.getReader(); if(!reader) fail("invalid_body");
   const declared=request.headers.get("content-length");
   if(declared!==null && Number(declared)>limit){await reader.cancel();fail("request_too_large",413);}
@@ -71,9 +86,45 @@ function checkReplayedOccurrences(saved: Revision,edits: any[]) {
 export async function handle(request:Request,env:Environment,principal:Principal):Promise<Response> {
   try {
     const url=new URL(request.url), path=url.pathname;
+    // Only the deliberately published projection is anonymous. Every private
+    // operation still resolves the existing enforcing principal/project owner.
+    const published=path.match(/^\/public-requests\/([a-f0-9-]{36})(\.json)?$/);
+    if(published&&UUID.test(published[1])){
+      try {
+        if(request.method!=='GET')fail('method_not_allowed',405);
+        if(url.search||url.origin!==env.APP_ORIGIN)fail('scope_denied',403);
+        return publicRequestResponse(await readPublicRequest(env,published[1]),!!published[2]);
+      } catch(e) {
+        return publicRequestResponse({error:e instanceof Refusal?e.code:'storage_unavailable'},true,e instanceof Refusal?e.status:503);
+      }
+    }
+    const successor=path.match(/^\/(continue|api\/continuation)\/([a-f0-9-]{36})(.*)$/);
+    if(successor&&UUID.test(successor[2])){
+      const access=await authorize(request,env,principal,undefined,false,successor[2]),suffix=successor[3];
+      const context=await continuationContext(access);let result:Response;
+      if(url.search)fail('scope_denied',403);
+      if(successor[1]==='continue'&&!suffix&&request.method==='GET'){
+        const csrf=csrfToken(access,request);result=html(continuationPage(access,csrf,successor[2]),{'Set-Cookie':csrfCookie(access,csrf)});
+      }else if(successor[1]!=='api/continuation')fail('scope_denied',403);
+      else if(request.method==='GET'&&!suffix)result=json(continuationView(access,context));
+      else if(request.method==='GET'&&suffix==='/setup')result=new Response(JSON.stringify({format:'augnes_web_continuation.v1',origin:env.APP_ORIGIN,
+        workspace_id:access.workspace_id,project_id:access.project_id,work_id:context.g.work_id,grant_id:successor[2]}),
+        {headers:{...headers,'Content-Type':'application/json','Content-Disposition':'attachment; filename=continuation-setup.json'}});
+      else if(request.method==='POST'&&['/save','/resolve'].includes(suffix)){
+        requireCsrf(access,request);const input=await body(request,16_000);requireScope(access,input);
+        result=json(await writeContinuation(access,context,input,suffix==='/resolve'));
+      }else{
+        const file=suffix.match(/^\/(files|exchange-files)\/([1-9][0-9]{0,15})\/([a-f0-9]{64})\/([0-7])$/);
+        if(!file||request.method!=='GET')fail('scope_denied',403);
+        const r=context.chain[Number(file[2])-1];if(!r||r.fingerprint!=='sha256:'+file[3])fail('file_revision_unavailable',409);
+        const {file:meta,bytes}=await downloadFile(access,r,Number(file[4]),file[1]==='exchange-files');
+        result=new Response(bytes,{headers:{...headers,'Content-Type':'application/octet-stream','Content-Disposition':`attachment; filename="artifact.bin"; filename*=UTF-8''${encodeURIComponent(meta.name).replace(/['()*]/g,x=>'%'+x.charCodeAt(0).toString(16))}`,'X-Content-SHA256':meta.digest,'Content-Length':String(meta.bytes)}});
+      }
+      await activeContinuation(access);return result;
+    }
     const participant=path.match(/^\/(participate|api\/participation)\/([a-f0-9-]{36})(.*)$/);
     if(participant && UUID.test(participant[2])){
-      const access=await authorize(request,env,principal,true),id=participant[2],suffix=participant[3];
+      const access=await authorize(request,env,principal,participant[2]),id=participant[2],suffix=participant[3];
       // Ended/erased grants can recover only a draft already in this browser.
       // Reauthentication still binds the exact original recipient; no server
       // request, file, feedback or acknowledgement is exposed through this shell.
@@ -99,7 +150,20 @@ export async function handle(request:Request,env:Environment,principal:Principal
       else if(request.method==='GET' && !url.search && suffix==='/exchange-text.mjs')result=new Response(exchangeTextModule,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
       else if(request.method==='GET' && !url.search && suffix==='/style.css')result=new Response(style,{headers:{...headers,'Content-Type':'text/css; charset=utf-8'}});
       else if(request.method==='GET' && !url.search && suffix==='')result=json(participantView(access,c));
-      else if(request.method==='GET' && suffix==='/feedback'){
+      else if(request.method==='GET' && suffix==='/projects'){
+        if([...url.searchParams.keys()].some(k=>k!=='cursor')||url.searchParams.getAll('cursor').length>1)fail('scope_denied',403);
+        result=json(await listProjects(await authorize(request,env,principal,undefined,true),url.searchParams.get('cursor')??''));
+      }else if(request.method==='POST' && ['/retain','/retain-resolve','/project-works','/project-return','/project-return-resolve'].includes(suffix)){
+        if(url.search)fail('scope_denied',403);
+        requireCsrf(access,request);const input=await body(request);requireScope(access,input);
+        if(!UUID.test(String(input.destination_project_id)))fail('scope_denied',403);
+        const ownHeaders=new Headers(request.headers);ownHeaders.set('x-web-planning-project',String(input.destination_project_id));
+        const own=await authorize(new Request(request.url,{method:request.method,headers:ownHeaders}),env,principal);
+        if(suffix==='/project-works'){
+          exact(input,'workspace_id,project_id,destination_project_id,cursor');
+          result=json(await contributionWorks(access,own,c,String(input.cursor??'')));
+        }else result=json(await (suffix.startsWith('/retain')?retainContribution: returnContribution)(access,own,c,input,suffix.endsWith('resolve')));
+      }else if(request.method==='GET' && suffix==='/feedback'){
         if([...url.searchParams.keys()].some(k=>k!=='cursor')||url.searchParams.getAll('cursor').length>1)fail('scope_denied',403);
         result=json(await participantFeedbackView(access,c,url.searchParams.get('cursor')));
       }else if(request.method==='GET' && !url.search && suffix==='/setup'){
@@ -125,10 +189,39 @@ export async function handle(request:Request,env:Environment,principal:Principal
       await activeGrant(access,id); // Readback/authorization loss never becomes an empty result.
       return result;
     }
-    const access=await authorize(request,env,principal);
+    const accountEntry=projectEntryEnabled(env)&&(path==='/projects'||path==='/api/projects'||path==='/projects.js'||path==='/continuation.js'||path==='/publications.js'||
+      path==='/'&&!url.search&&!request.headers.has('x-web-planning-project')||['/style.css','/client.js','/exchange-text.mjs','/planning-notes.mjs','/favicon.ico'].includes(path));
+    const access=await authorize(request,env,principal,undefined,accountEntry);
+    if(accountEntry){
+      if(request.method==='GET'&&!url.search&&(path==='/'||path==='/projects')){
+        const csrf=csrfToken(access,request);return html(projectEntryPage(csrf,access),{'Set-Cookie':csrfCookie(access,csrf)});
+      }
+      if(path==='/api/projects'){
+        if(request.method==='GET'){
+          if([...url.searchParams.keys()].some(k=>k!=='cursor')||url.searchParams.getAll('cursor').length>1)fail('scope_denied',403);
+          return json(await listProjects(access,url.searchParams.get('cursor')??''));
+        }
+        if(request.method!=='POST'||url.search)fail('method_not_allowed',405);
+        requireCsrf(access,request);return json(await createProject(access,await body(request)));
+      }
+      if(path==='/continuation.js'&&request.method==='GET'&&!url.search)return new Response(continuationClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
+      if(path==='/publications.js'&&request.method==='GET'&&!url.search)return new Response(publicationClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
+      if(path==='/projects.js'&&request.method==='GET'&&!url.search)return new Response(projectsClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
+    }
+    const manage=path.match(/^\/delegations\/([a-f0-9-]{36})\/([a-f0-9-]{36})$/);
+    if(manage&&request.method==='GET'&&!url.search&&UUID.test(manage[1])&&UUID.test(manage[2])){
+      await listContinuations(access,manage[2]);const chain=await readWork(access,manage[2]);if(!chain.length)fail('work_not_found',404);
+      const csrf=csrfToken(access,request);return html(continuationPage(access,csrf,manage[2],true),{'Set-Cookie':csrfCookie(access,csrf)});
+    }
+    const publications=path.match(/^\/publications\/([a-f0-9-]{36})\/([a-f0-9-]{36})$/);
+    if(publications&&request.method==='GET'&&!url.search&&UUID.test(publications[1])&&UUID.test(publications[2])){
+      await listPublicRequests(access,publications[2]);const chain=await readWork(access,publications[2]);if(!chain.length)fail('work_not_found',404);
+      const csrf=csrfToken(access,request);return html(publicationPage(access,csrf,publications[2]),{'Set-Cookie':csrfCookie(access,csrf)});
+    }
     if(request.method==="GET") {
       if(path==="/favicon.ico" && !url.search)return new Response(null,{status:204,headers});
-      if(path==="/" && !url.search) {
+      if(path==='/publications.js'&&!url.search)return new Response(publicationClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
+      if(path==="/" && (!url.search || selectedProject(request))) {
         const csrf=csrfToken(access,request);
         return html(page(csrf,access),{"Set-Cookie":csrfCookie(access,csrf)});
       }
@@ -137,7 +230,12 @@ export async function handle(request:Request,env:Environment,principal:Principal
       if(path==="/planning-notes.mjs" && !url.search) return new Response(planningNotes,{headers:{...headers,"Content-Type":"text/javascript; charset=utf-8"}});
       if(path==="/style.css" && !url.search) return new Response(style,{headers:{...headers,"Content-Type":"text/css; charset=utf-8"}});
       if(path==="/api/project" && !url.search) return json({workspace_id:access.workspace_id,project_id:access.project_id,
-        name:env.PROJECT_NAME || "Private planning workspace",tasks:"/api/works"});
+        author_ref:access.author_ref,name:access.projectName || "Private planning workspace",continuation_work_id:access.continuationWork??null,tasks:"/api/works"});
+      if(path==='/api/project/continuation'&&!url.search){
+        if(!access.continuationWork)fail('project_continuation_unavailable',404);
+        const chain=await readWork(access,access.continuationWork);if(!chain.length)fail('project_continuation_unavailable',404);
+        return json({saved:chain.at(-1)});
+      }
       if(path==="/api/works/search") {
         if([...url.searchParams.keys()].some(k=>k!=="q"&&k!=="cursor") || url.searchParams.getAll("q").length!==1 ||
           url.searchParams.getAll("cursor").length>1)fail("scope_denied",403);
@@ -152,6 +250,16 @@ export async function handle(request:Request,env:Environment,principal:Principal
         const cursor=url.searchParams.get("cursor")??"";
         if(cursor && !UUID.test(cursor))fail("invalid_cursor");
         return json(await listWork(access,cursor));
+      }
+      const continuing=path.match(/^\/api\/work\/([a-f0-9-]+)\/continuation$/);
+      const published=path.match(/^\/api\/work\/([a-f0-9-]+)\/public-requests$/);
+      if(published&&UUID.test(published[1])){
+        if([...url.searchParams.keys()].some(k=>k!=='cursor')||url.searchParams.getAll('cursor').length>1)fail('scope_denied',403);
+        return json(await listPublicRequests(access,published[1],url.searchParams.get('cursor')??''));
+      }
+      if(continuing&&UUID.test(continuing[1])){
+        if([...url.searchParams.keys()].some(k=>k!=='cursor')||url.searchParams.getAll('cursor').length>1)fail('scope_denied',403);
+        return json(await listContinuations(access,continuing[1],url.searchParams.get('cursor')??''));
       }
       const grants=path.match(/^\/api\/work\/([a-f0-9-]+)\/participation$/);
       if(grants && UUID.test(grants[1])){
@@ -194,6 +302,10 @@ export async function handle(request:Request,env:Environment,principal:Principal
       path==="/api/reconstruct-directions"?LARGE_PAIR_REQUEST_BYTES:path==="/api/reconstruct-files"?FILE_EXPORT_REQUEST_BYTES:REQUEST_BYTES;
     const input=await body(request,limit); if(!input || typeof input!=="object")fail("invalid_body");
     requireScope(access,input);
+    const publishing=path.match(/^\/api\/work\/([a-f0-9-]+)\/public-requests\/(create|resolve|revoke)$/);
+    if(publishing&&UUID.test(publishing[1]))return json(await (publishing[2]==='create'?createPublicRequest(access,publishing[1],input):publishing[2]==='resolve'?resolvePublicRequest(access,publishing[1],input):revokePublicRequest(access,publishing[1],input)));
+    const continuing=path.match(/^\/api\/work\/([a-f0-9-]+)\/continuation\/(create|revoke|resolve)$/);
+    if(continuing&&UUID.test(continuing[1]))return json(await (continuing[2]==='create'?createContinuation(access,continuing[1],input):continuing[2]==='resolve'?resolveContinuation(access,continuing[1],input):revokeContinuation(access,continuing[1],input)));
     const grant=path.match(/^\/api\/work\/([a-f0-9-]+)\/participation\/(create|revoke)$/);
     if(grant&&UUID.test(grant[1]))return json(await (grant[2]==='create'?createGrant(access,grant[1],input):revokeGrant(access,grant[1],input)));
     const text=path.match(/^\/api\/work\/([a-f0-9-]+)\/(exchange-files|files)\/([1-9][0-9]{0,15})\/([a-f0-9]{64})\/([0-7])\/text$/);
@@ -236,7 +348,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
     if(path==="/api/reconstruct" || path==="/api/reconstruct-files" || extendedRestore) {
       exact(input,"workspace_id,project_id,export,confirm");
       if(env.RECONSTRUCTION_MODE!=="quiesced-empty-store" || input.confirm!=="reconstruct-empty-store")fail("reconstruction_disabled",403);
-      if(path==="/api/reconstruct-exchange" && ![LARGE_EXPORT,USE_EXPORT,PARTICIPATION_EXPORT,REASSESSMENT_EXPORT].includes(input.export?.format) ||
+      if(path==="/api/reconstruct-exchange" && ![CONTRIBUTION_EXPORT,CONTINUATION_EXPORT,LARGE_EXPORT,USE_EXPORT,PARTICIPATION_EXPORT,REASSESSMENT_EXPORT].includes(input.export?.format) ||
          path==="/api/reconstruct-directions" && input.export?.format!==DIRECTION_EXPORT)fail("incompatible_format",409);
       if((path==="/api/reconstruct-files" || path==="/api/reconstruct-directions") && input.export?.format===DIRECTION_EXPORT){
         const works=validateDirectionExport(access,input.export);await reconstructWorks(access,works);
@@ -295,7 +407,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
       if(!sameBinding(headBinding(head),expected))fail("refresh_required",409);
       if(action==="context") {const refs=await referenceAvailability(access,head);
         if(!await headsCurrent(access,reference(head),reference(head)))fail("refresh_required",409);
-        return html(renderContext(head,chain.at(-2),refs.availability,refs.reviewSource,exchangeList(chain).decisions.flatMap(d=>"current" in d?[d.current!]:[])));}
+        return html(renderContext(head,chain.at(-2),refs.availability,refs.reviewSource,exchangeList(chain).decisions.flatMap(d=>"current" in d?[d.current!]:[]),chain[0].contribution_request));}
       if(action==="ticket") {
         const {histories}=await selectionHistories(access,id,input.material_edits);
         const prepared=bound?await applyReturn(access,id,chain,await prepareSceneDraft(access,chain,selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,chain,histories),input.files,head),input.scene),input.return_choice):undefined;

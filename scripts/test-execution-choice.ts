@@ -17,7 +17,7 @@ import { POST as writerRoute } from "../app/api/augnes/repository-work-revision/
 import { POST as reviewRoute } from "../app/api/augnes/review/route";
 import { handleMessageV01, selectCompanionForReadonlyRouteV01, readRepositoryWorkSourcesV01 } from "../plugins/augnes-operator/mcp/companion-proxy.mjs";
 import { createRequestBoundReviewAdapter } from "../plugins/augnes-operator/mcp/request-bound-review.mjs";
-import { EXECUTION_CHOICE_TOOL, prepareExecutionChoice } from "../plugins/augnes-operator/mcp/execution-choice.mjs";
+import { EXECUTION_CHOICE_TOOL, prepareExecutionChoice, executionChoiceText } from "../plugins/augnes-operator/mcp/execution-choice.mjs";
 import { REVIEW_MARKER, digest, callReview } from "../plugins/augnes-operator/mcp/review-connection.mjs";
 import { getOrCreateDefaultWorkspaceIdentityV01, getOrCreateCanonicalProjectForLocalRootV01, normalizeLocalProjectRootRefV01 } from "../lib/vnext/persistence/project-identity-registry";
 import { readActiveProjectSelectionV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
@@ -33,7 +33,7 @@ const fixture = path.join(process.cwd(), "scripts/fixtures/experience-use");
 const inputBytes = readFileSync(path.join(fixture, "b.json"));
 const instance = "choice-fixture", generation = "generation-1", repository = "e".repeat(64), token = randomBytes(32).toString("base64url");
 const trace: any[] = [], phases: Record<string, number> = {}, errors: string[] = [], artifacts: string[] = [];
-let origin = "", requestId = 0, failSave = false, phaseStart = started;
+let origin = "", requestId = 0, failSave = false, failReviewList = false, phaseStart = started;
 const phase = (name: string) => { const now = Date.now(); phases[name] = now - phaseStart; phaseStart = now; console.log(JSON.stringify({ phase: name, duration_ms: phases[name] })); };
 const routes: Record<string, (r: Request) => Promise<Response>> = {
   "/api/augnes/read/codex-repository-continuity": resumeRoute,
@@ -52,6 +52,9 @@ const server = trackServerConnections(createServer(async (req, res) => {
     const handler = routes[url.pathname]; if (!handler) { res.writeHead(404).end(); return; }
     const chunks = []; for await (const chunk of req) chunks.push(Buffer.from(chunk));
     const body = Buffer.concat(chunks).toString(), input = JSON.parse(body || "{}"), before = db.serialize();
+    if (failReviewList && url.pathname === "/api/augnes/review" && input.action === "list") {
+      res.writeHead(503, { "content-type": "application/json" }).end('{"error":{"code":"review_unavailable","status":503}}');return;
+    }
     if (failSave && url.pathname === "/api/augnes/repository-work-revision" && input.action === "save") {
       Database.prototype.prepare = function (this: Database.Database, sql: string) {
         if (/INSERT INTO vnext_core_records/i.test(sql)) throw new Error("fixture_atomic_save_failure");
@@ -200,6 +203,21 @@ async function main() {
   const connection = connections[1];
   await savePrepared(await choice(participant.root, "choose", { judgment: judgment(connection.id) }));
   const chosen = await choice(participant.root, "read"), originalChoice = JSON.stringify(chosen.choice);
+  failReviewList = true;
+  const partial = await choice(participant.root, "read");
+  failReviewList = false;
+  assert.equal(partial.status, "available");assert.equal(partial.contribution.status, "unavailable");
+  assert.equal(JSON.stringify(partial.choice), originalChoice);
+  assert.match(executionChoiceText(partial), /Current contribution state could not be checked/);
+  assert.doesNotMatch(executionChoiceText(partial), /No contribution outcome|contribution is pending/);
+  assert.match(partial.next_action, /Recheck the original contribution/);
+  for (const status of ["unavailable", "lookup_limit"]) assert.match(executionChoiceText({ ...partial,
+    contribution: { status, requests: [{ response_ref: null }] } }), /not verified empty or pending/);
+  for (const status of ["unavailable", "refused", "refresh_required"]) {
+    const text = executionChoiceText({ status, reason: "test_read_refusal" });
+    assert.match(text, /could not be checked/);assert.doesNotMatch(text, /No arrangement has been selected/);
+  }
+  assert.match(executionChoiceText({ status: "available", work: { goal: "Verified empty" } }), /No arrangement has been selected/);
   const materialRefs = chosen.sources.filter((s: any) => ["note-ref:events", "note-ref:method"].includes(s.source_locator)).map((s: any) => s.source_binding);
   const contribution = { purpose: "Population check beside the current worker", question: "Which population counts toward all-attempt cost and what is its total?", success: "Return population, total_ms and failed_ms from actual rows", checks: "Deduplicate identical IDs; preserve distinct retries; exact decimal seconds", dependency_order: "Read request and full event excerpt, calculate, reply; origin validates then computes the report", material_refs: materialRefs, recheck: "Changed input, version, units or goal require a new request" };
   assert.equal((await choice(participant.root, "participate", { participation: { ...contribution, material_refs: ["sha256:" + "f".repeat(64)] } }, true)).reason, "execution_choice_material_missing");

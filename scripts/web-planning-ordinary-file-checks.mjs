@@ -163,6 +163,6 @@ export async function checkOrdinaryFiles({start,client,newWork,save,passed,open}
  const independent=(await ok(commit(await branch(target)))).saved,independentExport=await exportOf(independent);
  await erase(target);assert.deepEqual(await exportOf(independent),independentExport);
  for(const table of ['web_planning_revision','web_planning_file'])assert.equal((await server.db.prepare(`SELECT count(*) n FROM ${table} WHERE work_id=?`).bind(target.work_id).first()).n,0);
- assert.deepEqual((await server.db.prepare('SELECT version FROM web_planning_schema').all()).results,[{version:4}]);
- passed('ordinary files: unchanged legacy exports; schema 3 to 4 upgrade/old-reader refusal/roll-forward; fresh-process v4 reopen and supported empty-store reconstruction; independent copies survive origin erasure and own erasure removes bodies');
+ assert.deepEqual((await server.db.prepare('SELECT version FROM web_planning_schema').all()).results,[{version:6}]);
+ passed('ordinary files: unchanged legacy exports; schema 3 to 6 upgrade/old-reader refusal/roll-forward; fresh-process v4-format reopen and supported empty-store reconstruction; independent copies survive origin erasure and own erasure removes bodies');
 }

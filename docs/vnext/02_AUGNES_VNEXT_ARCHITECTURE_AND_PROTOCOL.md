@@ -923,6 +923,50 @@ only to the supported owned receipt-query contract; GET is not generally free
 or effectless. Post-withdrawal cleanup, cancellation and settlement remain
 unsupported, separately authorized responsibilities.
 
+For prospective confirmation after execution-binding withdrawal (#1610), a new
+work additionally retains `receipt_owner:{endpoint,instance}` from its actual
+configured preparation. Its content address and the original issued attempt
+bind workspace/project, input, terms and native material basis. The production
+POST conveys that nonsecret composite identity to the exact loopback counterpart,
+which stores it with its real receipt. No execution secret is retained or
+reconstructed. Existing record hashes are unchanged; legacy work lacking the
+original owner is unsupported by this route, and preparation replay never
+backfills it. A prepared but never-issued attempt remains ineligible.
+
+An optional top-level private `receipt_permissions` entry carries the complete
+original `receipt` identity, a distinct receipt-only `secret`, finite
+`expires_at`, `max_queries` (1–16) and bounded `timeout_ms`. It must match
+the immutable work/attempt and currently admitted project exactly. It can
+authorize only the original receipt GET while the sending envelope is absent.
+The owned counterpart issues this credential only by explicit operator action
+after retaining the real request, and enforces its request/identity, method,
+expiry and finite query bound. A restarted counterpart, reused endpoint or
+replacement envelope cannot supply the original incarnation or credential.
+Local binding removal makes no claim of remote secret revocation or cancellation.
+
+Both legacy and separate observation permissions use the same original attempt's
+`sent.receipt_observation` ledger and first-reservation expiry/ceiling. Moving
+configuration, replacing a credential or changing routes neither resets nor
+enlarges consumption. An existing explicit reservation cannot fall back to legacy
+call allowance. Admission, egress and commit check the currently selected
+authority, original identity, input integrity, project/root, authentication and
+runtime admission; in-flight authority changes refuse and retain the consumed
+reservation. This route reuses the original retained envelope's suspension owner
+without needing its live execution configuration. Restored history/configuration
+does not become permission. New preparation metadata is recovery-validated;
+older validators/configuration readers refuse the additive representation.
+Live downgrade is unsupported: retain the complete newer backup and use a
+pre-increment backup for an older runtime. No Core kind or tool registry is added.
+New-work POSTs require the updated owned counterpart; its older strict reader
+rejects `receipt_identity`. Legacy work retains its original wire shape.
+
+Ordinary reads retain unresolved responsibility without contact or consumption
+when separate receipt authority is absent. Returned bytes enter the existing
+material/reconsider/check/use owners; closure, deadlines, execution withdrawal
+and remaining obligations preserve their meaning. This bounded receipt path
+does not grant sending, amendment, retransmission, replacement, reopening,
+cancellation or settlement.
+
 Checks and use are attributed consumer statements. The consumer must actually
 read bytes and independently verify identity, scope, correctness and limitations;
 the use record requires a current passing check and an output material dependency.
@@ -4201,6 +4245,143 @@ An authenticated original recipient may use a recovery-only entry after expiry,
 revocation or source erasure to download an existing browser-local pending return.
 This exposes no server request, file, feedback or save outcome, performs no write,
 and grants no renewed access. Unknown submission status remains unknown.
+
+#### Selectively published real-project requests (#1641)
+
+An optional operational publication binds an explicitly authored public summary
+to one saved Web request, the observed work head and an existing scoped recipient
+grant. The authenticated owning project supplies issuer attribution. Publication
+creation atomically checks ownership, exact request/current basis, live response
+authority and erasure. A retained publication UUID reconciles uncertain creation;
+identical replay returns the same publication, altered replay refuses, and a
+read-only absent observation neither creates nor cancels an effect.
+
+Anonymous HTML and JSON expose the same allowlisted public material and source
+reference, never a full work envelope, private file bytes or recipient identity.
+Publication is an authored claim, not verified truth or universal actor identity.
+Public reading and URL possession grant no participation, execution, contact,
+spending or commitment authority. The linked existing recipient path retains
+its own authentication, exact request-bound return and origin check/use/feedback.
+
+The disclosed snapshot never silently tracks newer private text. Current reads
+distinguish active, stale and answered requests; an answer is not checked use.
+Withdrawal, expiry, erased source or unavailable response authority removes the
+selected material from service. It does not recall outside copies. Operational
+records remain outside revision exports; reconstruction revokes the selected
+project's publications with its existing grants. No Core kind, accepted state,
+new work-revision format or native synchronization is introduced. The
+[Web public-request guide](../../apps/web_planning/README.md#selected-public-project-requests-1641)
+owns bounded APIs, activation, source retention and rollback.
+
+#### Independent private Web projects (#1627)
+
+An explicitly enabled admitted-principal entry separates the installation's
+configured legacy owner from ownership of newly created private Web projects.
+Verified ingress identity and an admission list precede creation/selection;
+the default remains the legacy owner-only deployment. Each mapping retains its
+own stable author reference and immutable scope. The authenticated principal
+must own the selected project on every ordinary read/write. A page/client carries
+an explicit project selection, while CSRF, signed tickets and downloaded task
+setups bind the same scope; selection cannot retarget a pending operation.
+
+Project creation commits its mapping and an ordinary initial planning work in
+one transaction. Its purpose, source-attributed interpretation, unresolved work
+and next action use existing definition/selected-note owners. The mapping's
+continuation pointer opens that work's current revision; subsequent edits,
+history, source reuse, exports and uncertainty reconciliation remain ordinary
+Web operations. No parallel current-state record, new Core kind, accepted-state
+semantics or native synchronization is introduced. An erased continuation stays
+unavailable. Initial source labels are authored attribution, not proof that an
+external source was inspected or verified.
+
+Fresh sessions of the same currently admitted authenticated principal use the
+stored project author reference, never a new executor identity. Historical
+authors are not rewritten. A different principal's delegated succession remains
+outside this slice. W1 separately resolves the exact request grant and verified
+recipient to its source project; that grant, return or decline does not own the
+recipient's independent project lifecycle.
+
+Schema 5 preserves the existing mapping and every sealed revision/file byte
+while admitting multiple mappings. Reconstruction's atomic empty-store guard and
+retained-grant revocation are now selected-project scoped; populated unrelated
+projects neither prevent recovery nor lose data/access. Erasure tombstones still
+prevent resurrection. Exports retain their formats and exclude the operational
+directory and grants; recovery also needs the independently retained matching
+mapping/author. The [Web guide](../../apps/web_planning/README.md#independent-private-projects-opt-in)
+owns entry/API/client limits, quiesced migration, backup requirements and the
+non-destructive owner-only rollback posture. This is the first W2 entry slice,
+not whole-W2, delegated succession or independently hosted adoption acceptance.
+
+#### Cross-project Web contribution ownership (#1630)
+
+An active request grant resolves source project A independently of the
+recipient's selected project. B must be owned by the same authenticated
+recipient and distinct from A. Neither a caller-supplied project/work identifier
+nor a downloaded setup retargets that grant. The existing participant and
+exchange writer remains the authority for disclosure, expiry/revocation,
+immutable source basis, cumulative one-answer admission and exact replay.
+
+B may deliberately retain selected disclosed originals as its own ordinary work.
+The first v0.11 revision seals A's original project author/request, disclosure
+fingerprint, brief, conditions, expiry and selected file occurrences alongside
+exact copied bytes. This is historical provenance, not a live grant or evidence
+that the source is still available, current or accepted. The INSERT rechecks the
+active source grant and source existence. B's later authored revisions preserve
+the initial record while permitting its own judgment, material and next action.
+No source correction silently replaces previously retained material.
+
+B deliberately returns selected files from one exact current saved revision.
+The same atomic exchange writer rechecks A's frozen base and grant and B's source
+head; it retains project author/work/revision/file-selection attribution without
+copying private B notes, definitions or other files. These return/use records
+use v0.11 while older seals remain unchanged. The existing checked-use writer
+records A's reported checking, saved output/adaptation and disposition distinctly.
+Only deliberately shared disposition/explanation/next action enter feedback;
+private destination identifiers, titles, files, checks and reasoning do not.
+
+Unknown retention/return delivery must reconcile the original operation before
+replacement. Readback is not another write or allowance. B's independent work and
+already committed source/destination bytes survive non-use or grant expiry and
+revocation, which stop future source access. Exports/reconstruction preserve
+historical attribution but never recreate an operational grant. No new Core
+kind, native synchronization, execution authority, grant table or migration is
+introduced. The [Web contract](../../apps/web_planning/README.md#cross-project-contributions-1630)
+owns the ordinary browser/client surface, retained-file limits and rollback.
+
+#### Scoped Web work succession (#1628)
+
+The first successor role, `continue-work-v1`, delegates a bounded read/append
+surface for one existing work to a separately authenticated, already admitted
+principal. The immutable operational grant binds workspace, project, work,
+issuer, recipient, unresolved obligation, expiry and cumulative update limit.
+The owner explicitly discloses that work's full history and attachments, including
+recorded reference metadata. Related work IDs do not grant access to their source
+histories or files. Changing a browser, model or session cannot renew the grant.
+
+A successor reads the existing purpose, attributed sources, selected materials,
+prior updates and outstanding obligation, then records a report and next action.
+The new v0.10 envelope copies the prior definition, sources, relations and files
+exactly and adds `continuation` attribution. Project ownership and the stable
+project `author_ref` remain distinct from the executing `principal_ref`, issuer
+and grant ID. Neither earlier authorship nor earlier envelope bytes change.
+Reported findings remain claims; this grants no Core acceptance, native sync,
+model call, external effect, subdelegation, erasure or editing of selected work.
+
+Both Browser and agent/client writers use the same exact predecessor and request
+identity. Unknown delivery is reconciled by reading committed effects; another
+session must not infer failure or a renewed allowance. The INSERT atomically
+checks live grant scope, revocation, expiry and remaining updates, including when
+revocation races a previously admitted request. Reads recheck access before
+returning data. Revocation removes future disclosure/write rights, preserving
+committed contributions and obligations for authorized readers. Expiry or an
+exhausted update allowance is not a judgment that the work is complete.
+
+Operational schema 6 retains existing data bytes and adds only the grants. Full
+v0.10 work exports carry historical attribution but no live grants or credentials.
+Selected-project reconstruction revokes existing grants as part of the same
+transaction. Imported attribution is not live permission. The
+[Web guide](../../apps/web_planning/README.md#scoped-work-succession-1628) owns
+ordinary entry, bounded API/client operations and compatible rollback.
 
 ### 13.6 Explicit portable Web source admission (#1475)
 

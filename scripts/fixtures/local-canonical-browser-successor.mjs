@@ -1,4 +1,4 @@
-import { isSerialAggregateRevision } from "../local-canonical-serial-aggregate.mjs";
+import { hasSerialAccounting } from "../local-canonical-serial-aggregate.mjs";
 import { PROJECT_EXPERIENCE_SERIAL, PROJECT_EXPERIENCE_COMMITMENT } from "../project-experience-serial-budget.mjs";
 // Synthetic stock context. Only the failing/corrected behavioral child is executed.
 import assert from "node:assert/strict";
@@ -77,6 +77,7 @@ export async function executeFixture(c, h, proof, cap, browserRecord, dependenci
     head: c.head, tree: c.tree, executor_fingerprint: baseReceipt.executor.source_fingerprint, runtime_inputs: c.inputs,
     environment_keys: runtimeKeys, phase_environment_fingerprints: REVIEWED_REVISION_PHASES.map(id => ({id, fingerprint:digest(id)}))
   } } : declaration(c);
+  h.prepareInput?.(input);
   const start = now();
   const attempt = h.begin(c, proof, cap, { contractFingerprint: digest(input) });
   const child = await (h.behavior ? h.behavior(c) : behavior(c)), passed = child.result.exit_code === 0, finish = now();
@@ -126,7 +127,7 @@ export async function executeFixture(c, h, proof, cap, browserRecord, dependenci
   r.inputs = { ...input, fingerprint: digest(input), checks: 1, events: [], first_fault: null, secondary_faults: [], prepared_dependencies: dependencies };
   for (const [i, key] of ["root_lock_sha256", "nested_lock_sha256", "web_planning_lock_sha256"].entries())
     r.dependencies[key] = dependencies[i].before.sources.find(s => s.name === "package-lock.json").sha256;
-  const failure = passed ? Infinity : REVIEWED_REVISION_PHASES.indexOf("authority");
+  const failure = passed ? Infinity : REVIEWED_REVISION_PHASES.indexOf(c.failurePhase ?? "authority");
   const plan = buildPhasePlan({ mode: "full", selectedPlan: "full-canonical", baseSha: c.base, headSha: c.head });
   assert.deepEqual(plan.map(phase => phase.id), REVIEWED_REVISION_PHASES);
   r.phases = plan.map((phase, i) => {
@@ -144,9 +145,9 @@ export async function executeFixture(c, h, proof, cap, browserRecord, dependenci
         streams_closed: child.result.streams_closed, termination_reason: child.result.termination_reason,
         remaining_owned_processes: child.result.remaining_owned_processes, listener_residue_count: 0
       },
-      ...(isSerialAggregateRevision(proof) && id === "e2e-project-experience" && status === "pass" ? {serial_budget:{
-        contract:PROJECT_EXPERIENCE_SERIAL.contract,commitment:PROJECT_EXPERIENCE_COMMITMENT,complete:true,completed_children:3,failure_code:null,
-        execution_ms:[0,0,0],natural_settlement_ms:[0,0,0],coordinator_ms:0,envelope_elapsed_ms:0,parent_post_exit_settlement_ms:0}} : {}),
+      ...(hasSerialAccounting(proof) && id === "e2e-project-experience" && status === "pass" ? {serial_budget:{
+        contract:PROJECT_EXPERIENCE_SERIAL.contract,commitment:PROJECT_EXPERIENCE_COMMITMENT,complete:true,completed_children:PROJECT_EXPERIENCE_SERIAL.children.length,failure_code:null,
+        execution_ms:PROJECT_EXPERIENCE_SERIAL.children.map(()=>0),natural_settlement_ms:PROJECT_EXPERIENCE_SERIAL.children.map(()=>0),coordinator_ms:0,envelope_elapsed_ms:0,parent_post_exit_settlement_ms:0}} : {}),
       browser_use: i > failure ? [] : Object.entries(browserConsumersForPhase(id)).flatMap(([consumer, count]) =>
         Array.from({ length: count }, () => ({ ...browserRecord, consumer })))
     };
@@ -156,7 +157,7 @@ export async function executeFixture(c, h, proof, cap, browserRecord, dependenci
     validity: "valid_within_observed_scope", execution: passed ? "complete_pass" : "incomplete_or_failed"
   };
   r.final = {
-    ...r.final, result: passed ? "pass" : "failure", exit_status: child.result.exit_code,
+    ...r.final, result: passed ? "pass" : "failure", exit_status: passed ? 0 : 1,
     reason_codes: passed ? [] : ["phase_failed", "selected_phases_incomplete"]
   };
   if (h.finalInputFailure) {
@@ -174,6 +175,7 @@ export async function executeFixture(c, h, proof, cap, browserRecord, dependenci
     r.outcome={...r.outcome,disposition:"safety_violation",first_fault:fault,safety:"blocked",validity:"invalid_or_unknown",execution:"incomplete_or_failed"};
     r.final={...r.final,result:"failure",exit_status:1,reason_codes:["verification_cancelled"]};
   }
+  h.decorateReceipt?.(r);
   const receipt = finalizeReceipt(r);
   h.storeReceipt(c, receipt);
   finishAttempt(attempt, { receiptFingerprint: receipt.integrity.content_fingerprint, disposition: r.outcome.disposition, cleanupComplete: true });
@@ -196,6 +198,7 @@ export async function executeFixture(c, h, proof, cap, browserRecord, dependenci
 }
 
 export async function checkBrowserSourceSuccessor(c, h, firstProof, firstAuthority, browserRecord) {
+  h.progress?.("successor_start");
   const preparation = candidate => {
     const material = clone(candidate);
     delete material.authorization;
@@ -209,7 +212,9 @@ export async function checkBrowserSourceSuccessor(c, h, firstProof, firstAuthori
   const tip = () => reconstructAttemptTip({ anchorRoot: c.anchor, repositoryRoot: c.checkout, branch: c.branch });
   const packages = dependencyRecords(c);
   const firstFile = c.file;
+  h.progress?.("first_execution_start");
   const first = await executeFixture(c, h, firstProof, firstAuthority, browserRecord, packages);
+  h.progress?.("first_execution_complete");
   assert.equal(first.child.result.exit_code, 1);
   assert.match(first.child.output, /3 !== 4/);
   assert.equal(first.stock.dimensions.historical_integrity, "intact");
@@ -221,6 +226,7 @@ export async function checkBrowserSourceSuccessor(c, h, firstProof, firstAuthori
   const rootCompletion = path.join(c.legacyRoot, "completion-1.json");
   const historic = [rootReceipt, rootCompletion, rootStock].map(file => [file, readFileSync(file)]);
   c.prior = first.receipt;
+  h.progress?.("second_material_start");
   c.grantId = 12;
   c.commit(4);
   h.prepare(c, 2);
@@ -232,7 +238,7 @@ export async function checkBrowserSourceSuccessor(c, h, firstProof, firstAuthori
   const source = h.read(path.join(c.artifacts, p.source.artifact));
   source.reviewed_at = now();
   p.source = h.artifact(c, "source.json", source);
-  const corrected = await behavior(c);
+  const corrected = await (h.behavior ? h.behavior(c) : behavior(c));
   assert.equal(corrected.result.exit_code, 0);
   const focused = h.read(path.join(c.artifacts, p.focused.artifact));
   Object.assign(focused, {
@@ -243,6 +249,7 @@ export async function checkBrowserSourceSuccessor(c, h, firstProof, firstAuthori
     }]
   });
   p.focused = h.artifact(c, "focused.json", focused);
+  h.progress?.("second_material_complete");
   const target = browserReviewTarget(p), prepared = preparation(p);
   assert.equal(prepared.target, target);
   assert.equal(prepared.predecessor, first.receipt.integrity.content_fingerprint);
@@ -313,6 +320,7 @@ export async function checkBrowserSourceSuccessor(c, h, firstProof, firstAuthori
   assert.throws(() => preparation(q), /revision_browser_failure_invalid/);
   assert(!browserBindingMatches(first.receipt.inputs, changed.browser));
 
+  h.progress?.("preparation_controls_complete");
   // Independent commit review and subsequent linked grant are fixture records only.
   await delay(5);
   const originalReview = firstProof.authorization.contract_review;
@@ -358,7 +366,10 @@ export async function checkBrowserSourceSuccessor(c, h, firstProof, firstAuthori
   assert.throws(() => h.begin(c, proof, cap, { revisionInputs: changed }), /revision_authenticated_authority_required/);
   assert.throws(() => h.begin(c, proof, cap, { revisionLive: null }), /revision_current_preservation_unsafe/);
   assert.equal(tip().reviewed_revision_consumed, 1);
+  h.progress?.("authority_refusals_complete");
+  h.progress?.("second_execution_start");
   const second = await executeFixture(c, h, proof, cap, browserRecord, packages);
+  h.progress?.("second_execution_complete");
   assert.equal(second.child.result.exit_code, 0);
   assert.equal(second.stock.valid_deciding_evidence, true);
   assert.deepEqual(second.stock.issues, []);
@@ -372,6 +383,7 @@ export async function checkBrowserSourceSuccessor(c, h, firstProof, firstAuthori
   for (const [file, bytes] of historic) assert.deepEqual(readFileSync(file), bytes);
   withChangedBytes(rootCompletion, () => { assert.throws(tip, /revision_original_ledger_changed/); assert(!h.stock(c, second.receipt, cap)); });
   withChangedBytes(path.join(c.artifacts, p.originals.stock.artifact), () => assert(!h.stock(c, second.receipt, cap)));
+  h.progress?.("tail_refusals_complete");
   const exported = createPrivateReviewExport(second.receipt);
   assert(validReviewedRevisionAttempt(exported.attempt));
   assert(inspectPrivateReviewExport(exported).structurally_valid);
@@ -382,6 +394,7 @@ export async function checkBrowserSourceSuccessor(c, h, firstProof, firstAuthori
   altered.inputs.resources.find(r => r.protectedInstallation).before = changed.browser.installation;
   assert(inspectReceiptForDecision(finalizeReceipt(altered)).issues.includes("receipt_browser_installation_invalid"));
   assert.throws(() => createPrivateReviewExport(finalizeReceipt(altered)), /browser_installation_invalid/);
+  h.progress?.("export_complete");
   // A new grant, root and family cannot open a third slot via the generic route.
   c.prior = second.receipt; c.grantId = 13; c.commit(5); h.prepare(c);
   assert.throws(() => h.proof(c), /revision_browser_lineage_invalid/);

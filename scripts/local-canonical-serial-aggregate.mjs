@@ -1,4 +1,4 @@
-import {validProjectExperienceConnection} from "./project-experience-connection.mjs";
+import {orchestrationTokens, validProjectExperienceConnection} from "./project-experience-connection.mjs";
 import { parseBrowserUseLine } from "./local-canonical-browser-identity.mjs";
 import { digest } from "./local-canonical-inputs.mjs";
 import { inspectClassifiedEvidence } from "./local-canonical-receipt.mjs";
@@ -9,6 +9,36 @@ import { settledIsolatedResources } from "./local-canonical-browser-revision.mjs
 export const SERIAL_AGGREGATE_ROUTE = "serial-aggregate-budget-v1";
 export const isSerialAggregateRevision = p => p?.schema === "augnes.local-canonical-source-correction.v7" &&
   p.kind === "reviewed_revision" && p.commission?.route === SERIAL_AGGREGATE_ROUTE;
+// A material-source successor carries the original serial obligation, without
+// acquiring another invocation of that spent serial commission.
+export function validSerialInheritance(value) {
+  return value && Object.keys(value).sort().join(",") === "envelope_sha256,origin_attempt_id,origin_family_id,origin_number,origin_receipt_fingerprint,route" &&
+    value.route === SERIAL_AGGREGATE_ROUTE && value.envelope_sha256 === PROJECT_EXPERIENCE_COMMITMENT &&
+    /^[a-f0-9]{64}$/u.test(value.origin_family_id ?? "") && value.origin_number === 1 &&
+    typeof value.origin_attempt_id === "string" && value.origin_attempt_id.length > 0 &&
+    /^[a-f0-9]{64}$/u.test(value.origin_receipt_fingerprint ?? "");
+}
+export const hasSerialAccounting = p => isSerialAggregateRevision(p) ||
+  p?.schema === "augnes.local-canonical-source-correction.v7" && p.kind === "reviewed_revision" &&
+  p.commission?.source_revision === "material-source-correction-v1" && validSerialInheritance(p.commission.inherited_serial);
+export const serialInheritanceFrom = (previous, next) => isSerialAggregateRevision(previous) ? {
+  route:SERIAL_AGGREGATE_ROUTE,envelope_sha256:previous.commission.envelope_sha256,
+  origin_family_id:next.prior_family_id,origin_number:next.prior_number,
+  origin_attempt_id:next.prior_attempt_id,origin_receipt_fingerprint:next.prior_receipt_fingerprint,
+} : previous?.commission?.inherited_serial ?? null;
+export function inheritedSerialAuthorityScope(p, body) {
+  const value=p.commission?.inherited_serial;
+  return value === undefined || validSerialInheritance(value) && [
+    "Inherited serial envelope: " + value.envelope_sha256, value.route, value.origin_family_id,
+    value.origin_attempt_id, value.origin_receipt_fingerprint, SERIAL_HISTORY,
+  ].every(text=>body.includes(text));
+}
+export function verifyInheritedSerialConnection(p,git) {
+  if(p.commission?.inherited_serial && !validProjectExperienceConnection(
+    git(["show",p.head+":scripts/run-canonical-test-suite.mjs"]).toString(),
+    git(["show",p.head+":scripts/run-local-canonical-verification.mjs"]).toString()))
+    refuse("revision_inherited_serial_connection_invalid");
+}
 const equal = (a,b) => a !== undefined && b !== undefined && digest(a) === digest(b);
 const refuse = code => { throw Object.assign(new Error(code), { code }); };
 export const SERIAL_HISTORY = "Original timeout, false stock, interrupted child UNKNOWN and all earlier lineage remain unchanged.";
@@ -34,27 +64,37 @@ export function serialAuthorityScope(p, review, grant) {
 // Parse the closed pre-envelope declaration, never execute historical source.
 // Unsupported registration forms need their own reviewed reader, not a guess.
 export function legacySerialChildren(source) {
-  const names = ["projectExperienceStep","projectClientBrowserStep","webPlanningBrowserStep"];
-  if (!/"e2e-project-experience":\s*\[\s*\{\s*\.\.\.projectExperienceStep\s*\},\s*\{\s*\.\.\.projectClientBrowserStep\s*\},\s*\{\s*\.\.\.webPlanningBrowserStep\s*\}\s*\]/u.test(source))
+  const names = ["projectExperienceStep","projectClientBrowserStep","webPlanningBrowserStep","webPlanningDraftSafetyStep"];
+  const tokens = orchestrationTokens(source);
+  const registration = orchestrationTokens('"e2e-project-experience": [' + names.map(name => '{ ...' + name + ' }').join(', ') + ']');
+  if (tokens.filter((_,i) => registration.every((v,j) => tokens[i+j] === v)).length !== 1)
     refuse("serial_original_inventory_unreadable");
-  return names.map((name,index) => {
-    let body = source.match(new RegExp(`const ${name} = \\{([\\s\\S]*?)\\n\\};`))?.[1];
+  const children = [];
+  for (const [index,name] of names.entries()) {
+    let body = source.match(new RegExp(`const ${name} = \{([\\s\\S]*?)\\n\};`))?.[1];
     if (!body) refuse("serial_original_inventory_unreadable");
     const take = (pattern, convert = v => v) => {
       const match = body.match(pattern); if (!match) refuse("serial_original_inventory_unreadable");
       body = body.replace(match[0], ""); return convert(match[1]);
     };
-    const child = {
-      id:take(/id:\s*("[^"]+"),/u,JSON.parse), group:take(/group:\s*("[^"]+"),/u,JSON.parse),
-      requirements:take(/requirements:\s*(\[[\s\S]*?\]),/u,v => JSON.parse(v.replace(/,\s*\]/gu,"]"))),
-      label:take(/label:\s*("[^"]+"),/u,JSON.parse),
-      args:["--import","tsx",take(/\.\.\.rootNode\(("[^"]+")\),/u,JSON.parse)],
+    let child;
+    if (index === 3) {
+      take(/(\.\.\.webPlanningBrowserStep),/u);
+      child = { ...children[2] };
+    } else {
+      child = { group:take(/group:\s*("[^"]+"),/u,JSON.parse),
+        requirements:take(/requirements:\s*(\[[\s\S]*?\]),/u,v => JSON.parse(v.replace(/,\s*\]/gu,"]"))),
+        requireNaturalExit:take(/requireNaturalExit:\s*(true),/u,v => v === "true") };
+    }
+    Object.assign(child, {
+      id:take(/id:\s*("[^"]+"),/u,JSON.parse), label:take(/label:\s*("[^"]+"),/u,JSON.parse),
+      args:["--import","tsx",...take(/\.\.\.rootNode\(("[^"]+"(?:,\s*"[^"]+")*)\),/u,v => JSON.parse('['+v+']'))],
       timeoutMs:take(/timeoutMs:\s*([0-9_]+),/u,v => Number(v.replaceAll("_",""))),
-      requireNaturalExit:take(/requireNaturalExit:\s*(true),/u,v => v === "true"),
-    };
+    });
     if (body.trim() || !equal(child,PROJECT_EXPERIENCE_SERIAL.children[index])) refuse("serial_original_inventory_changed");
-    return child;
-  });
+    children.push(child);
+  }
+  return children;
 }
 
 export function verifySerialAggregateRemedy(p, prior, focused, {parse,bytes,git}) {
@@ -71,9 +111,9 @@ export function verifySerialAggregateRemedy(p, prior, focused, {parse,bytes,git}
       output.contract!=="serial-aggregate-budget-controls.v1" || output.synthetic_only!==true || output.cleanup_complete!==true ||
       !equal(output.old,{result:"interrupted",cleanup_complete:true,completed_children:2,interrupted_child:"web-planning-browser",still_eligible:true}) ||
       !equal(output.controls,["child_failure","child_timeout","forced_cleanup","incomplete_cleanup","coordinator_excess","inventory_mismatch","no_child_borrowing","settlement_excess","parent_ipc","caller_connection"]) ||
-      output.corrected?.commitment!==PROJECT_EXPERIENCE_COMMITMENT || output.corrected.complete!==true || output.corrected.completed_children!==3 ||
-      output.corrected.failure_code!==null || output.corrected.execution_ms?.length!==3 || output.corrected.execution_ms.some((n,i)=>!Number.isFinite(n)||n<=0||n>PROJECT_EXPERIENCE_SERIAL.children[i].timeoutMs) ||
-      output.corrected.natural_settlement_ms?.length!==3 || output.corrected.natural_settlement_ms.some(n=>!Number.isFinite(n)||n<0||n>10000) ||
+      output.corrected?.commitment!==PROJECT_EXPERIENCE_COMMITMENT || output.corrected.complete!==true || output.corrected.completed_children!==PROJECT_EXPERIENCE_SERIAL.children.length ||
+      output.corrected.failure_code!==null || output.corrected.execution_ms?.length!==PROJECT_EXPERIENCE_SERIAL.children.length || output.corrected.execution_ms.some((n,i)=>!Number.isFinite(n)||n<=0||n>PROJECT_EXPERIENCE_SERIAL.children[i].timeoutMs) ||
+      output.corrected.natural_settlement_ms?.length!==PROJECT_EXPERIENCE_SERIAL.children.length || output.corrected.natural_settlement_ms.some(n=>!Number.isFinite(n)||n<0||n>10000) ||
       !Number.isFinite(output.corrected.coordinator_ms) || output.corrected.coordinator_ms<0 || output.corrected.coordinator_ms>30000 ||
       output.corrected.envelope_elapsed_ms!==projectExperienceElapsed(output.corrected))
     refuse("serial_control_behavior_invalid");
@@ -83,6 +123,66 @@ export function verifySerialAggregateRemedy(p, prior, focused, {parse,bytes,git}
     refuse("serial_owning_contract_unconnected");
   if (git(["diff","--ignore-all-space","--ignore-blank-lines",prior.head,p.head,"--",owners[2],owners[3]]).length===0)
     refuse("serial_owning_contract_unchanged");
+}
+
+// A capped phase file cannot prove absence of a later child result. Require the
+// complete original wrapper capture, bound separately to its physical file,
+// and recover only this parent's uniquely delimited output. Never change the
+// receipt's truncation flag or accept a caller-selected excerpt as completeness.
+export function serialIncidentLog(incident, original, capped, bytes) {
+  const phase = original.phases.find(v => v.id === "e2e-project-experience");
+  if (!phase.log.truncated) {
+    if (incident.capture || incident.capture_identity) refuse("serial_capture_unexpected");
+    return capped.toString();
+  }
+  const capture = bytes(incident.capture, 8*1024*1024), text = capture.toString();
+  if (phase.log.bytes !== 2*1024*1024 || !Buffer.from(text).equals(capture) ||
+      !equal(incident.capture_identity, {path:incident.capture_identity?.path,bytes:capture.length,sha256:digest(capture)}))
+    refuse("serial_capture_identity_invalid");
+  const prefix = `[canonical:local-${original.evidence.mode}] `;
+  const label = 'label="Canonical project experience Browser owner"';
+  const lines = text.split(/(?<=\n)/u);
+  const unique = value => {
+    const matches = lines.flatMap((line,i) => line.startsWith(value) ? [i] : []);
+    if (matches.length !== 1) refuse("serial_capture_boundary_invalid");
+    return matches[0];
+  };
+  const start = unique(prefix + "child_start " + label + " ");
+  const phaseStart = unique("[local-canonical] phase_start id=e2e-project-experience timeout_ms=480000\n");
+  const spawn = unique(prefix + "child_spawn " + label + " ");
+  const end = unique(prefix + "child_result " + label + " ");
+  if (start !== phaseStart+1 || spawn !== start+1 || end <= spawn ||
+      lines[start] !== prefix + "child_start " + label + " timeout_ms=480000\n" ||
+      !/^pid=[1-9]\d* wait=process_exit\n$/u.test(lines[spawn].slice((prefix+"child_spawn "+label+" ").length)) ||
+      lines[end] !== prefix + "child_result " + label + ` duration_ms=${phase.duration_ms} exit_code=null signal=SIGTERM timed_out=true exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=bounded_timeout\n`)
+    refuse("serial_capture_boundary_invalid");
+  const receipt = unique(`[local-canonical] receipt=.augnes-local-verification/receipts/${original.run.id}.json fingerprint=${original.integrity.content_fingerprint}\n`);
+  const phaseResult = unique(`[local-canonical] phase_result id=e2e-project-experience status=failure duration_ms=${phase.duration_ms}\n`);
+  const final = unique("[local-canonical] final result=failure deciding=false duration_ms=");
+  if (phaseResult !== end+1 || receipt !== phaseResult+4 || final !== receipt+1 || final !== lines.length-1 ||
+      lines[phaseResult+1] !== "[local-canonical] failure phase=e2e-project-experience code=phase_timed_out\n" ||
+      lines[phaseResult+2] !== "[local-canonical] cleanup_start\n" ||
+      lines[phaseResult+3] !== "[local-canonical] cleanup_result completed=true remaining_owned_processes=0 generated_next_present_after_execution_cleanup=false generated_next_present_after_service_restore=false generated_windows_helper_present=false\n" ||
+      lines[final] !== `[local-canonical] final result=failure deciding=false duration_ms=${original.run.duration_ms}\n` ||
+      lines.some((line,i) => (i<=spawn || i>=end) && line.startsWith("[canonical:e2e-project-experience] ")) ||
+      !equal(text.split("\n").map(parseBrowserUseLine).filter(Boolean),original.phases.flatMap(v=>v.browser_use ?? [])))
+    refuse("serial_capture_boundary_invalid");
+  const phaseLines = [], outer = []; let lastElapsed = 0;
+  for (const line of lines.slice(spawn+1,end)) {
+    if (!line.startsWith(prefix)) { phaseLines.push(line); continue; }
+    const rest = line.slice(prefix.length);
+    const elapsed = Number(rest.match(/ elapsed_ms=(\d+) /u)?.[1]);
+    if (!Number.isSafeInteger(elapsed) || elapsed < lastElapsed || elapsed > phase.duration_ms) refuse("serial_capture_boundary_invalid");
+    lastElapsed = elapsed;
+    if (rest.startsWith("child_active "+label+" ") && /^elapsed_ms=\d+ timeout_ms=480000 exit_observed=false stdout_closed=false stderr_closed=false wait=process_exit\n$/u.test(rest.slice(("child_active "+label+" ").length))) continue;
+    if (rest.startsWith("child_cleanup_start "+label+" ") && elapsed >= 480000 && /^elapsed_ms=\d+ reason=bounded_timeout exit_observed=false stdout_closed=false stderr_closed=false\n$/u.test(rest.slice(("child_cleanup_start "+label+" ").length))) outer.push("start");
+    else if (rest.startsWith("child_cleanup_result "+label+" ") && /^elapsed_ms=\d+ reason=bounded_timeout streams_closed=true remaining_owned_processes=0\n$/u.test(rest.slice(("child_cleanup_result "+label+" ").length))) outer.push("result");
+    else refuse("serial_capture_boundary_invalid");
+  }
+  const log = phaseLines.join("");
+  if (!equal(outer,["start","result"]) || Buffer.byteLength(log) <= capped.length || !Buffer.from(log).subarray(0,capped.length).equals(capped))
+    refuse("serial_capture_prefix_invalid");
+  return log;
 }
 
 // Full originals are mandatory here. A sanitized export only carries the
@@ -115,7 +215,7 @@ export function readSerialAggregateIncident(p, original, prior, completion, { pa
       phase.exit_status !== null || phase.spawn_error_code !== null || phase.duration_ms < deadline ||
       phase.cleanup?.termination_reason !== "bounded_timeout" || phase.cleanup.completed !== true ||
       phase.cleanup.remaining_owned_processes !== 0 || !phase.cleanup.exit_observed || !phase.cleanup.streams_closed ||
-      phase.log?.truncated !== false) refuse("serial_parent_interruption_unproven");
+      ![true,false].includes(phase.log?.truncated)) refuse("serial_parent_interruption_unproven");
   for (let i=0;i<original.phases.length;i++) {
     const v=original.phases[i];
     if (i<at && (v.status!=="pass" || v.exit_status!==0 || v.timed_out!==false || v.failure_code!==null ||
@@ -128,14 +228,18 @@ export function readSerialAggregateIncident(p, original, prior, completion, { pa
     if (v.head_sha !== null && v.head_sha !== prior.head || v.base_sha !== null && v.base_sha !== original.repository.base_sha)
       refuse("serial_phase_source_invalid");
   }
-  const logBytes = bytes(incident.log, 4*1024*1024), log = logBytes.toString();
+  const logBytes = bytes(incident.log, 4*1024*1024);
   if (logBytes.length !== phase.log.bytes || !equal(incident.log_identity,{relative_path:phase.log.relative_path,bytes:phase.log.bytes,sha256:digest(logBytes)}))
     refuse("serial_log_identity_invalid");
+  const log = serialIncidentLog(incident, original, logBytes, bytes);
   if (!equal(log.split("\n").map(parseBrowserUseLine).filter(Boolean),phase.browser_use)) refuse("serial_log_browser_disagreement");
   const starts = [...log.matchAll(/^\[canonical:e2e-project-experience\] child_start label=("[^"]+") timeout_ms=(\d+)$/gmu)];
   const results = [...log.matchAll(/^\[canonical:e2e-project-experience\] child_result label=("[^"]+") duration_ms=(\d+) exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit$/gmu)];
   const allResults = [...log.matchAll(/^\[canonical:e2e-project-experience\] child_result /gmu)];
   const interruptedLabel = JSON.stringify(serial.children[2].label);
+  if (serial.children.slice(3).some(child => log.split("\n").some(line =>
+      line.startsWith("[canonical:e2e-project-experience] ") && line.includes(`label=${JSON.stringify(child.label)} `))))
+    refuse("serial_following_child_observed");
   if (log.split("\n").some(line => line.startsWith("[canonical:e2e-project-experience] ") &&
       line.includes(`label=${interruptedLabel} `) && /\b(?:child_exit|child_cleanup_start|child_cleanup_result|child_result)\b/u.test(line)))
     refuse("serial_interrupted_child_already_settling");
@@ -164,6 +268,7 @@ export function readSerialAggregateIncident(p, original, prior, completion, { pa
     refuse("serial_owning_contract_unchanged");
   return {contract:SERIAL_AGGREGATE_ROUTE,predecessor:p.prior_receipt_fingerprint,source:incident.source,
     phase_inventory:original.inputs.binding.phase_inventory,log_sha256:digest(logBytes),
+    ...(incident.capture ? {capture_sha256:incident.capture.sha256,complete_phase_log_sha256:digest(log)} : {}),
     completed_children:2,interrupted_child:serial.children[2].id,interrupted_outcome:"UNKNOWN",
     remaining_upper_bound_ms:remaining,envelope_sha256:PROJECT_EXPERIENCE_COMMITMENT};
 }

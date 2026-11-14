@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { checkReportSaveSettlement } from "./work-expectation-report-browser-checks.mjs";
 import { checkPreparationStay, checkPreparationPreviewResponse, checkPreparationSaveResponse, nativePreparationBrowser } from "./native-work-preparation-browser-checks.mjs";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
@@ -64,7 +65,7 @@ await runOperatorExecutionBrowserChildV1({
       await lifecycle.navigate(resultUrl);
       await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="unassessed"]') !== null`, "normal result consumer has original expectation");
       assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-expectation-comparison="unassessed"]').getBoundingClientRect().height > 0`), true, "The comparison is visible in normal result review");
-      await reportBrowserExpectation(lifecycle, "unsatisfied", "This exact result did not establish the criterion.");
+      await checkReportSaveSettlement(lifecycle, reportBrowserExpectation, "unsatisfied", "This exact result did not establish the criterion.", completedReceipt.receipt_id);
       await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="match"]') !== null`, "expected criterion failure matches without task success");
       assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-task-success-status="satisfied"]') === null`), true);
       await reportBrowserExpectation(lifecycle, "satisfied", "R2_REPORT_ONLY_RESELECT: Correction: the operator now attests that the criterion was met.");
@@ -141,6 +142,44 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-sources] [role="status"]')?.textContent.includes('2 selected')`, 'explicit report and original conditions selection');
   await clickSelector(lifecycle, '[data-reviewed-outcome-action="author"]');
   assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('#selected-note-source').value.startsWith('New authored note based on ')`), true, 'Edited reuse is authored material, not an unchanged saved report');
+  await clickSelector(lifecycle, '[data-selected-source-action="clear-draft"]');
+  const unfinished = { source: 'Unadded source and revision', time: '2026-11-09T09:30', provenance: 'derived_interpretation', kind: 'Open question', text: 'Complete unfinished note, including its attribution and time.' };
+  for (const [field, value] of Object.entries(unfinished)) await lifecycle.setFormControlValue('#selected-note-' + field, value);
+  const noteFields = `Object.fromEntries(['source','time','provenance','kind','text'].map(field=>[field,document.querySelector('#selected-note-'+field).value]))`;
+  // Confirmation is owned here; the pinned preparation probes remain strictly
+  // beforeunload-only. This listener is inert outside an explicit expectation.
+  const noteDialogs = [];
+  let pendingConfirmation = null;
+  lifecycle.cdp().on(event => {
+    if (!pendingConfirmation || event.method !== "Page.javascriptDialogOpening") return;
+    const pending = pendingConfirmation; pendingConfirmation = null;
+    noteDialogs.push(event.params);
+    void lifecycle.cdp().send("Page.handleJavaScriptDialog", { accept: pending.accept })
+      .then(() => pending.resolve(event.params), pending.reject);
+  });
+  async function expectNoteConfirmation(accept) {
+    assert.equal(pendingConfirmation, null);
+    let timer;
+    const dialog = new Promise((resolve, reject) => {
+      pendingConfirmation = { accept, resolve, reject };
+      timer = setTimeout(() => reject(new Error("Note replacement confirmation missing")), 10000);
+    });
+    try {
+      const [, event] = await Promise.all([clickSelector(lifecycle, '[data-reviewed-outcome-action="author"]'), dialog]);
+      assert.equal(event.type, "confirm");
+    } finally { clearTimeout(timer); pendingConfirmation = null; }
+  }
+  try {
+    await expectNoteConfirmation(false);
+    assert.deepEqual(await lifecycle.evaluate(noteFields), unfinished, 'H8 cancellation preserves every unfinished React field');
+    await expectNoteConfirmation(true);
+    const replacement = await lifecycle.evaluate(noteFields);
+    assert.match(replacement.source, /^New authored note based on /);
+    assert.equal(replacement.time, '');assert.equal(replacement.provenance, 'user_declaration');
+    assert.notEqual(replacement.text, unfinished.text);
+    assert.equal(noteDialogs.length, 2);
+    console.log(JSON.stringify({ native_unfinished_note: { cancelled_fields_preserved: Object.keys(unfinished), explicit_replacement: true, empty_draft_use: true, actual_react: true, actual_browser_dialogs: noteDialogs.length } }));
+  } finally { pendingConfirmation = null; }
   await clickSelector(lifecycle, '[data-selected-source-action="clear-draft"]');
   const preparationBrowser = { cdp: lifecycle.cdp(), evaluate: lifecycle.evaluate, waitForCondition: lifecycle.waitForCondition, projectId };
   await checkPreparationStay(preparationBrowser);
@@ -251,7 +290,7 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   assert.notEqual(finalForecast.packet_ref.external_id, b1Forecast.packet_ref.external_id);
   assert.equal(readExpectationState(fixture.writable_database_path, projectId).runs, 1, 'Authoring and revision create no execution');
   await lifecycle.navigate(`${appOrigin}/projects/${encodeURIComponent(projectId)}`);
-  await lifecycle.waitForCondition(`document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"][data-blank-state-project-management-hydrated="true"]') !== null`, 'hydrated B2 Project Home');
+  await lifecycle.waitForCondition(`document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"][data-blank-state-project-management-hydrated="true"]') !== null`, 'hydrated B2 Project Home', undefined, { observe_project_home_readiness: true });
   await openProjectOptions(lifecycle);
   await clickSelector(lifecycle, '[data-direct-host-action="deterministic"]');
   await lifecycle.waitForCondition(`document.querySelector('[data-direct-host-round-trip-status="completed"], [data-direct-host-round-trip-status="error"]') !== null`, 'normal B2 deterministic execution');

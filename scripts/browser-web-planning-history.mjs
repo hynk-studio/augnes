@@ -28,12 +28,7 @@ export async function browserRetainedNotes({a,click,set,settled,saved,wait,check
      await wait(()=>a.eval("$('notes').children.length===3"),'keyboard historical selection and dependency');
      assert(await a.eval(`${card}.querySelector('button').disabled`));
    }else{
-     await a.eval(`(()=>{const section=${card}.querySelector('textarea').closest('details');section.open=true;section.querySelector('textarea').value=${JSON.stringify(follow)};section.querySelector('button').scrollIntoView({block:'center'});})()`);
-     const point=await a.eval(`(()=>{const r=${card}.querySelector('textarea').closest('details').querySelector('button').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
-     await a.send('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:1});
-     await a.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[point]});await a.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-     await wait(()=>a.eval("$('notes').children.length===4"),'touch adaptation');
-     await a.send('Emulation.setTouchEmulationEnabled',{enabled:false});
+     await touchRetainedNote(a,card,follow,wait,width,height);
    }
  }
  await wait(()=>a.eval("$('draft-capacity').dataset.state==='fits'"),'historical selection capacity');
@@ -50,6 +45,45 @@ export async function browserRetainedNotes({a,click,set,settled,saved,wait,check
  await a.send('Emulation.clearDeviceMetricsOverride');
  checks.push('library reading: r1 terms excluded at r2, continued at r3, desktop keyboard exact reuse and required credit, 390px touch authored adaptation; preserved unrelated draft and reopened r4');
  return after.work_id;
+}
+
+async function touchRetainedNote(page, card, follow, wait, width, height) {
+  await page.send('Inspector.enable');
+  await page.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+  const frame = async () => (await page.send('Page.getFrameTree')).frameTree.frame;
+  const documentState = `({width:innerWidth,height:innerHeight,visible:document.visibilityState==='visible',
+    same_origin:location.origin===${JSON.stringify(page.origin)},touch_points:navigator.maxTouchPoints})`;
+  const valid = state => state.width === width && state.height === height && state.visible && state.same_origin && state.touch_points === 1;
+  const initial = await frame();
+  assert.equal(new URL(initial.url).origin, page.origin);
+  await page.eval(`(()=>{
+    const section=${card}.querySelector('textarea').closest('details');
+    section.open=true;
+    section.querySelector('textarea').value=${JSON.stringify(follow)};
+    section.querySelector('button').scrollIntoView({behavior:'instant',block:'center'});
+  })()`);
+  let context;
+  await wait(async () => {
+    context = await page.eval(`(()=>{
+      const button=${card}?.querySelector('textarea')?.closest('details')?.querySelector('button');
+      const bounds=button?.getBoundingClientRect();
+      const point=bounds&&{x:bounds.x+bounds.width/2,y:bounds.y+bounds.height/2};
+      const hit=!!point&&!!button&&!button.disabled&&button.contains(document.elementFromPoint(point.x,point.y));
+      return {...${documentState},point,hit};
+    })()`);
+    return valid(context) && context.hit;
+  }, 'history touch target ready');
+  const { point, ...ready } = context;
+  console.log(JSON.stringify({ web_planning_history_touch: { stage: 'ready', target_id: page.targetId, ...ready } }));
+  await page.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+  await page.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await wait(() => page.eval("$('notes').children.length===4"), 'touch adaptation');
+  const final = await frame(), after = await page.eval(documentState);
+  const sameDocument = final.id === initial.id && final.loaderId === initial.loaderId;
+  assert(sameDocument && valid(after), 'history touch stayed on the intended document and viewport');
+  console.log(JSON.stringify({ web_planning_history_touch: { stage: 'settled', target_id: page.targetId,
+    ...after, same_document: sameDocument, adaptation_observed: true } }));
+  await page.send('Emulation.setTouchEmulationEnabled', { enabled: false });
 }
 
 export async function browserHistoryJourney({a,debug,origin,page,click,set,settled,saved,wait,navigate,restart,checks}){

@@ -71,8 +71,8 @@ export function validProjectExperienceConnection(suiteSource,parentSource) {
     const s=reader(suiteSource),p=reader(parentSource);
     return s.unique('import { createProjectExperienceBudget, projectExperienceBudgetEvent, projectExperienceSteps, runProjectExperienceChildren } from "./project-experience-serial-budget.mjs";',i=>s.scopes[i].length===0) &&
       p.unique('import { PROJECT_EXPERIENCE_ENVELOPE_MS, PROJECT_EXPERIENCE_SERIAL, PROJECT_EXPERIENCE_COMMITMENT, runProjectExperienceParent } from "./project-experience-serial-budget.mjs";',i=>p.scopes[i].length===0) &&
-      s.unique("const [projectExperienceStep, projectClientBrowserStep, webPlanningBrowserStep] = projectExperienceSteps(repoRoot);",i=>s.scopes[i].length===0) &&
-      s.unique('"e2e-project-experience": [{ ...projectExperienceStep }, { ...projectClientBrowserStep }, { ...webPlanningBrowserStep }]',i=>s.scopes[i].length===1&&s.tokens.slice(s.scopes[i][0]-3,s.scopes[i][0]).join(" ")==="const suites =") &&
+      s.unique("const [projectExperienceStep, projectClientBrowserStep, webPlanningBrowserStep, webPlanningDraftSafetyStep] = projectExperienceSteps(repoRoot);",i=>s.scopes[i].length===0) &&
+      s.unique('"e2e-project-experience": [{ ...projectExperienceStep }, { ...projectClientBrowserStep }, { ...webPlanningBrowserStep }, { ...webPlanningDraftSafetyStep }]',i=>s.scopes[i].length===1&&s.tokens.slice(s.scopes[i][0]-3,s.scopes[i][0]).join(" ")==="const suites =") &&
       s.unique('const serialController = suiteName === "e2e-project-experience" ? new AbortController() : null;',i=>s.scopes[i].length===0) &&
       s.unique('const serialBudget = serialController ? createProjectExperienceBudget({ startedAt: 0, onFailure: () => serialController.abort(), }) : null;',i=>s.scopes[i].length===0) &&
       s.unique("else if (serialBudget) { completedResults = await runProjectExperienceChildren({ steps: preparedSteps, root: repoRoot, signal: serialController.signal, emit: emitSerial }); }",s.moduleTry) &&

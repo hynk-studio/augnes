@@ -35,6 +35,53 @@ use current ordinary authority for its own qualification. Adopting this proposal
 or renewing #1612 requires the final separate review decision; no maturity,
 merge or installed-adoption claim follows from preparing the path.
 
+For the verifier-lifecycle continuation, measure the complete registered synthetic
+fixture rather than attributing its timeout to actual Browser work. Natural
+development passes retain that meaning; they do not explain the historical
+interruption. Exercise genuine Next dev setup, registered typegen/typecheck and
+build, including natural failure/stop before build and a fresh-process reader.
+Separate actual producer records from structural refusals and from disposable
+physical attempt/completion controls. A checksum alone is not authentic lineage.
+Generated content, safe file identity, supported writer interval, exact command,
+invocation and environment all remain necessary. A preparation, acceptance or
+grant is not a qualification result, and a new commission cannot erase spent
+history or acquire a retry by failing.
+
+### Branch-local TS capture evidence
+
+For the #1612 compatibility candidate, distinguish structural reader fixtures
+from actual focused execution. RED uses the entire prior helper; GREEN uses
+the accepted corrected helper, with the same candidate driver, scheduler and
+collector. Check the complete effective Git catalogue on disk before and after
+each naturally settled child, and acquire actual v2 root dependency observations
+on both sides of each execution. The four dependency identities must agree and
+trace to successful clean preparation. Later scans cannot backfill old runs.
+
+The fixture must preserve response semantics and native exceptions. Its one
+shared pending response must produce a genuine prior failure and the corrected
+wait/absence/release plus downstream replacement-owner assertions. Cleanup
+release is not successful boundary release. Test traversal, source substitution,
+wrong runtime/command, unsafe artifacts, dependency drift and incomplete natural
+settlement through the actual reader. Keep the original unknown interval,
+failures, false stocks and consumed ordinals intact. Focused evidence and this
+amended reader cannot qualify their own implementation; Full, fresh stock and
+receiving acceptance remain distinct later decisions under existing authority.
+
+### Current observation at reviewed admission
+
+Exercise delayed immutable validation through the production reader and native
+clock: a previously acquired observation can expire, while acquisition after
+that validation reaches the reservation boundary. Synthetic near-deadline
+observations are structural controls, not actual Companion or causal product
+evidence. Also delay later blocking checks to prove they cannot escape the same
+60-second guard. Cover failed/future/stale/incoherent observations, changed
+proof/material/source/runtime/authority, unsafe candidate paths, lost ownership,
+changed physical tip, cancellation, exclusive reservation and replay. Preparation
+must remain non-reserving. Stock must independently reject current dependency or
+source changes and expired observations. Retain the r8 pre-reservation refusal,
+false stock and all earlier consumed history; passing these controls cannot
+retroactively validate any earlier run or grant another invocation.
+
 ## Maturity model
 
 | Level | Name | Required evidence |
@@ -230,6 +277,28 @@ Do not invent accepted follow-up where ownership or delivery remains unknown.
 Include missed issues, false alerts, unnecessary interference and primary-task
 delay, not only correctly noticed problems.
 
+When authority-ambiguity or policy-conflict behavior is changed or claimed,
+exercise a bounded interrupted-work case through supported entry, result and
+continuation owners. Separate the observed notice, its asserted source and
+actually verified authority and scope; unknown provenance or scope stays unknown.
+Distinguish an affected-action hold, recipient's adoption rejection,
+provider/executor refusal and actual grant revocation. None by itself proves user
+fault or a project-wide prohibition, or permits bypassing a genuine restriction.
+
+Observe which work must remain held, whether unaffected independently authorized
+work actually continues, and the next authorized recipient and resumption
+condition where known. An applicable wider restriction or revoked authority
+requires continued non-execution within that scope, not a workaround rewarded as
+completion. Keep diagnosis within the existing approved resource limits and ask
+whether another permitted check can change the next decision; repeated
+restatement without new evidence is not resolution.
+Preserve unresolved ambiguity through the existing hold/escalation path.
+Supported resumption rechecks current authority and unresolved effects;
+escalation does not renew a grant or authorize replay. Report checked outcomes,
+remaining responsibility, diagnostic/coordination cost and primary-task delay.
+A scripted case establishes only its exercised path, not general enforcement or
+autonomous judgment.
+
 Where negotiating or challenging a counterpart matters, contrast unsupported
 pressure with valid new evidence or a change made by the authority responsible
 for the terms. Separate current hard acceptance/authority boundaries from
@@ -265,6 +334,36 @@ failure or clarification delay. Evaluate missing decision-critical information
 and repeated detail requests alongside useful completion and total burden.
 These are conditional evaluation questions, not a new schema, disclosure gate
 or blanket study allocation.
+
+#### Conditional case: useful communication during unfinished work
+
+For [03's s³-motivated question](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#contribution-and-undertaking-follow-through--2026-10-20),
+select an actual task where a finding can affect another contribution before
+its next material action. Use the supported execution path and existing
+source/result/use records. Distinguish a decision-relevant report's availability,
+delivery or observed reading, the recipient's next action and the checked joint
+outcome; delivery or quotation alone does not establish useful uptake.
+
+Distinguish announced exploration, observed findings and tentative exclusions.
+"Not found" supports only the examined scope. Where premature exclusion is
+material, apply the existing [correction-uptake contrast](#conditional-case-repeated-derivatives-and-correction-uptake)
+to a mistaken report and its supported correction. Observe whether affected
+work changes while valid findings and necessary independent checks remain.
+Count avoidable repeated work separately from deliberate corroboration.
+
+For a communication claim, compare useful during-work updates with independent
+attempts plus final integration, keeping relevant capability, source access and
+the aggregate team resource ceiling comparable. Hold the initial task split
+and other interaction rules fixed when attributing a timing effect, or disclose
+the differences. Retain a strong direct/adaptive-memo alternative when the
+question is whether teaming adds value. Select only contrasts needed for that
+claim; use [total-burden accounting](#cost-and-user-burden), including receiver
+processing, integration and human relay. Per-agent allowances or message-call
+counts alone do not establish equal cost or savings.
+
+Use these observations to retain, revise, simplify or stop the method. Any
+later-task reuse claim follows the existing #1373 conditions and comparison
+rules; within-task cooperation alone does not establish accumulated capability.
 
 ### Strategic operating-profile evidence
 
@@ -595,6 +694,117 @@ recorded email control only; owner-reported checks are not independent acceptanc
 Exact final qualification, immutable failures and cleanup belong to the PR and
 private evidence record. Existing native and #1587 observations are preserved,
 not repeated or promoted into evidence for this new permission boundary.
+
+### Selected public request evidence (#1641)
+
+The bounded public-request claim needs an unprivileged reader to recover the
+actual project's selected purpose, concrete need/reason, attributed issuer,
+exact source/version and truthful return requirements. Compare human and agent
+representations, including status and limits. A rendered page alone is not a
+verified need, submission permission or transport integration.
+
+The [focused D1 checks](../../scripts/web-planning-public-request-checks.mjs)
+exercise the existing project/request/grant writers, selective disclosure,
+scope/CSRF/currentness refusal, immutable public material, exact-key response-loss
+reconciliation, revocation/expiry/erasure and reconstruction. The return case
+uses a separately authenticated controlled participant, then the ordinary origin
+writer for actual adapted output and permitted shared feedback. These fixture
+identities do not establish an independently operated outsider.
+
+The [deterministic publication-client checks](../../scripts/test-web-planning-publication-client.mjs)
+cover pending-operation IDs, read-only resolution, no duplicate after confirmed
+creation, access-loss cleanup and unsaved disclosure selection. They are not a
+real-browser observation. Report blocked D1/build/type/browser checks as blocked,
+not inferred passes from syntax, pure client checks or a SQLite migration test.
+Existing final-target verification and cleanup owners remain unchanged.
+
+Source readiness, separately authorized production publication, an actual return,
+checked use, executor replacement and voluntary repeat participation retain
+separate evidence. This public projection alone does not satisfy #1642's
+producer-to-transport-to-consumer integration or demonstrate economic demand.
+
+### Cross-project contribution evidence (#1630)
+
+Require independently owned A/B projects to complete deliberate request sharing,
+permitted original read, B-owned preparation, attributable selected return,
+checked saved use/adaptation and deliberately shared feedback through actual
+writers. Include partial use and a declined contribution or useful reframing;
+B must retain its legitimate work and save a meaningful next step in a fresh
+session independently of A's decision. Separate copied source bytes, authored
+output, reported checking, saved use, disclosure and independent acceptance.
+
+The [D1/client checks](../../scripts/web-planning-contribution-checks.mjs) exercise
+source/destination binding, edited setups, exact BOM/line-ending bytes, unknown
+acknowledgements, no duplicate effect, feedback privacy, revocation and portable
+reconstruction. Controlled barriers at the real D1 batch boundary check revoked
+retention and a changed B source before return. The [ordinary Browser journey](../../scripts/browser-web-planning-contributions.mjs)
+uses separate sign-ins and actual forms, retained work editing, committed-response
+loss, partial adapted use and fresh-session continuation. Existing owner/W1 and
+succession coverage remains in the complete Web owners; new work does not renew
+another candidate's qualification allowance.
+
+These controlled principals and scripted judgments establish bounded behavior,
+not hosted independent adoption, model understanding, independent source review,
+market demand or comparative benefit. Report source identity, actual checks and
+cleanup, failures/UNKNOWN, cumulative setup/checking burden, limits and the next
+decision separately from final-target Local Canonical qualification.
+
+### Scoped Web successor evidence (#1628)
+
+The bounded successor claim requires a different authenticated sign-in to read
+an explicitly shared work, understand its recorded purpose/source basis and
+unfinished obligation, and save a useful attributed next action. Current writer
+identity must not rewrite prior authorship or inherit owner credentials. A new
+browser/session must retain the cumulative grant limit and reconcile uncertain
+writes before replacement. Revocation racing a preauthorized write must refuse
+at the actual INSERT; denied identities cannot use an ordinary owner endpoint
+to bypass the role. Completed records and unresolved obligations remain readable
+to the owner. Export/reconstruction retains their exact bytes while ending live
+grants, including when another project remains populated.
+
+The focused [D1/agent checks](../../scripts/web-planning-successor-checks.mjs)
+exercise these paths, concurrent limit consumption, expiry, edited setup and
+cross-grant CSRF refusal. The complete Web suite invokes the same checks and
+[client recovery/privacy cases](../../scripts/test-web-planning-continuation-client.mjs).
+The existing Web Browser owner includes the [ordinary form journey](../../scripts/browser-web-planning-succession.mjs)
+with separate authenticated contexts, real committed response loss, fresh-session
+continuation and revocation. Browser observations and their environment are
+reported separately. Controlled sign-ins
+and scripted judgments establish implementation behavior, not model understanding,
+hosted adoption, organic use, general organizations or the benefit of delegation.
+
+### Independent private Web project entry evidence (#1627)
+
+The bounded entry claim requires two separately authenticated, explicitly admitted
+principals to create/select private projects before any request participation.
+A fresh session must recover its project's purpose, source-attributed current
+judgment, unresolved work and next action, then save a meaningful later step
+through the ordinary revision owner. A separate request owner's declined return
+must not alter the contributor's project lifecycle or history. Stable stored
+authorship is distinguished from the current executor; a different principal's
+delegated succession is not inferred from session replacement.
+
+The focused [D1/client checks](../../scripts/web-planning-project-checks.mjs)
+exercise creation/replay, explicit selection, project/account CSRF, read/file/
+history/search/export boundaries, wrong-scope tickets, stale/concurrent writes,
+unknown acknowledgements, W1 source scope and global request-locator uniqueness.
+The recovery case leaves A populated and authorized while B reconstructs or
+erases its own work; A's exact export and active grant stay unchanged. A legacy
+schema-4 migration case compares complete export bytes, original mapping fields
+and foreign-key integrity. These are controlled fixture identities, not hosted
+independent-user admission or organic adoption.
+
+The [ordinary-browser journey](../../scripts/browser-web-planning-projects.mjs)
+covers form creation, private selection, fresh-session continuation, later save
+and cross-project refusal. Report its actual environment/result separately from
+the deterministic [entry state-machine check](../../scripts/test-web-planning-project-entry-client.mjs)
+and D1/client result; a blocked browser launch is not a passed browser journey.
+The state-machine check distinguishes correctable prewrite validation from an
+uncertain creation, whose exact request must remain frozen for reconciliation.
+Development feedback does not substitute for the planner's final-target Local
+Canonical evidence, establish whole-W2 completion, or promote authored Web state
+to native accepted semantics. Keep actual command failures, limitations, burden
+and cleanup with the candidate's PR evidence.
 
 ## Economic activity and participation evidence
 
@@ -1034,6 +1244,31 @@ experience-presence/absence contrast asks a different question. Choose the
 contrast needed for the claim, not an automatic factorial design. Report
 remaining exposure, selection and causal limits even when both paths complete.
 
+#### Conditional sufficiency and selective reconsideration
+
+Within assigned L1 work, select this contrast when stopping or later reconsideration
+is the unanswered decision; reuse adequate existing observations. Check whether
+satisfaction of the task's checked requirements leads to stopping unnecessary
+optional work without dropping unmet acceptance conditions, outstanding obligations
+or material unknowns. Retain the scope and basis of completion and relevant
+reconsideration conditions through existing outcome and agenda/source paths.
+
+Keep immediate criterion conformance, prediction match, later practical usefulness
+and authority separate. Use the declared observation horizon for delayed practical
+effects; pending or unavailable usefulness evidence does not erase a valid bounded
+completion, while missing required acceptance evidence still leaves that acceptance
+unmet. Later material evidence may warrant revisiting the affected judgment or work;
+duplicate or irrelevant additions should not by themselves reopen settled work.
+Preserve still-valid results and independent support rather than rerun everything.
+
+Assess premature stopping, missed warranted reconsideration and unnecessary
+continuation/reopening alongside actual outcomes and the existing
+[total-burden measures](#cost-and-user-burden). An incremental comparison of a
+proposed feedback-use change starts from current Augnes under the
+[strong-comparison rules](#strong-comparisons-and-independence), without disabling
+the baseline's ordinary judgment. These are decision-relevant observations, not
+mandatory new arms, a separate study or additional acceptance gates.
+
 ### Question-specific model evidence
 
 For the [selective application direction](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#selective-model-application-across-local-and-web-work),
@@ -1157,6 +1392,56 @@ assistance explicit. One constructed comparison supports a bounded retain,
 simplify, revise or stop decision, not general superiority or equivalence.
 Preserve #1459's fixed-history tie/SIMPLIFY and #1447's supplied-entry evidence;
 neither is retrospectively an active-selection test.
+
+For an authorized later execution-context-change question, retain historical
+observations with their original tool/executor, conditions and judgment-time
+basis; bind revised predictions and applicability to their current basis. Use
+one consequential change and an appropriate unchanged-use contrast within the
+chosen task. A version label alone neither proves semantic incompatibility nor
+licenses transfer. Missing compatibility evidence remains unknown; preserve
+failure/conflict evidence and still-applicable uses. Reassessment may justify
+retention, a useful observation, changed execution or non-use.
+
+Inspect the resulting later output and actual reassessment burden against the
+same capable adaptive memo/code alternative. Separate effects of a stronger
+executor or changed tool from effects of the experience-update procedure. The
+deterministic case needs no invented probabilities; an empirical probability or
+cost-calibration claim needs observations beyond a single successful outcome.
+Preserve #1465's tie/SIMPLIFY and original allocation. These criteria apply only
+to the conditional follow-up in 03, not retrospectively or as a new release gate.
+
+### Research-informed method formation
+
+For the [conditional research-informed refinement](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#conditional-follow-up--research-informed-method-formation),
+distinguish a supplied research source, consumer discovery/selection, local
+adaptation, actual method use and Augnes's incremental continuity contribution.
+Using a supplied paper can demonstrate adaptation; it does not by itself
+establish autonomous discovery. A source author's claim is a candidate rationale;
+local checked outcomes test the adapted method under observed conditions.
+Record what the research changed in the explanation, prediction or action and
+what the successor actually used, revised or declined. Preserve the source and
+observations when changing the current applicability judgment.
+
+Use the [strong-comparison rules](#strong-comparisons-and-independence): the
+capable ordinary memo/code reference has the same source access and information
+cutoffs and may select research, construct and revise methods, and retain useful
+assets within comparable total resources. A research-selection
+intervention may yield different papers; hold useful sources/assets materially
+equivalent when isolating a representation or transfer contribution. Added
+research information or a better prepared asset is not by itself an Augnes
+continuity effect. Choose the smallest contrast needed
+for the claim, accounting for formation and later use under [total burden](#cost-and-user-burden).
+Keep publication time, actual source availability and local trial time distinct
+where they affect interpretation; later information cannot repair the historical
+knowledge basis retroactively.
+
+When a claimed improvement combines materially interacting changes, observe
+their relevant joint behavior rather than infer it from standalone gains.
+Neither topic diversity nor interface separation establishes independence.
+These distinctions add no fixed candidate count, factorial campaign or live-run
+requirement to an existing assignment. Preserve historical ties/SIMPLIFY and
+report method availability, actual successor outcome and comparative benefit
+separately.
 
 ### Public asset entry and later consumer (#1447)
 
@@ -1391,6 +1676,36 @@ composition and exact output correctness do not establish autonomous selection,
 superiority, learning or independent demand; the fixed live-model comparison
 remains NOT_RUN and historical P4.6 findings remain unchanged.
 
+#### Sequential method-selection claims
+
+For the [TRUST-informed research question](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#next-p4p5--executable-capability-reuse-from-experience-1373),
+apply the following only when making a sequential-selection claim, not as a
+universal statistical gate for ordinary development, verification or review.
+
+When using an online statistical selection rule, identify the candidate/decision
+sequence and outcome criterion covered by its error claim. Determine the current
+testing level before observing the current deciding outcomes, and retain
+cumulative testing history across continuation; renaming or branching the same
+search does not by itself restore independence or renew a statistical allowance.
+Validity under adaptive feedback and data reuse requires the stated assumptions;
+choosing a correction parameter or counting reuse does not establish a bias bound.
+
+Distinguish an observed fraction of accepted non-improving changes from a formal
+bound at a declared loss tolerance. A bound on the expected fraction of
+unacceptable selections is not a per-run maximum, a guarantee of positive gain,
+or assurance against cumulative or severe loss. Report only the criterion
+actually supported, together with useful outcomes and retained competence;
+accepting nothing can eliminate erroneous acceptances without improving anything.
+
+Statistical error allowance is not compute, time or authority budget. Early
+statistical stopping does not establish resource savings when evaluation continues
+for proposer feedback; use the existing [total-burden accounting](#cost-and-user-burden).
+Different accepted candidates can change later proposals and observations.
+Fixed-log replay can diagnose selection on common candidates but cannot establish
+closed-loop improvement. Distinguish that local comparison from a whole adaptive
+trajectory with feedback; select the comparison needed for the claim rather than
+requiring both. Statistical selection remains assessment, not authorization.
+
 ### Execution-choice evidence and conditional reuse
 
 The [#1486 late-review exercise](../../scripts/test-late-review.ts) separates
@@ -1498,6 +1813,34 @@ retained this small documented composition and regression. Earlier review-pendin
 language and failed qualification remain historical; acceptance did not launch
 a participant or usefulness study or close the broader #1532 issue.
 
+### External-response capability, effect, usefulness and autonomy
+
+For [#1453](https://github.com/hynk-studio/augnes/issues/1453), keep four
+questions separate when evaluating a concrete permitted response:
+
+| Axis | Required observation |
+|---|---|
+| Capability | A response actually executes, relevant feedback informs a justified next action, and scoped experience/commitments survive later reconstruction and correction. |
+| Intervention effect | A credible comparison supports attributing a counterpart/environment change to the intervention, beyond temporal order or the counterpart's own report. |
+| Comparative usefulness | Quality, tractable task range or another stated user outcome improves against a strong alternative after relevant costs and risks. |
+| Autonomy | The actual human/model/host contributions and further intervention needed within the current delegation are observed. |
+
+User-directed use can establish capability without full autonomy; negative
+utility does not erase demonstrated control. A prepared proposal or safe stop
+does not establish successful delivery/use. Use a feedback case where a changed
+action is justified and a control where retention is correct; two project needs
+must be genuinely distinct for a cross-project claim. Preserve independent
+results when a relevant correction changes a dependent current judgment.
+
+Source/mechanism checks, actual human/model use and independently operated field
+observations retain their distinct scope. Nonresponsive payloads or unavailable
+observations cannot demonstrate negotiation or unchanged external state. Apply
+the existing strong-comparison and total-burden rules, including comparable
+tools, actuators, permissions and aggregate budgets. Capability admission need
+not wait for positive usefulness; broader/default operation and further
+investment still require their own justified decision. These are evaluation
+criteria, not a new study allocation or revision of the recorded outcomes below.
+
 ### Local external-response evidence (#1453)
 
 The [registered local consumer](../EXTERNAL_RESPONSE_LOCAL.md#report-example-fresh-process-and-evidence)
@@ -1589,6 +1932,49 @@ arithmetic check, not independent agent judgment. Live provider compatibility,
 human/model usefulness, installed adoption, general post-withdrawal cleanup,
 cancellation, payment and settlement remain NOT_RUN or unsupported. The existing
 #1453/#1527/#1537/#1538 allocations and #1595 RETAIN conclusion are unchanged.
+
+### Original receipt after execution-binding withdrawal (#1610)
+
+The external-response integration extends its existing production owners with
+task-owned withdrawal cases. A real aggregate POST retains a counterpart receipt
+before losing its actual response. After removal of the sending envelope, a
+fresh ordinary consumer reads the unresolved obligation without contact or
+consumption. Explicit finite receipt-only authority then retrieves that original
+receipt with the sending envelope still absent. Complete bytes are read and
+independently checked, a late result is deliberately reconsidered, and a fresh
+consumer checks/uses it in a dependent report followed by separate saved readback.
+Actual POST, GET, processing-effect and reservation counts remain distinct.
+
+The R13 verification development keeps the R12 12 PASS / 1 FAIL / 3 NOT_RUN
+and false stock immutable. New bounded Browser observations distinguish B1
+refresh, explicit review, field updates and Save, including visibility and fast
+waits. A development capture passed those B1 checkpoints then failed at the
+later B2 readiness wait; a subsequent attributed capture passed naturally.
+Neither identifies R12's exact failed control or cause. Current readiness checks
+require visible, enabled controls without retries or longer deadlines.
+
+Dependency regression controls compare accepted focused root/Web inputs with
+actual registered clean-preparation outputs before expensive consumers. Genuine
+prior input-owner bytes demonstrate the missing early check; corrected owner
+controls retain content/layout/permission/location refusals, later mutation,
+capability ownership and fresh-process generated-output stock checks. Disposable
+structural fixtures and passing development journeys do not establish deciding
+qualification. Process settings, runtime/source attribution, complete inventory,
+independent acceptance and single-use authority remain separate obligations.
+
+Affected controls exercise counterpart rejection of POST/other-request/changed
+identity, missing or exhausted permission, never-issued work, original-owner and
+input mismatch, authority loss at effect boundaries, concurrency and replay,
+legacy/separate-route accounting, credential rotation and configuration
+relocation, uncertain/absent replies, closed work and staged restore suspension.
+Successful histories use real writers and transport; malformed negative fixtures
+do not manufacture issuance, permission, receipts or consumer decisions.
+The existing #1597 evidence and controls remain separately attributable.
+
+This establishes a prospective owned-loopback capability, not remote execution
+secret revocation, cancellation, settlement, arbitrary provider compatibility,
+installed adoption or comparative usefulness. Exact-candidate qualification,
+development failures, original artifacts and cleanup are reported separately.
 
 ### Non-model harness qualification evidence
 
@@ -1769,7 +2155,7 @@ hypothetical arrangement is implemented or authorize the described actions.
 | Private know-how service with agreed benefit | A participant returns checkable work while retaining its private method and receives the agreed benefit through the named recipient. Keep deliverable, compensation and actual fulfillment separate; a service return does not imply method publication, project ownership or free labor. | Selected terms/material and contribution decisions; no payment or general rights-enforcement engine is implied. |
 | Permitted redelegation | A scoped downstream contribution preserves commissioning responsibility, disclosed material limits and aggregate outstanding commitments. Changing executor or adding a child must not duplicate budget, transfer project direction or silently authorize further delegation. | Current grants, choice and external-effect journals; unsupported multi-party allocation/redelegation stays an explicit gap. |
 | Paid negative experiment | An agreed, properly performed experiment can return a useful negative or inconclusive result and satisfy its stated compensation condition. Preserve the scientific/task outcome, deliverable acceptance and compensation evidence separately; do not relabel the hypothesis successful or simulated payment real. | Authored terms, original evidence and result-linked assessment. |
-| Timeout, expired task authority and cleanup | A timeout preserves unknown effects and outstanding obligations. Reconcile or clean up only through still-valid authority or a separately authorized limited cleanup path; expiry neither authorizes retry nor erases cleanup responsibility. Missing cleanup authority leaves the obligation unresolved, not an implicitly renewed grant. Silence or local closure is not remote cancellation. | External-response sent-reservation/query/closure and native lifecycle owners; #1597 supplies only explicitly bounded original-receipt observation after send expiry/exhaustion with unchanged bindings, not general cleanup after withdrawal. |
+| Timeout, expired task authority and cleanup | A timeout preserves unknown effects and outstanding obligations. Reconcile or clean up only through still-valid authority or a separately authorized limited cleanup path; expiry neither authorizes retry nor erases cleanup responsibility. Missing cleanup authority leaves the obligation unresolved, not an implicitly renewed grant. Silence or local closure is not remote cancellation. | External-response sent-reservation/query/closure and native lifecycle owners; #1597 supplies bounded original-receipt observation after send expiry/exhaustion with unchanged bindings; #1610 adds prospective confirmation after binding withdrawal with separate receipt-only authority. Neither grants general cleanup, cancellation or settlement. |
 | Partial adoption of a return | Check and use a valid part for the current purpose while declining another part and retaining the complete original and limitations. A returned artifact, passing component or accepted payment must not become wholesale semantic acceptance. | Manual contribution assessment and external-response check/use/material dependency. |
 | Conditional method reuse in another task | Pin the prior method and basis, reconsider changed conditions, select permitted material and validate authority for the new task. Valid non-use is allowed; an earlier success, source link or executor grant is not universal applicability, causal proof or a transferable permission. | Task-bound contribution/profile notes, source selection, material/correction and current grants. |
 | Visibility without willingness | A visible example or asset can be readable while its author declines work or keeps its method private. Change willingness or access independently: no automatic request acceptance, private indexing or competence failure follows from nonresponse. | Access-filtered discovery, explicit shares and per-request response; no global participant directory is assumed. |
@@ -1824,6 +2210,23 @@ When an increment actually changes or claims harness capability, retain the
 affected qualification below. This is not a live-run gate on the preparation
 above, a mandate to replace every layer, or a blanket test campaign for every PR.
 
+For the [BOXBOX-motivated in-task review](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#non-model-harness-capability-readiness--2026-10-31),
+state the intended user/task outcome and acceptance basis before judging benefit.
+Distinguish successful activation/context transfer, the best historical score and
+the checked result actually usable at the observation cutoff. Measure time to a
+checked result when its evidence becomes available, not merely the start of a
+retrospectively successful trial. A method revision cannot silently change the
+criteria used to declare its own success; an authorized criteria change has a
+different evaluation basis.
+
+For a continuation claim, observe a meaningful next action using preserved reasons
+and unfinished work after the change: successful resume can still repeat a
+previously ruled-out approach under unchanged conditions. Retain failed revisions
+and uncertain effects; restoring harness code does not undo completed effects.
+Use the existing total-burden and strong-comparison rules, including diagnosis,
+review, verification, switching and recovery. These are claim-specific questions
+within assigned work, not a new acceptance ladder or mandatory live experiment.
+
 | Claim or invariant | Required observation and refusal boundary |
 |---|---|
 | Policy/configuration control | Identify policy origin, authorized owner, scope and control coverage. Compare intended settings with observable application; unavailable fields and uncertain refusal origin stay explicit. Configuration acceptance is not application proof, and conflict permits no hidden override or boundary relaxation. |
@@ -1845,6 +2248,53 @@ savings. A working prototype is not an economical managed multi-tenant service.
 Reuse, augmentation, owned replacement and justified non-use are valid outcomes;
 the replaced-layer count is not success. Return retain/augment/replace/simplify/defer/stop
 with its bounded evidence. No result grants broader use, live runs, spending or deployment.
+
+#### Pi reference and worker evidence
+
+For the [Pi reference and second-executor plan](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#pi-reference-implementation-and-second-executor-candidate),
+select affected cases for each increment rather than requiring every comparison
+before any useful change. Keep source inspection, focused development feedback,
+exact-source qualification and fixed usefulness evaluation distinct under
+[method-improvement evidence](#method-improvement-evidence).
+
+| Question | Discriminating observation |
+|---|---|
+| Does context preparation preserve meaning? | A matching whole group omitted by budget remains distinguishable from no match and unavailable material at the actual consumer. Current corrections, criteria and unfinished work survive the supported re-entry path; source access and disclosure do not widen. Existing passing behavior supports retain, not a mandatory new memory system. |
+| Does the reference method help? | Compare existing and revised preparation on the same executor where possible, including selection/curation cost. Inspect later actions and checked outcomes, rediscovery, unnecessary calls and user explanation; token reduction alone is insufficient. |
+| Is Pi a useful executor? | Use comparable task/source basis, model where supported, tools, budgets and independent acceptance criteria against the current Codex path. Record host instructions, model-setting, cache, environment and assistance differences. Separate API-equivalent price, actual added spend and subscription use. |
+| Does Augnes help succession? | Compare a good ordinary artifact/handoff account with the existing Augnes source/work/result path. A fresh executor handles an actual changed condition, preserves unresolved work and rechecks current authority without copying the whole old conversation or silently refreshing resources. |
+
+Begin with a small representative set: a reproducible bug, a bounded multi-file
+change, and changed-condition continuation. This screens suitability; it is not
+a general performance ranking or statistical superiority claim. Development-exposed
+cases remain exposed. Freeze comparison conditions and a finite resource envelope
+before deciding live observations; no live-call budget is allocated by this plan.
+
+Affected negative cases include reordered/duplicate/malformed or absent results;
+accepted/handled commands without completed work; compaction/queued work after
+`agent_end`; cancellation with remaining queues or children; changed files before
+return-channel loss; and stale or withdrawn source/authority. Retain partial,
+failed and unknown outcomes. A synthesized protocol stream tests the consumer,
+an actual subprocess tests lifecycle, and a model task tests capability; none
+substitutes for the others or for actual Mac qualification where required.
+
+Trace authority and provenance through actual producers and readers. Renaming a
+managed adapter or its result cannot convert its work claims into direct local
+observations. Distinguish orchestration/delivery checks, host assertions,
+independently checked artifacts, and adopted results. Use existing predeclared
+acceptance tests where possible; model-authored tests are supplementary evidence.
+Exercise containment and credential/egress boundaries outside prompt instructions,
+and confirm queue/child settlement before declaring cancellation. Limit failure
+blocking to the affected work/effects while independent permitted work continues.
+
+Adoption is scoped to the exercised harness/configuration/model/environment/task
+profile. Require useful accepted output, correct failure and settlement behavior,
+preserved authority/evidence meaning and maintenance burden the user can support.
+An independently useful control or alternative route can justify adoption without
+winning every task. Record retain/augment/adopt-for-profile/defer/stop with its
+reason; do not automatically install, route, publish, merge or expand a grant.
+All reference improvements need not finish before a sufficient worker profile is
+usable, and worker adoption is not a prerequisite for useful reference improvements.
 
 ### Cost and user burden
 
@@ -2880,6 +3330,23 @@ benefit erased by total burden. Choose the next step under the existing
 simpler selector being sufficient is a successful research disposition.
 The prior P4.6 result above is preserved, not
 reopened or generalized into a verdict on this unexecuted hypothesis.
+
+For the [SwarmEvolve-motivated task-local search question](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#research--goal-directed-recombination-and-candidate-paths-1214),
+select only the contrasts needed for the claim: strong direct/adaptive-memo
+work and brief-text cooperation; candidate selection without sharing when
+testing recombination; cache transfer when testing that mechanism. Apply the
+same source/tool access and relevant budget rules above. Separate result
+quality at comparable evaluated-candidate counts from quality or time to a
+checked result within the total resource budget. Count evaluator work as well
+as generation, invalid/duplicate proposals, integration and human burden;
+additional proposal throughput alone does not establish better candidates.
+Latent distance, role labels or agreement on shared sources do not establish
+behavioral diversity or independent corroboration. Reuse observed candidate
+behavior and discriminating checks where they answer that question. Feedback
+used to select or revise candidates remains development exposure; a search
+winner alone is not evidence of improvement in a separate successor task.
+Apply the existing #1373 reuse and next-decision rules without a new benchmark
+matrix, mandatory comparison campaign or preservation of every internal trace.
 
 #### Example-guided atomic execution decomposition
 
