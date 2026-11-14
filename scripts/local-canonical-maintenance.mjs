@@ -7,6 +7,7 @@ import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { artifactReader, parseImprovementJSON, ordinaryV2SourceModule, isImprovement, improvementAuthorityObservation } from "./local-canonical-improvement.mjs";
 import { createGitHubObserverAuthorizationTransport } from "./github-main-branch-transport.mjs";
 import { isFailedIntegrationFixture, readFailedIntegrationFixtureIncident } from "./local-canonical-failed-integration-fixture.mjs";
+import {isFailedMaintenanceReader,isSelectedMaintenanceIncident,readFailedMaintenanceReaderIncident} from "./local-canonical-maintenance-reader-incident.mjs";
 
 export const MAINTENANCE_KIND = "prospective_maintenance";
 export const MAINTENANCE_ACCEPT = "Accept this substantively repaired maintenance candidate and its evidence.";
@@ -37,7 +38,7 @@ export const hasMaintenanceMarker = v => [v,v?.source_correction,v?.recovery,v?.
 const targetFields="branch base head tree pull_request prior_family_id prior_number prior_attempt_id prior_receipt_fingerprint";
 export const maintenanceTarget = p => Object.fromEntries(targetFields.split(" ").map(k=>[k,p[k]]));
 export function validateMaintenanceProof(p,{authorizationRequired=true}={}) {
-  keys(p,"schema kind "+targetFields+" prior_receipt_path evidence review authorization"+(isFailedIntegrationFixture(p)?" incident_case":""));
+  keys(p,"schema kind "+targetFields+" prior_receipt_path evidence review authorization"+(isSelectedMaintenanceIncident(p)?" incident_case":""));
   requireThat(isMaintenance(p)&&[p.base,p.head,p.tree].every(gitId)&&[p.prior_family_id,p.prior_receipt_fingerprint].every(sha)&&
     [1,2].includes(p.prior_number)&&id(p.pull_request)&&/^[A-Za-z0-9_./-]{1,200}$/u.test(p.branch)&&!p.branch.split("/").includes("..")&&
     /^[A-Za-z0-9_-]{1,200}$/u.test(p.prior_attempt_id)&&p.prior_receipt_path===`.augnes-local-verification/receipts/${p.prior_attempt_id}.json`,"target_invalid");
@@ -56,7 +57,7 @@ export function maintenanceFaults(receipt) {
 export function readMaintenanceEvidence(file,p,root,{remember,authorizationRequired=true}={}) {
   validateMaintenanceProof(p,{authorizationRequired});
   const read=artifactReader(path.dirname(file),remember), e=read(p.evidence), review=read(p.review);
-  keys(e,"target originals source repairs inputs history planner implementation_actor"+(isFailedIntegrationFixture(p)?" incident":""));
+  keys(e,"target originals source repairs inputs history planner implementation_actor"+(isSelectedMaintenanceIncident(p)?" incident":""));
   requireThat(equal(e.target,maintenanceTarget(p))&&text(e.implementation_actor),"evidence_target_invalid");
   keys(e.originals,"attempt completion receipt stock");
   const prior=read(e.originals.attempt,{canonical:false}), completion=read(e.originals.completion,{canonical:false}), receipt=read(e.originals.receipt,{canonical:false,maximum:512*1024}), stock=read(e.originals.stock,{canonical:false,maximum:512*1024});
@@ -92,7 +93,8 @@ export function readMaintenanceEvidence(file,p,root,{remember,authorizationRequi
     const bytes=git(["show",`${p.head}:${file}`]);
     requireThat(source.sha256===digest(bytes)&&source.bytes===bytes.length,"dependency_source_unbound");
   }
-  const fixture=isFailedIntegrationFixture(p)?readFailedIntegrationFixtureIncident({p,e,prior,completion,receipt,stock,read,git,root,runtime,dependencies,remember}):null;
+  const incidentOptions={p,e,prior,completion,receipt,stock,read,git,root,runtime,dependencies,remember};
+  const fixture=isFailedIntegrationFixture(p)?readFailedIntegrationFixtureIncident(incidentOptions):isFailedMaintenanceReader(p)?readFailedMaintenanceReaderIncident(incidentOptions):null;
   const faults=maintenanceFaults(receipt), addressed=[];
   requireThat(faults.length>0&&Array.isArray(e.repairs)&&(fixture?e.repairs.length===0:e.repairs.length>0&&e.repairs.length<=16),"repairs_missing");
   let last="", latest=fixture?.latest??Date.parse(completion.finished_at);
@@ -122,7 +124,7 @@ export function readMaintenanceEvidence(file,p,root,{remember,authorizationRequi
   }
   if(!fixture)requireThat(equal([...new Set(addressed)].sort(),faults),"incomplete_repair");
   const history=read(e.history);keys(history,"parent_evidence_sha256 observations adverse known_index cumulative_cost historical_causes");
-  requireThat(history.parent_evidence_sha256===(fixture?prior.source_correction.review:prior.source_correction.evidence??prior.source_correction.campaign).sha256&&history.historical_causes==="retained_without_reclassification"&&text(history.cumulative_cost)&&
+  requireThat(history.parent_evidence_sha256===(isFailedIntegrationFixture(p)?prior.source_correction.review:prior.source_correction.evidence??prior.source_correction.campaign).sha256&&history.historical_causes==="retained_without_reclassification"&&text(history.cumulative_cost)&&
     Array.isArray(history.observations)&&history.observations.length>0&&history.observations.length<=200&&unique(history.adverse),"history_invalid");
   const ids=[];for(const item of history.observations){keys(item,"id original adverse limitations");requireThat(text(item.id)&&typeof item.adverse==="boolean"&&text(item.limitations),"history_invalid");ids.push(item.id);read(item.original,{json:false,maximum:2*1024*1024});}
   requireThat(unique(ids)&&equal(history.adverse,history.observations.filter(x=>x.adverse).map(x=>x.id))&&equal(read(history.known_index),history.observations),"adverse_evidence_omitted");
@@ -193,7 +195,7 @@ export function validMaintenanceAttempt(a){
     !Object.hasOwn(a,"improvement_authority")&&!Object.hasOwn(a,"revision_authority")&&!Object.hasOwn(a,"integration_authority"),"attempt_invalid");
     keys(a.maintenance_authority,"records observations");keys(a.maintenance_authority.observations,"accepted_maintenance prospective_grant");
     for(const [role,o]of Object.entries(a.maintenance_authority.observations)){keys(o,"id author author_id body_sha256 timestamp role commit_id");requireThat(o.role===role&&id(o.id)&&id(o.author_id)&&sha(o.body_sha256)&&externalUtc(o.timestamp)&&text(o.author)&&(role==="prospective_grant"?o.commit_id===null:o.commit_id===a.head),"attempt_invalid");}
-    if(isFailedIntegrationFixture(a.source_correction))requireThat(utc(a.started_at)&&strictlyAfter(a.started_at,a.maintenance_authority.observations.prospective_grant.timestamp),"attempt_chronology_invalid");
+    if(isSelectedMaintenanceIncident(a.source_correction))requireThat(utc(a.started_at)&&strictlyAfter(a.started_at,a.maintenance_authority.observations.prospective_grant.timestamp),"attempt_chronology_invalid");
     return true;
   }catch{return false;}
 }

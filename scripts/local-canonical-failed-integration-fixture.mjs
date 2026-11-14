@@ -80,13 +80,16 @@ function cleanup(rows) {
       row.failure_count === 0 && equal(row.failures,[]),"cleanup_invalid");
   }
 }
+export {naturalResult as validateFixtureNaturalResult,cleanup as validateFixtureCleanup};
 
-function predecessor(p,prior,completion,receipt,stock) {
+// Shared finite failure shape for the two selected maintenance incidents.
+// The caller selects a typed predecessor, never a count-only stock waiver.
+export function validateSettledFixtureFailure(p,prior,completion,receipt,stock,{maintenance=false}={}) {
   const proof=prior.source_correction,original={...receipt};delete original.integrity;
-  requireThat(receipt.receipt_version === 4 && proof?.schema === "augnes.local-canonical-source-correction.v2" && proof.kind === "accepted_main_integration" &&
-    proof.integration_case === "reviewed" && !Object.hasOwn(proof,"commission") && proof.base === proof.accepted_main &&
+  const selected=maintenance ? isFailedIntegrationFixture(proof) : proof?.kind === "accepted_main_integration" && proof.integration_case === "reviewed" && proof.base === proof.accepted_main;
+  requireThat(receipt.receipt_version === 4 && proof?.schema === "augnes.local-canonical-source-correction.v2" && selected && !Object.hasOwn(proof,"commission") &&
     proof.branch === p.branch && proof.base === p.base && proof.pull_request === p.pull_request &&
-    proof.head === prior.head && proof.tree === prior.tree && equal(proof.budget,{initial:1,recovery:0}) &&
+    proof.head === prior.head && proof.tree === prior.tree && (maintenance || equal(proof.budget,{initial:1,recovery:0})) &&
     prior.family_id === p.prior_family_id && prior.number === p.prior_number && prior.number === 1 && prior.attempt_id === p.prior_attempt_id &&
     prior.branch === p.branch && prior.head !== p.head && prior.tree !== p.tree &&
     receipt.repository?.head_sha === prior.head && receipt.repository.tree_sha === prior.tree && receipt.repository.base_sha === proof.base &&
@@ -124,7 +127,7 @@ function predecessor(p,prior,completion,receipt,stock) {
       row.cleanup?.completed === false && row.cleanup.exit_observed === false && row.cleanup.streams_closed === false &&
       row.cleanup.remaining_owned_processes === null && row.cleanup.termination_reason === null,"predecessor_coverage_invalid");
   }
-  const issues=[...phases.slice(6).map(id=>"phase_not_passing:"+id),"receipt_classified_outcome_not_passing",
+  const issues=[...phases.slice(6).map(id=>"phase_not_passing:"+id),...(maintenance?["receipt_attempt_records_unverified"]:[]),"receipt_classified_outcome_not_passing",
     "receipt_final_result_not_pass","receipt_non_deciding","receipt_phase_environment_binding_invalid"].sort();
   keys(stock,"valid_deciding_evidence status issues dimensions content_fingerprint");
   requireThat(stock.valid_deciding_evidence === false && stock.status === "non_deciding_or_stale" &&
@@ -284,16 +287,21 @@ export function readFailedIntegrationFixtureIncident({p,e,prior,completion,recei
   const incident=read(e.incident);keys(incident,"kind receipt cause interrupted_operation authority_log partition preparation");
   requireThat(incident.kind === FAILED_INTEGRATION_FIXTURE_CASE && incident.receipt === p.prior_receipt_fingerprint &&
     incident.cause === "UNKNOWN" && incident.interrupted_operation === "UNKNOWN","incident_invalid");
-  predecessor(p,prior,completion,receipt,stock);
+  validateSettledFixtureFailure(p,prior,completion,receipt,stock);
   const part=read(incident.partition);keys(part,"source_head source_tree source_before source_after registration checks contract");
   const registrations=partitionSource(git,prior,p,part);
   retainedFailure(incident,p,receipt,registrations.before,{read,root,remember});
   // partitionSource already validated this immutable registration in this read.
   let latest=partitionPositives(part,receipt,p,runtime,registrations.after,{read,git});
-  const preparation=read(incident.preparation,{maximum:512*1024});
+  return readFixturePreparation({p,ref:incident.preparation,read,runtime,dependencies,latest,completion});
+}
+
+// Both selected cases use the same raw inventory and admitted Full binding.
+export function readFixturePreparation({p,ref,read,runtime,dependencies,latest,completion,schema="augnes.local-canonical-failed-integration-fixture-preparation.v1"}) {
+  const preparation=read(ref,{maximum:512*1024});
   keys(preparation,"schema target source_head source_tree checkout_fingerprint runtime_inputs input_inventory inventory_sha256 dependencies prepared_at");
   const input=preparation.input_inventory;
-  requireThat(preparation.schema === "augnes.local-canonical-failed-integration-fixture-preparation.v1" && equal(preparation.target,target(p)) &&
+  requireThat(preparation.schema === schema && equal(preparation.target,target(p)) &&
     preparation.source_head === p.head && preparation.source_tree === p.tree && sha(preparation.checkout_fingerprint) &&
     validCanonicalRuntimeInputs(preparation.runtime_inputs) && equal(preparation.runtime_inputs,runtime) &&
     sha(preparation.inventory_sha256) && gitRevisionInventory(input) === preparation.inventory_sha256 &&
@@ -311,5 +319,5 @@ export function readFailedIntegrationFixtureIncident({p,e,prior,completion,recei
     requireThat(resource?.location_fingerprint === runtime[role].location_fingerprint && equal(resource.before,runtime[role].observation),"preparation_runtime_unbound");
   }
   latest=Math.max(latest,Date.parse(preparation.prepared_at));
-  return {latest,preparation,preparation_sha256:incident.preparation.sha256};
+  return {latest,preparation,preparation_sha256:ref.sha256};
 }

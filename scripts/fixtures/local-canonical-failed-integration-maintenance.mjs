@@ -92,12 +92,14 @@ function inputInventory(c,head,tree,receipt,runtime) {
   const {executable_identity_policy,...observation}=structuredClone(node.observation);
   Object.assign(git,{classification:"execution",gitTracking:{policy:"isolated-current-branches-v1",protected_branches:[digest(c.branch)]},
     before:{...observation,git_projection:{policy:"isolated-current-branches-v1",applicable:true,effective_sha256:digest("synthetic effective Git config"),scope_fingerprint:digest(c.branch)}}});
-  resources.push({id:"git-executable",classification:"execution",readOnlyExecutable:true,location_fingerprint:digest("synthetic Git executable"),before:structuredClone(node.observation)});
+  const executable={id:"git-executable",classification:"execution",readOnlyExecutable:true,location_fingerprint:digest("synthetic Git executable"),before:structuredClone(node.observation)};
+  const existing=resources.findIndex(v=>v.id===executable.id);
+  if(existing===-1)resources.push(executable);else resources[existing]=executable;
   const declaration={contract:receipt.inputs.contract,path_kind:receipt.inputs.path_kind,binding:{...structuredClone(receipt.inputs.binding),head,tree,runtime_inputs:structuredClone(runtime)},resources};
   return {...declaration,fingerprint:digest(declaration),checks:1,events:[],first_fault:null,secondary_faults:[],prepared_dependencies:structuredClone(c.syntheticDependencies)};
 }
 
-export function createFailedIntegrationMaintenanceFixture({c,successfulReceipt,context,partitionSources}) {
+export function createFailedIntegrationMaintenanceFixture({c,successfulReceipt,context,partitionSources,preserveIntegrationInputs=false}) {
   const git=(...args)=>c.git(args).toString().trim(),old=successfulReceipt.attempt;
   const families=path.join(c.anchor,".augnes-local-verification/families"),priorRoot=path.join(families,old.family_id);
   const originalLedger=fs.readFileSync(path.join(priorRoot,"attempt-1.json")),originalCompletion=fs.readFileSync(path.join(priorRoot,"completion-1.json"));
@@ -115,7 +117,12 @@ export function createFailedIntegrationMaintenanceFixture({c,successfulReceipt,c
   lines.push(JSON.stringify({suite:"authority",resource_cleanup:cleanup(path.join(c.root,"synthetic-authority-owner"))}));
   const log=lines.join("\n")+"\n",runtime=structuredClone(c.inputs),executable="/synthetic/canonical/node",headers="/synthetic/canonical/headers";
   runtime.node.location_fingerprint=digest(executable);runtime.headers.location_fingerprint=digest(headers);runtime.headers.observation.location_fingerprint=digest(headers);
-  const input=inputInventory(c,old.head,old.tree,successfulReceipt,runtime),priorAttempt={...structuredClone(old),contract_fingerprint:input.fingerprint};
+  // The actual material-v7 fixture already binds its integration preparation.
+  // Keep that original declaration intact; the new maintenance has its own
+  // independently constructed runtime and prepared-input declaration below.
+  const input=preserveIntegrationInputs?structuredClone(successfulReceipt.inputs):inputInventory(c,old.head,old.tree,successfulReceipt,runtime);
+  const priorAttempt={...structuredClone(old),contract_fingerprint:input.fingerprint};
+  if(preserveIntegrationInputs)assert.equal(priorAttempt.contract_fingerprint,old.contract_fingerprint);
   const failed=failedReceipt({...structuredClone(successfulReceipt),attempt:priorAttempt,inputs:input},log);
   const completion={...JSON.parse(originalCompletion),receipt_fingerprint:failed.integrity.content_fingerprint,disposition:"product_failure"};
   const receiptPath=`.augnes-local-verification/receipts/${failed.run.id}.json`,nativePath=failed.phases[6].log.relative_path;

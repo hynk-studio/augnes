@@ -21,6 +21,7 @@ import {runMaterialStockPredecessorControls} from './local-canonical-material-st
 import {finalizeReceipt,inspectReceiptForDecision,canonicalSerialize} from '../local-canonical-receipt.mjs';
 import {inspectIntegrationStock} from '../run-local-canonical-verification.mjs';
 import {checkoutVerificationFingerprint} from '../local-canonical-checkout-ownership.mjs';
+import {seedFailedIntegrationFixtureSources} from './local-canonical-failed-integration-maintenance.mjs';
 const clone=structuredClone,now=()=>new Date(fixtureNow()).toISOString();
 const driver='scripts/material-source-behavior.mjs',product='apps/web_planning/src/exchange-client.js.txt';
 const predecessorDriver='scripts/material-predecessor.mjs';
@@ -62,7 +63,17 @@ export async function inspectMaterialIntegrationCold(c) {
  writeFileSync(c.stockOutput,JSON.stringify(result),{mode:0o600});
 }
 
-async function materialIntegrationControls(c,h,mode) {
+// Reuse the already-built, physical material-v7 lineage for this separate
+// selected-case owner. Existing preparation/admission campaigns keep their own
+// controls and limits; this mode constructs only their positive predecessor.
+export async function runMaintenanceReaderIntegrationFixture(c,h,callback,{seedSources}={}) {
+ assert.equal(typeof callback,'function');
+ assert(seedSources===undefined||typeof seedSources==='function');
+ return materialIntegrationControls(c,h,'maintenance-reader',callback,seedSources);
+}
+
+async function materialIntegrationControls(c,h,mode,callback,seedSources) {
+ const readerMode=mode==='maintenance-reader';
  const started=performance.now(),stage=name=>console.log(JSON.stringify({material_integration_stage:name,elapsed_ms:Math.round(performance.now()-started),synthetic_only:true}));
  const prior=c.materialFinalReceipt,a=prior.attempt,successStock=h.read(path.join(c.artifacts,'fresh-stock.json'));
  const git=(...args)=>c.git(args).toString().trim(),commit=()=>git('-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','--quiet','-m','synthetic reviewed material integration');
@@ -83,7 +94,7 @@ async function materialIntegrationControls(c,h,mode) {
  assert.equal(a.source_correction.commission.source_revision,MATERIAL_SOURCE_CORRECTION);
  assert.deepEqual(a.budget,{initial:1,recovery:0});assert.equal(a.source_correction.commission.maximum_invocations,1);
  assert.doesNotThrow(()=>verifyGitRevisionSuccess(prior,successStock,c.inputs,REVIEWED_REVISION_PHASES));
- let receipt,proof,p,review,records,main,head,tree,packages,declaration,inputInventory,live,preparation,authority,priorTransport;
+ let receipt,proof,p,review,records,main,head,tree,packages,declaration,inputInventory,live,preparation,authority,priorTransport,partitionSources;
  let retain=false,createdMain=false,refusals=stored?.refusals??0;
  const noEdge=()=>assert(!existsSync(edge));
  try {
@@ -97,7 +108,9 @@ async function materialIntegrationControls(c,h,mode) {
   }else{
   const overlap='scripts/fixture.mjs',oldSource=c.git(['show',a.head+':'+overlap]);
   git('checkout','-b','material-accepted-main',c.base);createdMain=true;
-  h.write(path.join(c.checkout,overlap),'export const incoming=true;\n');git('add',overlap);commit();main=git('rev-parse','HEAD');
+  h.write(path.join(c.checkout,overlap),'export const incoming=true;\n');
+  if(readerMode){partitionSources=seedFailedIntegrationFixtureSources(c);seedSources?.();}
+  git('add',overlap);commit();main=git('rev-parse','HEAD');
   git('checkout',c.branch);try{git('merge','--no-ff','--no-commit',main);}catch{/* The retained source and incoming main deliberately differ. */}
   h.write(path.join(c.checkout,overlap),Buffer.concat([oldSource,Buffer.from('\nexport const incoming=true;\n')]));git('add',overlap);commit();
   const merge=git('rev-parse','HEAD'),mergeTree=git('rev-parse','HEAD^{tree}'),mergeBase=git('merge-base',a.head,main);
@@ -136,6 +149,8 @@ async function materialIntegrationControls(c,h,mode) {
   rebuild();
   if(!stored){
   const prepared=prepare();assert.equal(prepared.eligible_evidence,true);assert.equal(prepared.authorized,false);assert.equal(prepared.reserved,false);assert.deepEqual(prepared.budget,{initial:1,recovery:0});noEdge();stage('prepared');
+  }
+  if(!stored&&!readerMode){
   // These direct reader mutations isolate complete-Full predicates instead of
   // allowing an unrelated artifact hash mismatch to hide the safety refusal.
   for(const mutate of [r=>r.phases=[],r=>r.phases.pop(),r=>r.outcome.safety='blocked',r=>r.outcome.disposition='product_failure',
@@ -179,7 +194,7 @@ async function materialIntegrationControls(c,h,mode) {
    grant_comment_sha256:digest({id:grant.id,author:user.login,author_id:1,body_sha256:digest(grant.body),timestamp:later,role:'prospective_grant',commit_id:null})};rebuild();};
   bindAuthority();await delay(2);
   const reserve=async extra=>beginAttempt(request({observeRevision:async()=>({authorization:await authorizeIntegration(proof,integrationMaterial(c.checkout,proof,c.anchor),integrationTransport(records)),live}),...extra}));
-  if(!stored){
+  if(!stored&&!readerMode){
   grant.id=72;bindAuthority();await assert.rejects(()=>reserve());noEdge();grant.id=3002;bindAuthority();refusals++;
   await assert.rejects(()=>reserve({assertCurrent(){throw Error('synthetic unsafe current preparation');}}),/unsafe/);noEdge();refusals++;
   const preparationFile=path.join(folder,'preparation.json'),preparationBytes=readFileSync(preparationFile);
@@ -190,8 +205,13 @@ async function materialIntegrationControls(c,h,mode) {
   // The later group rebuilds live inputs and new invocation-local authority.
   p.authorization=null;rebuild();h.write(handoff,{p,review,preparation,declaration,refusals});retain=true;return;
   }
-  const outcomes=await Promise.allSettled([reserve(),reserve()]);assert.equal(outcomes.filter(v=>v.status==='fulfilled').length,1);assert.equal(outcomes.filter(v=>v.status==='rejected').length,1);
-  const admitted=outcomes.find(v=>v.status==='fulfilled').value;assert.deepEqual(admitted.budget,{initial:1,recovery:0});
+  let admitted;
+  if(readerMode)admitted=await reserve();
+  else{
+   const outcomes=await Promise.allSettled([reserve(),reserve()]);assert.equal(outcomes.filter(v=>v.status==='fulfilled').length,1);assert.equal(outcomes.filter(v=>v.status==='rejected').length,1);
+   admitted=outcomes.find(v=>v.status==='fulfilled').value;
+  }
+  assert.deepEqual(admitted.budget,{initial:1,recovery:0});
   const start=admitted.started_at,finish=new Date().toISOString(),r=clone(prior),own={...r.checkout_ownership,checkout_fingerprint:preparation.checkout_fingerprint,acquired_at:start,released_at:finish};
   Object.assign(r.repository,{base_sha:main,head_sha:head,tree_sha:tree});Object.assign(r.integration_base,{requested_base_sha:main,tested_head_sha:head,checked_at:start});Object.assign(r.integration_base.observation,{sha:main,observed_at:start});
   r.run={id:admitted.attempt_id,invocation_id:digest(admitted.attempt_id).slice(0,32),started_at:start,finished_at:finish,duration_ms:Date.parse(finish)-Date.parse(start)};
@@ -205,6 +225,10 @@ async function materialIntegrationControls(c,h,mode) {
    currentIdentity:{...h.read(path.join(c.artifacts,'cold-packet.json')).stockContext.currentIdentity,head_sha:head,branch:c.branch},
    currentIntegrationBase:{...r.integration_base,checked_at:finish,observation:{...r.integration_base.observation,observed_at:finish}},
    currentLocks:Object.fromEntries(['root','nested','webPlanning'].map((name,i)=>[name,packages[i].before.sources.find(v=>v.name==='package-lock.json').sha256]))};
+  if(readerMode){
+   assert(await inspectAttemptRecords({anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt}));
+   await callback({receipt,context,partitionSources});preserved();return;
+  }
   // The owned cold process below supplies the success stock, exact tip and
   // historical-prefix checks once. Keep this local observation for the distinct
   // current-input failure, which must preserve the recorded successful result.
@@ -558,7 +582,10 @@ export async function runMaterialSourceControls(c,h,group) {
  h.releaseOwner();try{await h.fresh(packet);}finally{h.acquireOwner();}
  // An interrupted reservation remains consumed even without the attempt body.
  const edge=path.join(c.anchor,'.augnes-local-verification/families',final.prior_family_id,'correction-successor.json');
- rmSync(path.join(c.anchor,'.augnes-local-verification/families',c.materialFinalReceipt.attempt.family_id,'attempt-1.json'));
- assert.throws(()=>h.begin(c,final,finalCap));assert(existsSync(edge));
+ const attemptFile=path.join(c.anchor,'.augnes-local-verification/families',c.materialFinalReceipt.attempt.family_id,'attempt-1.json'),attemptBytes=readFileSync(attemptFile);
+ try{
+  rmSync(attemptFile);
+  assert.throws(()=>h.begin(c,final,finalCap));assert(existsSync(edge));
+ }finally{h.write(attemptFile,attemptBytes);}
  console.log(JSON.stringify({material_reservation:{fresh_late_contender_refused:true,interruption_consumes:true,unchanged_retry:false},synthetic_only:true}));
 }

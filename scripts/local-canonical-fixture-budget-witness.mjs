@@ -182,7 +182,7 @@ export function maintenanceFixtureCompletionNames(git,head) {
     }).join("");
   });
 }
-function maintenanceCompletion(output,git,head) {
+export function maintenanceCompletion(output,git,head) {
   const names=maintenanceFixtureCompletionNames(git,head);
   const summary=one(jsonLines(output).filter(v=>v.status==="pass"&&v.synthetic_only===true&&Array.isArray(v.cases)));
   const cases=names.map(name=>({name,status:"pass"}));
@@ -207,7 +207,14 @@ function maintenanceIncident(p,prior,reg,{git,bytes,original,completion,reposito
       relative!==`.augnes-local-verification/logs/${prior.attempt_id}/authority.log`) fail();
   const file=path.join(repositoryRoot,relative),s=lstatSync(file);
   if (!s.isFile()||s.isSymbolicLink()||s.nlink!==1||(s.mode&0o022)||realpathSync(file)!==file||s.size!==raw.length||!readFileSync(file).equals(raw)) fail();
-  const registration=maintenanceFixtureBudgetRegistration(git,prior.head),label=JSON.stringify(registration.label);
+  const registration=maintenanceFixtureBudgetRegistration(git,prior.head);
+  return validateMaintenanceWatchdogLog(text,registration);
+}
+
+// Same finite native lifecycle parser for a retained direct maintenance failure.
+// The incident owners independently bind the physical log and predecessor.
+export function validateMaintenanceWatchdogLog(text,registration) {
+  const label=JSON.stringify(registration.label);
   const result=one(text.split("\n").filter(l=>l.startsWith("[canonical:authority] child_result label="+label+" ")));
   const match=result.match(/ duration_ms=([0-9]+) exit_code=null signal=SIG(?:TERM|KILL) timed_out=true exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=bounded_timeout$/u);
   const start=`[canonical:authority] child_start label=${label} timeout_ms=${registration.bound_ms}`;

@@ -370,14 +370,15 @@ if(process.argv[2]==="--cold"){
   try{const p=proof(c),a=await auth(c,p);write(c.ready,"ready");while(!existsSync(c.go))await new Promise(r=>setTimeout(r,5));
     try{begin(c,p,a);console.log("admitted");}catch(e){assert(["EEXIST","ENOENT","attempt_latest_tip_required","revision_validated_lineage_changed","revision_material_changed_during_validation"].includes(e.code),e.message);console.log("refused");}
   }finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
-}else if (["git","git-input","git-input-direct","git-input-lifecycle","git-input-successor","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor","material-source","material-controls","material-successor","material-final","material-stock","material-integration-preparation","material-integration-reservation","material-reservation"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
-  const group = process.argv[2].slice(6,-9), handoff = JSON.parse(process.argv[3]);
+}else if (process.argv[2]==="--run-maintenance-reader-fixtures" || ["git","git-input","git-input-direct","git-input-lifecycle","git-input-successor","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor","material-source","material-controls","material-successor","material-final","material-stock","material-integration-preparation","material-integration-reservation","material-reservation"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
+  const readerMode=process.argv[2]==="--run-maintenance-reader-fixtures";
+  const group = readerMode?"maintenance-reader":process.argv[2].slice(6,-9), handoff = JSON.parse(process.argv[3]);
   const outer = process.env.AUGNES_CANONICAL_TEMP_ROOT, physical = lstatSync(handoff.root);
   assert(handoff.root === outer || path.dirname(handoff.root) === path.dirname(path.dirname(outer)) &&
     /^ag-suite-[A-Za-z0-9]{6}$/u.test(path.basename(handoff.root)));
   assert(physical.isDirectory() && realpathSync(handoff.root) === handoff.root && physical.uid === process.getuid() &&
     (physical.mode & 0o777) === 0o700 && String(physical.dev) === handoff.device && String(physical.ino) === handoff.inode);
-  const dir = path.join(handoff.root,group.startsWith("material-") ? "acquisition-proposal" : group.startsWith("git-input") ? group+"-case" : group.startsWith("git") ? "git-case" : group.startsWith("final") ? "final-case" : group.startsWith("post-pass") ? "post-pass-case" : "prospective-fixture");
+  const dir = path.join(handoff.root,readerMode||group.startsWith("material-") ? "acquisition-proposal" : group.startsWith("git-input") ? group+"-case" : group.startsWith("git") ? "git-case" : group.startsWith("final") ? "final-case" : group.startsWith("post-pass") ? "post-pass-case" : "prospective-fixture");
   const owner=createCanonicalTestResourceRoot("ag-resource-test-"), lifecycle={pendingChildren:0};beginCanonicalTestResourceUse(owner);
   const runOwned=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);
   let c;
@@ -396,7 +397,11 @@ if(process.argv[2]==="--cold"){
       releaseOwner:()=>releaseCheckoutVerificationOwnership(c.owner,c.checkout), acquireOwner:()=>c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout}),
       run:runOwned,behavior:(subject,syntaxOnly=false)=>behavior(subject,syntaxOnly,runOwned),fresh:packet=>freshReader(c,packet,runOwned),
       snapshot:path.join(handoff.root,"prospective-fixture"),fork:path.join(handoff.root,"final-case"),positive:path.join(handoff.root,"post-pass-case")};
-    if (group==="git") await runGitRevisionControls(c,helpers);
+    if (readerMode) {
+      const {runMaintenanceReaderControls}=await import("./local-canonical-maintenance-reader.mjs");
+      await runMaintenanceReaderControls(c,helpers);
+    }
+    else if (group==="git") await runGitRevisionControls(c,helpers);
     else if (group.startsWith("git-input")) await runGitInputRevisionControls(c,helpers,group==="git-input-successor",group==="git-input-lifecycle");
     else if (group==="git-successor") await completeGitRevisionControls(c,helpers);
     else if (group.startsWith("material-")) await runMaterialSourceControls(c,helpers,group);

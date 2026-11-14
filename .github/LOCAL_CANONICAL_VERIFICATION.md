@@ -1108,6 +1108,34 @@ consumers, all repairs, preserved checks, history and safe-input order. Review
 and authority are responsible for the completeness of known history; a digest
 alone does not prove an unobserved fact.
 
+The selected `incident_case: "failed-maintenance-reader-immutable-work-v1"`
+continues only a settled failure of the selected integration-fixture maintenance
+above. It retains the complete Full failure, false-stock issue meanings,
+authenticated predecessor proof, reviewed ancestry, original inputs/cleanup,
+and every typed spent grant. Its direct maintenance watchdog failure is negative
+evidence, not natural functional RED. Source-bound bounded diagnostics must show
+the finite operation-local immutable-work reduction under unchanged assertions,
+coverage, independent-reader boundaries and registered deadlines. The separate
+checkout-ownership domain repair has its own source/diagnostic binding; it cannot
+explain or discharge the historical timeout. Cause and interrupted operation
+remain UNKNOWN, and no stable speedup is inferred.
+
+The selected evidence binds the complete accepted remedy delta, retained
+read-only observer source and reconstructed transforms, individual reader
+operations, unchanged complete controls, and natural registered positives.
+Preparation, admission, cold reconstruction and stock apply the same typed
+successor predicate. They replay the original maintenance authority and physical
+history without projecting a spent grant into current permission. Altered or
+unrelated incidents, incomplete coverage, changed input bindings and reused
+grants refuse. A superseded failed maintenance receipt remains a historical,
+non-deciding prefix and performs no current-authority observation.
+
+This finite case changes neither ordinary maintenance's natural RED/GREEN rule
+nor the one-shot authority/accounting lifecycle. Its additional controls reuse
+owned synthetic reviewed ancestry in a separately registered child; no existing
+workload, assertion or deadline is moved or relaxed. Exact task/source identities
+belong in bound evidence, not in this public rule.
+
 Safe setup precedes admission. Normal development preparation may establish
 lockfile-fixed dependencies in an authorized task-owned checkout without an
 attempt capability. It must preserve retained evidence and foreign resources;

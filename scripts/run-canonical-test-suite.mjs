@@ -1534,6 +1534,16 @@ const suites = {
     },
     ...reviewedRevisionSteps,
     {
+      id: "local-canonical-maintenance-reader",
+      label: "selected maintenance reader evidence and succession",
+      sharedFixture: true,
+      ...rootNode("scripts/fixtures/local-canonical-reviewed-revision.mjs", "--run-maintenance-reader-fixtures"),
+      // Reuse the owned synthetic reviewed ancestry in a separate child. The
+      // existing maintenance aggregate and all reviewed controls keep their bounds.
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       label: "prepared dependency eligibility before consumers",
       ...rootNode("scripts/test-prepared-dependency-eligibility.mjs"),
       timeoutMs: 120_000,

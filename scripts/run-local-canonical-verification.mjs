@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { isMaintenance, hasMaintenanceMarker, authorizeMaintenance, observeMaintenanceAuthority, inspectMaintenanceInputs } from "./local-canonical-maintenance.mjs";
-import { isFailedIntegrationFixture } from "./local-canonical-failed-integration-fixture.mjs";
+import {isSelectedMaintenanceIncident} from "./local-canonical-maintenance-reader-incident.mjs";
 import { isSerialAggregateRevision } from "./local-canonical-serial-aggregate.mjs";
 import { PROJECT_EXPERIENCE_ENVELOPE_MS, PROJECT_EXPERIENCE_SERIAL, PROJECT_EXPERIENCE_COMMITMENT, runProjectExperienceParent } from "./project-experience-serial-budget.mjs";
 import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
@@ -1484,6 +1484,7 @@ export async function inspectMaintenanceStock({anchorRoot,repositoryRoot,receipt
   // applicability. The read scope still seals every original across the await.
   const checkCurrent=()=>{try{assertCurrent?.();}catch{maintenanceCurrentIssues.push("receipt_maintenance_current_inputs_invalid");}};
   const currentAttemptRecordsValid=await inspectAttemptRecords({anchorRoot,repositoryRoot,receipt,revisionInputs:runtimeInputs,assertCurrent:checkCurrent,
+    onHistoricalPrefix:kind=>{if(kind==="failed_maintenance_reader")maintenanceCurrentIssues.push("receipt_historical_failed_maintenance_prefix");},
     observeRevision:async()=>{
       const proof=receipt.attempt.source_correction,material=maintenanceMaterial(repositoryRoot,proof);
       try{await observeMaintenanceAuthority(proof,material,transport);maintenanceCurrentIssues.splice(maintenanceCurrentIssues.indexOf("receipt_maintenance_current_authorization_unverified"),1);}
@@ -1591,7 +1592,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
     ({currentAttemptRecordsValid,integrationCurrentIssues}=await inspectIntegrationStock({anchorRoot:verificationAnchorRoot(verificationContext),repositoryRoot,receipt,assertCurrent:checkCurrentInputs}));
   } else if (receipt.receipt_version === 4 && isMaintenance(receipt.attempt?.source_correction)) {
     ({currentAttemptRecordsValid,maintenanceCurrentIssues}=await inspectMaintenanceStock({anchorRoot:verificationAnchorRoot(verificationContext),repositoryRoot,receipt,runtimeInputs,assertCurrent:checkCurrentInputs,
-      ...(isFailedIntegrationFixture(receipt.attempt.source_correction)?{observeCurrentInputs:()=>observeGitRevisionTarget(verificationContext,validationHost.browserExecutablePath,runtimeInputs)}:{})}));
+      ...(isSelectedMaintenanceIncident(receipt.attempt.source_correction)?{observeCurrentInputs:()=>observeGitRevisionTarget(verificationContext,validationHost.browserExecutablePath,runtimeInputs)}:{})}));
   } else if (receipt.receipt_version === 4 && isImprovement(receipt.attempt?.source_correction)) {
     ({currentAttemptRecordsValid,improvementCurrentIssue}=await inspectImprovementStock({
       anchorRoot:verificationAnchorRoot(verificationContext),repositoryRoot,receipt,runtimeInputs,assertCurrent:checkCurrentInputs,
