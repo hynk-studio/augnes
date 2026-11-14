@@ -1554,9 +1554,11 @@ const suites = {
       // Consume the checked ancestry without repeating its setup. The retained
       // complete owner took 85.838s, including restoration, controls, both
       // independent readers, final spent-grant refusal and cleanup. The same
-      // finite 30s reserve rounds up to 120s. Validate the complete final
-      // sequence, including continuation support; retain all inner deadlines.
-      timeoutMs: 120_000,
+      // finite 30s reserve rounds up to 120s. Continuation adds a predecessor
+      // reservation/settlement (~12s retained) and deeper proof/refusal work;
+      // allocate a separate finite 30s for that support, yielding 150s. Validate
+      // the complete final sequence; retain all inner deadlines and cleanup.
+      timeoutMs: 150_000,
       requireNaturalExit: true,
     },
     {
