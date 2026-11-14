@@ -82,11 +82,12 @@ function cleanup(rows) {
 }
 export {naturalResult as validateFixtureNaturalResult,cleanup as validateFixtureCleanup};
 
-// Shared finite failure shape for the two selected maintenance incidents.
+// Shared finite failure shape for the selected maintenance incidents.
 // The caller selects a typed predecessor, never a count-only stock waiver.
-export function validateSettledFixtureFailure(p,prior,completion,receipt,stock,{maintenance=false}={}) {
+export function validateSettledFixtureFailure(p,prior,completion,receipt,stock,{maintenance=false,maintenanceReader=false}={}) {
   const proof=prior.source_correction,original={...receipt};delete original.integrity;
-  const selected=maintenance ? isFailedIntegrationFixture(proof) : proof?.kind === "accepted_main_integration" && proof.integration_case === "reviewed" && proof.base === proof.accepted_main;
+  requireThat(typeof maintenance==="boolean"&&typeof maintenanceReader==="boolean"&&(!maintenanceReader||maintenance),"predecessor_kind_invalid");
+  const selected=maintenance ? maintenanceReader ? proof?.kind==="prospective_maintenance"&&proof.incident_case==="failed-maintenance-reader-immutable-work-v1" : isFailedIntegrationFixture(proof) : proof?.kind === "accepted_main_integration" && proof.integration_case === "reviewed" && proof.base === proof.accepted_main;
   requireThat(receipt.receipt_version === 4 && proof?.schema === "augnes.local-canonical-source-correction.v2" && selected && !Object.hasOwn(proof,"commission") &&
     proof.branch === p.branch && proof.base === p.base && proof.pull_request === p.pull_request &&
     proof.head === prior.head && proof.tree === prior.tree && (maintenance || equal(proof.budget,{initial:1,recovery:0})) &&
@@ -127,7 +128,7 @@ export function validateSettledFixtureFailure(p,prior,completion,receipt,stock,{
       row.cleanup?.completed === false && row.cleanup.exit_observed === false && row.cleanup.streams_closed === false &&
       row.cleanup.remaining_owned_processes === null && row.cleanup.termination_reason === null,"predecessor_coverage_invalid");
   }
-  const issues=[...phases.slice(6).map(id=>"phase_not_passing:"+id),...(maintenance?["receipt_attempt_records_unverified"]:[]),"receipt_classified_outcome_not_passing",
+  const issues=[...phases.slice(6).map(id=>"phase_not_passing:"+id),...(maintenance&&!maintenanceReader?["receipt_attempt_records_unverified"]:[]),"receipt_classified_outcome_not_passing",
     "receipt_final_result_not_pass","receipt_non_deciding","receipt_phase_environment_binding_invalid"].sort();
   keys(stock,"valid_deciding_evidence status issues dimensions content_fingerprint");
   requireThat(stock.valid_deciding_evidence === false && stock.status === "non_deciding_or_stale" &&

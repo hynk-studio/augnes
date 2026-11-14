@@ -6,7 +6,7 @@ import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {syncBuiltinESMExports} from "node:module";
 import {setTimeout as delay} from "node:timers/promises";
-import {digest} from "../local-canonical-inputs.mjs";
+import {digest,observePreparedDependencyInputs} from "../local-canonical-inputs.mjs";
 import {canonicalSerialize,finalizeReceipt,inspectReceiptForDecision} from "../local-canonical-receipt.mjs";
 import {beginAttempt,finishAttempt,maintenanceMaterial,prepareMaintenanceCandidate,inspectAttemptRecords,reconstructAttemptTip,REVIEWED_REVISION_PHASES} from "../local-canonical-attempts.mjs";
 import {authorizeMaintenance,maintenanceTarget,maintenanceAuthorityObservation,MAINTENANCE_ACCEPT,MAINTENANCE_GRANT} from "../local-canonical-maintenance.mjs";
@@ -332,13 +332,32 @@ export async function runMaintenanceReaderControls(c,h){
       await assert.rejects(()=>reserve(c,f));await assert.rejects(prepare);preserved();
       console.log(JSON.stringify({maintenance_reader_controls:{synthetic_only:true,qualification:false,reviewed_ancestry:true,prior_stock_issue_count:f.stock.issues.length,refusals,
         one_shot:true,interruption_consumes:true,competing_successors:1,cold_stock:true,originals_unchanged:true}}));
+      // The next separately bounded owner reuses this checked, suite-owned
+      // ancestry after every existing assertion and cold reader has completed.
+      if(h.sharedRoot)write(path.join(h.sharedRoot,"maintenance-reader-successor.json"),{packet,
+        fixture:{base:f.base,head:f.head,tree:f.tree,preparation:f.preparation,fullInputInventory:f.fullInputInventory,
+          executable:f.executable,headers:f.headers,proof:f.proof,folder:f.folder,file:f.file}});
     }finally{prior?.restoreExclude();}
   },{seedSources(){
     for(const[file,source]of sources)write(path.join(c.checkout,file),source);
     const witness="scripts/local-canonical-fixture-budget-witness.mjs";write(path.join(c.checkout,witness),fs.readFileSync(path.join(repository,witness)));
-    c.git(["add",...maintenanceReaderRemedyPaths,witness]);
+    const bindings=["scripts/capture-local-canonical-fixture-budget.mjs","tsconfig.json","scripts/browser-verification-owners.v1.json","scripts/local-canonical-change-owners.v1.json","scripts/canonical-research-tests.v1.json"];
+    for(const file of bindings)write(path.join(c.checkout,file),fs.readFileSync(path.join(repository,file)));
+    c.git(["add",...maintenanceReaderRemedyPaths,witness,...bindings]);
+  },prepareDependencies(packages){
+    // Inert metadata only: this loader is read and hashed, never imported.
+    const version="0.0.0-fixture",lock=read(path.join(c.checkout,"package-lock.json"));
+    lock.packages={"node_modules/tsx":{version}};write(path.join(c.checkout,"package-lock.json"),lock);
+    write(path.join(c.checkout,"node_modules/tsx/package.json"),{name:"tsx",version,main:"dist/loader.mjs"});
+    write(path.join(c.checkout,"node_modules/tsx/dist/loader.mjs"),"// Inert synthetic loader identity; never executed.\n");
+    const before=observePreparedDependencyInputs({repositoryRoot:c.checkout,phaseId:"dependencies-root"}),after=observePreparedDependencyInputs({repositoryRoot:c.checkout,phaseId:"dependencies-root"});
+    return [{phase_id:"dependencies-root",before,after,prerequisite:before,unchanged:true,error:null},...packages.slice(1)];
   }});
 }
+
+export {watchdog as maintenanceReaderFixtureWatchdog,failedMaintenance as maintenanceReaderFixtureFailure,
+  falseStock as maintenanceReaderFixtureStock,completeMaintenanceLog as maintenanceReaderFixtureLog,
+  sample as maintenanceReaderFixtureSample,natural as maintenanceReaderFixtureNatural,cleanup as maintenanceReaderFixtureCleanup};
 
 if(process.argv[2]==="--cold"){
   const packet=read(process.argv[3]),api={anchorRoot:packet.anchor,repositoryRoot:packet.checkout};

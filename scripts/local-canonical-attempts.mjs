@@ -1,6 +1,6 @@
 import { isMaintenance, hasMaintenanceMarker, readMaintenanceEvidence, inspectMaintenanceInputs, assertMaintenanceAuthorization, validateMaintenanceAuthorityRecords, validMaintenanceAttempt, maintenanceTarget, externalUtc, strictlyAfter } from "./local-canonical-maintenance.mjs";
 import { isFailedIntegrationFixture } from "./local-canonical-failed-integration-fixture.mjs";
-import {isFailedMaintenanceReader,isSelectedMaintenanceIncident} from "./local-canonical-maintenance-reader-incident.mjs";
+import {isFailedMaintenanceReader,isMaintenanceAggregateAllowance,isSelectedMaintenanceIncident} from "./local-canonical-maintenance-reader-incident.mjs";
 import { VERIFIER_LIFECYCLE_REPAIR, VERIFIER_LIFECYCLE_CLAIM, VERIFIER_LIFECYCLE_GRANT, verifyVerifierLifecyclePredecessor } from "./local-canonical-verifier-lifecycle-witness.mjs";
 import { readVerifierLifecycleDelegation, verifierLifecycleAuthorityScope } from "./local-canonical-git-observation.mjs";
 import { PREPARED_ELIGIBILITY_REPAIR, PREPARED_ELIGIBILITY_CLAIM, PREPARED_ELIGIBILITY_GRANT, PREPARED_ELIGIBILITY_PHASE, verifyPreparedEligibilityPredecessor } from "./local-canonical-prepared-eligibility-witness.mjs";
@@ -217,7 +217,8 @@ const followsFailedIntegrationMaintenance = (prior, completion, proof) =>
   completion.disposition === "product_failure" && completion.cleanup_complete === true && completion.infrastructure_code === null;
 
 const followsFailedReaderMaintenance = (prior,completion,proof) =>
-  isFailedMaintenanceReader(proof) && isFailedIntegrationFixture(prior?.source_correction) && validMaintenanceAttempt(prior) &&
+  (isFailedMaintenanceReader(proof) && isFailedIntegrationFixture(prior?.source_correction) ||
+    isMaintenanceAggregateAllowance(proof) && isFailedMaintenanceReader(prior?.source_correction)) && validMaintenanceAttempt(prior) &&
   completion?.contract === ATTEMPT_CONTRACT && completion.attempt_id === prior.attempt_id &&
   completion.disposition === "product_failure" && completion.cleanup_complete === true && completion.infrastructure_code === null;
 const followsSelectedMaintenance = (prior,completion,proof) =>
@@ -475,12 +476,12 @@ function prepareAttemptInspection({ anchorRoot, repositoryRoot = anchorRoot, rec
           historicalPrefix=true;historicalPrefixKind="failed_reviewed_integration";markHistoricalPrefix();
         }
       }
-      if(isFailedIntegrationFixture(attempt.source_correction)) {
+      if(isFailedIntegrationFixture(attempt.source_correction)||isFailedMaintenanceReader(attempt.source_correction)) {
         const tip=reconstructAttemptTip(lineage);
         if(tip.family_id!==familyId||tip.attempt_id!==attempt.attempt_id) {
           const root=path.join(anchorRoot,".augnes-local-verification/families",familyId),edge=read(path.join(root,"correction-successor.json"));
           const next=read(path.join(anchorRoot,".augnes-local-verification/families",edge.family_id,"attempt-1.json")),completion=read(path.join(root,`completion-${attempt.number}.json`));
-          if(isFailedMaintenanceReader(next.source_correction)) {
+          if(isFailedMaintenanceReader(next.source_correction)||isMaintenanceAggregateAllowance(next.source_correction)) {
             if(!followsFailedReaderMaintenance(attempt,completion,next.source_correction)||!validMaintenanceAttempt(next))return false;
             const evidence=maintenanceMaterial(repositoryRoot,next.source_correction);verifyMaintenanceOriginals(anchorRoot,repositoryRoot,next.source_correction,evidence);
             if(digest(evidence.receipt)!==digest(receipt))return false;

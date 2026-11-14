@@ -1546,6 +1546,17 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "local-canonical-maintenance-budget",
+      label: "measured maintenance aggregate allowance and succession",
+      sharedFixture: true,
+      ...rootNode("scripts/fixtures/local-canonical-reviewed-revision.mjs", "--run-maintenance-budget-fixtures"),
+      // Consume the checked reader ancestry above; do not repeat its setup or
+      // enlarge its 75s child. New finite evidence and two independent 10s
+      // readers have a separate lifecycle bound and suite-owned cleanup.
+      timeoutMs: 60_000,
+      requireNaturalExit: true,
+    },
+    {
       label: "prepared dependency eligibility before consumers",
       ...rootNode("scripts/test-prepared-dependency-eligibility.mjs"),
       timeoutMs: 120_000,

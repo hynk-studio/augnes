@@ -14,6 +14,7 @@ import { maintenanceMaterial, inspectAttemptRecords, REVIEWED_REVISION_PHASES } 
 import { inspectIntegrationStock } from "../run-local-canonical-verification.mjs";
 import { FAILED_INTEGRATION_FIXTURE_CASE } from "../local-canonical-failed-integration-fixture.mjs";
 import { registeredFixtureBudget } from "../local-canonical-fixture-budget-witness.mjs";
+import {maintenanceAggregateBudgetSource} from "../local-canonical-maintenance-reader-incident.mjs";
 import { projectReviewChildResult, REVIEW_CHILD_RESULT_PREFIX } from "./local-canonical-review-child-result.mjs";
 
 const repository=path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
@@ -47,6 +48,13 @@ const replaceOnce=(source,before,after)=>{
 };
 export function seedFailedIntegrationFixtureSources(c) {
   const sources=new Map(fixturePartitionPaths.map(name=>[name,fs.readFileSync(path.join(repository,name),"utf8")]));
+  // These pre-existing incidents and their reader remedy retain 90 seconds.
+  // Current 120-second source is not historical execution evidence.
+  for(const file of ["scripts/run-canonical-test-suite.mjs","scripts/test-local-canonical-verification-contract.mjs"]){
+    const source=sources.get(file);
+    if(file.endsWith("run-canonical-test-suite.mjs")?/id: "local-canonical-maintenance"[\s\S]*?timeoutMs: 120_000/u.test(source):source.includes("for(const fragment of ['timeoutMs: 120_000','requireNaturalExit: true','\"scripts/test-local-canonical-maintenance.mjs\"'])"))
+      sources.set(file,maintenanceAggregateBudgetSource(file,source,{reverse:true}));
+  }
   // Reconstruct only the admitted finite predecessor transformation inside the
   // disposable repository. The accepted repository and retained runs stay read-only.
   for(const [name,source]of sources){

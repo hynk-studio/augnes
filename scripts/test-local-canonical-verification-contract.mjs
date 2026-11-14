@@ -764,6 +764,12 @@ const maintenanceChild=canonicalSuite.slice(maintenanceChildStart,canonicalSuite
 for(const fragment of ['timeoutMs: 120_000','requireNaturalExit: true','"scripts/test-local-canonical-maintenance.mjs"'])
   requireText(maintenanceChild,fragment,"maintenance controls have their own finite authority owner, outside the product child");
 
+const maintenanceBudgetChildStart=canonicalSuite.indexOf('id: "local-canonical-maintenance-budget"');
+assert.notEqual(maintenanceBudgetChildStart,-1);
+const maintenanceBudgetChild=canonicalSuite.slice(maintenanceBudgetChildStart,canonicalSuite.indexOf("    },",maintenanceBudgetChildStart));
+for(const fragment of ['timeoutMs: 60_000','sharedFixture: true','requireNaturalExit: true','"--run-maintenance-budget-fixtures"'])
+  requireText(maintenanceBudgetChild,fragment,"aggregate allowance controls reuse checked ancestry under a separate finite owner");
+
 const isolatedChildStart = canonicalSuite.indexOf('id: "local-canonical-isolation"');
 assert.notEqual(isolatedChildStart, -1);
 const isolatedChild = canonicalSuite.slice(isolatedChildStart, canonicalSuite.indexOf("    },", isolatedChildStart));

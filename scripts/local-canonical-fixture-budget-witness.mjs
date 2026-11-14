@@ -334,14 +334,25 @@ function verifyMaintenanceFixtureBudget(p,prior,focused,options) {
     if (!equal(old.log,{bytes:output.length,sha256:digest(output)})) fail();
     if (!equal(maintenanceCompletion(output.toString(),git,old.before.source.head).refusals,measured.refusals)) fail();
   }
-  const w=parse(reg.after),{root_generated,...source}=w.source_before??{};
+  const positive=readMaintenanceFixtureBudgetPositive(reg.after,p,{...options,after:measured.finished_at,finishedAt:focused.finished_at});
+  const w=positive.record;
+  if (!equal(positive.summary.refusals,measured.refusals)) fail();
+  if (!focused.commands.some(c=>c.command===w.command&&c.tested_source_head===p.head&&equal(c.record,reg.after)&&equal(c.stdout,w.stdout))) fail();
+  return p.head;
+}
+
+// Shared observation reader, not another admission route. The selected caller
+// independently fixes the historical/new allowance and its predecessor type.
+export function readMaintenanceFixtureBudgetPositive(ref,p,{git,parse,bytes,completedAt,after=completedAt,boundMs=90000,finishedAt=null}) {
+  if (![90000,120000].includes(boundMs)||maintenanceFixtureBudgetRegistration(git,p.head).bound_ms!==boundMs) fail();
+  const w=parse(ref),{root_generated,...source}=w.source_before??{};
   if (w.contract!=="augnes.registered-fixture-budget-witness.v1"||w.role!=="direct"||w.basis!=="actual-owned-development-invocation"||
       w.synthetic_only!==undefined||w.capture_error!==undefined||w.tested_source_head!==p.head||w.tree!==p.tree||w.dirty!==""||
       w.command!=="node --import tsx "+maintenanceTest||!equal(source,pureContractGitSource(git,p.head).summary)||
       !Array.isArray(root_generated)||root_generated.length>1||root_generated.some(v=>v.path!=="next-env.d.ts"||!/^([a-f0-9]{64})$/u.test(v.sha256))||
       !equal(w.source_before,w.source_after)||!equal(w.environment_before,w.environment_after)||w.environment!==digest(w.environment_before)||
       !equal(w.environment_before,fixtureBudgetEnvironment(w.resource_root,w.environment_before))||!path.isAbsolute(w.resource_root)||
-      !natural(w.result)||!integer(w.result.duration_ms)||w.result.duration_ms>=90000||
+      !natural(w.result)||!integer(w.result.duration_ms)||w.result.duration_ms>=boundMs||
       !equal(w.runtime_before,w.runtime_after)||digest(w.runtime_before)!==p.inputs.identity_sha256||w.runtime_inputs_sha256!==p.inputs.identity_sha256||
       w.node_version!==CANONICAL_NODE_VERSION||gitRevisionInventory(w.input_inventory_before)!==p.inputs.inventory_sha256||
       gitRevisionInventory(w.input_inventory_after)!==p.inputs.inventory_sha256||!equal(w.dependencies_before,w.dependencies_after)||
@@ -350,13 +361,13 @@ function verifyMaintenanceFixtureBudget(p,prior,focused,options) {
       !equal(w.config,["package.json","package-lock.json","tsconfig.json","scripts/browser-verification-owners.v1.json","scripts/local-canonical-change-owners.v1.json","scripts/canonical-research-tests.v1.json"].map(file=>({path:file,sha256:digest(sourceAt(git,p.head,file))})))||
       w.owned_cleanup?.length!==1||w.owned_cleanup[0].root!==w.resource_root||w.owned_cleanup[0].completed!==true||w.owned_cleanup[0].failure_count!==0||w.owned_cleanup[0].failures.length||
       bytes(w.collector,128*1024).toString()!==sourceAt(git,p.head,FIXTURE_BUDGET_COLLECTOR)||
-      !(Date.parse(completedAt)<Date.parse(w.started_at)&&Date.parse(measured.finished_at)<Date.parse(w.started_at)&&Date.parse(w.started_at)<Date.parse(w.finished_at)&&Date.parse(w.finished_at)<=Date.parse(focused.finished_at))) fail();
+      !(Date.parse(completedAt)<Date.parse(w.started_at)&&Date.parse(after)<Date.parse(w.started_at)&&Date.parse(w.started_at)<Date.parse(w.finished_at)&&
+        (finishedAt===null||Date.parse(w.finished_at)<=Date.parse(finishedAt)))) fail();
   const lifecycle=bytes(w.lifecycle,128*1024).toString();
   if (lifecycle.trimEnd().split("\n").some(l=>!l.startsWith("[canonical:fixture-budget-capture] ")||!l.includes(' label="direct registered fixture allowance" '))) fail();
-  naturalLifecycle(lifecycle,{suite:"fixture-budget-capture",label:"direct registered fixture allowance",timeout:90000,duration:w.result.duration_ms});
-  if (!equal(maintenanceCompletion(bytes(w.stdout,2*1024*1024).toString(),git,p.head).refusals,measured.refusals)) fail();
-  if (!focused.commands.some(c=>c.command===w.command&&c.tested_source_head===p.head&&equal(c.record,reg.after)&&equal(c.stdout,w.stdout))) fail();
-  return p.head;
+  naturalLifecycle(lifecycle,{suite:"fixture-budget-capture",label:"direct registered fixture allowance",timeout:boundMs,duration:w.result.duration_ms});
+  const summary=maintenanceCompletion(bytes(w.stdout,2*1024*1024).toString(),git,p.head);
+  return {record:w,summary,finished_at:w.finished_at};
 }
 
 export function fixtureBudgetSourceDelta(git,before,after,group) {
@@ -441,6 +452,8 @@ function naturalLifecycle(text,{suite,label,timeout,duration,code=0}) {
   }
   return {start:selected[0],terminal:selected.find(line=>line.includes(postExit?" child_exit ":" child_cleanup_start ")),result:selected.at(-1)};
 }
+
+export {naturalLifecycle as validateFixtureNaturalLifecycle};
 
 // Reconstruct a bounded textual instrumentation patch in memory. This is not
 // git apply, checkout mutation or execution of historical diagnostic code.

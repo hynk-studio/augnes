@@ -6,14 +6,17 @@ import {CANONICAL_NODE_VERSION} from "./local-canonical-environment.mjs";
 import {artifactReader} from "./local-canonical-improvement.mjs";
 import {CANONICAL_AMBIENT_ENVIRONMENT_ALLOWLIST,CANONICAL_OPTIONAL_AMBIENT_ENVIRONMENT_ALLOWLIST} from "./canonical-test-environment.mjs";
 import {isFailedIntegrationFixture,validateSettledFixtureFailure,readFixturePreparation,validateFixtureNaturalResult,validateFixtureCleanup} from "./local-canonical-failed-integration-fixture.mjs";
-import {maintenanceFixtureBudgetRegistration,maintenanceCompletion,validateMaintenanceWatchdogLog} from "./local-canonical-fixture-budget-witness.mjs";
+import {maintenanceFixtureBudgetRegistration,maintenanceCompletion,validateMaintenanceWatchdogLog,
+  readMaintenanceFixtureBudgetPositive,validateFixtureNaturalLifecycle} from "./local-canonical-fixture-budget-witness.mjs";
 import {maintenanceReaderRemedyPaths,maintenanceReaderRemedySource,validateMaintenanceReaderRemedyPlacement,
   maintenanceReaderProfileTargets,maintenanceReaderProfileLoader,maintenanceReaderProfileObserver,transformMaintenanceReaderProfile,
   maintenanceReaderContractRegistration,maintenanceReaderSelectedRefusals} from "./local-canonical-maintenance-reader-observer.mjs";
 
 export const FAILED_MAINTENANCE_READER_CASE="failed-maintenance-reader-immutable-work-v1";
 export const isFailedMaintenanceReader=p=>p?.schema==="augnes.local-canonical-source-correction.v2"&&p.kind==="prospective_maintenance"&&p.incident_case===FAILED_MAINTENANCE_READER_CASE;
-export const isSelectedMaintenanceIncident=p=>isFailedIntegrationFixture(p)||isFailedMaintenanceReader(p);
+export const MAINTENANCE_AGGREGATE_ALLOWANCE_CASE="failed-maintenance-reader-aggregate-allowance-v1";
+export const isMaintenanceAggregateAllowance=p=>p?.schema==="augnes.local-canonical-source-correction.v2"&&p.kind==="prospective_maintenance"&&p.incident_case===MAINTENANCE_AGGREGATE_ALLOWANCE_CASE;
+export const isSelectedMaintenanceIncident=p=>isFailedIntegrationFixture(p)||isFailedMaintenanceReader(p)||isMaintenanceAggregateAllowance(p);
 const fail=code=>{throw Object.assign(new Error("maintenance_reader_"+code),{code:"maintenance_reader_"+code});};
 const requireThat=(ok,code)=>{if(!ok)fail(code);};
 const equal=(a,b)=>a!==undefined&&b!==undefined&&digest(a)===digest(b);
@@ -27,12 +30,14 @@ const inside=(root,file)=>typeof file==="string"&&path.isAbsolute(file)&&path.re
 const sourceAt=(git,head,file)=>git(["show",head+":"+file]);
 const changed=(git,before,after)=>git(["diff","--name-only","-z","--no-renames",before,after,"--"]).toString().split("\0").filter(Boolean).sort();
 const maintenanceTest="scripts/test-local-canonical-maintenance.mjs",contractTest="scripts/test-local-canonical-verification-contract.mjs",suite="scripts/run-canonical-test-suite.mjs";
+export const maintenanceAggregateBudgetPaths=[suite,contractTest].sort();
 const environmentKeys=new Set([...CANONICAL_AMBIENT_ENVIRONMENT_ALLOWLIST,...CANONICAL_OPTIONAL_AMBIENT_ENVIRONMENT_ALLOWLIST,
   "NODE_ENV","npm_config_nodedir","APPDATA","LOCALAPPDATA","AUGNES_CANONICAL_TEMP_ROOT","AUGNES_DB_PATH","AUGNES_RUNTIME_STATE_DIR"]);
 const supportPaths=new Set([...maintenanceReaderRemedyPaths,suite,contractTest,"scripts/local-canonical-receipt.mjs","scripts/run-local-canonical-verification.mjs",
   "scripts/local-canonical-fixture-budget-witness.mjs","scripts/local-canonical-maintenance-reader-incident.mjs","scripts/local-canonical-maintenance-reader-observer.mjs",
   "scripts/fixtures/local-canonical-maintenance-reader.mjs","scripts/fixtures/local-canonical-material-source.mjs","scripts/fixtures/local-canonical-reviewed-revision.mjs",
-  "scripts/fixtures/local-canonical-failed-integration-maintenance.mjs",".github/LOCAL_CANONICAL_VERIFICATION.md"]);
+  "scripts/fixtures/local-canonical-failed-integration-maintenance.mjs","scripts/fixtures/local-canonical-maintenance-allowance.mjs",
+  "scripts/fixtures/local-canonical-maintenance-budget.mjs",".github/LOCAL_CANONICAL_VERIFICATION.md"]);
 function jsonLines(text){return text.split("\n").filter(line=>line.startsWith("{")&&line.endsWith("}")).map(line=>{try{return JSON.parse(line);}catch{fail("log_json_invalid");}});}
 function bytes(read,ref,maximum=2*1024*1024){return read(ref,{json:false,maximum});}
 function text(read,ref,maximum){const raw=bytes(read,ref,maximum),value=raw.toString("utf8");requireThat(Buffer.from(value).equals(raw),"utf8_invalid");return value;}
@@ -129,11 +134,7 @@ function selectedCompletion(output,after){
   return selected.refusals;
 }
 
-export function readFailedMaintenanceReaderIncident({p,e,prior,completion,receipt,stock,read,git,root,runtime,dependencies,remember}){
-  requireThat(isFailedMaintenanceReader(p)&&equal(e.repairs,[])&&isFailedIntegrationFixture(prior.source_correction),"case_invalid");
-  validateSettledFixtureFailure(p,prior,completion,receipt,stock,{maintenance:true});
-  const incident=read(e.incident);keys(incident,"kind receipt cause interrupted_operation authority_log remedy preparation");
-  requireThat(incident.kind===FAILED_MAINTENANCE_READER_CASE&&incident.receipt===p.prior_receipt_fingerprint&&incident.cause==="UNKNOWN"&&incident.interrupted_operation==="UNKNOWN","incident_invalid");
+function retainedMaintenanceWatchdog(incident,{prior,receipt,read,git,root,remember}){
   const native=incident.authority_log,phase=receipt.phases[6];keys(native,"artifact relative_path bytes truncated");
   requireThat(native.relative_path===`.augnes-local-verification/logs/${receipt.run.id}/authority.log`&&equal(phase.log,{relative_path:native.relative_path,bytes:native.bytes,truncated:false})&&
     native.truncated===false&&phase.command==="npm run test:authority"&&phase.label==="Canonical authority suite"&&phase.cwd_scope==="root"&&phase.exclusive===true,"original_log_invalid");
@@ -141,6 +142,15 @@ export function readFailedMaintenanceReaderIncident({p,e,prior,completion,receip
   requireThat(raw.length===native.bytes&&raw.equals(physical),"original_log_invalid");
   const oldRegistration=maintenanceFixtureBudgetRegistration(git,prior.head);
   requireThat(oldRegistration.bound_ms===90000&&Buffer.from(raw.toString()).equals(raw),"incident_bound_invalid");validateMaintenanceWatchdogLog(raw.toString(),oldRegistration);
+  return oldRegistration;
+}
+
+export function readFailedMaintenanceReaderIncident({p,e,prior,completion,receipt,stock,read,git,root,runtime,dependencies,remember}){
+  requireThat(isFailedMaintenanceReader(p)&&equal(e.repairs,[])&&isFailedIntegrationFixture(prior.source_correction),"case_invalid");
+  validateSettledFixtureFailure(p,prior,completion,receipt,stock,{maintenance:true});
+  const incident=read(e.incident);keys(incident,"kind receipt cause interrupted_operation authority_log remedy preparation");
+  requireThat(incident.kind===FAILED_MAINTENANCE_READER_CASE&&incident.receipt===p.prior_receipt_fingerprint&&incident.cause==="UNKNOWN"&&incident.interrupted_operation==="UNKNOWN","incident_invalid");
+  const oldRegistration=retainedMaintenanceWatchdog(incident,{prior,receipt,read,git,root,remember});
   const remedy=read(incident.remedy);keys(remedy,"kind source_head source_tree delta_sha256 changed_paths work_reduction reader_correctness positives");
   requireThat(remedy.kind==="operation-scoped-immutable-reader-reuse-v1"&&gitId(remedy.source_head)&&gitId(remedy.source_tree)&&
     git(["rev-parse",remedy.source_head+"^{tree}"]).toString().trim()===remedy.source_tree&&
@@ -195,4 +205,89 @@ export function readFailedMaintenanceReaderIncident({p,e,prior,completion,receip
     receipt.capacity_ownership?.checkout_fingerprint!==prepared.checkout_fingerprint,"reader_domains_invalid");
   latest=Math.max(latest,Date.parse(result.finished_at));
   return readFixturePreparation({p,ref:incident.preparation,read,runtime,dependencies,latest,completion,schema:"augnes.local-canonical-maintenance-reader-preparation.v1"});
+}
+
+// The finite source transform also reconstructs historical 90-second protocol
+// fixtures when the current registration is 120 seconds. No old record changes.
+export function maintenanceAggregateBudgetSource(file,source,{reverse=false}={}){
+  const old=reverse?"120_000":"90_000",next=reverse?"90_000":"120_000";
+  if(file===suite){
+    const pattern=new RegExp('(id: "local-canonical-maintenance"[\\s\\S]*?timeoutMs:) '+old,'gu');
+    requireThat([...source.matchAll(pattern)].length===1,"source_remedy_invalid");
+    return source.replace(pattern,"$1 "+next);
+  }
+  requireThat(file===contractTest,"source_remedy_invalid");
+  const from="for(const fragment of ['timeoutMs: "+old+"','requireNaturalExit: true','\""+maintenanceTest+"\"'])";
+  const to=from.replace("timeoutMs: "+old,"timeoutMs: "+next);
+  requireThat(source.split(from).length===2,"source_remedy_invalid");
+  return source.replace(from,to);
+}
+
+// Retain the original registered-step observation verbatim. It predates the
+// failed Full and is rationale, not a new witness or a causal timeout diagnosis.
+function retainedRegisteredMaintenance(refs,{read,git,prior,runtime,completion}){
+  keys(refs,"launch result log");
+  const launch=original(read,refs.launch),record=original(read,refs.result),output=text(read,refs.log);
+  keys(launch,"kind sample mode head tree started_at shared runtime_inputs suite_source_sha256 steps");
+  keys(launch.shared,"root device inode");
+  keys(record,"sample mode head started_at finished_at duration_ms results error cleanup all_owned_roots_absent new_real_deciding_invocations");
+  requireThat(launch.kind==="actual registered focused workload only; no real preparation/admission/qualification"&&
+    typeof launch.sample==="string"&&/^[a-z0-9-]+$/u.test(launch.sample)&&launch.sample===record.sample&&launch.mode==="maintenance"&&record.mode===launch.mode&&
+    launch.head===prior.head&&record.head===prior.head&&launch.tree===prior.tree&&equal(launch.runtime_inputs,runtime)&&
+    launch.suite_source_sha256===digest(sourceAt(git,prior.head,suite))&&utc(launch.started_at)&&record.started_at===launch.started_at&&utc(record.finished_at)&&
+    Date.parse(launch.started_at)<Date.parse(record.finished_at)&&Date.parse(record.finished_at)<Date.parse(completion.finished_at)&&
+    finite(record.duration_ms)&&record.error===null&&record.all_owned_roots_absent===true&&record.new_real_deciding_invocations===0&&
+    typeof launch.shared.root==="string"&&path.isAbsolute(launch.shared.root)&&typeof launch.shared.device==="string"&&typeof launch.shared.inode==="string"&&
+    Array.isArray(launch.steps)&&launch.steps.length===1&&Array.isArray(record.results)&&record.results.length===1,"retained_measurement_invalid");
+  const step=launch.steps[0],observed=record.results[0],registration=maintenanceFixtureBudgetRegistration(git,prior.head);
+  keys(step,"id label command args timeoutMs shared");keys(observed,"id source_head command registered_bound_ms result log");keys(observed.log,"file bytes sha256");
+  requireThat(step.id===registration.id&&step.label===registration.label&&path.isAbsolute(step.command)&&digest(step.command)===runtime.node.location_fingerprint&&
+    equal(["node",...step.args],registration.command)&&step.timeoutMs===90000&&step.shared===false&&
+    observed.id===step.id&&observed.source_head===prior.head&&equal(observed.command,[step.command,...step.args])&&observed.registered_bound_ms===step.timeoutMs&&
+    record.duration_ms>=observed.result?.duration_ms&&typeof observed.log.file==="string"&&path.isAbsolute(observed.log.file)&&
+    observed.log.bytes===Buffer.byteLength(output)&&observed.log.sha256===digest(Buffer.from(output)),"retained_measurement_invalid");
+  validateFixtureNaturalResult(observed.result,registration.label,registration.bound_ms);validateFixtureCleanup(record.cleanup);
+  requireThat(record.cleanup.some(row=>row.root===launch.shared.root),"retained_measurement_cleanup_invalid");
+  validateFixtureNaturalLifecycle(output,{suite:"authority",label:registration.label,timeout:registration.bound_ms,duration:observed.result.duration_ms});
+  return {record,summary:maintenanceCompletion(output,git,prior.head),selected:selectedCompletion(output,true),duration_ms:observed.result.duration_ms};
+}
+
+export function readMaintenanceAggregateAllowanceIncident({p,e,prior,completion,receipt,stock,read,git,root,runtime,dependencies,remember}){
+  requireThat(isMaintenanceAggregateAllowance(p)&&isFailedMaintenanceReader(prior.source_correction)&&equal(e.repairs,[]),"case_invalid");
+  validateSettledFixtureFailure(p,prior,completion,receipt,stock,{maintenance:true,maintenanceReader:true});
+  const incident=read(e.incident);keys(incident,"kind receipt cause interrupted_operation authority_log remedy preparation");
+  requireThat(incident.kind===MAINTENANCE_AGGREGATE_ALLOWANCE_CASE&&incident.receipt===p.prior_receipt_fingerprint&&
+    incident.cause==="UNKNOWN"&&incident.interrupted_operation==="UNKNOWN","incident_invalid");
+  const before=retainedMaintenanceWatchdog(incident,{prior,receipt,read,git,root,remember});
+  const remedy=read(incident.remedy);keys(remedy,"kind source_head source_tree delta_sha256 changed_paths rationale positives");
+  requireThat(remedy.kind==="registered-maintenance-direct-v1"&&gitId(remedy.source_head)&&gitId(remedy.source_tree)&&
+    git(["rev-parse",remedy.source_head+"^{tree}"]).toString().trim()===remedy.source_tree&&
+    equal(git(["rev-list","--parents","-n","1",remedy.source_head]).toString().trim().split(" "),[remedy.source_head,prior.head])&&
+    equal(remedy.changed_paths,maintenanceAggregateBudgetPaths)&&equal(changed(git,prior.head,remedy.source_head),maintenanceAggregateBudgetPaths)&&
+    remedy.delta_sha256===digest(git(["diff","--binary","--no-ext-diff","--no-textconv",prior.head,remedy.source_head,"--"]))&&
+    changed(git,remedy.source_head,p.head).every(file=>supportPaths.has(file)),"source_delta_invalid");
+  git(["merge-base","--is-ancestor",remedy.source_head,p.head]);
+  const after=maintenanceFixtureBudgetRegistration(git,remedy.source_head),final=maintenanceFixtureBudgetRegistration(git,p.head);
+  requireThat(before.bound_ms===90000&&after.bound_ms===120000&&before.normalized===after.normalized&&final.bound_ms===120000&&
+    equal(final.command,before.command)&&sourceAt(git,prior.head,maintenanceTest).equals(sourceAt(git,p.head,maintenanceTest))&&
+    maintenanceAggregateBudgetSource(contractTest,sourceAt(git,prior.head,contractTest).toString())===sourceAt(git,remedy.source_head,contractTest).toString(),"source_remedy_invalid");
+  for(const head of [prior.head,remedy.source_head]){
+    const entries=git(["ls-tree","-z",head,"--",...maintenanceAggregateBudgetPaths]).toString().split("\0").filter(Boolean);
+    requireThat(entries.length===2&&entries.every(line=>line.startsWith("100644 blob ")),"source_remedy_invalid");
+  }
+  const rationale=remedy.rationale;keys(rationale,"measurement execution_reserve_ms rounding_ms judgment");
+  const measured=retainedRegisteredMaintenance(rationale.measurement,{read,git,prior,runtime,completion});
+  requireThat(rationale.execution_reserve_ms===30000&&rationale.rounding_ms===10000&&
+    Math.ceil((measured.duration_ms+rationale.execution_reserve_ms)/rationale.rounding_ms)*rationale.rounding_ms===after.bound_ms&&
+    typeof rationale.judgment==="string"&&rationale.judgment.length>=80&&rationale.judgment.length<=4000,"allowance_rationale_invalid");
+  keys(remedy.positives,"maintenance contract");
+  const preparation=read(incident.preparation,{maximum:512*1024});
+  const positive=readMaintenanceFixtureBudgetPositive(remedy.positives.maintenance,{head:p.head,tree:p.tree,inputs:{identity_sha256:digest(runtime),inventory_sha256:preparation.inventory_sha256}},
+    {git,parse:ref=>original(read,ref,2*1024*1024),bytes:(ref,maximum)=>bytes(read,ref,maximum),completedAt:completion.finished_at,after:completion.finished_at,boundMs:120000});
+  requireThat(equal(positive.summary.cases,measured.summary.cases)&&equal(positive.summary.refusals,measured.summary.refusals),"coverage_changed");
+  requireThat(equal(selectedCompletion(text(read,positive.record.stdout),true),measured.selected),"selected_coverage_invalid");
+  const contract=maintenanceReaderContractRegistration(sourceAt(git,p.head,suite).toString());
+  const verified=sample(remedy.positives.contract,{read,git,head:p.head,runtime,root,test:contractTest,bound:contract.bound_ms,after:Date.parse(positive.finished_at)});
+  requireThat(verified.output.includes('"status": "pass"'),"positive_invalid");
+  return readFixturePreparation({p,ref:incident.preparation,read,runtime,dependencies,latest:verified.finished,completion,schema:"augnes.local-canonical-maintenance-reader-preparation.v1"});
 }

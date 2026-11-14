@@ -7,7 +7,7 @@ import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { artifactReader, parseImprovementJSON, ordinaryV2SourceModule, isImprovement, improvementAuthorityObservation } from "./local-canonical-improvement.mjs";
 import { createGitHubObserverAuthorizationTransport } from "./github-main-branch-transport.mjs";
 import { isFailedIntegrationFixture, readFailedIntegrationFixtureIncident } from "./local-canonical-failed-integration-fixture.mjs";
-import {isFailedMaintenanceReader,isSelectedMaintenanceIncident,readFailedMaintenanceReaderIncident} from "./local-canonical-maintenance-reader-incident.mjs";
+import {isFailedMaintenanceReader,isMaintenanceAggregateAllowance,isSelectedMaintenanceIncident,readFailedMaintenanceReaderIncident,readMaintenanceAggregateAllowanceIncident} from "./local-canonical-maintenance-reader-incident.mjs";
 
 export const MAINTENANCE_KIND = "prospective_maintenance";
 export const MAINTENANCE_ACCEPT = "Accept this substantively repaired maintenance candidate and its evidence.";
@@ -94,7 +94,7 @@ export function readMaintenanceEvidence(file,p,root,{remember,authorizationRequi
     requireThat(source.sha256===digest(bytes)&&source.bytes===bytes.length,"dependency_source_unbound");
   }
   const incidentOptions={p,e,prior,completion,receipt,stock,read,git,root,runtime,dependencies,remember};
-  const fixture=isFailedIntegrationFixture(p)?readFailedIntegrationFixtureIncident(incidentOptions):isFailedMaintenanceReader(p)?readFailedMaintenanceReaderIncident(incidentOptions):null;
+  const fixture=isFailedIntegrationFixture(p)?readFailedIntegrationFixtureIncident(incidentOptions):isFailedMaintenanceReader(p)?readFailedMaintenanceReaderIncident(incidentOptions):isMaintenanceAggregateAllowance(p)?readMaintenanceAggregateAllowanceIncident(incidentOptions):null;
   const faults=maintenanceFaults(receipt), addressed=[];
   requireThat(faults.length>0&&Array.isArray(e.repairs)&&(fixture?e.repairs.length===0:e.repairs.length>0&&e.repairs.length<=16),"repairs_missing");
   let last="", latest=fixture?.latest??Date.parse(completion.finished_at);
@@ -162,7 +162,8 @@ export function validateMaintenanceAuthorityRecords(p,e,records,{current=true}={
   const observations={accepted_maintenance:maintenanceAuthorityObservation(a,"accepted_maintenance"),prospective_grant:maintenanceAuthorityObservation(g,"prospective_grant")};
   requireThat(av.scope===MAINTENANCE_KIND&&av.independent_report_sha256===e.review.report.sha256&&gv.acceptance_sha256===digest(observations.accepted_maintenance)&&gv.planner_sha256===digest(e.planner)&&
     gv.history_sha256===e.evidence.history.sha256&&gv.terminal_predecessor===p.prior_receipt_fingerprint&&gv.maximum_invocations===1&&gv.recovery===0&&gv.unchanged_retry===0&&
-    gv.stop_on_failure_or_interruption===true&&gv.fresh_validation===true&&gv.independent_result_audit===true&&gv.owned_cleanup===true&&gv.cumulative_cost_and_timing_risk==="accept_once_under_unchanged_bounds","authority_scope_invalid");
+    gv.stop_on_failure_or_interruption===true&&gv.fresh_validation===true&&gv.independent_result_audit===true&&gv.owned_cleanup===true&&
+    gv.cumulative_cost_and_timing_risk===(isMaintenanceAggregateAllowance(p)?"accept_once_under_reviewed_aggregate_allowance":"accept_once_under_unchanged_bounds"),"authority_scope_invalid");
   const url="https://api.github.com/repos/hynk-studio/augnes";
   requireThat(a.id===p.authorization.acceptance_review_id&&g.id===p.authorization.grant_comment_id&&a.id!==g.id&&a.commit_id===p.head&&a.pull_request_url===`${url}/pulls/${p.pull_request}`&&
     ["COMMENTED","APPROVED"].includes(a.state)&&g.issue_url===`${url}/issues/${p.pull_request}`&&g.created_at===g.updated_at&&

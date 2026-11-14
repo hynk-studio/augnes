@@ -66,13 +66,14 @@ export async function inspectMaterialIntegrationCold(c) {
 // Reuse the already-built, physical material-v7 lineage for this separate
 // selected-case owner. Existing preparation/admission campaigns keep their own
 // controls and limits; this mode constructs only their positive predecessor.
-export async function runMaintenanceReaderIntegrationFixture(c,h,callback,{seedSources}={}) {
+export async function runMaintenanceReaderIntegrationFixture(c,h,callback,{seedSources,prepareDependencies}={}) {
  assert.equal(typeof callback,'function');
  assert(seedSources===undefined||typeof seedSources==='function');
- return materialIntegrationControls(c,h,'maintenance-reader',callback,seedSources);
+ assert(prepareDependencies===undefined||typeof prepareDependencies==='function');
+ return materialIntegrationControls(c,h,'maintenance-reader',callback,seedSources,prepareDependencies);
 }
 
-async function materialIntegrationControls(c,h,mode,callback,seedSources) {
+async function materialIntegrationControls(c,h,mode,callback,seedSources,prepareDependencies) {
  const readerMode=mode==='maintenance-reader';
  const started=performance.now(),stage=name=>console.log(JSON.stringify({material_integration_stage:name,elapsed_ms:Math.round(performance.now()-started),synthetic_only:true}));
  const prior=c.materialFinalReceipt,a=prior.attempt,successStock=h.read(path.join(c.artifacts,'fresh-stock.json'));
@@ -116,6 +117,10 @@ async function materialIntegrationControls(c,h,mode,callback,seedSources) {
   const merge=git('rev-parse','HEAD'),mergeTree=git('rev-parse','HEAD^{tree}'),mergeBase=git('merge-base',a.head,main);
   h.write(exclude,Buffer.concat([excludeBytes,Buffer.from('\nnode_modules/\n')]));
   packages=dependencyRecords(c,c.checkout).map(v=>({...v,prerequisite:v.before}));
+  // Only the selected reader's disposable ancestry needs an inert loader/source
+  // binding for its later direct-capture parser controls. Observe it before the
+  // correction commit; all other groups retain their original dependency path.
+  if(readerMode&&prepareDependencies)packages=prepareDependencies(packages);
   const compatibility='scripts/verifier-fixture.mjs';h.write(path.join(c.checkout,compatibility),'export const reviewedCompatibility=true;\n');
   const corrections=[compatibility,...['','apps/augnes_apps','apps/web_planning'].flatMap(dir=>['package.json','package-lock.json'].map(name=>path.posix.join(dir,name)))].sort();
   git('add',...corrections);commit();head=git('rev-parse','HEAD');tree=git('rev-parse','HEAD^{tree}');git('update-ref','refs/remotes/origin/main',main);

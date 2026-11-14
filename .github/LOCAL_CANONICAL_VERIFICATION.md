@@ -1137,6 +1137,30 @@ including independent 10-second cold readers. No existing workload, assertion or
 deadline is moved or relaxed. Exact task/source identities belong in bound
 evidence, not in this public rule.
 
+The selected `incident_case: "failed-maintenance-reader-aggregate-allowance-v1"`
+continues only a fully settled failure of that reader-maintenance case at its
+historical 90000 ms direct aggregate watchdog. It uses the same evidence,
+preparation, authenticated authority and exclusive lineage owners. The complete
+original false stock has its own exact issue meanings and dimensions; an absent
+attempt-record refusal must not be invented to copy an earlier incident. Cause
+and interrupted operation remain UNKNOWN. The retained complete natural positive
+is measured rationale, not functional RED or historical timeout causation.
+
+The concrete remedy is an immediate two-file descendant: only the direct
+aggregate allowance changes from 90000 to 120000 ms, with its matching contract
+assertion. The selected bound is the retained complete workload plus the existing
+30000 ms orchestration reserve, rounded up to 10000 ms. The complete suite outside
+that allowance, assertions, scenarios, independent readers, inner setup limits,
+product deadlines, natural-exit requirements and cleanup remain fixed. Old proofs
+and registrations retain their original deadline interpretation. The complete
+final support delta is separately reviewed, and the existing direct collector
+observes the actual final registered workload and protected inputs before/after;
+no historical workload or natural RED is rerun to fit another evidence recipe.
+Controls reuse the checked owned reader ancestry in a separate 60-second child
+with independent 10-second readers, retaining the preceding 75-second owner.
+Preparation, admission, cold reconstruction and stock apply the same finite
+reader-to-allowance successor predicate; it is not a generic retry route.
+
 Safe setup precedes admission. Normal development preparation may establish
 lockfile-fixed dependencies in an authorized task-owned checkout without an
 attempt capability. It must preserve retained evidence and foreign resources;
@@ -1159,8 +1183,10 @@ and one closed canonical JSON object. The existing authenticated GitHub GET
 transport verifies current maintainer permission, exact Draft PR/base/head,
 unedited record bytes and chronology. Acceptance binds the complete independent
 report. The commission binds acceptance, evidence, review, planner/phase/owner
-inventory, history and the terminal predecessor; it must explicitly choose
-`accept_once_under_unchanged_bounds` for cumulative cost and timing risk,
+inventory, history and the terminal predecessor. The unchanged-bound cases must
+explicitly choose `accept_once_under_unchanged_bounds` for cumulative cost and
+timing risk; the selected aggregate allowance instead requires
+`accept_once_under_reviewed_aggregate_allowance`, bound to its reviewed remedy,
 maximum1/recovery0/unchanged_retry0, failure/interruption stop, fresh validation,
 result audit and cleanup. No old grant, generic acceptance or fallback route
 supplies these conditions.
