@@ -3,14 +3,17 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { syncBuiltinESMExports } from "node:module";
+import childProcess from "node:child_process";
 import { createCanonicalTestResourceRoot, buildCanonicalChildEnvironment, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
 import { releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
+import { physicalFingerprint } from "./local-canonical-verification-context.mjs";
 import { ATTEMPT_CONTRACT, beginAttempt, finishAttempt, prepareAttemptDependencies, inspectAttemptRecords, reconstructAttemptTip, readSourceCorrectionProof, supportsSourceCorrection, maintenanceMaterial, prepareMaintenanceCandidate, prepareAcceptedMainIntegrationCandidate, integrationMaterial, integrationTarget, authorizeIntegration, validateIntegrationAuthorityRecords, validReviewedIntegrationAttempt, INTEGRATION_ACCEPT, INTEGRATION_GRANT, REVIEWED_REVISION_PHASES } from "./local-canonical-attempts.mjs";
 import { authorizeMaintenance, assertMaintenanceAuthorization, validateMaintenanceAuthorityRecords, maintenanceAuthorityObservation, MAINTENANCE_GRANT, validMaintenanceAttempt, observeMaintenanceSetup, maintenanceFaults } from "./local-canonical-maintenance.mjs";
 import { readStockMachineIdentity, inspectMaintenanceStock, inspectIntegrationStock } from "./run-local-canonical-verification.mjs";
 import { createPrivateReviewExport, inspectPrivateReviewExport } from "./local-canonical-review-export.mjs";
 import { canonicalSerialize, finalizeReceipt, inspectReceiptForDecision, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
 import { createMaintenanceFixture } from "./fixtures/local-canonical-maintenance.mjs";
+import { seedFailedIntegrationFixtureSources, createFailedIntegrationMaintenanceFixture } from "./fixtures/local-canonical-failed-integration-maintenance.mjs";
 import { completeSyntheticReceipt, write } from "./fixtures/local-canonical-improvement.mjs";
 import { digest, observePreparedDependencyInputs, freezeInputContract } from "./local-canonical-inputs.mjs";
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
@@ -19,6 +22,7 @@ import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-
 // obtains real GitHub authority or opens the operator's physical ledger.
 const resource=createCanonicalTestResourceRoot("ag-resource-test-"),env=buildCanonicalChildEnvironment({temporaryRoot:resource.root});
 const cases=[],refusals=[];
+const additionalRefusals=[];
 let c;
 const note=name=>{cases.push({name,status:"pass"});console.log(JSON.stringify(cases.at(-1)));};
 const material=()=>maintenanceMaterial(c.checkout,c.proof);
@@ -193,6 +197,141 @@ async function successfulMaintenanceIntegrationControls() {
   });
   note("successful maintenance admits only a reviewed pure accepted-main integration; non-reserving preparation, cold lineage and receipt validation agree; spent predecessor and ordinary budget preserved");
 }
+async function failedIntegrationMaintenanceControls({receipt,context,partitionSources}) {
+  const families=path.join(c.anchor,".augnes-local-verification/families"),restoreLedger=snapshot(families),integrationHead=receipt.repository.head_sha;
+  const selectedRefusals=[];
+  const recordRefusal=(name,error)=>selectedRefusals.push({name,code:error?.code??error?.message??String(error)});
+  const rejected=async(name,run,match)=>{let refusal;await assert.rejects(run,error=>{refusal=error;return match===undefined||match.test(String(error));});recordRefusal(name,refusal);};
+  const thrown=(name,run,match)=>{let refusal;assert.throws(run,error=>{refusal=error;return match===undefined||match.test(String(error));});recordRefusal(name,refusal);};
+  let f;
+  try {
+    f=createFailedIntegrationMaintenanceFixture({c,successfulReceipt:receipt,context,partitionSources});
+    const edge=path.join(f.priorRoot,"correction-successor.json"),noEdge=()=>assert(!fs.existsSync(edge));
+    const material=()=>f.material(),prepare=async()=>prepareMaintenanceCandidate({anchorRoot:c.anchor,repositoryRoot:c.checkout,proof:f.proof,runtimeInputs:f.inputs,live:async()=>structuredClone(f.live)});
+    const request=extra=>({...c.request(),head:f.head,tree:f.tree,acceptedMain:f.base,runId:"failed-integration-maintenance",sourceCorrection:f.proof,revisionInputs:f.inputs,revisionLive:f.live,...extra});
+    const reserve=async extra=>beginAttempt(request({observeRevision:async()=>({authorization:await authorizeMaintenance(f.proof,material(),f.transport()),live:structuredClone(f.live)}),...extra}));
+    const originalFiles=new Map(["attempt","completion"].map(kind=>{const file=path.join(f.priorRoot,kind+"-1.json");return[file,fs.readFileSync(file)];}));
+    for(const relative of [f.p.prior_receipt_path,f.nativePath]){const file=path.join(c.checkout,relative);originalFiles.set(file,fs.readFileSync(file));}
+    const preserve=()=>{for(const[file,bytes]of originalFiles)assert.deepEqual(fs.readFileSync(file),bytes,"retained failed integration remains immutable");};
+    const retainedStock=inspectReceiptForDecision(f.failed,{...context,integrationCurrentIssues:[]});
+    assert.deepEqual(retainedStock,f.stock);assert.equal(f.stock.issues.length,14);
+    assert.deepEqual(f.failed.phases.map(p=>p.status),[...Array(6).fill("pass"),"failure",...Array(9).fill("not_run")]);
+    assert.deepEqual(f.preparation.input_inventory.binding,{});assert(!Object.hasOwn(f.preparation.input_inventory,"prepared_dependencies"));
+    assert.deepEqual(f.fullInputInventory.resources,f.preparation.input_inventory.resources);assert.notEqual(f.fullInputInventory.fingerprint,f.preparation.input_inventory.fingerprint);
+    // Each reader observes mutable queries again; immutable source bytes are
+    // reused only inside that reader, never across independent operations.
+    const sourceGit=childProcess.execFileSync,reads=[];
+    childProcess.execFileSync=function(command,args,options){if(command==="git")reads.push([...args]);return sourceGit.apply(this,arguments);};syncBuiltinESMExports();
+    let original;
+    try{
+      original=material();const split=reads.length;material();
+      const first=reads.slice(0,split),second=reads.slice(split),blobs=rows=>rows.filter(args=>args.length===3&&args[0]==="--no-replace-objects"&&args[1]==="show"&&/^[a-f0-9]{40}:.+/u.test(args[2])).map(args=>args[2]);
+      assert(blobs(first).length>0);assert.equal(new Set(blobs(first)).size,blobs(first).length,"one immutable blob read per reader");
+      assert.deepEqual(blobs(second),blobs(first),"independent readers reread immutable bytes");
+      assert.deepEqual(second,first,"mutable Git queries also reread in the next operation");
+    }finally{childProcess.execFileSync=sourceGit;syncBuiltinESMExports();}
+    assert.equal(original.fixture.preparation_sha256,f.incident.preparation.sha256);noEdge();
+    f.rebuild(false);
+    const prepared=await prepare();assert.equal(prepared.eligible_evidence,true);assert.equal(prepared.live_inputs_ready,true);assert.equal(prepared.admission,false);assert.equal(prepared.reserved,false);
+    assert.deepEqual(prepared.missing,["authenticated_candidate_acceptance","prospective_maintenance_commission"]);noEdge();
+    await rejected("unauthorized admission",()=>reserve());f.rebuild();
+    const keys="p e r stock history partition preparation checks contract sourceBefore sourceAfter incident".split(" "),saved=structuredClone(Object.fromEntries(keys.map(key=>[key,f[key]])));
+    const reset=()=>{for(const key of keys)f[key]=structuredClone(saved[key]);f.rebuild();};
+    let refused=0;
+    for(const [name,mutate]of [
+      ["UNKNOWN cause retained",()=>f.incident.cause="repaired_timeout"],
+      ["UNKNOWN operation retained",()=>f.incident.interrupted_operation="stock"],
+      ["whole stock issue set",()=>f.stock.issues.pop()],
+      ["same-count stock meanings",()=>{f.stock.issues[0]="unexplained_stock_issue";f.stock.issues.sort();assert.equal(f.stock.issues.length,14);}],
+      ["stock dimensions retained",()=>f.stock.dimensions.current_authorization="unverified"],
+      ["complete ordered positive groups",()=>f.checks.pop()],
+      ["positive swap refused",()=>[f.checks[5],f.checks[6]]=[f.checks[6],f.checks[5]]],
+      ["existing inner deadline retained",()=>f.checks[5].result.registered_inner_ms=30000],
+      ["positive cleanup required",()=>f.checks[5].result.result.cleanup_completed=false],
+      ["full source inventory",()=>delete f.sourceBefore.source[Object.keys(f.sourceBefore.source)[0]]],
+      ["actual partition parent",()=>f.partition.source_head=f.sourceHead],
+      ["prepared source bound",()=>f.preparation.source_head=f.sourceHead],
+      ["prepared inventory bound",()=>f.preparation.inventory_sha256="a".repeat(64)],
+      ["caller-invented preparation binding",()=>{const input=f.preparation.input_inventory;input.binding={head:f.head};input.fingerprint=digest({contract:input.contract,path_kind:input.path_kind,binding:input.binding,resources:input.resources});}],
+      ["contract creates no grant",()=>f.contract.new_grants=1],
+    ]){
+      mutate();let error;try{f.rebuild();material();}catch(value){error=value;}assert(error,name);noEdge();preserve();recordRefusal(name,error);refused++;reset();
+    }
+    const physicalLog=path.join(c.checkout,f.nativePath),nativeBytes=fs.readFileSync(physicalLog);
+    try{write(physicalLog,"substituted physical incident log\n");thrown("physical incident log substitution",material,/artifact_changed|original_log/);noEdge();refused++;}finally{write(physicalLog,nativeBytes);}
+    await rejected("live prepared inventory drift",async()=>prepareMaintenanceCandidate({anchorRoot:c.anchor,repositoryRoot:c.checkout,proof:f.proof,runtimeInputs:f.inputs,live:{...f.live,inventory:"a".repeat(64)}}),/prepared_inputs_changed/);noEdge();
+    await rejected("live runtime drift",()=>reserve({revisionInputs:c.inputs}),/maintenance_current_runtime_invalid/);noEdge();
+    const unsafe=path.join(c.checkout,"apps/web_planning/node_modules/.vite-temp");fs.mkdirSync(unsafe,{mode:0o700});fs.chmodSync(unsafe,0o777);
+    try{await rejected("unsafe input preparation",prepare);await rejected("unsafe input admission",()=>reserve());noEdge();}finally{fs.rmdirSync(unsafe);}
+    // An old ID remains spent even when all bytes are freshly rebound to this
+    // selected target. This is synthetic authority, never a rewritten provider record.
+    for(const oldId of [receipt.attempt.source_correction.authorization.grant_comment_id,c.proof.authorization.grant_comment_id]){
+      f.records.grant.id=oldId;f.proof.authorization.grant_comment_id=oldId;f.proof.authorization.grant_comment_sha256=digest(maintenanceAuthorityObservation(f.records.grant,"prospective_grant"));
+      write(f.file,Object.fromEntries(Object.entries(f.proof).filter(([key])=>key!=="local_relative_path")));
+      await rejected("old grant reuse "+oldId,prepare,/grant_reused/);noEdge();reset();
+    }
+    const noCurrentReads={...f.transport(),pullRequest:async()=>{throw Error("wrong synthetic current PR");}};
+    await rejected("current PR authority unavailable",()=>authorizeMaintenance(f.proof,material(),noCurrentReads));noEdge();
+    // Evidence drift during the authority await cannot reach the exclusive edge.
+    const observation=path.join(f.folder,"material-stock.log"),observationBytes=fs.readFileSync(observation);
+    try{await rejected("evidence drift during authority observation",()=>reserve({observeRevision:async()=>{const authorization=await authorizeMaintenance(f.proof,material(),f.transport());write(observation,"late positive evidence drift\n");return{authorization,live:f.live};}}),/changed/);noEdge();}
+    finally{write(observation,observationBytes);}
+    const restoreBeforeAdmission=snapshot(families);
+    try{
+      const original=fs.writeFileSync;fs.writeFileSync=function(file,...args){if(String(file).endsWith("attempt-1.json")&&!String(file).includes(f.priorAttempt.family_id))throw Error("synthetic selected-case interruption");return original(file,...args);};syncBuiltinESMExports();
+      try{await rejected("interruption after exclusive edge",()=>reserve(),/selected-case interruption/);}finally{fs.writeFileSync=original;syncBuiltinESMExports();}
+      assert(fs.existsSync(edge));thrown("interrupted cold lineage",()=>reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}),/reserved_unsettled/);await rejected("interrupted commission replay",()=>reserve());
+    }finally{restoreBeforeAdmission();}
+    const {receipt:assembled,context:successContext}=await completeSyntheticReceipt(f,async extra=>{
+      const admission={...extra,contractFingerprint:f.fullInputInventory.fingerprint};
+      const outcomes=await Promise.allSettled([reserve(admission),reserve(admission)]);
+      assert.equal(outcomes.filter(x=>x.status==="fulfilled").length,1);assert.equal(outcomes.filter(x=>x.status==="rejected").length,1);
+      recordRefusal("competing reservation",outcomes.find(x=>x.status==="rejected").reason);
+      return outcomes.find(x=>x.status==="fulfilled").value;
+    });
+    // Finish constructing only this new synthetic success with its full,
+    // admitted declaration. No retained failed or provider record is rewritten.
+    const checkout=f.preparation.checkout_fingerprint,verification=physicalFingerprint(c.checkout);
+    const success=finalizeReceipt({...assembled,inputs:structuredClone(f.fullInputInventory),
+      verification_context:{...assembled.verification_context,checkout_fingerprint:verification},
+      checkout_ownership:{...assembled.checkout_ownership,checkout_fingerprint:checkout}});
+    assert.notEqual(verification,checkout);assert.notEqual(success.capacity_ownership.checkout_fingerprint,checkout);assert.notEqual(success.capacity_ownership.checkout_fingerprint,verification);
+    Object.assign(successContext,{currentVerificationContext:success.verification_context,currentCheckoutFingerprint:checkout});
+    assert.equal(success.inputs.binding.head,f.head);assert.equal(success.inputs.binding.tree,f.tree);assert.deepEqual(success.inputs.binding.runtime_inputs,f.inputs);
+    assert.equal(success.inputs.binding.executor_fingerprint,success.executor.source_fingerprint);assert(success.inputs.binding.phase_environment_fingerprints.length===16);
+    assert.deepEqual(success.inputs.resources,f.preparation.input_inventory.resources);assert.deepEqual(f.live.inputInventory.binding,{});
+    const completionFile=path.join(families,success.attempt.family_id,"completion-1.json"),completion=JSON.parse(fs.readFileSync(completionFile));
+    write(completionFile,{...completion,receipt_fingerprint:success.integrity.content_fingerprint});
+    for(const [name,fingerprint]of [["verification-context fingerprint is not checkout ownership",verification],["capacity fingerprint is not checkout ownership",success.capacity_ownership.checkout_fingerprint],["missing recorded checkout ownership",null]]){
+      const changed=structuredClone(success);
+      if(fingerprint===null)delete changed.checkout_ownership.checkout_fingerprint;else changed.checkout_ownership.checkout_fingerprint=fingerprint;
+      const bad=finalizeReceipt(changed);
+      try{write(completionFile,{...completion,receipt_fingerprint:bad.integrity.content_fingerprint});assert.equal(await inspectAttemptRecords({anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt:bad}),false,name);recordRefusal(name,{code:"attempt_records_refused"});}
+      finally{write(completionFile,{...completion,receipt_fingerprint:success.integrity.content_fingerprint});}
+    }
+    assert(validMaintenanceAttempt(success.attempt));assert.deepEqual(success.attempt.budget,{initial:1,recovery:0});
+    const tip=reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch});
+    assert.equal(tip.attempt_id,success.run.id);assert.equal(tip.maintenance_consumed,true);
+    assert.deepEqual(tip.historical_grants.map(row=>row.kind),["behavior_preserving_improvement","prospective_maintenance","accepted_main_integration","prospective_maintenance"]);
+    assert.deepEqual(tip.historical_grants.map(row=>row.grant.id),[c.terminal.source_correction.authorization.grant_comment_id,c.proof.authorization.grant_comment_id,receipt.attempt.source_correction.authorization.grant_comment_id,success.attempt.source_correction.authorization.grant_comment_id]);
+    assert(tip.historical_grants.every(row=>row.consumed===1&&row.budget.initial===1&&row.budget.recovery===0));
+    assert.deepEqual(tip.historical_grants[0].grant,c.terminal.improvement_authority.observations.prospective_grant);
+    assert.deepEqual(tip.historical_grants[2].grant,receipt.attempt.integration_authority.observations.prospective_grant);
+    assert.deepEqual(tip.historical_grants[3].acceptance,success.attempt.maintenance_authority.observations.accepted_maintenance);
+    const packet=path.join(f.folder,"cold-packet.json");write(packet,{anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt:f.failed,context});
+    await child("failed-integration-cold-prefix",process.execPath,["--import","tsx",f.coldReader,"--cold-failed-integration",packet],path.resolve(path.dirname(f.coldReader),"../.."));
+    recordRefusal("cold malformed failure prefix",{code:"attempt_records_refused"});
+    const observed=await inspectMaintenanceStock({anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt:success,runtimeInputs:f.inputs,observeCurrentInputs:async()=>structuredClone(f.live),assertCurrent(){},transport:f.transport()});
+    assert.equal(observed.currentAttemptRecordsValid,true);assert.deepEqual(inspectReceiptForDecision(success,{...successContext,...observed}).issues,[]);
+    await rejected("spent commission admission",()=>reserve());await rejected("spent commission preparation",prepare);preserve();
+    console.log(JSON.stringify({failed_integration_maintenance:{synthetic_only:true,evidence_refusals:refused,refusal_count:selectedRefusals.length,refusals:selectedRefusals,
+      input_scopes:{preparation_binding_keys:Object.keys(f.preparation.input_inventory.binding),full_binding_keys:Object.keys(success.inputs.binding).sort(),shared_inventory:true,
+        preparation_input_fingerprint:f.preparation.input_inventory.fingerprint,full_input_fingerprint:success.inputs.fingerprint}}}));
+    note("selected failed reviewed-integration fixture partition: retained6PASS/authorityFAIL/9NOT_RUN and stock14, evidence refusals, safe preparation, distinct one-shot grant, interruption and exclusive cold lineage; failed prefix grants no current permission");
+  } finally {
+    f?.restoreExclude();restoreLedger();c.git(["reset","--hard",integrationHead]);
+  }
+}
 async function reviewedIntegrationControls() {
   await isolated(async()=>{
     const {receipt:prior}=await completeSyntheticReceipt(c,reserve),a=prior.attempt;
@@ -203,7 +342,9 @@ async function reviewedIntegrationControls() {
     const ref=(name,v)=>{write(path.join(folder,name),v);return{artifact:name,sha256:digest(fs.readFileSync(path.join(folder,name)))}};
     const delta=(before,after,files=[])=>digest(c.git(["diff","--binary","--no-ext-diff","--no-textconv","--no-renames",before,after,"--",...files]));
     try {
-      git("checkout","-b","reviewed-accepted-main",c.base);write(path.join(c.checkout,"lib/work.mjs"),"export const incoming=true;\n");git("add","lib/work.mjs");commit();
+      git("checkout","-b","reviewed-accepted-main",c.base);write(path.join(c.checkout,"lib/work.mjs"),"export const incoming=true;\n");
+      const partitionSources=seedFailedIntegrationFixtureSources(c);
+      git("add","lib/work.mjs");commit();
       const main=git("rev-parse","HEAD");git("checkout",c.branch);
       try{git("merge","--no-ff","--no-commit",main);}catch{/* Deliberately differing overlap; resolve both behaviors in this isolated repository. */}
       write(path.join(c.checkout,"lib/work.mjs"),"export function read(validate){validate();return 2;}\nexport const incoming=true;\n");git("add","lib/work.mjs");commit();
@@ -287,6 +428,7 @@ async function reviewedIntegrationControls() {
         assert.equal(Buffer.byteLength(JSON.stringify({...receipt.attempt,attempt_id:exactLimitRunId})),64*1024);
         await assert.rejects(()=>reserveIntegration({runId:exactLimitRunId}),/attempt_unbounded/);assert(!fs.existsSync(edge));
       }finally{afterAdmission();}
+      await failedIntegrationMaintenanceControls({receipt,context,partitionSources});
       write(path.join(folder,"review.md"),"tampered");assert.equal(await inspectAttemptRecords({anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt}),false);
       let authorityReads=0;
       const refusedStock=await inspectIntegrationStock({anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt,assertCurrent(){},transport:{review:async()=>{authorityReads++;throw Error("must not observe authority after historical refusal");}}});
@@ -338,6 +480,9 @@ try {
   await refuses("missing substantive repair judgment",()=>c.r.judgments.substantive_repairs=false);
   await refuses("undeclared test-only repair path",()=>c.e.repairs[0].source_module="scripts/test-only.mjs");
   await refuses("incomplete repair",()=>c.e.repairs[0].addresses.pop());
+  await isolated(async()=>{const evidence={...c.e,repairs:[]};c.p.evidence=c.ref("evidence.json",evidence);write(c.file,c.p);c.proof={...c.p,local_relative_path:path.relative(c.checkout,c.file)};
+    assert.throws(material,error=>{if(error.code!=="maintenance_repairs_missing")return false;additionalRefusals.push({name:"ordinary empty repairs cannot use selected-case waiver",code:error.code});return true;});
+    assert(!fs.existsSync(path.join(c.priorRoot,"correction-successor.json")));});
   await refuses("complete delta omission",()=>c.e.source.changed_paths.pop());
   note("unchanged target, absent substantive review, unbound path, incomplete repairs and route fallback refuse");
   await refuses("adverse evidence omitted",()=>c.history.observations=[]);
@@ -415,6 +560,7 @@ try {
     const neverObserved=await stock();assert.equal(neverObserved.currentAttemptRecordsValid,false);
     assert.equal(inspectReceiptForDecision(r,{...context,...neverObserved}).dimensions.current_authorization,"unverified");
   });note("actual receipt and read-only stock require complete unchanged workload, prerequisites and cleanup; history and current applicability stay separate");
+  console.log(JSON.stringify({maintenance_additional_refusals:{synthetic_only:true,refusal_count:additionalRefusals.length,refusals:additionalRefusals}}));
   console.log(JSON.stringify({status:"pass",synthetic_only:true,qualification:false,cases,refusals}));
 } finally {
   if(c?.owner)releaseCheckoutVerificationOwnership(c.owner,c.checkout,{consumersSettled:true});

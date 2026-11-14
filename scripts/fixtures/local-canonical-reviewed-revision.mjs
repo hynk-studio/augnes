@@ -22,7 +22,7 @@ import {GIT_ACQUISITION_REPAIR,gitAcquisitionIncident,gitRevisionInventory} from
 import {CANONICAL_NODE_VERSION} from "../local-canonical-environment.mjs";
 import {inspectGitRevisionPreparation} from "../local-canonical-attempts.mjs";
 import {baseReceipt} from "./local-canonical-receipt-v3.mjs";
-import {runMaterialSourceControls,seedMaterialSourceFiles,prepareMaterialSourcePredecessor} from "./local-canonical-material-source.mjs";
+import {runMaterialSourceControls,seedMaterialSourceFiles,prepareMaterialSourcePredecessor,inspectMaterialIntegrationCold} from "./local-canonical-material-source.mjs";
 import {runMaintenanceAllowanceControls} from "./local-canonical-maintenance-allowance.mjs";
 
 const self=fileURLToPath(import.meta.url), quiet={write(){}}, clone=v=>structuredClone(v);
@@ -81,8 +81,8 @@ function attachGit(c,gitIncident) {
   c.commit=value=>{write(path.join(c.checkout,"scripts/fixture.mjs"),"export const value="+value+";\n"+(gitIncident?'import assert from "node:assert/strict";\nassert.equal(value,4);\nconsole.log("corrected behavior");\n':""));c.git(["add","scripts"]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","value "+value]);return c.git(["rev-parse","HEAD"]).toString().trim();};
 }
 function setup(root,browser=false){
-  const inputSourceSuccessor=browser==="git-input-successor", inputRevision=browser==="git-input" || inputSourceSuccessor, gitIncident=browser==="git" || inputRevision, product="apps/web_planning/src/client.js.txt";
-  const c={checkout:path.join(root,"checkout"),anchor:path.join(root,"anchor"),branch:"codex/reviewed-revision",root};
+  const directGitInput=browser==="git-input-direct", inputSourceSuccessor=browser==="git-input-successor", inputRevision=browser==="git-input" || directGitInput || inputSourceSuccessor, gitIncident=browser==="git" || inputRevision, product="apps/web_planning/src/client.js.txt";
+  const c={checkout:path.join(root,"checkout"),anchor:path.join(root,"anchor"),branch:"codex/reviewed-revision",root,directGitInput};
   mkdirSync(c.checkout);mkdirSync(c.anchor);c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});c.env=buildCanonicalChildEnvironment({temporaryRoot:root});
   attachGit(c,gitIncident && (!inputRevision || inputSourceSuccessor));
   if (gitIncident && !inputRevision) {
@@ -121,6 +121,11 @@ function setup(root,browser=false){
   const completion=path.join(c.legacyRoot,"completion-1.json");
   write(completion,{...read(completion),finished_at:time(-60000)});
   assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,branch:c.branch}).attempt_id,a.attempt_id);
+  if(directGitInput){
+    write(path.join(c.checkout,product),"let decision = independentlyReviewedRepair();\n");c.git(["add",product]);
+    c.acceptedHead=c.commit(2);c.acceptedTree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();
+    c.git(["update-ref","refs/remotes/origin/"+c.branch,c.acceptedHead]);
+  }
   if(gitIncident && !inputRevision){write(path.join(c.checkout,product),"let decision = preserveDraft();\n");c.git(["add",product]);}
   if(!browser){c.acceptedHead=c.commit(2);c.acceptedTree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();}
   if(!inputRevision)c.commit(3);
@@ -336,7 +341,10 @@ async function acquisitionProposalControls(parentRoot, lifecycle, retainMaterial
 }
 
 if(process.argv[2]==="--cold"){
-  const c=read(process.argv[3]),p=proof(c),a=await auth(c,p);
+  const c=read(process.argv[3]);
+  if(c.integrationRecords) await inspectMaterialIntegrationCold(c);
+  else {
+  const p=proof(c),a=await auth(c,p);
   if (c.stockContext) {
     const r=read(path.join(c.checkout,".augnes-local-verification/receipts",c.stockContext.expectedRunId+".json"));
     const stale=observeFixtureLive(c), observation=stale?.service?.diagnostics ?? stale?.diagnostics;
@@ -355,25 +363,28 @@ if(process.argv[2]==="--cold"){
   if(c.lateContender){c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});
     try{assert.throws(()=>begin(c,p,a,{runId:"late-material-contender"}),/attempt_latest_tip_required/);}
     finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);}}
+  }
   console.log("fresh reader PASS");
 }else if(process.argv[2]==="--race"){
   const c=read(process.argv[3]);c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});
   try{const p=proof(c),a=await auth(c,p);write(c.ready,"ready");while(!existsSync(c.go))await new Promise(r=>setTimeout(r,5));
     try{begin(c,p,a);console.log("admitted");}catch(e){assert(["EEXIST","ENOENT","attempt_latest_tip_required","revision_validated_lineage_changed","revision_material_changed_during_validation"].includes(e.code),e.message);console.log("refused");}
   }finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
-}else if (["git","git-input","git-input-lifecycle","git-input-successor","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor","material-source","material-controls","material-successor","material-final","material-stock","material-reservation"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
-  const group = process.argv[2].slice(6,-9), handoff = JSON.parse(process.argv[3]);
+}else if (["--run-maintenance-reader-fixtures","--run-maintenance-budget-fixtures"].includes(process.argv[2]) || ["git","git-input","git-input-direct","git-input-lifecycle","git-input-successor","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor","material-source","material-controls","material-successor","material-final","material-stock","material-integration-preparation","material-integration-reservation","material-reservation"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
+  const readerMode=process.argv[2]==="--run-maintenance-reader-fixtures";
+  const budgetMode=process.argv[2]==="--run-maintenance-budget-fixtures",maintenanceMode=readerMode||budgetMode;
+  const group = readerMode?"maintenance-reader":budgetMode?"maintenance-budget":process.argv[2].slice(6,-9), handoff = JSON.parse(process.argv[3]);
   const outer = process.env.AUGNES_CANONICAL_TEMP_ROOT, physical = lstatSync(handoff.root);
-  assert(handoff.root === outer || path.dirname(handoff.root) === path.dirname(path.dirname(outer)) &&
+  assert(handoff.root === outer || (maintenanceMode && path.dirname(handoff.root) === path.dirname(outer) || path.dirname(handoff.root) === path.dirname(path.dirname(outer))) &&
     /^ag-suite-[A-Za-z0-9]{6}$/u.test(path.basename(handoff.root)));
   assert(physical.isDirectory() && realpathSync(handoff.root) === handoff.root && physical.uid === process.getuid() &&
     (physical.mode & 0o777) === 0o700 && String(physical.dev) === handoff.device && String(physical.ino) === handoff.inode);
-  const dir = path.join(handoff.root,group.startsWith("material-") ? "acquisition-proposal" : group.startsWith("git-input") ? group+"-case" : group.startsWith("git") ? "git-case" : group.startsWith("final") ? "final-case" : group.startsWith("post-pass") ? "post-pass-case" : "prospective-fixture");
+  const dir = path.join(handoff.root,maintenanceMode||group.startsWith("material-") ? "acquisition-proposal" : group.startsWith("git-input") ? group+"-case" : group.startsWith("git") ? "git-case" : group.startsWith("final") ? "final-case" : group.startsWith("post-pass") ? "post-pass-case" : "prospective-fixture");
   const owner=createCanonicalTestResourceRoot("ag-resource-test-"), lifecycle={pendingChildren:0};beginCanonicalTestResourceUse(owner);
   const runOwned=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);
   let c;
   try {
-    if (["git","git-input","git-input-lifecycle","git-input-successor"].includes(group)) {mkdirSync(dir,{mode:0o700}); c=setup(dir,group === "git-input-lifecycle" ? "git-input" : group);}
+    if (["git","git-input","git-input-direct","git-input-lifecycle","git-input-successor"].includes(group)) {mkdirSync(dir,{mode:0o700}); c=setup(dir,group === "git-input-lifecycle" ? "git-input" : group);}
     else {
       assert.equal(realpathSync(dir),dir);
       c = read(path.join(dir,"context.json")); c.root=dir;
@@ -385,9 +396,17 @@ if(process.argv[2]==="--cold"){
     }
     const helpers={prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,finish:finishAttempt,
       releaseOwner:()=>releaseCheckoutVerificationOwnership(c.owner,c.checkout), acquireOwner:()=>c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout}),
-      run:runOwned,behavior:(subject,syntaxOnly=false)=>behavior(subject,syntaxOnly,runOwned),fresh:packet=>freshReader(c,packet,runOwned),
+      run:runOwned,behavior:(subject,syntaxOnly=false)=>behavior(subject,syntaxOnly,runOwned),fresh:packet=>freshReader(c,packet,runOwned),sharedRoot:handoff.root,
       snapshot:path.join(handoff.root,"prospective-fixture"),fork:path.join(handoff.root,"final-case"),positive:path.join(handoff.root,"post-pass-case")};
-    if (group==="git") await runGitRevisionControls(c,helpers);
+    if (readerMode) {
+      const {runMaintenanceReaderControls}=await import("./local-canonical-maintenance-reader.mjs");
+      await runMaintenanceReaderControls(c,helpers);
+    }
+    else if(budgetMode){
+      const {runMaintenanceBudgetControls}=await import("./local-canonical-maintenance-budget.mjs");
+      await runMaintenanceBudgetControls(c,helpers,read(path.join(handoff.root,"maintenance-reader-successor.json")));
+    }
+    else if (group==="git") await runGitRevisionControls(c,helpers);
     else if (group.startsWith("git-input")) await runGitInputRevisionControls(c,helpers,group==="git-input-successor",group==="git-input-lifecycle");
     else if (group==="git-successor") await completeGitRevisionControls(c,helpers);
     else if (group.startsWith("material-")) await runMaterialSourceControls(c,helpers,group);

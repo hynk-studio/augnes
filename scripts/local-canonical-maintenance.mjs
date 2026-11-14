@@ -6,6 +6,8 @@ import { digest, validCanonicalRuntimeInputs, preparedDependencyIdentity, observ
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { artifactReader, parseImprovementJSON, ordinaryV2SourceModule, isImprovement, improvementAuthorityObservation } from "./local-canonical-improvement.mjs";
 import { createGitHubObserverAuthorizationTransport } from "./github-main-branch-transport.mjs";
+import { isFailedIntegrationFixture, readFailedIntegrationFixtureIncident } from "./local-canonical-failed-integration-fixture.mjs";
+import {isFailedMaintenanceReader,isMaintenanceAggregateAllowance,isSelectedMaintenanceIncident,readFailedMaintenanceReaderIncident,readMaintenanceAggregateAllowanceIncident} from "./local-canonical-maintenance-reader-incident.mjs";
 
 export const MAINTENANCE_KIND = "prospective_maintenance";
 export const MAINTENANCE_ACCEPT = "Accept this substantively repaired maintenance candidate and its evidence.";
@@ -32,11 +34,11 @@ const keys = (v,s) => requireThat(v&&typeof v==="object"&&!Array.isArray(v)&&equ
 const unique = xs => Array.isArray(xs)&&xs.length>0&&xs.length<=200&&xs.every(text)&&equal(xs,[...new Set(xs)].sort());
 export const isMaintenance = p => p?.schema==="augnes.local-canonical-source-correction.v2"&&p.kind===MAINTENANCE_KIND;
 export const hasMaintenanceMarker = v => [v,v?.source_correction,v?.recovery,v?.attempt,v?.attempt?.source_correction,v?.attempt?.recovery]
-  .some(x=>x&&(x.kind===MAINTENANCE_KIND||Object.hasOwn(x,"maintenance_authority")||Object.hasOwn(x,"maintenance_consumed")||x.evidence_kind===MAINTENANCE_KIND));
+  .some(x=>x&&(x.kind===MAINTENANCE_KIND||Object.hasOwn(x,"incident_case")||Object.hasOwn(x,"maintenance_authority")||Object.hasOwn(x,"maintenance_consumed")||x.evidence_kind===MAINTENANCE_KIND));
 const targetFields="branch base head tree pull_request prior_family_id prior_number prior_attempt_id prior_receipt_fingerprint";
 export const maintenanceTarget = p => Object.fromEntries(targetFields.split(" ").map(k=>[k,p[k]]));
 export function validateMaintenanceProof(p,{authorizationRequired=true}={}) {
-  keys(p,"schema kind "+targetFields+" prior_receipt_path evidence review authorization");
+  keys(p,"schema kind "+targetFields+" prior_receipt_path evidence review authorization"+(isSelectedMaintenanceIncident(p)?" incident_case":""));
   requireThat(isMaintenance(p)&&[p.base,p.head,p.tree].every(gitId)&&[p.prior_family_id,p.prior_receipt_fingerprint].every(sha)&&
     [1,2].includes(p.prior_number)&&id(p.pull_request)&&/^[A-Za-z0-9_./-]{1,200}$/u.test(p.branch)&&!p.branch.split("/").includes("..")&&
     /^[A-Za-z0-9_-]{1,200}$/u.test(p.prior_attempt_id)&&p.prior_receipt_path===`.augnes-local-verification/receipts/${p.prior_attempt_id}.json`,"target_invalid");
@@ -55,19 +57,29 @@ export function maintenanceFaults(receipt) {
 export function readMaintenanceEvidence(file,p,root,{remember,authorizationRequired=true}={}) {
   validateMaintenanceProof(p,{authorizationRequired});
   const read=artifactReader(path.dirname(file),remember), e=read(p.evidence), review=read(p.review);
-  keys(e,"target originals source repairs inputs history planner implementation_actor");
+  keys(e,"target originals source repairs inputs history planner implementation_actor"+(isSelectedMaintenanceIncident(p)?" incident":""));
   requireThat(equal(e.target,maintenanceTarget(p))&&text(e.implementation_actor),"evidence_target_invalid");
   keys(e.originals,"attempt completion receipt stock");
   const prior=read(e.originals.attempt,{canonical:false}), completion=read(e.originals.completion,{canonical:false}), receipt=read(e.originals.receipt,{canonical:false,maximum:512*1024}), stock=read(e.originals.stock,{canonical:false,maximum:512*1024});
   const original={...receipt};delete original.integrity;
-  requireThat((isImprovement(prior.source_correction)||isMaintenance(prior.source_correction))&&prior.family_id===p.prior_family_id&&prior.number===p.prior_number&&prior.attempt_id===p.prior_attempt_id&&
+  requireThat((isImprovement(prior.source_correction)||isMaintenance(prior.source_correction)||isFailedIntegrationFixture(p)&&prior.source_correction?.kind==="accepted_main_integration"&&prior.source_correction.integration_case==="reviewed")&&prior.family_id===p.prior_family_id&&prior.number===p.prior_number&&prior.attempt_id===p.prior_attempt_id&&
     prior.budget?.initial===1&&prior.budget?.recovery===0&&prior.branch===p.branch&&prior.head!==p.head&&prior.tree!==p.tree&&
     completion.attempt_id===prior.attempt_id&&completion.receipt_fingerprint===p.prior_receipt_fingerprint&&completion.cleanup_complete===true&&utc(completion.finished_at)&&
     ["product_failure","input_invalidation","safety_violation"].includes(completion.disposition)&&receipt.outcome?.disposition===completion.disposition&&receipt.cleanup?.completed===true&&
     receipt.run?.id===prior.attempt_id&&receipt.repository?.head_sha===prior.head&&receipt.repository?.tree_sha===prior.tree&&
     digest(original)===p.prior_receipt_fingerprint&&receipt.integrity?.content_fingerprint===p.prior_receipt_fingerprint&&
     equal(receipt.attempt,prior)&&stock.valid_deciding_evidence===false&&stock.content_fingerprint===p.prior_receipt_fingerprint&&Array.isArray(stock.issues)&&stock.issues.length>0,"predecessor_invalid");
-  const git=args=>execFileSync("git",["--no-replace-objects",...args],{cwd:root,timeout:10000,maxBuffer:16*1024*1024,stdio:["ignore","pipe","pipe"]});
+  // Reuse only immutable full-commit blob bytes in this one reader operation.
+  // Mutable Git queries, artifact seals, live inputs and the next reader still
+  // observe afresh. Copies prevent a consumer from modifying retained bytes.
+  const blobs=new Map();let retainedBytes=0;
+  const git=args=>{
+    const spec=args.length===2&&args[0]==="show"&&/^[a-f0-9]{40}:.+/u.test(args[1])?args[1]:null;
+    if(spec&&blobs.has(spec))return Buffer.from(blobs.get(spec));
+    const bytes=execFileSync("git",["--no-replace-objects",...args],{cwd:root,timeout:10000,maxBuffer:16*1024*1024,stdio:["ignore","pipe","pipe"]});
+    if(spec&&blobs.size<128&&retainedBytes+bytes.length<=16*1024*1024){blobs.set(spec,Buffer.from(bytes));retainedBytes+=bytes.length;}
+    return bytes;
+  };
   git(["merge-base","--is-ancestor",prior.head,p.head]);git(["merge-base","--is-ancestor",p.base,p.head]);
   requireThat(git(["rev-parse",p.head+"^{tree}"]).toString().trim()===p.tree,"tree_invalid");
   keys(e.source,"delta_sha256 changed_paths");
@@ -81,9 +93,11 @@ export function readMaintenanceEvidence(file,p,root,{remember,authorizationRequi
     const bytes=git(["show",`${p.head}:${file}`]);
     requireThat(source.sha256===digest(bytes)&&source.bytes===bytes.length,"dependency_source_unbound");
   }
+  const incidentOptions={p,e,prior,completion,receipt,stock,read,git,root,runtime,dependencies,remember};
+  const fixture=isFailedIntegrationFixture(p)?readFailedIntegrationFixtureIncident(incidentOptions):isFailedMaintenanceReader(p)?readFailedMaintenanceReaderIncident(incidentOptions):isMaintenanceAggregateAllowance(p)?readMaintenanceAggregateAllowanceIncident(incidentOptions):null;
   const faults=maintenanceFaults(receipt), addressed=[];
-  requireThat(faults.length>0&&Array.isArray(e.repairs)&&e.repairs.length>0&&e.repairs.length<=16,"repairs_missing");
-  let last="", latest=Date.parse(completion.finished_at);
+  requireThat(faults.length>0&&Array.isArray(e.repairs)&&(fixture?e.repairs.length===0:e.repairs.length>0&&e.repairs.length<=16),"repairs_missing");
+  let last="", latest=fixture?.latest??Date.parse(completion.finished_at);
   for(const repair of e.repairs){
     keys(repair,"id source_module fixture environment before after addresses");
     requireThat(text(repair.id)&&repair.id>last&&ordinaryV2SourceModule({kind:"source_revision",source_module:repair.source_module})&&e.source.changed_paths.includes(repair.source_module)&&
@@ -108,9 +122,9 @@ export function readMaintenanceEvidence(file,p,root,{remember,authorizationRequi
     }
     requireThat(witnesses[0].source_sha256!==witnesses[1].source_sha256,"unchanged_repair");
   }
-  requireThat(equal([...new Set(addressed)].sort(),faults),"incomplete_repair");
+  if(!fixture)requireThat(equal([...new Set(addressed)].sort(),faults),"incomplete_repair");
   const history=read(e.history);keys(history,"parent_evidence_sha256 observations adverse known_index cumulative_cost historical_causes");
-  requireThat(history.parent_evidence_sha256===(prior.source_correction.evidence??prior.source_correction.campaign).sha256&&history.historical_causes==="retained_without_reclassification"&&text(history.cumulative_cost)&&
+  requireThat(history.parent_evidence_sha256===(isFailedIntegrationFixture(p)?prior.source_correction.review:prior.source_correction.evidence??prior.source_correction.campaign).sha256&&history.historical_causes==="retained_without_reclassification"&&text(history.cumulative_cost)&&
     Array.isArray(history.observations)&&history.observations.length>0&&history.observations.length<=200&&unique(history.adverse),"history_invalid");
   const ids=[];for(const item of history.observations){keys(item,"id original adverse limitations");requireThat(text(item.id)&&typeof item.adverse==="boolean"&&text(item.limitations),"history_invalid");ids.push(item.id);read(item.original,{json:false,maximum:2*1024*1024});}
   requireThat(unique(ids)&&equal(history.adverse,history.observations.filter(x=>x.adverse).map(x=>x.id))&&equal(read(history.known_index),history.observations),"adverse_evidence_omitted");
@@ -120,7 +134,7 @@ export function readMaintenanceEvidence(file,p,root,{remember,authorizationRequi
   requireThat(equal(review.target,maintenanceTarget(p))&&review.evidence_sha256===digest(e)&&review.delta_sha256===e.source.delta_sha256&&text(review.reviewer)&&review.reviewer!==e.implementation_actor&&
     review.implementation_actor===e.implementation_actor&&utc(review.reviewed_at)&&Date.parse(review.reviewed_at)>latest&&review.no_write===true&&review.source_review==="complete"&&review.disposition==="accept"&&Object.values(review.judgments).every(x=>x===true),"independent_review_required");
   const report=read(review.report,{json:false});requireThat(report.includes(p.head)&&report.includes(digest(e))&&report.includes(e.source.delta_sha256),"review_report_unbound");
-  return {evidence:e,review,prior,completion,receipt,stock,runtime,dependencies,history,planner,read};
+  return {evidence:e,review,prior,completion,receipt,stock,runtime,dependencies,history,planner,read,...(fixture?{fixture}: {})};
 }
 
 // Preparation is ordinary task-owned setup before admission. These observations
@@ -148,7 +162,8 @@ export function validateMaintenanceAuthorityRecords(p,e,records,{current=true}={
   const observations={accepted_maintenance:maintenanceAuthorityObservation(a,"accepted_maintenance"),prospective_grant:maintenanceAuthorityObservation(g,"prospective_grant")};
   requireThat(av.scope===MAINTENANCE_KIND&&av.independent_report_sha256===e.review.report.sha256&&gv.acceptance_sha256===digest(observations.accepted_maintenance)&&gv.planner_sha256===digest(e.planner)&&
     gv.history_sha256===e.evidence.history.sha256&&gv.terminal_predecessor===p.prior_receipt_fingerprint&&gv.maximum_invocations===1&&gv.recovery===0&&gv.unchanged_retry===0&&
-    gv.stop_on_failure_or_interruption===true&&gv.fresh_validation===true&&gv.independent_result_audit===true&&gv.owned_cleanup===true&&gv.cumulative_cost_and_timing_risk==="accept_once_under_unchanged_bounds","authority_scope_invalid");
+    gv.stop_on_failure_or_interruption===true&&gv.fresh_validation===true&&gv.independent_result_audit===true&&gv.owned_cleanup===true&&
+    gv.cumulative_cost_and_timing_risk===(isMaintenanceAggregateAllowance(p)?"accept_once_under_reviewed_aggregate_allowance":"accept_once_under_unchanged_bounds"),"authority_scope_invalid");
   const url="https://api.github.com/repos/hynk-studio/augnes";
   requireThat(a.id===p.authorization.acceptance_review_id&&g.id===p.authorization.grant_comment_id&&a.id!==g.id&&a.commit_id===p.head&&a.pull_request_url===`${url}/pulls/${p.pull_request}`&&
     ["COMMENTED","APPROVED"].includes(a.state)&&g.issue_url===`${url}/issues/${p.pull_request}`&&g.created_at===g.updated_at&&
@@ -178,8 +193,10 @@ export async function authorizeMaintenance(p,e,transport){const value=await obse
 export function assertMaintenanceAuthorization(p,e,value){const state=capabilities.get(value);requireThat(state&&state.proof===digest(p)&&state.value===digest(value)&&equal(validateMaintenanceAuthorityRecords(p,e,value.records),value.observations),"authenticated_capability_required");}
 export function validMaintenanceAttempt(a){
   try{requireThat(isMaintenance(a?.source_correction)&&a.number===1&&equal(a.budget,{initial:1,recovery:0})&&a.recovery===null&&a.prior_attempt_id===null&&a.prior_receipt_fingerprint===null&&
-    !Object.hasOwn(a,"improvement_authority")&&!Object.hasOwn(a,"revision_authority"),"attempt_invalid");
+    !Object.hasOwn(a,"improvement_authority")&&!Object.hasOwn(a,"revision_authority")&&!Object.hasOwn(a,"integration_authority"),"attempt_invalid");
     keys(a.maintenance_authority,"records observations");keys(a.maintenance_authority.observations,"accepted_maintenance prospective_grant");
-    for(const [role,o]of Object.entries(a.maintenance_authority.observations)){keys(o,"id author author_id body_sha256 timestamp role commit_id");requireThat(o.role===role&&id(o.id)&&id(o.author_id)&&sha(o.body_sha256)&&externalUtc(o.timestamp)&&text(o.author)&&(role==="prospective_grant"?o.commit_id===null:o.commit_id===a.head),"attempt_invalid");}return true;
+    for(const [role,o]of Object.entries(a.maintenance_authority.observations)){keys(o,"id author author_id body_sha256 timestamp role commit_id");requireThat(o.role===role&&id(o.id)&&id(o.author_id)&&sha(o.body_sha256)&&externalUtc(o.timestamp)&&text(o.author)&&(role==="prospective_grant"?o.commit_id===null:o.commit_id===a.head),"attempt_invalid");}
+    if(isSelectedMaintenanceIncident(a.source_correction))requireThat(utc(a.started_at)&&strictlyAfter(a.started_at,a.maintenance_authority.observations.prospective_grant.timestamp),"attempt_chronology_invalid");
+    return true;
   }catch{return false;}
 }

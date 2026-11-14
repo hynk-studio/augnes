@@ -19,10 +19,13 @@ export const MAINTENANCE_FIXTURE_LIMIT = "Old commission remains spent. Exactly 
 export const FIXTURE_BUDGET_CLAIM = "Measured prospective development-fixture allowance; historical cause remains UNKNOWN; neither demonstrated cure nor qualification PASS.";
 export const REGISTERED_INTEGRATION_BUDGET = "registered-integration-child-budget-v1";
 export const INTEGRATION_BUDGET_CLAIM = "Measured prospective external-response workload allowance. The historical timeout cause remains UNKNOWN.";
+export const SELECTIVE_FIXTURE_WORKLOAD = "selective-fixture-workload-v1";
+export const SELECTIVE_FIXTURE_WORKLOAD_CLAIM = "Reduced redundant selective fixture work; behavior and bounds retained; stable speedup and historical cause remain unestablished.";
 export const fixtureBudgetEvidenceClaim = kind => kind === REGISTERED_FIXTURE_BUDGET ? FIXTURE_BUDGET_CLAIM :
-  kind === REGISTERED_INTEGRATION_BUDGET ? INTEGRATION_BUDGET_CLAIM : null;
+  kind === REGISTERED_INTEGRATION_BUDGET ? INTEGRATION_BUDGET_CLAIM :
+  kind === SELECTIVE_FIXTURE_WORKLOAD ? SELECTIVE_FIXTURE_WORKLOAD_CLAIM : null;
 export const fixtureBudgetFailurePhase = kind => kind === REGISTERED_FIXTURE_BUDGET ? "authority" :
-  kind === REGISTERED_INTEGRATION_BUDGET ? "integration" : null;
+  [REGISTERED_INTEGRATION_BUDGET, SELECTIVE_FIXTURE_WORKLOAD].includes(kind) ? "integration" : null;
 export const FIXTURE_BUDGET_COLLECTOR = "scripts/capture-local-canonical-fixture-budget.mjs";
 export const FIXTURE_BUDGET_PATHS = Object.freeze({
   wrapper: "scripts/test-local-canonical-review-corrections.mjs",
@@ -179,7 +182,7 @@ export function maintenanceFixtureCompletionNames(git,head) {
     }).join("");
   });
 }
-function maintenanceCompletion(output,git,head) {
+export function maintenanceCompletion(output,git,head) {
   const names=maintenanceFixtureCompletionNames(git,head);
   const summary=one(jsonLines(output).filter(v=>v.status==="pass"&&v.synthetic_only===true&&Array.isArray(v.cases)));
   const cases=names.map(name=>({name,status:"pass"}));
@@ -204,7 +207,14 @@ function maintenanceIncident(p,prior,reg,{git,bytes,original,completion,reposito
       relative!==`.augnes-local-verification/logs/${prior.attempt_id}/authority.log`) fail();
   const file=path.join(repositoryRoot,relative),s=lstatSync(file);
   if (!s.isFile()||s.isSymbolicLink()||s.nlink!==1||(s.mode&0o022)||realpathSync(file)!==file||s.size!==raw.length||!readFileSync(file).equals(raw)) fail();
-  const registration=maintenanceFixtureBudgetRegistration(git,prior.head),label=JSON.stringify(registration.label);
+  const registration=maintenanceFixtureBudgetRegistration(git,prior.head);
+  return validateMaintenanceWatchdogLog(text,registration);
+}
+
+// Same finite native lifecycle parser for a retained direct maintenance failure.
+// The incident owners independently bind the physical log and predecessor.
+export function validateMaintenanceWatchdogLog(text,registration) {
+  const label=JSON.stringify(registration.label);
   const result=one(text.split("\n").filter(l=>l.startsWith("[canonical:authority] child_result label="+label+" ")));
   const match=result.match(/ duration_ms=([0-9]+) exit_code=null signal=SIG(?:TERM|KILL) timed_out=true exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=bounded_timeout$/u);
   const start=`[canonical:authority] child_start label=${label} timeout_ms=${registration.bound_ms}`;
@@ -324,14 +334,25 @@ function verifyMaintenanceFixtureBudget(p,prior,focused,options) {
     if (!equal(old.log,{bytes:output.length,sha256:digest(output)})) fail();
     if (!equal(maintenanceCompletion(output.toString(),git,old.before.source.head).refusals,measured.refusals)) fail();
   }
-  const w=parse(reg.after),{root_generated,...source}=w.source_before??{};
+  const positive=readMaintenanceFixtureBudgetPositive(reg.after,p,{...options,after:measured.finished_at,finishedAt:focused.finished_at});
+  const w=positive.record;
+  if (!equal(positive.summary.refusals,measured.refusals)) fail();
+  if (!focused.commands.some(c=>c.command===w.command&&c.tested_source_head===p.head&&equal(c.record,reg.after)&&equal(c.stdout,w.stdout))) fail();
+  return p.head;
+}
+
+// Shared observation reader, not another admission route. The selected caller
+// independently fixes the historical/new allowance and its predecessor type.
+export function readMaintenanceFixtureBudgetPositive(ref,p,{git,parse,bytes,completedAt,after=completedAt,boundMs=90000,finishedAt=null}) {
+  if (![90000,120000].includes(boundMs)||maintenanceFixtureBudgetRegistration(git,p.head).bound_ms!==boundMs) fail();
+  const w=parse(ref),{root_generated,...source}=w.source_before??{};
   if (w.contract!=="augnes.registered-fixture-budget-witness.v1"||w.role!=="direct"||w.basis!=="actual-owned-development-invocation"||
       w.synthetic_only!==undefined||w.capture_error!==undefined||w.tested_source_head!==p.head||w.tree!==p.tree||w.dirty!==""||
       w.command!=="node --import tsx "+maintenanceTest||!equal(source,pureContractGitSource(git,p.head).summary)||
       !Array.isArray(root_generated)||root_generated.length>1||root_generated.some(v=>v.path!=="next-env.d.ts"||!/^([a-f0-9]{64})$/u.test(v.sha256))||
       !equal(w.source_before,w.source_after)||!equal(w.environment_before,w.environment_after)||w.environment!==digest(w.environment_before)||
       !equal(w.environment_before,fixtureBudgetEnvironment(w.resource_root,w.environment_before))||!path.isAbsolute(w.resource_root)||
-      !natural(w.result)||!integer(w.result.duration_ms)||w.result.duration_ms>=90000||
+      !natural(w.result)||!integer(w.result.duration_ms)||w.result.duration_ms>=boundMs||
       !equal(w.runtime_before,w.runtime_after)||digest(w.runtime_before)!==p.inputs.identity_sha256||w.runtime_inputs_sha256!==p.inputs.identity_sha256||
       w.node_version!==CANONICAL_NODE_VERSION||gitRevisionInventory(w.input_inventory_before)!==p.inputs.inventory_sha256||
       gitRevisionInventory(w.input_inventory_after)!==p.inputs.inventory_sha256||!equal(w.dependencies_before,w.dependencies_after)||
@@ -340,13 +361,13 @@ function verifyMaintenanceFixtureBudget(p,prior,focused,options) {
       !equal(w.config,["package.json","package-lock.json","tsconfig.json","scripts/browser-verification-owners.v1.json","scripts/local-canonical-change-owners.v1.json","scripts/canonical-research-tests.v1.json"].map(file=>({path:file,sha256:digest(sourceAt(git,p.head,file))})))||
       w.owned_cleanup?.length!==1||w.owned_cleanup[0].root!==w.resource_root||w.owned_cleanup[0].completed!==true||w.owned_cleanup[0].failure_count!==0||w.owned_cleanup[0].failures.length||
       bytes(w.collector,128*1024).toString()!==sourceAt(git,p.head,FIXTURE_BUDGET_COLLECTOR)||
-      !(Date.parse(completedAt)<Date.parse(w.started_at)&&Date.parse(measured.finished_at)<Date.parse(w.started_at)&&Date.parse(w.started_at)<Date.parse(w.finished_at)&&Date.parse(w.finished_at)<=Date.parse(focused.finished_at))) fail();
+      !(Date.parse(completedAt)<Date.parse(w.started_at)&&Date.parse(after)<Date.parse(w.started_at)&&Date.parse(w.started_at)<Date.parse(w.finished_at)&&
+        (finishedAt===null||Date.parse(w.finished_at)<=Date.parse(finishedAt)))) fail();
   const lifecycle=bytes(w.lifecycle,128*1024).toString();
   if (lifecycle.trimEnd().split("\n").some(l=>!l.startsWith("[canonical:fixture-budget-capture] ")||!l.includes(' label="direct registered fixture allowance" '))) fail();
-  naturalLifecycle(lifecycle,{suite:"fixture-budget-capture",label:"direct registered fixture allowance",timeout:90000,duration:w.result.duration_ms});
-  if (!equal(maintenanceCompletion(bytes(w.stdout,2*1024*1024).toString(),git,p.head).refusals,measured.refusals)) fail();
-  if (!focused.commands.some(c=>c.command===w.command&&c.tested_source_head===p.head&&equal(c.record,reg.after)&&equal(c.stdout,w.stdout))) fail();
-  return p.head;
+  naturalLifecycle(lifecycle,{suite:"fixture-budget-capture",label:"direct registered fixture allowance",timeout:boundMs,duration:w.result.duration_ms});
+  const summary=maintenanceCompletion(bytes(w.stdout,2*1024*1024).toString(),git,p.head);
+  return {record:w,summary,finished_at:w.finished_at};
 }
 
 export function fixtureBudgetSourceDelta(git,before,after,group) {
@@ -431,6 +452,8 @@ function naturalLifecycle(text,{suite,label,timeout,duration,code=0}) {
   }
   return {start:selected[0],terminal:selected.find(line=>line.includes(postExit?" child_exit ":" child_cleanup_start ")),result:selected.at(-1)};
 }
+
+export {naturalLifecycle as validateFixtureNaturalLifecycle};
 
 // Reconstruct a bounded textual instrumentation patch in memory. This is not
 // git apply, checkout mutation or execution of historical diagnostic code.
@@ -1097,6 +1120,288 @@ export function verifyRegisteredIntegrationBudget(p,prior,focused,options) {
         equal(c.record,reg.after) && equal(c.stdout,after.w.stdout))) fail();
   return p.head;
 }
+
+// A fixture-work reduction is neither a product RED/GREEN nor an allowance
+// increase. This finite case keeps the ordinary command and all four bounds.
+export const SELECTIVE_FIXTURE_PATH = "scripts/test-external-response-selective.ts";
+export const SELECTIVE_FIXTURE_COMMAND = "node --import tsx " + SELECTIVE_FIXTURE_PATH;
+export const SELECTIVE_FIXTURE_OWNER = Object.freeze({phase:"integration",suite:"integration",group:"external-response-selective"});
+const selectivePhases = ["ordinary_A_delivery_and_real_B_output", "new_output_write_rollback",
+  "explicit_fresh_recovery_of_unadvertised_material", "fresh_original_and_exact_replay",
+  "fresh_two_step_correction_changes_actual_output_D_retained", "metadata_changes_current_judgment_not_valid_output",
+  "access_version_race_and_withdrawal_refusal", "original_history_immutable_and_no_inherited_authority",
+  "event_profile_refusal_no_writes_and_valid_duplicate_bounds"];
+const selectiveCases = ["missing-event-id", "missing-job-id", "zero-attempt", "unsupported-event-field", "empty-event-id",
+  "numeric-job-id", "fractional-attempt", "unsafe-attempt", "unsupported-status", "numeric-duration", "duration-width",
+  "duration-precision", "null-row", "invalid-late-duplicate", "conflicting-duplicate", "valid-boundaries"];
+const selectiveInitialConsumers = ["b-original", "c-write-fault", "c-publication-fault", "c-original", "c-replay", "c-corrected",
+  "c-metadata", "c-inaccessible", "c-race", "c-basis-race", "c-previous-review", "c-wrong-version", "c-withdrawn"];
+export const SELECTIVE_COVERAGE_OBLIGATIONS = Object.freeze(["ordinary-writers", "original-assertions-preserved-or-strengthened",
+  "actual-consumer-byte-and-correction-readback", "29-fresh-consumers", "16-event-cases", "15-refusal-no-write-cases",
+  "seeded-cache-refusal", "two-eight-correction-chains-and-72-traversals", "permission-basis-and-data-races",
+  "independent-support-and-original-history", "unchanged-bounds-and-owned-cleanup"]);
+const selectiveSeeds = [SELECTIVE_FIXTURE_PATH, "scripts/external-response-selective-report.mjs", "scripts/external-response-report.mjs"];
+const selectivePins = ["package.json", "package-lock.json", "tsconfig.json", ".node-version", ".nvmrc"];
+const selectiveEvidencePaths = new Set([...evidencePaths, FIXTURE_BUDGET_PATHS.suite, FIXTURE_BUDGET_PATHS.wrapper,
+  "scripts/local-canonical-browser-revision.mjs", "scripts/fixtures/local-canonical-reviewed-revision.mjs",
+  "scripts/fixtures/local-canonical-git-observation.mjs"]);
+const selectiveFail = () => { throw Object.assign(new Error("revision_selective_fixture_workload_invalid"), {code:"revision_selective_fixture_workload_invalid"}); };
+const selectiveSha = value => /^[a-f0-9]{64}$/u.test(value ?? "");
+const selectiveMaterialRef = value => /^sha256:[a-f0-9]{64}$/u.test(value ?? "");
+const selectiveCommit = value => /^[a-f0-9]{40}$/u.test(value ?? "");
+
+export function selectiveFixtureWorkloadRegistration(git, head) {
+  const source = sourceAt(git,head,FIXTURE_BUDGET_PATHS.suite), tree = ast(source);
+  const prop = (n,name) => n.properties.find(v=>ts().isPropertyAssignment(v)&&v.name.getText(tree)===name)?.initializer;
+  const steps = prop(variable(tree,"suites"),"integration");
+  if (!steps || !ts().isArrayLiteralExpression(steps)) selectiveFail();
+  const child = one(steps.elements.filter(n=>ts().isObjectLiteralExpression(n)&&prop(n,"id")?.getText(tree)==='"external-response-selective"'));
+  if (!equal(child.properties.filter(ts().isSpreadAssignment).map(n=>n.expression.getText(tree)),['rootNode("'+SELECTIVE_FIXTURE_PATH+'")']) ||
+      !equal(child.properties.filter(ts().isPropertyAssignment).map(n=>n.name.getText(tree)).sort(),
+        ["group","id","label","requireNaturalExit","requirements","timeoutMs"]) ||
+      value(prop(child,"timeoutMs"),tree,null,{}) !== 90000 || value(prop(child,"group"),tree,null,{}) !== "supporting-serial" ||
+      value(prop(child,"requireNaturalExit"),tree,null,{}) !== true ||
+      variable(tree,"rootNode").getText(tree).replace(/\s+/gu,"") !== '(...args)=>({command:process.execPath,args:["--import","tsx",...args],cwd:repoRoot,})') selectiveFail();
+  const fixture = ast(sourceAt(git,head,SELECTIVE_FIXTURE_PATH));
+  const consumer = one(nodes(fixture,n=>ts().isFunctionDeclaration(n)&&n.name?.text==="consumer"));
+  const execution = one(nodes(consumer,n=>ts().isCallExpression(n)&&n.expression.getText(fixture)==="runCanonicalChild"));
+  const acceptance = one(nodes(consumer,n=>ts().isCallExpression(n)&&n.expression.getText(fixture)==="canonicalChildAcceptanceFailure"));
+  const option = (call,index,name) => call.arguments[index]&&ts().isObjectLiteralExpression(call.arguments[index]) ?
+    call.arguments[index].properties.find(n=>ts().isPropertyAssignment(n)&&n.name.getText(fixture)===name)?.initializer : null;
+  const executionBound=option(execution,0,"timeoutMs"), acceptanceBound=option(acceptance,1,"timeoutMs");
+  const runner = ast(sourceAt(git,head,"scripts/canonical-child-runner.mjs"));
+  const executor = ast(sourceAt(git,head,integrationExecutor));
+  const parent = nodes(executor,n=>ts().isCallExpression(n)&&n.expression.getText(executor)==="npmPhase"&&n.arguments[0]?.getText(executor)==='"integration"');
+  if (!executionBound||!acceptanceBound||value(executionBound,fixture,null,{})!==20000||value(acceptanceBound,fixture,null,{})!==20000||
+      option(acceptance,1,"requireNaturalExit")?.kind!==ts().SyntaxKind.TrueKeyword ||
+      value(variable(runner,"DEFAULT_CANONICAL_TERM_GRACE_MS"),runner,null,{}) !== 8000 ||
+      value(variable(runner,"DEFAULT_CANONICAL_KILL_GRACE_MS"),runner,null,{}) !== 5000 || parent.length !== 2 ||
+      parent.some(n=>n.arguments.length!==4||!equal(value(n.arguments[2],executor,null,{}),["run","test:integration"])||
+        value(n.arguments[3],executor,null,{})!==4200000)) selectiveFail();
+  return {owner:SELECTIVE_FIXTURE_OWNER,command:SELECTIVE_FIXTURE_COMMAND,label:value(prop(child,"label"),tree,null,{}),
+    requirements:value(prop(child,"requirements"),tree,null,{}),child_ms:90000,consumer_ms:20000,term_ms:8000,kill_ms:5000,parent_ms:4200000};
+}
+
+// Bind the fixed test/consumer local import graph and fixture data through the
+// existing Git reader. Node packages remain bound by the complete installed
+// dependency observations. Unknown computed local imports refuse; no code runs.
+function selectiveSource(git, head) {
+  const root = git(["rev-parse","--show-toplevel"]).toString().trim(), reader = createCanonicalRevisionReader(root), entries = reader.tree(head);
+  const queue = [...selectiveSeeds,...selectivePins.filter(file=>entries.has(file)),
+    ...[...entries.keys()].filter(file=>file.startsWith("scripts/fixtures/experience-use/")&&entries.get(file).type==="blob")];
+  const seen = new Set();
+  while (queue.length) {
+    const file = queue.shift(); if (seen.has(file)) continue; seen.add(file);
+    if (seen.size>1024 || entries.get(file)?.type!=="blob" || !["100644","100755"].includes(entries.get(file).mode)) selectiveFail();
+    if (!/\.[cm]?[jt]sx?$/u.test(file)) continue;
+    const text = reader.read(head,file).toString(), tree = ts().createSourceFile(file,text,ts().ScriptTarget.Latest,true), imports=[];
+    for (const node of nodes(tree,n=>ts().isImportDeclaration(n)||ts().isExportDeclaration(n))) {
+      if (node.moduleSpecifier && ts().isStringLiteral(node.moduleSpecifier)) imports.push(node.moduleSpecifier.text);
+    }
+    for (const node of nodes(tree,n=>ts().isCallExpression(n)&&(n.expression.kind===ts().SyntaxKind.ImportKeyword||n.expression.getText(tree)==="require"))) {
+      if (node.arguments.length!==1)selectiveFail();
+      if (!ts().isStringLiteral(node.arguments[0])) {
+        // The delivered pure-data fixture has one finite v1/v2 normalizer
+        // import. All of these fixture files are already in the fixed binding;
+        // this is not a resolver for arbitrary computed runtime imports.
+        if (file!=="scripts/fixtures/experience-use/process-events.mjs" || node.expression.kind!==ts().SyntaxKind.ImportKeyword ||
+            node.arguments[0].getText(tree)!=="moduleUrl.href" || variable(tree,"moduleName").getText(tree)!=="`normalize-${version}.mjs`" ||
+            variable(tree,"moduleUrl").getText(tree)!=="new URL(moduleName, import.meta.url)" ||
+            nodes(tree,n=>ts().isCallExpression(n)&&n.getText(tree).replace(/\s+/gu,"")==='assert(["success","capacity"].includes(mode)&&["v1","v2"].includes(version))').length!==1 ||
+            !["normalize-v1.mjs","normalize-v2.mjs"].every(name=>entries.get("scripts/fixtures/experience-use/"+name)?.type==="blob"))selectiveFail();
+        continue;
+      }
+      imports.push(node.arguments[0].text);
+    }
+    for (const specifier of imports) {
+      if (!specifier.startsWith(".")&&!specifier.startsWith("@/")) continue;
+      const base = specifier.startsWith("@/") ? specifier.slice(2) : path.posix.normalize(path.posix.join(path.posix.dirname(file),specifier));
+      if (base.startsWith("../")||path.posix.isAbsolute(base)) selectiveFail();
+      const target = [base,...[".ts",".tsx",".mjs",".js",".cjs",".json","/index.ts","/index.tsx","/index.mjs","/index.js"].map(ext=>base+ext)]
+        .find(name=>entries.get(name)?.type==="blob");
+      if (!target) selectiveFail(); queue.push(target);
+    }
+  }
+  const files = [...seen].sort().map(file=>({path:file,...entries.get(file)}));
+  return {entries,fixture:{path:SELECTIVE_FIXTURE_PATH,...entries.get(SELECTIVE_FIXTURE_PATH)},
+    consumed:files.filter(file=>file.path!==SELECTIVE_FIXTURE_PATH),
+    binding:{head,tree:git(["rev-parse",head+"^{tree}"]).toString().trim(),fixture_sha256:digest(reader.read(head,SELECTIVE_FIXTURE_PATH)),
+      consumed_sha256:digest(files.filter(file=>file.path!==SELECTIVE_FIXTURE_PATH)),
+      catalogue_sha256:pureContractGitSource(git,head).summary.inventory_sha256}};
+}
+
+export function selectiveFixtureWorkloadSourcePartition(git, beforeHead, afterHead, mainHead, priorHead = null) {
+  const before = selectiveSource(git,beforeHead), after = selectiveSource(git,afterHead);
+  if (!equal(before.consumed,after.consumed) || sameGitEntry(before.fixture,after.fixture) ||
+      !git(["diff","--ignore-all-space","--ignore-blank-lines",beforeHead,afterHead,"--",SELECTIVE_FIXTURE_PATH]).length) selectiveFail();
+  if (priorHead!==null && priorHead!==beforeHead && !equal(before.consumed,selectiveSource(git,priorHead).consumed))selectiveFail();
+  const ancestor = git(["merge-base",beforeHead,mainHead]).toString().trim(), root = git(["rev-parse","--show-toplevel"]).toString().trim();
+  const reader = createCanonicalRevisionReader(root);
+  verifyIntegrationBudgetAdoptedEntries(before.entries,after.entries,reader.tree(mainHead),new Set([...selectiveEvidencePaths,SELECTIVE_FIXTURE_PATH]),
+    {ancestor:reader.tree(ancestor),git});
+  const diff = git(["diff","--binary","--full-index","--no-ext-diff","--no-textconv",beforeHead,afterHead,"--"]);
+  return {before:before.binding,after:after.binding,delta:{bytes:diff.length,sha256:digest(diff),paths:changedGitFiles(before.entries,after.entries)}};
+}
+
+export function selectiveFixtureWorkloadIncident(p, prior, reg, {git,bytes,original,completion}) {
+  const registration = selectiveFixtureWorkloadRegistration(git,prior.head), incident = reg.incident;
+  const phase = original.phases?.find(v=>v.id==="integration");
+  const previous=prior.source_correction;
+  if (previous?.schema!=="augnes.local-canonical-source-correction.v10" || previous.kind!=="reviewed_revision" ||
+      previous.commission?.input_revision!=="direct-protected-git-input-v1" || previous.commission.ordinal!==1 || previous.commission.maximum_invocations!==1 ||
+      prior.number!==1 || prior.recovery!==null || !equal(prior.budget,{initial:1,recovery:0}) || !equal(original.attempt,prior) ||
+      original.integrity?.content_fingerprint!==p.prior_receipt_fingerprint || original.outcome?.disposition!=="product_failure" || original.inputs?.first_fault!==null ||
+      !equal(original.inputs?.secondary_faults,[]) || completion.disposition!=="product_failure" || completion.cleanup_complete!==true ||
+      completion.infrastructure_code!==null || phase?.status!=="failure" || phase.exit_status!==1 || phase.timed_out!==false ||
+      phase.cleanup?.termination_reason!=="natural_exit" || phase.command!=="npm run test:integration" || phase.log?.truncated!==false ||
+      !keys(incident,["receipt","log","log_identity","cause"]) || incident.receipt!==p.prior_receipt_fingerprint || incident.cause!=="UNKNOWN" ||
+      !keys(incident.log_identity,["relative_path","bytes","sha256"]) ||
+      incident.log_identity.relative_path!==`.augnes-local-verification/logs/${prior.attempt_id}/integration.log` ||
+      incident.log_identity.relative_path!==phase.log.relative_path) selectiveFail();
+  const raw = bytes(incident.log,2*1024*1024), text = raw.toString(), lines = text.split("\n"), label = registration.label;
+  if (raw.length!==phase.log.bytes || raw.length!==incident.log_identity.bytes || digest(raw)!==incident.log_identity.sha256 ||
+      incident.log.sha256!==incident.log_identity.sha256) selectiveFail();
+  const start = one(integrationLifecycle(lines,label,"child_start")), spawn = one(integrationLifecycle(lines,label,"child_spawn"));
+  const stop = one(integrationLifecycle(lines,label,"child_cleanup_start")), end = one(integrationLifecycle(lines,label,"child_cleanup_result"));
+  const result = one(integrationLifecycle(lines,label,"child_result"));
+  const stopped = Number(stop.match(/ elapsed_ms=(\d+) reason=bounded_timeout /u)?.[1]), duration = Number(end.match(/ elapsed_ms=(\d+) /u)?.[1]);
+  if (start!==`[canonical:integration] child_start label=${JSON.stringify(label)} timeout_ms=90000` ||
+      !integer(stopped)||stopped<90000||!integer(duration)||duration<stopped||duration>103000||
+      !stop.endsWith("reason=bounded_timeout exit_observed=false stdout_closed=false stderr_closed=false") ||
+      !end.endsWith("reason=bounded_timeout streams_closed=true remaining_owned_processes=0") ||
+      result!==`[canonical:integration] child_result label=${JSON.stringify(label)} duration_ms=${duration} exit_code=null signal=SIGTERM timed_out=true exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=bounded_timeout` ||
+      !(lines.indexOf(start)<lines.indexOf(spawn)&&lines.indexOf(spawn)<lines.indexOf(stop)&&lines.indexOf(stop)<lines.indexOf(end)&&lines.indexOf(end)<lines.indexOf(result)) ||
+      integrationLifecycle(lines,label,"child_exit").length) selectiveFail();
+  const inventory = JSON.parse(one(lines.filter(line=>line.startsWith("[canonical:integration] group_inventory "))).split("group_inventory ")[1]);
+  const cleanup = one(jsonLines(text).filter(v=>v.suite==="integration"&&Array.isArray(v.resource_cleanup)));
+  if (inventory.failed_count!==1 || inventory.started_count!==inventory.settled_count || inventory.started_count!==inventory.completed_count ||
+      !equal(inventory.children.filter(v=>v.outcome==="failed"),[{group:"supporting-serial",label,started:true,settled:true,completed:true,outcome:"failed"}]) ||
+      !cleanupComplete(cleanup.resource_cleanup) || !text.includes("child_timed_out:supporting-serial:"+label) ||
+      phase.duration_ms-duration+90000+13000>=registration.parent_ms) selectiveFail();
+  return {registration,child_duration_ms:duration,phase_duration_ms:phase.duration_ms,cause:"UNKNOWN"};
+}
+
+export function verifySelectiveFixtureWorkloadReport(report, corrected) {
+  const labels = [...selectiveInitialConsumers,...selectiveCases.map(name=>"c-"+name)];
+  if (report?.version!=="selective-correction-development.v1" || report.passed!==true || report.failure!=null ||
+      !equal(report.phases,selectivePhases) || !equal(report.errors,[]) || !cleanupComplete(report.cleanup) ||
+      !equal(report.children?.map(c=>c.label),labels) || new Set(report.children.map(c=>c.process)).size!==29 ||
+      report.children.some(c=>!integer(c.process)||c.cleanup!==true||c.remaining_owned_processes!==0||!integer(c.duration_ms)) ||
+      !equal(report.event_cases?.map(c=>c.name),selectiveCases)) selectiveFail();
+  const children = new Map(report.children.map(c=>[c.label,c]));
+  const stopped = {"c-write-fault":"external_inspection_or_storage_unavailable","c-publication-fault":"external_inspection_or_storage_unavailable",
+    "c-inaccessible":"external_access_refused","c-race":"selective_dependencies_changed_during_read","c-basis-race":"selective_work_basis_changed",
+    "c-previous-review":"selective_previous_judgment_requires_review","c-wrong-version":"selective_replacement_binding_invalid","c-withdrawn":"external_access_refused"};
+  for (const [label,reason] of Object.entries(stopped)) {
+    const c=children.get(label); if(c.status!=="stopped"||c.reason!==reason||c.plan_created!==false)selectiveFail();
+  }
+  const c=label=>children.get(label), content=label=>c(label).content;
+  if (c("b-original").status!=="completed" || content("b-original")?.total_worker_ms!==7500 ||
+      c("c-original").decision!=="use_original" || content("c-original")?.projected_worker_ms!==22500 ||
+      c("c-replay").decision!=="retain" || c("c-replay").output_ref!==c("c-original").output_ref ||
+      c("c-corrected").decision!=="revise" || content("c-corrected")?.projected_worker_ms!==25500 ||
+      c("c-corrected").output_ref===c("c-original").output_ref || c("c-metadata").decision!=="retain" ||
+      c("c-metadata").output_ref!==c("c-corrected").output_ref ||
+      ["c-original","c-replay","c-corrected","c-metadata"].some(label=>c(label).status!=="completed"||c(label).plan_created!==true||content(label)?.reservation_fee_cents!==12000)) selectiveFail();
+  for (const [index,row] of report.event_cases.entries()) {
+    const child=children.get("c-"+row.name), valid=index===15;
+    if (row.shared_material_readback!==true || !selectiveMaterialRef(row.replacement_sha256) || !selectiveMaterialRef(row.before_sha256) || !selectiveMaterialRef(row.after_sha256) ||
+        row.status!==child.status || row.plan_created!==child.plan_created ||
+        (!valid && (row.status!=="stopped"||row.reason!=="selective_event_invalid"||row.plan_created!==false||row.unchanged!==true||
+          row.before_sha256!==row.after_sha256||!Array.isArray(row.actions)||!row.actions.length||row.actions.some(v=>!["read","discover","read_experience","material"].includes(v)))) ||
+        (valid && (row.status!=="completed"||row.projected_worker_ms!==3000000020997||child.content?.reservation_fee_cents!==12000)) ||
+        (corrected && (row.consumer_material_readback!==true||row.consumer_correction_readback!==true||row.correction_edges!==index%8+1))) selectiveFail();
+  }
+  const seeded=report.event_cases.filter(row=>row.seeded_cache_ref!=null);
+  if (seeded.length!==1 || seeded[0].name!=="unsupported-event-field" || !selectiveMaterialRef(seeded[0].seeded_cache_ref) ||
+      (corrected && report.event_cases.reduce((total,row)=>total+row.correction_edges,0)!==72)) selectiveFail();
+  return {phases:9,consumers:29,event_cases:16,refusals:15,...(corrected?{correction_edges:72}:{})};
+}
+
+function selectiveCapture(ref, head, p, {git,parse,bytes}, corrected) {
+  const w=parse(ref), {before,after,environment}=w, root=environment?.AUGNES_CANONICAL_TEMP_ROOT;
+  if (w.contract!=="augnes.selective-fixture-workload-witness.v1" || w.basis!=="actual-owned-development-invocation" ||
+      w.synthetic_only!==undefined||w.capture_error!==undefined||w.truncated!==false||w.group!==SELECTIVE_FIXTURE_OWNER.group||
+      w.command!==SELECTIVE_FIXTURE_COMMAND||w.tested_source_head!==head||w.tree!==git(["rev-parse",head+"^{tree}"]).toString().trim()||
+      !natural(w.result)||!integer(w.result.duration_ms)||w.result.duration_ms>=90000||!cleanupComplete([w.cleanup])||
+      w.ownership?.capacity?.released!==true||w.ownership?.checkout?.released!==true||!path.isAbsolute(root??"")||
+      !equal(before?.source,after?.source)||!equal(before?.loader,after?.loader)||!equal(before?.runtime,after?.runtime)||
+      comparePreparedDependencyInputs(before?.dependencies,after?.dependencies)!=="unchanged"||
+      preparedDependencyIdentity(before.dependencies).phase_id!=="dependencies-root") selectiveFail();
+  const expected=pureContractGitSource(git,head).summary,{root_generated,...source}=before.source;
+  const toolExpected=head===p.head?expected:pureContractGitSource(git,p.head).summary;
+  const {root_generated:toolGenerated,...toolSource}=w.tool_source_before??{};
+  if (!equal(source,expected)||!Array.isArray(root_generated)||root_generated.length>1||
+      root_generated.some(v=>!keys(v,["path","sha256"])||v.path!=="next-env.d.ts"||!selectiveSha(v.sha256))||
+      before.loader.path!=="node_modules/tsx/dist/loader.mjs"||!selectiveSha(before.loader.sha256)||
+      before.loader.version!==JSON.parse(sourceAt(git,head,"package-lock.json")).packages["node_modules/tsx"].version||
+      digest(before.runtime)!==p.inputs.identity_sha256||![before,after].every(v=>v.target.inventory===gitRevisionInventory(v.target.inputInventory)&&
+        v.target.service.state.preservation_valid===true&&v.target.service.diagnostics.coherent===true)||
+      before.target.inventory!==after.target.inventory||!equal(before.target.service.state,after.target.service.state)||
+      !equal(w.tool_source_before,w.tool_source_after)||!equal(toolSource,toolExpected)||!Array.isArray(toolGenerated)||toolGenerated.length>1||
+      toolGenerated.some(v=>!keys(v,["path","sha256"])||v.path!=="next-env.d.ts"||!selectiveSha(v.sha256))) selectiveFail();
+  const env=fixtureBudgetEnvironment(root,environment); delete env.NODE_ENV;
+  Object.assign(env,{npm_config_cache:path.join(root,"npm-cache"),npm_config_devdir:path.join(root,"node-gyp")});
+  if (!equal(environment,env)||environment.AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT!==digest(before.runtime.headers.observation)||
+      bytes(w.collector,128*1024).toString()!==sourceAt(git,p.head,FIXTURE_BUDGET_COLLECTOR)) selectiveFail();
+  naturalLifecycle(bytes(w.lifecycle,128*1024).toString(),{suite:"fixture-budget-capture",label:"selective fixture workload",timeout:90000,duration:w.result.duration_ms});
+  const log=bytes(w.stdout,2*1024*1024).toString();
+  const report=one(jsonLines(log).filter(v=>v.version==="selective-correction-development.v1"));
+  const coverage=verifySelectiveFixtureWorkloadReport(report,corrected);
+  if (log.includes("--cpu-prof")||log.includes("selective-timing-preload")||log.includes("profile-selective-preload")) selectiveFail();
+  return {w,report,coverage};
+}
+
+// This non-causal workload witness may use distinct physical checkouts.
+// Compare content, layout and package sources across roots, not their raw Mac
+// security hashes (xattr output includes absolute filenames). This makes no
+// cross-root ACL/flag/attribute-equivalence claim. Every capture still retains
+// its complete security identity and requires exact local before/after equality;
+// same-root captures and current-target/Full/stock checks remain security-bound.
+function sameSelectiveDependencies(a,b) {
+  const {location_fingerprint:al,permission_sha256:ap,...before}=preparedDependencyIdentity(a);
+  const {location_fingerprint:bl,permission_sha256:bp,...after}=preparedDependencyIdentity(b);
+  return selectiveSha(al)&&selectiveSha(bl)&&equal(before,after)&&(al!==bl||ap===bp);
+}
+
+export function verifySelectiveFixtureWorkload(p, prior, focused, options) {
+  const {git,parse,completedAt}=options, reg=focused.regression, baseline=reg.accepted_baseline;
+  if (!keys(reg,["kind","claim","owner","incident","accepted_baseline","before","after","coverage_review"])||
+      reg.kind!==SELECTIVE_FIXTURE_WORKLOAD||p.commission.evidence_kind!==reg.kind||reg.claim!==SELECTIVE_FIXTURE_WORKLOAD_CLAIM||
+      !equal(reg.owner,SELECTIVE_FIXTURE_OWNER)||focused.failed_phase!=="integration"||!equal(focused.input_remedy_resources,[])||
+      !focused.implicated_paths?.includes(SELECTIVE_FIXTURE_PATH)||!keys(baseline,["head","tree","receiving_review"])||
+      !selectiveCommit(baseline.head)||!selectiveCommit(baseline.tree)||!keys(baseline.receiving_review,["id","sha256"])||
+      !integer(baseline.receiving_review.id)||!selectiveSha(baseline.receiving_review.sha256)||
+      git(["rev-parse",baseline.head+"^{tree}"]).toString().trim()!==baseline.tree) selectiveFail();
+  selectiveFixtureWorkloadIncident(p,prior,reg,options);
+  const beforeHead=parse(reg.before).tested_source_head;
+  if (!selectiveCommit(beforeHead)||beforeHead===p.head)selectiveFail();
+  for (const [a,b] of [[prior.head,beforeHead],[beforeHead,baseline.head],[baseline.head,p.head],[p.base,p.head]])git(["merge-base","--is-ancestor",a,b]);
+  if (!equal(selectiveFixtureWorkloadRegistration(git,beforeHead),selectiveFixtureWorkloadRegistration(git,p.head))||
+      !git(["show",beforeHead+":"+SELECTIVE_FIXTURE_PATH]).equals(git(["show",prior.head+":"+SELECTIVE_FIXTURE_PATH]))||
+      !git(["show",p.head+":"+SELECTIVE_FIXTURE_PATH]).equals(git(["show",baseline.head+":"+SELECTIVE_FIXTURE_PATH])))selectiveFail();
+  const before=selectiveCapture(reg.before,beforeHead,p,options,false),after=selectiveCapture(reg.after,p.head,p,options,true);
+  // Reject missing/unsafe captures and incomplete reports before traversing the
+  // fixed import graph. The same complete source gates still run on acceptance.
+  const partition=selectiveFixtureWorkloadSourcePartition(git,beforeHead,p.head,p.base,prior.head);
+  const review=parse(reg.coverage_review);
+  if (!keys(review,["schema","basis","reviewer","verdict","before","after","delta","obligations","reviewed_at"])||
+      review.schema!=="augnes.selective-fixture-coverage-review.v1"||review.basis!=="independent-source-and-coverage-review"||
+      typeof review.reviewer!=="string"||review.reviewer.length<3||review.reviewer.length>200||review.verdict!=="ACCEPT / RETAIN"||
+      !equal(review.before,partition.before)||!equal(review.after,partition.after)||!equal(review.delta,partition.delta)||
+      !equal(review.obligations,SELECTIVE_COVERAGE_OBLIGATIONS)||!(Date.parse(review.reviewed_at)>Date.parse(completedAt))||
+      !(Date.parse(review.reviewed_at)<=Date.parse(focused.finished_at))||
+      !sameSelectiveDependencies(before.w.after.dependencies,after.w.before.dependencies)||
+      !equal(before.w.after.loader,after.w.before.loader)||after.w.after.target.inventory!==p.inputs.inventory_sha256||
+      !(Date.parse(completedAt)<Date.parse(before.w.started_at)&&Date.parse(before.w.started_at)<Date.parse(before.w.finished_at)&&
+        Date.parse(before.w.finished_at)<Date.parse(after.w.started_at)&&Date.parse(after.w.started_at)<Date.parse(after.w.finished_at)&&
+        Date.parse(after.w.finished_at)<=Date.parse(focused.finished_at))||
+      !focused.commands?.some(c=>c.command===SELECTIVE_FIXTURE_COMMAND&&c.tested_source_head===p.head&&equal(c.record,reg.after)&&equal(c.stdout,after.w.stdout)))selectiveFail();
+  return p.head;
+}
+
+export const inspectCurrentSelectiveFixtureWorkloadInputs = (root,witness,stockReceipt=null) =>
+  inspectCurrentIntegrationBudgetInputs(root,witness,stockReceipt);
 
 // Next writes this declaration during typegen, build and dev startup. The
 // pinned dependency and Git observations still apply. Only these complete

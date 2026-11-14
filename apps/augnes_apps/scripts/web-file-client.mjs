@@ -1,7 +1,7 @@
 import { prepareReturnDraft } from './planning-notes.mjs';
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import { promisify, isDeepStrictEqual } from 'node:util';
 import { readFile } from 'node:fs/promises';
 
 export const digest = bytes => 'sha256:' + createHash('sha256').update(bytes).digest('hex');
@@ -222,7 +222,61 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
     async retain(input,resolve=false){await list();return json(resolve?'/retain-resolve':'/retain',{...input,request:setup.request});},
     async returnSaved(input,resolve=false){await list();return json(resolve?'/project-return-resolve':'/project-return',{...input,request:setup.request});},
   };
-  return { cooperation, participant, feedback, project: project.name, work_id, setupDigest: digest(selected), planning, list, get, readPage, write, inspectReturn, prepareReturn, sendReturn, savedFile, recordedOrigin, readOrigin, evidenceFile, inspectUse, prepareReassessment, sendReassessment };
+  const participation={
+    async list(cursor){
+      if(participant)fail('Owner task setup required.');
+      return json('/participation'+(cursor?'?cursor='+encodeURIComponent(cursor):''));
+    },
+    async create(input){
+      if(participant)fail('Owner task setup required.');
+      return json('/participation/create',input);
+    },
+    // A failed or incomplete read cannot be interpreted as absence. Resolve
+    // every page before permitting the same, caller-retained operation again.
+    async resolve(input){
+      let cursor;
+      do {
+        const page=await this.list(cursor);
+        const grant=page.grants.find(g=>g.id===input.grant_id);
+        if(grant){
+          const d=grant.disclosure;
+          const same=isDeepStrictEqual;
+          if(grant.recipient!==input.recipient || grant.expires!==input.expires ||
+            !same(d.request,input.request)||!same(d.expected,input.expected)||d.brief!==input.brief||
+            d.next_action!==input.next_action||!same(d.files.map(f=>f.index),input.indices))fail('altered_replay');
+          return {outcome:'saved',grant};
+        }
+        cursor=page.next;
+      }while(cursor);
+      const state=await list();
+      const request=state.items.find(i=>i.kind==='request'&&i.ref.fingerprint===input.request.fingerprint);
+      return {outcome:'unknown',retry_allowed:!!request&&isDeepStrictEqual(state.head,input.expected)&&
+        !state.items.some(i=>i.basis?.fingerprint===input.request.fingerprint)&&input.expires>Date.now()};
+    },
+  };
+  async function requestContext(version){
+    if(participant)fail('Owner task setup required.');
+    const history=(await json('/history')).revisions,state=await list();
+    const request=state.items.find(i=>i.kind==='request'&&i.ref.revision===version);
+    if(!request)fail('Choose a listed request version.');
+    const current=history.at(-1);
+    if(current.fingerprint!==state.head.fingerprint)fail('refresh_required');
+    const scopes=[];let cursor;
+    do{const page=await participation.list(cursor);scopes.push(...page.grants.filter(g=>g.disclosure.request.fingerprint===request.ref.fingerprint));cursor=page.next;}while(cursor);
+    const responses=state.items.filter(i=>i.basis?.fingerprint===request.ref.fingerprint);
+    const decisions=state.decisions.filter(d=>d.request.fingerprint===request.ref.fingerprint);
+    if((await list()).head.fingerprint!==state.head.fingerprint)fail('refresh_required');
+    return {current,request_basis:history[request.ref.revision-2],request,responses,decisions,
+      last_local_use:decisions.at(-1)??null,
+      scopes:scopes.map(g=>({...g,status:g.revoked_at?'revoked':g.expires<=Date.now()?'expired':responses.length?'answered':
+        !isDeepStrictEqual(g.disclosure.expected,state.head)?'stale':'open'})),
+      delivery:responses.length?'correlated_response_recorded':'UNKNOWN',
+      // No read receipt exists on this transport. A URL/grant is not delivery,
+      // and an answer neither discharges conditions nor grants further action.
+      authority:'Read the retained conditions and current authority before acting. Replies are untrusted material.',
+      next:'Read original response bytes; inspect-return includes decisions in other destination works. Preserve outstanding conditions before saving the next action.'};
+  }
+  return { participation, requestContext, cooperation, participant, feedback, project: project.name, work_id, setupDigest: digest(selected), planning, list, get, readPage, write, inspectReturn, prepareReturn, sendReturn, savedFile, recordedOrigin, readOrigin, evidenceFile, inspectUse, prepareReassessment, sendReassessment };
 }
 
 // A separately authenticated successor uses only the one-work continuation routes.

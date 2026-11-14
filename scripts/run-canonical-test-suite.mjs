@@ -137,7 +137,7 @@ const goldenStep = {
   requireNaturalExit: true,
 };
 
-const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-input", "git-input-lifecycle", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-stock", "material-reservation", "serial-aggregate", "serial-material"].map(group => ({
+const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-input", "git-input-direct", "git-input-lifecycle", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-stock", "material-integration-preparation", "material-integration-reservation", "material-reservation", "serial-aggregate", "serial-material"].map(group => ({
   id: "local-canonical-reviewed-revision-" + group,
   label: "reviewed revision controls: " + group,
   sharedFixture: !["revision", "settlement", "browser", "serial-aggregate", "serial-material"].includes(group),
@@ -1524,15 +1524,41 @@ const suites = {
       id: "local-canonical-maintenance",
       label: "prospective maintenance proof, safe inputs and terminal succession",
       ...rootNode("scripts/test-local-canonical-maintenance.mjs"),
-      // Aggregate test liveness, not a product deadline. Complete controls took
-      // ~49s, including ~36s across 5,867 Git calls. Keep those independent
-      // reads and every scenario; add a finite 30s orchestration reserve to the
-      // former 60s bound. Inner 10s setup limits and TERM/KILL cleanup stay intact.
-      // This prospective allowance does not explain the retained 60s timeout.
-      timeoutMs: 90_000,
+      // Aggregate test liveness, not a product deadline. The complete current
+      // workload naturally took 89.406s. Retain the existing 30s orchestration
+      // reserve and round up to 120s; every scenario, independent reader, inner
+      // 10s setup limit and TERM/KILL cleanup obligation stays intact.
+      // This prospective allowance does not explain retained watchdog failures.
+      timeoutMs: 120_000,
       requireNaturalExit: true,
     },
     ...reviewedRevisionSteps,
+    {
+      id: "local-canonical-maintenance-reader",
+      label: "selected maintenance reader evidence and succession",
+      sharedFixture: true,
+      ...rootNode("scripts/fixtures/local-canonical-reviewed-revision.mjs", "--run-maintenance-reader-fixtures"),
+      // Reuse the owned synthetic reviewed ancestry in a separate child. The
+      // existing maintenance aggregate and all reviewed controls keep their bounds.
+      // This child also replays preparation, interruption, competing reservation
+      // and separate cold readers; it has its own finite lifecycle allowance.
+      timeoutMs: 75_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "local-canonical-maintenance-budget",
+      label: "measured maintenance aggregate allowance and succession",
+      sharedFixture: true,
+      ...rootNode("scripts/fixtures/local-canonical-reviewed-revision.mjs", "--run-maintenance-budget-fixtures"),
+      // Consume the checked reader ancestry above; do not repeat its setup or
+      // enlarge its 75s child or existing 10s setup/cold limits. The new deeper
+      // stock operation exceeded its initial 10s aggregate. Bound each new
+      // composite reader at 20s and this owner at 90s: retained non-cold work
+      // (~46s; includes cleanup) plus both finite readers, rounded up. A later
+      // stage capture measured pre-cold work at 44.192s. Cleanup stays owned.
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
     {
       label: "prepared dependency eligibility before consumers",
       ...rootNode("scripts/test-prepared-dependency-eligibility.mjs"),

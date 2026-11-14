@@ -1,4 +1,6 @@
 import { checkCrossProjectContributions } from './web-planning-contribution-checks.mjs';
+import { checkNeedDrivenRequest } from './web-planning-need-request-checks.mjs';
+import { checkScopeJournalRetirement } from './web-planning-scope-journal-checks.mjs';
 import { checkWorkContinuation } from './web-planning-successor-checks.mjs';
 import { checkContinuationClient } from './test-web-planning-continuation-client.mjs';
 import { checkIndependentProjects } from './web-planning-project-checks.mjs';
@@ -220,6 +222,8 @@ try {
  await checkParticipation({start,client,newWork,save,passed});
  await checkPublicRequests({start,client,newWork,save,passed});
  await checkCrossProjectContributions({start,root,passed});
+ await checkNeedDrivenRequest({start,root,passed});
+ await checkScopeJournalRetirement({root,passed});
  await checkIndependentProjects({start,root,passed});
  await checkWorkContinuation({start,root,passed});
  await checkLargeExchanges({start,client,newWork,save,passed});

@@ -29,7 +29,9 @@ const db = new Database(dbPath), period = "2026-10 synthetic build and reservati
 const token = randomBytes(32).toString("base64url"), secret = randomBytes(32).toString("base64url");
 const processor = createLocalProcessor({ secret }); trackServerConnections(processor.server);
 const children: any[] = [], artifacts: { name: string; body: Buffer }[] = [], phases: string[] = [], errors: string[] = [];
-const externalRequests: { root: string; action: string }[] = [], eventCases: any[] = [];
+type ExternalRequest = { root: string; action: string; ref?: string; material?: any; corrections?: string[] };
+const externalRequests: ExternalRequest[] = [], eventCases: any[] = [];
+let profileReadback: { root: string; material: string; upstream: string } | null = null;
 let origin = "", id = 0, failMaterial = false, failPublication = false;
 let race: (() => Promise<void>) | null = null;
 const prepare = Database.prototype.prepare;
@@ -51,7 +53,11 @@ const server = trackServerConnections(createServer(async (req, res) => {
     const chunks: Buffer[] = []; for await (const chunk of req) chunks.push(Buffer.from(chunk));
     const body = Buffer.concat(chunks).toString();
     const request = body ? JSON.parse(body) : {};
-    if (url.pathname === "/api/augnes/external-response") externalRequests.push({ root: request.repository_root, action: request.action });
+    let observation: ExternalRequest | undefined;
+    if (url.pathname === "/api/augnes/external-response") {
+      observation = { root: request.repository_root, action: request.action, ref: request.data?.ref };
+      externalRequests.push(observation);
+    }
     if (failMaterial || failPublication) Database.prototype.prepare = function(this: Database.Database, sql: string) {
       if (failMaterial && sql.startsWith("INSERT INTO vnext_external_materials")) throw new Error("owned_material_rollback_fault");
       if (failPublication && request.action === "publish" && sql.startsWith("INSERT INTO vnext_external_records")) throw new Error("owned_publication_rollback_fault");
@@ -62,8 +68,17 @@ const server = trackServerConnections(createServer(async (req, res) => {
     finally { Database.prototype.prepare = prepare; }
     // A real ordinary correction between the byte read and the final observation.
     if (race && request.action === "material") { const run = race; race = null; await run(); }
+    const responseText = await response.text();
+    // Observe the fresh consumer's actual ordinary response, without another
+    // parent round trip or any replacement of the enforcing handler.
+    if (observation && profileReadback?.root === observation.root && response.ok) {
+      if (observation.action === "material" && observation.ref === profileReadback.material)
+        observation.material = JSON.parse(responseText).material;
+      if (observation.action === "read_experience" && observation.ref === profileReadback.upstream)
+        observation.corrections = JSON.parse(responseText).dependencies[0].corrections.map((c: any) => c.ref);
+    }
     response.headers.forEach((v, k) => res.setHeader(k, v));
-    res.writeHead(response.status).end(await response.text());
+    res.writeHead(response.status).end(responseText);
   } catch (error) { errors.push(String(error)); res.writeHead(500).end("{}"); }
 }));
 const call = async (name: string, args: object) => {
@@ -143,12 +158,12 @@ async function main() {
     await p.api.write("initial", await p.api.read(), { goal: `Synthetic ${p.label} reporting`, success_criteria: ["Exact bytes and explicit sources"], non_goals: ["No semantic acceptance, model or production effects"] });
     await p.api.write("revise", await p.api.read(), { sources: { add: [note(`note-ref:${p.label}-source`, period)] } });
   }
-  const put = async (p: any, name: string, body: Buffer, version: string, dependencies: string[] = []) => {
-    const entry = ok(await op(p, "read"));
+  const put = async (p: any, name: string, body: Buffer, version: string, dependencies: string[] = [], sourceEntry?: any) => {
+    const entry = sourceEntry ?? ok(await op(p, "read"));
     return ok(await op(p, "put_material", { metadata: { name, media_type: "application/json", version, source: `${p.label} synthetic observations`, applicability: period, dependencies, sha256: hashBytes(body), size: body.length }, base64: body.toString("base64") }, entry.material_basis)).material_ref;
   };
-  const publish = async (p: any, key: string, title: string, conditions: any, materials: string[], targets: any[]) => {
-    const entry = ok(await op(p, "read"));
+  const publish = async (p: any, key: string, title: string, conditions: any, materials: string[], targets: any[], sourceEntry?: any) => {
+    const entry = sourceEntry ?? ok(await op(p, "read"));
     return ok(await op(p, "publish", { key, title, source_refs: [entry.sources[0].source_binding], conditions: canonical(conditions), association: { endpoint: "none", account: "unresolved", operator: "synthetic producer", confidence: "attributed observation" }, assessment: "Bounded source and original check; consumer evaluates current applicability.", materials, targets: targets.map(q => scopeKey(q.scope)) }, entry.material_basis)).record.ref;
   };
   const aMaterial = await put(a, "events.json", original, "events-r1");
@@ -308,12 +323,16 @@ async function main() {
       intermediate_query: title, independent_query: "Independent reservation invoice", repetitions: 3, period, output: "plan.json" }));
     const prepared = [];
     let predecessor = aMaterial;
+    // Preparing these immutable materials/experiences does not revise A's work.
+    // Every ordinary writer still checks this observed basis. The later source
+    // note revision is followed by a fresh read before publishing corrections.
+    const preparationEntry = ok(await op(a, "read"));
     for (const [name, mutate] of cases.slice(offset, offset + 8)) {
       const value = structuredClone(revised); mutate(value.events);
       const body = Buffer.from(JSON.stringify(value)), version = `profile-${name}`;
-      const inputRef = await put(a, `${name}.json`, body, version, [predecessor]);
+      const inputRef = await put(a, `${name}.json`, body, version, [predecessor], preparationEntry);
       const replacement = await publish(a, `profile-${name}-replacement`, `Replacement ${name}`,
-        { version: "source-build-input.v1", period }, [inputRef], [c]);
+        { version: "source-build-input.v1", period }, [inputRef], [c], preparationEntry);
       const change = { version: "worker-input-replacement.v1", previous_material_ref: predecessor,
         replacement_experience_ref: replacement, replacement_material_ref: inputRef,
         replacement_version: version, replacement_sha256: hashBytes(body) };
@@ -326,10 +345,6 @@ async function main() {
     const correctionRef = ok(await op(a, "correct", { key: `profile-${name}-correction`, target_ref: upstream,
       topic: "source version", statement: canonical(change), source_refs: [entry.sources.find((s: any) => s.source_locator === "note-ref:event-profile-replacement").source_binding],
       targets: [scopeKey(c.scope)] }, entry.material_basis)).record.ref;
-    const readable = ok(await op(c, "material", { ref: inputRef, experience_ref: replacement })).material;
-    assert.equal(readable.metadata.version, version); assert.equal(readable.metadata.sha256, hashBytes(body));
-    assert.equal(readable.base64, body.toString("base64"));
-    assert(ok(await op(c, "read_experience", { ref: upstream })).dependencies[0].corrections.some((r: any) => r.ref === correctionRef));
     artifacts.push({ name: `${name}-replacement.json`, body });
     let seededCache: string | null = null;
     if (name === "unsupported-event-field") {
@@ -356,9 +371,22 @@ async function main() {
     // This includes every project table, prior B check, C material and judgment.
     const before = snapshot(), startRequest = externalRequests.length;
     const valid = name === "valid-boundaries";
-    const observed = await consumer(c, `c-${name}`, undefined, valid ? "completed" : "stopped");
+    profileReadback = { root: c.root, material: inputRef, upstream };
+    let observed;
+    try { observed = await consumer(c, `c-${name}`, undefined, valid ? "completed" : "stopped"); }
+    finally { profileReadback = null; }
     const after = snapshot();
-    const actions = externalRequests.slice(startRequest).filter(r => r.root === c.root).map(r => r.action);
+    const requests = externalRequests.slice(startRequest).filter(r => r.root === c.root);
+    const actions = requests.map(r => r.action);
+    const materialReads = requests.filter(r => r.material);
+    assert.equal(materialReads.length, 1, "The fresh consumer reads its exact current replacement");
+    const readable = materialReads[0].material;
+    assert.equal(readable.ref, inputRef);
+    assert.equal(readable.metadata.version, version); assert.equal(readable.metadata.sha256, hashBytes(body));
+    assert.equal(readable.base64, body.toString("base64"));
+    const correctionReads = requests.filter(r => r.corrections);
+    assert(correctionReads.length > 0 && correctionReads.every(r => r.corrections!.includes(correctionRef)));
+    const correctionEdges = correctionReads[0].corrections!.length;
     if (valid) {
       assert.equal(observed.content.projected_worker_ms, 3000000020997);
       assert.equal(observed.content.reservation_fee_cents, frozen.D_reservation_fee_cents);
@@ -371,14 +399,19 @@ async function main() {
     }
     eventCases.push({ name, status: observed.status, reason: observed.reason, plan_created: observed.plan_created,
       shared_material_readback: true, replacement_ref: inputRef, replacement_sha256: hashBytes(body), seeded_cache_ref: seededCache,
+      consumer_material_readback: true, consumer_correction_readback: true, correction_edges: correctionEdges,
       before_sha256: hashBytes(before), after_sha256: hashBytes(after), unchanged: before === after,
       projected_worker_ms: observed.content?.projected_worker_ms, actions });
-    assert.equal(canonical(ok(await op(b, "read", { work_ref: br.work_ref })).work.events), bOriginal);
-    assert.equal(ok(await op(c, "material", { ref: corrected.output_ref })).material.metadata.sha256, corrected.sha256);
     console.error(JSON.stringify({ event_case: name, status: observed.status, durable_unchanged: before === after }));
     }
   }
   assert.equal(eventCases.filter(r => r.status === "stopped" && r.unchanged && !r.plan_created).length, malformed.length);
+  assert.equal(eventCases.reduce((total, row) => total + row.correction_edges, 0), 72,
+    "All sixteen fresh cases retain both cumulative eight-correction chains");
+  // Each refusal already compares every table before/after. Check the original
+  // B history and prior C bytes once more after the final successful case.
+  assert.equal(canonical(ok(await op(b, "read", { work_ref: br.work_ref })).work.events), bOriginal);
+  assert.equal(ok(await op(c, "material", { ref: corrected.output_ref })).material.metadata.sha256, corrected.sha256);
   phases.push("event_profile_refusal_no_writes_and_valid_duplicate_bounds");
   validateExternalStore(db);
   assert.equal(new Set(children.map(c => c.process)).size, children.length);

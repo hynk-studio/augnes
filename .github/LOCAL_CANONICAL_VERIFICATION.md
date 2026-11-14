@@ -1065,12 +1065,103 @@ ordinary production-source predicate and natural RED/GREEN requirement, with
 exact old/final blobs, common executable fixture, environment/input artifacts,
 execution-time start/end bindings, chronology, logs and completed cleanup.
 PASS/PASS improvement samples and killed children cannot be relabeled as RED.
+
+The explicit v2 `incident_case:
+"failed-reviewed-integration-material-stock-partition-v1"` selects one bounded
+registered-fixture correction after a failed reviewed integration. It accepts
+only the latest fully settled `product_failure`, initial1/recovery0, null
+infrastructure code, complete cleanup and the original authenticated integration
+authority. The original integration proof, prepared inputs, successful material
+or maintenance predecessor and physical edges are replayed as historical
+evidence. Earlier reviewed commissions and integration/maintenance grants retain
+their types and consumption through preparation, cold traversal and stock.
+No spent grant may supply the new commission.
+
+For this selected incident alone, the original material-stock inner watchdog
+failure is the negative evidence; the naturally failing outer wrapper is not a
+natural module RED. The complete original receipt, false stock issue meanings
+and dimensions, authority log and input/cleanup records remain unchanged. The
+reader requires the exact finite partition, unchanged assertions and deadlines,
+and source-bound natural positive registered controls. It rejects another
+failure, fabricated coverage, unexplained or omitted stock issues and altered
+originals. Historical causes and interrupted operations remain UNKNOWN. Other
+maintenance repairs retain their existing natural RED/GREEN requirement.
+
+The complete descendant delta includes the partition and its admission support.
+The final runtime, protected-input inventory, physical checkout and all three
+safe dependency prerequisites are bound in the actual preparation artifact.
+`prepareMaintenanceCandidate` validates this case without reservation through
+the same invocation-scoped material seal and live inventory observer used by
+admission. Admission rechecks these inputs after authenticated observation and
+immediately before the exclusive append. Receipt inspection checks the recorded
+preparation independently of current source/input applicability; current stock
+observes the live inventory again. An original failed integration inspected as
+a historical prefix remains non-deciding and cannot obtain current authority
+or qualification from its successor. This case keeps the existing distinct
+exact-target acceptance and prospective commission, maximum1/recovery0/unchanged
+retry0, Full coverage, separate fresh stock, result review and cleanup owners.
+
 The historical evidence index commits all known adverse observations, their
 limitations, the predecessor's evidence commitment and cumulative cost. A
 separate source/evidence review must accept the complete delta, affected
 consumers, all repairs, preserved checks, history and safe-input order. Review
 and authority are responsible for the completeness of known history; a digest
 alone does not prove an unobserved fact.
+
+The selected `incident_case: "failed-maintenance-reader-immutable-work-v1"`
+continues only a settled failure of the selected integration-fixture maintenance
+above. It retains the complete Full failure, false-stock issue meanings,
+authenticated predecessor proof, reviewed ancestry, original inputs/cleanup,
+and every typed spent grant. Its direct maintenance watchdog failure is negative
+evidence, not natural functional RED. Source-bound bounded diagnostics must show
+the finite operation-local immutable-work reduction under unchanged assertions,
+coverage, independent-reader boundaries and registered deadlines. The separate
+checkout-ownership domain repair has its own source/diagnostic binding; it cannot
+explain or discharge the historical timeout. Cause and interrupted operation
+remain UNKNOWN, and no stable speedup is inferred.
+
+The selected evidence binds the complete accepted remedy delta, retained
+read-only observer source and reconstructed transforms, individual reader
+operations, unchanged complete controls, and natural registered positives.
+Preparation, admission, cold reconstruction and stock apply the same typed
+successor predicate. They replay the original maintenance authority and physical
+history without projecting a spent grant into current permission. Altered or
+unrelated incidents, incomplete coverage, changed input bindings and reused
+grants refuse. A superseded failed maintenance receipt remains a historical,
+non-deciding prefix and performs no current-authority observation.
+
+This finite case changes neither ordinary maintenance's natural RED/GREEN rule
+nor the one-shot authority/accounting lifecycle. Its additional controls reuse
+owned synthetic reviewed ancestry in a separately registered 75-second child,
+including independent 10-second cold readers. No existing workload, assertion or
+deadline is moved or relaxed. Exact task/source identities belong in bound
+evidence, not in this public rule.
+
+The selected `incident_case: "failed-maintenance-reader-aggregate-allowance-v1"`
+continues only a fully settled failure of that reader-maintenance case at its
+historical 90000 ms direct aggregate watchdog. It uses the same evidence,
+preparation, authenticated authority and exclusive lineage owners. The complete
+original false stock has its own exact issue meanings and dimensions; an absent
+attempt-record refusal must not be invented to copy an earlier incident. Cause
+and interrupted operation remain UNKNOWN. The retained complete natural positive
+is measured rationale, not functional RED or historical timeout causation.
+
+The concrete remedy is an immediate two-file descendant: only the direct
+aggregate allowance changes from 90000 to 120000 ms, with its matching contract
+assertion. The selected bound is the retained complete workload plus the existing
+30000 ms orchestration reserve, rounded up to 10000 ms. The complete suite outside
+that allowance, assertions, scenarios, independent readers, inner setup limits,
+product deadlines, natural-exit requirements and cleanup remain fixed. Old proofs
+and registrations retain their original deadline interpretation. The complete
+final support delta is separately reviewed, and the existing direct collector
+observes the actual final registered workload and protected inputs before/after;
+no historical workload or natural RED is rerun to fit another evidence recipe.
+Controls reuse the checked owned reader ancestry in a separate 90-second child.
+Its new composite current and historical stock readers have finite 20-second
+allowances for the deeper lineage and live-authorization read; the preceding
+75-second owner and every existing 10-second setup/cold limit remain unchanged.
+Preparation, admission, cold reconstruction and stock apply the same finite
+reader-to-allowance successor predicate; it is not a generic retry route.
 
 Safe setup precedes admission. Normal development preparation may establish
 lockfile-fixed dependencies in an authorized task-owned checkout without an
@@ -1094,8 +1185,10 @@ and one closed canonical JSON object. The existing authenticated GitHub GET
 transport verifies current maintainer permission, exact Draft PR/base/head,
 unedited record bytes and chronology. Acceptance binds the complete independent
 report. The commission binds acceptance, evidence, review, planner/phase/owner
-inventory, history and the terminal predecessor; it must explicitly choose
-`accept_once_under_unchanged_bounds` for cumulative cost and timing risk,
+inventory, history and the terminal predecessor. The unchanged-bound cases must
+explicitly choose `accept_once_under_unchanged_bounds` for cumulative cost and
+timing risk; the selected aggregate allowance instead requires
+`accept_once_under_reviewed_aggregate_allowance`, bound to its reviewed remedy,
 maximum1/recovery0/unchanged_retry0, failure/interruption stop, fresh validation,
 result audit and cleanup. No old grant, generic acceptance or fallback route
 supplies these conditions.
@@ -1120,6 +1213,31 @@ receipt and budget remain immutable. The legacy pure integration is an ordinary 
 candidate with its existing initial1/recovery1 ceiling; it is not a renewed
 maintenance grant, and any execution or substantiated recovery still needs
 separate applicable human authority.
+
+The explicit reviewed integration also accepts the latest completely settled,
+successful, exhausted material-source v7 predecessor. Its original stored proof,
+authenticated authority records and reservation observations, complete Full and
+Browser coverage, dependency identities, natural settlement and retained valid
+stock are revalidated; a completion label alone is insufficient. Original v1
+integration-base evidence keeps its recorded meaning. The new one-shot edge
+preserves every reviewed count, commission and grant identity and cannot supply
+an ordinary, legacy, unchanged-target or recovery allowance.
+
+For that predecessor, the existing complete source review binds original stock
+and authority artifacts plus the actual supported preparation: exact target,
+runtime, full protected-input inventory, physical checkout and all three safe
+dependency trees. Preparation and admission compare current inputs, and the
+deciding receipt retains the same prerequisites. Publication/configuration must
+finish first. The separate later authenticated acceptance and commission bind
+the review/preparation bytes; neither prior authority nor preparation authorizes
+reservation. Old grant IDs, unsafe or changed inputs and competing edges refuse.
+
+Historical-prefix inspection of the superseded material-v7 receipt replays its
+specific validated reviewed-integration successor and the immutable originals.
+It does not fabricate a historical current-PR projection or reauthenticate an old
+grant as current. Historical integrity stays separate from current source/input
+applicability; it neither upgrades v1 evidence to declared-range v2 nor makes
+the old receipt qualification of the combined source.
 
 `prepareAcceptedMainIntegrationCandidate` reuses the complete integration
 eligibility reader without a reservation, attempt capability or lease. Its
@@ -1576,6 +1694,75 @@ The complete final executable delta, including these readers, requires separate
 review. This attribution supplies no acceptance, execution allowance or retry;
 existing preparation, authenticated authority, physical lineage and final Full
 requirements remain controlling.
+
+The existing candidate-driver/prior-implicated-source collector also supports
+one bounded material-v7 sequencing witness: unchanged command
+`node scripts/test-project-experience-guide-lifecycle-v1.mjs --operator-scope`,
+with only the entire `scripts/browser-validate-operator-native-host-execution-v1.mjs`
+replaced by its predecessor Git bytes for the before observation. All other
+tracked files, including the driver, come from the published candidate. Record
+the actual candidate checkout, explicit prior-source overlay, complete source
+catalogues, identical runtime/environment and same-root prepared dependencies;
+never describe this as a clean historical execution. The existing collector's
+`--driver scripts/test-project-experience-guide-lifecycle-v1.mjs` selects this
+exact recipe, without a new evidence kind or authority route. Its production
+input inventory is observed unchanged before/after and bound at preparation.
+
+Natural RED must be the original context-retention assertion, not import/setup
+failure. GREEN retains all operator lifecycle controls and adopted/invalid/failed
+replacement assertions with the actual hook and source-extracted boundary.
+Independent source review must establish substantive coverage; summary counters
+alone are insufficient. This controlled schedule has zero actual Browser uses
+and proves neither historical Browser recreation nor corrected real-Browser
+qualification. Preserve the strict request classifier, unexpected-request gate,
+readiness deadline, input protection, physical restoration and owned cleanup.
+The existing v10 TS recipe and ordinary historical-driver evidence remain
+separate and unchanged; unsupported drivers, arguments or attributions refuse.
+
+#### Selective integration fixture workload correction
+
+An explicitly reviewed material-source commission may use the typed evidence
+kind `selective-fixture-workload-v1` for
+`scripts/test-external-response-selective.ts`. This is a fixture workload remedy,
+not a demonstrated production repair or an explanation of a historical timeout.
+It reuses inventory-bound v7 material-source preparation, exclusive append-only
+lineage, authenticated authority, full coverage, input protection and cleanup.
+It creates no direct-v10 ordinal two, retry, recovery or restored allowance.
+
+This case requires a completely settled, exhausted direct-v10 one-invocation
+predecessor whose natural integration failure contains the registered selective
+child's bounded timeout. Preserve the original classification, unknown historical
+cause, complete receipt, original false stock, physical records and consumed
+authority. The historical failure reader may account for the exact retained
+stale-integration-base and generic attempt-record issues only after independently
+validating physical lineage and unedited historical authority. Preserve every
+original issue and dimension. Do not rewrite or sanitize the stock into a passing
+or context-matching observation. Current candidate publication, base, inputs and
+separate new authority remain mandatory fresh checks.
+
+The supported witness is the actual bounded
+`node --import tsx scripts/test-external-response-selective.ts` command on exact
+clean sources and the same runtime. A natural before PASS and after PASS is
+honest where the original isolated fixture passed. Require attributable removal
+of redundant fixture work and independent source/evidence review; do not seek a
+false RED. Across distinct physical dependency roots, compare content, layout
+and package declarations; retain their separate raw security identities without
+claiming cross-root ACL/flag/attribute equivalence. Local before/after and
+same-root security equality, plus complete current-target/Full/stock protection,
+remain required. Diagnostic preloads and CPU profiles are supporting observations,
+not admission witnesses. Refuse unrelated source, changed product or pinned
+inputs, missing cases, changed authority/freshness or weakened cleanup.
+
+Retain all fifteen refusal cases, seeded-invalid-cache refusal, per-case no-write
+assertions, twenty-nine fresh consumers, permission/race checks and both cumulative
+eight-correction chains with seventy-two traversed edges. Preserve actual selected
+material/correction readback. Keep the selective 90000 ms and nested consumer
+20000 ms execution bounds, existing termination/kill settlement and integration
+phase allowance. The one-shot commission retains ordinal one/maximum one;
+reservation or interruption consumes it. Supported final preparation and
+independent acceptance must precede a genuinely new authenticated exact-target
+grant. Preparation, source review and diagnostic results alone never authorize
+reservation or deciding execution.
 
 For a compiler defect, the bounded `repository-typecheck-v1` alternative records
 the unchanged `npm run typecheck` (`npm run typegen && tsc --noEmit`) with actual
@@ -2388,6 +2575,62 @@ Rollback to a reader without this discriminator refuses new marked proofs;
 preserve them with their verifier revision rather than removing the marker or
 reinterpreting them as old v10. The maintenance proposal qualifies through the
 current ordinary planner/authority, never by granting itself this alternative.
+
+#### Directly observed protected Git-input interruption within v10
+
+The explicit commission discriminator `input_revision: "direct-protected-git-input-v1"`
+supports a settled ordinary isolated Full whose first and only fault is a
+directly observed protected `git-config/input_invalidation`. It does not require
+or invent a metadata reader failure. Unmarked v10 and
+`stable-protected-git-input-v1` retain their ordered observer-failure predicates.
+The direct case is ordinal one with `maximum_invocations: 1`; ordinal two,
+unchanged retry and extra recovery refuse. Reservation or interruption consumes
+the one invocation. The marker participates in the existing commission identity.
+
+The existing incident reader checks the complete original receipt, attempt,
+completion, event identities and separate false stock, exact phase order and
+cancelled child, safe unchanged Git location/scope/permissions, released owners,
+isolated cleanup and coherent Companion preservation. Additional faults,
+observer diagnostics, substituted history and unexplained stock issues refuse.
+An original `receipt_attempt_records_unverified` refusal is retained, never
+removed retrospectively. The existing physical-original and reconstructed
+latest-tip checks must independently succeed before preparation, reservation
+and stock; a material-only read is not physical admission. No global
+`knownInputInvalidation` allowlist is widened.
+
+Reuse the complete input snapshot, stable-input remedy and current publication
+checks above. Current Git protection must match the recorded changed projection
+and differ from the failed freeze. Bind the actual original Node location and
+content, and the current runtime/header identities; an ordinary predecessor need
+not have recorded headers. Publishing and own-branch upstream setup finish
+before inventory. All in-flight input, authentication, freshness, ownership,
+cleanup and complete planner-selected Full requirements remain effective.
+
+The direct case may include an independently reviewed product correction.
+The complete predecessor/final and main/final deltas, pinned package/toolchain
+sources, final-source focused results and actual preparation commitment remain
+bound by existing source and review owners. The input remedy still names only
+`git-config`, has empty `implicated_paths` and no product `regression`. Product
+RED/GREEN and source acceptance keep their own attribution; neither reclassifies
+the earlier interruption or supplies the input sequencing remedy. The legacy
+stable-input alternative continues to require unchanged product sources.
+
+After independent acceptance of the published final source, applicable admission
+and prepared inputs, record a separate authenticated exact-target grant. Its
+standalone first line is `Authorize one prospective Mac qualification of this direct Git-input target.`
+Both review and grant include the marker, predecessor and target commitment,
+and `Original direct Git input invalidation, false stock and consumed invocation remain unchanged.`
+The grant explicitly states exactly one admitted deciding invocation total,
+reservation/interruption consumption, zero unchanged-target retry, zero extra
+recovery, separate fresh-process stock and independent result audit. Record
+the reviewer and submitting operator's actual provenance under the applicable
+human delegation. The existing maintainer permission, commit-anchored acceptance,
+unedited later grant and Draft publication checks remain mandatory. Preparation,
+this amendment and an implementation-owner statement confer no execution authority.
+
+Rollback readers refuse the new marker; preserve its original proof, consumed
+edge and reader revision. No new ledger, dispatcher or verification framework
+is introduced, and no historical result or earlier allowance is reset.
 
 ### Completed source-correction routes v3-v6
 

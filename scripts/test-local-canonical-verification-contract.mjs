@@ -761,8 +761,14 @@ for(const fragment of ['timeoutMs: 90_000','requireNaturalExit: true','"scripts/
 const maintenanceChildStart=canonicalSuite.indexOf('id: "local-canonical-maintenance"');
 assert.notEqual(maintenanceChildStart,-1);
 const maintenanceChild=canonicalSuite.slice(maintenanceChildStart,canonicalSuite.indexOf("    },",maintenanceChildStart));
-for(const fragment of ['timeoutMs: 90_000','requireNaturalExit: true','"scripts/test-local-canonical-maintenance.mjs"'])
+for(const fragment of ['timeoutMs: 120_000','requireNaturalExit: true','"scripts/test-local-canonical-maintenance.mjs"'])
   requireText(maintenanceChild,fragment,"maintenance controls have their own finite authority owner, outside the product child");
+
+const maintenanceBudgetChildStart=canonicalSuite.indexOf('id: "local-canonical-maintenance-budget"');
+assert.notEqual(maintenanceBudgetChildStart,-1);
+const maintenanceBudgetChild=canonicalSuite.slice(maintenanceBudgetChildStart,canonicalSuite.indexOf("    },",maintenanceBudgetChildStart));
+for(const fragment of ['timeoutMs: 90_000','sharedFixture: true','requireNaturalExit: true','"--run-maintenance-budget-fixtures"'])
+  requireText(maintenanceBudgetChild,fragment,"aggregate allowance controls reuse checked ancestry under a separate finite owner");
 
 const isolatedChildStart = canonicalSuite.indexOf('id: "local-canonical-isolation"');
 assert.notEqual(isolatedChildStart, -1);
@@ -771,7 +777,7 @@ for (const fragment of ['timeoutMs: 30_000', 'requireNaturalExit: true', '"scrip
   requireText(isolatedChild, fragment, "isolated verification has a bounded authority child and complete cleanup");
 
 const revisionSteps = canonicalSuite.slice(canonicalSuite.indexOf("const reviewedRevisionSteps ="), canonicalSuite.indexOf("const suites ="));
-for (const fragment of ['["revision", "settlement", "browser", "git", "git-input", "git-input-lifecycle", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-stock", "material-reservation", "serial-aggregate", "serial-material"].map(group', '"--reviewed-revision-controls", group',
+for (const fragment of ['["revision", "settlement", "browser", "git", "git-input", "git-input-direct", "git-input-lifecycle", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-stock", "material-integration-preparation", "material-integration-reservation", "material-reservation", "serial-aggregate", "serial-material"].map(group', '"--reviewed-revision-controls", group',
   'requireNaturalExit: true'])
   requireText(revisionSteps, fragment, "each reviewed fixture group has its own bounded natural-exit registration");
 // Inspect effective values through the existing finite registration reader,

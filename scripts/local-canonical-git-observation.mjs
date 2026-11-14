@@ -8,11 +8,13 @@ import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { REGISTERED_FIXTURE_BUDGET, verifyRegisteredFixtureBudget, FIXTURE_BUDGET_CLAIM,
   isMaintenanceFixtureBudget, MAINTENANCE_FIXTURE_CASE, MAINTENANCE_FIXTURE_GRANT,
-  REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM, verifyRegisteredIntegrationBudget } from "./local-canonical-fixture-budget-witness.mjs";
+  REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM, verifyRegisteredIntegrationBudget,
+  SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM, verifySelectiveFixtureWorkload } from "./local-canonical-fixture-budget-witness.mjs";
 import { GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM, GENERATED_STOCK_GRANT,
   verifyGeneratedStockRepair } from "./local-canonical-stock-lifecycle-witness.mjs";
 import { REPOSITORY_TYPECHECK, verifyRepositoryTypecheck } from "./local-canonical-typecheck-witness.mjs";
 import { REPOSITORY_PURE_CONTRACT, verifyRepositoryPureContract } from "./local-canonical-pure-contract-witness.mjs";
+import { OPERATOR_REQUEST_LIFECYCLE_PHASES_V1 as GUIDE_REPAIR_PHASES } from "./operator-execution-result-contract-v1.mjs";
 import { INTEGRATION_BASE_CONTRACT, validAdmittedIntegrationBase, usesDeclaredIntegrationBase } from "./local-canonical-integration-base.mjs";
 import { MATERIAL_COMMON_DRIVER, verifyMaterialCommonDriver } from "./local-canonical-common-driver.mjs";
 import { GIT_CONFIG_STOCK_VERIFIER_REPAIR, MATERIAL_COMMON_STOCK_VERIFIER, verifyMaterialStockVerifier } from "./local-canonical-stock-verifier-witness.mjs";
@@ -25,9 +27,14 @@ export const isGitObservationSuccessor = p => isGitObservationRevision(p) && p.c
 // Prospective input remedy within the existing v10 commission. Legacy v10
 // records without this discriminator keep their production RED/GREEN rule.
 export const GIT_INPUT_REVISION = "stable-protected-git-input-v1";
+export const DIRECT_GIT_INPUT_REVISION = "direct-protected-git-input-v1";
+export const isDirectGitInputRevision = p => isGitObservationRevision(p) &&
+  p.commission?.input_revision === DIRECT_GIT_INPUT_REVISION;
 export const isGitInputRevision = p => isGitObservationRevision(p) &&
-  p.commission?.input_revision === GIT_INPUT_REVISION;
+  [GIT_INPUT_REVISION, DIRECT_GIT_INPUT_REVISION].includes(p.commission?.input_revision);
 export const GIT_INPUT_HISTORY_BOUNDARY = "Historical window remains UNKNOWN; original false stock and consumed invocation remain unchanged.";
+export const DIRECT_GIT_INPUT_HISTORY_BOUNDARY = "Original direct Git input invalidation, false stock and consumed invocation remain unchanged.";
+export const gitInputHistoryBoundary = p => isDirectGitInputRevision(p) ? DIRECT_GIT_INPUT_HISTORY_BOUNDARY : GIT_INPUT_HISTORY_BOUNDARY;
 // A v7 commission descending from the spent Git-observation chain keeps the
 // complete input inventory throughout its physical lineage.
 export const isInventoryBoundRevision = p => p?.schema === "augnes.local-canonical-source-correction.v7" &&
@@ -60,8 +67,9 @@ function gitObservation(value) {
 
 // Retain the unknown first observation. The later measurement establishes a
 // change in the protected input, but supplies no preimage or list of changed keys.
-export function gitObservationIncident(r, prior, completion, stock, phases) {
-  return readGitIncident(r, prior, completion, stock, phases, false);
+export function gitObservationIncident(r, prior, completion, stock, phases, inputRevision = null) {
+  if (inputRevision !== null && ![GIT_INPUT_REVISION, DIRECT_GIT_INPUT_REVISION].includes(inputRevision)) fail("revision_git_predecessor_invalid");
+  return readGitIncident(r, prior, completion, stock, phases, false, inputRevision === DIRECT_GIT_INPUT_REVISION);
 }
 
 // Prospective eligibility only. A later complete ambient observation does not
@@ -70,7 +78,7 @@ export function gitAcquisitionIncident(r, prior, completion, stock, phases) {
   return readGitIncident(r, prior, completion, stock, phases, true);
 }
 
-function readGitIncident(r, prior, completion, stock, phases, acquisition) {
+function readGitIncident(r, prior, completion, stock, phases, acquisition, direct = false) {
   const i = r.inputs, a = r.attempt;
   if (r.receipt_version !== 4 || !a || a.number !== 1 || a.recovery !== null || (acquisition ?
       a.source_correction?.schema !== "augnes.local-canonical-source-correction.v7" ||
@@ -82,7 +90,7 @@ function readGitIncident(r, prior, completion, stock, phases, acquisition) {
       r.repository.worktree_before !== "clean" || r.repository.worktree_after !== "clean" ||
       r.final.result !== "failure" || r.final.exit_status !== 1 ||
       !equal(r.final.reason_codes, ["phase_cancelled","selected_phases_incomplete","verification_cancelled"]) ||
-      r.outcome.disposition !== "unknown_relevance" || r.outcome.safety !== "blocked" ||
+      r.outcome.disposition !== (direct ? "input_invalidation" : "unknown_relevance") || r.outcome.safety !== "blocked" ||
       r.outcome.validity !== "invalid_or_unknown" || r.outcome.execution !== "incomplete_or_failed" ||
       !settledIsolatedResources(r) || completion.cleanup_complete !== true || completion.infrastructure_code !== null ||
       completion.disposition !== r.outcome.disposition || !(Date.parse(completion.finished_at) >= Date.parse(r.run.finished_at)) ||
@@ -112,20 +120,23 @@ function readGitIncident(r, prior, completion, stock, phases, acquisition) {
     }
     if (!nonFaultInputChange(event.disposition)) faults.push(event);
   }
-  const race = faults[0];
+  const race = direct ? null : faults[0];
   const later = acquisition ? i.events.filter(e => e.resource === git.id && e.disposition === "ambient_observation" &&
     race && BigInt(e.monotonic_ns) > BigInt(race.monotonic_ns)) : [];
-  const change = acquisition ? later[0] : faults[1];
-  if (faults.length !== (acquisition ? 1 : 2) || race.resource !== git.id || change?.resource !== git.id ||
-      race.disposition !== "observer_failure" || change.disposition !== (acquisition ? "ambient_observation" : "input_invalidation") ||
+  const change = direct ? faults[0] : acquisition ? later[0] : faults[1];
+  if (faults.length !== (direct || acquisition ? 1 : 2) || (!direct && (race?.resource !== git.id || race.disposition !== "observer_failure")) || change?.resource !== git.id ||
+      change.disposition !== (acquisition ? "ambient_observation" : "input_invalidation") ||
       !gitObservation(change.after) || git.before.sha256 === change.after.sha256 ||
       (acquisition ? later.length !== 1 || !equal(effectiveInputObservation(git.before,git,i),effectiveInputObservation(change.after,git,i)) ||
         binding.head !== a.head || binding.tree !== a.tree :
         git.before.git_projection.effective_sha256 === change.after.git_projection.effective_sha256 ||
         git.before.git_projection.scope_fingerprint !== change.after.git_projection.scope_fingerprint) ||
-      !equal(i.first_fault,faultOf(race)) || !equal(r.outcome.first_fault,i.first_fault) ||
-      !equal(i.secondary_faults,acquisition ? [] : [faultOf(change)])) fail("revision_git_observations_invalid");
-  const phase = cancelledPhase(r.phases,race.observed_at);
+      direct && (binding.head !== a.head || binding.tree !== a.tree ||
+        git.before.permission_identity !== change.after.permission_identity ||
+        ["device", "uid", "gid", "mode", "links"].some(k => git.before.metadata[k] !== change.after.metadata[k])) ||
+      !equal(i.first_fault,faultOf(direct ? change : race)) || !equal(r.outcome.first_fault,i.first_fault) ||
+      !equal(i.secondary_faults,direct || acquisition ? [] : [faultOf(change)])) fail("revision_git_observations_invalid");
+  const phase = cancelledPhase(r.phases,(direct ? change : race).observed_at);
   if (!phase || r.phases.some(p => p.status === "not_run" && (p.started_at != null || p.finished_at != null || p.browser_use?.length)))
     fail("revision_git_predecessor_invalid");
   const browserIssues = [];
@@ -146,14 +157,18 @@ function readGitIncident(r, prior, completion, stock, phases, acquisition) {
     // retain their original valid Browser identities.
     if (browserIssues.some(code => code !== "receipt_browser_identity_invalid:"+phase)) fail("revision_git_stock_invalid");
   }
-  const expected = ["receipt_classified_outcome_not_passing",...(acquisition ? browserIssues : ["receipt_current_inputs_unverified"]),"receipt_final_result_not_pass",
+  // The original separate reader may have lacked the physical anchor. Keep its
+  // refusal verbatim; production preparation/reservation/stock must still
+  // verifyRevisionOriginals and reconstruct the exact physical latest tip.
+  const expected = [...(direct && stock.issues?.includes("receipt_attempt_records_unverified") ? ["receipt_attempt_records_unverified"] : []),
+    "receipt_classified_outcome_not_passing",...(acquisition ? browserIssues : ["receipt_current_inputs_unverified"]),"receipt_final_result_not_pass",
     "receipt_input_observation_blocked","receipt_non_deciding", ...(r.phases.some(p=>p.status==="not_run") ? ["receipt_phase_environment_binding_invalid"] : []),
     ...r.phases.filter(p=>p.status!=="pass").map(p=>"phase_not_passing:"+p.id)].sort();
   if (stock.status !== "non_deciding_or_stale" || stock.valid_deciding_evidence !== false ||
       stock.content_fingerprint !== r.integrity.content_fingerprint || !equal([...stock.issues].sort(),expected) ||
       !equal(stock.dimensions,{historical_integrity:"intact",execution:"incomplete_or_failed",evidence_validity:"invalid_or_incomplete",safety:"blocked",current_merge_applicability:acquisition ? "matches_observed_context" : "blocked"}))
     fail("revision_git_stock_invalid");
-  return { config:git, race, change, phase };
+  return { config:git, ...(!direct ? {race} : {}), change, phase };
 }
 
 // Use the production inventory and its existing read policies. Additionally
@@ -225,7 +240,11 @@ export function verifyGitInputRemedy(p, original, incident, source, focused, { p
       snapshot.first_fault !== null || !equal(snapshot.secondary_faults, []) || !equal(snapshot.events, []) ||
       !equal(focused.input_remedy_resources, ["git-config"]) || !equal(focused.implicated_paths, []) ||
       Object.hasOwn(focused, "regression")) fail("revision_git_input_remedy_invalid");
-  if (source.predecessor_to_final.paths.some(name => !gitInputVerificationPaths.has(name)))
+  // The legacy stable-input alternative still requires unchanged product. The
+  // explicit direct case instead binds its complete source delta and requires
+  // independent exact-source acceptance; a product correction is never its
+  // input remedy and supplies no historical product-failure classification.
+  if (!isDirectGitInputRevision(p) && source.predecessor_to_final.paths.some(name => !gitInputVerificationPaths.has(name)))
     fail("revision_product_source_changed");
   const current = resources.find(r => r.id === "git-config"), before = incident.config;
   const after = incident.change.after;
@@ -309,7 +328,7 @@ function verifyFinalDependencyFailure(r, stock, inputs, phases) {
   return deps[2].before;
 }
 
-export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expectedOrdinal = 1, forward = false, serialPredecessor = false, generatedStockSerial = false, materialContinuation = false, stockPredecessor = null) {
+export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expectedOrdinal = 1, forward = false, serialPredecessor = false, generatedStockSerial = false, materialContinuation = false, stockPredecessor = null, historicalStockKind = null) {
   const previous = receipt.attempt?.source_correction;
   const { contract, path_kind, binding, resources } = receipt.inputs;
   if (!(usesGitInventory(previous) || serialPredecessor && isSerialAggregateRevision(previous)) || previous.commission.ordinal !== expectedOrdinal ||
@@ -325,7 +344,7 @@ export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expecte
   if(stockPredecessor && (!declaredMaterial || !stockVerifier || generatedStockSerial))fail("revision_git_predecessor_invalid");
   const incompleteIntegration = declaredMaterial && receipt.phases?.find(phase => phase.status === "failure")?.id === "integration";
   verifySettledPhaseFailure(receipt, stock, inputs, phases, resources.find(r => r.id === "browser-executable"),
-    incompleteIntegration || stockVerifier || generatedStockSerial || isGitObservationRevision(previous) && expectedOrdinal === 1, expectedOrdinal, generatedStockSerial, false, declaredMaterial, stockPredecessor);
+    incompleteIntegration || stockVerifier || generatedStockSerial || isGitObservationRevision(previous) && expectedOrdinal === 1, expectedOrdinal, generatedStockSerial, false, declaredMaterial, stockPredecessor, historicalStockKind);
   if (hasSerialAccounting(previous) && receipt.phases.some(p=>p.id === "e2e-project-experience" && p.status === "pass" && !validProjectExperienceAccounting(p.serial_budget)))
     fail("revision_inherited_serial_accounting_invalid");
 }
@@ -375,15 +394,49 @@ export function verifyGitRevisionSuccess(r, stock, inputs, phases) {
     fail("revision_positive_stock_invalid");
 }
 
-// Proposed v10-only alternative. This is not an execution grant. The caller
-// retains authenticated review/grant, physical lineage, input and stock checks.
+// The existing candidate-driver overlay has two exact recipes. Neither claims
+// a clean historical checkout or grants execution authority.
+export const GUIDE_REPAIR_DRIVER = "scripts/test-project-experience-guide-lifecycle-v1.mjs";
+export const GUIDE_REPAIR_MODULE = "scripts/browser-validate-operator-native-host-execution-v1.mjs";
+export const GUIDE_REPAIR_FIXTURES = [GUIDE_REPAIR_DRIVER,
+  "scripts/browser-validate-project-experience-v1.mjs", "components/guide/use-project-guide-brief-v0-2.ts",
+  "scripts/project-experience-guide-lifecycle-v1.mjs", "scripts/project-experience-request-verdict-v1.mjs",
+  "scripts/operator-execution-result-contract-v1.mjs", "scripts/capture-canonical-ts-repair.mjs"];
+export const GUIDE_REPAIR_SCOPE = "controlled actual-hook/source-boundary; not real Browser qualification";
+
+export function validateGuideRepairOutcome(output, exit) {
+  if (exit === 1) {
+    if (!output.includes("AssertionError [ERR_ASSERTION]: native follow-up must retain its context while the actual hook replacement Fetch is held") ||
+        !/\ntrue !== false\n/u.test(output) || !/at nativeFollowupBoundary \(/u.test(output))
+      fail("revision_guide_red_assertion_invalid");
+    return;
+  }
+  let report;
+  try { report = JSON.parse(output.trim()); } catch { fail("revision_guide_green_assertions_invalid"); }
+  if (exit !== 0 || report?.test !== "project-experience-guide-lifecycle-v1" || report.status !== "pass" ||
+      report.adversarial_controls !== 73 || report.supersession_adversarial_controls !== 59 || report.delayed_canceled_result_controls !== 4 ||
+      report.supersession_phases !== 18 || !equal(report.replay_phases, GUIDE_REPAIR_PHASES) ||
+      report.operator_scope !== true || report.actual_hook_guard !== true || report.observer_parity !== true ||
+      report.exact_fetch_promise !== true || report.production_attempt !== false ||
+      !equal(report.native_followup_boundary, [
+        {replacement:"adopted",held_until_settlement:true,strict_verdict:true},
+        {replacement:"invalid",held_until_settlement:true,strict_verdict:false},
+        {replacement:"failed",held_until_settlement:true,strict_verdict:false}]))
+    fail("revision_guide_green_assertions_invalid");
+}
+
+// The caller retains authenticated review/grant, physical lineage, input and
+// stock checks. The mjs recipe is only an inventory-bound material-v7 remedy.
 export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, completedAt, repositoryRoot}) {
   const regression = focused.regression, file = regression.path;
-  const command = "node --import tsx scripts/test-project-client-browser.ts";
+  const guide = isMaterialSourceRevision(p) && file === GUIDE_REPAIR_DRIVER;
+  const command = guide ? "node " + GUIDE_REPAIR_DRIVER + " --operator-scope" : "node --import tsx scripts/test-project-client-browser.ts";
   const paths = focused.implicated_paths, fixture = regression.fixture_paths;
-  if (!isGitObservationSuccessor(p) || file !== "scripts/test-project-client-browser.ts" ||
-      focused.failed_phase !== "e2e-project-experience" ||
-      !equal(regression.node_args,["--import","tsx"]) || !equal(regression.args,[]) ||
+  if (!(guide ? p.commission.evidence_kind === undefined && regression.kind === undefined &&
+        equal(paths,[GUIDE_REPAIR_MODULE]) && equal(fixture,GUIDE_REPAIR_FIXTURES) && sha(p.inputs.inventory_sha256) :
+        isGitObservationSuccessor(p) && file === "scripts/test-project-client-browser.ts") ||
+      focused.failed_phase !== (guide ? "e2e-operator-native-host-execution" : "e2e-project-experience") ||
+      !equal(regression.node_args,guide ? [] : ["--import","tsx"]) || !equal(regression.args,guide ? ["--operator-scope"] : []) ||
       !equal(focused.input_remedy_resources,[]) || prior.tree === p.tree ||
       !Array.isArray(paths) || !paths.length || new Set(paths).size !== paths.length || paths.includes(file) ||
       paths.some(name => !/^scripts\/(?:[\w.-]+\/)*[\w.-]+\.(?:ts|tsx|mjs)$/u.test(name) || name.split("/").includes("..")) ||
@@ -450,6 +503,15 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
         result.cancelled!==false || result.cleanup_completed!==true || result.remaining_owned_processes!==0 ||
         result.termination_reason!=="natural_exit" || result.exit_observed!==true || result.streams_closed!==true ||
         !bytes(witness.stdout,2*1024*1024).length) fail("revision_git_regression_invalid");
+    if (guide) {
+      const dirty = head === prior.head ? " M " + GUIDE_REPAIR_MODULE + "\n" : "";
+      if (witness.scope !== GUIDE_REPAIR_SCOPE || witness.checkout_head !== p.head ||
+          witness.source_state !== (head === prior.head ? "candidate-with-prior-implicated-overlay" : "clean-candidate") ||
+          witness.worktree_before !== dirty || witness.worktree_after !== dirty ||
+          witness.input_inventory_sha256 !== p.inputs.inventory_sha256 || !equal(witness.browser_uses,[]))
+        fail("revision_git_regression_invalid");
+      validateGuideRepairOutcome(bytes(witness.stdout,2*1024*1024).toString(),exit);
+    }
   }
   return p.head;
 }
@@ -459,8 +521,10 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
 // a stable test driver and explicit script arguments for the implicated code.
 export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt, retainedBefore, postPass = false, acquisition = false, original, stock, completion, repositoryRoot }) {
   const regression = focused.regression;
-  if (isGitObservationSuccessor(p) && regression?.attribution === "candidate-driver-prior-implicated-source")
+  if (regression?.attribution === "candidate-driver-prior-implicated-source") {
+    if (!(isGitObservationSuccessor(p) || isMaterialSourceRevision(p))) fail("revision_git_regression_invalid");
     return verifyCanonicalTsRepair(p,prior,focused,{git,parse,bytes,completedAt,repositoryRoot});
+  }
   const material = isMaterialSourceRevision(p);
   if((p.commission.evidence_kind===GIT_CONFIG_STOCK_VERIFIER_REPAIR)!==(regression?.attribution===MATERIAL_COMMON_STOCK_VERIFIER))
     fail("revision_git_regression_invalid");
@@ -478,6 +542,7 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
     if (regression.kind===VERIFIER_LIFECYCLE_REPAIR)
       return verifyVerifierLifecycleRepair(p, prior, focused, { git, parse, bytes, completedAt, original, stock, completion, repositoryRoot });
     if (regression.kind===REGISTERED_FIXTURE_BUDGET) return verifyRegisteredFixtureBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
+    if (regression.kind===SELECTIVE_FIXTURE_WORKLOAD) return verifySelectiveFixtureWorkload(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
     if (regression.kind===REGISTERED_INTEGRATION_BUDGET) return verifyRegisteredIntegrationBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
     if (regression.kind===PREPARED_ELIGIBILITY_REPAIR)
       return verifyPreparedEligibilityRepair(p, prior, focused, { git, parse, bytes, completedAt, original, stock, completion });
@@ -580,6 +645,7 @@ function visibleDelegationParagraphs(body) {
 }
 
 export function delegatesMaterialSourceCommission(body,p) {
+  if (p.commission.evidence_kind === SELECTIVE_FIXTURE_WORKLOAD) return !!readSelectiveFixtureWorkloadDelegation(body,p);
   if(p.commission.evidence_kind===GIT_CONFIG_STOCK_VERIFIER_REPAIR)
     return equal(visibleDelegationParagraphs(body),stockVerifierDelegation(p).split("\n\n"));
   if (isMaintenanceFixtureBudget(p)) return equal(visibleDelegationParagraphs(body), maintenanceFixtureDelegation(p).split("\n\n"));
@@ -594,6 +660,19 @@ export function delegatesMaterialSourceCommission(body,p) {
     paragraphs[1] === "Predecessor: " + p.prior_family_id + " / " + p.prior_attempt_id + " / " + p.prior_receipt_fingerprint + "." &&
     paragraphs[2] === MATERIAL_HISTORY_BOUNDARY &&
     paragraphs[3] === "After separate independent acceptance of the actual correction, policy controls, exact published source and real preparation commitment, authorize the operator to record that decision faithfully and publish a separate new prospective commission through the authenticated maintainer identity. Each commission permits exactly one deciding invocation total; reservation or interruption consumes it. No ordinal two, recovery or unchanged-target retry under that commission. A further in-scope material correction requires fresh evidence, independent acceptance and new authenticated authority. Complete planner-selected qualification, separate fresh-process stock, owned cleanup and independent result audit remain required.";
+}
+
+// This authority describes reduced redundant fixture work, not a proved
+// production defect or a recovered explanation of the historical timeout.
+export const SELECTIVE_FIXTURE_WORKLOAD_GRANT = "Authorize one NEW prospective v7 reviewed_revision commission for a material source correction.";
+export function readSelectiveFixtureWorkloadDelegation(body,p) {
+  const paragraphs = visibleDelegationParagraphs(body);
+  return equal(paragraphs,[
+    "Authorize one selective fixture workload qualification assignment on " + p.branch + " in Draft PR #" + p.pull_request + ". Adopt selective-fixture-workload-v1 within the existing material-source-correction-v1 inventory-bound v7 owners. Reduced redundant fixture work with preserved behavior is demonstrated; stable speedup and the historical timeout cause remain unestablished.",
+    "Predecessor: " + p.prior_family_id + " / " + p.prior_attempt_id + " / " + p.prior_receipt_fingerprint + ".",
+    MATERIAL_HISTORY_BOUNDARY,
+    "After separate independent acceptance of the implemented admission, fixture evidence, actual final published source and supported preparation inputs, authorize the operator to record that decision faithfully and publish a separate authenticated exact-target grant through the maintainer identity. Exactly one new complete planner-selected reference-Mac qualification invocation is permitted; reservation or interruption consumes it. No ordinal two, recovery or unchanged-target retry under this commission. Preserve all earlier consumption, original false stock and physical authority. Separate fresh-process stock, owned cleanup and independent result review remain required.",
+  ]) ? { kind: SELECTIVE_FIXTURE_WORKLOAD } : null;
 }
 
 export const INTEGRATION_BUDGET_GRANT = "Authorize one NEW prospective v7 reviewed_revision commission for the measured registered integration allowance.";
@@ -702,6 +781,7 @@ function typedMaterialAuthorityBindings(p, kind, claim) {
 }
 
 export const integrationBudgetAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM);
+export const selectiveFixtureWorkloadAuthorityBindings = p => typedMaterialAuthorityBindings(p, SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM);
 export const maintenanceFixtureAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_FIXTURE_BUDGET, FIXTURE_BUDGET_CLAIM) +
   "\nAllowance case: " + MAINTENANCE_FIXTURE_CASE + "\nRegistered aggregate: 60000 to 90000 ms; inner setup: 10000 ms unchanged.";
 export const maintenanceFixtureDelegation = p => [
@@ -738,6 +818,8 @@ function typedMaterialAuthorityScope(p, review, grant, bindings, opening) {
 
 export const integrationBudgetAuthorityScope = (p, review, grant) =>
   typedMaterialAuthorityScope(p, review, grant, integrationBudgetAuthorityBindings(p), INTEGRATION_BUDGET_GRANT);
+export const selectiveFixtureWorkloadAuthorityScope = (p, review, grant) =>
+  typedMaterialAuthorityScope(p, review, grant, selectiveFixtureWorkloadAuthorityBindings(p), SELECTIVE_FIXTURE_WORKLOAD_GRANT);
 export const maintenanceFixtureAuthorityScope = (p, review, grant) =>
   isMaintenanceFixtureBudget(p) && typedMaterialAuthorityScope(p, review, grant, maintenanceFixtureAuthorityBindings(p), MAINTENANCE_FIXTURE_GRANT);
 export const generatedStockAuthorityScope = (p, review, grant) =>
