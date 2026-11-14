@@ -105,7 +105,7 @@ if (process.argv[2] === "--phase-probe") {
   process.exit(0);
 }
 
-const groups = ["revision", "settlement", "browser", "git", "git-input", "git-input-direct", "git-input-lifecycle", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-stock", "material-reservation", "serial-aggregate", "serial-material"];
+const groups = ["revision", "settlement", "browser", "git", "git-input", "git-input-direct", "git-input-lifecycle", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-stock", "material-integration-preparation", "material-integration-reservation", "material-reservation", "serial-aggregate", "serial-material"];
 const [selector, group, ...extra] = process.argv.slice(2);
 if (selector !== undefined && (selector !== "--reviewed-revision-controls" ||
     (group !== undefined && !groups.includes(group)) || extra.length > 1 || extra.length && groups.indexOf(group) < 3))

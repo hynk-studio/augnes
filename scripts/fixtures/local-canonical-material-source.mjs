@@ -527,11 +527,13 @@ export async function runMaterialSourceControls(c,h,group) {
  console.log(JSON.stringify({material_second_preparation:{new_grant:72,spent_grant:62,distinct_material_correction:true,unchanged_retry:false,
   failed_integration_browser_prefix:0,declared_base_retained:true,different_tracking_main:true,fresh_stock_false:true},synthetic_only:true}));return;
  }
+ if(group==='material-integration-preparation'||group==='material-integration-reservation'){
+ await materialIntegrationControls(c,h,group==='material-integration-preparation'?'prepare':'admit');unchanged();return;
+ }
  const final=h.proof(c),finalCap=await h.auth(c,final);
  if(group==='material-stock'){
  await currentGitStockControls(c,final,finalCap,c.materialFinalReceipt);
- runMaterialStockPredecessorControls(c,c.materialFinalReceipt);unchanged();
- await materialIntegrationControls(c,h,'prepare');unchanged();return;
+ runMaterialStockPredecessorControls(c,c.materialFinalReceipt);unchanged();return;
  }
  if(group==='material-final'){
  assert.deepEqual(tip().revision_grants,[11,32,62]);
@@ -549,7 +551,6 @@ export async function runMaterialSourceControls(c,h,group) {
  assert.equal(consumed,6);
  console.log(JSON.stringify({material_successor:{distinct_grants:[62,72],historical_grants:[11,32],historical_consumed:4,total_reviewed_consumed:consumed,commission_allowance:1,first_stock:false,second_stock:true,unchanged_retry:false},synthetic_only:true}));return;
  }
- await materialIntegrationControls(c,h,'admit');unchanged();
  // A genuinely separate process reobserves stock, then tries the late exact
  // reservation while holding its own checkout lease. The parent's lease is
  // released only around that owned child and reacquired after settlement.

@@ -370,7 +370,7 @@ if(process.argv[2]==="--cold"){
   try{const p=proof(c),a=await auth(c,p);write(c.ready,"ready");while(!existsSync(c.go))await new Promise(r=>setTimeout(r,5));
     try{begin(c,p,a);console.log("admitted");}catch(e){assert(["EEXIST","ENOENT","attempt_latest_tip_required","revision_validated_lineage_changed","revision_material_changed_during_validation"].includes(e.code),e.message);console.log("refused");}
   }finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
-}else if (["git","git-input","git-input-direct","git-input-lifecycle","git-input-successor","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor","material-source","material-controls","material-successor","material-final","material-stock","material-reservation"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
+}else if (["git","git-input","git-input-direct","git-input-lifecycle","git-input-successor","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor","material-source","material-controls","material-successor","material-final","material-stock","material-integration-preparation","material-integration-reservation","material-reservation"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
   const group = process.argv[2].slice(6,-9), handoff = JSON.parse(process.argv[3]);
   const outer = process.env.AUGNES_CANONICAL_TEMP_ROOT, physical = lstatSync(handoff.root);
   assert(handoff.root === outer || path.dirname(handoff.root) === path.dirname(path.dirname(outer)) &&
