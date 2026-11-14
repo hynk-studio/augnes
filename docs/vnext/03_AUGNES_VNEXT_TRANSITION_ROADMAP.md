@@ -266,6 +266,23 @@ and [04 evidence limits](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#native-pre
 own the bounded behavior and observations. #1594 retains Web reassessment,
 format/export/recovery, Apps Web clients and their qualification ownership.
 
+### Native project navigation candidate (#1608)
+
+[#1608](https://github.com/hynk-studio/augnes/issues/1608) carries the resolved
+project through Native Continuities, AI Workplane, work/result/detail returns,
+and project-route loading/error navigation. Existing explicit destinations and
+work/result/query/hash targets remain intact. The workspace brand remains a
+deliberate canonical-home exit; Workplane settings explicitly manages the
+workspace default. Viewed inactive/archived projects acquire no mutation or
+selection authority. Credentials, writer checks and memory-only drafts retain
+their existing owners.
+
+This bounded candidate is implemented for review. Real same-profile Browser
+checks cover A navigation, eligible save and fresh source readback while B is
+default, plus exact work/result/detail returns. Its PR/report owns final exact-head
+qualification and independent acceptance; source integration is not installed
+adoption. #1607 retains its separate cleanup and qualification history.
+
 ## Current: first execution-choice and participation loop (#1443)
 
 The first [#1443](https://github.com/hynk-studio/augnes/issues/1443) increment

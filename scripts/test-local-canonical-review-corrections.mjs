@@ -153,25 +153,33 @@ try {
         context.live.service.diagnostics.finished_at=new Date(Date.now()-61000).toISOString();
         write(contextFile,context);
       }
-      let pendingOutput = "", leakedBrowserRecords = 0;
-      const serialOutput = { write(chunk) {
-        process.stdout.write(chunk);
-        pendingOutput += chunk.toString();
-        for (let newline; (newline = pendingOutput.indexOf("\n")) >= 0;) {
-          if (pendingOutput.slice(0,newline).startsWith(BROWSER_IDENTITY_PREFIX)) leakedBrowserRecords++;
-          pendingOutput = pendingOutput.slice(newline+1);
-        }
-      } };
+      const serialStreams = [process.stdout, process.stderr].map(output => {
+        let pendingOutput = "", leakedBrowserRecords = 0;
+        return {
+          write(chunk) {
+            output.write(chunk);
+            pendingOutput += chunk.toString();
+            for (let newline; (newline = pendingOutput.indexOf("\n")) >= 0;) {
+              if (pendingOutput.slice(0,newline).startsWith(BROWSER_IDENTITY_PREFIX)) leakedBrowserRecords++;
+              pendingOutput = pendingOutput.slice(newline+1);
+            }
+          },
+          assertQuarantined() {
+            assert.equal(leakedBrowserRecords,0,"synthetic phase probes must not emit Canonical Browser-use records");
+            assert(!pendingOutput.startsWith(BROWSER_IDENTITY_PREFIX));
+          },
+        };
+      });
       const result = await child([fixture, "--run-" + name + "-fixtures", ...(groups.indexOf(name) >= 3 ? [JSON.stringify(handoff)] : [])], {
         controlId: name === "revision" ? "reviewed-revision" : "reviewed-revision-" + name,
         timeoutMs: name === "serial-material" ? AUXILIARY_EXECUTION_BUDGETS.reviewSerialMaterialFixtureMs : name === "serial-aggregate" ? AUXILIARY_EXECUTION_BUDGETS.reviewSerialAggregateFixtureMs : ["revision", "acquisition", "git-successor", "git-input-successor"].includes(name) ? AUXILIARY_EXECUTION_BUDGETS.reviewRevisionFixtureMs : 15000,
-        stdout: name === "serial-aggregate" ? serialOutput : process.stdout, stderr: process.stderr,
+        stdout: name === "serial-aggregate" ? serialStreams[0] : process.stdout,
+        stderr: name === "serial-aggregate" ? serialStreams[1] : process.stderr,
       });
       assert.equal(result.exit_code, 0, lastChildDiagnostic);
       if (name === "serial-aggregate") {
-        assert.equal(leakedBrowserRecords,0,"synthetic phase probes must not emit Canonical Browser-use records");
-        assert(!pendingOutput.startsWith(BROWSER_IDENTITY_PREFIX));
-        findings.push("synthetic phase Browser records remain quarantined from the authority output stream");
+        for (const output of serialStreams) output.assertQuarantined();
+        findings.push("synthetic phase Browser records remain quarantined from authority stdout and stderr");
       }
       findings.push("reviewed revision controls: " + name);
     }

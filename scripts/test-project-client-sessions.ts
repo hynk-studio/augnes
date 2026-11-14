@@ -30,6 +30,10 @@ async function main() {
     // Page entry needs only a stable navigation selector. Explicit scope must
     // neither build the GuideBrief nor touch the default database/selection.
     assert.equal(resolveProjectClientEntryProjectV01(a.project_id, { open_database: () => { throw new Error("unexpected_database_open"); } }), a.project_id);
+    for (const invalid of ["", " ", [a.project_id, b.project_id]]) {
+      assert.throws(() => resolveProjectClientEntryProjectV01(invalid as string, { open_database: () => { throw new Error("unexpected_database_open"); } }), /project_client_scope_invalid/u);
+    }
+    assert.equal(resolveProjectClientEntryProjectV01("project:unavailable", { open_database: () => { throw new Error("unexpected_database_open"); } }), "project:unavailable");
     const emptyDb = new Database(":memory:"); applyCanonicalDatabaseMigrations(emptyDb);
     assert.equal(resolveProjectClientEntryProjectV01(undefined, { open_database: () => emptyDb }), null);
     assert.equal(emptyDb.open, false, "A no-workspace entry closes its database");

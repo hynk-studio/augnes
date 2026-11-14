@@ -22,6 +22,7 @@ import {
 } from "@/components/workbench/ai-workplane/ai-workplane-shell";
 import { useProjectGuideBriefV02 } from "@/components/guide/use-project-guide-brief-v0-2";
 import { ProductShell } from "@/components/product-shell";
+import { projectClientHref } from "@/lib/vnext/project-client-href";
 import { DelegatedWorkPanel } from "@/components/delegated-work/delegated-work-panel";
 import { useDelegatedCodexWorkV01 } from "@/components/delegated-work/use-delegated-codex-work-v0-1";
 import { projectExperienceTestObserverV1 } from "@/components/delegated-work/project-experience-test-observer";
@@ -930,7 +931,7 @@ function ScopedSemanticReviewSurface({
   );
   const projectHref = privateView
     ? `/projects/${encodeURIComponent(privateView.value.project.project_id)}`
-    : "/";
+    : projectClientHref("/", projectId);
 
   useEffect(() => {
     if (!initialEditorCompleted.current && !initialEditor && authenticatedSession && firstWorkOwnsFocus && firstWorkInitialization) {
@@ -952,13 +953,14 @@ function ScopedSemanticReviewSurface({
   return (
     <ProductShell
       primaryZone="ai-workplane"
+      projectId={projectId}
       projectContext={homeView.project_name
         ? {
-          label: "Current project",
+          label: guideState.guide?.identity.project_context === "current" ? "Current project" : "Viewed project",
           name: homeView.project_name,
-          managementHref: "/#project-settings",
         }
         : null}
+      railSupport={<a href="/#project-settings" data-workspace-project-management="true">Manage workspace default</a>}
     >
       <CurrentWorkWebMcp
         initialization={exactReviewAvailable && !loadingPrivateView ? firstWorkInitialization : null}
@@ -1130,7 +1132,7 @@ function ScopedSemanticReviewSurface({
             <p className={styles.copy}>{guideConsistency.message}</p>
             <a
               className={styles.button}
-              href="/"
+              href={projectClientHref("/", projectId)}
               data-ai-workplane-primary-action="open-blank-state"
               data-augnes-primary-action="open-blank-state"
             >

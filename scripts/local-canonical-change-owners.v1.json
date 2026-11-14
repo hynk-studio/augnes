@@ -224,6 +224,8 @@
           "scripts/fixtures/local-canonical-maintenance.mjs",
           "scripts/test-local-canonical-maintenance.mjs",
           "scripts/local-canonical-serial-aggregate.mjs",
+          "scripts/local-canonical-serial-evolution.mjs",
+          "scripts/fixtures/serial-historical-inventory.mjs",
           "scripts/project-experience-serial-budget.mjs",
           "scripts/project-experience-connection.mjs",
           "scripts/prepare-local-canonical-serial-aggregate.mjs",

@@ -243,6 +243,14 @@ const TARGET_CASES: Array<{
   },
 ];
 
+assert.equal(projectClientHref("/?focus=work#current-work", "project:A"), "/projects/project%3AA?focus=work#current-work");
+assert.equal(projectClientHref("/projects/project%3AB#current-work", "project:A"), "/projects/project%3AB#current-work");
+assert.equal(projectClientHref("/workbench/results/receipt~one?project_id=project%3AB#evidence", "project:A"), "/workbench/results/receipt~one?project_id=project%3AB#evidence");
+assert.equal(projectClientHref("/#project-settings", "project:A"), "/#project-settings");
+assert.equal(projectClientHref("/", null), "/");
+assert.equal(projectClientHref("/projects", "project:A"), "/projects");
+assert.equal(projectClientHref("https://example.test/", "project:A"), "https://example.test/");
+
 const pinnedEntry = new URL(projectClientEntryHref("/workbench/inspector", {
   target_kind: ["project_coordination", "project_coordination"],
   unrecognized: ["first", "second"],

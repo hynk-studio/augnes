@@ -5,6 +5,7 @@ import { inspectClassifiedEvidence } from "./local-canonical-receipt.mjs";
 import { PROJECT_EXPERIENCE_SERIAL, PROJECT_EXPERIENCE_COMMITMENT, PROJECT_EXPERIENCE_ENVELOPE_MS, projectExperienceElapsed } from "./project-experience-serial-budget.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { settledIsolatedResources } from "./local-canonical-browser-revision.mjs";
+import { verifySerialEvolution } from "./local-canonical-serial-evolution.mjs";
 
 export const SERIAL_AGGREGATE_ROUTE = "serial-aggregate-budget-v1";
 export const isSerialAggregateRevision = p => p?.schema === "augnes.local-canonical-source-correction.v7" &&
@@ -61,18 +62,27 @@ export function serialAuthorityScope(p, review, grant) {
     ].every(s => grant.body.includes(s)) && grant.created_at === grant.updated_at;
 }
 
+// Independently fixed historical descriptors. Runtime changes cannot redefine old evidence.
+const HISTORICAL_SERIAL_CHILDREN = [{"id":"project-experience","group":"project-experience","requirements":["database","migrations","filesystem","project-root","process-owning","listener-port-owning","browser-profile-owning","cdp-session-owning","immutable-fixture-input"],"label":"independent project experience Browser owner","args":["--import","tsx","scripts/browser-validate-project-experience-v1.mjs"],"timeoutMs":360000,"requireNaturalExit":true},{"id":"project-client-browser","group":"project-experience","requirements":["database","migrations","filesystem","process-owning","listener-port-owning","browser-profile-owning","cdp-session-owning"],"label":"same-profile project clients, held saves and recoverable drafts in Browser","args":["--import","tsx","scripts/test-project-client-browser.ts"],"timeoutMs":60000,"requireNaturalExit":true},{"id":"web-planning-browser","group":"project-experience","requirements":["database","migrations","filesystem","process-owning","listener-port-owning","browser-profile-owning","cdp-session-owning"],"label":"durable web planning real D1 Browser producer and consumer","args":["--import","tsx","scripts/browser-validate-web-planning.mjs"],"timeoutMs":180000,"requireNaturalExit":true},{"id":"web-planning-draft-safety","group":"project-experience","requirements":["database","migrations","filesystem","process-owning","listener-port-owning","browser-profile-owning","cdp-session-owning"],"label":"Web draft mutation, provenance and erasure Browser controls","args":["--import","tsx","scripts/browser-validate-web-planning.mjs","--draft-safety"],"timeoutMs":60000,"requireNaturalExit":true}];
+
 // Parse the closed pre-envelope declaration, never execute historical source.
 // Unsupported registration forms need their own reviewed reader, not a guess.
 export function legacySerialChildren(source) {
-  const names = ["projectExperienceStep","projectClientBrowserStep","webPlanningBrowserStep","webPlanningDraftSafetyStep"];
+  const allNames = ["projectExperienceStep","projectClientBrowserStep","webPlanningBrowserStep","webPlanningDraftSafetyStep"];
   const tokens = orchestrationTokens(source);
-  const registration = orchestrationTokens('"e2e-project-experience": [' + names.map(name => '{ ...' + name + ' }').join(', ') + ']');
-  if (tokens.filter((_,i) => registration.every((v,j) => tokens[i+j] === v)).length !== 1)
+  if(tokens.filter((token,i)=>token==="<string:e2e-project-experience>"&&tokens[i+1]===":").length!==1)
     refuse("serial_original_inventory_unreadable");
+  const variants=[allNames.slice(0,3),allNames].filter(names=>{
+    const registration=orchestrationTokens('"e2e-project-experience": ['+names.map(name=>'{ ...'+name+' }').join(', ')+']');
+    return tokens.filter((_,i)=>registration.every((v,j)=>tokens[i+j]===v)).length===1;
+  });
+  if(variants.length!==1)refuse("serial_original_inventory_unreadable");
+  const names=variants[0];
   const children = [];
   for (const [index,name] of names.entries()) {
-    let body = source.match(new RegExp(`const ${name} = \{([\\s\\S]*?)\\n\};`))?.[1];
-    if (!body) refuse("serial_original_inventory_unreadable");
+    const declarations=[...source.matchAll(new RegExp(String.raw`const ${name} = \{([\s\S]*?)\n\};`,"gu"))];
+    let body=declarations[0]?.[1];
+    if (declarations.length!==1 || !body) refuse("serial_original_inventory_unreadable");
     const take = (pattern, convert = v => v) => {
       const match = body.match(pattern); if (!match) refuse("serial_original_inventory_unreadable");
       body = body.replace(match[0], ""); return convert(match[1]);
@@ -91,7 +101,7 @@ export function legacySerialChildren(source) {
       args:["--import","tsx",...take(/\.\.\.rootNode\(("[^"]+"(?:,\s*"[^"]+")*)\),/u,v => JSON.parse('['+v+']'))],
       timeoutMs:take(/timeoutMs:\s*([0-9_]+),/u,v => Number(v.replaceAll("_",""))),
     });
-    if (body.trim() || !equal(child,PROJECT_EXPERIENCE_SERIAL.children[index])) refuse("serial_original_inventory_changed");
+    if (body.trim() || !equal(child,HISTORICAL_SERIAL_CHILDREN[index])) refuse("serial_original_inventory_changed");
     children.push(child);
   }
   return children;
@@ -189,7 +199,7 @@ export function serialIncidentLog(incident, original, capped, bytes) {
 // incident reference and contract commitment; it cannot call this causal proof.
 export function readSerialAggregateIncident(p, original, prior, completion, { parse, bytes, git, phases, stock }) {
   const incident = parse(p.incident), plan = parse(incident.original_plan);
-  const serial = PROJECT_EXPERIENCE_SERIAL, id = "e2e-project-experience", at = phases.indexOf(id);
+  const id = "e2e-project-experience", at = phases.indexOf(id);
   const phase = original.phases?.[at];
   if (!settledIsolatedResources(original) || !["changed","full"].includes(original.evidence?.mode) || original.evidence.selected_plan!=="full-canonical" ||
       original.evidence.deciding!==false || original.verification_context?.kind!=="isolated-worktree" ||
@@ -205,8 +215,11 @@ export function readSerialAggregateIncident(p, original, prior, completion, { pa
       digest(plan) !== original.inputs.binding.phase_inventory || !equal(plan.map(x=>x.id),phases)) refuse("serial_incident_binding_invalid");
   const suitePath = "scripts/run-canonical-test-suite.mjs", parentPath = "scripts/run-local-canonical-verification.mjs";
   const suite = git(["show",`${prior.head}:${suitePath}`]), parent = git(["show",`${prior.head}:${parentPath}`]);
+  const historical=legacySerialChildren(suite.toString());
+  const sourceEvolution=Object.hasOwn(incident,"compatibility") ? verifySerialEvolution(p,prior,historical,parse(incident.compatibility),git) : null;
   if (!equal(incident.source, {head:prior.head,tree:prior.tree,suite_sha256:digest(suite),parent_sha256:digest(parent)}) ||
-      !equal(legacySerialChildren(suite.toString()),serial.children)) refuse("serial_original_source_invalid");
+      !(sourceEvolution ? equal(PROJECT_EXPERIENCE_SERIAL.children,HISTORICAL_SERIAL_CHILDREN) : equal(historical,PROJECT_EXPERIENCE_SERIAL.children))) refuse("serial_original_source_invalid");
+  const serial={children:historical};
   const declared = parent.toString().match(/"e2e-project-experience":\s*\{\s*label:\s*"[^"]+",\s*suite:\s*"e2e-project-experience",\s*timeoutMs:\s*([0-9_]+),/u);
   const deadline = Number(declared?.[1]?.replaceAll("_",""));
   if (!Number.isSafeInteger(deadline) || deadline <= 0 || deadline >= PROJECT_EXPERIENCE_ENVELOPE_MS || plan[at].timeoutMs !== deadline ||
@@ -237,6 +250,10 @@ export function readSerialAggregateIncident(p, original, prior, completion, { pa
   const results = [...log.matchAll(/^\[canonical:e2e-project-experience\] child_result label=("[^"]+") duration_ms=(\d+) exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit$/gmu)];
   const allResults = [...log.matchAll(/^\[canonical:e2e-project-experience\] child_result /gmu)];
   const interruptedLabel = JSON.stringify(serial.children[2].label);
+  if(sourceEvolution && log.split("\n").some(line=>{
+    const match=line.match(/^\[canonical:e2e-project-experience\] child_(?:start|spawn|active|exit|cleanup_start|cleanup_result|result) label=("(?:\\.|[^"\\])*")/u);
+    return match && !historical.some(child=>JSON.stringify(child.label)===match[1]);
+  }))refuse("serial_unregistered_historical_child_observed");
   if (serial.children.slice(3).some(child => log.split("\n").some(line =>
       line.startsWith("[canonical:e2e-project-experience] ") && line.includes(`label=${JSON.stringify(child.label)} `))))
     refuse("serial_following_child_observed");
@@ -262,7 +279,7 @@ export function readSerialAggregateIncident(p, original, prior, completion, { pa
     refuse("serial_stock_unexplained");
   // Useful child code and each individual bound are retained. A timeout alone
   // does not establish a product defect or authorize editing those assertions.
-  for (const child of serial.children) if (!git(["show",`${prior.head}:${child.args[2]}`]).equals(git(["show",`${p.head}:${child.args[2]}`])))
+  for (const child of serial.children) if (!(sourceEvolution && ["scripts/test-project-client-browser.ts","scripts/browser-validate-web-planning.mjs"].includes(child.args[2])) && !git(["show",`${prior.head}:${child.args[2]}`]).equals(git(["show",`${p.head}:${child.args[2]}`])))
     refuse("serial_useful_coverage_changed");
   for (const name of [suitePath,parentPath]) if (!git(["diff","--ignore-all-space","--ignore-blank-lines",prior.head,p.head,"--",name]).length)
     refuse("serial_owning_contract_unchanged");
@@ -270,5 +287,6 @@ export function readSerialAggregateIncident(p, original, prior, completion, { pa
     phase_inventory:original.inputs.binding.phase_inventory,log_sha256:digest(logBytes),
     ...(incident.capture ? {capture_sha256:incident.capture.sha256,complete_phase_log_sha256:digest(log)} : {}),
     completed_children:2,interrupted_child:serial.children[2].id,interrupted_outcome:"UNKNOWN",
-    remaining_upper_bound_ms:remaining,envelope_sha256:PROJECT_EXPERIENCE_COMMITMENT};
+    remaining_upper_bound_ms:remaining,envelope_sha256:PROJECT_EXPERIENCE_COMMITMENT,
+    ...(sourceEvolution?{source_evolution:sourceEvolution}:{})};
 }

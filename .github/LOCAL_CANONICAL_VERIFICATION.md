@@ -1360,6 +1360,40 @@ time, inventory disagreement, and borrowed child/settlement allowances. An
 unrelated PASS, unused export or cosmetic source change is insufficient.
 Synthetic controls prove their mechanisms, not the old child's unknown result.
 
+An optional `incident.compatibility` artifact may select the bounded
+`serial-historical-three-source-evolution-v1` interpretation. Its historical
+three-child registration is parsed independently of the current inventory:
+exact commands, order, requirements, natural-exit requirements and limits must
+match an explicitly supported historical declaration. Only the first two
+natural results and the interrupted third child are observed; no historical
+fourth child or result is invented. The complete current four-child owner,
+including draft-safety coverage and the unchanged 730000 ms envelope, is checked
+separately. Existing four-child proofs without this artifact retain their
+original interpretation and incident-summary digests.
+
+The artifact binds historical, declared-base and candidate source identities
+and raw byte hashes to an exact-content reviewed evolution profile. The existing
+source-material owner independently verifies the complete Git deltas. Both
+historical and declared-base commits must be ancestors of the integrated
+candidate; their actual common ancestor is bound without requiring the
+historical branch to have been merged into the declared base. The
+two evolved drivers and their bounded result-draft/observation/CDP/draft-safety
+helpers must match that profile and the declared base, with the unchanged first
+child still checked byte-for-byte. The findings explicitly describe retained
+journeys, added coverage and changed focus/fixture scheduling; they do not claim
+transitive semantic identity. Ancestry or matching main bytes alone never supplies
+semantic acceptance. The complete artifact and final tree enter the existing
+independent source/preparation acceptance commitment; unsupported evolution,
+lost assertions, unbound helpers or missing current coverage refuse.
+
+Only this validated interpretation permits the inherited Web package build
+change from `vite build` to `vite build --configLoader native`. Its exact raw
+historical/base/candidate bindings must match the reviewed profile, candidate
+bytes must equal the declared base, and every other parsed manifest field stays
+equal. All other package declarations, lockfiles and Node/runtime pins retain
+the existing byte-preservation rule. There is no general manifest, script,
+declared-base or source-change exemption, and no additional execution authority.
+
 `scripts/prepare-local-canonical-serial-aggregate.mjs <material.json>` performs
 read-only preparation from the admitted isolated Mac checkout. It checks the
 current published Draft PR head/base, exact clean source, original physical tip,

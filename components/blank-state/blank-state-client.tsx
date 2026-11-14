@@ -1,5 +1,7 @@
 "use client";
 
+import { useProjectClientHref } from "@/components/workbench/semantic-review/project-client-scope";
+
 import { RegisteredProjects } from "./registered-projects";
 import { ProjectDirection } from "./project-direction";
 
@@ -169,6 +171,7 @@ export function BlankStateClient({
   temporalContext: ContinuitiesTemporalContextV01;
   managementSafety: ManagementSafetyViewV01;
 }) {
+  const scopedHref = useProjectClientHref();
   const [recent, setRecent] = useState(source.recent_projects);
   const [selection, setSelection] = useState({ project_id: source.active_project_id,
     revision: source.active_selection_revision ?? source.recent_projects[0]?.active_selection_revision ?? null });
@@ -1267,7 +1270,7 @@ export function BlankStateClient({
                           : "attention items exist"
                       } outside this view. `
                     : "Additional project attention may exist outside this view. "}
-                  <a href={view.source_attention_destination.href}>
+                  <a href={scopedHref(view.source_attention_destination.href)}>
                     {view.source_attention_destination.label}
                   </a>
                 </p>
@@ -1404,6 +1407,7 @@ function ContinuitiesTemporalContext({
 }: {
   view: ContinuitiesTemporalContextV01;
 }) {
+  const scopedHref = useProjectClientHref();
   return (
     <section
       className="continuities-temporal-context"
@@ -1433,7 +1437,7 @@ function ContinuitiesTemporalContext({
                     {item.href ? (
                       <a
                         className="continuities-temporal-title"
-                        href={item.href}
+                        href={scopedHref(item.href)}
                         title={item.label}
                       >
                         {item.label}
@@ -1476,7 +1480,7 @@ function ContinuitiesTemporalContext({
                     {item.href ? (
                       <a
                         className="continuities-temporal-title"
-                        href={item.href}
+                        href={scopedHref(item.href)}
                         title={item.summary}
                       >
                         {item.summary}
@@ -1530,6 +1534,7 @@ function ContinuityItem({
   onLocate: (entry: ProjectManagementEntryV02) => void;
   onActivate: (projectId: string) => void;
 }) {
+  const scopedHref = useProjectClientHref();
   const delegatedStage = item.source_family === "delegated_work"
     ? source.delegated_work?.stage
     : undefined;
@@ -1624,7 +1629,7 @@ function ContinuityItem({
           ) : secondaryAction ? (
             <a
               className="blank-state-secondary-link"
-              href={secondaryAction.href}
+              href={scopedHref(secondaryAction.href)}
               aria-label={secondaryAction.label}
               data-blank-state-delegated-work-link={
                 item.source_family === "delegated_work" ? "true" : undefined
@@ -1681,7 +1686,7 @@ function ContinuityItem({
             {highlighted && secondaryAction ? (
               <a
                 className="blank-state-secondary-link"
-                href={secondaryAction.href}
+                href={scopedHref(secondaryAction.href)}
                 aria-label={secondaryAction.label}
                 data-blank-state-delegated-work-link={
                   item.source_family === "delegated_work" ? "true" : undefined
@@ -1703,7 +1708,7 @@ function ContinuityItem({
             item.exact_detail_href !== secondaryAction?.href ? (
               <a
                 className="blank-state-exact-detail-link"
-                href={item.exact_detail_href}
+                href={scopedHref(item.exact_detail_href)}
                 data-blank-state-exact-detail="true"
               >
                 View exact details
@@ -1793,11 +1798,12 @@ function PrimaryAction({
   onLocate: (entry: ProjectManagementEntryV02) => void;
   onActivate: (projectId: string) => void;
 }) {
+  const scopedHref = useProjectClientHref();
   if (action.kind === "link") {
     return (
       <a
         className="blank-state-primary-action"
-        href={action.href}
+        href={scopedHref(action.href)}
         aria-label={action.label}
         data-blank-state-primary-action={action.kind}
         data-workbench-entry-state={action.entry_state ?? undefined}
@@ -2710,6 +2716,7 @@ function ProjectOptions({
   directHostRoundTripAvailable: boolean;
   embedded?: boolean;
 }) {
+  const scopedHref = useProjectClientHref();
   const active = projection.project_summary.is_active;
   const content = (
     <div className="blank-state-options-grid">
@@ -2740,10 +2747,10 @@ function ProjectOptions({
               Automation stopped: {projection.automation.cycle.stop_reason.replaceAll("_", " ")}.
             </p>
           ) : null}
-          {projection.automation.cycle.run?.result_href ? <a href={projection.automation.cycle.run.result_href}>Open automated result</a> : null}
-          {projection.automation.cycle.run?.proposal_href ? <a href={projection.automation.cycle.run.proposal_href}>Review suggested change</a> : null}
-          {projection.automation.cycle.feedback_href ? <a href={projection.automation.cycle.feedback_href}>Share outcome</a> : null}
-          {active && projection.automation.inspector_href ? <a href={projection.automation.inspector_href} data-project-automation-inspector="true">View exact automation details</a> : null}
+          {projection.automation.cycle.run?.result_href ? <a href={scopedHref(projection.automation.cycle.run.result_href)}>Open automated result</a> : null}
+          {projection.automation.cycle.run?.proposal_href ? <a href={scopedHref(projection.automation.cycle.run.proposal_href)}>Review suggested change</a> : null}
+          {projection.automation.cycle.feedback_href ? <a href={scopedHref(projection.automation.cycle.feedback_href)}>Share outcome</a> : null}
+          {active && projection.automation.inspector_href ? <a href={scopedHref(projection.automation.inspector_href)} data-project-automation-inspector="true">View exact automation details</a> : null}
           <ProjectControls projection={projection} kind="automation" />
         </section>
 
@@ -2760,7 +2767,7 @@ function ProjectOptions({
                   <li key={`${item.why_included}:${index}`}>{publicBlankStateTextV01(item.summary ?? "Selected reviewed material")} · {publicBlankStateTextV01(item.why_included)}</li>
                 ))}
               </ul>
-              {active ? <a href={projection.personal_perspective.task_basis.inspector_href} data-personal-perspective-inspector="true">View exact inclusion details</a> : null}
+              {active ? <a href={scopedHref(projection.personal_perspective.task_basis.inspector_href)} data-personal-perspective-inspector="true">View exact inclusion details</a> : null}
             </div>
           ) : (
             <p className="blank-state-meta" data-personal-perspective-task-basis="absent">No reviewed Personal Perspective material is shown as part of the current work.</p>
