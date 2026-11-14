@@ -214,6 +214,8 @@ async function failedIntegrationMaintenanceControls({receipt,context,partitionSo
     const retainedStock=inspectReceiptForDecision(f.failed,{...context,integrationCurrentIssues:[]});
     assert.deepEqual(retainedStock,f.stock);assert.equal(f.stock.issues.length,14);
     assert.deepEqual(f.failed.phases.map(p=>p.status),[...Array(6).fill("pass"),"failure",...Array(9).fill("not_run")]);
+    assert.deepEqual(f.preparation.input_inventory.binding,{});assert(!Object.hasOwn(f.preparation.input_inventory,"prepared_dependencies"));
+    assert.deepEqual(f.fullInputInventory.resources,f.preparation.input_inventory.resources);assert.notEqual(f.fullInputInventory.fingerprint,f.preparation.input_inventory.fingerprint);
     const original=material();assert.equal(original.fixture.preparation_sha256,f.incident.preparation.sha256);noEdge();
     f.rebuild(false);
     const prepared=await prepare();assert.equal(prepared.eligible_evidence,true);assert.equal(prepared.live_inputs_ready,true);assert.equal(prepared.admission,false);assert.equal(prepared.reserved,false);
@@ -236,6 +238,7 @@ async function failedIntegrationMaintenanceControls({receipt,context,partitionSo
       ["actual partition parent",()=>f.partition.source_head=f.sourceHead],
       ["prepared source bound",()=>f.preparation.source_head=f.sourceHead],
       ["prepared inventory bound",()=>f.preparation.inventory_sha256="a".repeat(64)],
+      ["caller-invented preparation binding",()=>{const input=f.preparation.input_inventory;input.binding={head:f.head};input.fingerprint=digest({contract:input.contract,path_kind:input.path_kind,binding:input.binding,resources:input.resources});}],
       ["contract creates no grant",()=>f.contract.new_grants=1],
     ]){
       mutate();let error;try{f.rebuild();material();}catch(value){error=value;}assert(error,name);noEdge();preserve();recordRefusal(name,error);refused++;reset();
@@ -266,7 +269,7 @@ async function failedIntegrationMaintenanceControls({receipt,context,partitionSo
       assert(fs.existsSync(edge));thrown("interrupted cold lineage",()=>reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}),/reserved_unsettled/);await rejected("interrupted commission replay",()=>reserve());
     }finally{restoreBeforeAdmission();}
     const {receipt:assembled,context:successContext}=await completeSyntheticReceipt(f,async extra=>{
-      const admission={...extra,contractFingerprint:f.preparation.input_inventory.fingerprint};
+      const admission={...extra,contractFingerprint:f.fullInputInventory.fingerprint};
       const outcomes=await Promise.allSettled([reserve(admission),reserve(admission)]);
       assert.equal(outcomes.filter(x=>x.status==="fulfilled").length,1);assert.equal(outcomes.filter(x=>x.status==="rejected").length,1);
       recordRefusal("competing reservation",outcomes.find(x=>x.status==="rejected").reason);
@@ -275,10 +278,13 @@ async function failedIntegrationMaintenanceControls({receipt,context,partitionSo
     // Finish constructing only this new synthetic success with its full,
     // admitted declaration. No retained failed or provider record is rewritten.
     const checkout=f.preparation.checkout_fingerprint;
-    const success=finalizeReceipt({...assembled,inputs:structuredClone(f.preparation.input_inventory),
+    const success=finalizeReceipt({...assembled,inputs:structuredClone(f.fullInputInventory),
       verification_context:{...assembled.verification_context,checkout_fingerprint:checkout},
       checkout_ownership:{...assembled.checkout_ownership,checkout_fingerprint:checkout},capacity_ownership:{...assembled.capacity_ownership,checkout_fingerprint:checkout}});
     Object.assign(successContext,{currentVerificationContext:success.verification_context,currentCheckoutFingerprint:checkout});
+    assert.equal(success.inputs.binding.head,f.head);assert.equal(success.inputs.binding.tree,f.tree);assert.deepEqual(success.inputs.binding.runtime_inputs,f.inputs);
+    assert.equal(success.inputs.binding.executor_fingerprint,success.executor.source_fingerprint);assert(success.inputs.binding.phase_environment_fingerprints.length===16);
+    assert.deepEqual(success.inputs.resources,f.preparation.input_inventory.resources);assert.deepEqual(f.live.inputInventory.binding,{});
     const completionFile=path.join(families,success.attempt.family_id,"completion-1.json"),completion=JSON.parse(fs.readFileSync(completionFile));
     write(completionFile,{...completion,receipt_fingerprint:success.integrity.content_fingerprint});
     assert(validMaintenanceAttempt(success.attempt));assert.deepEqual(success.attempt.budget,{initial:1,recovery:0});
@@ -296,7 +302,9 @@ async function failedIntegrationMaintenanceControls({receipt,context,partitionSo
     const observed=await inspectMaintenanceStock({anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt:success,runtimeInputs:f.inputs,observeCurrentInputs:async()=>structuredClone(f.live),assertCurrent(){},transport:f.transport()});
     assert.equal(observed.currentAttemptRecordsValid,true);assert.deepEqual(inspectReceiptForDecision(success,{...successContext,...observed}).issues,[]);
     await rejected("spent commission admission",()=>reserve());await rejected("spent commission preparation",prepare);preserve();
-    console.log(JSON.stringify({failed_integration_maintenance:{synthetic_only:true,evidence_refusals:refused,refusal_count:selectedRefusals.length,refusals:selectedRefusals}}));
+    console.log(JSON.stringify({failed_integration_maintenance:{synthetic_only:true,evidence_refusals:refused,refusal_count:selectedRefusals.length,refusals:selectedRefusals,
+      input_scopes:{preparation_binding_keys:Object.keys(f.preparation.input_inventory.binding),full_binding_keys:Object.keys(success.inputs.binding).sort(),shared_inventory:true,
+        preparation_input_fingerprint:f.preparation.input_inventory.fingerprint,full_input_fingerprint:success.inputs.fingerprint}}}));
     note("selected failed reviewed-integration fixture partition: retained6PASS/authorityFAIL/9NOT_RUN and stock14, evidence refusals, safe preparation, distinct one-shot grant, interruption and exclusive cold lineage; failed prefix grants no current permission");
   } finally {
     f?.restoreExclude();restoreLedger();c.git(["reset","--hard",integrationHead]);

@@ -152,11 +152,18 @@ export function createFailedIntegrationMaintenanceFixture({c,successfulReceipt,c
     status:"PASS",refusal:null,new_grants:0,new_deciding_invocations:0};
   f.contractLog='{"status": "pass"}\n[canonical:contract] child_result label="verification and lifecycle contract" duration_ms=10 exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit\n';
   f.partition={source_head:head,source_tree:tree,source_before:null,source_after:null,registration:null,checks:[],contract:null};
-  const preparedInventory=inputInventory(c,head,tree,successfulReceipt,runtime);
+  f.fullInputInventory=inputInventory(c,head,tree,successfulReceipt,runtime);
+  // The read-only observer freezes resources before an execution contract
+  // exists. Its raw empty binding is retained separately from the Full input
+  // declaration, whose source/runtime/environment binding remains complete.
+  const {prepared_dependencies,...preparedInventory}=structuredClone(f.fullInputInventory);
+  preparedInventory.binding={};preparedInventory.checks=0;
+  preparedInventory.fingerprint=digest({contract:preparedInventory.contract,path_kind:preparedInventory.path_kind,binding:preparedInventory.binding,resources:preparedInventory.resources});
+  preparedInventory.limitations=["bounded polling cannot exclude transient changes between observations","metadata timestamps are not observed write times","cooperative ownership is not hostile-user isolation"];
   f.preparation={schema:"augnes.local-canonical-failed-integration-fixture-preparation.v1",target:maintenanceTarget(f.p),source_head:head,source_tree:tree,
     checkout_fingerprint:checkoutVerificationFingerprint(c.checkout),runtime_inputs:runtime,input_inventory:preparedInventory,inventory_sha256:gitRevisionInventory(preparedInventory),
     dependencies:c.syntheticDependencies.map(v=>v.before),prepared_at:at(-8)};
-  f.live={inventory:f.preparation.inventory_sha256,inputInventory:preparedInventory};
+  f.live={inventory:f.preparation.inventory_sha256,inputInventory:structuredClone(preparedInventory)};
   f.incident={kind:FAILED_INTEGRATION_FIXTURE_CASE,receipt:failed.integrity.content_fingerprint,cause:"UNKNOWN",interrupted_operation:"UNKNOWN",
     authority_log:{artifact:ref("authority.log",log),relative_path:nativePath,bytes:Buffer.byteLength(log),truncated:false},partition:null,preparation:null};
   f.stock={valid_deciding_evidence:false,status:"non_deciding_or_stale",content_fingerprint:failed.integrity.content_fingerprint,

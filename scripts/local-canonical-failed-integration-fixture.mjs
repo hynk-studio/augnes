@@ -83,7 +83,7 @@ function cleanup(rows) {
 
 function predecessor(p,prior,completion,receipt,stock) {
   const proof=prior.source_correction,original={...receipt};delete original.integrity;
-  requireThat(proof?.schema === "augnes.local-canonical-source-correction.v2" && proof.kind === "accepted_main_integration" &&
+  requireThat(receipt.receipt_version === 4 && proof?.schema === "augnes.local-canonical-source-correction.v2" && proof.kind === "accepted_main_integration" &&
     proof.integration_case === "reviewed" && !Object.hasOwn(proof,"commission") && proof.base === proof.accepted_main &&
     proof.branch === p.branch && proof.base === p.base && proof.pull_request === p.pull_request &&
     proof.head === prior.head && proof.tree === prior.tree && equal(proof.budget,{initial:1,recovery:0}) &&
@@ -297,7 +297,10 @@ export function readFailedIntegrationFixtureIncident({p,e,prior,completion,recei
     preparation.source_head === p.head && preparation.source_tree === p.tree && sha(preparation.checkout_fingerprint) &&
     validCanonicalRuntimeInputs(preparation.runtime_inputs) && equal(preparation.runtime_inputs,runtime) &&
     sha(preparation.inventory_sha256) && gitRevisionInventory(input) === preparation.inventory_sha256 &&
-    input.binding?.head === p.head && input.binding.tree === p.tree && equal(input.binding.runtime_inputs,runtime) &&
+    // observeGitRevisionTarget owns a raw resource inventory with no execution
+    // binding. Source/runtime are pinned above; the Full receipt binds them in
+    // its own input contract without rewriting this preparation observation.
+    equal(input.binding,{}) &&
     input.fingerprint === digest({contract:input.contract,path_kind:input.path_kind,binding:input.binding,resources:input.resources}) &&
     input.first_fault === null && equal(input.secondary_faults,[]) && equal(input.events,[]) &&
     equal(preparation.dependencies,dependencies) && equal(preparation.dependencies?.map(row=>row.phase_id),dependencyPhases) &&
