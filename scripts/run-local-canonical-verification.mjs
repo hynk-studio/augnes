@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { isMaintenance, hasMaintenanceMarker, authorizeMaintenance, observeMaintenanceAuthority, inspectMaintenanceInputs } from "./local-canonical-maintenance.mjs";
+import { isFailedIntegrationFixture } from "./local-canonical-failed-integration-fixture.mjs";
 import { isSerialAggregateRevision } from "./local-canonical-serial-aggregate.mjs";
 import { PROJECT_EXPERIENCE_ENVELOPE_MS, PROJECT_EXPERIENCE_SERIAL, PROJECT_EXPERIENCE_COMMITMENT, runProjectExperienceParent } from "./project-experience-serial-budget.mjs";
 import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
@@ -150,6 +151,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-attempts.mjs",
   "scripts/local-canonical-improvement.mjs",
   "scripts/local-canonical-maintenance.mjs",
+  "scripts/local-canonical-failed-integration-fixture.mjs",
   "scripts/local-canonical-closeout-budgets.mjs",
   "scripts/local-canonical-evidence-retention.mjs",
   "scripts/local-canonical-review-export.mjs",
@@ -788,7 +790,8 @@ export async function executeLocalCanonicalVerification({
                   const material=maintenanceMaterial(repositoryRoot,sourceCorrection);
                   const workload={base:baseSha,head:headSha,selected_plan:plan.selected_plan,phases:phaseDefinitions.map(p=>p.id),owners:[...plan.planner_owner_ids].sort()};
                   if(digest(workload)!==digest(material.planner))throw Object.assign(new Error("maintenance_planner_changed"),{code:"maintenance_planner_changed"});
-                  return {authorization:await authorizeMaintenance(sourceCorrection,material),live:null};
+                  return {authorization:await authorizeMaintenance(sourceCorrection,material),live:material.fixture?
+                    await observeGitRevisionTarget(verificationContext,hostResult.browserExecutablePath,runtimeInputs):null};
                 }
                 if (isImprovement(sourceCorrection)) {
                   const material = improvementMaterial(repositoryRoot,sourceCorrection);
@@ -1464,6 +1467,7 @@ export async function inspectImprovementStock({ anchorRoot, repositoryRoot, rece
 export async function inspectIntegrationStock({anchorRoot,repositoryRoot,receipt,assertCurrent,transport}) {
   const integrationCurrentIssues=["receipt_integration_current_authorization_unverified"];
   const currentAttemptRecordsValid=await inspectAttemptRecords({anchorRoot,repositoryRoot,receipt,
+    onHistoricalPrefix:kind=>{if(kind==="failed_reviewed_integration")integrationCurrentIssues.push("receipt_historical_failed_integration_prefix");},
     assertCurrent:()=>{try{assertCurrent?.();}catch{integrationCurrentIssues.push("receipt_integration_current_inputs_invalid");}},
     observeRevision:async()=>{
       const p=receipt.attempt.source_correction,e=integrationMaterial(repositoryRoot,p,anchorRoot);
@@ -1474,7 +1478,7 @@ export async function inspectIntegrationStock({anchorRoot,repositoryRoot,receipt
   return {currentAttemptRecordsValid,integrationCurrentIssues:[...new Set(integrationCurrentIssues)]};
 }
 
-export async function inspectMaintenanceStock({anchorRoot,repositoryRoot,receipt,runtimeInputs,assertCurrent,transport}) {
+export async function inspectMaintenanceStock({anchorRoot,repositoryRoot,receipt,runtimeInputs,assertCurrent,transport,observeCurrentInputs}) {
   const maintenanceCurrentIssues=["receipt_maintenance_current_authorization_unverified"];
   // Physical historical replay must remain independent of live source/input
   // applicability. The read scope still seals every original across the await.
@@ -1486,6 +1490,11 @@ export async function inspectMaintenanceStock({anchorRoot,repositoryRoot,receipt
       catch(error){maintenanceCurrentIssues.push(error?.code==="maintenance_current_applicability_refused"?"receipt_maintenance_current_applicability_refused":"receipt_maintenance_current_authorization_unverified");}
       if(digest(runtimeInputs)!==digest(material.runtime))maintenanceCurrentIssues.push("receipt_maintenance_current_runtime_invalid");
       try{inspectMaintenanceInputs(repositoryRoot,material);}catch{maintenanceCurrentIssues.push("receipt_maintenance_current_inputs_invalid");}
+      if(material.fixture)try{
+        const live=await observeCurrentInputs?.();
+        if(!live||live.inventory!==material.fixture.preparation.inventory_sha256||gitRevisionInventory(live.inputInventory)!==live.inventory)
+          maintenanceCurrentIssues.push("receipt_maintenance_current_inputs_invalid");
+      }catch{maintenanceCurrentIssues.push("receipt_maintenance_current_inputs_invalid");}
       return {authorization:null,live:null};
     }});
   return {currentAttemptRecordsValid,maintenanceCurrentIssues:[...new Set(maintenanceCurrentIssues)]};
@@ -1581,7 +1590,8 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   if (receipt.receipt_version === 4 && isReviewedIntegration(receipt.attempt?.source_correction)) {
     ({currentAttemptRecordsValid,integrationCurrentIssues}=await inspectIntegrationStock({anchorRoot:verificationAnchorRoot(verificationContext),repositoryRoot,receipt,assertCurrent:checkCurrentInputs}));
   } else if (receipt.receipt_version === 4 && isMaintenance(receipt.attempt?.source_correction)) {
-    ({currentAttemptRecordsValid,maintenanceCurrentIssues}=await inspectMaintenanceStock({anchorRoot:verificationAnchorRoot(verificationContext),repositoryRoot,receipt,runtimeInputs,assertCurrent:checkCurrentInputs}));
+    ({currentAttemptRecordsValid,maintenanceCurrentIssues}=await inspectMaintenanceStock({anchorRoot:verificationAnchorRoot(verificationContext),repositoryRoot,receipt,runtimeInputs,assertCurrent:checkCurrentInputs,
+      ...(isFailedIntegrationFixture(receipt.attempt.source_correction)?{observeCurrentInputs:()=>observeGitRevisionTarget(verificationContext,validationHost.browserExecutablePath,runtimeInputs)}:{})}));
   } else if (receipt.receipt_version === 4 && isImprovement(receipt.attempt?.source_correction)) {
     ({currentAttemptRecordsValid,improvementCurrentIssue}=await inspectImprovementStock({
       anchorRoot:verificationAnchorRoot(verificationContext),repositoryRoot,receipt,runtimeInputs,assertCurrent:checkCurrentInputs,

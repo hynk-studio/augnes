@@ -1065,6 +1065,42 @@ ordinary production-source predicate and natural RED/GREEN requirement, with
 exact old/final blobs, common executable fixture, environment/input artifacts,
 execution-time start/end bindings, chronology, logs and completed cleanup.
 PASS/PASS improvement samples and killed children cannot be relabeled as RED.
+
+The explicit v2 `incident_case:
+"failed-reviewed-integration-material-stock-partition-v1"` selects one bounded
+registered-fixture correction after a failed reviewed integration. It accepts
+only the latest fully settled `product_failure`, initial1/recovery0, null
+infrastructure code, complete cleanup and the original authenticated integration
+authority. The original integration proof, prepared inputs, successful material
+or maintenance predecessor and physical edges are replayed as historical
+evidence. Earlier reviewed commissions and integration/maintenance grants retain
+their types and consumption through preparation, cold traversal and stock.
+No spent grant may supply the new commission.
+
+For this selected incident alone, the original material-stock inner watchdog
+failure is the negative evidence; the naturally failing outer wrapper is not a
+natural module RED. The complete original receipt, false stock issue meanings
+and dimensions, authority log and input/cleanup records remain unchanged. The
+reader requires the exact finite partition, unchanged assertions and deadlines,
+and source-bound natural positive registered controls. It rejects another
+failure, fabricated coverage, unexplained or omitted stock issues and altered
+originals. Historical causes and interrupted operations remain UNKNOWN. Other
+maintenance repairs retain their existing natural RED/GREEN requirement.
+
+The complete descendant delta includes the partition and its admission support.
+The final runtime, protected-input inventory, physical checkout and all three
+safe dependency prerequisites are bound in the actual preparation artifact.
+`prepareMaintenanceCandidate` validates this case without reservation through
+the same invocation-scoped material seal and live inventory observer used by
+admission. Admission rechecks these inputs after authenticated observation and
+immediately before the exclusive append. Receipt inspection checks the recorded
+preparation independently of current source/input applicability; current stock
+observes the live inventory again. An original failed integration inspected as
+a historical prefix remains non-deciding and cannot obtain current authority
+or qualification from its successor. This case keeps the existing distinct
+exact-target acceptance and prospective commission, maximum1/recovery0/unchanged
+retry0, Full coverage, separate fresh stock, result review and cleanup owners.
+
 The historical evidence index commits all known adverse observations, their
 limitations, the predecessor's evidence commitment and cumulative cost. A
 separate source/evidence review must accept the complete delta, affected
