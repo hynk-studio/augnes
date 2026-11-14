@@ -1163,21 +1163,28 @@ no historical workload or natural RED is rerun to fit another evidence recipe.
 Historical allowance controls retain their recorded 90000 ms aggregate and
 20000 ms composite-reader interpretation. The sequence remedy is a closed
 two-file descendant budget span: selected reader75000→110000 ms and following
-support90000→210000 ms, with the matching contract pin. The direct120000 ms
+support90000→150000 ms, with the matching contract pin. The direct120000 ms
 allowance remains fixed. The retained whole-owner natural measurements plus a
 finite30000 ms orchestration reserve, rounded to10000 ms, supply the base pair.
-The following owner additionally binds a retained partial development sequence:
-one parent clock observed116320.246 ms through the start of its new cold-current
-reader, which then hit its20000 ms bound; cold history was not run. Cause and
-interrupted operation remain UNKNOWN. Its two deeper continuation readers get
-a prospective30000 ms allowance each. Existing selected10000 ms and historical
-allowance20000 ms reader meanings remain fixed. Add one combined30000 ms
-allowance for post-reader refusal, preservation, handoff, restoration, owned
-cleanup and orchestration, then round206320.246 ms to210000 ms. That combined
-allowance is judgment, not measured tail cost or guaranteed headroom; it is not
-an additional reserve on top of a measured complete continuation. The complete
-final sequence must naturally finish. Its additional90000 ms allowance over
-the retained120000 ms base explicitly accounts for the added support work.
+The following owner binds retained adverse development and bounded diagnostic
+evidence for repeated immutable material derivation within each reader. It
+reuses successful derivations only in the initial synchronous validation scope;
+the memo is discarded before the current observer and remains disabled during
+final validation. Own proof reads, physical originals and lineage, live
+authority/runtime/dependency/input observations, final artifact checks and seals
+stay fresh. Separate keys, private defensive data copies and bounded uncached
+fallback preserve scope and authorization boundaries. Each independent reader
+and later operation begins without that memo.
+
+After this substantive correction, an explicit additional30000 ms allowance
+over the retained120000 ms base covers the complete continuation controls.
+Its two deeper continuation readers get a prospective30000 ms allowance each;
+selected10000 ms and historical allowance20000 ms reader meanings remain fixed.
+These are finite judgments subject to actual complete final-source validation,
+not assumed savings, measured tail cost or guaranteed headroom. Retained failed
+budget candidates, diagnostic overlays and incomplete readers remain adverse;
+they are not registered positives or qualification. Cause and interrupted
+operation of retained watchdog failures remain UNKNOWN.
 Whole-owner coverage includes bootstrap/import, inherited setup, assertions,
 independent readers, post-reader refusals, preservation, handoff, restoration and
 owned cleanup; inner-stage and outer-run clocks are not interchangeable.

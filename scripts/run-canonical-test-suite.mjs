@@ -1551,13 +1551,13 @@ const suites = {
       label: "measured maintenance aggregate allowance and succession",
       sharedFixture: true,
       ...rootNode("scripts/fixtures/local-canonical-reviewed-revision.mjs", "--run-maintenance-budget-fixtures"),
-      // Whole lifecycle observation reached cold-reader launch at 116.320s
-      // on one parent clock. Bound the two deeper continuation readers at 30s
-      // each, then allow one combined 30s for the final refusal, preservation,
-      // handoff, restoration, cleanup and orchestration. Round 206.321s to
-      // 210s. This is a prospective liveness judgment, not measured tail cost.
-      // Legacy 20s readers and product deadlines keep their interpretation.
-      timeoutMs: 210_000,
+      // Retained complete work plus the existing 30s orchestration allowance
+      // rounds to 120s. Initial synchronous evidence reuse removes repeated
+      // immutable derivation while final/live checks stay fresh. Add a finite
+      // 30s for the continuation's complete added controls and two 30s readers;
+      // require actual final whole-owner completion under 150s. This is a
+      // prospective allowance, not a speedup or guaranteed-headroom claim.
+      timeoutMs: 150_000,
       requireNaturalExit: true,
     },
     {

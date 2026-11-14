@@ -1,4 +1,4 @@
-import { isMaintenance, hasMaintenanceMarker, readMaintenanceEvidence, inspectMaintenanceInputs, assertMaintenanceAuthorization, validateMaintenanceAuthorityRecords, validMaintenanceAttempt, maintenanceTarget, externalUtc, strictlyAfter } from "./local-canonical-maintenance.mjs";
+import { isMaintenance, hasMaintenanceMarker, validateMaintenanceProof, readMaintenanceEvidence, inspectMaintenanceInputs, assertMaintenanceAuthorization, validateMaintenanceAuthorityRecords, validMaintenanceAttempt, maintenanceTarget, externalUtc, strictlyAfter } from "./local-canonical-maintenance.mjs";
 import { isFailedIntegrationFixture } from "./local-canonical-failed-integration-fixture.mjs";
 import {isFailedMaintenanceReader,isMaintenanceAggregateAllowance,isSelectedMaintenanceIncident} from "./local-canonical-maintenance-reader-incident.mjs";
 import { VERIFIER_LIFECYCLE_REPAIR, VERIFIER_LIFECYCLE_CLAIM, VERIFIER_LIFECYCLE_GRANT, verifyVerifierLifecyclePredecessor } from "./local-canonical-verifier-lifecycle-witness.mjs";
@@ -84,8 +84,17 @@ function revisionDirectoryEntries(root) {
   return entries;
 }
 function afterRevisionValidation(observe, validate, finish) {
-  const scope = { files: new Map(), directories: new Map(), absent: new Set(), evidence: new Map() };
-  const prepared = revisionReadScope.run(scope, validate);
+  const scope = { files: new Map(), directories: new Map(), absent: new Set(), evidence: new Map(),
+    maintenance: { active: true, entries: new Map(), bytes: 0 } };
+  let prepared;
+  try { prepared = revisionReadScope.run(scope, validate); }
+  finally {
+    // Historical material may repeat during initial synchronous validation.
+    // The observer and every continuation still reopen all maintenance data.
+    scope.maintenance.active = false;
+    scope.maintenance.entries.clear();
+    scope.maintenance.bytes = 0;
+  }
   if (prepared === false) return false;
   let consumed = false;
   const assertUnchanged = () => {
@@ -586,9 +595,29 @@ export function prepareImprovementCandidate({anchorRoot,repositoryRoot,proof}) {
 export function maintenanceMaterial(repositoryRoot,proof,{authorizationRequired=true}={}) {
   const {local_relative_path:relative,...raw}=proof;
   if(!revisionPath(relative)||!relative.startsWith(".augnes-local-verification/")||!relative.endsWith(".json"))throw fail("maintenance_proof_path_invalid");
-  const file=path.join(repositoryRoot,relative),stored=read(file);parseImprovementJSON(readFileSync(file));
-  if(digest(stored)!==digest(raw))throw fail("maintenance_proof_changed");
-  return readMaintenanceEvidence(file,raw,repositoryRoot,{remember:rememberRevisionFile,authorizationRequired});
+  return readMaintenanceMaterials(path.join(repositoryRoot,relative),raw,repositoryRoot,{authorizationRequired});
+}
+const maintenanceMaterialMemoLimits = Object.freeze({ entries: 32, bytes: 8 * 1024 * 1024 });
+function readMaintenanceMaterials(file,proof,repositoryRoot,{authorizationRequired=true}={}) {
+  // Always reobserve the owning proof, including on a memo hit. All transitive
+  // original seals remain with the existing scope and pre-result/append check.
+  const stored=read(file),canonical=parseImprovementJSON(readFileSync(file));
+  if(digest(stored)!==digest(proof)||digest(canonical)!==digest(proof))throw fail("maintenance_proof_changed");
+  validateMaintenanceProof(proof,{authorizationRequired});
+  const memo=revisionReadScope.getStore()?.maintenance;
+  const key=memo?.active?digest({kind:"prospective_maintenance",repositoryRoot,file,proof,authorizationRequired}):null;
+  const copy=snapshot=>({...JSON.parse(snapshot),read:artifactReader(path.dirname(file),rememberRevisionFile)});
+  if(key!==null&&memo.entries.has(key))return copy(memo.entries.get(key));
+  const evidence=readMaintenanceEvidence(file,proof,repositoryRoot,{remember:rememberRevisionFile,authorizationRequired});
+  if(key===null||memo.entries.size>=maintenanceMaterialMemoLimits.entries)return evidence;
+  let snapshot;
+  try { const {read:reader,...data}=evidence;snapshot=JSON.stringify(data); }
+  catch { return evidence; }
+  if(typeof snapshot!=="string")return evidence;
+  const bytes=Buffer.byteLength(snapshot);
+  if(memo.bytes+bytes>maintenanceMaterialMemoLimits.bytes)return evidence;
+  memo.entries.set(key,snapshot);memo.bytes+=bytes;
+  return copy(snapshot);
 }
 function verifyMaintenanceOriginals(anchorRoot,repositoryRoot,proof,evidence) {
   const root=path.join(anchorRoot,".augnes-local-verification/families",proof.prior_family_id);
@@ -794,8 +823,7 @@ function readSourceCorrectionMaterial(file, repositoryRoot) {
   if (hasRetiredQualificationMarker(proof)) throw fail("qualification_route_retired");
   if (hasMaintenanceMarker(proof) && !isMaintenance(proof)) throw fail("maintenance_mixed_route");
   if (isMaintenance(proof)) {
-    parseImprovementJSON(readFileSync(file));
-    const evidence=readMaintenanceEvidence(file,proof,repositoryRoot,{remember:rememberRevisionFile});
+    const evidence=readMaintenanceMaterials(file,proof,repositoryRoot);
     return {proof:{...proof,local_relative_path:relative},evidence};
   }
   if (hasImprovementMarker(proof) && !isImprovement(proof)) throw fail("improvement_mixed_route");

@@ -225,7 +225,7 @@ export function maintenanceAggregateBudgetSource(file,source,{reverse=false}={})
 }
 
 const readerOwner="local-canonical-maintenance-reader",budgetOwner="local-canonical-maintenance-budget";
-export const maintenanceSequenceAllowances=Object.freeze({reader:110000,budget:210000});
+export const maintenanceSequenceAllowances=Object.freeze({reader:110000,budget:150000});
 export const maintenanceSequenceColdAllowanceMs=30000;
 export const maintenanceSequenceRequiredRefusals=Object.freeze([
   ["sequence UNKNOWN cause retained","maintenance_reader_incident_invalid"],
