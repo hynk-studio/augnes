@@ -218,7 +218,7 @@ const followsFailedIntegrationMaintenance = (prior, completion, proof) =>
 
 const followsFailedReaderMaintenance = (prior,completion,proof) =>
   (isFailedMaintenanceReader(proof) && isFailedIntegrationFixture(prior?.source_correction) ||
-    isMaintenanceAggregateAllowance(proof) && isFailedMaintenanceReader(prior?.source_correction)) && validMaintenanceAttempt(prior) &&
+    isMaintenanceAggregateAllowance(proof) && (isFailedMaintenanceReader(prior?.source_correction)||isMaintenanceAggregateAllowance(prior?.source_correction))) && validMaintenanceAttempt(prior) &&
   completion?.contract === ATTEMPT_CONTRACT && completion.attempt_id === prior.attempt_id &&
   completion.disposition === "product_failure" && completion.cleanup_complete === true && completion.infrastructure_code === null;
 const followsSelectedMaintenance = (prior,completion,proof) =>
@@ -476,7 +476,7 @@ function prepareAttemptInspection({ anchorRoot, repositoryRoot = anchorRoot, rec
           historicalPrefix=true;historicalPrefixKind="failed_reviewed_integration";markHistoricalPrefix();
         }
       }
-      if(isFailedIntegrationFixture(attempt.source_correction)||isFailedMaintenanceReader(attempt.source_correction)) {
+      if(isSelectedMaintenanceIncident(attempt.source_correction)) {
         const tip=reconstructAttemptTip(lineage);
         if(tip.family_id!==familyId||tip.attempt_id!==attempt.attempt_id) {
           const root=path.join(anchorRoot,".augnes-local-verification/families",familyId),edge=read(path.join(root,"correction-successor.json"));

@@ -3,10 +3,11 @@
 import path from "node:path";
 import {digest} from "./local-canonical-inputs.mjs";
 import {CANONICAL_NODE_VERSION} from "./local-canonical-environment.mjs";
-import {artifactReader} from "./local-canonical-improvement.mjs";
+import {artifactReader,readImprovementOwnerRegistration} from "./local-canonical-improvement.mjs";
+import {gitRevisionInventory} from "./local-canonical-git-observation.mjs";
 import {CANONICAL_AMBIENT_ENVIRONMENT_ALLOWLIST,CANONICAL_OPTIONAL_AMBIENT_ENVIRONMENT_ALLOWLIST} from "./canonical-test-environment.mjs";
 import {isFailedIntegrationFixture,validateSettledFixtureFailure,readFixturePreparation,validateFixtureNaturalResult,validateFixtureCleanup} from "./local-canonical-failed-integration-fixture.mjs";
-import {maintenanceFixtureBudgetRegistration,maintenanceCompletion,validateMaintenanceWatchdogLog,
+import {registeredFixtureBudget,maintenanceFixtureBudgetRegistration,maintenanceCompletion,validateMaintenanceWatchdogLog,
   readMaintenanceFixtureBudgetPositive,validateFixtureNaturalLifecycle} from "./local-canonical-fixture-budget-witness.mjs";
 import {maintenanceReaderRemedyPaths,maintenanceReaderRemedySource,validateMaintenanceReaderRemedyPlacement,
   maintenanceReaderProfileTargets,maintenanceReaderProfileLoader,maintenanceReaderProfileObserver,transformMaintenanceReaderProfile,
@@ -223,6 +224,169 @@ export function maintenanceAggregateBudgetSource(file,source,{reverse=false}={})
   return source.replace(from,to);
 }
 
+const readerOwner="local-canonical-maintenance-reader",budgetOwner="local-canonical-maintenance-budget";
+export const maintenanceSequenceAllowances=Object.freeze({reader:110000,budget:150000});
+export const maintenanceSequenceRequiredRefusals=Object.freeze([
+  ["sequence UNKNOWN cause retained","maintenance_reader_incident_invalid"],
+  ["sequence exact false fourteen meanings","maintenance_fixture_stock_invalid"],
+  ["sequence selected remedy kind","maintenance_reader_source_delta_invalid"],
+  ["sequence immediate exact source tree","maintenance_reader_source_delta_invalid"],
+  ["sequence both budget paths","maintenance_reader_source_delta_invalid"],
+  ["sequence complete final following owner","maintenance_reader_sequence_binding_invalid"],
+  ["sequence complete final cleanup","maintenance_fixture_positive_not_natural"],
+  ["sequence unchanged final source","maintenance_reader_sequence_binding_invalid"],
+  ["sequence final live inventory","maintenance_reader_sequence_inputs_invalid"],
+  ["sequence raw preparation binding","maintenance_fixture_preparation_invalid"],
+  ["already corrected predecessor cannot renew","maintenance_reader_incident_bound_invalid"],
+  ["one-owner correction is incomplete","maintenance_reader_source_remedy_invalid"],
+  ["sequence required refusal omitted","maintenance_reader_sequence_coverage_invalid"],
+  ["sequence same-count refusal meaning","maintenance_reader_sequence_coverage_invalid"],
+].map(([name,code])=>Object.freeze({name,code})));
+const sequenceGroups=["acquisition","material-source","material-successor","material-final"];
+const sequenceIds=[...sequenceGroups.map(group=>"local-canonical-reviewed-revision-"+group),readerOwner,budgetOwner];
+function replaceAllowance(source,id,before,after){
+  const pattern=new RegExp('(id: "'+id+'"[\\s\\S]*?timeoutMs:) ([0-9_]+)','gu'),matches=[...source.matchAll(pattern)];
+  requireThat(matches.length===1&&Number(matches[0][2].replaceAll("_",""))===before,"source_remedy_invalid");
+  return source.replace(pattern,"$1 "+String(after).replace(/000$/u,"_000"));
+}
+// The historical direct transform above is unchanged. This second, closed
+// transform applies once to the actual 120/75/90 source, never a corrected pair.
+export function maintenanceSequenceBudgetSource(file,source,{reverse=false}={}){
+  const {reader,budget}=maintenanceSequenceAllowances;
+  if(file===suite)return replaceAllowance(replaceAllowance(source,readerOwner,reverse?reader:75000,reverse?75000:reader),budgetOwner,reverse?budget:90000,reverse?90000:budget);
+  requireThat(file===contractTest,"source_remedy_invalid");
+  const budgetText=String(budget).replace(/000$/u,"_000"),old=reverse?budgetText:"90_000",next=reverse?"90_000":budgetText;
+  const marker="for(const fragment of ['timeoutMs: "+old+"','sharedFixture: true','requireNaturalExit: true','\"--run-maintenance-budget-fixtures\"'])";
+  requireThat(source.split(marker).length===2,"source_remedy_invalid");return source.replace(marker,marker.replace("timeoutMs: "+old,"timeoutMs: "+next));
+}
+function sequenceRegistration(git,head){
+  const source=sourceAt(git,head,suite).toString(),direct=maintenanceFixtureBudgetRegistration(git,head);
+  const owners=[readerOwner,budgetOwner].map(id=>readImprovementOwnerRegistration(source,id));
+  for(const [i,owner]of owners.entries())requireThat(owner.suite==="authority"&&owner.require_natural_exit&&
+    equal(owner.command,["node","--import","tsx","scripts/fixtures/local-canonical-reviewed-revision.mjs",i?"--run-maintenance-budget-fixtures":"--run-maintenance-reader-fixtures"]),"registration_changed");
+  return {direct,reader:owners[0],budget:owners[1],normalized:replaceAllowance(replaceAllowance(direct.normalized,readerOwner,owners[0].bound_ms,0),budgetOwner,owners[1].bound_ms,0)};
+}
+function sequenceCoverage(output,{final=false}={}){
+  const rows=jsonLines(output),reader=only(rows.filter(row=>row.maintenance_reader_controls),"sequence_coverage_invalid").maintenance_reader_controls;
+  requireThat(reader.synthetic_only===true&&reader.qualification===false&&reader.reviewed_ancestry===true&&reader.prior_stock_issue_count===15&&
+    reader.one_shot===true&&reader.interruption_consumes===true&&reader.competing_successors===1&&reader.cold_stock===true&&reader.originals_unchanged===true&&
+    Array.isArray(reader.refusals)&&reader.refusals.length===24,"sequence_coverage_invalid");
+  const cold=rows.filter(row=>row.maintenance_reader_cold_result).map(row=>row.maintenance_reader_cold_result);
+  requireThat(equal(cold.map(row=>row.kind),["lineage","current","history","malformed"]),"sequence_coverage_invalid");
+  for(const {kind,...result}of cold)validateFixtureNaturalResult(result,"selected maintenance cold "+kind,10000);
+  const budget=only(rows.filter(row=>row.maintenance_budget_controls),"sequence_coverage_invalid").maintenance_budget_controls;
+  requireThat(budget.synthetic_only===true&&budget.qualification===false&&budget.reused_checked_reader_ancestry===true&&budget.prior_stock_issue_count===14&&
+    budget.separate_grant===true&&budget.one_shot===true&&budget.cold_stock===true&&budget.failed_prefix_non_deciding===true&&budget.originals_unchanged===true&&
+    Array.isArray(budget.refusals)&&budget.refusals.length===12,"sequence_coverage_invalid");
+  const fresh=rows.filter(row=>row.maintenance_budget_cold_result).map(row=>row.maintenance_budget_cold_result);
+  requireThat(equal(fresh.map(row=>row.kind),["current","history"]),"sequence_coverage_invalid");
+  for(const {kind,...result}of fresh)validateFixtureNaturalResult(result,"maintenance allowance cold "+kind,20000);
+  const historical=only(rows.filter(row=>row.maintenance_budget_cold_history),"sequence_coverage_invalid").maintenance_budget_cold_history;
+  requireThat(historical.synthetic_only===true&&historical.malformed_refused===true&&historical.failed_prefix_non_deciding===true&&historical.current_authority_reads===0,"sequence_coverage_invalid");
+  for(const list of [reader.refusals,budget.refusals])requireThat(list.every(row=>row&&typeof row.name==="string"&&typeof row.code==="string")&&new Set(list.map(row=>row.name)).size===list.length,"sequence_coverage_invalid");
+  if(final){
+    const continuation=budget.continuation;keys(continuation,"synthetic_only qualification prepared separate_grant one_shot typed_history failed_aggregate_prefix retained_failed_reader_prefix no_current_authority_promotion originals_unchanged refusals");
+    requireThat(continuation.qualification===false&&Object.entries(continuation).filter(([key])=>!["qualification","refusals"].includes(key)).every(([,value])=>value===true)&&
+      equal(continuation.refusals,maintenanceSequenceRequiredRefusals)&&historical.retained_failed_reader_prefix===true,"sequence_coverage_invalid");
+  }
+  return {reader:reader.refusals,budget:budget.refusals};
+}
+function registeredSequence(refs,{read,git,head,tree,runtime,completion,final=false,preparation=null}){
+  keys(refs,"launch result logs");keys(refs.logs,sequenceIds.join(" "));
+  const launch=original(read,refs.launch),record=original(read,refs.result);
+  keys(launch,"kind sample mode head tree started_at shared runtime_inputs suite_source_sha256 steps");
+  keys(record,"sample mode head started_at finished_at duration_ms results error cleanup all_owned_roots_absent new_real_deciding_invocations"+(final?" source_after runtime_after input_inventory_before input_inventory_after dependencies_before dependencies_after parent_clock_observations":""));
+  keys(launch.shared,"root device inode");
+  requireThat(launch.kind==="actual registered focused workload only; no real preparation/admission/qualification"&&typeof launch.sample==="string"&&/^[a-z0-9-]+$/u.test(launch.sample)&&
+    launch.mode==="reader"&&record.mode==="reader"&&launch.sample===record.sample&&launch.head===head&&record.head===head&&launch.tree===tree&&equal(launch.runtime_inputs,runtime)&&
+    launch.suite_source_sha256===digest(sourceAt(git,head,suite))&&utc(launch.started_at)&&record.started_at===launch.started_at&&utc(record.finished_at)&&
+    Date.parse(launch.started_at)<Date.parse(record.finished_at)&&(final?Date.parse(launch.started_at)>Date.parse(completion.finished_at):Date.parse(record.finished_at)<Date.parse(completion.finished_at))&&
+    finite(record.duration_ms)&&record.error===null&&record.all_owned_roots_absent===true&&record.new_real_deciding_invocations===0&&
+    path.isAbsolute(launch.shared.root)&&typeof launch.shared.device==="string"&&typeof launch.shared.inode==="string"&&
+    equal(launch.steps?.map(row=>row.id),sequenceIds)&&equal(record.results?.map(row=>row.id),sequenceIds),"sequence_binding_invalid");
+  if(final){
+    keys(record.source_after,"head tree dirty suite_source_sha256");requireThat(equal(record.source_after,{head,tree,dirty:"",suite_source_sha256:launch.suite_source_sha256})&&equal(record.runtime_after,runtime)&&
+      equal(record.dependencies_before,preparation?.dependencies)&&equal(record.dependencies_after,preparation.dependencies),"sequence_binding_invalid");
+    for(const input of [record.input_inventory_before,record.input_inventory_after])requireThat(equal(input?.binding,{})&&input.fingerprint===digest({contract:input.contract,path_kind:input.path_kind,binding:input.binding,resources:input.resources})&&
+      input.first_fault===null&&equal(input.secondary_faults,[])&&equal(input.events,[])&&gitRevisionInventory(input)===preparation.inventory_sha256,"sequence_inputs_invalid");
+    requireThat(Array.isArray(record.parent_clock_observations)&&record.parent_clock_observations.length>0&&record.parent_clock_observations.length<=5000,"sequence_clock_invalid");
+    let elapsed=0;for(const row of record.parent_clock_observations){requireThat(row&&sequenceIds.includes(row.id)&&finite(row.elapsed_ms)&&row.elapsed_ms>=elapsed&&row.elapsed_ms<=record.duration_ms,"sequence_clock_invalid");elapsed=row.elapsed_ms;}
+  }
+  const registration=sequenceRegistration(git,head),groups=registeredFixtureBudget(git,head,"serial-aggregate"),outputs=[],durations={};
+  let total=0;
+  for(const [i,id]of sequenceIds.entries()){
+    const step=launch.steps[i],observed=record.results[i],owner=i<4?null:i===4?registration.reader:registration.budget;
+    keys(step,"id label command args timeoutMs shared"+(i<4?" registered_inner_ms":""));keys(observed,"id source_head command registered_bound_ms result log");keys(observed.log,"file bytes sha256");
+    const group=sequenceGroups[i],label=i<4?"reviewed revision controls: "+group:owner.label,bound=i<4?groups.limits[group].outer:owner.bound_ms;
+    const args=i<4?["--import","tsx","scripts/test-local-canonical-review-corrections.mjs","--reviewed-revision-controls",group,JSON.stringify(launch.shared)]:[...owner.command.slice(1),JSON.stringify(launch.shared)];
+    requireThat(step.label===label&&path.isAbsolute(step.command)&&digest(step.command)===runtime.node.location_fingerprint&&equal(step.args,args)&&step.timeoutMs===bound&&step.shared===true&&
+      (i>=4||step.registered_inner_ms===groups.limits[group].inner)&&observed.source_head===head&&equal(observed.command,[step.command,...args])&&observed.registered_bound_ms===bound,"sequence_binding_invalid");
+    const output=text(read,refs.logs[id]);requireThat(path.isAbsolute(observed.log.file)&&observed.log.bytes===Buffer.byteLength(output)&&observed.log.sha256===digest(Buffer.from(output))&&
+      !output.split("\n").some(line=>line.startsWith("[local-canonical-browser-use] ")),"sequence_log_invalid");
+    validateFixtureNaturalResult(observed.result,label,bound);validateFixtureNaturalLifecycle(output,{suite:"authority",label,timeout:bound,duration:observed.result.duration_ms});
+    if(i<4)requireThat(equal(only(jsonLines(output).filter(row=>row.status==="pass"&&Array.isArray(row.checks)),"sequence_coverage_invalid"),
+      {status:"pass",checks:[label],cleanup_complete:true}),"sequence_coverage_invalid");
+    total+=observed.result.duration_ms;durations[id]=observed.result.duration_ms;outputs.push(output);
+  }
+  validateFixtureCleanup(record.cleanup);requireThat(record.duration_ms>=total&&record.cleanup.some(row=>row.root===launch.shared.root),"sequence_cleanup_invalid");
+  return {record,durations,coverage:sequenceCoverage(outputs.slice(4).join("\n"),{final}),finished:Date.parse(record.finished_at)};
+}
+function retainedSequenceFailure(incident,{prior,receipt,read,git,root,remember}){
+  const native=incident.authority_log,phase=receipt.phases[6];keys(native,"artifact relative_path bytes truncated");
+  requireThat(native.relative_path===`.augnes-local-verification/logs/${receipt.run.id}/authority.log`&&equal(phase.log,{relative_path:native.relative_path,bytes:native.bytes,truncated:false})&&native.truncated===false&&
+    phase.command==="npm run test:authority"&&phase.label==="Canonical authority suite"&&phase.cwd_scope==="root"&&phase.exclusive===true,"original_log_invalid");
+  const raw=bytes(read,native.artifact),physical=artifactReader(root,remember)({artifact:native.relative_path,sha256:native.artifact.sha256},{json:false,maximum:2*1024*1024}),output=raw.toString();
+  requireThat(raw.length===native.bytes&&raw.equals(physical)&&Buffer.from(output).equals(raw),"original_log_invalid");
+  const before=sequenceRegistration(git,prior.head);
+  requireThat(before.direct.bound_ms===120000&&before.reader.bound_ms===75000&&before.budget.bound_ms===90000,"incident_bound_invalid");
+  validateMaintenanceWatchdogLog(output,before.reader);
+  const result=only(output.split("\n").filter(line=>line.startsWith('[canonical:authority] child_result label='+JSON.stringify(before.direct.label)+' ')),"incident_sequence_invalid");
+  const duration=Number(result.match(/ duration_ms=([0-9]+) /u)?.[1]);requireThat(Number.isSafeInteger(duration)&&duration>0&&duration<=before.direct.bound_ms,"incident_sequence_invalid");
+  const natural=validateFixtureNaturalLifecycle(output,{suite:"authority",label:before.direct.label,timeout:120000,duration});
+  const readerStart='[canonical:authority] child_start label='+JSON.stringify(before.reader.label)+' timeout_ms=75000';
+  requireThat(output.indexOf(natural.result)<output.indexOf(readerStart)&&!output.includes(' label='+JSON.stringify(before.budget.label)+' '),"incident_sequence_invalid");
+  const rows=jsonLines(output),cold=rows.filter(row=>row.maintenance_reader_cold_result).map(row=>row.maintenance_reader_cold_result);
+  requireThat(equal(cold.map(row=>row.kind),["lineage","current","history","malformed"])&&!rows.some(row=>row.maintenance_reader_controls),"incident_progress_invalid");
+  for(const {kind,...r}of cold)validateFixtureNaturalResult(r,"selected maintenance cold "+kind,10000);
+  const last=only(rows.filter(row=>row.maintenance_reader_stage==="cold_validation_complete"),"incident_progress_invalid");
+  requireThat(last.synthetic_only===true&&count(last.elapsed_ms)&&last.elapsed_ms>0,"incident_progress_invalid");
+  return before;
+}
+
+function readMaintenanceSequenceIncident(options,incident){
+  const {p,e,prior,completion,receipt,stock,read,git,runtime,dependencies}=options;
+  validateSettledFixtureFailure(p,prior,completion,receipt,stock,{maintenance:true,maintenanceAllowance:true});
+  const before=retainedSequenceFailure(incident,options),remedy=read(incident.remedy);
+  keys(remedy,"kind source_head source_tree delta_sha256 changed_paths rationale positives");
+  requireThat(remedy.kind==="registered-maintenance-sequence-v1"&&gitId(remedy.source_head)&&gitId(remedy.source_tree)&&
+    git(["rev-parse",remedy.source_head+"^{tree}"]).toString().trim()===remedy.source_tree&&
+    equal(remedy.changed_paths,maintenanceAggregateBudgetPaths)&&equal(changed(git,prior.head,remedy.source_head),maintenanceAggregateBudgetPaths)&&
+    remedy.delta_sha256===digest(git(["diff","--binary","--no-ext-diff","--no-textconv",prior.head,remedy.source_head,"--"]))&&
+    changed(git,remedy.source_head,p.head).every(file=>supportPaths.has(file)),"source_delta_invalid");
+  git(["merge-base","--is-ancestor",prior.head,remedy.source_head]);
+  requireThat(git(["rev-list","--merges",prior.head+".."+remedy.source_head]).toString().trim()==="","source_delta_invalid");
+  git(["merge-base","--is-ancestor",remedy.source_head,p.head]);
+  const after=sequenceRegistration(git,remedy.source_head),final=sequenceRegistration(git,p.head);
+  requireThat(after.direct.bound_ms===120000&&after.reader.bound_ms===maintenanceSequenceAllowances.reader&&after.budget.bound_ms===maintenanceSequenceAllowances.budget&&before.normalized===after.normalized&&
+    final.direct.bound_ms===120000&&final.reader.bound_ms===maintenanceSequenceAllowances.reader&&final.budget.bound_ms===maintenanceSequenceAllowances.budget&&
+    equal(final.reader.command,before.reader.command)&&equal(final.budget.command,before.budget.command)&&
+    sourceAt(git,prior.head,maintenanceTest).equals(sourceAt(git,p.head,maintenanceTest))&&
+    maintenanceSequenceBudgetSource(contractTest,sourceAt(git,prior.head,contractTest).toString())===sourceAt(git,remedy.source_head,contractTest).toString(),"source_remedy_invalid");
+  for(const head of [prior.head,remedy.source_head]){const entries=git(["ls-tree","-z",head,"--",...maintenanceAggregateBudgetPaths]).toString().split("\0").filter(Boolean);requireThat(entries.length===2&&entries.every(line=>line.startsWith("100644 blob ")),"source_remedy_invalid");}
+  const rationale=remedy.rationale;keys(rationale,"measurement execution_reserve_ms rounding_ms additional_control_allowance_ms judgment");keys(rationale.additional_control_allowance_ms,"reader budget");
+  const measured=registeredSequence(rationale.measurement,{read,git,head:prior.head,tree:prior.tree,runtime,completion});
+  requireThat(rationale.execution_reserve_ms===30000&&rationale.rounding_ms===10000&&typeof rationale.judgment==="string"&&rationale.judgment.length>=80&&rationale.judgment.length<=4000&&
+    [after.reader,after.budget].every((owner,i)=>{const extra=rationale.additional_control_allowance_ms[i?"budget":"reader"];return count(extra)&&extra<=120000&&extra%10000===0&&Math.ceil((measured.durations[owner.id]+30000)/10000)*10000+extra===owner.bound_ms;}),"allowance_rationale_invalid");
+  keys(remedy.positives,"sequence contract");
+  const preparation=read(incident.preparation,{maximum:512*1024});
+  const positive=registeredSequence(remedy.positives.sequence,{read,git,head:p.head,tree:p.tree,runtime,completion,final:true,preparation});
+  requireThat(equal(positive.coverage,measured.coverage),"coverage_changed");
+  const contract=maintenanceReaderContractRegistration(sourceAt(git,p.head,suite).toString());
+  const verified=sample(remedy.positives.contract,{read,git,head:p.head,runtime,root:options.root,test:contractTest,bound:contract.bound_ms,after:positive.finished});
+  requireThat(verified.output.includes('"status": "pass"'),"positive_invalid");
+  return readFixturePreparation({p,ref:incident.preparation,read,runtime,dependencies,latest:verified.finished,completion,schema:"augnes.local-canonical-maintenance-reader-preparation.v1"});
+}
+
 // Retain the original registered-step observation verbatim. It predates the
 // failed Full and is rationale, not a new witness or a causal timeout diagnosis.
 function retainedRegisteredMaintenance(refs,{read,git,prior,runtime,completion}){
@@ -253,11 +417,12 @@ function retainedRegisteredMaintenance(refs,{read,git,prior,runtime,completion})
 }
 
 export function readMaintenanceAggregateAllowanceIncident({p,e,prior,completion,receipt,stock,read,git,root,runtime,dependencies,remember}){
-  requireThat(isMaintenanceAggregateAllowance(p)&&isFailedMaintenanceReader(prior.source_correction)&&equal(e.repairs,[]),"case_invalid");
-  validateSettledFixtureFailure(p,prior,completion,receipt,stock,{maintenance:true,maintenanceReader:true});
+  requireThat(isMaintenanceAggregateAllowance(p)&&(isFailedMaintenanceReader(prior.source_correction)||isMaintenanceAggregateAllowance(prior.source_correction))&&equal(e.repairs,[]),"case_invalid");
   const incident=read(e.incident);keys(incident,"kind receipt cause interrupted_operation authority_log remedy preparation");
   requireThat(incident.kind===MAINTENANCE_AGGREGATE_ALLOWANCE_CASE&&incident.receipt===p.prior_receipt_fingerprint&&
     incident.cause==="UNKNOWN"&&incident.interrupted_operation==="UNKNOWN","incident_invalid");
+  if(isMaintenanceAggregateAllowance(prior.source_correction))return readMaintenanceSequenceIncident({p,e,prior,completion,receipt,stock,read,git,root,runtime,dependencies,remember},incident);
+  validateSettledFixtureFailure(p,prior,completion,receipt,stock,{maintenance:true,maintenanceReader:true});
   const before=retainedMaintenanceWatchdog(incident,{prior,receipt,read,git,root,remember});
   const remedy=read(incident.remedy);keys(remedy,"kind source_head source_tree delta_sha256 changed_paths rationale positives");
   requireThat(remedy.kind==="registered-maintenance-direct-v1"&&gitId(remedy.source_head)&&gitId(remedy.source_tree)&&

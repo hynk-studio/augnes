@@ -1138,15 +1138,19 @@ deadline is moved or relaxed. Exact task/source identities belong in bound
 evidence, not in this public rule.
 
 The selected `incident_case: "failed-maintenance-reader-aggregate-allowance-v1"`
-continues only a fully settled failure of that reader-maintenance case at its
-historical 90000 ms direct aggregate watchdog. It uses the same evidence,
-preparation, authenticated authority and exclusive lineage owners. The complete
-original false stock has its own exact issue meanings and dimensions; an absent
-attempt-record refusal must not be invented to copy an earlier incident. Cause
-and interrupted operation remain UNKNOWN. The retained complete natural positive
-is measured rationale, not functional RED or historical timeout causation.
+uses the existing evidence, preparation, authenticated authority and exclusive
+lineage owners for two finite registered-source transitions. Its original branch
+continues a fully settled reader-maintenance failure at the historical 90000 ms
+direct aggregate watchdog. Its sequence branch continues only a settled failure
+of that allowance predecessor whose direct owner completed naturally under
+120000 ms, selected reader hit its historical 75000 ms watchdog, and following
+90000 ms support owner was not run. The complete original false stock retains
+its exact issue meanings and dimensions; an absent attempt-record refusal must
+not be invented to copy another incident. Cause and interrupted operation remain
+UNKNOWN. Retained complete natural positives are measured rationale, not
+functional RED or historical timeout causation.
 
-The concrete remedy is an immediate two-file descendant: only the direct
+For the original branch, the remedy is an immediate two-file descendant: only the direct
 aggregate allowance changes from 90000 to 120000 ms, with its matching contract
 assertion. The selected bound is the retained complete workload plus the existing
 30000 ms orchestration reserve, rounded up to 10000 ms. The complete suite outside
@@ -1156,12 +1160,36 @@ and registrations retain their original deadline interpretation. The complete
 final support delta is separately reviewed, and the existing direct collector
 observes the actual final registered workload and protected inputs before/after;
 no historical workload or natural RED is rerun to fit another evidence recipe.
-Controls reuse the checked owned reader ancestry in a separate 90-second child.
-Its new composite current and historical stock readers have finite 20-second
-allowances for the deeper lineage and live-authorization read; the preceding
-75-second owner and every existing 10-second setup/cold limit remain unchanged.
+Historical allowance controls retain their recorded 90000 ms aggregate and
+20000 ms composite-reader interpretation. The sequence remedy is a closed
+two-file descendant budget span: selected reader75000→110000 ms and following
+support90000→150000 ms, with the matching contract pin. The direct120000 ms
+allowance remains fixed. The retained whole-owner natural measurements plus a
+finite30000 ms orchestration reserve, rounded to10000 ms, supply the base pair.
+An explicit additional30000 ms support allowance covers the added predecessor
+reservation/settlement and deeper proof/refusal work in the following owner.
+Whole-owner coverage includes bootstrap/import, inherited setup, assertions,
+independent readers, post-reader refusals, preservation, handoff, restoration and
+owned cleanup; inner-stage and outer-run clocks are not interchangeable.
+
+Sequence controls reuse checked ancestry and the unchanged legacy parser
+refusals. Common preparation, authenticated reservation, input/grant refusals,
+typed history and fresh current/historical stock assertions exercise the final
+sequence target. The intervening allowance predecessor is controlled fixture
+setup, not a newly observed historical qualification or a second current-stock
+PASS claim. Earlier exact legacy evidence remains scoped to its unchanged path.
+Validate the complete final affected registered sequence, including admission
+support, against actual before/after source, runtime, dependencies and protected
+inputs. A focused positive does not supply missing Full coverage. Existing inner
+setup/cold limits, product deadlines, natural exit and cleanup stay intact.
+
 Preparation, admission, cold reconstruction and stock apply the same finite
-reader-to-allowance successor predicate; it is not a generic retry route.
+successor predicate and replay original proof, authority and consumed grants.
+The registered old/new source pairs and complete incident evidence close the
+sequence transition; an already corrected pair, unrelated incident or new case
+name cannot supply another execution allowance. This is not a generic retry
+route. Each accepted target still needs a distinct authenticated prospective
+commission under the unchanged one-shot accounting rules.
 
 Safe setup precedes admission. Normal development preparation may establish
 lockfile-fixed dependencies in an authorized task-owned checkout without an

@@ -14,7 +14,7 @@ import { maintenanceMaterial, inspectAttemptRecords, REVIEWED_REVISION_PHASES } 
 import { inspectIntegrationStock } from "../run-local-canonical-verification.mjs";
 import { FAILED_INTEGRATION_FIXTURE_CASE } from "../local-canonical-failed-integration-fixture.mjs";
 import { registeredFixtureBudget } from "../local-canonical-fixture-budget-witness.mjs";
-import {maintenanceAggregateBudgetSource} from "../local-canonical-maintenance-reader-incident.mjs";
+import {maintenanceAggregateBudgetSource,maintenanceSequenceBudgetSource,maintenanceSequenceAllowances} from "../local-canonical-maintenance-reader-incident.mjs";
 import { projectReviewChildResult, REVIEW_CHILD_RESULT_PREFIX } from "./local-canonical-review-child-result.mjs";
 
 const repository=path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
@@ -51,7 +51,13 @@ export function seedFailedIntegrationFixtureSources(c) {
   // These pre-existing incidents and their reader remedy retain 90 seconds.
   // Current 120-second source is not historical execution evidence.
   for(const file of ["scripts/run-canonical-test-suite.mjs","scripts/test-local-canonical-verification-contract.mjs"]){
-    const source=sources.get(file);
+    let source=sources.get(file);
+    // Reconstruct both historical reader/following registrations before the
+    // direct 120-to-90 transform. No retained proof or source commit is edited.
+    const following=String(maintenanceSequenceAllowances.budget).replace(/000$/u,"_000");
+    if(file.endsWith("run-canonical-test-suite.mjs")?/id: "local-canonical-maintenance-reader"[\s\S]*?timeoutMs: 110_000/u.test(source):source.includes("for(const fragment of ['timeoutMs: "+following+"','sharedFixture: true','requireNaturalExit: true','\"--run-maintenance-budget-fixtures\"'])"))
+      source=maintenanceSequenceBudgetSource(file,source,{reverse:true});
+    sources.set(file,source);
     if(file.endsWith("run-canonical-test-suite.mjs")?/id: "local-canonical-maintenance"[\s\S]*?timeoutMs: 120_000/u.test(source):source.includes("for(const fragment of ['timeoutMs: 120_000','requireNaturalExit: true','\"scripts/test-local-canonical-maintenance.mjs\"'])"))
       sources.set(file,maintenanceAggregateBudgetSource(file,source,{reverse:true}));
   }
