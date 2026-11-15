@@ -167,6 +167,62 @@ and Browser owners also include these checks with their unchanged deadlines.
 Controlled local sign-ins and scripted judgments are not hosted adoption,
 independent review, comparative usefulness or evidence of market demand.
 
+### Use a permitted method for a different task (#1629)
+
+Reuse the independent-project and selected-contribution path above. The source
+owner deliberately discloses an ordinary method file and enough permitted
+conditions: inputs and outputs, applicability, known results and limits, and
+where to check corrections. Its terms must permit the destination's intended
+use and retention. A read grant does not itself settle those authored terms.
+Do not include credentials, private unselected material, budget allocations or
+live execution authority in the selection.
+
+Create or choose project B using B's own admitted sign-in. On the participant
+page, read the disclosed method and conditions, choose **Work in your own
+project**, select the necessary permitted originals, and enter B's own task
+and next step. Open the saved work in B. Use the ordinary editor to record B's
+applicability judgment, any explicitly assumed obligations, and its different
+purpose or consumer. Apply or adapt the method, save the actual output and
+reported checks, and retain the source's results as inherited evidence. Selecting
+a method does not establish useful work or independent corroboration.
+
+A fresh authorized executor opens B's work from its ordinary work list or saved
+task setup. **Saved context** includes the original retained disclosure even
+when later notes have changed. The supported agent client exposes that same
+historical basis through the existing authorized history reader:
+
+```js
+const { planning } = await openFileTask(destinationSetupPath);
+const current = await planning.current();
+const origin = await planning.retainedSource();
+// origin.retained is null only when the readable history has no retained request.
+// Otherwise it contains the exact saved revision and immutable disclosure.
+// Read the selected file bytes separately, then assess current applicability.
+```
+
+```sh
+node "$FILE_CLIENT" "$DESTINATION_TASK" retained-source
+```
+
+This explicit read does not fetch A or infer current access: `source_access` is
+`not_checked`. A missing or refused B history remains an error, never an empty
+selection. The browser's **Open the original request and shared feedback** link
+and the original participant client still check A's current grant. An unavailable,
+revoked or expired original is distinct from B's saved permitted material; it
+cannot be recreated from its locator. Changed conditions need a fresh authored
+judgment, including non-use where appropriate. B can continue from permitted
+saved bytes without silently accessing A. A different principal needs B's existing
+scoped succession grant; a fresh executor under the same admitted principal does
+not need another delegation.
+
+Only deliberate selected returns go back to A. Derivation neither makes B a
+subordinate nor transfers obligations, credentials, resource grants or authority.
+Existing same-project note adaptation, branches and incorporation retain their
+original meanings. No registry, universal method format, storage version or
+migration is added. The controlled method-use checks cover different-task output,
+fresh use and source-access termination; they do not establish hosted adoption,
+independent outside participation or economic benefit.
+
 ### Need-driven request through the authenticated HTTP client (#1642)
 
 The ordinary file client connects an existing project's need to its scoped

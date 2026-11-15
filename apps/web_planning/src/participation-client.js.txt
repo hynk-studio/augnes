@@ -78,7 +78,7 @@ async function send(resolve){
   const result=await json(route,input);
   $('retry').hidden=true;$('release').hidden=true;
   if(result.outcome==='saved'){
-    choosePending(await journal('delete',body),null);$('return').reset();edit=null;$('edit').hidden=true;await refresh();if(operation){await loadOwnWorks();}status(operation==='retain'?'Your work is saved. Open it to prepare your contribution; return selected saved results here.':'Return saved. The owner can now inspect and decide.');
+    choosePending(await journal('delete',body),null);$('return').reset();edit=null;$('edit').hidden=true;await refresh();if(operation){await loadOwnWorks();}status(operation==='retain'?'Your work is saved. Open it to assess the conditions and perform your own next step. Return selected saved results here only when appropriate.':'Return saved. The owner can now inspect and decide.');
   }else{
     $('retry').hidden=!result.retry_allowed;$('release').hidden=result.retry_allowed;
     status(result.retry_allowed?'No matching save observed. Only retry this exact pending return; a request may still be in flight.':'This return was not recorded and its save basis is no longer eligible. Keep its recovery copy before starting again.');

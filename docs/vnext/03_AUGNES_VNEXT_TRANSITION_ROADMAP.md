@@ -61,6 +61,18 @@ Portable history carries no live grant. Its own review and qualification retain
 their original attribution; source integration does not establish deployment or
 hosted adoption. Bounded method derivation remains with #1629.
 
+The bounded #1629 derivation path composes those existing owners: A deliberately
+shares selected ordinary method files and sufficient conditions; a separately
+owned B authors its own purpose, applicability judgment and different-task output.
+The destination client can explicitly recover the original retained disclosure
+through the existing project-authorized history reader after later notes change.
+Browser saved context presents the same inherited basis. Neither read follows A
+or grants current source access. Saved-use permission, current original access and
+B's own performance remain distinct. The controlled browser/client cases exercise
+actual method application and fresh-executor adaptation; hosted adoption remains
+unobserved. No registry, schema, live grant or same-project branch meaning changes.
+See [ordinary method reuse](../../apps/web_planning/README.md#use-a-permitted-method-for-a-different-task-1629).
+
 The bounded #1642 client integration connects a current project need and selected
 request material to the existing authenticated HTTP pull route, correlated
 participant return, explicit checked use or non-use and recoverable next action.
