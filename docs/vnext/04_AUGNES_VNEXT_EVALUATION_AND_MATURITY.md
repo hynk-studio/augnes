@@ -99,7 +99,7 @@ the whole product mature.
 ## Evaluation principles
 
 1. Evaluate the continuity of meaning, not interface sameness.
-2. Evaluate whether a user can Resume, Verify, and Decide, not how many
+2. Evaluate whether a user can Resume, Verify, Anticipate, and Decide, not how many
    protocol stages or records are visible.
 3. Preserve verified fact, bounded inference, uncertainty, candidate, user
    decision, and authorized change as distinct states.
@@ -1253,6 +1253,14 @@ the baseline's ordinary judgment. These are decision-relevant observations, not
 mandatory new arms, a separate study or additional acceptance gates.
 
 ### Question-specific model evidence
+
+For [Anticipate](./01_AUGNES_VNEXT_MASTERPLAN.md#anticipate), assess whether a
+conditional outlook improves understanding, preparation or a consequential
+choice. Review material assumptions and logical coherence separately from
+likelihood estimation, and forecast quality separately from decision usefulness.
+Preserved predictions make later review possible; their accumulation alone is
+not evidence of learning. These criteria add no universal modeling or evaluation
+gate to ordinary work.
 
 For the [selective application direction](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#selective-model-application-across-local-and-web-work),
 evaluate the question or decision improved, not the presence of a world-model
@@ -3666,6 +3674,19 @@ including direct host use where appropriate.
 - false success from execution completion;
 - contradiction and staleness detection;
 - correction caused by missing or misclassified evidence.
+
+### Anticipate outcomes
+
+- useful versus unsupported conditional futures, risks and opportunities;
+- material assumptions and changed conditions discovered before a decision;
+- relevant observations that lead to appropriate reconsideration or retention;
+- preservation of the original basis, horizon, uncertainty and information cutoff;
+- forecast quality only where outcomes and comparable cases support evaluation;
+- actual later usefulness and total reasoning, checking and user burden.
+
+These are outcome questions, not a new runtime task family or a change to frozen
+Resume/Verify/Decide pilot cohorts. Unresolved conditions and unobserved
+alternatives remain unknown rather than manufactured successes or failures.
 
 ### Decide outcomes
 

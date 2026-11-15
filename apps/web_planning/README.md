@@ -1872,11 +1872,9 @@ server/index.js
 server/wrangler.json
 server/.vite/manifest.json
 .openai/hosting.json
-.openai/drizzle/0000_web_planning.sql
-.openai/drizzle/0001_schema_version.sql
-.openai/drizzle/0002_revision_files.sql
-.openai/drizzle/0003_cumulative_history.sql
-.openai/drizzle/meta/{_journal,0000_snapshot,0001_snapshot,0002_snapshot,0003_snapshot}.json
+.openai/drizzle/*.sql                 # shipped 0000 through 0009
+.openai/drizzle/meta/_journal.json
+.openai/drizzle/meta/*_snapshot.json   # matching snapshots 0000 through 0009
 ```
 
 The deployment entry is `src/worker.ts`, an ESM Worker `fetch(request, env)`.
@@ -1934,7 +1932,9 @@ npm run web:build:cloudflare
 ```
 
 The existing esbuild owner emits `apps/web_planning/dist-cloudflare/worker.js`,
-`wrangler.json`, and `migrations/{0000_web_planning,0001_schema_version,0002_revision_files,0003_cumulative_history}.sql`.
+`wrangler.json`, and every shipped `drizzle/*.sql` file under `migrations/`
+(currently 0000 through 0009). The artifact's complete migration inventory is not
+an instruction to replay applied migrations or activate optional features.
 It rejects local environment files, native/test imports and bound production
 configuration. The artifact has no development identity, real account/database
 IDs, secrets, asset router or preview URL. Builds replace this generated folder;
@@ -1967,11 +1967,14 @@ from those retained records; do not create resources or repeat initial setup.
 1. **Bind the later approval.** Record the exact approved commit/tree, locked
    inputs, direct Worker artifact hash and compatible reader/writer/recovery
    versions. Current main and a historical receipt are not deployment approval.
-   Readers must support schema 3, retained v0.1/v0.2/v0.3 envelopes and complete
-   histories within current budgets, plus any retained story/scene formats.
-   A binary that merely accepts the schema marker is not sufficient compatibility
-   evidence for those later file semantics. Retain the preceding artifact and
-   its actual compatibility limits privately.
+   Current ordinary readers accept schema 4, 5 or 6 and require file-part storage
+   and the positive revision constraint. Admitted project entry requires schema
+   5 or 6; scoped succession requires 6. Public requests additionally require
+   0009's table and explicit activation. Readers must also support every retained
+   envelope/file/story format and complete history within current budgets:
+   contribution records require v0.11 support even though the schema remains 6.
+   Accepting a marker alone does not prove compatibility. Retain the preceding
+   artifact and its actual compatibility limits privately.
 2. **Bind the existing target and build separately.** Reconcile the retained
    account, Worker, active deployment/version and traffic, D1 binding/identity,
    Access application/audience/policy, protected origin and preview restrictions.
@@ -1987,11 +1990,16 @@ from those retained records; do not create resources or repeat initial setup.
    refresh credentials, rotate secrets or change configuration during preparation.
 3. **Select the migration path from actual state.** Read the schema, table SQL
    and established ledger using the bounded observations below. Current
-   `src/access.ts` requires exactly one version-3 row and the revision constraint;
-   schema-2 code plus 0002 is historical. Use the matrix below. Compare the
-   ledger with the approved artifact's unchanged SQL, then review only genuinely
-   pending 0002/0003 in order. Do not replay initialization, rewrite ledger rows,
-   reset markers or mix direct Wrangler and Sites Drizzle histories.
+   `src/access.ts` requires exactly one supported marker row, the revision
+   constraint and file-part table; feature-specific tables/indexes must also match
+   the chosen configuration. Use the matrix below and compare the actual ordered
+   ledger/table definitions with the exact artifact's SQL. Schema 3 needs 0004
+   before the current reader can serve it; project entry and succession need the
+   later path through 0007 and 0008. Review only genuinely pending files in order,
+   including optional 0009 when present in the approved migration directory. Do not
+   replay initialization, rewrite ledger rows, reset markers or mix direct
+   Wrangler and Sites Drizzle histories. A retained observation is historical;
+   unavailable live access leaves the current pending set unconfirmed.
 4. **Quiesce and preserve before incompatible effects.** The existing operator
    must specify and confirm the separately approved method of stopping all
    browser/agent writers for the migration and code-switch window, settle
@@ -2010,13 +2018,22 @@ from those retained records; do not create resources or repeat initial setup.
    is the mutation owner, only after separate approval and verification that its
    resolved migration directory/ledger has exactly the reviewed pending set.
    The variable denotes the retained private configuration, never the generated
-   placeholder. Schema 1 progresses through 0002 then 0003; schema 2 through
-   0003; compatible schema 3 needs no migration. Each migration settles through
-   that owner; do not assume a multi-file upgrade and deployment are one atomic
-   operation. While writers remain quiesced, read back the ledger, sole schema
-   marker and table constraints, then use the existing deployment owner for the
-   exact approved artifact. Preserve Access, traffic restrictions, bindings,
-   mapping, secrets and existing work. Unexpected pending SQL or state stops here.
+   placeholder. For a coherent schema-3 ledger through 0003, the current
+   artifact's pending set is 0004 through 0009: 0004 advances to schema 4;
+   0005 adds the return-destination index; 0006 adds participant grants; 0007
+   preserves the legacy mapping while advancing to schema 5; 0008 adds succession
+   and advances to schema 6; 0009 adds optional publication metadata without
+   changing that marker. Later coherent ledgers need only their missing suffix.
+   The CLI applies all pending files in its resolved directory, including 0009
+   even if public mode is off; the approved inventory must say whether it is
+   included. Each migration settles through that owner; the multi-file upgrade
+   and deployment are not one atomic operation. While writers remain quiesced,
+   read back the ledger, sole marker, table/index/foreign-key definitions and
+   preserved data, then activate the exact approved artifact. Retain private
+   configuration and optional modes unless their changes are separately approved.
+   Project admission also needs the intended principal admitted by Access;
+   public mode alone cannot bypass an edge policy protecting the whole origin.
+   Unexpected pending SQL or state stops here.
 6. **Resolve uncertainty before retrying or reopening writes.** Retain the
    original command/result and timestamp. Read actual deployment/version/traffic
    and D1 ledger/schema/table state; an interrupted command may have completed.
@@ -2025,22 +2042,30 @@ from those retained records; do not create resources or repeat initial setup.
    migrations or deploy again to manufacture certainty. With compatible code
    active, compare all pre-existing complete exports/bindings and verify the
    private configuration before a separately approved return of writers.
-7. **Recover compatibly if needed.** If schema 3 is intact, use a reviewed
-   schema-3-compatible artifact or roll forward with a reviewed correction.
-   Schema-1/2 code cannot read an upgraded database, even below 33 revisions.
-   If database recovery is required, retain the failed state and use only the
-   separately approved provider recovery owner/checkpoint, then pair the recovered
-   database with compatible code and verify the complete baseline before traffic
-   resumes. Do not assume that an old code deployment also restores data. Never
-   truncate history, delete files or reset the marker to simulate compatibility.
+7. **Recover compatibly if needed.** After upgrade, retain a reviewed worker
+   compatible with the actual schema, mappings and every stored format, or roll
+   forward with a reviewed correction. Historical schema-3 code cannot read
+   schema 4/5/6. On schema 5/6, disabling project entry retains newer projects but
+   removes their ordinary entry; it is not a data downgrade. Disable optional
+   participation/public exposure only through separately approved configuration
+   changes. After v0.10 succession or v0.11 contribution writes, a rollback reader
+   must understand those records too. If database recovery is required, preserve
+   the failed state and all later work before any separately approved replacement,
+   use the existing provider recovery owner/checkpoint, and pair the recovered
+   database with compatible code. Keep restored operational grants/publications
+   disabled until their authority is reconciled. Verify the complete baseline
+   before traffic resumes. Old-code deployment does not restore data; never
+   truncate history, drop newer mappings or reset the marker for compatibility.
 
 Complete work exports preserve authored history and file bodies; they are not a
-whole-database backup of every work, owner mapping, migration ledger and erased-ID
-guard. The existing `handler.ts` / `store.ts` reconstruction owner requires
-`RECONSTRUCTION_MODE=quiesced-empty-store`, matching scope and an entirely empty
-destination (including no erased IDs/files). It imports one work or the supported
-story pair atomically. It cannot restore multiple independent exports by appending
-them successively to one populated store or recover the target's deletion ledger.
+whole-database backup of every project mapping, operational grant/publication,
+migration ledger and erased-ID guard. The existing `handler.ts` / `store.ts`
+reconstruction owner requires `RECONSTRUCTION_MODE=quiesced-empty-store`, matching
+scope, the independently retained mapping/author identity and an empty selected
+workspace/project (including no erased IDs/files). Other projects may remain
+populated. It imports one work or the supported story pair atomically and revokes
+that project's retained grants/publications. It cannot append successive independent
+exports into that now-populated project or recover its deletion/operational ledger.
 Use it only for a separately approved replacement recovery within that scope;
 do not clear the existing target, provision a replacement or enable reconstruction
 as part of this preparation. Provider recovery availability remains an input to
@@ -2048,17 +2073,20 @@ review, not a capability demonstrated by local reconstruction tests.
 
 ### Existing-target compatibility matrix for the schema-3 baseline
 
-These are source-supported conditional paths, not observations of the live D1.
-"Coherent ledger" means the retained migration owner, ordered applied filenames
-and actual tables/constraints agree with the shipped SQL and retained records.
-The last known deployed source does not determine today's database schema.
+The historical heading/anchor is retained; this matrix now follows the current
+schema-4/5/6 readers. These are conditional paths, not live D1 observations.
+"Coherent ledger" means the established migration owner, ordered applied filenames
+and actual tables/constraints agree with unchanged shipped SQL. The last known
+source or schema marker alone does not establish today's pending set.
 
-| Observed existing state | Transition to the accepted schema-3 code |
+| Observed existing state | Transition to the current artifact and chosen features |
 | --- | --- |
-| Schema 1 with a coherent established ledger | Review genuinely pending shipped `0002_revision_files.sql`, then `0003_cumulative_history.sql`, through that same owner, with writers quiesced and recovery retained. Do not replay 0000/0001. |
-| Schema 2 with a coherent ledger | Review only pending `0003_cumulative_history.sql` through the established owner. Preserve file bodies and all prior history. |
-| Compatible schema 3: one marker row, required positive safe-integer revision constraint, expected tables/quotas and coherent ledger | Do not infer that another migration is necessary. Review code/readers and preservation; leave the migration history intact. |
-| Marker-only schema 3, inconsistent/mixed ledgers, missing/duplicate markers, unexpected tables or unknown state | Preserve evidence and stop for diagnosis. No initialization replay, ledger repair, inferred upgrade or code-only downgrade. |
+| Schema 1 or 2 with a coherent established ledger | Review the missing historical suffix through 0003, then the current path below. Do not replay applied initialization or expose the new worker before its schema prerequisites hold. |
+| Schema 3, positive revision constraint, coherent ledger through 0003 | Review pending `0004_complete_exchange_files.sql`, `0005_return_destination.sql`, `0006_request_participation.sql`, `0007_independent_projects.sql`, `0008_work_continuation.sql`, then `0009_public_requests.sql` when included. The stages are schema 4, 5, then 6; 0005/0006/0009 add indexes/tables without changing their stage's marker. |
+| Schema 4, file-part storage and a coherent ledger | Ordinary current owner-only code is compatible. Select only missing files from 0005 onward; admitted projects additionally need 0007, succession needs 0008, and public requests need 0009 plus the explicit modes/ingress. |
+| Schema 5 with a coherent ledger through 0007 | Ordinary/admitted-project entry is compatible. Review pending 0008 for schema-6 succession, and 0009 if included. Preserve legacy and independent mappings. |
+| Schema 6 with a coherent ledger through 0008 or 0009 | Preserve existing history. Only missing 0009 is pending for the full current directory; an existing 0009 needs no replay. Envelope compatibility and explicit feature/ingress configuration still apply. |
+| Unsupported/marker-only schema, inconsistent or mixed ledgers, missing/duplicate markers, leftover migration tables or unknown state | Preserve evidence and diagnose. No initialization replay, ledger repair, inferred upgrade or code-only downgrade. |
 
 ### Bounded observations and retained evidence
 
@@ -2066,8 +2094,9 @@ For a later private target observation, use already authorized provider metadata
 reads and explicit SQL `SELECT` through the established query owner. First inspect
 `sqlite_master` for table/index/trigger definitions and ledger presence, then read
 `web_planning_schema` and the existing ledger in order. Compare the actual
-`web_planning_revision` SQL with shipped 0003, not only the marker. For the direct
-owner the ledger is `d1_migrations`; `__drizzle_migrations` belongs to Sites.
+`web_planning_revision` SQL with shipped 0003 and the later file/mapping/grant/
+publication tables and indexes with 0004–0009 as applicable, not only the marker.
+For the direct owner the ledger is `d1_migrations`; `__drizzle_migrations` belongs to Sites.
 Unexpected coexistence or a missing established ledger stops the transition for
 diagnosis. Preserve scope/mapping comparisons and recovery material privately.
 For example, these are SQL reads for the already authorized direct query owner,
