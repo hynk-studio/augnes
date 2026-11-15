@@ -104,6 +104,18 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
       if(typeof sourceWork!=='string' || !uuid.test(sourceWork))fail('Select a listed work.');
       return (await (await request('/api/work/'+sourceWork+'/history?view=notes')).json()).revisions;
     },
+    async retainedSource() {
+      if(participant)fail('Open the destination task to read its retained material.');
+      // The existing authenticated history reader validates the complete chain.
+      // Read the immutable disclosure even when later notes have been revised.
+      // This deliberately does not follow its locator or acquire source access.
+      const first=(await planning.history())[0];
+      const retained=first.contribution_request?{
+        saved:{work_id:first.work_id,revision:first.revision,fingerprint:first.fingerprint},
+        disclosure:first.contribution_request,
+      }:null;
+      return {retained,source_access:'not_checked'};
+    },
     capacity(expected, draft) { const {definition,notes,material_edits}=draft;
       return json('/capacity',{expected,definition,notes,material_edits,check_id:crypto.randomUUID()}); },
     async prepare(expected, draft) {
