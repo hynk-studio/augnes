@@ -24,7 +24,8 @@ import {MATERIAL_SOURCE_CORRECTION, MATERIAL_HISTORY_BOUNDARY, isMaterialSourceR
   readIntegrationBudgetDelegation, integrationBudgetAuthorityScope, INTEGRATION_BUDGET_GRANT,
   readGeneratedStockDelegation, generatedStockAuthorityScope,
   selectiveFixtureWorkloadAuthorityScope, maintenanceFixtureAuthorityScope,
-  identityBudgetAuthorityScope, IDENTITY_BUDGET_GRANT } from "./local-canonical-git-observation.mjs";
+  identityBudgetAuthorityScope, IDENTITY_BUDGET_GRANT,
+  fixtureValidityWindowAuthorityScope, FIXTURE_VALIDITY_WINDOW_GRANT } from "./local-canonical-git-observation.mjs";
 import { REPOSITORY_TYPECHECK, observeTypecheckCompiler, observeGeneratedTypeInputs } from "./local-canonical-typecheck-witness.mjs";
 import { REGISTERED_FIXTURE_BUDGET, REGISTERED_INTEGRATION_BUDGET, fixtureBudgetEvidenceClaim, fixtureBudgetFailurePhase,
   REGISTERED_IDENTITY_BUDGET, inspectCurrentIdentityBudgetInputs,
@@ -43,6 +44,7 @@ import { MATERIAL_COMMON_DRIVER, inspectCurrentCommonDriverInputs } from "./loca
 import { GIT_CONFIG_STOCK_VERIFIER_REPAIR, MATERIAL_COMMON_STOCK_VERIFIER } from "./local-canonical-stock-verifier-witness.mjs";
 import { isStockVerifierRevision, verifyStockVerifierPredecessor } from "./local-canonical-material-stock-predecessor.mjs";
 import { STOCK_VERIFIER_CLAIM, STOCK_VERIFIER_GRANT, stockVerifierAuthorityScope } from "./local-canonical-git-observation.mjs";
+import { REGISTERED_FIXTURE_VALIDITY_WINDOW, FIXTURE_VALIDITY_WINDOW_CLAIM } from "./local-canonical-fixture-validity-witness.mjs";
 import {isDirectGitInputRevision, gitInputHistoryBoundary, isGitInputRevision, verifyGitInputRemedy, verifyGitInputPublication,
   GIT_CURRENT_STOCK_COMPARISON, gitRevisionInventory, gitRevisionStockComparison} from "./local-canonical-git-observation.mjs";
 
@@ -1169,7 +1171,7 @@ function verifyRevisionOriginals(anchorRoot, repositoryRoot, proof, materialFile
       rememberRevisionFile(original,captureBytes);
     }
   }
-  const budgetPhase = verifierLifecycleEvidence(proof) ? "authority" : preparedEligibilityEvidence(proof) ? PREPARED_ELIGIBILITY_PHASE : generatedStockEvidence(proof) ? GENERATED_STOCK_PHASE : fixtureBudgetFailurePhase(proof.commission?.evidence_kind);
+  const budgetPhase = fixtureValidityWindowEvidence(proof) ? "unit" : verifierLifecycleEvidence(proof) ? "authority" : preparedEligibilityEvidence(proof) ? PREPARED_ELIGIBILITY_PHASE : generatedStockEvidence(proof) ? GENERATED_STOCK_PHASE : fixtureBudgetFailurePhase(proof.commission?.evidence_kind);
   if (budgetPhase) {
     const folder=path.dirname(materialFile??path.join(repositoryRoot,proof.local_relative_path));
     const focused=JSON.parse(revisionArtifact(folder,proof.focused));
@@ -1635,9 +1637,9 @@ export function validReviewedRevisionAttempt(attempt) {
     isBrowserRevision(p) ? Date.parse(attempt.revision_authority.contract_review.timestamp) : 0);
 }
 
-export function validateReviewedRevisionAuthorityRecords(p, review, grant, permissions, pr, settlementReview = null, contractReview = null, delegation = null, forward = null) {
+export function validateReviewedRevisionAuthorityRecords(p, review, grant, permissions, pr, settlementReview = null, contractReview = null, delegation = null, forward = null, predecessorReceipt = null) {
   const observations = validateReviewedRevisionAuthorityEvidence(p, review, grant, permissions, settlementReview, contractReview, delegation, forward);
-  assertRevisionPublication(p, pr);
+  assertRevisionPublication(p, pr, predecessorReceipt);
   return observations;
 }
 
@@ -1715,14 +1717,15 @@ function validateReviewedRevisionAuthorityEvidence(p, review, grant, permissions
     /materially corrected/iu.test(grantText) && /focused checks/iu.test(grantText) && /no additional recovery allowance/iu.test(grantText) && /Interrupted reservations consume/iu.test(grantText);
   const measuredIntegration = p.commission.evidence_kind === REGISTERED_INTEGRATION_BUDGET;
   const identityBudget = identityBudgetEvidence(p);
+  const fixtureValidityWindow = fixtureValidityWindowEvidence(p);
   const generatedStock = generatedStockEvidence(p);
   const preparedEligibility = preparedEligibilityEvidence(p);
   const verifierLifecycle = verifierLifecycleEvidence(p);
   const selectiveWorkload = selectiveFixtureWorkloadEvidence(p);
   const maintenanceFixture = isMaintenanceFixtureBudget(p);
   const stockVerifier = stockVerifierEvidence(p);
-  const typedMaterial = selectiveWorkload || stockVerifier || maintenanceFixture || identityBudget || measuredIntegration || generatedStock || preparedEligibility || verifierLifecycle;
-  const prospectiveScope = identityBudget ? identityBudgetAuthorityScope(p,review,grant) : selectiveWorkload ? selectiveFixtureWorkloadAuthorityScope(p,review,grant) : stockVerifier ? stockVerifierAuthorityScope(p,review,grant) : maintenanceFixture ? maintenanceFixtureAuthorityScope(p,review,grant) : verifierLifecycle ? verifierLifecycleAuthorityScope(p,review,grant) : preparedEligibility ? preparedEligibilityAuthorityScope(p,review,grant) : measuredIntegration ? integrationBudgetAuthorityScope(p,review,grant) :
+  const typedMaterial = fixtureValidityWindow || selectiveWorkload || stockVerifier || maintenanceFixture || identityBudget || measuredIntegration || generatedStock || preparedEligibility || verifierLifecycle;
+  const prospectiveScope = fixtureValidityWindow ? fixtureValidityWindowAuthorityScope(p,review,grant) : identityBudget ? identityBudgetAuthorityScope(p,review,grant) : selectiveWorkload ? selectiveFixtureWorkloadAuthorityScope(p,review,grant) : stockVerifier ? stockVerifierAuthorityScope(p,review,grant) : maintenanceFixture ? maintenanceFixtureAuthorityScope(p,review,grant) : verifierLifecycle ? verifierLifecycleAuthorityScope(p,review,grant) : preparedEligibility ? preparedEligibilityAuthorityScope(p,review,grant) : measuredIntegration ? integrationBudgetAuthorityScope(p,review,grant) :
     generatedStock ? generatedStockAuthorityScope(p,review,grant) :
     [p.branch, String(p.accepted.review.id), p.commission.root_receipt_fingerprint].every(s => grant.body.includes(s)) &&
     /NEW.*commission/iu.test(grantText) && /v7 reviewed_revision/iu.test(grantText) && /old commission remains spent/iu.test(grantText) &&
@@ -1792,7 +1795,7 @@ function validateReviewedRevisionAuthorityEvidence(p, review, grant, permissions
       (permitsFinalDependencySuccessor(forward.body,p,revisionCommissionIdentity(p)) ||
         readPostPassDecision(forward.body,p,revisionCommissionIdentity(p)) && permitsPostPassReview(currentReview.body,p,revisionCommissionIdentity(p)))) && prospectiveScope && firstLine(review.body) === decision && firstLine(currentReview.body) === decision &&
       [p.base, p.head, p.tree, target, p.prior_receipt_fingerprint].every(s => currentReview.body.includes(s)) &&
-      firstLine(grant.body) === (identityBudget ? IDENTITY_BUDGET_GRANT : stockVerifier ? STOCK_VERIFIER_GRANT : maintenanceFixture ? MAINTENANCE_FIXTURE_GRANT : verifierLifecycle ? VERIFIER_LIFECYCLE_GRANT : preparedEligibility ? PREPARED_ELIGIBILITY_GRANT : measuredIntegration ? INTEGRATION_BUDGET_GRANT : generatedStock ? GENERATED_STOCK_GRANT : isMaterialSourceRevision(p) ?
+      firstLine(grant.body) === (fixtureValidityWindow ? FIXTURE_VALIDITY_WINDOW_GRANT : identityBudget ? IDENTITY_BUDGET_GRANT : stockVerifier ? STOCK_VERIFIER_GRANT : maintenanceFixture ? MAINTENANCE_FIXTURE_GRANT : verifierLifecycle ? VERIFIER_LIFECYCLE_GRANT : preparedEligibility ? PREPARED_ELIGIBILITY_GRANT : measuredIntegration ? INTEGRATION_BUDGET_GRANT : generatedStock ? GENERATED_STOCK_GRANT : isMaterialSourceRevision(p) ?
         "Authorize one NEW prospective v7 reviewed_revision commission for a material source correction." : isGitAcquisitionRevision(p) ?
         "Authorize a NEW prospective v7 reviewed_revision commission for a Git acquisition correction." :
         "Authorize a NEW prospective v7 reviewed_revision commission.") &&
@@ -1840,9 +1843,13 @@ export async function authorizeReviewedRevision(p, { transport = createGitHubObs
   }
   const forward = p.commission.forward_decision ? await transport.grant(p.commission.forward_decision.id) : null;
   if (forward) permissions.forward_decision = await transport.permission(forward.user?.login);
-  const observations = validateReviewedRevisionAuthorityRecords(p, review, grant, permissions, await transport.pullRequest(), settlementReview, contractReview, delegation, forward);
+  // The selected fixture route reuses the material reader's validated receipt;
+  // an evidence-kind string alone cannot relax current-main comparison.
+  const publicationEvidence = fixtureValidityWindowEvidence(p)
+    ? readReviewedRevisionEvidence(path.join(repositoryRoot,p.local_relative_path),p,repositoryRoot) : null;
+  const observations = validateReviewedRevisionAuthorityRecords(p, review, grant, permissions, await transport.pullRequest(), settlementReview, contractReview, delegation, forward, publicationEvidence?.original);
   if (isMaterialSourceRevision(p)) {
-    const evidence = readReviewedRevisionEvidence(path.join(repositoryRoot,p.local_relative_path),p,repositoryRoot);
+    const evidence = publicationEvidence ?? readReviewedRevisionEvidence(path.join(repositoryRoot,p.local_relative_path),p,repositoryRoot);
     if (Date.parse(delegation.created_at) <= Date.parse(evidence.completion.finished_at) ||
         delegation.id === evidence.prior.source_correction.commission?.delegation?.id ||
         delegation.id === evidence.prior.source_correction.authorization?.grant_comment_id)
@@ -2025,17 +2032,25 @@ export async function prepareSerialAggregateRevision(args, { transport } = {}) {
   assertRevisionPublication(p,pr);
   return {...await inspectSerialAggregatePreparation(args),published_head_checked:true};
 }
-function assertRevisionPublication(p,pr) {
-  if (pr?.number!==p.pull_request || pr.state!=="open" || pr.draft!==true || pr.merged!==false || pr.auto_merge!==null ||
+function assertRevisionPublication(p,pr,predecessorReceipt=null) {
+  // Full material validation already establishes source ancestry and physical
+  // lineage. Bind its intact admitted-v2 receipt here, without a caller flag or
+  // another material read. The observed live-main SHA remains informational.
+  const fixtureDeclaredBase = fixtureValidityWindowEvidence(p) &&
+    predecessorReceipt?.integrity?.content_fingerprint === p.prior_receipt_fingerprint &&
+    verifyReceiptIntegrity(predecessorReceipt) && usesDeclaredIntegrationBase(predecessorReceipt);
+  if (fixtureValidityWindowEvidence(p) && !fixtureDeclaredBase ||
+      pr?.number!==p.pull_request || pr.state!=="open" || pr.draft!==true || pr.merged!==false || pr.auto_merge!==null ||
       pr.head?.repo?.full_name!=="hynk-studio/augnes" || pr.base?.repo?.full_name!=="hynk-studio/augnes" ||
-      pr.head.sha!==p.head || pr.head.ref!==p.branch || !(isMaintenanceFixtureBudget(p)||stockVerifierEvidence(p)) && pr.base.sha!==p.base ||
-      stockVerifierEvidence(p) && !revisionCommit(pr.base.sha) || pr.base.ref!=="main")
+      pr.head.sha!==p.head || pr.head.ref!==p.branch || !(isMaintenanceFixtureBudget(p)||stockVerifierEvidence(p)||fixtureDeclaredBase) && pr.base.sha!==p.base ||
+      (stockVerifierEvidence(p)||fixtureDeclaredBase) && !revisionCommit(pr.base.sha) || pr.base.ref!=="main")
     throw fail("revision_published_source_invalid");
 }
 
 const selectiveFixtureWorkloadEvidence = p => p?.commission?.evidence_kind === SELECTIVE_FIXTURE_WORKLOAD;
 const measuredIntegrationEvidence = p => p?.commission?.evidence_kind === REGISTERED_INTEGRATION_BUDGET;
 const identityBudgetEvidence = p => p?.commission?.evidence_kind === REGISTERED_IDENTITY_BUDGET;
+const fixtureValidityWindowEvidence = p => isMaterialSourceRevision(p) && p.commission.evidence_kind === REGISTERED_FIXTURE_VALIDITY_WINDOW;
 // Only these closed budget owners may follow an ordinary-v2 source revision
 // without inheriting a pre-existing material commission. They still require a
 // fresh exact-target delegation, review and one-use authenticated commission.
@@ -2046,7 +2061,7 @@ const verifierLifecycleEvidence = p => p?.commission?.evidence_kind === VERIFIER
 const stockVerifierEvidence = isStockVerifierRevision;
 const requiresPreparedEligibility = p => preparedEligibilityEvidence(p) || verifierLifecycleEvidence(p);
 const usesGeneratedStockWitness = p => measuredIntegrationEvidence(p) || generatedStockEvidence(p) || requiresPreparedEligibility(p);
-const materialEvidenceClaim = kind => kind === SELECTIVE_FIXTURE_WORKLOAD ? SELECTIVE_FIXTURE_WORKLOAD_CLAIM : kind === GIT_CONFIG_STOCK_VERIFIER_REPAIR ? STOCK_VERIFIER_CLAIM : kind === VERIFIER_LIFECYCLE_REPAIR ? VERIFIER_LIFECYCLE_CLAIM : kind === PREPARED_ELIGIBILITY_REPAIR ? PREPARED_ELIGIBILITY_CLAIM : kind === GENERATED_STOCK_REPAIR ? GENERATED_STOCK_CLAIM : fixtureBudgetEvidenceClaim(kind);
+const materialEvidenceClaim = kind => kind === REGISTERED_FIXTURE_VALIDITY_WINDOW ? FIXTURE_VALIDITY_WINDOW_CLAIM : kind === SELECTIVE_FIXTURE_WORKLOAD ? SELECTIVE_FIXTURE_WORKLOAD_CLAIM : kind === GIT_CONFIG_STOCK_VERIFIER_REPAIR ? STOCK_VERIFIER_CLAIM : kind === VERIFIER_LIFECYCLE_REPAIR ? VERIFIER_LIFECYCLE_CLAIM : kind === PREPARED_ELIGIBILITY_REPAIR ? PREPARED_ELIGIBILITY_CLAIM : kind === GENERATED_STOCK_REPAIR ? GENERATED_STOCK_CLAIM : fixtureBudgetEvidenceClaim(kind);
 async function verifyIntegrationBudgetDelegation(p,delegation,evidence,repositoryRoot,transport) {
   const scope = readIntegrationBudgetDelegation(delegation.body,p), prior = evidence.prior.source_correction;
   const baseline = evidence.focused.regression.accepted_baseline;
@@ -2180,8 +2195,10 @@ export async function prepareMaterialSourceRevision(args,{transport}={}) {
   if (!isMaterialSourceRevision(p) || Object.hasOwn(p,"authorization") || !revisionMaterialShape(p,true))
     throw fail("revision_preparation_invalid");
   const api=transport??createGitHubObserverAuthorizationTransport(p.pull_request);
-  assertRevisionPublication(p,await api.pullRequest());
-  const evidence=readRevisionMaterials(args.file,p,args.repositoryRoot,false);
+  const published=await api.pullRequest();
+  const publicationEvidence=fixtureValidityWindowEvidence(p)?readRevisionMaterials(args.file,p,args.repositoryRoot,false):null;
+  assertRevisionPublication(p,published,publicationEvidence?.original);
+  const evidence=publicationEvidence??readRevisionMaterials(args.file,p,args.repositoryRoot,false);
   const delegation=await api.grant(p.commission.delegation.id), permission=await api.permission(delegation?.user?.login);
   if (!delegation || typeof delegation.body!=="string") throw fail("revision_material_fresh_authority_required");
   const observation=reviewedRevisionAuthorityObservation(delegation,"task_delegation");

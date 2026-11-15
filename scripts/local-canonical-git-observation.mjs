@@ -20,6 +20,8 @@ import { INTEGRATION_BASE_CONTRACT, validAdmittedIntegrationBase, usesDeclaredIn
 import { MATERIAL_COMMON_DRIVER, verifyMaterialCommonDriver } from "./local-canonical-common-driver.mjs";
 import { GIT_CONFIG_STOCK_VERIFIER_REPAIR, MATERIAL_COMMON_STOCK_VERIFIER, verifyMaterialStockVerifier } from "./local-canonical-stock-verifier-witness.mjs";
 import { verifiedStockPredecessor } from "./local-canonical-material-stock-predecessor.mjs";
+import { REGISTERED_FIXTURE_VALIDITY_WINDOW, FIXTURE_VALIDITY_WINDOW_CLAIM,
+  verifyRegisteredFixtureValidityWindow } from "./local-canonical-fixture-validity-witness.mjs";
 export { MATERIAL_COMMON_DRIVER } from "./local-canonical-common-driver.mjs";
 
 export const isGitObservationRevision = p =>
@@ -522,6 +524,14 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
 // a stable test driver and explicit script arguments for the implicated code.
 export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt, retainedBefore, postPass = false, acquisition = false, original, stock, completion, repositoryRoot }) {
   const regression = focused.regression;
+  // This selected evidence is a controlled fixture correction, not a natural
+  // product RED. It cannot borrow an older attribution or untyped reader.
+  if (p.commission.evidence_kind === REGISTERED_FIXTURE_VALIDITY_WINDOW || regression?.kind === REGISTERED_FIXTURE_VALIDITY_WINDOW) {
+    if (!isMaterialSourceRevision(p) || p.commission.evidence_kind !== REGISTERED_FIXTURE_VALIDITY_WINDOW ||
+        regression?.kind !== REGISTERED_FIXTURE_VALIDITY_WINDOW || regression.attribution !== undefined ||
+        postPass || acquisition || retainedBefore) fail("revision_git_regression_invalid");
+    return verifyRegisteredFixtureValidityWindow(p, prior, focused, { git, parse, bytes, completedAt, original, completion, repositoryRoot });
+  }
   if (regression?.attribution === "candidate-driver-prior-implicated-source") {
     if (!(isGitObservationSuccessor(p) || isMaterialSourceRevision(p))) fail("revision_git_regression_invalid");
     return verifyCanonicalTsRepair(p,prior,focused,{git,parse,bytes,completedAt,repositoryRoot});
@@ -647,6 +657,8 @@ function visibleDelegationParagraphs(body) {
 }
 
 export function delegatesMaterialSourceCommission(body,p) {
+  if (p.commission.evidence_kind === REGISTERED_FIXTURE_VALIDITY_WINDOW)
+    return equal(visibleDelegationParagraphs(body), fixtureValidityWindowDelegation(p).split("\n\n"));
   if (p.commission.evidence_kind === SELECTIVE_FIXTURE_WORKLOAD) return !!readSelectiveFixtureWorkloadDelegation(body,p);
   if(p.commission.evidence_kind===GIT_CONFIG_STOCK_VERIFIER_REPAIR)
     return equal(visibleDelegationParagraphs(body),stockVerifierDelegation(p).split("\n\n"));
@@ -795,6 +807,15 @@ export const identityBudgetDelegation = p => [
   MATERIAL_HISTORY_BOUNDARY,
   "Preserve the complete uninstrumented contracts workload and every security, substitution, single-use ownership, refusal, state and cleanup assertion. Permit only its finite prospective 60000 to 90000 ms fixture watchdog adjustment; preserve the integration phase 4200000 ms bound and every other registration. The allowance is an operating-envelope judgment, not a product latency requirement, proven historical cause or guaranteed PASS. After separate independent acceptance of the complete final published source, evidence readers and refusal controls, original evidence, natural registered-owner completion and real non-reserving preparation commitment, authorize faithful exact-target acceptance and a separate authenticated prospective commission through the maintainer identity. Exactly one admitted deciding invocation total; reservation or interruption consumes it. No ordinal two, recovery or unchanged-target retry. Preserve all earlier consumed invocations and false stock. Complete the planner-selected qualification, separate fresh-process stock, independent result audit and owned cleanup."
 ].join("\n\n");
+export const FIXTURE_VALIDITY_WINDOW_GRANT = "Authorize one NEW prospective v7 reviewed_revision commission for the registered fixture validity-window correction.";
+export const fixtureValidityWindowAuthorityBindings = p =>
+  typedMaterialAuthorityBindings(p, REGISTERED_FIXTURE_VALIDITY_WINDOW, FIXTURE_VALIDITY_WINDOW_CLAIM);
+export const fixtureValidityWindowDelegation = p => [
+  "Authorize one registered fixture validity-window correction and conditional qualification assignment on " + p.branch + " in Draft PR #" + p.pull_request + ". Select " + REGISTERED_FIXTURE_VALIDITY_WINDOW + " within the existing inventory-bound material-source-correction-v1 owners. Include only the narrow reusable evidence-contract repair needed to admit this fixture correction truthfully, preserving authenticated authority, exact source/preparation/input binding, physical lineage, single-use accounting and refusal controls. Fixture-only positive recovery decisions use a one-second interior margin within the unchanged production validity window. The historical failure cause remains UNKNOWN; no production defect or historical clock repair is claimed.",
+  "Predecessor: " + p.prior_family_id + " / " + p.prior_attempt_id + " / " + p.prior_receipt_fingerprint + ".",
+  MATERIAL_HISTORY_BOUNDARY,
+  "After separate independent acceptance of the implemented evidence contract, actual fixture correction and refusal controls, final published source, real non-reserving exact-target preparation commitment and complete input/runtime inventory, authorize the implementation operator to record that decision faithfully and publish a distinct authenticated exact-target commission through the existing maintainer identity. Identify the actual reviewer separately from the operator recording the decision. This delegation is not a deciding execution grant for the current or an unspecified future head. The new commission permits exactly one complete planner-selected reference-Mac qualification invocation including its selected Full and Browser phases; reservation or interruption consumes it. No ordinal two, recovery or unchanged-target retry under this commission. This delegation does not authorize replacement commissions merely because a run fails. Separate fresh-process stock, owned cleanup and independent read-only result audit remain required.",
+].join("\n\n");
 export const selectiveFixtureWorkloadAuthorityBindings = p => typedMaterialAuthorityBindings(p, SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM);
 export const maintenanceFixtureAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_FIXTURE_BUDGET, FIXTURE_BUDGET_CLAIM) +
   "\nAllowance case: " + MAINTENANCE_FIXTURE_CASE + "\nRegistered aggregate: 60000 to 90000 ms; inner setup: 10000 ms unchanged.";
@@ -835,6 +856,9 @@ export const integrationBudgetAuthorityScope = (p, review, grant) =>
 export const identityBudgetAuthorityScope = (p, review, grant) =>
   p.commission.evidence_kind === REGISTERED_IDENTITY_BUDGET &&
   typedMaterialAuthorityScope(p, review, grant, identityBudgetAuthorityBindings(p), IDENTITY_BUDGET_GRANT);
+export const fixtureValidityWindowAuthorityScope = (p, review, grant) =>
+  p.commission.evidence_kind === REGISTERED_FIXTURE_VALIDITY_WINDOW &&
+  typedMaterialAuthorityScope(p, review, grant, fixtureValidityWindowAuthorityBindings(p), FIXTURE_VALIDITY_WINDOW_GRANT);
 export const selectiveFixtureWorkloadAuthorityScope = (p, review, grant) =>
   typedMaterialAuthorityScope(p, review, grant, selectiveFixtureWorkloadAuthorityBindings(p), SELECTIVE_FIXTURE_WORKLOAD_GRANT);
 export const maintenanceFixtureAuthorityScope = (p, review, grant) =>

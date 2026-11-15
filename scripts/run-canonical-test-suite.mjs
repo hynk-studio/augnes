@@ -150,6 +150,11 @@ const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-
 
 const suites = {
   unit: [
+    {
+      id: "fixture-validity-window-evidence", label: "controlled validity-window evidence and retained-source refusals",
+      requirements: ["filesystem", "immutable-fixture-input"],
+      ...rootNode("scripts/test-local-canonical-fixture-validity.mjs"), timeoutMs: 30_000, requireNaturalExit: true,
+    },
     { id:"local-canonical-stock-verifier",label:"material stock-verifier attribution and corpus controls",
       requirements:["filesystem","process-owning"],...rootNode("scripts/test-local-canonical-stock-verifier.mjs"),
       timeoutMs:30000,requireNaturalExit:true },

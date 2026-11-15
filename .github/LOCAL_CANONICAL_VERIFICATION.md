@@ -2126,6 +2126,67 @@ retry or partial-phase stitching. Separate fresh-process stock, independent
 result review and owned cleanup remain required. Preparing this route neither
 publishes authority nor replenishes any spent grant.
 
+##### Controlled fixture validity-window correction
+
+`registered-fixture-validity-window-v1` is a closed fixture-evidence case within
+the existing inventory-bound `material-source-correction-v1` owners. It covers
+the registered Companion ownership-retirement unit fixture: shorten each
+positive prepared decision once by 1,000 ms inside the unchanged 300,000 ms
+production validity window, preserve all other decision bindings and exact replay,
+and retain the unchanged 60,000 ms child bound. The finite source recipe preserves
+every existing scenario, assertion, effect and cleanup, and adds untouched-default
+initial admission plus excessive-future, binding, source and service-identity
+refusals. It changes no production guard, workload limit, scheduler or retry rule.
+
+The typed evidence separates original retained development records from current
+preparation. Four controlled observations at the real supervisor decision guard
+show prior minus-one-millisecond refusal, prior expiry refusal, corrected
+minus-one-millisecond acceptance and corrected beyond-margin refusal. Their
+`synthetic_clock_control: true` and `admissible_regression_witness: false` labels
+remain unchanged. They establish a finite mechanism, not a natural product RED,
+historical clock diagnosis or a general clock-robustness guarantee. A complete
+uninjected corrected fixture must naturally pass all nine scenarios and three
+adverse cleanup controls under its original bound, with settled child, streams,
+private resources and ownership. Do not rerun an unchanged historical case merely
+to seek a RED or manufacture missing observations.
+
+The original collector, raw result and log remain individually hash-bound under
+their original schema and transitively bound by the focused/preparation review
+commitment. Independent acceptance must review the exact collector and observer
+sources for the limited intervention and uninjected complete-fixture launch;
+the reader's command/shape checks are not automatic semantic verification of
+arbitrary capture programs. The retained collector observes four source files and
+host versions; it does not observe complete historical physical source,
+environment, runtime executable, loader or dependency identities. A separately
+identified Git-derived comparison binds the eight consumed source files,
+unchanged root/Apps/Web package declarations and locks, owner registration and
+all scheduler code except the additive pure reader control. This is source
+equivalence, not retrospective physical-input evidence. Its explicit limitations
+are mandatory; missing historical observations remain UNKNOWN. Changed consumed
+source or relevant pinned inputs cannot reuse that retained PASS through this
+case. Actual final-head reader/refusal commands and complete current preparation
+remain required through the existing focused and inventory owners.
+
+The original latest physical predecessor, receipt, false stock, consumed
+commissions and historical cause remain unchanged. This type admits no older
+predecessor or direct ordinary-source successor. Its complete retained physical
+unit log must bind the registered child's unchanged 60,000 ms start to a natural,
+settled exit 1 with `companion_service_recovery_decision_stale` inside that child
+span, and no other failing child. An excerpt, timeout or unrelated unit failure
+cannot supply this incident; the error still does not establish its clock cause.
+A validated declared-range v2
+integration-base receipt permits current-main movement without changing the
+exact published candidate or source-ancestry requirements. Missing or altered
+lineage, v1 applicability, wrong target or conflicting source still refuses.
+Separate exact-source/evidence/preparation acceptance and a distinct authenticated
+prospective commission are mandatory. The actual reviewer is identified
+separately from the operator recording that decision. Exactly one complete
+planner-selected reference-Mac invocation is allowed; reservation or interruption
+consumes it. There is no ordinal two, recovery or unchanged-target retry, and no
+replacement commission is implied by failure. Separate fresh-process stock,
+independent read-only result audit and owned cleanup remain required. The source
+repair and controlled development evidence are not qualification PASS.
+
 ##### Generated declaration stock lifecycle correction
 
 The registered source witnesses freeze the complete focused source, including
