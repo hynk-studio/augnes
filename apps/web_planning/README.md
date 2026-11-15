@@ -167,6 +167,91 @@ and Browser owners also include these checks with their unchanged deadlines.
 Controlled local sign-ins and scripted judgments are not hosted adoption,
 independent review, comparative usefulness or evidence of market demand.
 
+### Need-driven request through the authenticated HTTP client (#1642)
+
+The ordinary file client connects an existing project's need to its scoped
+request, a separately authenticated participant's return, an explicit checked-use
+decision and fresh-session continuation. This is the existing HTTP **pull**
+transport: the recipient opens the permitted route and reads selected originals,
+then submits through the enforcing participant writer. It sends no invitation or
+unsolicited message. Public request publication remains with #1641/#1644; it is
+not required for this private route.
+
+Read `context` and relevant history first: purpose, source references, unfinished
+work, resources and current authority. Direct work, reuse, deferment and non-use
+remain valid. When an outside question is useful and disclosure is authorized,
+record its concise reason in the request message and select the exact files.
+`request` retains those original bytes without exposing them to a recipient yet.
+Use `scope REQUEST_VERSION SCOPE.json` to create the existing recipient grant:
+
+| JSON field | Meaning |
+| --- | --- |
+| `recipient` | The intended separately authenticated ingress email. A link or setup is not a credential. |
+| `brief` | Deliberately disclosed purpose, need, source/version labels and expected response; at most 500 characters. |
+| `next_action` | Return conditions, checking/use responsibility, remaining obligations and authority limits; nonempty, at most 500 characters. |
+| `indices` | Explicit original file positions to disclose, e.g. `[0]`. Unselected files and private project notes remain private. |
+| `expires` | Unix milliseconds, in the future and within 90 days. This grants one cumulative answer under the existing writer, with no execution or spending authority. |
+
+```bash
+node "$FILE_CLIENT" "$TASK" context
+node "$FILE_CLIENT" "$TASK" request "Check this source-bound question because ..." ./selected.md
+node "$FILE_CLIENT" "$TASK" scope 2 ./scope.json
+node "$FILE_CLIENT" "$TASK" check
+node "$FILE_CLIENT" "$TASK" request-context 2
+```
+
+The private existing task journal retains the exact operation before dispatch.
+Identical disclosure preparation uses a stable grant ID. An uncertain scope uses
+its original grant ID and body: `check` reads all pages
+of the existing owner grant list without creating anything. `retry` also checks
+first, and creates only the same eligible operation when absent. Failed reads
+stop the retry. A concurrent invocation cannot allocate another scope while
+that task's scope is pending. An absent operation with a changed source head or
+expired deadline stays unresolved for explicit review; `recover NEW_DIRECTORY`
+preserves its original `scope.json` before clearing the pending slot. Exchange
+`retry` likewise resolves the exact original request/return before repeating it.
+Keep the task setup and its private `.pending` directory across executor changes.
+Completion and recovery atomically move the current journal entry to a unique
+`claimed-...` locator before comparing its exact retained contents. They delete
+only a match. A late completion that encounters a different operation preserves
+it under that locator, rather than deleting the newer pending scope. Normal
+publication never reuses claimed names. A crash or read failure also leaves the
+claimed journal discoverable by `check`, `retry` and `recover`; when several
+operations remain, select the listed locator. This applies to scope and ordinary
+request/return retirement without changing their wire identities or writers.
+
+The returned link identifies the actual authenticated participant route.
+Creation establishes availability for permitted pull, not recipient delivery or
+reading: `delivery` stays `UNKNOWN` until a correlated response is recorded.
+Relaying a locator requires its own contact authority. The recipient uses its
+own existing Access login, obtains its setup from that route, reads the selected
+originals and uses the existing `return`/`check`/`retry` commands or the saved
+project contribution interface above. Clarifications, refusals, partial results
+and conditional offers can be returned as ordinary files and explanations;
+they are not native review replies, automatic commitments or new authority.
+
+`request-context VERSION` recovers the full current authored work, original
+request basis, request/response manifests and locators, recipient scopes and
+their observed status, all decisions saved in this original work and its last
+local use decision. Original response bytes remain available through `get`/`read`.
+Use `inspect-return` and its continuation cursor for decisions in other
+destination works; the local decision list is not a global use inventory.
+Inspect actual bytes and conditions before `prepare-use`/`commit-use` or an
+explicit defer/decline on the original. Preserve unaccepted offers, outstanding
+promises and uncertainty in the judgment's limits and next action. Use the
+saved output for the next project action. A fresh session of the same authorized
+principal uses the original setup and current login; a different principal
+requires its separately scoped succession grant. Neither path renews authority.
+
+The existing `cooperation` focused owner exercises actual loopback HTTP/D1 and
+fresh CLI processes, including simultaneous scope publication, lost request,
+scope and return acknowledgements, partial checked use, an unaccepted conditional
+offer, revocation and moved-source recovery. Actors and judgments are controlled;
+the fixture operator relays the locator. This establishes mechanism behavior,
+not outside participation, independently hosted adoption or live delivery.
+No migration, new record kind, dispatcher, provider call or additional verification
+owner is introduced.
+
 ### Scoped work succession (#1628)
 
 In admitted private project mode, open a saved work and choose **Delegate updates

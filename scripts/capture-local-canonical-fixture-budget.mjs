@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync, writeFileSync, realpathSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
@@ -23,22 +23,45 @@ import { createIsolatedInvocationResources, cleanupIsolatedInvocationResources }
 const [directory,role,group,...extra]=process.argv.slice(2);
 const integration = role === "integration" && group === "external-response";
 const maintenance = group === "local-canonical-maintenance";
-if(extra.length||!integration&&!["direct","registered"].includes(role)||!group||!directory)
-  throw new Error("usage: capture-local-canonical-fixture-budget.mjs <existing-output-directory> <direct|registered|integration> <group>");
+const selective = role === "selective" && group === "external-response-selective";
+if(extra.length||!integration&&!selective&&!["direct","registered"].includes(role)||!group||!directory)
+  throw new Error("usage: capture-local-canonical-fixture-budget.mjs <existing-output-directory> <direct|registered|integration|selective> <group>");
+// The reviewed capture tool may observe an exact historical selective source.
+// Its actual cwd is recorded and admitted; it is never represented as source
+// that already contained this later collector implementation.
 if (maintenance && role!=="direct") throw new Error("fixture_budget_direct_registration_required");
-const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
+const toolRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
+const root=selective?realpathSync(process.cwd()):toolRoot;
 assert.equal(realpathSync(process.cwd()),root);
 const out=realpathSync(directory),git=args=>execFileSync("git",["--no-replace-objects",...args],{cwd:root,timeout:10000,maxBuffer:16*1024*1024});
 if([role+".json",role+".log",role+"-lifecycle.log",role+"-collector.log"].some(file=>existsSync(path.join(out,file))))throw new Error("fixture_budget_capture_exists");
 const artifact=(name,value)=>{const data=Buffer.from(typeof value==="string"?value:JSON.stringify(value,null,2)+"\n");writeFileSync(path.join(out,name),data,{flag:"wx",mode:0o600});return{artifact:name,sha256:digest(data)};};
-if (integration) await captureIntegration();
+if (integration || selective) await captureIntegration();
 else await captureReviewedFixture();
 
 async function captureIntegration() {
-  const context = admitVerificationContext({ repositoryRoot: root, kind: "isolated-worktree" });
+  // Contexts and leases belong to their module instance. For an exact
+  // historical cwd use its existing owner set together, including the executor
+  // whose protected-resource root is module-local. The capture tool itself
+  // remains the reviewed final-source collector, recorded below verbatim.
+  // Refuse an unrelated or unregistered cwd before loading any owner from it.
+  if (selective) admitVerificationContext({ repositoryRoot: root, kind: "isolated-worktree" });
+  const owners = selective ? Object.assign({}, ...await Promise.all([
+    "local-canonical-verification-context.mjs", "local-canonical-capacity.mjs",
+    "local-canonical-checkout-ownership.mjs", "local-canonical-isolated-resources.mjs",
+    "run-local-canonical-verification.mjs",
+  ].map(file => import(pathToFileURL(path.join(root,"scripts",file)).href)))) : {
+    admitVerificationContext, acquireVerificationCapacity, releaseVerificationCapacity,
+    acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership,
+    createIsolatedInvocationResources, cleanupIsolatedInvocationResources,
+    observeGitRevisionTarget, phaseEnvironment,
+  };
+  const context = owners.admitVerificationContext({ repositoryRoot: root, kind: "isolated-worktree" });
   const host = collectHostEnvironment(root);
   const invocationId = randomBytes(16).toString("hex");
-  const args = ["run", "test:integration", "--", "--external-response-only"];
+  const command = selective ? process.execPath : "npm";
+  const args = selective ? ["--import", "tsx", "scripts/test-external-response-selective.ts"] : ["run", "test:integration", "--", "--external-response-only"];
+  const label = selective ? "selective fixture workload" : "integration registered fixture allowance";
   const observe = async () => {
     const runtime = observeCanonicalRuntimeInputs();
     return {
@@ -46,12 +69,13 @@ async function captureIntegration() {
       dependencies: observePreparedDependencyInputs({ repositoryRoot: root, phaseId: "dependencies-root" }),
       loader: observePureContractLoader(root),
       runtime,
-      target: await observeGitRevisionTarget(context, host.browserExecutablePath, runtime),
+      target: await owners.observeGitRevisionTarget(context, host.browserExecutablePath, runtime),
     };
   };
   const controller = new AbortController();
   for (const signal of ["SIGINT", "SIGTERM"]) process.once(signal, () => controller.abort());
   let lease, owner, resources, result, before, after, environment, cleanup, ownership, error, started_at;
+  let collectorBytes, tool_source_before, tool_source_after;
   let output = "", lifecycle = "", outputBytes = 0, truncated = false;
   const sink = { write(chunk) {
     outputBytes += Buffer.byteLength(chunk);
@@ -59,20 +83,30 @@ async function captureIntegration() {
     else truncated = true;
   } };
   try {
-    lease = acquireVerificationCapacity({ context, host: host.public, invocationId });
-    owner = acquireCheckoutVerificationOwnership({ repositoryRoot: root });
+    lease = owners.acquireVerificationCapacity({ context, host: host.public, invocationId });
+    owner = owners.acquireCheckoutVerificationOwnership({ repositoryRoot: root });
+    if (selective) {
+      tool_source_before = observePureContractSource(toolRoot);
+      collectorBytes = readFileSync(fileURLToPath(import.meta.url));
+    }
     before = await observe();
-    resources = createIsolatedInvocationResources(invocationId);
-    environment = phaseEnvironment({ isolatedResources: resources,
+    resources = owners.createIsolatedInvocationResources(invocationId);
+    environment = owners.phaseEnvironment({ isolatedResources: resources,
       browserExecutablePath: host.browserExecutablePath, runtimeInputs: before.runtime });
     started_at = new Date().toISOString();
     result = await runCanonicalChild({
-      suite: "fixture-budget-capture", label: "integration registered fixture allowance",
-      command: "npm", args, cwd: root, env: environment,
-      timeoutMs: AUXILIARY_EXECUTION_BUDGETS.reviewHarnessMs, signal: controller.signal,
+      suite: "fixture-budget-capture", label,
+      command, args, cwd: root, env: environment,
+      timeoutMs: selective ? 90000 : AUXILIARY_EXECUTION_BUDGETS.reviewHarnessMs, signal: controller.signal,
       stdout: sink, stderr: sink, log(line) { lifecycle += line + "\n"; },
     });
     after = await observe();
+    if (selective) {
+      tool_source_after = observePureContractSource(toolRoot);
+      if (digest(tool_source_before) !== digest(tool_source_after) ||
+          !collectorBytes.equals(readFileSync(fileURLToPath(import.meta.url))))
+        throw new Error("selective_capture_tool_source_changed");
+    }
   } catch (cause) {
     error = cause;
   } finally {
@@ -82,21 +116,22 @@ async function captureIntegration() {
       try { return action(); }
       catch (cause) { error ??= cause; return null; }
     };
-    if (resources) cleanup = finalize(() => cleanupIsolatedInvocationResources(resources, { consumersSettled }));
+    if (resources) cleanup = finalize(() => owners.cleanupIsolatedInvocationResources(resources, { consumersSettled }));
     ownership = {
-      checkout: owner ? finalize(() => releaseCheckoutVerificationOwnership(owner, root, { consumersSettled })) : null,
-      capacity: lease ? finalize(() => releaseVerificationCapacity(lease, { consumersSettled })) : null,
+      checkout: owner ? finalize(() => owners.releaseCheckoutVerificationOwnership(owner, root, { consumersSettled })) : null,
+      capacity: lease ? finalize(() => owners.releaseVerificationCapacity(lease, { consumersSettled })) : null,
     };
   }
   const record = {
-    contract: "augnes.registered-integration-budget-witness.v1",
-    basis: "actual-owned-development-invocation", group, command: ["npm", ...args].join(" "),
+    contract: selective ? "augnes.selective-fixture-workload-witness.v1" : "augnes.registered-integration-budget-witness.v1",
+    basis: "actual-owned-development-invocation", group, command: [selective ? "node" : "npm", ...args].join(" "),
     tested_source_head: before?.source.head, tree: before?.source.tree,
     started_at, finished_at: new Date().toISOString(), result, before, after, environment,
+    ...(selective ? {tool_source_before,tool_source_after} : {}),
     cleanup, ownership, truncated, host: host.public, capacity: lease, checkout: owner?.metadata,
     stdout: artifact(role + ".log", output),
     lifecycle: artifact(role + "-lifecycle.log", lifecycle),
-    collector: artifact(role + "-collector.log", readFileSync(fileURLToPath(import.meta.url), "utf8")),
+    collector: artifact(role + "-collector.log", selective ? collectorBytes?.toString("utf8") ?? "" : readFileSync(fileURLToPath(import.meta.url), "utf8")),
     ...(error ? { capture_error: error.code ?? error.name } : {}),
   };
   const ref = artifact(role + ".json", record);

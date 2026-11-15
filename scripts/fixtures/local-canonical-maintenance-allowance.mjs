@@ -38,7 +38,9 @@ export async function runMaintenanceAllowanceControls(c,h,sourceRoot) {
   for(const dir of ["app","components","lib","types","apps/augnes_apps/src","apps/augnes_apps/public"])write(dir+"/placeholder.ts","export {};\n");
   for(const file of [test,FIXTURE_BUDGET_COLLECTOR,FIXTURE_BUDGET_PATHS.wrapper,FIXTURE_BUDGET_PATHS.budgets,"scripts/fixtures/local-canonical-improvement.mjs","package.json","package-lock.json","tsconfig.json",
     "scripts/browser-verification-owners.v1.json","scripts/local-canonical-change-owners.v1.json","scripts/canonical-research-tests.v1.json"])write(file,readFileSync(path.join(sourceRoot,file)));
-  const finalSuite=readFileSync(path.join(sourceRoot,suite),"utf8"),oldSuite=finalSuite.replace(/(id: "local-canonical-maintenance"[\s\S]*?timeoutMs:) 90_000/u,"$1 60_000");
+  // This owner continues to exercise the original 60-to-90-second allowance.
+  // Reconstruct its known synthetic 90-second source from today's registration.
+  const finalSuite=readFileSync(path.join(sourceRoot,suite),"utf8").replace(/(id: "local-canonical-maintenance"[\s\S]*?timeoutMs:) 120_000/u,"$1 90_000"),oldSuite=finalSuite.replace(/(id: "local-canonical-maintenance"[\s\S]*?timeoutMs:) 90_000/u,"$1 60_000");
   assert.notEqual(oldSuite,finalSuite);write(suite,oldSuite);
   write(".gitignore","node_modules/\n.augnes-local-verification/\nnext-env.d.ts\n");
   for(const name of ["tsx","esbuild","@esbuild"])cpSync(path.join(sourceRoot,"node_modules",name),path.join(c.checkout,"node_modules",name),{recursive:true});

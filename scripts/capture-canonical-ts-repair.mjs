@@ -7,7 +7,9 @@ import { execFileSync } from "node:child_process";
 import { closeSync, constants, fstatSync, ftruncateSync, openSync, writeSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { digest, observeInputFile, classifyInputChange, nonFaultInputChange, observeCanonicalRuntimeInputs, validCanonicalRuntimeInputs, observePreparedDependencyInputs, preparedDependencyIdentity, comparePreparedDependencyInputs } from "./local-canonical-inputs.mjs";
 import { revisionArtifact } from "./local-canonical-attempts.mjs";
-import { verifyGitSourceRepair } from "./local-canonical-git-observation.mjs";
+import { verifyGitSourceRepair, MATERIAL_SOURCE_CORRECTION, GUIDE_REPAIR_DRIVER, GUIDE_REPAIR_MODULE, GUIDE_REPAIR_FIXTURES,
+  GUIDE_REPAIR_SCOPE, validateGuideRepairOutcome } from "./local-canonical-git-observation.mjs";
+import { observeGitRevisionTarget } from "./run-local-canonical-verification.mjs";
 import { readReceiptFile, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { createCanonicalTestResourceRoot, beginCanonicalTestResourceUse, settleCanonicalTestResourceUse, cleanupCanonicalTestResources, buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
@@ -19,7 +21,6 @@ import { parseBrowserUseLine, validBrowserUse } from "./local-canonical-browser-
 export const TS_REPAIR_DRIVER = "scripts/test-project-client-browser.ts";
 export const TS_REPAIR_MODULE = "scripts/result-work-draft-browser-checks.ts";
 export const TS_REPAIR_FIXTURES = [TS_REPAIR_DRIVER,"scripts/result-draft-capture-scheduler.mjs","scripts/browser-evaluation-diagnostic.mjs","scripts/capture-canonical-ts-repair.mjs"];
-const command = "node --import tsx " + TS_REPAIR_DRIVER;
 const now = () => new Date().toISOString();
 const gitAt = root => (args, options={}) => execFileSync("git",["--no-replace-objects",...args],{cwd:root,timeout:30_000,maxBuffer:128*1024*1024,...options});
 const text = (git,...args) => git(args).toString().trim();
@@ -49,7 +50,7 @@ export function checkCaptureSource(root, catalogue, git, expectedHead, changedMo
   assert.equal(text(git,"diff","--cached","--name-only"),"","capture_index_changed");
   assert.equal(text(git,"ls-files","--others","--exclude-standard"),"","capture_untracked_source");
   const changed=text(git,"diff","--name-only");
-  assert.equal(changed,changedModule?TS_REPAIR_MODULE:"","capture_unexpected_delta");
+  assert.equal(changed,changedModule ? (typeof changedModule === "string" ? changedModule : TS_REPAIR_MODULE) : "","capture_unexpected_delta");
   for(const entry of catalogue) {
     const file=path.join(root,entry.path),s=lstatSync(file);
     assert.ok(s.isFile()&&!s.isSymbolicLink()&&s.nlink===1&&realpathSync(file)===file&&!(s.mode&0o022),"capture_unsafe_source:"+entry.path);
@@ -131,7 +132,11 @@ export function finalizeFocusedCapture(operations) {
   return record;
 }
 
-export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),base,head,priorHead,output,preparationReceipt,completion}) {
+export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),base,head,priorHead,output,preparationReceipt,completion,driver=TS_REPAIR_DRIVER}) {
+  assert.ok([TS_REPAIR_DRIVER,GUIDE_REPAIR_DRIVER].includes(driver),"capture_driver_invalid");
+  const guide=driver===GUIDE_REPAIR_DRIVER,module=guide?GUIDE_REPAIR_MODULE:TS_REPAIR_MODULE,
+    fixtures=guide?GUIDE_REPAIR_FIXTURES:TS_REPAIR_FIXTURES,nodeArgs=guide?[]:["--import","tsx"],args=guide?["--operator-scope"]:[],
+    command=["node",...nodeArgs,driver,...args].join(" ");
   const root=realpathSync(repositoryRoot),git=gitAt(root);
   assert.equal(path.resolve(repositoryRoot),root);
   assert.ok([base,head,priorHead].every(v=>/^[a-f0-9]{40}$/u.test(v)),"capture_source_argument_invalid");
@@ -160,12 +165,12 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
   const {raw,entries,blobs}=captureGitCatalogue(git,head),cache=new Map(entries.map(e=>[JSON.stringify(["show",head+":"+e.path]),blobs.get(e.oid)]));
   // Only this immutable Git adapter is cached. Physical source checks read disk.
   const sourceGit=args=>{const key=JSON.stringify(args);if(!cache.has(key))cache.set(key,git(args));return cache.get(key);};
-  const catalogue=ref=>entries.map(({path:name,mode})=>{const b=sourceGit(["show",(name===TS_REPAIR_MODULE?ref:head)+":"+name]);return {path:name,mode,byte_size:b.length,sha256:digest(b)};});
+  const catalogue=ref=>entries.map(({path:name,mode})=>{const b=sourceGit(["show",(name===module?ref:head)+":"+name]);return {path:name,mode,byte_size:b.length,sha256:digest(b)};});
   const candidate=catalogue(head),beforeSource=catalogue(priorHead);
   save("git-catalogue.json",{command:["git","ls-tree","-rz",head],bytes:raw.length,sha256:digest(raw),utf8:raw.toString()});
   const catalogueRefs={before:save("before-source.json",beforeSource),after:save("after-source.json",candidate)};
-  const original=readFileSync(path.join(root,TS_REPAIR_MODULE));
-  assert.deepEqual(original,sourceGit(["show",head+":"+TS_REPAIR_MODULE]));
+  const original=readFileSync(path.join(root,module));
+  assert.deepEqual(original,sourceGit(["show",head+":"+module]));
   const checkout=acquireCheckoutVerificationOwnership({repositoryRoot:root});
   let resource, inUse=false,allSettled=true,overlay=false,primary;const records=[],results=[];
   try {
@@ -183,6 +188,8 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
   const bundleBefore=browserBinding?assertBrowserBundle(browserBinding).observation:null;
   assert.ok(browserBefore.present);
   save("runtime.json",{observed_at:now(),runtime,identity_sha256:digest(runtime),browser_expected:browserExpected,browser_bundle_before:bundleBefore,environment:env,environment_sha256:digest(env)});
+  const inputBefore=guide?await observeGitRevisionTarget(context,browserExecutable,runtime):null;
+  if(guide)save("input-before.json",inputBefore);
 
     const companion=await inspectVerificationCompanionPreservation(context,{freshTransport:true});save("companion-before.json",companion);
     const acquisition={started_at:now()};const initial=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"});acquisition.finished_at=now();
@@ -191,24 +198,28 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
     for (const [label,ref,expectedExit] of [["before",priorHead,1],["after",head,0]]) {
       assertCheckoutVerificationOwnership(checkout,root);
       const target=label==="before"?beforeSource:candidate;
-      replaceCaptureModule(path.join(root,TS_REPAIR_MODULE),label==="before"?original:sourceGit(["show",priorHead+":"+TS_REPAIR_MODULE]),sourceGit(["show",ref+":"+TS_REPAIR_MODULE]));overlay=label==="before";
-      const source_before=checkCaptureSource(root,target,git,head,overlay);
+      replaceCaptureModule(path.join(root,module),label==="before"?original:sourceGit(["show",priorHead+":"+module]),sourceGit(["show",ref+":"+module]));overlay=label==="before";
+      const source_before=checkCaptureSource(root,target,git,head,overlay?module:false);
+      const worktree_before=git(["status","--porcelain"]).toString();
       const dependency_before_acquisition={started_at:now()};const dependencyBefore=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"});dependency_before_acquisition.finished_at=now();
       assert.equal(comparePreparedDependencyInputs(initial,dependencyBefore),"unchanged");
       const chunks=[],stdout=[],stderr=[],lifecycle=[];const write=which=>({write(chunk){const b=Buffer.from(chunk);chunks.push(b);which.push(b);return true;}});
       if(!inUse){beginCanonicalTestResourceUse(resource);inUse=true;}
       const started_at=now();allSettled=false;
-      const result=await runCanonicalChild({suite:"focused-ts-repair",label,command:process.execPath,args:["--import","tsx",TS_REPAIR_DRIVER],cwd:root,env,timeoutMs:60_000,
+      const result=await runCanonicalChild({suite:"focused-ts-repair",label,command:process.execPath,args:[...nodeArgs,driver,...args],cwd:root,env,timeoutMs:60_000,
         stdout:write(stdout),stderr:write(stderr),log:line=>{lifecycle.push(line);console.log(line);}});
       const finished_at=now();results.push(result);allSettled=settled(result);
       const stdoutRef=save(label+"-output.log",Buffer.concat(chunks));save(label+"-stdout.log",Buffer.concat(stdout));save(label+"-stderr.log",Buffer.concat(stderr));save(label+"-lifecycle.log",Buffer.from(lifecycle.join("\n")+"\n"));
       save(label+"-settlement.json",{started_at,finished_at,result});
       assert.ok(allSettled,"capture_child_unsettled");
       const dependency_after_acquisition={started_at:now()};const dependencyAfter=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"});dependency_after_acquisition.finished_at=now();
-      const source_after=checkCaptureSource(root,target,git,head,overlay);
+      const source_after=checkCaptureSource(root,target,git,head,overlay?module:false);
+      const worktree_after=git(["status","--porcelain"]).toString();
       const witness={attribution:"candidate-driver-prior-implicated-source",driver_source_head:head,tested_source_head:ref,
-        source_files:catalogueRefs[label],fixture_sha256:digest(candidate.filter(v=>TS_REPAIR_FIXTURES.includes(v.path))),environment:digest(env),
-        file_sha256:digest(sourceGit(["show",head+":"+TS_REPAIR_DRIVER])),modules:[{path:TS_REPAIR_MODULE,sha256:digest(sourceGit(["show",ref+":"+TS_REPAIR_MODULE]))}],
+        ...(guide?{scope:GUIDE_REPAIR_SCOPE,checkout_head:head,source_state:overlay?"candidate-with-prior-implicated-overlay":"clean-candidate",
+          worktree_before,worktree_after,input_inventory_sha256:inputBefore.inventory,browser_uses:[]}:{}),
+        source_files:catalogueRefs[label],fixture_sha256:digest(candidate.filter(v=>fixtures.includes(v.path))),environment:digest(env),
+        file_sha256:digest(sourceGit(["show",head+":"+driver])),modules:[{path:module,sha256:digest(sourceGit(["show",ref+":"+module]))}],
         command,node_version:process.versions.node,runtime_inputs_sha256:digest(runtime),prepared_dependencies:{before:dependencyBefore,after:dependencyAfter},
         started_at,finished_at,result,stdout:stdoutRef};
       const witnessRef=save(label+"-witness.json",witness);records.push({label,ref:witnessRef,witness});
@@ -219,19 +230,27 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
       const browserUses=Buffer.concat(stdout).toString().split(/\r?\n/u).map(parseBrowserUseLine).filter(Boolean);
       save(label+"-browser.json",{observed_at:now(),before:browserBefore,after:browserAfter,prior_observed_version:browserExpected.actual_version??null,actual_uses:browserUses});
       assert.ok(nonFaultInputChange(classifyInputChange(browserBefore,browserAfter,{classification:"execution",readOnlyExecutable:true})),"capture_browser_changed");
-      browserExpected.actual_version=validateCaptureBrowserUses(browserUses,browserExpected,label==="before"?1:2);
+      if(guide)assert.deepEqual(browserUses,[],"capture_controlled_fixture_browser_use");
+      else browserExpected.actual_version=validateCaptureBrowserUses(browserUses,browserExpected,label==="before"?1:2);
       assert.equal(result.exit_code,expectedExit,"capture_causal_hypothesis_failed");
-      validateResultDraftCaptureOutcome(Buffer.concat(chunks).toString(),expectedExit);
+      if(guide)validateGuideRepairOutcome(Buffer.concat(chunks).toString(),expectedExit);
+      else validateResultDraftCaptureOutcome(Buffer.concat(chunks).toString(),expectedExit);
       assert.equal(result.termination_reason,"natural_exit");assert.equal(result.timed_out,false);assert.equal(result.cancelled,false);
     }
+    if(guide){const inputAfter=await observeGitRevisionTarget(context,browserExecutable,runtime);save("input-after.json",inputAfter);
+      assert.equal(inputAfter.inventory,inputBefore.inventory,"capture_input_inventory_changed");}
     const focused={schema:"augnes.local-canonical-reviewed-revision-focused.v1",basis:"implementation_owner_not_independent_review",
       predecessor_receipt_fingerprint:receipt.integrity.content_fingerprint,runtime_inputs_sha256:digest(runtime),
-      remedy:"The genuine corrected result-draft helper waits for an editable element, observes the pending preparation boundary and refreshes/recompares the replacement owner before editability assertions. The common candidate fixture holds the same real response for both entire helper blobs.",failed_phase:"e2e-project-experience",implicated_paths:[TS_REPAIR_MODULE],input_remedy_resources:[],source_files:candidate.filter(v=>[TS_REPAIR_MODULE,...TS_REPAIR_FIXTURES].includes(v.path)),
-      regression:{path:TS_REPAIR_DRIVER,node_args:["--import","tsx"],args:[],fixture_paths:TS_REPAIR_FIXTURES,attribution:"candidate-driver-prior-implicated-source",before:records[0].ref,after:records[1].ref},
+      remedy:guide?"The native final-follow-up readiness waits for actual GuideBrief settlement before the deliberate project/runtime switch. The common candidate driver retains all operator controls and adopted/invalid/failed replacement boundaries against the entire prior and corrected Browser source. This is controlled sequencing evidence, not historical Browser recreation or corrected real-Browser qualification.":"The genuine corrected result-draft helper waits for an editable element, observes the pending preparation boundary and refreshes/recompares the replacement owner before editability assertions. The common candidate fixture holds the same real response for both entire helper blobs.",
+      ...(guide?{diagnosis:"The prior Full failed its strict unexpected-request gate after an aborted GuideBrief lacked a completed adopted replacement before context destruction. The controlled schedule exposes premature context release in the original readiness predicate; it does not establish the historical timeout cause or real-Browser success."}:{}),
+      failed_phase:guide?"e2e-operator-native-host-execution":"e2e-project-experience",implicated_paths:[module],input_remedy_resources:[],source_files:candidate.filter(v=>[module,...fixtures].includes(v.path)),
+      regression:{path:driver,node_args:nodeArgs,args,fixture_paths:fixtures,attribution:"candidate-driver-prior-implicated-source",before:records[0].ref,after:records[1].ref},
       commands:[{command,tested_source_head:head,record:records[1].ref,stdout:records[1].witness.stdout,result:records[1].witness.result}],finished_at:now()};
-    // This fragment is supplied only to the focused predicate. It is not a v10
-    // preparation and has no commission authority, reservation or ledger owner.
-    const p={schema:"augnes.local-canonical-source-correction.v10",kind:"reviewed_revision",commission:{ordinal:2},head,tree:text(git,"rev-parse",head+"^{tree}"),inputs:{identity_sha256:digest(runtime)}};
+    // This truthful recipe fragment is supplied only to the focused predicate.
+    // It is not preparation, authority, a reservation or a physical commission.
+    const p={schema:guide?"augnes.local-canonical-source-correction.v7":"augnes.local-canonical-source-correction.v10",kind:"reviewed_revision",
+      commission:guide?{ordinal:1,maximum_invocations:1,source_revision:MATERIAL_SOURCE_CORRECTION}:{ordinal:2},head,tree:text(git,"rev-parse",head+"^{tree}"),
+      inputs:{identity_sha256:digest(runtime),...(guide?{inventory_sha256:inputBefore.inventory}:{})}};
     const prior={head:priorHead,tree:text(git,"rev-parse",priorHead+"^{tree}")};
     const bytes=(ref,max)=>revisionArtifact(out,ref,max),parse=ref=>JSON.parse(bytes(ref));
     save("focused.json",focused);save("predicate-input.json",{scope:"focused-source-predicate-only; no preparation or authority",p,prior,completedAt:priorCompletion.finished_at});
@@ -244,7 +263,7 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
   } catch(error) {primary=error;throw error;}
   finally {
     const cleanup=finalizeFocusedCapture({
-      restore:()=>{if(overlay){replaceCaptureModule(path.join(root,TS_REPAIR_MODULE),sourceGit(["show",priorHead+":"+TS_REPAIR_MODULE]),original);}return {overlay_restored:overlay};},
+      restore:()=>{if(overlay){replaceCaptureModule(path.join(root,module),sourceGit(["show",priorHead+":"+module]),original);}return {overlay_restored:overlay};},
       resources:()=>{
         if(!allSettled)return {completed:false,reason:"consumers_unsettled"};
         if(!resource)return {completed:true,created:false};
@@ -263,7 +282,7 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
 
 if (process.argv[1] && path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   const args=process.argv.slice(2),options={};
-  for(let i=0;i<args.length;i+=2){assert.ok(["--base","--head","--prior-head","--output","--preparation-receipt","--completion"].includes(args[i])&&args[i+1],"capture_arguments_invalid");options[args[i].slice(2).replace(/-([a-z])/gu,(_,v)=>v.toUpperCase())]=args[i+1];}
-  assert.equal(Object.keys(options).length,6);
+  for(let i=0;i<args.length;i+=2){assert.ok(["--base","--head","--prior-head","--output","--preparation-receipt","--completion","--driver"].includes(args[i])&&args[i+1],"capture_arguments_invalid");const key=args[i].slice(2).replace(/-([a-z])/gu,(_,v)=>v.toUpperCase());assert.ok(!Object.hasOwn(options,key));options[key]=args[i+1];}
+  assert.equal(Object.keys(options).length,options.driver?7:6);
   console.log(await captureCanonicalTsRepair(options));
 }

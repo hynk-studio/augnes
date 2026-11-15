@@ -10,7 +10,8 @@ import { createGuideLifecycleV1, guideLifecycleEvidenceOwnerV1, GUIDE_LIFECYCLE_
 import { createProjectExperienceRequestVerdictV1 } from './project-experience-request-verdict-v1.mjs';
 import { OPERATOR_REQUEST_LIFECYCLE_PHASES_V1, classifyOperatorLifecycleRequestFailureV1 } from './operator-execution-result-contract-v1.mjs';
 export async function runGuideLifecycleRegressionV1(args = process.argv.slice(2)) {
-const operatorScope = args[0] === '--operator-scope';
+const nativeFollowupSource = args[0] === '--native-followup-source';
+const operatorScope = args[0] === '--operator-scope' || nativeFollowupSource;
 const replayPhases = operatorScope ? OPERATOR_REQUEST_LIFECYCLE_PHASES_V1 : GUIDE_REPLAY_PHASES_V1;
 const ts = createRequire(import.meta.url)('typescript');
 const phase = replayPhases[0], route = '/api/augnes/read/guide-brief';
@@ -128,7 +129,7 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
     assert.equal(requests.length, 3, 'one actual refresh creates C');
   }
   const replacement = requests.at(-1);
-  if (requests.length > 1) {
+  const settleReplacement = () => { if (requests.length > 1) {
     if (options.replacementFailed) replacement.reject(new Error('Controlled independent failure'));
     else {
       emit('Network.responseReceived', { requestId: replacement.id, frameId: 'controlled-frame', loaderId: 'controlled-loader',
@@ -138,7 +139,8 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
         json: async () => { if (options.bodyFailed) throw Error('Controlled body failure'); return options.invalidBody ? {} : options.wrongProject ? { ...guide(), identity: { project_id: 'other-project', project_display_name: 'Other' } } : bodyFor(requests.length); } });
       if (!options.notFinished) emit('Network.loadingFinished', { requestId: replacement.id });
     }
-  }
+  } };
+  if (!options.holdReplacement) settleReplacement();
   await tick();
   if (options.refreshBeforeCommit) { void hook.refresh(); await tick(); }
   if (options.navigationBeforeCommit) emit('Page.frameNavigated', { frame: { id: 'controlled-frame', loaderId: 'changed-loader' } });
@@ -167,7 +169,57 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
   return { expected: entry => context.expectedFailedRequest(entry), verdict, failure, lifecycle, entries, requests,
     writes, packets, states, failuresByRead, beforeDelayedWrites, snapshot: lifecycle.snapshot(),
     facts: entry => guideLifecycleEvidenceOwnerV1(lifecycle.evidence)?.facts(entry),
-    reason: (entry = failure) => verdict.guideEffectReplayCancellation?.(entry) ?? { expected: false, reason: 'original_guard_refuses' } };
+    reason: (entry = failure) => verdict.guideEffectReplayCancellation?.(entry) ?? { expected: false, reason: 'original_guard_refuses' },
+    settleReplacement: async () => { settleReplacement(); await tick(); hook = render(); setup(); } };
+}
+
+async function nativeFollowupBoundary(sourceFile, options = {}) {
+  const nativeSource = readFileSync(sourceFile, 'utf8');
+  const marker = nativeSource.indexOf('revised successor fresh Browser read');
+  const start = nativeSource.lastIndexOf('        await lifecycle.navigate(', marker);
+  const end = nativeSource.indexOf('        console.log(JSON.stringify({ saved_successor_reopen_revision_ui:', marker);
+  assert(marker > 0 && start > 0 && end > marker, 'actual final follow-up boundary must be present');
+  const body = nativeSource.slice(start, end);
+  const f = await fixture({ phase: 'executed_reviewed_follow_up', holdReplacement: true, ...options });
+  const revisedGoal = 'Controlled revised successor', savedCorrection = 'Controlled retained correction';
+  const document = {
+    querySelector(selector) {
+      if (selector === '[data-current-work-goal]') return { textContent: revisedGoal };
+      if (selector === '[data-current-work-sources]') return { textContent: savedCorrection };
+      assert.equal(selector, '[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-loading="false"]');
+      return f.states[1] === 'loading' ? null : {};
+    },
+    querySelectorAll(selector) { assert.equal(selector, '[data-current-work-source-text]'); return [{}, {}, {}]; },
+  };
+  const context = vm.createContext({ document });
+  let release, switched = false, settled = false, heldWait = false;
+  const changed = new Promise(resolve => { release = resolve; });
+  const lifecycle = {
+    async navigate(url) { assert.equal(url, origin + '/workbench/semantic-review'); },
+    async waitForCondition(expression) {
+      if (!vm.runInContext(expression, context)) {
+        heldWait = true; await changed;
+        assert.equal(vm.runInContext(expression, context), true, 'the actual readiness predicate must settle');
+      }
+    },
+    async evaluateBoolean(expression) { return vm.runInContext(expression, context); },
+  };
+  const run = vm.runInNewContext(`(async (lifecycle, assert, revisedGoal, savedCorrection, appOrigin) => {${body}})`);
+  const pending = run(lifecycle, assert, revisedGoal, savedCorrection, origin).then(() => { switched = true; });
+  try {
+    await tick();
+    assert.equal(switched, false, 'native follow-up must retain its context while the actual hook replacement Fetch is held');
+    assert.equal(heldWait, true);
+    assert.equal(f.reason().expected, false, 'a pending replacement cannot satisfy the strict verdict');
+    await f.settleReplacement(); settled = true; release(); await pending;
+    assert.equal(switched, true);
+    assert.equal(f.reason().expected, !options.invalidBody && !options.replacementFailed,
+      'settlement wait must not whitelist a failed or invalid replacement');
+    return { replacement: options.invalidBody ? 'invalid' : options.replacementFailed ? 'failed' : 'adopted', held_until_settlement: true, strict_verdict: f.reason().expected };
+  } finally {
+    if (!settled) await f.settleReplacement();
+    release(); await pending;
+  }
 }
 
 const supersessionAccepted = f => [1, 2].map(read => {
@@ -206,7 +258,14 @@ function assertSupersessionProducer(f) {
 // owned replay, not a fabricated failure, syntax error or production attempt.
 const supersessionSource = ['--supersession-verdict-source', '--supersession-verdict-observe'].includes(args[0]);
 const witnessMode = args[0] === '--verdict-source';
-if (supersessionSource) {
+if (nativeFollowupSource) {
+  assert.equal(args.length, 2); assert(path.isAbsolute(args[1]));
+  const results = [];
+  for (const options of [{}, { invalidBody: true }, { replacementFailed: true }])
+    results.push(await nativeFollowupBoundary(args[1], options));
+  console.log(JSON.stringify({ test: 'native-followup-guide-settlement', results, actual_hook_guard_and_source_boundary: true,
+    synthetic_controlled_schedule: true, historical_browser_recreation: false, production_attempt: false }));
+} else if (supersessionSource) {
   assert.equal(args.length, 2); assert(path.isAbsolute(args[1]), 'exact verdict source must be an absolute module file');
   const factory = (await import(pathToFileURL(args[1]).href)).createProjectExperienceRequestVerdictV1;
   const f = await fixture({ supersession: true }, factory); assertSupersessionProducer(f);
@@ -363,10 +422,13 @@ if (supersessionSource) {
   const url = route + '?scope=project%3Aaugnes&project_id=' + encodeURIComponent(project);
   assert.equal(read.fetch(url, options), promise); assert.equal(calls, 1); assert.equal(requestArgs[1], options); assert.equal(receiver, undefined);
   assert.equal(controller.signal.aborted, false); assert(connection);
+  const nativeFollowupResults = [];
+  if (operatorScope) for (const options of [{}, { invalidBody: true }, { replacementFailed: true }])
+    nativeFollowupResults.push(await nativeFollowupBoundary(new URL('./browser-validate-operator-native-host-execution-v1.mjs', import.meta.url), options));
   console.log(JSON.stringify({ test: 'project-experience-guide-lifecycle-v1', status: 'pass', adversarial_controls: negative.length + 3 + replayPhases.length,
     supersession_adversarial_controls: chainNegative.length, delayed_canceled_result_controls: 4, supersession_phases: replayPhases.length,
     replay_phases: replayPhases, operator_scope: operatorScope,
-    actual_hook_guard: true, observer_parity: true, exact_fetch_promise: true, production_attempt: false }));
+    actual_hook_guard: true, observer_parity: true, exact_fetch_promise: true, native_followup_boundary: nativeFollowupResults, production_attempt: false }));
 }
 
 }
