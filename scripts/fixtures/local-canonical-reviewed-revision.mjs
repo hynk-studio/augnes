@@ -24,6 +24,7 @@ import {inspectGitRevisionPreparation} from "../local-canonical-attempts.mjs";
 import {baseReceipt} from "./local-canonical-receipt-v3.mjs";
 import {runMaterialSourceControls,seedMaterialSourceFiles,prepareMaterialSourcePredecessor,inspectMaterialIntegrationCold} from "./local-canonical-material-source.mjs";
 import {runMaintenanceAllowanceControls} from "./local-canonical-maintenance-allowance.mjs";
+import {companionRetirementBudgetWitnessControls} from "./local-canonical-fixture-budget.mjs";
 
 const self=fileURLToPath(import.meta.url), quiet={write(){}}, clone=v=>structuredClone(v);
 // Fixed, value-free development diagnostics. performance.now includes this
@@ -439,6 +440,15 @@ if(process.argv[2]==="--cold"){
     if (lifecycle.pendingChildren===0 && c?.owner) releaseCheckoutVerificationOwnership(c.owner,c.checkout);
     settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,
       cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});
+    assert(cleanupCanonicalTestResources([owner])[0].completed);
+  }
+}else if(process.argv[2]==="--run-companion-retirement-budget-fixtures"){
+  const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
+  try {
+    const controls=await companionRetirementBudgetWitnessControls(owner.root,null,path.resolve(path.dirname(self),"../.."));
+    console.log(JSON.stringify({companion_retirement_budget_controls:controls,synthetic_only:true}));
+  } finally {
+    settleCanonicalTestResourceUse(owner,{exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0});
     assert(cleanupCanonicalTestResources([owner])[0].completed);
   }
 }else if(process.argv[2]==="--run-maintenance-allowance-fixtures"){

@@ -511,7 +511,7 @@ const suites = {
       {
         label: "Companion lost-ownership retirement and reconciliation regressions",
         ...rootNode("scripts/test-companion-ownership-retirement.mjs"),
-        timeoutMs: 60_000,
+        timeoutMs: 75_000,
         requireNaturalExit: true,
       },
     ] : []),
@@ -1541,6 +1541,12 @@ const suites = {
       requireNaturalExit: true,
     },
     ...reviewedRevisionSteps,
+    {
+      label: "Companion ownership-retirement allowance evidence controls",
+      ...rootNode("scripts/fixtures/local-canonical-reviewed-revision.mjs", "--run-companion-retirement-budget-fixtures"),
+      timeoutMs: 30000,
+      requireNaturalExit: true,
+    },
     {
       id: "local-canonical-maintenance-reader",
       label: "selected maintenance reader evidence and succession",

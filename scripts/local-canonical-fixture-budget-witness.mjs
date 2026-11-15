@@ -14,6 +14,10 @@ import { readImprovementOwnerRegistration } from "./local-canonical-improvement.
 export const REGISTERED_FIXTURE_BUDGET = "registered-fixture-aggregate-budget-v1";
 export const EXISTING_DEDICATED_FIXTURE_PAIR = "existing-dedicated-pair-v1";
 export const MAINTENANCE_FIXTURE_CASE = "registered-maintenance-direct-v1";
+export const COMPANION_RETIREMENT_ALLOWANCE_CASE = "registered-companion-ownership-retirement-direct-v1";
+export const COMPANION_RETIREMENT_MS = 75000;
+export const isCompanionRetirementFixtureBudget = p => p?.commission?.evidence_kind === REGISTERED_FIXTURE_BUDGET &&
+  p.commission.allowance_case === COMPANION_RETIREMENT_ALLOWANCE_CASE;
 export const isMaintenanceFixtureBudget = p => p?.commission?.evidence_kind === REGISTERED_FIXTURE_BUDGET &&
   p.commission.allowance_case === MAINTENANCE_FIXTURE_CASE;
 export const MAINTENANCE_FIXTURE_GRANT = "Authorize one NEW prospective v7 reviewed_revision commission for the measured registered maintenance allowance.";
@@ -37,7 +41,8 @@ export const fixtureBudgetEvidenceClaim = kind => kind === REGISTERED_FIXTURE_BU
   kind === REGISTERED_IDENTITY_BUDGET ? IDENTITY_BUDGET_CLAIM :
   kind === REGISTERED_REQUEST_BOUND_ALLOWANCE ? REQUEST_BOUND_ALLOWANCE_CLAIM :
   kind === SELECTIVE_FIXTURE_WORKLOAD ? SELECTIVE_FIXTURE_WORKLOAD_CLAIM : null;
-export const fixtureBudgetFailurePhase = kind => kind === REGISTERED_FIXTURE_BUDGET ? "authority" :
+export const fixtureBudgetFailurePhase = (kind,allowanceCase) => kind === REGISTERED_FIXTURE_BUDGET ?
+  allowanceCase === COMPANION_RETIREMENT_ALLOWANCE_CASE ? "unit" : "authority" :
   [REGISTERED_INTEGRATION_BUDGET, REGISTERED_IDENTITY_BUDGET, SELECTIVE_FIXTURE_WORKLOAD, REGISTERED_REQUEST_BOUND_ALLOWANCE].includes(kind) ? "integration" : null;
 export const FIXTURE_BUDGET_COLLECTOR = "scripts/capture-local-canonical-fixture-budget.mjs";
 export const FIXTURE_BUDGET_PATHS = Object.freeze({
@@ -114,6 +119,7 @@ const replaceNode=(source,tree,n,replacement)=>source.slice(0,n.getStart(tree))+
 
 export function registeredFixtureBudget(git,head,group) {
   if (group === maintenanceOwner) return maintenanceFixtureBudgetRegistration(git,head);
+  if (group === "companion-ownership-retirement") return companionRetirementBudgetRegistration(git,head);
   if(!Object.hasOwn(owners,group))fail();
   const source=Object.fromEntries(Object.entries(FIXTURE_BUDGET_PATHS).map(([role,file])=>[role,sourceAt(git,head,file)]));
   const trees=Object.fromEntries(Object.entries(source).map(([role,text])=>[role,ast(text)]));
@@ -386,6 +392,7 @@ export function readMaintenanceFixtureBudgetPositive(ref,p,{git,parse,bytes,comp
 export function fixtureBudgetSourceDelta(git,before,after,group,sourceForm) {
   if(sourceForm!==undefined&&(sourceForm!==EXISTING_DEDICATED_FIXTURE_PAIR||group!=="serial-aggregate"))fail();
   if (group === "local-canonical-maintenance") return maintenanceFixtureBudgetDelta(git,before,after);
+  if (group === "companion-ownership-retirement") return companionRetirementBudgetSourcePartition(git,before,after);
   return compareFixtureBudgetSource(git,before,after,
     registeredFixtureBudget(git,before,group),registeredFixtureBudget(git,after,group),sourceForm);
 }
@@ -629,6 +636,7 @@ export function inspectCurrentFixtureBudgetInputs(root,w) {
 
 export function verifyRegisteredFixtureBudget(p,prior,focused,options) {
   if (isMaintenanceFixtureBudget(p)) return verifyMaintenanceFixtureBudget(p,prior,focused,options);
+  if (isCompanionRetirementFixtureBudget(p)) return verifyCompanionRetirementFixtureBudget(p,prior,focused,options);
   // One verification repeatedly inspects the same immutable source blobs.
   // Reuse their raw bytes only within this call; every mutable Git query,
   // physical observation and subsequent verification still reads afresh.
@@ -1197,6 +1205,291 @@ export function verifyRegisteredIntegrationBudget(p,prior,focused,options) {
   return p.head;
 }
 
+const companionRetirementOwner="companion-ownership-retirement";
+const companionRetirementTest="scripts/test-companion-ownership-retirement.mjs";
+const companionRetirementCommand="node --import tsx "+companionRetirementTest;
+const companionRetirementLabel="Companion lost-ownership retirement and reconciliation regressions";
+const companionRetirementControlLabel="Companion ownership-retirement allowance evidence controls";
+const companionRetirementControlFixture="scripts/fixtures/local-canonical-reviewed-revision.mjs";
+const companionRetirementControlFlag="--run-companion-retirement-budget-fixtures";
+const companionRetirementProductInputs=["scripts/augnes-companion-service.mjs","plugins/augnes-operator/mcp/companion-service-core.mjs",
+  "plugins/augnes-operator/mcp/checkout-identity.mjs","plugins/augnes-operator/mcp/checkout-identity-darwin.py","plugins/augnes-operator/mcp/node-runtime-policy.mjs"];
+export const COMPANION_RETIREMENT_INPUT_PATHS=Object.freeze([companionRetirementTest,...companionRetirementProductInputs,
+  "scripts/companion-service-fixture-observation.mjs","scripts/test-harness-process-lifecycle.mjs","scripts/canonical-child-runner.mjs",
+  "scripts/canonical-test-environment.mjs","package.json","package-lock.json"]);
+const companionRetirementEvidencePaths=new Set([
+  "scripts/local-canonical-fixture-budget-witness.mjs",FIXTURE_BUDGET_COLLECTOR,"scripts/local-canonical-git-observation.mjs",
+  "scripts/local-canonical-attempts.mjs","scripts/fixtures/local-canonical-fixture-budget.mjs",
+  "scripts/fixtures/local-canonical-reviewed-revision.mjs","scripts/fixtures/local-canonical-maintenance-allowance.mjs","scripts/fixtures/local-canonical-serial-material.mjs",
+  "scripts/test-local-canonical-verification-contract.mjs",".github/LOCAL_CANONICAL_VERIFICATION.md",
+]);
+
+// This existing Darwin unit child has no id, reviewed-revision wrapper or
+// registration pair. Select its literal source-owned command in that branch;
+// the catalog key never changes the runner's existing serial metadata.
+export function companionRetirementBudgetRegistration(git,head) {
+  const file=FIXTURE_BUDGET_PATHS.suite,source=sourceAt(git,head,file),tree=ast(source),T=ts();
+  const prop=(n,name)=>one(n.properties.filter(p=>T.isPropertyAssignment(p)&&p.name.getText(tree)===name)).initializer;
+  const suites=variable(tree,"suites"),unit=prop(suites,"unit"),authority=prop(suites,"authority");
+  if(!T.isArrayLiteralExpression(unit)||!T.isArrayLiteralExpression(authority))fail();
+  const controlCall=n=>T.isCallExpression(n)&&n.expression.getText(tree)==="rootNode"&&
+    n.arguments.some(v=>T.isStringLiteral(v)&&v.text===companionRetirementControlFlag);
+  const controlLabel=n=>T.isPropertyAssignment(n)&&n.name.getText(tree)==="label"&&T.isStringLiteral(n.initializer)&&n.initializer.text===companionRetirementControlLabel;
+  const controlCandidates=authority.elements.filter(n=>nodes(n,controlCall).length||nodes(n,controlLabel).length);
+  if(controlCandidates.length>1||nodes(tree,controlCall).length!==controlCandidates.length||nodes(tree,controlLabel).length!==controlCandidates.length)fail();
+  const control=controlCandidates[0]??null;
+  if(control) {
+    if(!T.isObjectLiteralExpression(control)||control.properties.some(p=>!T.isPropertyAssignment(p)&&!T.isSpreadAssignment(p))||
+        !equal(control.properties.filter(T.isPropertyAssignment).map(p=>p.name.getText(tree)).sort(),["label","requireNaturalExit","timeoutMs"])||
+        !T.isNumericLiteral(prop(control,"timeoutMs"))||Number(prop(control,"timeoutMs").text)!==30000||
+        prop(control,"requireNaturalExit").kind!==T.SyntaxKind.TrueKeyword)fail();
+    const command=one(control.properties.filter(T.isSpreadAssignment)).expression;
+    if(!T.isCallExpression(command)||!T.isIdentifier(command.expression)||command.expression.text!=="rootNode"||command.typeArguments?.length||
+        command.arguments.length!==2||command.arguments.some(v=>!T.isStringLiteral(v))||
+        !equal(command.arguments.map(v=>v.text),[companionRetirementControlFixture,companionRetirementControlFlag]))fail();
+  }
+  const launch=one(nodes(unit,n=>T.isCallExpression(n)&&n.expression.getText(tree)==="rootNode"&&
+    n.arguments.some(v=>T.isStringLiteral(v)&&v.text===companionRetirementTest)));
+  const spread=launch.parent,child=spread.parent,branch=child.parent,conditional=branch.parent;
+  const unitSpread=(T.isParenthesizedExpression(conditional.parent)?conditional.parent:conditional).parent;
+  if(launch.arguments.length!==1||!T.isStringLiteral(launch.arguments[0])||launch.arguments[0].text!==companionRetirementTest||launch.typeArguments?.length||
+      !T.isSpreadAssignment(spread)||!T.isObjectLiteralExpression(child)||!T.isArrayLiteralExpression(branch)||
+      !T.isConditionalExpression(conditional)||conditional.whenTrue!==branch||conditional.condition.getText(tree).replace(/\s+/gu,"")!=='process.platform==="darwin"'||
+      !T.isArrayLiteralExpression(conditional.whenFalse)||conditional.whenFalse.elements.length||!T.isSpreadElement(unitSpread)||unitSpread.parent!==unit||
+      child.properties.filter(T.isSpreadAssignment).length!==1||child.properties.some(p=>!T.isPropertyAssignment(p)&&!T.isSpreadAssignment(p))||
+      !equal(child.properties.filter(T.isPropertyAssignment).map(p=>p.name.getText(tree)).sort(),["label","requireNaturalExit","timeoutMs"])||
+      value(prop(child,"label"),tree,null,{})!==companionRetirementLabel||prop(child,"requireNaturalExit").kind!==T.SyntaxKind.TrueKeyword||
+      variable(tree,"rootNode").getText(tree).replace(/\s+/gu,"")!=='(...args)=>({command:process.execPath,args:["--import","tsx",...args],cwd:repoRoot,})'||
+      JSON.parse(sourceAt(git,head,"package.json")).scripts?.test!=="node "+file+" unit")fail();
+  const timeout=prop(child,"timeoutMs"),runner=ast(sourceAt(git,head,"scripts/canonical-child-runner.mjs")),
+    executor=ast(sourceAt(git,head,"scripts/run-local-canonical-verification.mjs"));
+  const parents=nodes(executor,n=>T.isCallExpression(n)&&n.expression.getText(executor)==="npmPhase"&&n.arguments[0]?.getText(executor)==='"unit"');
+  if(!T.isNumericLiteral(timeout)||![60000,COMPANION_RETIREMENT_MS].includes(Number(timeout.text))||
+      value(variable(runner,"DEFAULT_CANONICAL_TERM_GRACE_MS"),runner,null,{})!==8000||
+      value(variable(runner,"DEFAULT_CANONICAL_KILL_GRACE_MS"),runner,null,{})!==5000||parents.length!==2||parents.some(n=>n.arguments.length!==4||
+        !equal(value(n.arguments[2],executor,null,{}),["test"])||!T.isNumericLiteral(n.arguments[3])||Number(n.arguments[3].text)!==3600000))fail();
+  const bound=Number(timeout.text);
+  if((bound===60000&&control)||(bound===COMPANION_RETIREMENT_MS&&!control))fail();
+  const retainedAuthority=T.factory.createArrayLiteralExpression(T.factory.createNodeArray(authority.elements.filter(n=>n!==control),false),true);
+  const authorityText=T.createPrinter({removeComments:true}).printNode(T.EmitHint.Unspecified,retainedAuthority,tree);
+  let normalized=source;
+  for(const edit of [{node:timeout,text:"0"},{node:authority,text:authorityText}].sort((a,b)=>b.node.getStart(tree)-a.node.getStart(tree)))
+    normalized=replaceNode(normalized,tree,edit.node,edit.text);
+  return {id:companionRetirementOwner,suite:"unit",group:"serial",label:companionRetirementLabel,
+    command:["node","--import","tsx",companionRetirementTest],bound_ms:bound,require_natural_exit:true,evidence_controls_registered:control!==null,
+    parent_bound_ms:3600000,term_grace_ms:8000,kill_grace_ms:5000,resource_ceiling_ms:90000,
+    normalized:syntax(normalized)};
+}
+
+export function companionRetirementWorkloadSource(git,head) {
+  const root=git(["rev-parse","--show-toplevel"]).toString().trim(),reader=createCanonicalRevisionReader(root),entries=reader.tree(head);
+  const test=ast(sourceAt(git,head,companionRetirementTest));
+  if(!equal(value(variable(test,"sources"),test,null,{}),companionRetirementProductInputs))fail();
+  return COMPANION_RETIREMENT_INPUT_PATHS.map(file=>{
+    const entry=entries.get(file);
+    if(entry?.type!=="blob"||!["100644","100755"].includes(entry.mode)||entry.size>8*1024*1024)fail();
+    const raw=git(["show",head+":"+file]);
+    if(!Buffer.isBuffer(raw)||raw.length!==entry.size||
+        createHash("sha1").update("blob "+raw.length+"\0").update(raw).digest("hex")!==entry.oid)fail();
+    return {path:file,mode:entry.mode,oid:entry.oid,bytes:raw.length,sha256:digest(raw)};
+  });
+}
+
+export function companionRetirementBudgetSourcePartition(git,before,after) {
+  const a=companionRetirementBudgetRegistration(git,before),b=companionRetirementBudgetRegistration(git,after);
+  const fixed=companionRetirementWorkloadSource(git,before);
+  if(a.bound_ms!==60000||b.bound_ms!==COMPANION_RETIREMENT_MS||a.evidence_controls_registered!==false||b.evidence_controls_registered!==true||
+      a.normalized!==b.normalized||!equal(fixed,companionRetirementWorkloadSource(git,after)))fail();
+  const paths=git(["diff","--name-only","-z","--no-renames",before,after,"--"]).toString().split("\0").filter(Boolean).sort();
+  if(!paths.includes(FIXTURE_BUDGET_PATHS.suite)||paths.some(file=>file!==FIXTURE_BUDGET_PATHS.suite&&!companionRetirementEvidencePaths.has(file)))fail();
+  for(const head of [before,after]) {
+    const entries=git(["ls-tree","-z",head,"--",...paths]).toString().split("\0").filter(Boolean);
+    if(entries.length!==paths.length||entries.some(v=>!v.startsWith("100644 blob ")))fail();
+  }
+  const delta=files=>({paths:files,sha256:digest(files.length?git(["diff","--binary","--full-index","--no-ext-diff","--no-textconv",before,after,"--",...files]):Buffer.alloc(0))});
+  const omit=({normalized,...registration})=>registration;
+  return {case:COMPANION_RETIREMENT_ALLOWANCE_CASE,before:omit(a),after:omit(b),fixed_inputs:fixed,
+    workload:delta([FIXTURE_BUDGET_PATHS.suite]),evidence:delta(paths.filter(file=>file!==FIXTURE_BUDGET_PATHS.suite))};
+}
+
+export function companionRetirementCompletionNames(git,head) {
+  const tree=ast(sourceAt(git,head,companionRetirementTest)),T=ts();
+  const scenarios=nodes(tree,n=>T.isCallExpression(n)&&n.expression.getText(tree)==="run").map(n=>{
+    if(!T.isStringLiteral(n.arguments[0])||!T.isArrowFunction(n.arguments[1]))fail();
+    const effects=nodes(n.arguments[1],v=>T.isCallExpression(v)&&v.expression.getText(tree)==="assert.equal"&&v.arguments[0]?.getText(tree)==="f.effects()");
+    const last=effects.at(-1)?.arguments[1];if(!last||!T.isNumericLiteral(last)||![0,1].includes(Number(last.text)))fail();
+    return {name:n.arguments[0].text,effects:Number(last.text)};
+  });
+  const loop=one(nodes(tree,n=>T.isForOfStatement(n)&&T.isArrayLiteralExpression(n.expression)&&n.initializer.getText(tree)==="const fault"));
+  const adverse=value(loop.expression,tree,null,{}),terminal=one(nodes(tree,n=>T.isCallExpression(n)&&n.expression.getText(tree)==="console.log"&&
+    T.isStringLiteral(n.arguments[0])&&n.arguments[0].text.startsWith("PASS ownership retirement:"))).arguments[0].text;
+  if(scenarios.length!==9||new Set(scenarios.map(v=>v.name)).size!==9||!equal(adverse,["ui","bridge","manager-conflict"])||
+      terminal!=="PASS ownership retirement: authenticated loopback witnesses, exact refusal, reconciliation, replay and zero residue")fail();
+  return {scenarios,adverse,terminal};
+}
+
+// Read one invocation's complete grammar or the exact retained failed prefix.
+// Nine completed scenarios alone never stand in for three adverse controls and
+// the final summary, and observations from different invocations never join.
+export function companionRetirementCompletion(output,git,head,{complete=true,duration=null}={}) {
+  const expected=companionRetirementCompletionNames(git,head),lines=output.trimEnd().split("\n");
+  const rows=[];
+  for(const line of lines)if(line.startsWith("{")&&/"(?:scenario|adverse)"/u.test(line)) {
+    let row;try{row=JSON.parse(line);}catch{fail();}rows.push(row);
+  }
+  const adverse=complete?expected.adverse:expected.adverse.slice(0,2);
+  if(rows.length!==expected.scenarios.length*4+adverse.length||
+      lines.filter(v=>v===expected.terminal).length!==(complete?1:0)||
+      lines.some(v=>v.startsWith("PASS ownership retirement:")&&v!==expected.terminal)||
+      complete&&lines.at(-1)!==expected.terminal)fail();
+  let elapsed=0;
+  for(const [i,scenario]of expected.scenarios.entries()) {
+    const records=rows.slice(i*4,i*4+4);let previous=-1;
+    for(const [j,row]of records.entries()) {
+      if(row.scenario!==scenario.name||!Number.isSafeInteger(row.elapsed_ms)||row.elapsed_ms<0||row.elapsed_ms<previous)fail();previous=row.elapsed_ms;
+      if(j<3) {
+        if(!keys(row,["scenario","stage","elapsed_ms"])||row.stage!==["scenario_start","fixture_ready","action_pass"][j])fail();
+      } else if(!keys(row,["scenario","pass","effects","cleanup_complete","elapsed_ms"])||row.pass!==true||row.cleanup_complete!==true||row.effects!==scenario.effects)fail();
+    }
+    elapsed+=records[3].elapsed_ms;
+  }
+  if(!equal(rows.slice(expected.scenarios.length*4),adverse.map(name=>({adverse:name,pass:true,cleanup_complete:true})))||
+      duration!==null&&(!integer(duration)||elapsed>duration))fail();
+  return {complete,scenarios:expected.scenarios.map(v=>v.name),adverse,scenario_elapsed_ms:elapsed,terminal:complete?expected.terminal:null};
+}
+
+function companionRetirementLog(ref,identity,attempt,phase,{bytes,repositoryRoot}) {
+  const raw=bytes(ref,2*1024*1024),relative=`.augnes-local-verification/logs/${attempt.attempt_id}/unit.log`;
+  if(phase.log?.truncated!==false||phase.log.relative_path!==relative||phase.log.bytes!==raw.length||
+      !equal(identity,{relative_path:relative,bytes:raw.length,sha256:digest(raw)}))fail();
+  const file=path.join(repositoryRoot,relative),stat=lstatSync(file);
+  if(!stat.isFile()||stat.isSymbolicLink()||stat.nlink!==1||(stat.mode&0o022)||realpathSync(file)!==file||stat.size!==raw.length||!readFileSync(file).equals(raw))fail();
+  return raw.toString();
+}
+
+function companionRetirementChildLog(text,git,head,{complete}) {
+  const registration=companionRetirementBudgetRegistration(git,head),prefix="[canonical:unit] ",quoted=JSON.stringify(registration.label),lines=text.split("\n");
+  const events=lines.filter(line=>line.startsWith(prefix)&&line.includes(" label="+quoted+" "));
+  const start=one(events.filter(v=>v.startsWith(prefix+"child_start "))),end=one(events.filter(v=>v.startsWith(prefix+"child_result ")));
+  const expected=companionRetirementCompletionNames(git,head);
+  if(lines.filter(v=>v===expected.terminal).length!==(complete?1:0))fail();
+  if(registration.bound_ms!==60000||start!==prefix+"child_start label="+quoted+" timeout_ms=60000")fail();
+  const match=end.match(/ duration_ms=([0-9]+) exit_code=(0|null) signal=(null|SIGTERM|SIGKILL) timed_out=(true|false) exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=(natural_exit|bounded_timeout)$/u);
+  if(!match)fail();const duration=Number(match[1]);
+  const failures=lines.filter(v=>v.startsWith(prefix+"child_result ")&&!v.includes(" exit_code=0 signal=null timed_out=false "));
+  if(complete) {
+    if(duration>=60000||match[2]!=="0"||match[3]!=="null"||match[4]!=="false"||match[5]!=="natural_exit"||failures.length)fail();
+    naturalLifecycle(text,{suite:"unit",label:registration.label,timeout:60000,duration});
+  } else {
+    if(match[2]!=="null"||!["SIGTERM","SIGKILL"].includes(match[3])||match[4]!=="true"||match[5]!=="bounded_timeout"||duration<60000||duration>73000||
+        !equal(failures,[end])||!equal(events.filter(v=>!v.includes(" child_active ")).map(v=>v.slice(prefix.length).split(" ")[0]),
+          ["child_start","child_spawn","child_cleanup_start","child_cleanup_result","child_result"])||
+        lines.slice(lines.indexOf(end)+1).some(v=>v.startsWith(prefix+"child_start ")))fail();
+    let elapsed=0;
+    for(const line of events) {
+      const ms=line.match(/ (?:elapsed_ms|duration_ms)=([0-9]+)(?: |$)/u);
+      if(ms) {if(Number(ms[1])<elapsed||Number(ms[1])>duration)fail();elapsed=Number(ms[1]);}
+      const tail=line.slice(line.indexOf(" label="+quoted+" ")+(" label="+quoted+" ").length);
+      if(line.includes(" child_spawn ")&&!/^pid=[1-9][0-9]* wait=process_exit$/u.test(tail)||
+          line.includes(" child_active ")&&!/^elapsed_ms=[0-9]+ timeout_ms=60000 exit_observed=false stdout_closed=false stderr_closed=false wait=process_exit$/u.test(tail)||
+          line.includes(" child_cleanup_start ")&&(!/^elapsed_ms=[0-9]+ reason=bounded_timeout exit_observed=false stdout_closed=false stderr_closed=false$/u.test(tail)||elapsed<60000)||
+          line.includes(" child_cleanup_result ")&&!/^elapsed_ms=[0-9]+ reason=bounded_timeout streams_closed=true remaining_owned_processes=0$/u.test(tail))fail();
+    }
+  }
+  if(lines.filter(v=>v.startsWith(prefix+"child_start ")).length!==lines.filter(v=>v.startsWith(prefix+"child_result ")).length||lines.indexOf(start)>=lines.indexOf(end))fail();
+  const output=lines.slice(lines.indexOf(start)+1,lines.indexOf(end)).filter(v=>!v.startsWith(prefix)).join("\n");
+  const completion=companionRetirementCompletion(output,git,head,{complete,duration});
+  return {registration,duration_ms:duration,completion};
+}
+
+function companionRetirementIncident(p,prior,reg,options) {
+  const {original,completion}=options,previous=prior.source_correction,phase=one(original.phases.filter(v=>v.id==="unit")),incident=reg.incident;
+  if(previous?.schema!=="augnes.local-canonical-source-correction.v7"||previous.kind!=="reviewed_revision"||
+      previous.commission?.source_revision!=="material-source-correction-v1"||previous.commission.ordinal!==1||previous.commission.maximum_invocations!==1||
+      p.commission.source_revision!=="material-source-correction-v1"||p.commission.ordinal!==1||p.commission.maximum_invocations!==1||
+      previous.head!==prior.head||previous.tree!==prior.tree||p.prior_family_id!==prior.family_id||p.prior_attempt_id!==prior.attempt_id||p.prior_number!==prior.number||
+      previous.commission.input_acquisition!==p.commission.input_acquisition||!equal(previous.commission.inherited_serial??null,p.commission.inherited_serial??null)||
+      !equal(original.attempt,prior)||original.outcome?.disposition!=="product_failure"||original.cleanup?.completed!==true||
+      completion.disposition!=="product_failure"||completion.cleanup_complete!==true||completion.infrastructure_code!==null||completion.attempt_id!==prior.attempt_id||
+      completion.receipt_fingerprint!==p.prior_receipt_fingerprint||phase.status!=="failure"||phase.exit_status!==1||phase.timed_out!==false||
+      phase.command!=="npm test"||phase.cleanup?.completed!==true||phase.cleanup.termination_reason!=="natural_exit"||phase.cleanup.remaining_owned_processes!==0||
+      phase.cleanup.exit_observed!==true||phase.cleanup.streams_closed!==true||
+      !keys(incident,["receipt","log","log_identity","cause"])||incident.receipt!==p.prior_receipt_fingerprint||incident.cause!=="UNKNOWN")fail();
+  const text=companionRetirementLog(incident.log,incident.log_identity,prior,phase,options);
+  const observed=companionRetirementChildLog(text,options.git,prior.head,{complete:false});
+  if(!integer(phase.duration_ms)||observed.duration_ms>phase.duration_ms||
+      !(Date.parse(prior.started_at)<=Date.parse(phase.started_at)&&Date.parse(phase.started_at)<Date.parse(phase.finished_at)&&
+        Date.parse(phase.finished_at)<=Date.parse(completion.finished_at)))fail();
+  return observed;
+}
+
+function companionRetirementRationale(r,p,prior,{git,parse,bytes,repositoryRoot,completedAt}) {
+  if(!keys(r,["execution_reserve_ms","termination_grace_ms","resource_ceiling_ms","judgment","historical_complete"])||
+      r.execution_reserve_ms!==15000||r.termination_grace_ms!==13000||r.resource_ceiling_ms!==90000||COMPANION_RETIREMENT_MS+r.termination_grace_ms!==88000||
+      typeof r.judgment!=="string"||r.judgment.length<80||r.judgment.length>4000)fail();
+  const old=r.historical_complete;
+  if(!keys(old,["receipt","attempt","completion","log","log_identity","limitations"])||typeof old.limitations!=="string"||old.limitations.length<40||old.limitations.length>2000)fail();
+  const receipt=parse(old.receipt),attempt=parse(old.attempt),completion=parse(old.completion),previous=prior.source_correction;
+  if(["receipt","attempt","completion"].some(role=>previous.originals?.[role]?.sha256!==old[role].sha256)||
+      !verifyReceiptIntegrity(receipt)||!equal(receipt.attempt,attempt)||receipt.integrity.content_fingerprint!==previous.prior_receipt_fingerprint||
+      attempt.family_id!==previous.prior_family_id||attempt.number!==previous.prior_number||attempt.attempt_id!==previous.prior_attempt_id||
+      receipt.repository?.head_sha!==attempt.head||receipt.repository?.tree_sha!==attempt.tree||attempt.tree!==git(["rev-parse",attempt.head+"^{tree}"]).toString().trim()||
+      receipt.repository.branch!==attempt.branch||attempt.branch!==prior.branch||completion.attempt_id!==attempt.attempt_id||
+      completion.receipt_fingerprint!==previous.prior_receipt_fingerprint||completion.disposition!==receipt.outcome?.disposition||
+      completion.disposition!=="product_failure"||completion.cleanup_complete!==true||completion.infrastructure_code!==null||receipt.cleanup?.completed!==true||
+      !(Date.parse(attempt.started_at)<Date.parse(completion.finished_at)&&Date.parse(completion.finished_at)<Date.parse(prior.started_at)&&
+        Date.parse(prior.started_at)<Date.parse(completedAt)))fail();
+  const phase=one(receipt.phases.filter(v=>v.id==="unit"));
+  if(phase.status!=="pass"||phase.exit_status!==0||phase.timed_out!==false||phase.command!=="npm test"||phase.cleanup?.completed!==true||
+      phase.cleanup.termination_reason!=="natural_exit"||phase.cleanup.remaining_owned_processes!==0||phase.cleanup.exit_observed!==true||phase.cleanup.streams_closed!==true||
+      !(Date.parse(attempt.started_at)<=Date.parse(phase.started_at)&&Date.parse(phase.started_at)<Date.parse(phase.finished_at)&&Date.parse(phase.finished_at)<=Date.parse(completion.finished_at)))fail();
+  const text=companionRetirementLog(old.log,old.log_identity,attempt,phase,{bytes,repositoryRoot});
+  const observed=companionRetirementChildLog(text,git,attempt.head,{complete:true});
+  if(!integer(phase.duration_ms)||observed.duration_ms>phase.duration_ms)fail();
+  const fixed=companionRetirementWorkloadSource(git,attempt.head);
+  for(const head of [prior.head,p.head])if(!equal(fixed,companionRetirementWorkloadSource(git,head)))fail();
+  return observed;
+}
+
+export function readCompanionRetirementBudgetPositive(ref,p,{git,parse,bytes,completedAt,after=completedAt,finishedAt=null}) {
+  const registration=companionRetirementBudgetRegistration(git,p.head),w=parse(ref),{root_generated,...source}=w.source_before??{};
+  if(registration.bound_ms!==COMPANION_RETIREMENT_MS||w.contract!=="augnes.registered-fixture-budget-witness.v1"||w.role!=="direct"||w.bound_ms!==COMPANION_RETIREMENT_MS||
+      w.basis!=="actual-owned-development-invocation"||w.synthetic_only!==undefined||w.capture_error!==undefined||w.truncated!==false||
+      w.tested_source_head!==p.head||w.tree!==p.tree||w.dirty!==""||w.command!==companionRetirementCommand||
+      !equal(source,pureContractGitSource(git,p.head).summary)||!equal(w.source_before,w.source_after)||
+      !Array.isArray(root_generated)||root_generated.length>1||root_generated.some(v=>v.path!=="next-env.d.ts"||!/^([a-f0-9]{64})$/u.test(v.sha256))||
+      !natural(w.result)||!integer(w.result.duration_ms)||w.result.duration_ms>=COMPANION_RETIREMENT_MS||
+      !equal(w.runtime_before,w.runtime_after)||digest(w.runtime_before)!==p.inputs.identity_sha256||w.runtime_inputs_sha256!==p.inputs.identity_sha256||w.node_version!==CANONICAL_NODE_VERSION||
+      gitRevisionInventory(w.input_inventory_before)!==p.inputs.inventory_sha256||gitRevisionInventory(w.input_inventory_after)!==p.inputs.inventory_sha256||
+      !equal(w.dependencies_before,w.dependencies_after)||preparedDependencyIdentity(w.dependencies_before).phase_id!=="dependencies-root"||
+      !equal(w.loader_before,w.loader_after)||w.loader_before.path!=="node_modules/tsx/dist/loader.mjs"||w.loader_before.version!==JSON.parse(sourceAt(git,p.head,"package-lock.json")).packages["node_modules/tsx"].version||
+      !equal(w.environment_before,w.environment_after)||w.environment!==digest(w.environment_before)||!path.isAbsolute(w.resource_root)||
+      !equal(w.environment_before,fixtureBudgetEnvironment(w.resource_root,w.environment_before))||
+      w.owned_cleanup?.length!==1||w.owned_cleanup[0].root!==w.resource_root||w.owned_cleanup[0].completed!==true||w.owned_cleanup[0].failure_count!==0||!equal(w.owned_cleanup[0].failures,[])||
+      w.ownership?.checkout?.released!==true||w.ownership.capacity?.released!==true||
+      !equal(w.config,["package.json","package-lock.json","tsconfig.json","scripts/browser-verification-owners.v1.json","scripts/local-canonical-change-owners.v1.json","scripts/canonical-research-tests.v1.json"].map(file=>({path:file,sha256:digest(sourceAt(git,p.head,file))})))||
+      bytes(w.collector,128*1024).toString()!==sourceAt(git,p.head,FIXTURE_BUDGET_COLLECTOR)||
+      !(Date.parse(completedAt)<Date.parse(w.started_at)&&Date.parse(after)<Date.parse(w.started_at)&&Date.parse(w.started_at)<Date.parse(w.finished_at)&&
+        (finishedAt===null||Date.parse(w.finished_at)<=Date.parse(finishedAt))))fail();
+  const lifecycle=bytes(w.lifecycle,128*1024).toString();
+  if(lifecycle.trimEnd().split("\n").some(v=>!v.startsWith("[canonical:fixture-budget-capture] ")||!v.includes(' label="direct registered fixture allowance" ')))fail();
+  naturalLifecycle(lifecycle,{suite:"fixture-budget-capture",label:"direct registered fixture allowance",timeout:COMPANION_RETIREMENT_MS,duration:w.result.duration_ms});
+  return {record:w,summary:companionRetirementCompletion(bytes(w.stdout,2*1024*1024).toString(),git,p.head,{duration:w.result.duration_ms}),finished_at:w.finished_at};
+}
+
+function verifyCompanionRetirementFixtureBudget(p,prior,focused,options) {
+  const reg=focused.regression;
+  if(!keys(reg,["kind","claim","owner","incident","source_partition","rationale","after"])||reg.kind!==REGISTERED_FIXTURE_BUDGET||reg.claim!==FIXTURE_BUDGET_CLAIM||
+      !isCompanionRetirementFixtureBudget(p)||!equal(reg.owner,{phase:"unit",suite:"unit",group:companionRetirementOwner})||focused.failed_phase!=="unit"||
+      !equal(focused.input_remedy_resources,[]))fail();
+  companionRetirementIncident(p,prior,reg,options);
+  if(!equal(reg.source_partition,companionRetirementBudgetSourcePartition(options.git,prior.head,p.head)))fail();
+  companionRetirementRationale(reg.rationale,p,prior,options);
+  const positive=readCompanionRetirementBudgetPositive(reg.after,p,{...options,finishedAt:focused.finished_at});
+  if(!focused.commands.some(v=>v.command===positive.record.command&&v.tested_source_head===p.head&&equal(v.record,reg.after)&&equal(v.stdout,positive.record.stdout)))fail();
+  return p.head;
+}
+
 const identityOwner = "codex-isolated-auth-projection";
 const identityTest = "scripts/test-codex-isolated-auth-projection.ts";
 const identityCommand = "node --import tsx " + identityTest + " --contracts";
@@ -1594,15 +1887,22 @@ export function verifyRegisteredIdentityBudget(p,prior,focused,options) {
   return p.head;
 }
 
-export function inspectCurrentIdentityBudgetInputs(root,w,stockReceipt=null) {
+function inspectCurrentDirectRegisteredFixtureInputs(root,w,stockReceipt,bound,command) {
   const {root_generated:generated,...current}=observePureContractSource(root),{root_generated:frozen,...source}=w.source_after;
   const declaration=readNextDeclaration(root,generated),sameReceiptSource=stockReceipt?.repository?.head_sha===source.head&&stockReceipt?.repository?.tree_sha===source.tree&&
     stockReceipt?.inputs?.binding?.head===source.head&&stockReceipt?.inputs?.binding?.tree===source.tree;
-  if (w.bound_ms!==90000||w.command!==identityCommand||!equal(current,source)||
+  if (w.bound_ms!==bound||w.command!==command||!equal(current,source)||
       !equal(generated,frozen)&&!(sameReceiptSource&&settledNextDeclarationOutput(stockReceipt,declaration,frozen))||
       !equal(observePureContractLoader(root),w.loader_after)||
       comparePreparedDependencyInputs(observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"}),w.dependencies_after)!=="unchanged"||
       !equal(fixtureBudgetEnvironment(w.resource_root),w.environment_after)||existsSync(w.resource_root)) fail();
+}
+
+export function inspectCurrentIdentityBudgetInputs(root,w,stockReceipt=null) {
+  return inspectCurrentDirectRegisteredFixtureInputs(root,w,stockReceipt,90000,identityCommand);
+}
+export function inspectCurrentCompanionRetirementInputs(root,w,stockReceipt=null) {
+  return inspectCurrentDirectRegisteredFixtureInputs(root,w,stockReceipt,COMPANION_RETIREMENT_MS,companionRetirementCommand);
 }
 
 // A fixture-work reduction is neither a product RED/GREEN nor an allowance

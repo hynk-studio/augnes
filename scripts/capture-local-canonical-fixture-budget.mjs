@@ -12,6 +12,7 @@ import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources } from "
 import { observeCanonicalRuntimeInputs, observePreparedDependencyInputs, digest } from "./local-canonical-inputs.mjs";
 import { observePureContractSource, observePureContractLoader } from "./local-canonical-pure-contract-witness.mjs";
 import { FIXTURE_BUDGET_PATHS, registeredFixtureBudget, fixtureBudgetEnvironment, identityBudgetRegistration,
+  companionRetirementBudgetRegistration, COMPANION_RETIREMENT_MS,
   REQUEST_BOUND_CHILD_COMMAND, REQUEST_BOUND_CAPTURE_MS } from "./local-canonical-fixture-budget-witness.mjs";
 import { collectHostEnvironment } from "./local-canonical-environment.mjs";
 import { admitVerificationContext } from "./local-canonical-verification-context.mjs";
@@ -25,6 +26,7 @@ const [directory,role,group,...extra]=process.argv.slice(2);
 const integration = role === "integration" && group === "external-response";
 const maintenance = group === "local-canonical-maintenance";
 const identity = group === "codex-isolated-auth-projection";
+const retirement = group === "companion-ownership-retirement";
 const selective = role === "selective" && group === "external-response-selective";
 const requestBound = ["request-bound-before","request-bound-after"].includes(role) && group === "request-bound-review";
 if(extra.length||!integration&&!selective&&!requestBound&&!["direct","registered"].includes(role)||!group||!directory)
@@ -32,7 +34,7 @@ if(extra.length||!integration&&!selective&&!requestBound&&!["direct","registered
 // The reviewed capture tool may observe an exact historical selective source.
 // Its actual cwd is recorded and admitted; it is never represented as source
 // that already contained this later collector implementation.
-if ((maintenance || identity) && role!=="direct") throw new Error("fixture_budget_direct_registration_required");
+if ((maintenance || identity || retirement) && role!=="direct") throw new Error("fixture_budget_direct_registration_required");
 const toolRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const root=selective?realpathSync(process.cwd()):toolRoot;
 assert.equal(realpathSync(process.cwd()),root);
@@ -40,7 +42,7 @@ const out=realpathSync(directory),git=args=>execFileSync("git",["--no-replace-ob
 if([role+".json",role+".log",role+"-lifecycle.log",role+"-collector.log",...(requestBound?[role+"-stderr.log"]:[])].some(file=>existsSync(path.join(out,file))))throw new Error("fixture_budget_capture_exists");
 const artifact=(name,value)=>{const data=Buffer.from(typeof value==="string"?value:JSON.stringify(value,null,2)+"\n");writeFileSync(path.join(out,name),data,{flag:"wx",mode:0o600});return{artifact:name,sha256:digest(data)};};
 if (integration || selective || requestBound) await captureIntegration();
-else if (identity) await captureIdentityFixture();
+else if (identity || retirement) await captureIdentityFixture();
 else await captureReviewedFixture();
 
 async function captureIntegration() {
@@ -194,7 +196,7 @@ if(error||result?.exit_code!==0||result?.timed_out||result?.cancelled||!result?.
 async function captureIdentityFixture() {
   const context=admitVerificationContext({repositoryRoot:root,kind:"isolated-worktree"});
   const host=collectHostEnvironment(root),invocationId=randomBytes(16).toString("hex");
-  const record={contract:"augnes.registered-fixture-budget-witness.v1",basis:"actual-owned-development-invocation",role:"direct",bound_ms:90000};
+  const record={contract:"augnes.registered-fixture-budget-witness.v1",basis:"actual-owned-development-invocation",role:"direct",bound_ms:retirement?COMPANION_RETIREMENT_MS:90000};
   const configFiles=["package.json","package-lock.json","tsconfig.json","scripts/browser-verification-owners.v1.json","scripts/local-canonical-change-owners.v1.json","scripts/canonical-research-tests.v1.json"];
   let capacity,checkout,owner,result,error,settled=true,output="",lifecycle="",outputBytes=0,truncated=false;
   let owned_cleanup=[],ownership={};
@@ -203,8 +205,8 @@ async function captureIdentityFixture() {
     capacity=acquireVerificationCapacity({context,host:host.public,invocationId});
     checkout=acquireCheckoutVerificationOwnership({repositoryRoot:root});
     record.source_before=observePureContractSource(root);
-    const registration=identityBudgetRegistration(git,record.source_before.head);
-    if(registration.bound_ms!==90000)throw new Error("identity_budget_prospective_registration_required");
+    const registration=(retirement?companionRetirementBudgetRegistration:identityBudgetRegistration)(git,record.source_before.head);
+    if(registration.bound_ms!==record.bound_ms)throw new Error(retirement?"companion_retirement_budget_prospective_registration_required":"identity_budget_prospective_registration_required");
     record.command=registration.command.join(" ");record.tested_source_head=record.source_before.head;record.tree=record.source_before.tree;record.dirty="";
     record.config=configFiles.map(file=>({path:file,sha256:digest(readFileSync(path.join(root,file)))}));
     record.dependencies_before=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"});

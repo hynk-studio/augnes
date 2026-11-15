@@ -12,6 +12,9 @@ import { verifyGitSourceRepair, verifyGitRevisionFailure, MATERIAL_SOURCE_CORREC
 import { REGISTERED_FIXTURE_BUDGET, FIXTURE_BUDGET_CLAIM, FIXTURE_BUDGET_COLLECTOR, FIXTURE_BUDGET_PATHS,
   REGISTERED_IDENTITY_BUDGET, IDENTITY_BUDGET_CLAIM, identityBudgetRegistration, identityBudgetSourcePartition, identityBudgetWorkloadSource, identityBudgetWorkloadEquivalence,
   verifyRegisteredIdentityBudget, readIdentityBudgetPositive, inspectCurrentIdentityBudgetInputs,
+  COMPANION_RETIREMENT_ALLOWANCE_CASE, COMPANION_RETIREMENT_MS, COMPANION_RETIREMENT_INPUT_PATHS, isCompanionRetirementFixtureBudget,
+  companionRetirementBudgetRegistration, companionRetirementBudgetSourcePartition, companionRetirementCompletionNames, companionRetirementCompletion,
+  readCompanionRetirementBudgetPositive, inspectCurrentCompanionRetirementInputs, registeredFixtureBudget, fixtureBudgetFailurePhase, verifyRegisteredFixtureBudget,
   fixtureBudgetSourceDelta, fixtureBudgetEnvironment, inspectCurrentFixtureBudgetInputs, inspectCurrentIntegrationBudgetInputs,
   fixtureBudgetMeasurementStages, EXISTING_DEDICATED_FIXTURE_PAIR, SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM,
   SELECTIVE_FIXTURE_PATH, SELECTIVE_FIXTURE_COMMAND, SELECTIVE_FIXTURE_OWNER, SELECTIVE_COVERAGE_OBLIGATIONS,
@@ -600,6 +603,191 @@ export async function identityBudgetWitnessControls(parent,_h,sourceRoot) {
     return {contract:REGISTERED_IDENTITY_BUDGET,synthetic_only:true,negative_controls:negatives,
       ordinary_and_material_predecessors:true,immutable_shared_source_reuse:true,closed_workload_files:closure.map(v=>v.path),
       registered_identity_executed:false,original_incident_reproduction:false};
+  } finally {rmSync(root,{recursive:true,force:true});}
+}
+
+// Exact reader controls over a disposable source tree. No retirement workload,
+// real Companion service, listener or historical source is executed here.
+export async function companionRetirementBudgetWitnessControls(parent,_h,sourceRoot) {
+  const root=path.join(parent,"companion-retirement-budget-witness");mkdirSync(root);
+  try {
+    const write=(file,value)=>{const target=path.join(root,file);mkdirSync(path.dirname(target),{recursive:true});
+      writeFileSync(target,typeof value==="string"?value:JSON.stringify(value),{mode:0o600});};
+    const git=immutableFixtureGit(root),commit=message=>{git(["add","."]);
+      git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m",message]);return git(["rev-parse","HEAD"]).toString().trim();};
+    git(["init","--quiet"]);write(".gitignore","node_modules/\n.augnes-local-verification/\nnext-env.d.ts\n");
+    for(const dir of ["app","components","lib","scripts","types","apps/augnes_apps/src","apps/augnes_apps/public"])write(dir+"/placeholder.ts","export {};\n");
+    const test="scripts/test-companion-ownership-retirement.mjs",owner="companion-ownership-retirement",
+      label="Companion lost-ownership retirement and reconciliation regressions",command="node --import tsx "+test;
+    const version=JSON.parse(readFileSync(path.join(sourceRoot,"node_modules/tsx/package.json"),"utf8")).version;
+    write("package.json",{type:"module",scripts:{test:"node scripts/run-canonical-test-suite.mjs unit"},dependencies:{tsx:version}});
+    write("package-lock.json",{packages:{"node_modules/tsx":{version}}});write("tsconfig.json",{compilerOptions:{target:"ES2022"}});
+    for(const name of ["browser-verification-owners.v1.json","local-canonical-change-owners.v1.json","canonical-research-tests.v1.json"])write("scripts/"+name,{});
+    for(const name of ["tsx","esbuild","@esbuild"])cpSync(path.join(sourceRoot,"node_modules",name),path.join(root,"node_modules",name),{recursive:true});
+    for(const file of COMPANION_RETIREMENT_INPUT_PATHS.filter(v=>![test,"package.json","package-lock.json","scripts/canonical-child-runner.mjs"].includes(v)))
+      write(file,"// Inert synthetic source; never imported or executed.\n");
+    const scenarioCases=[
+      {name:"lost-state-retirement-and-replay",effects:1},{name:"lost-state-later-attempt-exit-diagnostic",effects:1},
+      {name:"settled-history-after-device-renumbering",effects:1},{name:"stale-decision-and-maintenance-refusal",effects:0},
+      {name:"foreign-runtime-and-configuration-refusal",effects:0},{name:"unknown-bootout-reconciled-before-resume",effects:1},
+      {name:"unavailable-and-reused-process-witness-refusal",effects:0},{name:"interrupted-runtime-retirement",effects:1},
+      {name:"changed-generation-at-effect-boundary",effects:0},
+    ],terminal="PASS ownership retirement: authenticated loopback witnesses, exact refusal, reconciliation, replay and zero residue";
+    const inertFixture="// Explicit synthetic reader grammar; never executed.\nconst sources="+JSON.stringify(COMPANION_RETIREMENT_INPUT_PATHS.slice(1,6))+";\n"+
+      scenarioCases.map(v=>"await run("+JSON.stringify(v.name)+",async f=>{assert.equal(f.effects(),"+v.effects+");});\n").join("")+
+      'for(const fault of ["ui","bridge","manager-conflict"]) {}\nconsole.log('+JSON.stringify(terminal)+");\n";
+    write(test,inertFixture);
+    write("scripts/canonical-child-runner.mjs","export const DEFAULT_CANONICAL_TERM_GRACE_MS=8_000;\nexport const DEFAULT_CANONICAL_KILL_GRACE_MS=5_000;\n");
+    const executor='npmPhase("unit","Canonical unit suite",["test"],3_600_000);\n';write("scripts/run-local-canonical-verification.mjs",executor+executor);
+    write(FIXTURE_BUDGET_COLLECTOR,"export const controlled_retirement_collector=true;\n");
+    const suite='const rootNode=(...args)=>({command:process.execPath,args:["--import","tsx",...args],cwd:repoRoot,});\n'+
+      'const suites={unit:[{label:"unchanged unit owner",...rootNode("scripts/unrelated.mjs"),timeoutMs:10_000},...(process.platform === "darwin" ? [{label:'+JSON.stringify(label)+
+      ',...rootNode("'+test+'"),timeoutMs:60_000,requireNaturalExit:true}] : [])],authority:[]};\n';
+    const controlStep='{label:"Companion ownership-retirement allowance evidence controls",...rootNode("scripts/fixtures/local-canonical-reviewed-revision.mjs","--run-companion-retirement-budget-fixtures"),timeoutMs:30_000,requireNaturalExit:true}';
+    const candidateSuite=suite.replace("timeoutMs:60_000","timeoutMs:75_000").replace("authority:[]","authority:["+controlStep+"]");
+    write("scripts/unrelated.mjs","export const untouched=true;\n");write(FIXTURE_BUDGET_PATHS.suite,suite);
+    const baselineHead=commit("controlled historical retirement source"),baselineTree=git(["rev-parse",baselineHead+"^{tree}"]).toString().trim();
+    write(FIXTURE_BUDGET_COLLECTOR,"export const controlled_retirement_collector=true;\n// separate retained predecessor\n");
+    const priorHead=commit("controlled immediate retirement predecessor"),priorTree=git(["rev-parse",priorHead+"^{tree}"]).toString().trim();
+    write(FIXTURE_BUDGET_PATHS.suite,candidateSuite);
+    const head=commit("controlled finite retirement allowance"),tree=git(["rev-parse",head+"^{tree}"]).toString().trim();
+    const fixtureEpoch=Date.now(),at=offset=>new Date(fixtureEpoch+offset).toISOString(),branch="codex/retirement-budget-controls";
+    const refs=new Map(),ref=(name,value)=>{const raw=Buffer.from(typeof value==="string"?value:JSON.stringify(value));refs.set(name,raw);return {artifact:name,sha256:digest(raw)};};
+    const bytes=r=>{const raw=refs.get(r.artifact);assert(raw);assert.equal(digest(raw),r.sha256);return raw;},parse=r=>JSON.parse(bytes(r));
+    const names=companionRetirementCompletionNames(git,head),output=(complete,elapsed)=>names.scenarios.flatMap(v=>[
+      {scenario:v.name,stage:"scenario_start",elapsed_ms:0},{scenario:v.name,stage:"fixture_ready",elapsed_ms:0},
+      {scenario:v.name,stage:"action_pass",elapsed_ms:Math.min(1,elapsed)},
+      {scenario:v.name,pass:true,effects:v.effects,cleanup_complete:true,elapsed_ms:elapsed},
+    ]).concat((complete?names.adverse:names.adverse.slice(0,2)).map(adverse=>({adverse,pass:true,cleanup_complete:true})))
+      .map(v=>JSON.stringify(v)+"\n").join("")+(complete?names.terminal+"\n":"");
+    const lifecycle=(suiteName,childLabel,bound,duration,body="",failed=false)=>{
+      const prefix=`[canonical:${suiteName}] `,q=JSON.stringify(childLabel);
+      return prefix+"child_start label="+q+" timeout_ms="+bound+"\n"+prefix+"child_spawn label="+q+" pid=1 wait=process_exit\n"+body+
+        (failed?prefix+"child_cleanup_start label="+q+" elapsed_ms=60002 reason=bounded_timeout exit_observed=false stdout_closed=false stderr_closed=false\n":
+          prefix+"child_exit label="+q+" elapsed_ms="+(duration-1)+" exit_code=0 signal=null stdout_closed=true stderr_closed=true\n"+
+          prefix+"child_cleanup_start label="+q+" elapsed_ms="+(duration-1)+" reason=post_exit_settlement exit_observed=true stdout_closed=true stderr_closed=true\n")+
+        prefix+"child_cleanup_result label="+q+" elapsed_ms="+duration+" reason="+(failed?"bounded_timeout":"post_exit_settlement term_sent=false kill_sent=false")+" streams_closed=true remaining_owned_processes=0\n"+
+        prefix+"child_result label="+q+" duration_ms="+duration+" exit_code="+(failed?"null signal=SIGTERM timed_out=true":"0 signal=null timed_out=false")+
+        " exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason="+(failed?"bounded_timeout":"natural_exit")+"\n";
+    };
+    const phase=(attempt,log,pass,start,finish)=>({id:"unit",command:"npm test",status:pass?"pass":"failure",exit_status:pass?0:1,timed_out:false,
+      started_at:at(start),finished_at:at(finish),duration_ms:finish-start,
+      cleanup:{completed:true,exit_observed:true,streams_closed:true,remaining_owned_processes:0,termination_reason:"natural_exit"},
+      log:{relative_path:`.augnes-local-verification/logs/${attempt}/unit.log`,bytes:Buffer.byteLength(log),truncated:false}});
+    const inherited={route:"serial-aggregate-budget-v1",origin_family_id:digest("synthetic serial family"),origin_number:1,
+      origin_attempt_id:"synthetic-serial-origin",origin_receipt_fingerprint:digest("synthetic serial receipt"),envelope_sha256:digest("synthetic serial envelope")};
+    const baselineAttempt={family_id:digest("synthetic historical family"),number:1,attempt_id:"synthetic-retirement-historical",branch,head:baselineHead,tree:baselineTree,started_at:at(-300000)};
+    const historicalLog=lifecycle("unit",label,60000,55540,output(true,6000)),historicalPhase=phase(baselineAttempt.attempt_id,historicalLog,true,-290000,-230000);
+    write(historicalPhase.log.relative_path,historicalLog);
+    const historicalReceipt=finalizeReceipt({attempt:baselineAttempt,repository:{head_sha:baselineHead,tree_sha:baselineTree,branch},outcome:{disposition:"product_failure"},cleanup:{completed:true},phases:[historicalPhase]});
+    const historicalCompletion={attempt_id:baselineAttempt.attempt_id,receipt_fingerprint:historicalReceipt.integrity.content_fingerprint,
+      disposition:"product_failure",cleanup_complete:true,infrastructure_code:null,finished_at:at(-220000)};
+    const historical=Object.fromEntries(Object.entries({receipt:historicalReceipt,attempt:baselineAttempt,completion:historicalCompletion}).map(([role,value])=>[role,ref("historical-"+role+".json",value)]));
+    const prior={family_id:digest("synthetic immediate family"),number:1,attempt_id:"synthetic-retirement-failure",branch,head:priorHead,tree:priorTree,started_at:at(-200000),
+      source_correction:{schema:"augnes.local-canonical-source-correction.v7",kind:"reviewed_revision",head:priorHead,tree:priorTree,
+        prior_family_id:baselineAttempt.family_id,prior_number:1,prior_attempt_id:baselineAttempt.attempt_id,prior_receipt_fingerprint:historicalCompletion.receipt_fingerprint,
+        originals:historical,authorization:{grant_comment_id:101},commission:{source_revision:MATERIAL_SOURCE_CORRECTION,ordinal:1,maximum_invocations:1,inherited_serial:inherited}}};
+    const incidentLog=lifecycle("unit",label,60000,60152,output(false,6500),true),incidentPhase=phase(prior.attempt_id,incidentLog,false,-190000,-110000);
+    write(incidentPhase.log.relative_path,incidentLog);
+    const original=finalizeReceipt({attempt:prior,repository:{head_sha:priorHead,tree_sha:priorTree,branch},outcome:{disposition:"product_failure"},cleanup:{completed:true},phases:[incidentPhase]});
+    const completedAt=at(-100000),completion={attempt_id:prior.attempt_id,receipt_fingerprint:original.integrity.content_fingerprint,
+      disposition:"product_failure",cleanup_complete:true,infrastructure_code:null,finished_at:completedAt};
+    const inputs=observeCanonicalRuntimeInputs(),inventory=gitFixtureDeclaration({inputs,acceptedHead:head,branch});
+    const p={schema:"augnes.local-canonical-source-correction.v7",kind:"reviewed_revision",branch,head,tree,base:priorHead,
+      prior_family_id:prior.family_id,prior_number:1,prior_attempt_id:prior.attempt_id,prior_receipt_fingerprint:completion.receipt_fingerprint,
+      commission:{source_revision:MATERIAL_SOURCE_CORRECTION,evidence_kind:REGISTERED_FIXTURE_BUDGET,allowance_case:COMPANION_RETIREMENT_ALLOWANCE_CASE,
+        ordinal:1,maximum_invocations:1,inherited_serial:inherited},inputs:{identity_sha256:digest(inputs),inventory_sha256:gitRevisionInventory(inventory)}};
+    const resource=path.join(parent,"already-settled-retirement"),env=fixtureBudgetEnvironment(resource),source=observePureContractSource(root),loader=observePureContractLoader(root,env),
+      dependencies=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"});
+    const normal={exit_code:0,signal:null,timed_out:false,cancelled:false,spawn_error_code:null,duration_ms:12,termination_reason:"natural_exit",
+      exit_observed:true,streams_closed:true,cleanup_started:true,cleanup_completed:true,remaining_owned_processes:0};
+    const stdout=ref("capture.log",output(true,1)),capture={contract:"augnes.registered-fixture-budget-witness.v1",basis:"actual-owned-development-invocation",role:"direct",
+      bound_ms:COMPANION_RETIREMENT_MS,truncated:false,command,tested_source_head:head,tree,dirty:"",source_before:source,source_after:source,
+      config:["package.json","package-lock.json","tsconfig.json","scripts/browser-verification-owners.v1.json","scripts/local-canonical-change-owners.v1.json","scripts/canonical-research-tests.v1.json"].map(file=>({path:file,sha256:digest(readFileSync(path.join(root,file)))})),
+      dependencies_before:dependencies,dependencies_after:dependencies,runtime_before:inputs,runtime_after:inputs,runtime_inputs_sha256:digest(inputs),node_version:process.versions.node,
+      input_inventory_before:inventory,input_inventory_after:inventory,environment_before:env,environment_after:env,environment:digest(env),resource_root:resource,
+      loader_before:loader,loader_after:loader,started_at:at(-10000),finished_at:at(-5000),result:normal,
+      owned_cleanup:[{root:resource,completed:true,failure_count:0,failures:[]}],ownership:{checkout:{released:true},capacity:{released:true}},stdout,
+      lifecycle:ref("capture-lifecycle.log",lifecycle("fixture-budget-capture","direct registered fixture allowance",COMPANION_RETIREMENT_MS,12)),
+      collector:ref("collector.log",readFileSync(path.join(root,FIXTURE_BUDGET_COLLECTOR),"utf8"))};
+    const after=ref("capture.json",capture),focused={failed_phase:"unit",input_remedy_resources:[],finished_at:at(-1000),
+      commands:[{command,tested_source_head:head,record:after,stdout}],regression:{kind:REGISTERED_FIXTURE_BUDGET,claim:FIXTURE_BUDGET_CLAIM,
+        owner:{phase:"unit",suite:"unit",group:owner},incident:{receipt:p.prior_receipt_fingerprint,log:ref("incident.log",incidentLog),
+          log_identity:{relative_path:incidentPhase.log.relative_path,bytes:Buffer.byteLength(incidentLog),sha256:digest(incidentLog)},cause:"UNKNOWN"},
+        source_partition:companionRetirementBudgetSourcePartition(git,priorHead,head),rationale:{execution_reserve_ms:15000,termination_grace_ms:13000,resource_ceiling_ms:90000,
+          judgment:"Synthetic reader control for a finite prospective operating envelope. Historical observations remain independent, with UNKNOWN cause, no stitched completion and no reliable latency or qualification claim.",
+          historical_complete:{...historical,log:ref("historical-unit.log",historicalLog),log_identity:{relative_path:historicalPhase.log.relative_path,bytes:Buffer.byteLength(historicalLog),sha256:digest(historicalLog)},
+            limitations:"Retained complete historical invocation only. Different samples are not combined into completion, required latency, a causal comparison or qualification evidence."}},after}};
+    const options={git,bytes,parse,original,completion,completedAt,repositoryRoot:root};
+    const verify=(q=p,f=focused,a=prior,r=original,c=completion)=>verifyRegisteredFixtureBudget(q,a,f,{...options,original:r,completion:c,completedAt:c.finished_at});
+    const actualGit=args=>execFileSync("git",["--no-replace-objects",...args],{cwd:sourceRoot,timeout:10000,maxBuffer:16*1024*1024});
+    const actualHead=actualGit(["rev-parse","HEAD"]).toString().trim(),actualRegistration=companionRetirementBudgetRegistration(actualGit,actualHead);
+    assert.deepEqual(companionRetirementCompletionNames(actualGit,actualHead),{scenarios:scenarioCases,adverse:["ui","bridge","manager-conflict"],terminal});
+    assert(isCompanionRetirementFixtureBudget(p));assert.equal(fixtureBudgetFailurePhase(REGISTERED_FIXTURE_BUDGET,COMPANION_RETIREMENT_ALLOWANCE_CASE),"unit");
+    assert.equal(fixtureBudgetFailurePhase(REGISTERED_FIXTURE_BUDGET),"authority");assert.equal(registeredFixtureBudget(git,head,owner).bound_ms,75000);
+    assert.equal(companionRetirementBudgetRegistration(git,priorHead).evidence_controls_registered,false);
+    assert.equal(companionRetirementBudgetRegistration(git,head).evidence_controls_registered,true);
+    assert.equal(verify(),head);assert.equal(readCompanionRetirementBudgetPositive(after,p,options).summary.complete,true);inspectCurrentCompanionRetirementInputs(root,capture);
+    let negatives=0;
+    for(const change of [f=>f.failed_phase="authority",f=>f.regression.owner.group="local-canonical-maintenance",f=>f.regression.kind=REGISTERED_IDENTITY_BUDGET,
+      f=>f.regression.incident.cause="KNOWN",f=>f.regression.incident.receipt=digest("other receipt"),f=>f.regression.source_partition.after.bound_ms=90000,
+      f=>f.regression.rationale.execution_reserve_ms=30000,f=>f.regression.rationale.termination_grace_ms=0,f=>f.regression.rationale.resource_ceiling_ms=105000,
+      f=>f.regression.rationale.historical_complete.receipt.sha256=digest("unrelated PASS"),f=>f.regression.rationale.historical_complete.log_identity.bytes++,
+      f=>f.regression.rationale.historical_complete.limitations="PASS"]) {
+      const f=structuredClone(focused);change(f);assert.throws(()=>verify(p,f));negatives++;
+    }
+    for(const change of [q=>q.commission.allowance_case="registered-maintenance-direct-v1",q=>q.commission.evidence_kind=REGISTERED_IDENTITY_BUDGET,
+      q=>delete q.commission.inherited_serial,q=>q.commission.inherited_serial.envelope_sha256=digest("lost history"),q=>q.commission.input_acquisition="unadmitted",
+      q=>q.commission.ordinal=2,q=>q.commission.maximum_invocations=2]) {
+      const q=structuredClone(p);change(q);assert.throws(()=>verify(q));negatives++;
+    }
+    for(const change of [w=>w.bound_ms=90000,w=>w.bound_ms=60000,w=>w.command+=" --skip",w=>w.synthetic_only=true,w=>w.truncated=true,w=>w.dirty="M target",
+      w=>w.result.timed_out=true,w=>w.result.termination_reason="exited_with_owned_descendant_cleanup",w=>w.ownership.capacity.released=false,w=>w.owned_cleanup=[],
+      w=>w.runtime_after.node.observation.sha256=digest("changed runtime"),w=>w.loader_after.sha256=digest("changed loader"),w=>w.environment_after.UNBOUND="1",w=>w.config.pop(),
+      w=>w.source_after.physical_matches=false,w=>w.collector=ref("wrong-collector.log","wrong collector"),w=>w.started_at=at(-200000),
+      w=>w.lifecycle=ref("forced-lifecycle.log",bytes(w.lifecycle).toString().replace("term_sent=false","term_sent=true"))]) {
+      const w=parse(after),f=structuredClone(focused);change(w);f.regression.after=ref("bad-capture-"+negatives+".json",w);f.commands[0].record=f.regression.after;f.commands[0].stdout=w.stdout;
+      assert.throws(()=>readCompanionRetirementBudgetPositive(f.regression.after,p,{...options,finishedAt:f.finished_at}));negatives++;
+    }
+    const completeOutput=output(true,1);
+    for(const changed of [output(false,1),completeOutput.replace(names.terminal,""),completeOutput+names.terminal+"\n",
+      completeOutput.replace('"stage":"action_pass"','"stage":"fixture_ready"'),completeOutput.replace('"effects":1','"effects":0'),
+      completeOutput.replace('"cleanup_complete":true','"cleanup_complete":false'),completeOutput.replace('"elapsed_ms":1','"elapsed_ms":-1'),
+      completeOutput.replace(names.scenarios[0].name,names.scenarios[1].name),completeOutput.replace('"adverse":"manager-conflict"','"adverse":"unknown"')]) {
+      const w=parse(after),f=structuredClone(focused);w.stdout=ref("incomplete-output-"+negatives+".log",changed);
+      f.regression.after=ref("incomplete-output-"+negatives+".json",w);f.commands[0].record=f.regression.after;f.commands[0].stdout=w.stdout;
+      assert.throws(()=>readCompanionRetirementBudgetPositive(f.regression.after,p,{...options,finishedAt:f.finished_at}));negatives++;
+    }
+    const missingCommand=structuredClone(focused);missingCommand.commands=[];assert.throws(()=>verify(p,missingCommand));negatives++;
+    for(const changed of [incidentLog+names.terminal+"\n",incidentLog.replace('"adverse":"bridge"','"adverse":"manager-conflict"'),
+      incidentLog.replace('"stage":"action_pass"','"stage":"fixture_ready"'),incidentLog.replace("timeout_ms=60000","timeout_ms=75000"),
+      incidentLog+'[canonical:unit] child_start label="unadmitted after failure" timeout_ms=1000\n']) {
+      const f=structuredClone(focused),r=structuredClone(original);write(incidentPhase.log.relative_path,changed);
+      f.regression.incident.log=ref("bad-incident-"+negatives+".log",changed);f.regression.incident.log_identity.bytes=Buffer.byteLength(changed);f.regression.incident.log_identity.sha256=digest(changed);
+      r.phases[0].log.bytes=Buffer.byteLength(changed);assert.throws(()=>verify(p,f,prior,r));negatives++;
+    }
+    write(incidentPhase.log.relative_path,incidentLog);
+    for(const [file,changed]of [[test,readFileSync(path.join(root,test),"utf8")+"\n// changed fixed workload\n"],
+      ...COMPANION_RETIREMENT_INPUT_PATHS.filter(v=>v!==test).map(file=>[file,"changed immutable workload\n"]),
+      [FIXTURE_BUDGET_PATHS.suite,candidateSuite.replace("timeoutMs:75_000","timeoutMs:90_000")],
+      [FIXTURE_BUDGET_PATHS.suite,candidateSuite.replace("timeoutMs:10_000","timeoutMs:11_000")],
+      [FIXTURE_BUDGET_PATHS.suite,candidateSuite.replace('rootNode("'+test+'")','rootNode("'+test+'","--skip")')],
+      [FIXTURE_BUDGET_PATHS.suite,candidateSuite.replace('process.platform === "darwin"','process.platform !== "darwin"')],
+      [FIXTURE_BUDGET_PATHS.suite,candidateSuite.replace(controlStep,"")],
+      [FIXTURE_BUDGET_PATHS.suite,candidateSuite.replace("timeoutMs:30_000","timeoutMs:31_000")],
+      [FIXTURE_BUDGET_PATHS.suite,candidateSuite.replace(controlStep,controlStep.replace("requireNaturalExit:true","requireNaturalExit:false"))],
+      [FIXTURE_BUDGET_PATHS.suite,candidateSuite.replace(controlStep,controlStep.replace("requireNaturalExit:true","requireNaturalExit:true,env:{}"))],
+      [FIXTURE_BUDGET_PATHS.suite,candidateSuite.replace("--run-companion-retirement-budget-fixtures","--run-companion-retirement-budget-fixtures-extra")],
+      [FIXTURE_BUDGET_PATHS.suite,candidateSuite.replace(controlStep,controlStep+","+controlStep)],
+      ["scripts/run-local-canonical-verification.mjs",(executor+executor).replaceAll("3_600_000","3_700_000")]]) {
+      write(file,changed);const incompatible=commit("controlled refused retirement source");
+      assert.throws(()=>companionRetirementBudgetSourcePartition(git,priorHead,incompatible));negatives++;git(["reset","--hard",head]);
+    }
+    assert.equal(verify(),head);
+    return {contract:REGISTERED_FIXTURE_BUDGET,allowance_case:COMPANION_RETIREMENT_ALLOWANCE_CASE,synthetic_only:true,negative_controls:negatives,
+      retained_historical_invocation_bound:true,complete_invocations_never_stitched:true,fixed_workload_files:COMPANION_RETIREMENT_INPUT_PATHS.length,
+      actual_registration:{head:actualHead,bound_ms:actualRegistration.bound_ms},
+      registered_retirement_executed:false,original_incident_reproduction:false};
   } finally {rmSync(root,{recursive:true,force:true});}
 }
 

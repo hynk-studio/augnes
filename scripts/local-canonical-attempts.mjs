@@ -26,10 +26,12 @@ import {MATERIAL_SOURCE_CORRECTION, MATERIAL_HISTORY_BOUNDARY, isMaterialSourceR
   readIntegrationBudgetDelegation, integrationBudgetAuthorityScope, INTEGRATION_BUDGET_GRANT,
   readGeneratedStockDelegation, generatedStockAuthorityScope,
   selectiveFixtureWorkloadAuthorityScope, maintenanceFixtureAuthorityScope,
-  identityBudgetAuthorityScope, IDENTITY_BUDGET_GRANT } from "./local-canonical-git-observation.mjs";
+  identityBudgetAuthorityScope, IDENTITY_BUDGET_GRANT,
+  companionRetirementBudgetAuthorityScope, readCompanionRetirementBudgetDelegation } from "./local-canonical-git-observation.mjs";
 import { REPOSITORY_TYPECHECK, observeTypecheckCompiler, observeGeneratedTypeInputs } from "./local-canonical-typecheck-witness.mjs";
 import { REGISTERED_FIXTURE_BUDGET, REGISTERED_INTEGRATION_BUDGET, fixtureBudgetEvidenceClaim, fixtureBudgetFailurePhase,
   REGISTERED_IDENTITY_BUDGET, inspectCurrentIdentityBudgetInputs,
+  isCompanionRetirementFixtureBudget, inspectCurrentCompanionRetirementInputs,
   inspectCurrentFixtureBudgetInputs, inspectCurrentIntegrationBudgetInputs, isMaintenanceFixtureBudget, MAINTENANCE_FIXTURE_GRANT,
   SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM, selectiveFixtureWorkloadIncident,
   inspectCurrentSelectiveFixtureWorkloadInputs, REGISTERED_REQUEST_BOUND_ALLOWANCE,
@@ -641,6 +643,18 @@ function verifyMaintenanceOriginals(anchorRoot,repositoryRoot,proof,evidence) {
   }
   return root;
 }
+// The published delegation carries declared predecessor facts. Bind them to
+// the actual immutable originals in both preparation and authenticated admission;
+// parsing its prose alone never establishes historical source or consumption.
+function verifyCompanionRetirementDelegation(p,delegation,evidence) {
+  const anchor=readCompanionRetirementBudgetDelegation(delegation.body,p),prior=evidence.prior;
+  if(!anchor||!isMaterialSourceRevision(prior.source_correction)||
+      anchor.head!==prior.head||anchor.tree!==prior.tree||anchor.base!==evidence.original.repository.base_sha||
+      anchor.grant!==prior.source_correction.authorization?.grant_comment_id||
+      prior.source_correction.commission.ordinal!==1||prior.source_correction.commission.maximum_invocations!==1)
+    throw fail("revision_companion_retirement_delegation_source_invalid");
+}
+
 // No admission capability, ledger append, or setup mutation. Evidence and live
 // input readiness are separate results so unsafe retained stock cannot vanish.
 export function prepareMaintenanceCandidate({anchorRoot,repositoryRoot,proof,runtimeInputs=null,live=null}) {
@@ -947,6 +961,7 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
     });
     if (evidence.selectiveWorkload) retainDependencyPrerequisites?.({ observations: [evidence.selectiveWorkload.after.dependencies] });
     if (evidence.identityBudget) retainDependencyPrerequisites?.({ observations: [evidence.identityBudget.dependencies_after] });
+    if (evidence.retirementBudget) retainDependencyPrerequisites?.({ observations: [evidence.retirementBudget.dependencies_after] });
     const priorRoot = verifyRevisionOriginals(anchorRoot, repositoryRoot, proof);
     const successor = { contract: "augnes.local-canonical-successor.v2", kind: "reviewed_revision",
       family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
@@ -996,6 +1011,7 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
     if (evidence.integrationBudget) inspectCurrentIntegrationBudgetInputs(repositoryRoot, evidence.integrationBudget, stockReceipt);
     if (evidence.selectiveWorkload) inspectCurrentSelectiveFixtureWorkloadInputs(repositoryRoot, evidence.selectiveWorkload, stockReceipt);
     if (evidence.identityBudget) inspectCurrentIdentityBudgetInputs(repositoryRoot, evidence.identityBudget, stockReceipt);
+    if (evidence.retirementBudget) inspectCurrentCompanionRetirementInputs(repositoryRoot, evidence.retirementBudget, stockReceipt);
     if (evidence.generatedStockBrowser) inspectGeneratedStockBrowserInputs(repositoryRoot, evidence.generatedStockBrowser);
     if (evidence.stockVerifier) {
       inspectCurrentCommonDriverInputs(repositoryRoot,evidence.stockVerifier);
@@ -1173,7 +1189,7 @@ function verifyRevisionOriginals(anchorRoot, repositoryRoot, proof, materialFile
       rememberRevisionFile(original,captureBytes);
     }
   }
-  const budgetPhase = verifierLifecycleEvidence(proof) ? "authority" : preparedEligibilityEvidence(proof) ? PREPARED_ELIGIBILITY_PHASE : generatedStockEvidence(proof) ? GENERATED_STOCK_PHASE : fixtureBudgetFailurePhase(proof.commission?.evidence_kind);
+  const budgetPhase = verifierLifecycleEvidence(proof) ? "authority" : preparedEligibilityEvidence(proof) ? PREPARED_ELIGIBILITY_PHASE : generatedStockEvidence(proof) ? GENERATED_STOCK_PHASE : fixtureBudgetFailurePhase(proof.commission?.evidence_kind,proof.commission?.allowance_case);
   if (budgetPhase) {
     const folder=path.dirname(materialFile??path.join(repositoryRoot,proof.local_relative_path));
     const focused=JSON.parse(revisionArtifact(folder,proof.focused));
@@ -1485,6 +1501,8 @@ const usesFreshRevisionGrant = p => isBrowserSuccessor(p) || isGitObservationSuc
 
 // Once this boundary is crossed the optional v7 inventory cannot be dropped.
 function validGitRevisionEdge(previous, next) {
+  if (Object.hasOwn(next?.commission??{},"allowance_case") &&
+      !isMaintenanceFixtureBudget(next) && !isCompanionRetirementFixtureBudget(next)) return false;
   if (isMaterialSourceRevision(previous) && isReviewedIntegration(next))
     return previous.commission.ordinal === 1 && previous.commission.maximum_invocations === 1;
   if (isMaintenanceFixtureBudget(next) || identityBudgetEvidence(next) && previous?.schema === "augnes.local-canonical-source-correction.v2") return ordinaryBudgetPredecessor(previous,next) &&
@@ -1492,6 +1510,7 @@ function validGitRevisionEdge(previous, next) {
     isMaterialSourceRevision(next) && next.commission.ordinal === 1 && next.commission.maximum_invocations === 1 &&
     !Object.hasOwn(next.commission,"inherited_serial") && !Object.hasOwn(next.commission,"input_acquisition");
   if (identityBudgetEvidence(next) && !isMaterialSourceRevision(previous)) return false;
+  if (isCompanionRetirementFixtureBudget(next) && !isMaterialSourceRevision(previous)) return false;
   if (isMaterialSourceRevision(next)) return (usesGitInventory(previous) || isSerialAggregateRevision(previous)) &&
     previous.commission.ordinal === previous.commission.maximum_invocations &&
     next.commission.ordinal === 1 && next.commission.maximum_invocations === 1 &&
@@ -1546,7 +1565,7 @@ function revisionFollows(proof, count, commission, grants, previousMaximum) {
   if (isMaintenanceFixtureBudget(proof) || identityBudgetEvidence(proof) && count === 0 && !commission) return count === 0 && !commission &&
     proof.commission.ordinal === 1 && !Object.hasOwn(proof.commission,"inherited_serial") &&
     !Object.hasOwn(proof.commission,"input_acquisition") && !grants.includes(proof.authorization.grant_comment_id);
-  if (identityBudgetEvidence(proof) && (count !== 1 || previousMaximum !== 1 || !sha(commission) || !grants.length)) return false;
+  if ((identityBudgetEvidence(proof) || isCompanionRetirementFixtureBudget(proof)) && (count !== 1 || previousMaximum !== 1 || !sha(commission) || !grants.length)) return false;
   if (isMaterialSourceRevision(proof)) return count > 0 && count === previousMaximum &&
     proof.commission.ordinal === 1 && revisionCommissionIdentity(proof) !== commission &&
     !grants.includes(proof.authorization.grant_comment_id);
@@ -1572,7 +1591,7 @@ function revisionMaterialShape(p, preparing = false) {
     sha(p.prior_receipt_fingerprint) && revisionKeys(c, ["root_family_id", "root_number", "root_attempt_id", "root_receipt_fingerprint", "ordinal", "maximum_invocations", ...(isSerialAggregateRevision(p) ? ["route", "envelope_sha256"] : []),
       ...(successor || gitSuccessor ? ["initial_authorization"] : []), ...(gitSuccessor ? ["initial_accepted", "delegation"] : isInventoryBoundRevision(p) ? ["delegation", ...(c.forward_decision ? ["forward_decision"] : []), ...(c.input_acquisition !== undefined ? ["input_acquisition"] : []), ...(c.source_revision !== undefined ? ["source_revision"] : [])] : []),
       ...(Object.hasOwn(c, "input_revision") ? ["input_revision"] : []), ...(Object.hasOwn(c,"inherited_serial") ? ["inherited_serial"] : []), ...(Object.hasOwn(c,"evidence_kind") ? ["evidence_kind"] : []), ...(Object.hasOwn(c,"allowance_case") ? ["allowance_case"] : [])]) &&
-    (!Object.hasOwn(c,"allowance_case") || isMaterialSourceRevision(p) && isMaintenanceFixtureBudget(p)) &&
+    (!Object.hasOwn(c,"allowance_case") || isMaterialSourceRevision(p) && (isMaintenanceFixtureBudget(p)||isCompanionRetirementFixtureBudget(p))) &&
     (!Object.hasOwn(c,"evidence_kind") || isMaterialSourceRevision(p) && materialEvidenceClaim(c.evidence_kind) !== null) &&
     (!Object.hasOwn(c,"inherited_serial") || isMaterialSourceRevision(p) && validSerialInheritance(c.inherited_serial)) &&
     (!Object.hasOwn(c, "input_revision") || isGitInputRevision(p)) &&
@@ -1722,6 +1741,7 @@ function validateReviewedRevisionAuthorityEvidence(p, review, grant, permissions
     /materially corrected/iu.test(grantText) && /focused checks/iu.test(grantText) && /no additional recovery allowance/iu.test(grantText) && /Interrupted reservations consume/iu.test(grantText);
   const measuredIntegration = p.commission.evidence_kind === REGISTERED_INTEGRATION_BUDGET;
   const identityBudget = identityBudgetEvidence(p);
+  const retirementBudget = isCompanionRetirementFixtureBudget(p);
   const generatedStock = generatedStockEvidence(p);
   const preparedEligibility = preparedEligibilityEvidence(p);
   const verifierLifecycle = verifierLifecycleEvidence(p);
@@ -1729,8 +1749,8 @@ function validateReviewedRevisionAuthorityEvidence(p, review, grant, permissions
   const maintenanceFixture = isMaintenanceFixtureBudget(p);
   const stockVerifier = stockVerifierEvidence(p);
   const requestBoundAllowance = requestBoundAllowanceEvidence(p);
-  const typedMaterial = identityBudget || requestBoundAllowance || selectiveWorkload || stockVerifier || maintenanceFixture || measuredIntegration || generatedStock || preparedEligibility || verifierLifecycle;
-  const prospectiveScope = identityBudget ? identityBudgetAuthorityScope(p,review,grant) : requestBoundAllowance ? requestBoundAllowanceAuthorityScope(p,review,grant) : selectiveWorkload ? selectiveFixtureWorkloadAuthorityScope(p,review,grant) : stockVerifier ? stockVerifierAuthorityScope(p,review,grant) : maintenanceFixture ? maintenanceFixtureAuthorityScope(p,review,grant) : verifierLifecycle ? verifierLifecycleAuthorityScope(p,review,grant) : preparedEligibility ? preparedEligibilityAuthorityScope(p,review,grant) : measuredIntegration ? integrationBudgetAuthorityScope(p,review,grant) :
+  const typedMaterial = retirementBudget || identityBudget || requestBoundAllowance || selectiveWorkload || stockVerifier || maintenanceFixture || measuredIntegration || generatedStock || preparedEligibility || verifierLifecycle;
+  const prospectiveScope = retirementBudget ? companionRetirementBudgetAuthorityScope(p,review,grant) : identityBudget ? identityBudgetAuthorityScope(p,review,grant) : requestBoundAllowance ? requestBoundAllowanceAuthorityScope(p,review,grant) : selectiveWorkload ? selectiveFixtureWorkloadAuthorityScope(p,review,grant) : stockVerifier ? stockVerifierAuthorityScope(p,review,grant) : maintenanceFixture ? maintenanceFixtureAuthorityScope(p,review,grant) : verifierLifecycle ? verifierLifecycleAuthorityScope(p,review,grant) : preparedEligibility ? preparedEligibilityAuthorityScope(p,review,grant) : measuredIntegration ? integrationBudgetAuthorityScope(p,review,grant) :
     generatedStock ? generatedStockAuthorityScope(p,review,grant) :
     [p.branch, String(p.accepted.review.id), p.commission.root_receipt_fingerprint].every(s => grant.body.includes(s)) &&
     /NEW.*commission/iu.test(grantText) && /v7 reviewed_revision/iu.test(grantText) && /old commission remains spent/iu.test(grantText) &&
@@ -1856,6 +1876,7 @@ export async function authorizeReviewedRevision(p, { transport = createGitHubObs
         delegation.id === evidence.prior.source_correction.authorization?.grant_comment_id)
       throw fail("revision_material_fresh_authority_required");
     if (selectiveFixtureWorkloadEvidence(p)) await authenticateSelectiveFixtureHistory(p,evidence,delegation,transport);
+    if (isCompanionRetirementFixtureBudget(p)) verifyCompanionRetirementDelegation(p,delegation,evidence);
     if (requestBoundAllowanceEvidence(p)) await verifyRequestBoundDelegation(p,delegation,evidence,repositoryRoot,transport);
     if (measuredIntegrationEvidence(p)) await verifyIntegrationBudgetDelegation(p,delegation,evidence,repositoryRoot,transport);
     if (generatedStockEvidence(p)) await verifyGeneratedStockDelegation(p, delegation, evidence, repositoryRoot, transport);
@@ -2220,6 +2241,7 @@ export async function prepareMaterialSourceRevision(args,{transport}={}) {
       delegation.id===evidence.prior.source_correction.authorization?.grant_comment_id)
     throw fail("revision_material_fresh_authority_required");
   if (requestBoundAllowanceEvidence(p)) await verifyRequestBoundDelegation(p,delegation,evidence,args.repositoryRoot,api);
+  if (isCompanionRetirementFixtureBudget(p)) verifyCompanionRetirementDelegation(p,delegation,evidence);
   if (measuredIntegrationEvidence(p)) await verifyIntegrationBudgetDelegation(p,delegation,evidence,args.repositoryRoot,api);
   if (generatedStockEvidence(p)) await verifyGeneratedStockDelegation(p, delegation, evidence, args.repositoryRoot, api);
   if (preparedEligibilityEvidence(p)) await verifyPreparedEligibilityDelegation(p, delegation, evidence, args.repositoryRoot, api);
@@ -2229,6 +2251,7 @@ export async function prepareMaterialSourceRevision(args,{transport}={}) {
     if (evidence.requestBoundAllowance) inspectCurrentRequestBoundInputs(args.repositoryRoot,evidence.requestBoundAllowance);
   if (evidence.selectiveWorkload) inspectCurrentSelectiveFixtureWorkloadInputs(args.repositoryRoot,evidence.selectiveWorkload);
   if (evidence.identityBudget) inspectCurrentIdentityBudgetInputs(args.repositoryRoot,evidence.identityBudget);
+  if (evidence.retirementBudget) inspectCurrentCompanionRetirementInputs(args.repositoryRoot,evidence.retirementBudget);
   if (evidence.focused.regression?.kind===REPOSITORY_TYPECHECK) {
     const witness=JSON.parse(revisionArtifact(path.dirname(args.file),evidence.focused.regression.after));
     if (!revisionEqual(observeTypecheckCompiler(args.repositoryRoot),{compiler_version:witness.compiler_version,compiler:witness.compiler,entrypoints:witness.entrypoints,overrides:witness.overrides}))
@@ -2240,7 +2263,7 @@ export async function prepareMaterialSourceRevision(args,{transport}={}) {
   if ([MATERIAL_COMMON_DRIVER,MATERIAL_COMMON_STOCK_VERIFIER].includes(evidence.focused.regression?.attribution) ||
       evidence.focused.regression?.attribution==="candidate-driver-prior-implicated-source"&&evidence.focused.regression.path===FRESHNESS_REPAIR_DRIVER)
     inspectCurrentCommonDriverInputs(args.repositoryRoot,JSON.parse(revisionArtifact(path.dirname(args.file),evidence.focused.regression.after)));
-  if (evidence.focused.regression?.kind===REGISTERED_FIXTURE_BUDGET)
+  if (evidence.focused.regression?.kind===REGISTERED_FIXTURE_BUDGET && !isCompanionRetirementFixtureBudget(p))
     for (const ref of isMaintenanceFixtureBudget(p) ? [evidence.focused.regression.after] : [evidence.focused.regression.after,evidence.focused.regression.registration])
       inspectCurrentFixtureBudgetInputs(args.repositoryRoot,JSON.parse(revisionArtifact(path.dirname(args.file),ref)));
   };
@@ -2277,6 +2300,7 @@ function prepareRevisionInspection({ file, repositoryRoot, predecessorRoot, anch
   if (evidence.integrationBudget) inspectCurrentIntegrationBudgetInputs(repositoryRoot,evidence.integrationBudget);
   if (evidence.selectiveWorkload) inspectCurrentSelectiveFixtureWorkloadInputs(repositoryRoot,evidence.selectiveWorkload);
   if (evidence.identityBudget) inspectCurrentIdentityBudgetInputs(repositoryRoot,evidence.identityBudget);
+  if (evidence.retirementBudget) inspectCurrentCompanionRetirementInputs(repositoryRoot,evidence.retirementBudget);
   if (evidence.generatedStockBrowser) inspectGeneratedStockBrowserInputs(repositoryRoot, evidence.generatedStockBrowser);
   if (evidence.preparedEligibility && process.umask() !== evidence.integrationBudget.process_umask) throw fail("revision_dependency_process_settings_changed");
   if (isBrowserSuccessor(p) || usesRevisionInventory(p)) {
@@ -2576,6 +2600,7 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
     requestBoundAllowance:requestBoundAllowanceEvidence(p)?parse(focused.regression.after):null,
     requestBoundBefore:requestBoundAllowanceEvidence(p)?parse(focused.regression.before):null,
     integrationBudget, identityBudget: identityBudgetEvidence(p) ? parse(focused.regression.after) : null,
+    retirementBudget: isCompanionRetirementFixtureBudget(p) ? parse(focused.regression.after) : null,
     selectiveWorkload: selectiveFixtureWorkloadEvidence(p) ? parse(focused.regression.after) : null, preparedEligibility: requiresPreparedEligibility(p),
     generatedStockBrowser: generatedStockEvidence(p) || requiresPreparedEligibility(p) ? integrationBudget.after.web_dependencies : null,
     retainedObservation: retainedBefore && JSON.parse(bytes(parse(focused.regression.after).stdout)) };

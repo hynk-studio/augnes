@@ -2304,6 +2304,80 @@ retry or partial-phase stitching. Separate fresh-process stock, independent
 result review and owned cleanup remain required. Preparing this route neither
 publishes authority nor replenishes any spent grant.
 
+##### Prospective Companion ownership-retirement allowance
+
+The explicit `commission.allowance_case =
+"registered-companion-ownership-retirement-direct-v1"` selects one direct
+`unit` child within the existing `registered-fixture-aggregate-budget-v1` /
+`material-source-correction-v1` owners. It is not the paired serial-wrapper
+catalog, the ordinary-v2 maintenance entry, or the closed Identity evidence kind.
+Its command remains `node --import tsx
+scripts/test-companion-ownership-retirement.mjs`, serial execution and natural
+exit required. Only that registration's aggregate watchdog changes from
+60,000 to 75,000 ms. The unit parent stays 3,600,000 ms; every other registration,
+the five copied product inputs, substantive assertions, all nine scenarios and
+three adverse controls, and internal readiness/process/cleanup bounds stay fixed.
+The existing 8,000/5,000 ms TERM/KILL settlement owners are unchanged.
+
+This is a finite prospective operating-envelope judgment, not a product-defect
+repair or measured 75-second requirement. Retained complete old-source natural
+execution and the separately retained failed scenario/tail observations support
+15,000 ms of prospective execution reserve. Nominal watchdog plus the existing
+13,000 ms termination allowance is 88,000 ms, below the assignment's 90,000 ms
+resource ceiling. This arithmetic is not a wall-clock guarantee, stitched
+completion, stable timing margin or proof of the historical timeout cause.
+Historical interrupted operations and underlying causes remain UNKNOWN. A failed
+capture cannot automatically increase the allowance or justify favorable-sample
+repetition; no historical timeout reproduction or new timing instrumentation is
+required by this case.
+
+The immediate predecessor must be the latest fully settled, one-use spent
+material-v7 product failure. Original receipt, physical attempt/completion,
+unaltered false stock and the exact untruncated unit log bind the selected inner
+60,000 ms timeout and naturally failing unit parent. Earlier complete evidence
+is linked through that predecessor's own immutable original receipt, with its
+original head/time/result and whole log identity. The unchanged twelve-blob
+workload/lifecycle/dependency-manifest closure is checked, without executing
+historical source or claiming identical host conditions. Earlier unit success
+does not imply earlier Full success. Partial scenarios and adverse-prefix output
+never substitute for the complete selected child or missing final-target Browser
+coverage. Existing failed-integration prefix handling remains unchanged.
+
+The source partition permits the selected timeout AST node, one exact bounded
+authority-suite evidence-control registration, and the precise existing
+evidence/control/policy owners. The added synthetic control uses the existing
+reviewed-revision dispatcher with `--run-companion-retirement-budget-fixtures`,
+a 30,000 ms watchdog and required natural exit. Existing complete owners lack
+room for this additional reader/refusal workload; their registrations and bounds
+remain fixed. The partition requires this exact new control only on the corrected
+source and removes only that object when comparing all other suite syntax.
+Current dependency, generated source,
+loader, runtime, complete input inventory and authority checks remain strict.
+The explicit collector's `direct companion-ownership-retirement` selection runs
+the complete uninstrumented registered command on the exact final published
+source. Its witness requires ordered completion of all nine source-declared
+scenarios, all three adverse cases, exact terminal summary, natural exit, complete
+streams and zero owned process/resource residue. The collector records complete
+source/runtime/dependency/loader/environment identities before and after. A
+valid unchanged witness may be reused within its actual supported contract;
+publication or report changes alone are not a measurement reason.
+
+The visible conditional assignment is parsed only for this explicit case. Its
+declared predecessor source anchor and spent grant are bound to actual immutable
+originals in preparation and authenticated admission; normative omissions,
+negation, hidden markup, broader limits and extra authority refuse. It is not an
+execution grant. Actual non-reserving preparation and separate model acceptance
+of final source, controls, originals, complete witness and commitment precede
+faithful recording and a DISTINCT authenticated prospective commission. The
+existing material-source grant format binds this allowance case, 75,000 ms
+watchdog, 90,000 ms ceiling, unchanged internal/parent bounds, inherited serial
+obligations and exact target/preparation. It permits exactly one admitted deciding
+invocation, consumed by reservation or interruption; no ordinal two, recovery or
+unchanged-target retry. Separate fresh-process stock, independent result audit
+and owned cleanup remain mandatory. Ordinary, maintenance, Identity and serial
+routes retain their prior authority and accounting; no predecessor reset or
+qualification, acceptance or grant transfer is created.
+
 ##### Generated declaration stock lifecycle correction
 
 The registered source witnesses freeze the complete focused source, including

@@ -14,7 +14,10 @@ import { verifySettledPhaseFailure } from "../local-canonical-browser-revision.m
 import { REVIEWED_REVISION_PHASES } from "../local-canonical-attempts.mjs";
 import { MATERIAL_SOURCE_CORRECTION, MATERIAL_HISTORY_BOUNDARY, gitRevisionInventory, maintenanceFixtureAuthorityBindings,
   maintenanceFixtureDelegation, INTEGRATION_BUDGET_LIMIT, identityBudgetAuthorityBindings,
-  identityBudgetAuthorityScope, IDENTITY_BUDGET_GRANT } from "../local-canonical-git-observation.mjs";
+  identityBudgetAuthorityScope, IDENTITY_BUDGET_GRANT, companionRetirementBudgetAuthorityBindings,
+  companionRetirementBudgetAuthorityScope, companionRetirementBudgetDelegation,
+  readCompanionRetirementBudgetDelegation, delegatesMaterialSourceCommission,
+  COMPANION_RETIREMENT_GRANT } from "../local-canonical-git-observation.mjs";
 import { REGISTERED_FIXTURE_BUDGET, FIXTURE_BUDGET_CLAIM, MAINTENANCE_FIXTURE_CASE, MAINTENANCE_FIXTURE_GRANT,
   FIXTURE_BUDGET_PATHS, FIXTURE_BUDGET_COLLECTOR, fixtureBudgetSourceDelta, fixtureBudgetEnvironment, maintenanceFixtureBudgetRegistration,
   maintenanceFixtureCompletionNames, registeredFixtureBudget } from "../local-canonical-fixture-budget-witness.mjs";
@@ -213,7 +216,7 @@ async function assertIdentityEntryControls(sourceRoot,ordinary,maintenance) {
   const imports=source.replace(/from "(\.\/[^"\n]+)"/gu,(_all,relative)=>
     "from "+JSON.stringify(pathToFileURL(path.resolve(path.dirname(file),relative)).href));
   const controls=await import("data:text/javascript;base64,"+Buffer.from(imports+
-    "\nexport {validGitRevisionEdge,revisionFollows,revisionCommissionIdentity,ordinaryBudgetSuccessor,identityBudgetEvidence};\n").toString("base64"));
+    "\nexport {validGitRevisionEdge,revisionFollows,revisionCommissionIdentity,ordinaryBudgetSuccessor,identityBudgetEvidence,verifyCompanionRetirementDelegation};\n").toString("base64"));
   const identity=clone(maintenance);delete identity.commission.allowance_case;
   identity.commission.evidence_kind="registered-identity-contract-budget-v1";
   assert.equal(controls.ordinaryBudgetSuccessor(identity),true);
@@ -284,6 +287,47 @@ async function assertIdentityEntryControls(sourceRoot,ordinary,maintenance) {
     assert.equal(controls.revisionFollows(next,count,commission,used,maximum),false);refusals++;
   }
   assert.equal(controls.revisionFollows(maintenance,0,null,[],0),true);
+  // This direct unit owner follows a spent material commission only. Its
+  // explicit case must not borrow maintenance/Identity's ordinary-v2 entry.
+  const retirement=clone(scoped);retirement.commission.evidence_kind=REGISTERED_FIXTURE_BUDGET;
+  retirement.commission.allowance_case=budgetWitness.COMPANION_RETIREMENT_ALLOWANCE_CASE;
+  assert.equal(controls.ordinaryBudgetSuccessor(retirement),false);
+  assert.equal(controls.validGitRevisionEdge(ordinary,retirement),false);
+  assert.equal(controls.revisionFollows(retirement,0,null,[],0),false);
+  assert.equal(controls.validGitRevisionEdge(previous,retirement),true);
+  assert.equal(controls.revisionFollows(retirement,1,previousCommission,grants,1),true);
+  const rb=companionRetirementBudgetAuthorityBindings(retirement),rr={body:[decision,rb,MATERIAL_HISTORY_BOUNDARY].join("\n\n")},
+    rg={body:[COMPANION_RETIREMENT_GRANT,rb,"Accepted review: https://github.com/hynk-studio/augnes/pull/"+retirement.pull_request+
+      "#pullrequestreview-"+retirement.accepted.review.id,MATERIAL_HISTORY_BOUNDARY,INTEGRATION_BUDGET_LIMIT].join("\n\n")};
+  assert(companionRetirementBudgetAuthorityScope(retirement,rr,rg));
+  assert(inheritedSerialAuthorityScope(retirement,rr.body)&&inheritedSerialAuthorityScope(retirement,rg.body));
+  for(const field of ["Allowance case: ","Prospective watchdog: ","Inherited serial envelope: ","Inherited origin receipt: "]){
+    const without=body=>body.split("\n").filter(line=>!line.startsWith(field)).join("\n");
+    assert.equal(companionRetirementBudgetAuthorityScope(retirement,rr,{body:without(rg.body)}),false);refusals++;
+    assert.equal(companionRetirementBudgetAuthorityScope(retirement,{body:without(rr.body)},rg),false);refusals++;
+  }
+  const anchor={head:previous.head,tree:previous.tree,base:previous.base,grant:previous.authorization.grant_comment_id},
+    declaration=companionRetirementBudgetDelegation(retirement,anchor),delegated={body:declaration},
+    evidence={prior:{head:previous.head,tree:previous.tree,source_correction:previous},original:{repository:{base_sha:previous.base}}};
+  assert.deepEqual(readCompanionRetirementBudgetDelegation(declaration,retirement),anchor);
+  assert(delegatesMaterialSourceCommission(declaration,retirement));
+  assert.doesNotThrow(()=>controls.verifyCompanionRetirementDelegation(retirement,delegated,evidence));
+  for(const mutate of [a=>a.head=digest("wronghead").slice(0,40),a=>a.tree=digest("wrongtree").slice(0,40),
+    a=>a.base=digest("wrongbase").slice(0,40),a=>a.grant++]){
+    const changed=clone(anchor);mutate(changed);
+    assert.throws(()=>controls.verifyCompanionRetirementDelegation(retirement,{body:companionRetirementBudgetDelegation(retirement,changed)},evidence),
+      /revision_companion_retirement_delegation_source_invalid/);refusals++;
+  }
+  for(const body of ["<!--"+declaration+"-->","> "+declaration,declaration+"\n\nAuthorize another invocation.",
+    declaration.replace("up to 90000 ms","up to 120000 ms"),declaration.replace("No ordinal two, recovery","Allow ordinal two, recovery"),
+    declaration.replace("actual non-reserving preparation","skip preparation")]){
+    assert.equal(delegatesMaterialSourceCommission(body,retirement),false);refusals++;
+  }
+  for(const mutate of [p=>delete p.commission.inherited_serial,p=>p.commission.inherited_serial.origin_receipt_fingerprint=digest("wrongorigin"),
+    p=>p.commission.maximum_invocations=2,p=>p.commission.ordinal=2,p=>p.commission.allowance_case="unknown-direct-owner",p=>p.commission.evidence_kind="registered-identity-contract-budget-v1"]){
+    const candidate=clone(retirement);mutate(candidate);assert.equal(controls.validGitRevisionEdge(previous,candidate),false);refusals++;
+  }
+  assert.equal(controls.revisionFollows(retirement,1,previousCommission,[...grants,retirement.authorization.grant_comment_id],1),false);refusals++;
   assert.equal(readFileSync(file,"utf8"),source);
   console.log(JSON.stringify({identity_budget_entry_controls:{synthetic_only:true,deciding:false,
     ordinary_v2_first_commission_shape:true,spent_material_v7_successor:true,inherited_obligations_preserved:true,

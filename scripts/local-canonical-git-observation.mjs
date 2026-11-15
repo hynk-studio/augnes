@@ -9,6 +9,7 @@ import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { REGISTERED_FIXTURE_BUDGET, verifyRegisteredFixtureBudget, FIXTURE_BUDGET_CLAIM,
   isMaintenanceFixtureBudget, MAINTENANCE_FIXTURE_CASE, MAINTENANCE_FIXTURE_GRANT,
+  isCompanionRetirementFixtureBudget, COMPANION_RETIREMENT_ALLOWANCE_CASE, COMPANION_RETIREMENT_MS,
   REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM, verifyRegisteredIntegrationBudget,
   REGISTERED_IDENTITY_BUDGET, IDENTITY_BUDGET_CLAIM, verifyRegisteredIdentityBudget,
   SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM, verifySelectiveFixtureWorkload,
@@ -701,6 +702,7 @@ function visibleDelegationParagraphs(body) {
 }
 
 export function delegatesMaterialSourceCommission(body,p) {
+  if (isCompanionRetirementFixtureBudget(p)) return !!readCompanionRetirementBudgetDelegation(body,p);
   if (p.commission.evidence_kind === REGISTERED_REQUEST_BOUND_ALLOWANCE) return !!readRequestBoundAllowanceDelegation(body,p);
   if (p.commission.evidence_kind === SELECTIVE_FIXTURE_WORKLOAD) return !!readSelectiveFixtureWorkloadDelegation(body,p);
   if(p.commission.evidence_kind===GIT_CONFIG_STOCK_VERIFIER_REPAIR)
@@ -860,6 +862,43 @@ export const requestBoundAllowanceAuthorityScope = (p,review,grant) =>
   typedMaterialAuthorityScope(p,review,grant,requestBoundAllowanceAuthorityBindings(p),REQUEST_BOUND_GRANT);
 export const integrationBudgetAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM);
 export const IDENTITY_BUDGET_GRANT = "Authorize one NEW prospective v7 reviewed_revision commission for the registered Identity contracts allowance.";
+// Keep the existing material commission format. The closed allowance case is
+// explicit in its bindings, never inferred from a generic timeout or prose.
+export const COMPANION_RETIREMENT_GRANT = "Authorize one NEW prospective v7 reviewed_revision commission for a material source correction.";
+export const companionRetirementBudgetAuthorityBindings = p => {
+  const v=p.commission.inherited_serial;
+  return typedMaterialAuthorityBindings(p,REGISTERED_FIXTURE_BUDGET,FIXTURE_BUDGET_CLAIM)+
+    "\nAllowance case: "+COMPANION_RETIREMENT_ALLOWANCE_CASE+
+    "\nRegistered owner: unit / serial / companion-ownership-retirement; command: node --import tsx scripts/test-companion-ownership-retirement.mjs."+
+    "\nProspective watchdog: 60000 to "+COMPANION_RETIREMENT_MS+" ms; resource ceiling: 90000 ms; unchanged TERM/KILL settlement: 8000/5000 ms; unit parent: 3600000 ms unchanged."+
+    "\nComplete nine-scenario/three-adverse workload, assertions, five copied product inputs, internal limits and all other existing registrations unchanged; historical cause remains UNKNOWN; no guaranteed PASS."+
+    (v?"\n"+["Inherited serial envelope: "+v.envelope_sha256,"Inherited route: "+v.route,
+      "Inherited origin family: "+v.origin_family_id,"Inherited origin attempt: "+v.origin_attempt_id,
+      "Inherited origin receipt: "+v.origin_receipt_fingerprint,SERIAL_HISTORY].join("\n"):"");
+};
+export const companionRetirementBudgetDelegation = (p,anchor) => {
+  const v=p.commission.inherited_serial;
+  return [
+    "Authorize one bounded Companion ownership-retirement allowance preparation and conditional qualification assignment on "+p.branch+" in Draft PR #"+p.pull_request+", under the existing delegated task.",
+    "Latest settled predecessor: "+p.prior_family_id+" / "+p.prior_attempt_id+" / "+p.prior_receipt_fingerprint+". Source anchor: "+anchor.head+", tree "+anchor.tree+", tested base "+anchor.base+". Grant "+anchor.grant+" remains consumed1/1, remaining0.",
+    "Scope: unit / Companion lost-ownership retirement and reconciliation regressions; command node --import tsx scripts/test-companion-ownership-retirement.mjs. A finite prospective outer child allowance up to 90000 ms is permitted for this owner only. Choose and document the exact value from retained complete-workload and tail evidence before collecting the candidate witness; 90000 is a task resource ceiling, not a measured requirement, copied Identity decision, historical cure or guarantee of PASS. Preserve the entire nine-scenario/three-adverse workload, all substantive assertions, the five copied product inputs, internal process/readiness/cleanup limits, natural-exit acceptance, all other existing registrations and parent phase limits. Retain the R13/R14/R15 corrections.",
+    "Reuse a supported evidence/admission route if available. Where genuinely missing, implement and review only the necessary precise-owner/settled-spent-tip support within the existing inventory-bound material-source-correction owners, with positive and refusal controls and compatibility for existing routes. A timeout must not be manufactured into natural functional RED. Bind the original R15 failure and physical lineage; reuse R14/#1648 observations with their original provenance. Preserve inherited serial envelope "+v?.envelope_sha256+" and its origin family "+v?.origin_family_id+" / attempt "+v?.origin_attempt_id+" / receipt "+v?.origin_receipt_fingerprint+". No predecessor reset, legacy fallback, partial-run stitching, evidence or authority transfer.",
+    "Required before deciding admission: one valid complete natural registered-owner witness attributable to the exact final published target, with source/runtime/dependency/loader/environment bindings, nine scenarios, three adverse controls, terminal summary, streams/cleanup and zero owned residue; actual non-reserving preparation; and separate model receiving acceptance of the complete final source, controls, original evidence and preparation commitment. Reuse an already valid witness when the actual contract allows; publication/reporting alone does not justify another measurement. Confirm reader applicability before expensive collection. Existing task-owned setup repair and cause-targeted development correction remain autonomous; a failed capture does not authorize automatic allowance escalation or favorable-sample repetition. No mandatory new instrumentation or broad verifier redesign is added.",
+    "After those conditions actually hold, authorize faithful recording of the exact-target receiving decision and a distinct authenticated prospective commission through the maintainer identity. The conditional assignment itself is not that grant. Exactly one admitted deciding invocation total under the new commission; reservation or interruption consumes it. No ordinal two, recovery or unchanged-target retry. Use the final planner-selected qualification, then separate fresh-process stock, independent result audit, owned cleanup and accurate handoff. Do not launch Full merely to diagnose this owner.",
+    "Historical windows, exact interrupted operation and underlying timeout causes remain UNKNOWN. All prior commissions, limits, consumed invocations, FAIL/NOT_RUN/false stock and originals remain unchanged. Count preparation, diagnosis, repair, verification and review cumulatively from the recorded 19532319 ms plus UNKNOWN, without nested or reused-duration double counting. Safe synchronization and fixed-input setup repair remain within delegated discretion; main movement alone is not HOLD. Hold only the unsupported or exhausted action unless an applicable stop rule requires more. Draft/off; no Ready, merge, release, deployment, installed adoption or other-owner changes.",
+  ].join("\n\n");
+};
+export function readCompanionRetirementBudgetDelegation(body,p) {
+  if(!isCompanionRetirementFixtureBudget(p))return null;
+  const paragraphs=visibleDelegationParagraphs(body),prefix="Latest settled predecessor: "+p.prior_family_id+" / "+p.prior_attempt_id+" / "+p.prior_receipt_fingerprint+". Source anchor: ";
+  if(paragraphs.length!==7||!paragraphs[1].startsWith(prefix))return null;
+  const match=paragraphs[1].slice(prefix.length).match(/^([a-f0-9]{40}), tree ([a-f0-9]{40}), tested base ([a-f0-9]{40})\. Grant ([1-9][0-9]*) remains consumed1\/1, remaining0\.$/u);
+  if(!match||!Number.isSafeInteger(Number(match[4])))return null;
+  const anchor={head:match[1],tree:match[2],base:match[3],grant:Number(match[4])};
+  // These declared source facts are additionally bound to the actual immutable
+  // predecessor by preparation and authenticated admission, not trusted as facts.
+  return equal(paragraphs,companionRetirementBudgetDelegation(p,anchor).split("\n\n"))?anchor:null;
+}
 export const identityBudgetAuthorityBindings = p => {
   const v=p.commission.inherited_serial;
   return typedMaterialAuthorityBindings(p, REGISTERED_IDENTITY_BUDGET, IDENTITY_BUDGET_CLAIM) +
@@ -915,6 +954,8 @@ export const integrationBudgetAuthorityScope = (p, review, grant) =>
 export const identityBudgetAuthorityScope = (p, review, grant) =>
   p.commission.evidence_kind === REGISTERED_IDENTITY_BUDGET &&
   typedMaterialAuthorityScope(p, review, grant, identityBudgetAuthorityBindings(p), IDENTITY_BUDGET_GRANT);
+export const companionRetirementBudgetAuthorityScope = (p,review,grant) =>
+  isCompanionRetirementFixtureBudget(p) && typedMaterialAuthorityScope(p,review,grant,companionRetirementBudgetAuthorityBindings(p),COMPANION_RETIREMENT_GRANT);
 export const selectiveFixtureWorkloadAuthorityScope = (p, review, grant) =>
   typedMaterialAuthorityScope(p, review, grant, selectiveFixtureWorkloadAuthorityBindings(p), SELECTIVE_FIXTURE_WORKLOAD_GRANT);
 export const maintenanceFixtureAuthorityScope = (p, review, grant) =>
