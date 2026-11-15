@@ -10,6 +10,8 @@ import { gitFixtureDeclaration } from "./local-canonical-git-observation.mjs";
 import { verifyGitSourceRepair, verifyGitRevisionFailure, MATERIAL_SOURCE_CORRECTION, gitRevisionInventory, gitReviewTarget,
   DIRECT_GIT_INPUT_REVISION, DIRECT_GIT_INPUT_HISTORY_BOUNDARY } from "../local-canonical-git-observation.mjs";
 import { REGISTERED_FIXTURE_BUDGET, FIXTURE_BUDGET_CLAIM, FIXTURE_BUDGET_COLLECTOR, FIXTURE_BUDGET_PATHS,
+  REGISTERED_IDENTITY_BUDGET, IDENTITY_BUDGET_CLAIM, identityBudgetRegistration, identityBudgetSourcePartition, identityBudgetWorkloadSource, identityBudgetWorkloadEquivalence,
+  verifyRegisteredIdentityBudget, readIdentityBudgetPositive, inspectCurrentIdentityBudgetInputs,
   fixtureBudgetSourceDelta, fixtureBudgetEnvironment, inspectCurrentFixtureBudgetInputs, inspectCurrentIntegrationBudgetInputs,
   fixtureBudgetMeasurementStages, EXISTING_DEDICATED_FIXTURE_PAIR, SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM,
   SELECTIVE_FIXTURE_PATH, SELECTIVE_FIXTURE_COMMAND, SELECTIVE_FIXTURE_OWNER, SELECTIVE_COVERAGE_OBLIGATIONS,
@@ -21,13 +23,33 @@ import { finalizeReceipt } from "../local-canonical-receipt.mjs";
 import { validateSelectiveFixtureHistoricalAuthority, validateSelectiveFixtureBaselineAuthority, validateReviewedRevisionAuthorityRecords, REVIEWED_REVISION_PHASES,
   reviewedRevisionAuthorityObservation } from "../local-canonical-attempts.mjs";
 
+function immutableFixtureGit(root) {
+  // Reader negatives repeatedly inspect the same disposable immutable Git
+  // objects. Cache only exact full-SHA queries inside this synthetic harness;
+  // HEAD, writes, current files, dependencies and live observations stay fresh.
+  const immutableGit=new Map(),sha=v=>/^[a-f0-9]{40}$/u.test(v??"");let immutableBytes=0;
+  return args=>{
+    const immutable=args[0]==="show"&&/^[a-f0-9]{40}:[^\0]+$/u.test(args[1]??"")||
+      args[0]==="rev-parse"&&/^[a-f0-9]{40}\^\{tree\}$/u.test(args[1]??"")||
+      args[0]==="ls-tree"&&args.some(sha)||
+      args[0]==="diff"&&args.filter(sha).length===2||
+      args[0]==="merge-base"&&args.filter(sha).length===2;
+    const key=JSON.stringify(args);if(immutable&&immutableGit.has(key))return Buffer.from(immutableGit.get(key));
+    const output=execFileSync("git",["--no-replace-objects",...args],{cwd:root,timeout:10000,maxBuffer:16*1024*1024});
+    if(immutable&&immutableGit.size<256&&immutableBytes+output.length<=4*1024*1024) {
+      immutableGit.set(key,Buffer.from(output));immutableBytes+=output.length;
+    }
+    return output;
+  };
+}
+
 // Controlled reader data, explicitly not an actual historical incident or a
 // qualification witness. Final real capture/preparation exercise the producer
 // separately; these controls never recursively execute the registered parent.
 export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
   const root=path.join(parent,"fixture-budget-witness");mkdirSync(root);
   const write=(file,value)=>{mkdirSync(path.dirname(path.join(root,file)),{recursive:true});writeFileSync(path.join(root,file),typeof value==="string"?value:JSON.stringify(value));};
-  const git=args=>execFileSync("git",["--no-replace-objects",...args],{cwd:root,timeout:10000,maxBuffer:16*1024*1024});
+  const git=immutableFixtureGit(root);
   git(["init","--quiet"]);
   for(const dir of ["app","components","lib","scripts","types","apps/augnes_apps/src","apps/augnes_apps/public"])write(dir+"/placeholder.ts","export {};\n");
   write(".gitignore","node_modules/\n.augnes-local-verification/\nnext-env.d.ts\n");
@@ -288,12 +310,297 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
   git(["reset","--hard",head]);
   const generatedControls = generatedDeclarationControls(root, parent, write);
   const selectiveControls = await selectiveFixtureWorkloadControls(parent,h,sourceRoot);
+  const identityControls = await identityBudgetWitnessControls(parent,h,sourceRoot);
   const requestBoundControls = requestBoundAllowanceControls(parent);
   const requestBoundAuthority = requestBoundAuthorityControls();
   rmSync(root,{recursive:true});
   return {contract:REGISTERED_FIXTURE_BUDGET,synthetic_only:true,deciding:false,negative_controls:negatives,source_read_operations:2,distinct_sources:sourceReads.size,
     existing_dedicated_pair:pairDelta,generated_stock_controls:generatedControls,selective_fixture_controls:selectiveControls,
-    request_bound_allowance:requestBoundControls,request_bound_authority:requestBoundAuthority,original_incident_reproduction:false,recursive_parent_execution:false};
+    identity_fixture_controls:identityControls,request_bound_allowance:requestBoundControls,request_bound_authority:requestBoundAuthority,original_incident_reproduction:false,recursive_parent_execution:false};
+}
+
+// Actual reader controls over explicitly synthetic records and a tiny Git tree.
+// Neither the Identity command nor its real credentials/runtime is executed.
+export async function identityBudgetWitnessControls(parent,_h,sourceRoot) {
+  const root=path.join(parent,"identity-budget-witness");mkdirSync(root);
+  try {
+    const write=(file,value)=>{const p=path.join(root,file);mkdirSync(path.dirname(p),{recursive:true});writeFileSync(p,typeof value==="string"?value:JSON.stringify(value),{mode:0o600});};
+    const git=immutableFixtureGit(root);
+    const commit=message=>{git(["add","."]);git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m",message]);return git(["rev-parse","HEAD"]).toString().trim();};
+    git(["init","--quiet"]);write(".gitignore","node_modules/\n.augnes-local-verification/\nnext-env.d.ts\n");
+    for (const dir of ["app","components","lib","scripts","types","apps/augnes_apps/src","apps/augnes_apps/public"]) write(dir+"/placeholder.ts","export {};\n");
+    const version=JSON.parse(readFileSync(path.join(sourceRoot,"node_modules/tsx/package.json"))).version;
+    write("package.json",{type:"module",scripts:{"test:integration":"node scripts/run-canonical-test-suite.mjs integration"},dependencies:{tsx:version}});
+    write("package-lock.json",{packages:{"node_modules/tsx":{version}}});write("tsconfig.json",{compilerOptions:{target:"ES2022"}});
+    for (const name of ["browser-verification-owners.v1.json","local-canonical-change-owners.v1.json","canonical-research-tests.v1.json"]) write("scripts/"+name,{});
+    for (const name of ["tsx","esbuild","@esbuild"]) cpSync(path.join(sourceRoot,"node_modules",name),path.join(root,"node_modules",name),{recursive:true});
+    const test="scripts/test-codex-isolated-auth-projection.ts",owner="codex-isolated-auth-projection",label="controlled Identity contracts";
+    write(test,'import { controlled_security } from "@/lib/vnext/native-host/codex-isolated-auth-projection";\nexport const controlled_identity_contracts=controlled_security;\n');
+    write("scripts/fixtures/fake-codex-app-server.mjs",'import { controlled_helper } from "../bounded-file-signal.mjs";\nexport const controlled_fake=controlled_helper;\n');
+    write("scripts/bounded-file-signal.mjs","export const controlled_helper=true;\n");
+    write("lib/vnext/native-host/codex-isolated-auth-projection.ts",'import policy from "./controlled-identity-policy.json";\nimport { projectClientHref } from "../project-client-href";\nimport { createCodexAppServerAdapterV01 } from "./codex-app-server-adapter";\nexport const controlled_security=policy.enabled && typeof projectClientHref === "function" && typeof createCodexAppServerAdapterV01 === "function";\n');
+    write("lib/vnext/native-host/controlled-identity-policy.json",{enabled:true});
+    const navigationFile="lib/vnext/project-client-href.ts",adapterFile="lib/vnext/native-host/codex-app-server-adapter.ts";
+    const navigation='export function projectClientHref(href, projectId) { return href; }\n'+
+      'export function projectClientTargetQuery(params) { return params; }\nexport function projectClientEntryHref(pathname, params, projectId) { return pathname; }\n';
+    const adapter='export function createCodexAppServerAdapterV01(options = {}) { if (options.scoped_task) {\n'+
+      'if (options.candidate_canary || options.isolated_authenticated_execution || options.isolated_authenticated_external_execution_authorization || options.observe_isolated_auth)\n'+
+      'throw new Error("codex_scoped_parallel_lane_refused"); options = Object.freeze({ ...options }); }\n'+
+      'if (options.scoped_task) scopedAdaptersV01.set(adapter, options.scoped_task); return options; }\n';
+    write(navigationFile,navigation);write(adapterFile,adapter);
+    const executor='npmPhase("integration","integration",["run","test:integration"],4_200_000);\n';
+    write("scripts/run-local-canonical-verification.mjs",executor+executor);
+    write(FIXTURE_BUDGET_COLLECTOR,"export const controlled_collector=true;\n");
+    write("README.md","controlled baseline\n");
+    const suite='const rootNode=(...args)=>({command:process.execPath,args:["--import","tsx",...args],cwd:repoRoot,});\n'+
+      'const suites={integration:[{id:"'+owner+'",group:"supporting-serial",requirements:["filesystem","process-owning","project-root","mutable-module-state"],label:'+JSON.stringify(label)+',...rootNode(\n"'+test+'",\n"--contracts",\n),timeoutMs:60_000}]};\n';
+    write(FIXTURE_BUDGET_PATHS.suite,suite);const oldHead=commit("controlled original Identity allowance");
+    write(FIXTURE_BUDGET_PATHS.suite,suite.replace("timeoutMs:60_000","timeoutMs:90_000"));
+    const head=commit("controlled prospective Identity allowance"),tree=git(["rev-parse","HEAD^{tree}"]).toString().trim();
+    const inputs=observeCanonicalRuntimeInputs(),inventory=gitFixtureDeclaration({inputs,acceptedHead:head,branch:"codex/identity-budget-controls"});
+    const p={schema:"augnes.local-canonical-source-correction.v7",kind:"reviewed_revision",head,tree,base:oldHead,branch:"codex/identity-budget-controls",pull_request:999,
+      prior_family_id:digest("controlled family"),prior_number:1,prior_attempt_id:"controlled-identity-failure",prior_receipt_fingerprint:digest("controlled receipt"),
+      commission:{source_revision:MATERIAL_SOURCE_CORRECTION,evidence_kind:REGISTERED_IDENTITY_BUDGET,delegation:{id:81},root_receipt_fingerprint:digest("controlled receipt")},
+      inputs:{identity_sha256:digest(inputs),inventory_sha256:gitRevisionInventory(inventory)}};
+    const priorTree=git(["rev-parse",oldHead+"^{tree}"]).toString().trim();
+    const prior={head:oldHead,tree:priorTree,branch:p.branch,family_id:p.prior_family_id,number:1,attempt_id:p.prior_attempt_id,
+      source_correction:{schema:"augnes.local-canonical-source-correction.v2",kind:"source_revision"}};
+    const normal={exit_code:0,signal:null,timed_out:false,cancelled:false,spawn_error_code:null,duration_ms:10,termination_reason:"natural_exit",exit_observed:true,streams_closed:true,cleanup_started:true,cleanup_completed:true,remaining_owned_processes:0};
+    const fixtureEpoch=Date.now(),at=offset=>new Date(fixtureEpoch+offset).toISOString(),completedAt=at(-10000),completion={disposition:"product_failure",cleanup_complete:true,infrastructure_code:null,finished_at:completedAt};
+    const refs=new Map(),ref=(name,value)=>{const b=Buffer.from(typeof value==="string"?value:JSON.stringify(value));refs.set(name,b);return {artifact:name,sha256:digest(b)};};
+    const bytes=r=>{const b=refs.get(r.artifact);assert(b);assert.equal(digest(b),r.sha256);return b;},parse=r=>JSON.parse(bytes(r));
+    const prefix="[canonical:integration] ",quoted=JSON.stringify(label);
+    const childLines=prefix+'child_start label='+quoted+' timeout_ms=60000\n'+prefix+'child_spawn label='+quoted+' pid=1 wait=process_exit\n'+
+      prefix+'child_cleanup_start label='+quoted+' elapsed_ms=60001 reason=bounded_timeout exit_observed=false stdout_closed=false stderr_closed=false\n'+
+      prefix+'child_cleanup_result label='+quoted+' elapsed_ms=60100 reason=bounded_timeout streams_closed=true remaining_owned_processes=0\n'+
+      prefix+'child_result label='+quoted+' duration_ms=60100 exit_code=null signal=SIGTERM timed_out=true exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=bounded_timeout\n';
+    const inv={selected_count:1,started_count:1,settled_count:1,completed_count:1,failed_count:1,unstarted_count:0,children:[{group:"supporting-serial",label,started:true,settled:true,completed:true,outcome:"failed"}]};
+    const log=childLines+prefix+"group_inventory "+JSON.stringify(inv)+"\n"+JSON.stringify({suite:"integration",resource_cleanup:[{completed:true,failure_count:0,failures:[]}]})+"\nchild_timed_out:supporting-serial:"+label+"\n";
+    const relative=`.augnes-local-verification/logs/${prior.attempt_id}/integration.log`;write(relative,log);
+    const original={outcome:{disposition:"product_failure"},cleanup:{completed:true},phases:[{id:"integration",command:"npm run test:integration",status:"failure",exit_status:1,timed_out:false,
+      cleanup:{completed:true,exit_observed:true,streams_closed:true,remaining_owned_processes:0,termination_reason:"natural_exit"},log:{relative_path:relative,bytes:Buffer.byteLength(log),truncated:false}}]};
+    const sourceHash=digest(readFileSync(path.join(root,test))),diagnostics=["full-contracts-diagnostic","selected-tail-diagnostic","representative-probe-diagnostic"];
+    let fullSource;
+    const observations=diagnostics.map((scope,index)=>{
+      const source=ref("diagnostic-source-"+index+".txt","controlled, inert diagnostic source "+index),sourceSha=source.sha256;
+      const manifest=index===0?{deciding:false,original:{path:test,sha256:sourceHash},instrumented:{sha256:sourceSha}}:
+        index===1?{deciding:false,full_diagnostic_source_sha256:fullSource,tail_source_sha256:sourceSha}:
+          {deciding:false,source_head:oldHead,source_sha256:sourceHash,diagnostic_sha256:sourceSha};
+      if(index===0)fullSource=sourceSha;
+      const child=index===0?{...normal,exit_code:null,signal:"SIGTERM",timed_out:true,duration_ms:60100,termination_reason:"bounded_timeout"}:{...normal};
+      const record={deciding:false,started_at:at(-9000+index*2000),finished_at:at(-8000+index*2000),timeout_ms:index===0?60000:30000,child,
+        cleanup:{settled:true,resources:[{completed:true,failure_count:0,failures:[]}],checkout_release:{released:true},capacity_release:{released:true}}};
+      return {scope,manifest:ref("manifest-"+index+".json",manifest),record:ref("diagnostic-"+index+".json",record),stdout:ref("diagnostic-"+index+".log",JSON.stringify({nondeciding_result:record})+"\n"),source,
+        limitations:"Controlled reader data only; no actual historical timing or workload claim. Full and selected scopes remain separate; cause is UNKNOWN."};
+    });
+    const summary={status:"passed",mode:"contracts",contract_suite:"codex_isolated_auth_contracts.v0.1",projection_version:"codex_isolated_authenticated_execution_projection.v0.1",
+      attestation_version:"codex_isolated_auth_credential_attestation.v0.1",seal_version:"codex_isolated_auth_projection_seal.v0.1",
+      projection_fingerprint:"sha256:"+digest("projection"),attestation_fingerprint:"sha256:"+digest("attestation"),seal_fingerprint:"sha256:"+digest("seal"),operational_availability:"available_exact",
+      malicious_consumer_secret_access:false,unique_account_identity_non_null:true,isolated_tmpdir:true,exact_observed_security_policy:true,semantic_profile_version:"codex_isolated_auth_semantic_profile.rust-v0.152.1",
+      semantic_profile_fingerprint:"sha256:"+digest("semantic"),config_tool_feature_schema_fingerprint:"sha256:"+digest("features"),config_policy_fingerprint:"sha256:"+digest("policy"),
+      observed_security_policy_fingerprint:"sha256:"+digest("security"),user_agent_contract_fingerprint:"sha256:"+digest("agent"),user_agent_negative_shapes_refused:11,installed_cli_preflight:"unavailable",
+      credential_free_fake_preflight:"compatible_exact",no_authorization_preflight_stop:"codex_isolated_auth_external_execution_authorization_required",unsupported_production_authority:"refused_before_turn",test_only_authorized_fake_turn:"completed_once",
+      authenticated_child_binding_version:"codex_isolated_authenticated_child_binding.v0.1",arbitrary_child_wrapping_refused:true,spawn_binding_matrix_refused:true,real_keychain_accesses:0,real_provider_calls:0,successful_external_network_egress:0,cleanup_complete:true};
+    const rows=["before_terminal","with_terminal","preflight"].map((kind,i)=>({runtime_policy_case:kind,status:"passed",settlement:i===0?"rejected_null_result":"failed_result",fixture_diagnostic_files:4,fixture_trace_appends:1,state_entries:0,lease_entries:0,network_attempts:0,remaining_owned_processes:0}));
+    const output=[...rows,summary].map(v=>JSON.stringify(v)+"\n").join("");
+    const resource=path.join(parent,"already-settled-identity"),env=fixtureBudgetEnvironment(resource),loader=observePureContractLoader(root,env),source=observePureContractSource(root),dependencies=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"});
+    const lp="[canonical:fixture-budget-capture] ",ll='"direct registered fixture allowance"';
+    const lifecycle=lp+'child_start label='+ll+' timeout_ms=90000\n'+lp+'child_spawn label='+ll+' pid=1 wait=process_exit\n'+
+      lp+'child_exit label='+ll+' elapsed_ms=9 exit_code=0 signal=null stdout_closed=true stderr_closed=true\n'+
+      lp+'child_cleanup_start label='+ll+' elapsed_ms=9 reason=post_exit_settlement exit_observed=true stdout_closed=true stderr_closed=true\n'+
+      lp+'child_cleanup_result label='+ll+' elapsed_ms=10 reason=post_exit_settlement term_sent=false kill_sent=false streams_closed=true remaining_owned_processes=0\n'+
+      lp+'child_result label='+ll+' duration_ms=10 exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit\n';
+    const record={contract:"augnes.registered-fixture-budget-witness.v1",basis:"actual-owned-development-invocation",role:"direct",bound_ms:90000,truncated:false,
+      command:"node --import tsx "+test+" --contracts",tested_source_head:head,tree,dirty:"",source_before:source,source_after:source,
+      config:["package.json","package-lock.json","tsconfig.json","scripts/browser-verification-owners.v1.json","scripts/local-canonical-change-owners.v1.json","scripts/canonical-research-tests.v1.json"].map(file=>({path:file,sha256:digest(readFileSync(path.join(root,file)))})),
+      dependencies_before:dependencies,dependencies_after:dependencies,runtime_before:inputs,runtime_after:inputs,runtime_inputs_sha256:digest(inputs),node_version:process.versions.node,
+      input_inventory_before:inventory,input_inventory_after:inventory,environment_before:env,environment_after:env,environment:digest(env),resource_root:resource,loader_before:loader,loader_after:loader,
+      started_at:at(-3000),finished_at:at(-2000),result:normal,owned_cleanup:[{root:resource,completed:true,failure_count:0,failures:[]}],ownership:{checkout:{released:true},capacity:{released:true}},
+      stdout:ref("capture.log",output),lifecycle:ref("capture-lifecycle.log",lifecycle),collector:ref("collector.log",readFileSync(path.join(root,FIXTURE_BUDGET_COLLECTOR),"utf8"))};
+    const after=ref("capture.json",record),focused={failed_phase:"integration",input_remedy_resources:[],finished_at:at(-1000),
+      commands:[{command:record.command,tested_source_head:head,record:after,stdout:record.stdout}],regression:{kind:REGISTERED_IDENTITY_BUDGET,claim:IDENTITY_BUDGET_CLAIM,
+        owner:{phase:"integration",suite:"integration",group:owner},incident:{receipt:p.prior_receipt_fingerprint,log:ref("incident.log",log),log_identity:{relative_path:relative,bytes:Buffer.byteLength(log),sha256:digest(log)},cause:"UNKNOWN"},
+        source_partition:identityBudgetSourcePartition(git,oldHead,head,p.base),rationale:{execution_reserve_ms:30000,termination_grace_ms:13000,
+          judgment:"Controlled prospective allowance judgment with fixed reserve and unchanged complete security workload; no historical cause or qualification is claimed.",observations},after}};
+    const options={git,bytes,parse,completedAt,original,completion,repositoryRoot:root};
+    const verify=(proof=p,f=focused,r=original,c=completion)=>verifyRegisteredIdentityBudget(proof,prior,f,{...options,original:r,completion:c});
+    assert.equal(identityBudgetRegistration(git,oldHead).bound_ms,60000);assert.equal(verify(),head);
+    inspectCurrentIdentityBudgetInputs(root,record);
+    let negatives=0;
+    const inheritance={route:"serial-aggregate-budget-v1",origin_family_id:digest("serial family"),origin_number:1,
+      origin_attempt_id:"controlled-serial-origin",origin_receipt_fingerprint:digest("serial receipt"),envelope_sha256:digest("serial envelope")};
+    const materialProof=structuredClone(p);Object.assign(materialProof.commission,{ordinal:1,maximum_invocations:1,inherited_serial:inheritance});
+    const materialPrior={...prior,source_correction:{schema:p.schema,kind:p.kind,head:oldHead,tree:priorTree,
+      commission:{source_revision:MATERIAL_SOURCE_CORRECTION,ordinal:1,maximum_invocations:1,inherited_serial:inheritance}}};
+    const materialOriginal={...original,attempt:materialPrior},materialCompletion={...completion,attempt_id:prior.attempt_id,receipt_fingerprint:p.prior_receipt_fingerprint};
+    const verifyMaterial=(q=materialProof,a=materialPrior,f=focused,r=materialOriginal,c=materialCompletion,at=completedAt)=>
+      verifyRegisteredIdentityBudget(q,a,f,{...options,original:r,completion:c,completedAt:at});
+    assert.equal(verifyMaterial(),head);
+    for(const change of [q=>delete q.commission.inherited_serial,q=>q.commission.inherited_serial.envelope_sha256=digest("lost envelope"),
+      q=>q.commission.input_acquisition="unadmitted",q=>q.commission.ordinal=2,q=>q.commission.maximum_invocations=2]) {
+      const q=structuredClone(materialProof);change(q);assert.throws(()=>verifyMaterial(q));negatives++;
+    }
+    for(const change of [a=>a.source_correction.commission.ordinal=2,a=>a.source_correction.commission.maximum_invocations=2,
+      a=>a.source_correction.head=head,a=>a.source_correction.tree=tree,a=>a.family_id=digest("other family"),
+      a=>a.source_correction.schema="augnes.local-canonical-source-correction.v2"]) {
+      const a=structuredClone(materialPrior);change(a);assert.throws(()=>verifyMaterial(materialProof,a,focused,{...original,attempt:a}));negatives++;
+    }
+    // Two independent tiny source histories exercise honest old diagnostics:
+    // the peer observations precede this task's later failed completion, while
+    // the required own positive capture follows both. No workload is executed.
+    git(["checkout","--detach",oldHead]);write(FIXTURE_BUDGET_COLLECTOR,"export const controlled_collector=true;\n// distinct peer source\n");
+    const peerPackage=JSON.parse(readFileSync(path.join(root,"package.json"),"utf8"));
+    Object.assign(peerPackage.scripts,{"augnes:connect:llama":"node scripts/prepare-llama-connection.mjs",
+      "test:llama-connection-setup":"node scripts/test-prepare-llama-connection.mjs","test:llama-companion-stdio":"node scripts/test-llama-companion-stdio.mjs"});
+    write("package.json",peerPackage);write(navigationFile,navigation.replace("return href;","return href + '#inactive';"));
+    const peerBefore=commit("controlled distinct peer predecessor");
+    write(FIXTURE_BUDGET_PATHS.suite,suite.replace("timeoutMs:60_000","timeoutMs:90_000"));const peerAfter=commit("controlled distinct peer allowance");
+    git(["checkout","--detach",head]);
+    let sharedSequence=0;
+    const sharedMaterial=(before,after)=>{
+      const suffix=sharedSequence++,a={...prior,head:before,tree:git(["rev-parse",before+"^{tree}"]).toString().trim(),attempt_id:"controlled-peer-failure-"+suffix};
+      const receipt=finalizeReceipt({attempt:a,repository:{head_sha:a.head,tree_sha:a.tree,branch:a.branch},outcome:{disposition:"product_failure"},cleanup:{completed:true}});
+      const fingerprint=receipt.integrity.content_fingerprint,c={...completion,attempt_id:a.attempt_id,receipt_fingerprint:fingerprint};
+      const obs=structuredClone(observations),representative=parse(obs[2].manifest);representative.source_head=before;
+      obs[2].manifest=ref("shared-representative-manifest-"+suffix+".json",representative);
+      const f=structuredClone(focused);f.regression.rationale.observations=obs;f.regression.incident.receipt=fingerprint;
+      f.regression.source_partition=identityBudgetSourcePartition(git,before,after,oldHead);
+      const originals=Object.fromEntries(Object.entries({receipt,attempt:a,completion:c}).map(([role,value])=>[role,ref("shared-"+role+"-"+suffix+".json",value)]));
+      const focusedRef=ref("shared-focused-"+suffix+".json",f),t=git(["rev-parse",after+"^{tree}"]).toString().trim();
+      const proof={...p,head:after,tree:t,base:oldHead,accepted:{head:after,tree:t,base:oldHead},prior_attempt_id:a.attempt_id,
+        prior_receipt_fingerprint:fingerprint,commission:{...p.commission,ordinal:1,maximum_invocations:1},originals,focused:focusedRef};
+      return {...originals,proof:ref("shared-proof-"+suffix+".json",proof),focused:focusedRef};
+    };
+    const shared=sharedMaterial(peerBefore,peerAfter),sharedFocused=structuredClone(focused);
+    sharedFocused.regression.rationale.observations=parse(shared.focused).regression.rationale.observations;
+    sharedFocused.regression.rationale.shared_source=shared;
+    const ownCompletedAt=at(-3500),ownCompletion={...materialCompletion,finished_at:ownCompletedAt};
+    const verifyShared=(f=sharedFocused,q=materialProof,c=ownCompletion)=>verifyMaterial(q,materialPrior,f,materialOriginal,c,ownCompletedAt);
+    assert.equal(verifyShared(),head);
+    const equivalent=identityBudgetWorkloadEquivalence(git,oldHead,peerBefore);
+    assert.deepEqual(equivalent.contextual_differences.map(v=>v.path),[navigationFile,"package.json"]);
+    const closure=identityBudgetWorkloadSource(git,oldHead);
+    for(const file of [test,"scripts/fixtures/fake-codex-app-server.mjs","scripts/bounded-file-signal.mjs",
+      "lib/vnext/native-host/codex-isolated-auth-projection.ts","lib/vnext/native-host/controlled-identity-policy.json","package-lock.json","tsconfig.json"])
+      assert(closure.some(v=>v.path===file),"complete Identity closure must bind "+file);
+    for(const change of [f=>delete f.regression.rationale.shared_source.proof,f=>f.regression.rationale.shared_source.proof.sha256=digest("substituted proof"),
+      f=>f.regression.rationale.shared_source.focused.sha256=digest("substituted focused"),
+      f=>f.regression.rationale.observations[2].limitations+=" changed",f=>f.regression.rationale.observations[2].manifest=observations[2].manifest,
+      f=>f.regression.rationale.shared_source.receipt=ref("substituted-shared-receipt.json",{altered:true})]) {
+      const f=structuredClone(sharedFocused);change(f);assert.throws(()=>verifyShared(f));negatives++;
+    }
+    for(const [role,change]of [["proof",v=>v.head=head],["proof",v=>v.tree=priorTree],["proof",v=>v.prior_attempt_id=prior.attempt_id],
+      ["proof",v=>v.originals.receipt.sha256=digest("other original")],["attempt",v=>v.head=oldHead],
+      ["completion",v=>v.finished_at=at(-1000)],["focused",v=>v.regression.rationale.observations[0].limitations+=" changed"]]) {
+      const f=structuredClone(sharedFocused),s=f.regression.rationale.shared_source,value=parse(s[role]);change(value);
+      s[role]=ref("shared-refusal-"+negatives+".json",value);assert.throws(()=>verifyShared(f));negatives++;
+    }
+    const noShared=structuredClone(sharedFocused);delete noShared.regression.rationale.shared_source;
+    assert.throws(()=>verifyShared(noShared),"old peer observations cannot become new own observations");negatives++;
+    const late=structuredClone(sharedFocused),lateCapture=parse(after);lateCapture.started_at=at(-4000);
+    late.regression.after=ref("early-own-capture.json",lateCapture);late.commands[0].record=late.regression.after;
+    assert.throws(()=>verifyShared(late),"own capture must follow own predecessor completion");negatives++;
+    for(const [file,changed]of [["scripts/bounded-file-signal.mjs","export const controlled_helper=false;\n"],
+      ["lib/vnext/native-host/controlled-identity-policy.json",{enabled:false}],[test,"export const shortened_identity=true;\n"]]) {
+      git(["checkout","--detach",peerBefore]);write(file,changed);const incompatibleBefore=commit("controlled different shared workload");
+      write(FIXTURE_BUDGET_PATHS.suite,suite.replace("timeoutMs:60_000","timeoutMs:90_000"));const incompatibleAfter=commit("controlled incompatible peer allowance");
+      const f=structuredClone(sharedFocused),s=sharedMaterial(incompatibleBefore,incompatibleAfter);
+      f.regression.rationale.shared_source=s;f.regression.rationale.observations=parse(s.focused).regression.rationale.observations;
+      assert.throws(()=>verifyShared(f),"shared source closure must refuse "+file);negatives++;
+      git(["checkout","--detach",head]);
+    }
+    for(const change of [m=>m.scripts["augnes:connect:llama"]="node scripts/unreviewed.mjs",m=>m.scripts["test:integration"]="node skipped.mjs",
+      m=>m.scripts["pretest:integration"]="node lifecycle.mjs",m=>m.scripts["test:other"]="node unrelated-extra.mjs",m=>m.type="commonjs"]) {
+      git(["checkout","--detach",peerBefore]);const m=structuredClone(peerPackage);change(m);write("package.json",m);
+      const incompatible=commit("controlled unrelated script near miss");assert.throws(()=>identityBudgetWorkloadEquivalence(git,oldHead,incompatible));negatives++;
+    }
+    for(const changed of [navigation+"console.log('impure initialization');\n",'import "./controlled-navigation-effect.mjs";\n'+navigation,
+      navigation.replace("return params;","return null;")]) {
+      git(["checkout","--detach",peerBefore]);write(navigationFile,changed);write("lib/vnext/controlled-navigation-effect.mjs","export const effect=true;\n");
+      const incompatible=commit("controlled impure or changed navigation boundary");
+      assert.throws(()=>identityBudgetWorkloadEquivalence(git,oldHead,incompatible));negatives++;
+    }
+    for(const [file,changed]of [[test,readFileSync(path.join(root,test),"utf8")+'\nconst unavailableIdentityOption={scoped_task:{}};\n'],
+      [adapterFile,adapter.replace(" || options.observe_isolated_auth","")],
+      [adapterFile,adapter.replace("if (options.scoped_task) scopedAdaptersV01.set","if (options.scoped_task) {} if (options.scoped_task) scopedAdaptersV01.set")]]) {
+      git(["checkout","--detach",oldHead]);write(file,changed);const boundaryBefore=commit("controlled changed inactive-lane premise");
+      write(navigationFile,navigation.replace("return href;","return href + '#inactive';"));const boundaryAfter=commit("controlled changed navigation body");
+      assert.throws(()=>identityBudgetWorkloadEquivalence(git,boundaryBefore,boundaryAfter));negatives++;
+    }
+    git(["checkout","--detach",head]);
+    for(const change of [f=>f.failed_phase="authority",f=>f.regression.kind=REGISTERED_FIXTURE_BUDGET,f=>f.regression.claim="historical cure",f=>f.regression.owner.group="external-response",
+      f=>f.regression.incident.cause="known",f=>f.regression.incident.receipt=digest("other"),f=>f.regression.source_partition.after.bound_ms=120000,
+      f=>f.regression.rationale.execution_reserve_ms=60000,f=>f.regression.rationale.termination_grace_ms=0,f=>f.regression.rationale.observations.pop()]) {
+      const f=structuredClone(focused);change(f);assert.throws(()=>verify(p,f));negatives++;
+    }
+    for(const change of [w=>w.bound_ms=120000,w=>w.command=w.command.replace("--contracts","--rollback-lifecycle"),w=>w.command+=" --skip",w=>w.synthetic_only=true,w=>w.truncated=true,
+      w=>w.result.timed_out=true,w=>w.result.termination_reason="exited_with_owned_descendant_cleanup",w=>w.ownership.checkout.released=false,w=>delete w.ownership.capacity,
+      w=>w.owned_cleanup=[],w=>w.runtime_after.node.observation.sha256=digest("changed runtime"),w=>w.loader_after.sha256=digest("changed loader"),w=>w.environment_after.UNBOUND="1",
+      w=>w.source_after.physical_matches=false,w=>w.config.pop(),w=>w.collector=ref("bad-collector.log","changed"),w=>w.lifecycle=ref("forced-lifecycle.log",lifecycle.replace("term_sent=false","term_sent=true")),
+      w=>w.stdout=ref("missing-case.log",[...rows.slice(1),summary].map(v=>JSON.stringify(v)+"\n").join("")),w=>w.stdout=ref("bad-egress.log",[...rows,{...summary,successful_external_network_egress:1}].map(v=>JSON.stringify(v)+"\n").join("")),
+      w=>w.stdout=ref("missing-summary.log",rows.map(v=>JSON.stringify(v)+"\n").join(""))]) {
+      const w=parse(after),f=structuredClone(focused);change(w);f.regression.after=ref("bad-capture-"+negatives+".json",w);f.commands[0].record=f.regression.after;f.commands[0].stdout=w.stdout;
+      assert.throws(()=>verify(p,f),"Identity refusal control "+negatives+": "+change.toString());negatives++;
+    }
+    for(const change of [r=>r.outcome.disposition="unclassified_timeout",r=>r.phases[0].timed_out=true,r=>r.phases[0].exit_status=0,r=>r.phases[0].log.truncated=true,r=>r.cleanup.completed=false]) {
+      const r=structuredClone(original);change(r);assert.throws(()=>verify(p,focused,r));negatives++;
+    }
+    for(const altered of [log.replace("timeout_ms=60000","timeout_ms=90000"),
+      log.replace('"outcome":"failed"','"outcome":"passed"'),
+      log+prefix+'child_start label="unadmitted after failure" timeout_ms=60000\n',
+      log.replace("remaining_owned_processes=0 termination_reason=bounded_timeout","remaining_owned_processes=1 termination_reason=bounded_timeout")]) {
+      const f=structuredClone(focused),r=structuredClone(original);write(relative,altered);
+      f.regression.incident.log=ref("invalid-failure-prefix-"+negatives+".log",altered);
+      f.regression.incident.log_identity={relative_path:relative,bytes:Buffer.byteLength(altered),sha256:digest(altered)};
+      r.phases[0].log.bytes=Buffer.byteLength(altered);
+      assert.throws(()=>verify(p,f,r),"Identity malformed retained failure must refuse");negatives++;
+    }
+    write(relative,log);
+    for(const [field,value]of [["projection_version",null],["attestation_version","unrecognized"],["seal_version",{}],["semantic_profile_version","unrecognized"],
+      ["authenticated_child_binding_version",null],["installed_cli_preflight","compatible_exact"],["credential_free_fake_preflight","failed"],
+      ["no_authorization_preflight_stop","allowed_without_authority"],["unsupported_production_authority","permitted"],["test_only_authorized_fake_turn","NOT_RUN"],
+      ["user_agent_negative_shapes_refused",1]]) {
+      const w=parse(after),f=structuredClone(focused);
+      w.stdout=ref("wrong-summary-"+field+".log",[...rows,{...summary,[field]:value}].map(v=>JSON.stringify(v)+"\n").join(""));
+      f.regression.after=ref("wrong-summary-"+field+".json",w);f.commands[0].record=f.regression.after;f.commands[0].stdout=w.stdout;
+      assert.throws(()=>verify(p,f),"Identity summary must refuse substituted "+field);negatives++;
+    }
+    const badProof=structuredClone(p);badProof.commission.evidence_kind=REGISTERED_FIXTURE_BUDGET;assert.throws(()=>verify(badProof));negatives++;
+    for(const [file,value,registrationOnly]of [[test,"changed assertions\n"],["scripts/fixtures/fake-codex-app-server.mjs","changed fake\n"],["lib/vnext/native-host/codex-isolated-auth-projection.ts","changed security\n"],
+      ["scripts/run-local-canonical-verification.mjs",(executor+executor).replaceAll("4_200_000","4_300_000")],[FIXTURE_BUDGET_PATHS.suite,suite.replace("timeoutMs:60_000","timeoutMs:120_000")],
+      [FIXTURE_BUDGET_PATHS.suite,suite.replace('"--contracts",','"--contracts","--extra",'),true],
+      [FIXTURE_BUDGET_PATHS.suite,suite.replace('"--contracts",','"--rollback-lifecycle",'),true],
+      [FIXTURE_BUDGET_PATHS.suite,suite.replace('"--contracts",','...["--contracts"],'),true]]) {
+      write(file,value);const changed=commit("controlled incompatible Identity source");
+      assert.throws(registrationOnly?()=>identityBudgetRegistration(git,changed):()=>identityBudgetSourcePartition(git,oldHead,changed,p.base));
+      git(["reset","--hard",head]);negatives++;
+    }
+    write("README.md","unadopted prose\n");const unadopted=commit("controlled unadopted prose");assert.throws(()=>identityBudgetSourcePartition(git,oldHead,unadopted));git(["reset","--hard",head]);negatives++;
+    git(["checkout","--detach",oldHead]);write("README.md","adopted prose\n");write("apps/web_planning/README.md","adopted app README\n");const base=commit("controlled adopted prose");
+    git(["checkout","--detach",head]);git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","merge","--no-edit",base]);const merged=git(["rev-parse","HEAD"]).toString().trim();
+    assert.equal(identityBudgetSourcePartition(git,oldHead,merged,base).adopted_base,base);
+    assert(identityBudgetSourcePartition(git,oldHead,merged,base).adopted_prose.paths.includes("apps/web_planning/README.md"));
+    assert.throws(()=>identityBudgetSourcePartition(git,oldHead,merged));negatives++;
+    write("README.md","adopted prose plus unreviewed change\n");const wrong=commit("controlled altered adopted prose");assert.throws(()=>identityBudgetSourcePartition(git,oldHead,wrong,base));negatives++;
+    git(["checkout","--detach",base]);write("apps/web_planning/README-copy.md","unregistered app README near miss\n");const nearBase=commit("controlled app README near miss");
+    git(["checkout","--detach",head]);git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","merge","--no-edit",nearBase]);
+    const nearCandidate=git(["rev-parse","HEAD"]).toString().trim();assert.throws(()=>identityBudgetSourcePartition(git,oldHead,nearCandidate,nearBase));negatives++;
+    git(["reset","--hard",head]);
+    const {identityBudgetAuthorityBindings,identityBudgetAuthorityScope,identityBudgetDelegation,delegatesMaterialSourceCommission,IDENTITY_BUDGET_GRANT,MATERIAL_HISTORY_BOUNDARY,INTEGRATION_BUDGET_LIMIT}=await import("../local-canonical-git-observation.mjs");
+    const authorityProof={...p,accepted:{review:{id:82}}},bindings=identityBudgetAuthorityBindings(authorityProof),delegation=identityBudgetDelegation(authorityProof);
+    const review={body:["Source review decision: ACCEPT / RETAIN for prospective qualification.",bindings,MATERIAL_HISTORY_BOUNDARY].join("\n\n")};
+    const grant={body:[IDENTITY_BUDGET_GRANT,bindings,"Accepted review: https://github.com/hynk-studio/augnes/pull/999#pullrequestreview-82",MATERIAL_HISTORY_BOUNDARY,INTEGRATION_BUDGET_LIMIT].join("\n\n")};
+    assert(delegatesMaterialSourceCommission(delegation,authorityProof));assert(identityBudgetAuthorityScope(authorityProof,review,grant));
+    for(const substitute of [body=>body.replace("90000","120000"),body=>body.replace("4200000","4300000"),body=>body.replace(p.prior_receipt_fingerprint,digest("other predecessor")),body=>body.replace(REGISTERED_IDENTITY_BUDGET,REGISTERED_FIXTURE_BUDGET)]) {
+      const body=substitute(bindings);assert.notEqual(body,bindings);assert.equal(identityBudgetAuthorityScope(authorityProof,{body:review.body.replace(bindings,body)},grant),false);negatives++;
+    }
+    assert.equal(identityBudgetAuthorityScope(authorityProof,review,{body:grant.body.replace(IDENTITY_BUDGET_GRANT,"Authorize maintenance")}),false);negatives++;
+    assert.equal(delegatesMaterialSourceCommission("Example only\n\n"+delegation,authorityProof),false);negatives++;
+    assert.equal(readIdentityBudgetPositive(after,p,options).record.bound_ms,90000);assert.equal(verify(),head);
+    return {contract:REGISTERED_IDENTITY_BUDGET,synthetic_only:true,negative_controls:negatives,
+      ordinary_and_material_predecessors:true,immutable_shared_source_reuse:true,closed_workload_files:closure.map(v=>v.path),
+      registered_identity_executed:false,original_incident_reproduction:false};
+  } finally {rmSync(root,{recursive:true,force:true});}
 }
 
 // These are small synthetic reader controls, not either real selective witness.

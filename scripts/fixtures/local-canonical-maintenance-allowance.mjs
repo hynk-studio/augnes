@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { cpSync, existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { digest, observeCanonicalRuntimeInputs, observePreparedDependencyInputs } from "../local-canonical-inputs.mjs";
 import { observePureContractSource, observePureContractLoader } from "../local-canonical-pure-contract-witness.mjs";
@@ -20,6 +21,7 @@ import * as budgetWitness from "../local-canonical-fixture-budget-witness.mjs";
 import { gitFixtureDeclaration } from "./local-canonical-git-observation.mjs";
 import { executeFixture, dependencyRecords } from "./local-canonical-browser-successor.mjs";
 import { baseReceipt } from "./local-canonical-receipt-v3.mjs";
+import { PROJECT_EXPERIENCE_COMMITMENT } from "../project-experience-serial-budget.mjs";
 
 const ownerId="local-canonical-maintenance", test="scripts/test-local-canonical-maintenance.mjs", suite=FIXTURE_BUDGET_PATHS.suite;
 const clone=structuredClone,now=()=>new Date().toISOString(),decision="Source review decision: ACCEPT / RETAIN for prospective qualification.";
@@ -197,5 +199,67 @@ export async function runMaintenanceAllowanceControls(c,h,sourceRoot) {
   for(const [file,sha]of retained)assert.equal(digest(readFileSync(file)),sha);
   const legacyBefore=registeredFixtureBudget(c.git,oldHead,"serial-aggregate"),legacyAfter=registeredFixtureBudget(c.git,c.head,"serial-aggregate");
   assert.deepEqual(legacyAfter.groups,legacyBefore.groups);assert.deepEqual(legacyAfter.limits,legacyBefore.limits);
+  await assertIdentityEntryControls(sourceRoot,ordinary,p);
   console.log(JSON.stringify({maintenance_allowance_controls:{synthetic_only:true,deciding:false,prepared_without_reservation:true,ordinary_predecessor_roles_absent:true,admitted:1,remaining:0,refusals,concurrent_successors:1,fresh_stock:true,predecessor_preserved:true,legacy_serial_registration_unchanged:true}}));
+}
+
+async function assertIdentityEntryControls(sourceRoot,ordinary,maintenance) {
+  // Exercise the actual private decision functions without adding a production
+  // test API or reserving any Identity attempt. Shared physical reservation,
+  // race, history and stock controls above continue to exercise their owners.
+  const file=path.join(sourceRoot,"scripts/local-canonical-attempts.mjs"),source=readFileSync(file,"utf8");
+  const imports=source.replace(/from "(\.\/[^"\n]+)"/gu,(_all,relative)=>
+    "from "+JSON.stringify(pathToFileURL(path.resolve(path.dirname(file),relative)).href));
+  const controls=await import("data:text/javascript;base64,"+Buffer.from(imports+
+    "\nexport {validGitRevisionEdge,revisionFollows,revisionCommissionIdentity,ordinaryBudgetSuccessor,identityBudgetEvidence};\n").toString("base64"));
+  const identity=clone(maintenance);delete identity.commission.allowance_case;
+  identity.commission.evidence_kind="registered-identity-contract-budget-v1";
+  assert.equal(controls.ordinaryBudgetSuccessor(identity),true);
+  assert.equal(controls.ordinaryBudgetSuccessor(maintenance),true);
+  assert.equal(controls.identityBudgetEvidence(identity),true);
+  assert.equal(controls.identityBudgetEvidence(maintenance),false);
+  assert.equal(controls.identityBudgetEvidence({commission:{evidence_kind:"unregistered-budget"}}),false);
+  assert.equal(controls.validGitRevisionEdge(ordinary,identity),true);
+  assert.equal(controls.revisionFollows(identity,0,null,[],0),true);
+  let refusals=0;
+  for(const mutate of [v=>v.schema="augnes.local-canonical-source-correction.v1",v=>v.kind="verifier_correction",
+    v=>v.commission=undefined,v=>v.commission={ordinal:1,maximum_invocations:1}]) {
+    const previous=clone(ordinary);mutate(previous);assert.equal(controls.validGitRevisionEdge(previous,identity),false);refusals++;
+  }
+  for(const mutate of [v=>v.commission.ordinal=2,v=>v.commission.maximum_invocations=2,
+    v=>v.commission.inherited_serial={},v=>v.commission.input_acquisition="unrelated",
+    v=>v.commission.evidence_kind="unregistered-budget"]) {
+    const next=clone(identity);mutate(next);assert.equal(controls.validGitRevisionEdge(ordinary,next),false);refusals++;
+  }
+  for(const [count,commission,grants]of [[1,null,[]],[0,"borrowed",[]],[0,null,[identity.authorization.grant_comment_id]]]) {
+    assert.equal(controls.revisionFollows(identity,count,commission,grants,1),false);refusals++;
+  }
+  const previous=clone(identity);delete previous.commission.evidence_kind;
+  previous.authorization.grant_comment_id=identity.authorization.grant_comment_id+1;
+  previous.commission.inherited_serial={route:"serial-aggregate-budget-v1",envelope_sha256:PROJECT_EXPERIENCE_COMMITMENT,
+    origin_family_id:digest("controlled serial origin family"),origin_number:1,origin_attempt_id:"controlled-serial-origin-attempt",
+    origin_receipt_fingerprint:digest("controlled serial origin receipt")};
+  const next=clone(identity);next.commission.inherited_serial=clone(previous.commission.inherited_serial);
+  const previousCommission=controls.revisionCommissionIdentity(previous),grants=[previous.authorization.grant_comment_id];
+  assert.equal(controls.validGitRevisionEdge(previous,next),true);
+  assert.equal(controls.revisionFollows(next,1,previousCommission,grants,1),true);
+  for(const mutate of [v=>delete v.commission.inherited_serial,v=>v.commission.inherited_serial.origin_receipt_fingerprint=digest("different origin"),
+    v=>v.commission.inherited_serial.envelope_sha256=digest("different envelope"),v=>v.commission.input_acquisition="unrelated",
+    v=>v.commission.maximum_invocations=2,v=>v.commission.ordinal=2]) {
+    const candidate=clone(next);mutate(candidate);assert.equal(controls.validGitRevisionEdge(previous,candidate),false);refusals++;
+  }
+  for(const mutate of [v=>v.commission.ordinal=0,v=>v.commission.maximum_invocations=2,v=>v.schema="augnes.local-canonical-source-correction.v10"]) {
+    const candidate=clone(previous);mutate(candidate);assert.equal(controls.validGitRevisionEdge(candidate,next),false);refusals++;
+  }
+  for(const [count,commission,used,maximum]of [[0,null,[],0],[1,null,grants,1],[1,previousCommission,[],1],
+    [1,previousCommission,grants,2],[1,controls.revisionCommissionIdentity(next),grants,1],
+    [1,previousCommission,[...grants,next.authorization.grant_comment_id],1]]) {
+    assert.equal(controls.revisionFollows(next,count,commission,used,maximum),false);refusals++;
+  }
+  assert.equal(controls.revisionFollows(maintenance,0,null,[],0),true);
+  assert.equal(readFileSync(file,"utf8"),source);
+  console.log(JSON.stringify({identity_budget_entry_controls:{synthetic_only:true,deciding:false,
+    ordinary_v2_first_commission_shape:true,spent_material_v7_successor:true,inherited_obligations_preserved:true,
+    replay_and_reset_refused:true,refusals,legacy_maintenance_entry_preserved:true,
+    physical_identity_reservations_created:0}}));
 }

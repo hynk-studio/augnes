@@ -2210,6 +2210,100 @@ consumes it, with no ordinal two, recovery or unchanged-target retry. Complete
 planner-selected qualification, separate fresh-process stock, independent result
 audit and cleanup remain required. Model-only review is identified as such.
 
+##### Prospective Identity contracts allowance
+
+`registered-identity-contract-budget-v1` is a closed evidence kind in the
+existing one-use, inventory-bound material-source lineage. It covers only
+`integration / supporting-serial / codex-isolated-auth-projection`, invoking
+`node --import tsx scripts/test-codex-isolated-auth-projection.ts --contracts`.
+Its only workload change is the aggregate fixture watchdog from 60,000 to
+90,000 ms. This is a finite operating-envelope judgment, not a product latency
+requirement, measured 90-second requirement, historical cause or guaranteed PASS.
+The integration phase remains 4,200,000 ms. All registrations, command arguments,
+cases, state transitions, assertions, full executable-byte validations,
+single-use owners, substitution refusals, internal limits and cleanup remain
+unchanged. Other registrations and scheduling remain fixed.
+
+The latest predecessor must be a fully settled product failure: either the
+existing ordinary-v2 `source_revision` with no material commission, or an
+inventory-bound material-v7 source commission whose one invocation is fully
+spent. Both routes require intact originals, false stock and no newer attempt
+or successor. The material route retains its actual consumed count, distinct
+commission and complete inherited serial/input-acquisition obligations; it never
+re-enters as an ordinary root or drops earlier grants. Its untruncated physical integration
+log must show only this registered child failing its old watchdog, a natural
+failing parent, truthful selected/started/settled/completed/unstarted inventory
+and complete owned cleanup. Only this Identity predecessor may retain an
+incomplete valid ordered prefix of integration Browser observations when that
+failed phase stopped before those consumers; its original false-stock issue
+must remain exactly accounted. This accepts no missing final-target coverage.
+Its raw disposition, unresolved historical cause
+and all earlier invocation consumption are preserved. This route's immediate
+root is that latest predecessor; it does not reset the earlier physical lineage
+or reuse its conditional recovery or the Web correction proof.
+
+The rationale retains the bounded whole-contract observation, selected fresh
+tail and representative original-probe cost observation as non-deciding evidence.
+Observer clocks are not the parent watchdog clock. Tail/representative PASS
+does not establish whole-contract PASS, historical cause or a natural RED/GREEN.
+Repeated executable hashing and process observation are security work, not an
+unconditional sleep or permission to cache by pathname or remove checks.
+An optional `rationale.shared_source` contains explicit artifact references to
+the immutable shared proof, focused record, receipt, attempt and completion.
+Their original identities and bytes bind the unchanged diagnostic observation
+objects. Diagnostic chronology remains relative to that original predecessor,
+and the representative source head remains its actual head. The complete
+discovered value-import graph, fake server and configuration retain their raw
+source identities. All source blobs match between the shared and current
+predecessor/candidate except two explicitly checked contextual differences:
+the exact optional llama setup/test script declarations, and an inactive pure
+navigation declaration. All other package fields/scripts, dependencies, lock
+and TypeScript configuration stay equal. Navigation permits only the
+`projectClientHref` body to vary in the exact three-function declaration-only
+module, with unchanged signatures/other functions and no import or top-level
+effect. The unchanged complete Identity test supplies no `scoped_task`, and
+the adapter's exact block guard refuses that lane with Identity options; its
+separate non-block registration remains valid. No transitive dispatch subtree
+is omitted. These are relevant workload-equivalence conditions, not a claim
+of full graph byte equality or timing equivalence. Exact command, resource
+requirements, internal limits and parent bound are retained. Unsupported source,
+provenance or observation substitutions refuse. This is attributed shared-source
+rationale reuse, never transfer of qualification, acceptance or execution
+authority. The final own complete capture must follow both its own predecessor
+completion and the retained shared diagnostics. Existing unshared rationale
+retains its original chronology and source checks.
+
+The proposed execution reserve is 30,000 ms; the existing 8,000 ms TERM and
+5,000 ms KILL settlement allowances remain unchanged. No unrelated maintenance,
+external-response or project-experience budget commission can admit this owner.
+
+The final development capture runs the original complete, uninstrumented
+registered command once under the proposed allowance. Use the existing explicit
+collector's `direct codex-isolated-auth-projection` selection in a new output
+directory. It owns checkout/capacity and isolated resources, records exact clean
+Git/source, runtime, dependencies, loader, input inventory and environment before
+and after, and requires natural result/stream/process/resource settlement.
+The reader verifies all three runtime-policy records and the final complete
+contracts summary, including zero real credential/provider/egress effects.
+Tail selectors, overlays, missing completion, timeout, cancellation, substituted
+inputs or incomplete cleanup refuse. The complete workload/security closure and
+parent executor are byte-fixed. Only the one timeout AST node and explicitly
+reviewed evidence owners may change; any carried main prose must match the
+explicit adopted base or its read-only conflict-free blob merge.
+
+New support and successful development capture do not commission deciding
+execution. Non-reserving preparation binds the exact published final target,
+current safe inputs and immutable latest predecessor before independent review.
+The distinct visible task delegation, exact-source acceptance and later
+prospective grant retain the existing authenticated author/permission, ordering,
+freshness and inventory requirements. The grant begins
+`Authorize one NEW prospective v7 reviewed_revision commission for the registered Identity contracts allowance.`
+It authorizes exactly one admitted planner-selected invocation; reservation or
+interruption consumes it. There is no ordinal two, recovery, unchanged-target
+retry or partial-phase stitching. Separate fresh-process stock, independent
+result review and owned cleanup remain required. Preparing this route neither
+publishes authority nor replenishes any spent grant.
+
 ##### Generated declaration stock lifecycle correction
 
 The registered source witnesses freeze the complete focused source, including

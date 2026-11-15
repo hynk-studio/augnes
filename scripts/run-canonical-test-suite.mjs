@@ -758,11 +758,11 @@ const suites = {
         "scripts/test-codex-isolated-auth-projection.ts",
         "--contracts",
       ),
-      // The structural contract lane owns the production-shaped fake App Server,
-      // account/tool-policy reobservation, provenance, and execution gate. Three
-      // exact Node 24 canonical-runner measurements were 35.987s-36.255s. Bound
-      // at 60s for shared-host variance without a retry path.
-      timeoutMs: 60_000,
+      // Preserve the complete fake App Server, provenance, policy and execution
+      // gate workload, including repeated full-byte and process identity checks.
+      // This finite prospective allowance has its own evidence/admission owner;
+      // it establishes neither historical timeout cause nor guaranteed headroom.
+      timeoutMs: 90_000,
     },
     {
       id: "codex-isolated-auth-rollback-lifecycle",

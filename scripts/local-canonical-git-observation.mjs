@@ -10,6 +10,7 @@ import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { REGISTERED_FIXTURE_BUDGET, verifyRegisteredFixtureBudget, FIXTURE_BUDGET_CLAIM,
   isMaintenanceFixtureBudget, MAINTENANCE_FIXTURE_CASE, MAINTENANCE_FIXTURE_GRANT,
   REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM, verifyRegisteredIntegrationBudget,
+  REGISTERED_IDENTITY_BUDGET, IDENTITY_BUDGET_CLAIM, verifyRegisteredIdentityBudget,
   SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM, verifySelectiveFixtureWorkload,
   REGISTERED_REQUEST_BOUND_ALLOWANCE, REQUEST_BOUND_ALLOWANCE_CLAIM, verifyRequestBoundAllowance } from "./local-canonical-fixture-budget-witness.mjs";
 import { GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM, GENERATED_STOCK_GRANT,
@@ -598,6 +599,7 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
     if (regression.kind===REGISTERED_REQUEST_BOUND_ALLOWANCE) return verifyRequestBoundAllowance(p,prior,focused,{git,parse,bytes,completedAt,original,stock,completion,repositoryRoot});
     if (regression.kind===SELECTIVE_FIXTURE_WORKLOAD) return verifySelectiveFixtureWorkload(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
     if (regression.kind===REGISTERED_INTEGRATION_BUDGET) return verifyRegisteredIntegrationBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
+    if (regression.kind===REGISTERED_IDENTITY_BUDGET) return verifyRegisteredIdentityBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
     if (regression.kind===PREPARED_ELIGIBILITY_REPAIR)
       return verifyPreparedEligibilityRepair(p, prior, focused, { git, parse, bytes, completedAt, original, stock, completion });
     if (regression.kind===GENERATED_STOCK_REPAIR)
@@ -704,6 +706,8 @@ export function delegatesMaterialSourceCommission(body,p) {
   if(p.commission.evidence_kind===GIT_CONFIG_STOCK_VERIFIER_REPAIR)
     return equal(visibleDelegationParagraphs(body),stockVerifierDelegation(p).split("\n\n"));
   if (isMaintenanceFixtureBudget(p)) return equal(visibleDelegationParagraphs(body), maintenanceFixtureDelegation(p).split("\n\n"));
+  if (p.commission.evidence_kind === REGISTERED_IDENTITY_BUDGET)
+    return equal(visibleDelegationParagraphs(body), identityBudgetDelegation(p).split("\n\n"));
   if (p.commission.evidence_kind === VERIFIER_LIFECYCLE_REPAIR) return !!readVerifierLifecycleDelegation(body,p);
   if (p.commission.evidence_kind === PREPARED_ELIGIBILITY_REPAIR) return !!readPreparedEligibilityDelegation(body,p);
   if (p.commission.evidence_kind === REGISTERED_INTEGRATION_BUDGET)
@@ -855,6 +859,16 @@ export const requestBoundAllowanceAuthorityBindings = p => {
 export const requestBoundAllowanceAuthorityScope = (p,review,grant) =>
   typedMaterialAuthorityScope(p,review,grant,requestBoundAllowanceAuthorityBindings(p),REQUEST_BOUND_GRANT);
 export const integrationBudgetAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM);
+export const IDENTITY_BUDGET_GRANT = "Authorize one NEW prospective v7 reviewed_revision commission for the registered Identity contracts allowance.";
+export const identityBudgetAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_IDENTITY_BUDGET, IDENTITY_BUDGET_CLAIM) +
+  "\nRegistered owner: integration / supporting-serial / codex-isolated-auth-projection; command: node --import tsx scripts/test-codex-isolated-auth-projection.ts --contracts." +
+  "\nProspective watchdog: 60000 to 90000 ms; integration phase: 4200000 ms unchanged; complete workload, executable checks, single-use ownership and cleanup unchanged.";
+export const identityBudgetDelegation = p => [
+  "Authorize one registered Identity contracts allowance preparation and conditional qualification assignment on " + p.branch + " in Draft PR #" + p.pull_request + ". Select " + REGISTERED_IDENTITY_BUDGET + " within the existing inventory-bound material-source-correction-v1 owners.",
+  "Predecessor: " + p.prior_family_id + " / " + p.prior_attempt_id + " / " + p.prior_receipt_fingerprint + ".",
+  MATERIAL_HISTORY_BOUNDARY,
+  "Preserve the complete uninstrumented contracts workload and every security, substitution, single-use ownership, refusal, state and cleanup assertion. Permit only its finite prospective 60000 to 90000 ms fixture watchdog adjustment; preserve the integration phase 4200000 ms bound and every other registration. The allowance is an operating-envelope judgment, not a product latency requirement, proven historical cause or guaranteed PASS. After separate independent acceptance of the complete final published source, evidence readers and refusal controls, original evidence, natural registered-owner completion and real non-reserving preparation commitment, authorize faithful exact-target acceptance and a separate authenticated prospective commission through the maintainer identity. Exactly one admitted deciding invocation total; reservation or interruption consumes it. No ordinal two, recovery or unchanged-target retry. Preserve all earlier consumed invocations and false stock. Complete the planner-selected qualification, separate fresh-process stock, independent result audit and owned cleanup."
+].join("\n\n");
 export const selectiveFixtureWorkloadAuthorityBindings = p => typedMaterialAuthorityBindings(p, SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM);
 export const maintenanceFixtureAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_FIXTURE_BUDGET, FIXTURE_BUDGET_CLAIM) +
   "\nAllowance case: " + MAINTENANCE_FIXTURE_CASE + "\nRegistered aggregate: 60000 to 90000 ms; inner setup: 10000 ms unchanged.";
@@ -892,6 +906,9 @@ function typedMaterialAuthorityScope(p, review, grant, bindings, opening) {
 
 export const integrationBudgetAuthorityScope = (p, review, grant) =>
   typedMaterialAuthorityScope(p, review, grant, integrationBudgetAuthorityBindings(p), INTEGRATION_BUDGET_GRANT);
+export const identityBudgetAuthorityScope = (p, review, grant) =>
+  p.commission.evidence_kind === REGISTERED_IDENTITY_BUDGET &&
+  typedMaterialAuthorityScope(p, review, grant, identityBudgetAuthorityBindings(p), IDENTITY_BUDGET_GRANT);
 export const selectiveFixtureWorkloadAuthorityScope = (p, review, grant) =>
   typedMaterialAuthorityScope(p, review, grant, selectiveFixtureWorkloadAuthorityBindings(p), SELECTIVE_FIXTURE_WORKLOAD_GRANT);
 export const maintenanceFixtureAuthorityScope = (p, review, grant) =>
