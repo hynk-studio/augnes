@@ -23,9 +23,11 @@ import { createGitHubObserverAuthorizationTransport } from "./github-main-branch
 import {MATERIAL_SOURCE_CORRECTION, MATERIAL_HISTORY_BOUNDARY, isMaterialSourceRevision, delegatesMaterialSourceCommission,
   readIntegrationBudgetDelegation, integrationBudgetAuthorityScope, INTEGRATION_BUDGET_GRANT,
   readGeneratedStockDelegation, generatedStockAuthorityScope,
-  selectiveFixtureWorkloadAuthorityScope, maintenanceFixtureAuthorityScope } from "./local-canonical-git-observation.mjs";
+  selectiveFixtureWorkloadAuthorityScope, maintenanceFixtureAuthorityScope,
+  identityBudgetAuthorityScope, IDENTITY_BUDGET_GRANT } from "./local-canonical-git-observation.mjs";
 import { REPOSITORY_TYPECHECK, observeTypecheckCompiler, observeGeneratedTypeInputs } from "./local-canonical-typecheck-witness.mjs";
 import { REGISTERED_FIXTURE_BUDGET, REGISTERED_INTEGRATION_BUDGET, fixtureBudgetEvidenceClaim, fixtureBudgetFailurePhase,
+  REGISTERED_IDENTITY_BUDGET, inspectCurrentIdentityBudgetInputs,
   inspectCurrentFixtureBudgetInputs, inspectCurrentIntegrationBudgetInputs, isMaintenanceFixtureBudget, MAINTENANCE_FIXTURE_GRANT,
   SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM, selectiveFixtureWorkloadIncident,
   inspectCurrentSelectiveFixtureWorkloadInputs } from "./local-canonical-fixture-budget-witness.mjs";
@@ -941,6 +943,7 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
       ...(evidence.preparedEligibility ? { process_umask: evidence.integrationBudget.process_umask } : {}),
     });
     if (evidence.selectiveWorkload) retainDependencyPrerequisites?.({ observations: [evidence.selectiveWorkload.after.dependencies] });
+    if (evidence.identityBudget) retainDependencyPrerequisites?.({ observations: [evidence.identityBudget.dependencies_after] });
     const priorRoot = verifyRevisionOriginals(anchorRoot, repositoryRoot, proof);
     const successor = { contract: "augnes.local-canonical-successor.v2", kind: "reviewed_revision",
       family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
@@ -988,6 +991,7 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
     }
     if (evidence.integrationBudget) inspectCurrentIntegrationBudgetInputs(repositoryRoot, evidence.integrationBudget, stockReceipt);
     if (evidence.selectiveWorkload) inspectCurrentSelectiveFixtureWorkloadInputs(repositoryRoot, evidence.selectiveWorkload, stockReceipt);
+    if (evidence.identityBudget) inspectCurrentIdentityBudgetInputs(repositoryRoot, evidence.identityBudget, stockReceipt);
     if (evidence.generatedStockBrowser) inspectGeneratedStockBrowserInputs(repositoryRoot, evidence.generatedStockBrowser);
     if (evidence.stockVerifier) {
       inspectCurrentCommonDriverInputs(repositoryRoot,evidence.stockVerifier);
@@ -1479,7 +1483,7 @@ const usesFreshRevisionGrant = p => isBrowserSuccessor(p) || isGitObservationSuc
 function validGitRevisionEdge(previous, next) {
   if (isMaterialSourceRevision(previous) && isReviewedIntegration(next))
     return previous.commission.ordinal === 1 && previous.commission.maximum_invocations === 1;
-  if (isMaintenanceFixtureBudget(next)) return previous?.schema === "augnes.local-canonical-source-correction.v2" &&
+  if (ordinaryBudgetSuccessor(next)) return previous?.schema === "augnes.local-canonical-source-correction.v2" &&
     previous.kind === "source_revision" && !Object.hasOwn(previous,"commission") &&
     isMaterialSourceRevision(next) && next.commission.ordinal === 1 && next.commission.maximum_invocations === 1 &&
     !Object.hasOwn(next.commission,"inherited_serial") && !Object.hasOwn(next.commission,"input_acquisition");
@@ -1534,7 +1538,7 @@ function revisionCommissionIdentity(proof) {
 function revisionFollows(proof, count, commission, grants, previousMaximum) {
   if (!revisionShape(proof)) return false;
   if (isSerialAggregateRevision(proof)) return count === 0 && proof.commission.ordinal === 1 && !grants.includes(proof.authorization.grant_comment_id);
-  if (isMaintenanceFixtureBudget(proof)) return count === 0 && !commission &&
+  if (ordinaryBudgetSuccessor(proof)) return count === 0 && !commission &&
     proof.commission.ordinal === 1 && !grants.includes(proof.authorization.grant_comment_id);
   if (isMaterialSourceRevision(proof)) return count > 0 && count === previousMaximum &&
     proof.commission.ordinal === 1 && revisionCommissionIdentity(proof) !== commission &&
@@ -1710,14 +1714,15 @@ function validateReviewedRevisionAuthorityEvidence(p, review, grant, permissions
     /reviewed source\/execution-input revision/iu.test(grantText) && /two admitted deciding invocations for this entire commission/iu.test(grantText) &&
     /materially corrected/iu.test(grantText) && /focused checks/iu.test(grantText) && /no additional recovery allowance/iu.test(grantText) && /Interrupted reservations consume/iu.test(grantText);
   const measuredIntegration = p.commission.evidence_kind === REGISTERED_INTEGRATION_BUDGET;
+  const identityBudget = identityBudgetEvidence(p);
   const generatedStock = generatedStockEvidence(p);
   const preparedEligibility = preparedEligibilityEvidence(p);
   const verifierLifecycle = verifierLifecycleEvidence(p);
   const selectiveWorkload = selectiveFixtureWorkloadEvidence(p);
   const maintenanceFixture = isMaintenanceFixtureBudget(p);
   const stockVerifier = stockVerifierEvidence(p);
-  const typedMaterial = selectiveWorkload || stockVerifier || maintenanceFixture || measuredIntegration || generatedStock || preparedEligibility || verifierLifecycle;
-  const prospectiveScope = selectiveWorkload ? selectiveFixtureWorkloadAuthorityScope(p,review,grant) : stockVerifier ? stockVerifierAuthorityScope(p,review,grant) : maintenanceFixture ? maintenanceFixtureAuthorityScope(p,review,grant) : verifierLifecycle ? verifierLifecycleAuthorityScope(p,review,grant) : preparedEligibility ? preparedEligibilityAuthorityScope(p,review,grant) : measuredIntegration ? integrationBudgetAuthorityScope(p,review,grant) :
+  const typedMaterial = selectiveWorkload || stockVerifier || maintenanceFixture || identityBudget || measuredIntegration || generatedStock || preparedEligibility || verifierLifecycle;
+  const prospectiveScope = identityBudget ? identityBudgetAuthorityScope(p,review,grant) : selectiveWorkload ? selectiveFixtureWorkloadAuthorityScope(p,review,grant) : stockVerifier ? stockVerifierAuthorityScope(p,review,grant) : maintenanceFixture ? maintenanceFixtureAuthorityScope(p,review,grant) : verifierLifecycle ? verifierLifecycleAuthorityScope(p,review,grant) : preparedEligibility ? preparedEligibilityAuthorityScope(p,review,grant) : measuredIntegration ? integrationBudgetAuthorityScope(p,review,grant) :
     generatedStock ? generatedStockAuthorityScope(p,review,grant) :
     [p.branch, String(p.accepted.review.id), p.commission.root_receipt_fingerprint].every(s => grant.body.includes(s)) &&
     /NEW.*commission/iu.test(grantText) && /v7 reviewed_revision/iu.test(grantText) && /old commission remains spent/iu.test(grantText) &&
@@ -1787,7 +1792,7 @@ function validateReviewedRevisionAuthorityEvidence(p, review, grant, permissions
       (permitsFinalDependencySuccessor(forward.body,p,revisionCommissionIdentity(p)) ||
         readPostPassDecision(forward.body,p,revisionCommissionIdentity(p)) && permitsPostPassReview(currentReview.body,p,revisionCommissionIdentity(p)))) && prospectiveScope && firstLine(review.body) === decision && firstLine(currentReview.body) === decision &&
       [p.base, p.head, p.tree, target, p.prior_receipt_fingerprint].every(s => currentReview.body.includes(s)) &&
-      firstLine(grant.body) === (stockVerifier ? STOCK_VERIFIER_GRANT : maintenanceFixture ? MAINTENANCE_FIXTURE_GRANT : verifierLifecycle ? VERIFIER_LIFECYCLE_GRANT : preparedEligibility ? PREPARED_ELIGIBILITY_GRANT : measuredIntegration ? INTEGRATION_BUDGET_GRANT : generatedStock ? GENERATED_STOCK_GRANT : isMaterialSourceRevision(p) ?
+      firstLine(grant.body) === (identityBudget ? IDENTITY_BUDGET_GRANT : stockVerifier ? STOCK_VERIFIER_GRANT : maintenanceFixture ? MAINTENANCE_FIXTURE_GRANT : verifierLifecycle ? VERIFIER_LIFECYCLE_GRANT : preparedEligibility ? PREPARED_ELIGIBILITY_GRANT : measuredIntegration ? INTEGRATION_BUDGET_GRANT : generatedStock ? GENERATED_STOCK_GRANT : isMaterialSourceRevision(p) ?
         "Authorize one NEW prospective v7 reviewed_revision commission for a material source correction." : isGitAcquisitionRevision(p) ?
         "Authorize a NEW prospective v7 reviewed_revision commission for a Git acquisition correction." :
         "Authorize a NEW prospective v7 reviewed_revision commission.") &&
@@ -2030,6 +2035,11 @@ function assertRevisionPublication(p,pr) {
 
 const selectiveFixtureWorkloadEvidence = p => p?.commission?.evidence_kind === SELECTIVE_FIXTURE_WORKLOAD;
 const measuredIntegrationEvidence = p => p?.commission?.evidence_kind === REGISTERED_INTEGRATION_BUDGET;
+const identityBudgetEvidence = p => p?.commission?.evidence_kind === REGISTERED_IDENTITY_BUDGET;
+// Only these closed budget owners may follow an ordinary-v2 source revision
+// without inheriting a pre-existing material commission. They still require a
+// fresh exact-target delegation, review and one-use authenticated commission.
+const ordinaryBudgetSuccessor = p => isMaintenanceFixtureBudget(p) || identityBudgetEvidence(p);
 const generatedStockEvidence = p => p?.commission?.evidence_kind === GENERATED_STOCK_REPAIR;
 const preparedEligibilityEvidence = p => p?.commission?.evidence_kind === PREPARED_ELIGIBILITY_REPAIR;
 const verifierLifecycleEvidence = p => p?.commission?.evidence_kind === VERIFIER_LIFECYCLE_REPAIR;
@@ -2193,6 +2203,7 @@ export async function prepareMaterialSourceRevision(args,{transport}={}) {
   if (selectiveFixtureWorkloadEvidence(p)) await authenticateSelectiveFixtureHistory(p,evidence,delegation,api);
   const checkCurrentInputs=()=>{
   if (evidence.selectiveWorkload) inspectCurrentSelectiveFixtureWorkloadInputs(args.repositoryRoot,evidence.selectiveWorkload);
+  if (evidence.identityBudget) inspectCurrentIdentityBudgetInputs(args.repositoryRoot,evidence.identityBudget);
   if (evidence.focused.regression?.kind===REPOSITORY_TYPECHECK) {
     const witness=JSON.parse(revisionArtifact(path.dirname(args.file),evidence.focused.regression.after));
     if (!revisionEqual(observeTypecheckCompiler(args.repositoryRoot),{compiler_version:witness.compiler_version,compiler:witness.compiler,entrypoints:witness.entrypoints,overrides:witness.overrides}))
@@ -2228,7 +2239,7 @@ function prepareRevisionInspection({ file, repositoryRoot, predecessorRoot, anch
   const evidence = readRevisionMaterials(file, p, repositoryRoot, false);
   const tip = reconstructAttemptTip({ anchorRoot, repositoryRoot: predecessorRoot, branch: p.branch });
   if (tip.family_id !== p.prior_family_id || tip.number !== p.prior_number || tip.attempt_id !== p.prior_attempt_id ||
-      (tip.reviewed_revision_consumed ?? 0) !== (isMaintenanceFixtureBudget(p) ? 0 : isMaterialSourceRevision(p) ? evidence.prior.source_correction.commission.maximum_invocations : isInventoryBoundRevision(p) && p.commission.ordinal === 1 ? 2 : p.commission.ordinal - 1) ||
+      (tip.reviewed_revision_consumed ?? 0) !== (ordinaryBudgetSuccessor(p) ? 0 : isMaterialSourceRevision(p) ? evidence.prior.source_correction.commission.maximum_invocations : isInventoryBoundRevision(p) && p.commission.ordinal === 1 ? 2 : p.commission.ordinal - 1) ||
       (usesFreshRevisionGrant(p) && tip.revision_commission !== revisionCommissionIdentity(p)) ||
       !revisionEqual(runtimeInputs, evidence.inputs)) throw fail("revision_preparation_target_changed");
   verifyRevisionOriginals(anchorRoot, predecessorRoot, p, file);
@@ -2238,6 +2249,7 @@ function prepareRevisionInspection({ file, repositoryRoot, predecessorRoot, anch
   if (evidence.retainedObservation) verifyRetainedWebInput(repositoryRoot,evidence.retainedObservation);
   if (evidence.integrationBudget) inspectCurrentIntegrationBudgetInputs(repositoryRoot,evidence.integrationBudget);
   if (evidence.selectiveWorkload) inspectCurrentSelectiveFixtureWorkloadInputs(repositoryRoot,evidence.selectiveWorkload);
+  if (evidence.identityBudget) inspectCurrentIdentityBudgetInputs(repositoryRoot,evidence.identityBudget);
   if (evidence.generatedStockBrowser) inspectGeneratedStockBrowserInputs(repositoryRoot, evidence.generatedStockBrowser);
   if (evidence.preparedEligibility && process.umask() !== evidence.integrationBudget.process_umask) throw fail("revision_dependency_process_settings_changed");
   if (isBrowserSuccessor(p) || usesRevisionInventory(p)) {
@@ -2325,7 +2337,7 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
     if (postPass) {
       verifyGitRevisionSuccess(original,stock,inputs,REVIEWED_REVISION_PHASES);
       if (p.accepted.head!==prior.head || p.accepted.tree!==prior.tree || p.accepted.base!==original.repository.base_sha) throw fail("revision_positive_predecessor_invalid");
-    } else if (isMaintenanceFixtureBudget(p)) {
+    } else if (ordinaryBudgetSuccessor(p)) {
       const {contract,path_kind,binding,resources}=original.inputs;
       if (digest({contract,path_kind,binding,resources}) !== original.inputs.fingerprint) throw fail("revision_git_predecessor_invalid");
       verifySettledPhaseFailure(original,stock,inputs,REVIEWED_REVISION_PHASES,resources.find(r=>r.id==="browser-executable"),false,1,false,true);
@@ -2530,7 +2542,8 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
   const integrationBudget = usesGeneratedStockWitness(p) ? parse(focused.regression.after) : null;
   return { serialIncident, original, prior, completion, stock, inputs, source, focused, dependencySafety, externalSettlement, browserIncident, postPass, acquisitionIncident,
     stockVerifier:stockVerifierEvidence(p)?parse(focused.regression.after):null,
-    integrationBudget, selectiveWorkload: selectiveFixtureWorkloadEvidence(p) ? parse(focused.regression.after) : null, preparedEligibility: requiresPreparedEligibility(p),
+    integrationBudget, identityBudget: identityBudgetEvidence(p) ? parse(focused.regression.after) : null,
+    selectiveWorkload: selectiveFixtureWorkloadEvidence(p) ? parse(focused.regression.after) : null, preparedEligibility: requiresPreparedEligibility(p),
     generatedStockBrowser: generatedStockEvidence(p) || requiresPreparedEligibility(p) ? integrationBudget.after.web_dependencies : null,
     retainedObservation: retainedBefore && JSON.parse(bytes(parse(focused.regression.after).stdout)) };
 }

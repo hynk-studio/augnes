@@ -11,7 +11,7 @@ import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
 import { observeCanonicalRuntimeInputs, observePreparedDependencyInputs, digest } from "./local-canonical-inputs.mjs";
 import { observePureContractSource, observePureContractLoader } from "./local-canonical-pure-contract-witness.mjs";
-import { FIXTURE_BUDGET_PATHS, registeredFixtureBudget, fixtureBudgetEnvironment } from "./local-canonical-fixture-budget-witness.mjs";
+import { FIXTURE_BUDGET_PATHS, registeredFixtureBudget, fixtureBudgetEnvironment, identityBudgetRegistration } from "./local-canonical-fixture-budget-witness.mjs";
 import { collectHostEnvironment } from "./local-canonical-environment.mjs";
 import { admitVerificationContext } from "./local-canonical-verification-context.mjs";
 import { observeGitRevisionTarget, phaseEnvironment } from "./run-local-canonical-verification.mjs";
@@ -23,13 +23,14 @@ import { createIsolatedInvocationResources, cleanupIsolatedInvocationResources }
 const [directory,role,group,...extra]=process.argv.slice(2);
 const integration = role === "integration" && group === "external-response";
 const maintenance = group === "local-canonical-maintenance";
+const identity = group === "codex-isolated-auth-projection";
 const selective = role === "selective" && group === "external-response-selective";
 if(extra.length||!integration&&!selective&&!["direct","registered"].includes(role)||!group||!directory)
   throw new Error("usage: capture-local-canonical-fixture-budget.mjs <existing-output-directory> <direct|registered|integration|selective> <group>");
 // The reviewed capture tool may observe an exact historical selective source.
 // Its actual cwd is recorded and admitted; it is never represented as source
 // that already contained this later collector implementation.
-if (maintenance && role!=="direct") throw new Error("fixture_budget_direct_registration_required");
+if ((maintenance || identity) && role!=="direct") throw new Error("fixture_budget_direct_registration_required");
 const toolRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const root=selective?realpathSync(process.cwd()):toolRoot;
 assert.equal(realpathSync(process.cwd()),root);
@@ -37,6 +38,7 @@ const out=realpathSync(directory),git=args=>execFileSync("git",["--no-replace-ob
 if([role+".json",role+".log",role+"-lifecycle.log",role+"-collector.log"].some(file=>existsSync(path.join(out,file))))throw new Error("fixture_budget_capture_exists");
 const artifact=(name,value)=>{const data=Buffer.from(typeof value==="string"?value:JSON.stringify(value,null,2)+"\n");writeFileSync(path.join(out,name),data,{flag:"wx",mode:0o600});return{artifact:name,sha256:digest(data)};};
 if (integration || selective) await captureIntegration();
+else if (identity) await captureIdentityFixture();
 else await captureReviewedFixture();
 
 async function captureIntegration() {
@@ -175,4 +177,54 @@ const record={contract:"augnes.registered-fixture-budget-witness.v1",basis:"actu
 const ref=artifact(role+".json",record);
 console.log(JSON.stringify({record:ref,head:record.tested_source_head,role,result,owned_cleanup,...(error?{capture_error:record.capture_error}:{})}));
 if(error||result?.exit_code!==0||result?.timed_out||result?.cancelled||!result?.cleanup_completed||owned_cleanup.some(v=>!v.completed))process.exitCode=1;
+}
+
+// This closed direct selection is development evidence, never a deciding
+// shortcut. It runs the original complete command once under its registration.
+async function captureIdentityFixture() {
+  const context=admitVerificationContext({repositoryRoot:root,kind:"isolated-worktree"});
+  const host=collectHostEnvironment(root),invocationId=randomBytes(16).toString("hex");
+  const record={contract:"augnes.registered-fixture-budget-witness.v1",basis:"actual-owned-development-invocation",role:"direct",bound_ms:90000};
+  const configFiles=["package.json","package-lock.json","tsconfig.json","scripts/browser-verification-owners.v1.json","scripts/local-canonical-change-owners.v1.json","scripts/canonical-research-tests.v1.json"];
+  let capacity,checkout,owner,result,error,settled=true,output="",lifecycle="",outputBytes=0,truncated=false;
+  let owned_cleanup=[],ownership={};
+  const sink={write(chunk){outputBytes+=Buffer.byteLength(chunk);if(outputBytes<=2*1024*1024)output+=chunk;else truncated=true;}};
+  try {
+    capacity=acquireVerificationCapacity({context,host:host.public,invocationId});
+    checkout=acquireCheckoutVerificationOwnership({repositoryRoot:root});
+    record.source_before=observePureContractSource(root);
+    const registration=identityBudgetRegistration(git,record.source_before.head);
+    if(registration.bound_ms!==90000)throw new Error("identity_budget_prospective_registration_required");
+    record.command=registration.command.join(" ");record.tested_source_head=record.source_before.head;record.tree=record.source_before.tree;record.dirty="";
+    record.config=configFiles.map(file=>({path:file,sha256:digest(readFileSync(path.join(root,file)))}));
+    record.dependencies_before=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"});
+    record.runtime_before=observeCanonicalRuntimeInputs();record.runtime_inputs_sha256=digest(record.runtime_before);
+    record.node_version=process.versions.node;
+    record.input_inventory_before=(await observeGitRevisionTarget(context,host.browserExecutablePath,record.runtime_before)).inputInventory;
+    owner=createCanonicalTestResourceRoot("ag-resource-test-",{shortSocketPaths:true});record.resource_root=owner.root;
+    record.environment_before=fixtureBudgetEnvironment(owner.root);record.environment=digest(record.environment_before);
+    record.loader_before=observePureContractLoader(root,record.environment_before);record.started_at=new Date().toISOString();
+    settled=false;
+    result=await runCanonicalChild({suite:"fixture-budget-capture",label:"direct registered fixture allowance",command:process.execPath,
+      args:registration.command.slice(1),cwd:root,env:record.environment_before,resourceOwner:owner,timeoutMs:registration.bound_ms,
+      stdout:sink,stderr:sink,log(line){lifecycle+=line+"\n";}});
+    settled=result.exit_observed&&result.streams_closed&&result.cleanup_completed&&result.remaining_owned_processes===0;
+    record.source_after=observePureContractSource(root);record.dependencies_after=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"});
+    record.runtime_after=observeCanonicalRuntimeInputs();
+    record.input_inventory_after=(await observeGitRevisionTarget(context,host.browserExecutablePath,record.runtime_after)).inputInventory;
+    record.environment_after=fixtureBudgetEnvironment(owner.root);record.loader_after=observePureContractLoader(root);
+  } catch(caught) {error=caught;}
+  finally {
+    if(settled&&owner)owned_cleanup=cleanupCanonicalTestResources([owner]);
+    if(checkout)try{ownership.checkout=releaseCheckoutVerificationOwnership(checkout,root,{consumersSettled:settled});}catch(caught){error??=caught;}
+    if(capacity)try{ownership.capacity=releaseVerificationCapacity(capacity,{consumersSettled:settled});}catch(caught){error??=caught;}
+  }
+  Object.assign(record,{finished_at:new Date().toISOString(),result,owned_cleanup,ownership,truncated,
+    stdout:artifact("direct.log",output),lifecycle:artifact("direct-lifecycle.log",lifecycle),
+    collector:artifact("direct-collector.log",readFileSync(fileURLToPath(import.meta.url),"utf8")),
+    ...(error?{capture_error:error.code??error.name}:{})});
+  const ref=artifact("direct.json",record);
+  console.log(JSON.stringify({record:ref,head:record.tested_source_head,result,owned_cleanup,ownership,capture_error:record.capture_error}));
+  if(error||!settled||result?.exit_code!==0||result?.timed_out||result?.cancelled||result?.termination_reason!=="natural_exit"||truncated||
+      owned_cleanup.length!==1||owned_cleanup.some(value=>!value.completed)||!ownership.checkout?.released||!ownership.capacity?.released)process.exitCode=1;
 }

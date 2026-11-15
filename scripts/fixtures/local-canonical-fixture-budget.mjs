@@ -12,7 +12,9 @@ import { REGISTERED_FIXTURE_BUDGET, FIXTURE_BUDGET_CLAIM, FIXTURE_BUDGET_COLLECT
   fixtureBudgetMeasurementStages, SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM,
   SELECTIVE_FIXTURE_PATH, SELECTIVE_FIXTURE_COMMAND, SELECTIVE_FIXTURE_OWNER, SELECTIVE_COVERAGE_OBLIGATIONS,
   selectiveFixtureWorkloadRegistration, selectiveFixtureWorkloadIncident, selectiveFixtureWorkloadSourcePartition,
-  verifySelectiveFixtureWorkload, verifySelectiveFixtureWorkloadReport } from "../local-canonical-fixture-budget-witness.mjs";
+  verifySelectiveFixtureWorkload, verifySelectiveFixtureWorkloadReport, REGISTERED_IDENTITY_BUDGET, IDENTITY_BUDGET_CLAIM,
+  identityBudgetRegistration, identityBudgetSourcePartition, verifyRegisteredIdentityBudget, readIdentityBudgetPositive,
+  inspectCurrentIdentityBudgetInputs } from "../local-canonical-fixture-budget-witness.mjs";
 import { observePureContractSource, observePureContractLoader } from "../local-canonical-pure-contract-witness.mjs";
 import { inspectGeneratedStockBrowserInputs } from "../local-canonical-stock-lifecycle-witness.mjs";
 import { finalizeReceipt } from "../local-canonical-receipt.mjs";
@@ -195,9 +197,150 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
   for(const count of registrationReads.values())assert.equal(count,2,"independent verification must reread each registration");
   const generatedControls = generatedDeclarationControls(root, parent, write);
   const selectiveControls = await selectiveFixtureWorkloadControls(parent,h,sourceRoot);
+  const identityControls = await identityBudgetWitnessControls(parent,h,sourceRoot);
   rmSync(root,{recursive:true});
   return {contract:REGISTERED_FIXTURE_BUDGET,synthetic_only:true,deciding:false,negative_controls:negatives,source_read_operations:2,distinct_sources:sourceReads.size,
-    generated_stock_controls:generatedControls,selective_fixture_controls:selectiveControls,original_incident_reproduction:false,recursive_parent_execution:false};
+    generated_stock_controls:generatedControls,selective_fixture_controls:selectiveControls,identity_fixture_controls:identityControls,
+    original_incident_reproduction:false,recursive_parent_execution:false};
+}
+
+// Actual reader controls over explicitly synthetic records and a tiny Git tree.
+// Neither the Identity command nor its real credentials/runtime is executed.
+export async function identityBudgetWitnessControls(parent,_h,sourceRoot) {
+  const root=path.join(parent,"identity-budget-witness");mkdirSync(root);
+  try {
+    const write=(file,value)=>{const p=path.join(root,file);mkdirSync(path.dirname(p),{recursive:true});writeFileSync(p,typeof value==="string"?value:JSON.stringify(value),{mode:0o600});};
+    const git=args=>execFileSync("git",["--no-replace-objects",...args],{cwd:root,timeout:10000,maxBuffer:16*1024*1024});
+    const commit=message=>{git(["add","."]);git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m",message]);return git(["rev-parse","HEAD"]).toString().trim();};
+    git(["init","--quiet"]);write(".gitignore","node_modules/\n.augnes-local-verification/\nnext-env.d.ts\n");
+    for (const dir of ["app","components","lib","scripts","types","apps/augnes_apps/src","apps/augnes_apps/public"]) write(dir+"/placeholder.ts","export {};\n");
+    const version=JSON.parse(readFileSync(path.join(sourceRoot,"node_modules/tsx/package.json"))).version;
+    write("package.json",{type:"module",scripts:{"test:integration":"node scripts/run-canonical-test-suite.mjs integration"},dependencies:{tsx:version}});
+    write("package-lock.json",{packages:{"node_modules/tsx":{version}}});write("tsconfig.json",{compilerOptions:{target:"ES2022"}});
+    for (const name of ["browser-verification-owners.v1.json","local-canonical-change-owners.v1.json","canonical-research-tests.v1.json"]) write("scripts/"+name,{});
+    for (const name of ["tsx","esbuild","@esbuild"]) cpSync(path.join(sourceRoot,"node_modules",name),path.join(root,"node_modules",name),{recursive:true});
+    const test="scripts/test-codex-isolated-auth-projection.ts",owner="codex-isolated-auth-projection",label="controlled Identity contracts";
+    write(test,"export const controlled_identity_contracts=true;\n");
+    write("scripts/fixtures/fake-codex-app-server.mjs","export const controlled_fake=true;\n");
+    write("lib/vnext/native-host/codex-isolated-auth-projection.ts","export const controlled_security=true;\n");
+    const executor='npmPhase("integration","integration",["run","test:integration"],4_200_000);\n';
+    write("scripts/run-local-canonical-verification.mjs",executor+executor);
+    write(FIXTURE_BUDGET_COLLECTOR,"export const controlled_collector=true;\n");
+    write("README.md","controlled baseline\n");
+    const suite='const rootNode=(...args)=>({command:process.execPath,args:["--import","tsx",...args],cwd:repoRoot,});\n'+
+      'const suites={integration:[{id:"'+owner+'",group:"supporting-serial",requirements:["filesystem","process-owning","project-root","mutable-module-state"],label:'+JSON.stringify(label)+',...rootNode("'+test+'","--contracts"),timeoutMs:60_000}]};\n';
+    write(FIXTURE_BUDGET_PATHS.suite,suite);const oldHead=commit("controlled original Identity allowance");
+    write(FIXTURE_BUDGET_PATHS.suite,suite.replace("timeoutMs:60_000","timeoutMs:90_000"));
+    const head=commit("controlled prospective Identity allowance"),tree=git(["rev-parse","HEAD^{tree}"]).toString().trim();
+    const inputs=observeCanonicalRuntimeInputs(),inventory=gitFixtureDeclaration({inputs,acceptedHead:head,branch:"codex/identity-budget-controls"});
+    const p={schema:"augnes.local-canonical-source-correction.v7",kind:"reviewed_revision",head,tree,base:oldHead,branch:"codex/identity-budget-controls",pull_request:999,
+      prior_family_id:digest("controlled family"),prior_attempt_id:"controlled-identity-failure",prior_receipt_fingerprint:digest("controlled receipt"),
+      commission:{source_revision:MATERIAL_SOURCE_CORRECTION,evidence_kind:REGISTERED_IDENTITY_BUDGET,delegation:{id:81},root_receipt_fingerprint:digest("controlled receipt")},
+      inputs:{identity_sha256:digest(inputs),inventory_sha256:gitRevisionInventory(inventory)}};
+    const prior={head:oldHead,attempt_id:p.prior_attempt_id,source_correction:{schema:"augnes.local-canonical-source-correction.v2",kind:"source_revision"}};
+    const normal={exit_code:0,signal:null,timed_out:false,cancelled:false,spawn_error_code:null,duration_ms:10,termination_reason:"natural_exit",exit_observed:true,streams_closed:true,cleanup_started:true,cleanup_completed:true,remaining_owned_processes:0};
+    const at=offset=>new Date(Date.now()+offset).toISOString(),completedAt=at(-10000),completion={disposition:"product_failure",cleanup_complete:true,infrastructure_code:null,finished_at:completedAt};
+    const refs=new Map(),ref=(name,value)=>{const b=Buffer.from(typeof value==="string"?value:JSON.stringify(value));refs.set(name,b);return {artifact:name,sha256:digest(b)};};
+    const bytes=r=>{const b=refs.get(r.artifact);assert(b);assert.equal(digest(b),r.sha256);return b;},parse=r=>JSON.parse(bytes(r));
+    const prefix="[canonical:integration] ",quoted=JSON.stringify(label);
+    const childLines=prefix+'child_start label='+quoted+' timeout_ms=60000\n'+prefix+'child_spawn label='+quoted+' pid=1 wait=process_exit\n'+
+      prefix+'child_cleanup_start label='+quoted+' elapsed_ms=60001 reason=bounded_timeout exit_observed=false stdout_closed=false stderr_closed=false\n'+
+      prefix+'child_cleanup_result label='+quoted+' elapsed_ms=60100 reason=bounded_timeout streams_closed=true remaining_owned_processes=0\n'+
+      prefix+'child_result label='+quoted+' duration_ms=60100 exit_code=null signal=SIGTERM timed_out=true exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=bounded_timeout\n';
+    const inv={selected_count:1,started_count:1,settled_count:1,completed_count:1,failed_count:1,unstarted_count:0,children:[{group:"supporting-serial",label,started:true,settled:true,completed:true,outcome:"failed"}]};
+    const log=childLines+prefix+"group_inventory "+JSON.stringify(inv)+"\n"+JSON.stringify({suite:"integration",resource_cleanup:[{completed:true,failure_count:0,failures:[]}]})+"\nchild_timed_out:supporting-serial:"+label+"\n";
+    const relative=`.augnes-local-verification/logs/${prior.attempt_id}/integration.log`;write(relative,log);
+    const original={outcome:{disposition:"product_failure"},cleanup:{completed:true},phases:[{id:"integration",command:"npm run test:integration",status:"failure",exit_status:1,timed_out:false,
+      cleanup:{completed:true,exit_observed:true,streams_closed:true,remaining_owned_processes:0,termination_reason:"natural_exit"},log:{relative_path:relative,bytes:Buffer.byteLength(log),truncated:false}}]};
+    const sourceHash=digest(readFileSync(path.join(root,test))),diagnostics=["full-contracts-diagnostic","selected-tail-diagnostic","representative-probe-diagnostic"];
+    let fullSource;
+    const observations=diagnostics.map((scope,index)=>{
+      const source=ref("diagnostic-source-"+index+".txt","controlled, inert diagnostic source "+index),sourceSha=source.sha256;
+      const manifest=index===0?{deciding:false,original:{path:test,sha256:sourceHash},instrumented:{sha256:sourceSha}}:
+        index===1?{deciding:false,full_diagnostic_source_sha256:fullSource,tail_source_sha256:sourceSha}:
+          {deciding:false,source_head:oldHead,source_sha256:sourceHash,diagnostic_sha256:sourceSha};
+      if(index===0)fullSource=sourceSha;
+      const child=index===0?{...normal,exit_code:null,signal:"SIGTERM",timed_out:true,duration_ms:60100,termination_reason:"bounded_timeout"}:{...normal};
+      const record={deciding:false,started_at:at(-9000+index*2000),finished_at:at(-8000+index*2000),timeout_ms:index===0?60000:30000,child,
+        cleanup:{settled:true,resources:[{completed:true,failure_count:0,failures:[]}],checkout_release:{released:true},capacity_release:{released:true}}};
+      return {scope,manifest:ref("manifest-"+index+".json",manifest),record:ref("diagnostic-"+index+".json",record),stdout:ref("diagnostic-"+index+".log",JSON.stringify({nondeciding_result:record})+"\n"),source,
+        limitations:"Controlled reader data only; no actual historical timing or workload claim. Full and selected scopes remain separate; cause is UNKNOWN."};
+    });
+    const summary={status:"passed",mode:"contracts",contract_suite:"codex_isolated_auth_contracts.v0.1",projection_version:"controlled",attestation_version:"controlled",seal_version:"controlled",
+      projection_fingerprint:"sha256:"+digest("projection"),attestation_fingerprint:"sha256:"+digest("attestation"),seal_fingerprint:"sha256:"+digest("seal"),operational_availability:"available_exact",
+      malicious_consumer_secret_access:false,unique_account_identity_non_null:true,isolated_tmpdir:true,exact_observed_security_policy:true,semantic_profile_version:"controlled",
+      semantic_profile_fingerprint:"sha256:"+digest("semantic"),config_tool_feature_schema_fingerprint:"sha256:"+digest("features"),config_policy_fingerprint:"sha256:"+digest("policy"),
+      observed_security_policy_fingerprint:"sha256:"+digest("security"),user_agent_contract_fingerprint:"sha256:"+digest("agent"),user_agent_negative_shapes_refused:1,installed_cli_preflight:"unavailable",
+      credential_free_fake_preflight:"controlled",no_authorization_preflight_stop:"controlled",unsupported_production_authority:"controlled",test_only_authorized_fake_turn:"controlled",
+      authenticated_child_binding_version:"controlled",arbitrary_child_wrapping_refused:true,spawn_binding_matrix_refused:true,real_keychain_accesses:0,real_provider_calls:0,successful_external_network_egress:0,cleanup_complete:true};
+    const rows=["before_terminal","with_terminal","preflight"].map((kind,i)=>({runtime_policy_case:kind,status:"passed",settlement:i===0?"rejected_null_result":"failed_result",fixture_diagnostic_files:4,fixture_trace_appends:1,state_entries:0,lease_entries:0,network_attempts:0,remaining_owned_processes:0}));
+    const output=[...rows,summary].map(v=>JSON.stringify(v)+"\n").join("");
+    const resource=path.join(parent,"already-settled-identity"),env=fixtureBudgetEnvironment(resource),loader=observePureContractLoader(root,env),source=observePureContractSource(root),dependencies=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"});
+    const lp="[canonical:fixture-budget-capture] ",ll='"direct registered fixture allowance"';
+    const lifecycle=lp+'child_start label='+ll+' timeout_ms=90000\n'+lp+'child_spawn label='+ll+' pid=1 wait=process_exit\n'+
+      lp+'child_exit label='+ll+' elapsed_ms=9 exit_code=0 signal=null stdout_closed=true stderr_closed=true\n'+
+      lp+'child_cleanup_start label='+ll+' elapsed_ms=9 reason=post_exit_settlement exit_observed=true stdout_closed=true stderr_closed=true\n'+
+      lp+'child_cleanup_result label='+ll+' elapsed_ms=10 reason=post_exit_settlement term_sent=false kill_sent=false streams_closed=true remaining_owned_processes=0\n'+
+      lp+'child_result label='+ll+' duration_ms=10 exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit\n';
+    const record={contract:"augnes.registered-fixture-budget-witness.v1",basis:"actual-owned-development-invocation",role:"direct",bound_ms:90000,truncated:false,
+      command:"node --import tsx "+test+" --contracts",tested_source_head:head,tree,dirty:"",source_before:source,source_after:source,
+      config:["package.json","package-lock.json","tsconfig.json","scripts/browser-verification-owners.v1.json","scripts/local-canonical-change-owners.v1.json","scripts/canonical-research-tests.v1.json"].map(file=>({path:file,sha256:digest(readFileSync(path.join(root,file)))})),
+      dependencies_before:dependencies,dependencies_after:dependencies,runtime_before:inputs,runtime_after:inputs,runtime_inputs_sha256:digest(inputs),node_version:process.versions.node,
+      input_inventory_before:inventory,input_inventory_after:inventory,environment_before:env,environment_after:env,environment:digest(env),resource_root:resource,loader_before:loader,loader_after:loader,
+      started_at:at(-3000),finished_at:at(-2000),result:normal,owned_cleanup:[{root:resource,completed:true,failure_count:0,failures:[]}],ownership:{checkout:{released:true},capacity:{released:true}},
+      stdout:ref("capture.log",output),lifecycle:ref("capture-lifecycle.log",lifecycle),collector:ref("collector.log",readFileSync(path.join(root,FIXTURE_BUDGET_COLLECTOR),"utf8"))};
+    const after=ref("capture.json",record),focused={failed_phase:"integration",input_remedy_resources:[],finished_at:at(-1000),
+      commands:[{command:record.command,tested_source_head:head,record:after,stdout:record.stdout}],regression:{kind:REGISTERED_IDENTITY_BUDGET,claim:IDENTITY_BUDGET_CLAIM,
+        owner:{phase:"integration",suite:"integration",group:owner},incident:{receipt:p.prior_receipt_fingerprint,log:ref("incident.log",log),log_identity:{relative_path:relative,bytes:Buffer.byteLength(log),sha256:digest(log)},cause:"UNKNOWN"},
+        source_partition:identityBudgetSourcePartition(git,oldHead,head,p.base),rationale:{execution_reserve_ms:30000,termination_grace_ms:13000,
+          judgment:"Controlled prospective allowance judgment with fixed reserve and unchanged complete security workload; no historical cause or qualification is claimed.",observations},after}};
+    const options={git,bytes,parse,completedAt,original,completion,repositoryRoot:root};
+    const verify=(proof=p,f=focused,r=original,c=completion)=>verifyRegisteredIdentityBudget(proof,prior,f,{...options,original:r,completion:c});
+    assert.equal(identityBudgetRegistration(git,oldHead).bound_ms,60000);assert.equal(verify(),head);
+    inspectCurrentIdentityBudgetInputs(root,record);
+    let negatives=0;
+    for(const change of [f=>f.failed_phase="authority",f=>f.regression.kind=REGISTERED_FIXTURE_BUDGET,f=>f.regression.claim="historical cure",f=>f.regression.owner.group="external-response",
+      f=>f.regression.incident.cause="known",f=>f.regression.incident.receipt=digest("other"),f=>f.regression.source_partition.after.bound_ms=120000,
+      f=>f.regression.rationale.execution_reserve_ms=60000,f=>f.regression.rationale.termination_grace_ms=0,f=>f.regression.rationale.observations.pop()]) {
+      const f=structuredClone(focused);change(f);assert.throws(()=>verify(p,f));negatives++;
+    }
+    for(const change of [w=>w.bound_ms=120000,w=>w.command=w.command.replace("--contracts","--rollback-lifecycle"),w=>w.command+=" --skip",w=>w.synthetic_only=true,w=>w.truncated=true,
+      w=>w.result.timed_out=true,w=>w.result.termination_reason="exited_with_owned_descendant_cleanup",w=>w.ownership.checkout.released=false,w=>delete w.ownership.capacity,
+      w=>w.owned_cleanup=[],w=>w.runtime_after.node.observation.sha256=digest("changed runtime"),w=>w.loader_after.sha256=digest("changed loader"),w=>w.environment_after.UNBOUND="1",
+      w=>w.source_after.physical_matches=false,w=>w.config.pop(),w=>w.collector=ref("bad-collector.log","changed"),w=>w.lifecycle=ref("forced-lifecycle.log",lifecycle.replace("term_sent=false","term_sent=true")),
+      w=>w.stdout=ref("missing-case.log",[...rows.slice(1),summary].map(v=>JSON.stringify(v)+"\n").join("")),w=>w.stdout=ref("bad-egress.log",[...rows,{...summary,successful_external_network_egress:1}].map(v=>JSON.stringify(v)+"\n").join("")),
+      w=>w.stdout=ref("missing-summary.log",rows.map(v=>JSON.stringify(v)+"\n").join(""))]) {
+      const w=parse(after),f=structuredClone(focused);change(w);f.regression.after=ref("bad-capture-"+negatives+".json",w);f.commands[0].record=f.regression.after;f.commands[0].stdout=w.stdout;
+      assert.throws(()=>verify(p,f),"Identity refusal control "+negatives+": "+change.toString());negatives++;
+    }
+    for(const change of [r=>r.outcome.disposition="unclassified_timeout",r=>r.phases[0].timed_out=true,r=>r.phases[0].exit_status=0,r=>r.phases[0].log.truncated=true,r=>r.cleanup.completed=false]) {
+      const r=structuredClone(original);change(r);assert.throws(()=>verify(p,focused,r));negatives++;
+    }
+    const badProof=structuredClone(p);badProof.commission.evidence_kind=REGISTERED_FIXTURE_BUDGET;assert.throws(()=>verify(badProof));negatives++;
+    for(const [file,value]of [[test,"changed assertions\n"],["scripts/fixtures/fake-codex-app-server.mjs","changed fake\n"],["lib/vnext/native-host/codex-isolated-auth-projection.ts","changed security\n"],
+      ["scripts/run-local-canonical-verification.mjs",(executor+executor).replaceAll("4_200_000","4_300_000")],[FIXTURE_BUDGET_PATHS.suite,suite.replace("timeoutMs:60_000","timeoutMs:120_000")]]) {
+      write(file,value);const changed=commit("controlled incompatible Identity source");assert.throws(()=>identityBudgetSourcePartition(git,oldHead,changed,p.base));git(["reset","--hard",head]);negatives++;
+    }
+    write("README.md","unadopted prose\n");const unadopted=commit("controlled unadopted prose");assert.throws(()=>identityBudgetSourcePartition(git,oldHead,unadopted));git(["reset","--hard",head]);negatives++;
+    git(["checkout","--detach",oldHead]);write("README.md","adopted prose\n");const base=commit("controlled adopted prose");
+    git(["checkout","--detach",head]);git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","merge","--no-edit",base]);const merged=git(["rev-parse","HEAD"]).toString().trim();
+    assert.equal(identityBudgetSourcePartition(git,oldHead,merged,base).adopted_base,base);
+    assert.throws(()=>identityBudgetSourcePartition(git,oldHead,merged));negatives++;
+    write("README.md","adopted prose plus unreviewed change\n");const wrong=commit("controlled altered adopted prose");assert.throws(()=>identityBudgetSourcePartition(git,oldHead,wrong,base));negatives++;
+    git(["reset","--hard",head]);
+    const {identityBudgetAuthorityBindings,identityBudgetAuthorityScope,identityBudgetDelegation,delegatesMaterialSourceCommission,IDENTITY_BUDGET_GRANT,MATERIAL_HISTORY_BOUNDARY,INTEGRATION_BUDGET_LIMIT}=await import("../local-canonical-git-observation.mjs");
+    const authorityProof={...p,accepted:{review:{id:82}}},bindings=identityBudgetAuthorityBindings(authorityProof),delegation=identityBudgetDelegation(authorityProof);
+    const review={body:["Source review decision: ACCEPT / RETAIN for prospective qualification.",bindings,MATERIAL_HISTORY_BOUNDARY].join("\n\n")};
+    const grant={body:[IDENTITY_BUDGET_GRANT,bindings,"Accepted review: https://github.com/hynk-studio/augnes/pull/999#pullrequestreview-82",MATERIAL_HISTORY_BOUNDARY,INTEGRATION_BUDGET_LIMIT].join("\n\n")};
+    assert(delegatesMaterialSourceCommission(delegation,authorityProof));assert(identityBudgetAuthorityScope(authorityProof,review,grant));
+    for(const substitute of [body=>body.replace("90000","120000"),body=>body.replace("4200000","4300000"),body=>body.replace(p.prior_receipt_fingerprint,digest("other predecessor")),body=>body.replace(REGISTERED_IDENTITY_BUDGET,REGISTERED_FIXTURE_BUDGET)]) {
+      const body=substitute(bindings);assert.notEqual(body,bindings);assert.equal(identityBudgetAuthorityScope(authorityProof,{body:review.body.replace(bindings,body)},grant),false);negatives++;
+    }
+    assert.equal(identityBudgetAuthorityScope(authorityProof,review,{body:grant.body.replace(IDENTITY_BUDGET_GRANT,"Authorize maintenance")}),false);negatives++;
+    assert.equal(delegatesMaterialSourceCommission("Example only\n\n"+delegation,authorityProof),false);negatives++;
+    assert.equal(readIdentityBudgetPositive(after,p,options).record.bound_ms,90000);assert.equal(verify(),head);
+    return {contract:REGISTERED_IDENTITY_BUDGET,synthetic_only:true,negative_controls:negatives,registered_identity_executed:false,original_incident_reproduction:false};
+  } finally {rmSync(root,{recursive:true,force:true});}
 }
 
 // These are small synthetic reader controls, not either real selective witness.
