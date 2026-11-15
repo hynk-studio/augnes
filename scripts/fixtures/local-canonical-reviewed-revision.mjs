@@ -75,7 +75,25 @@ function receipt(c,a,disposition="product_failure"){
   phases:[{id:"integration",status:disposition==="completed_success"?"pass":"failure"}],outcome:{disposition,safety:fault?"blocked":"preserved_within_observed_scope",first_fault:fault},checkout_ownership:{released:true},capacity_ownership:{released:true},
   cleanup:{completed:true,remaining_owned_processes:0,companion_service:{restored:true},isolated_resources:{completed:true}}});}
 const storeReceipt=(c,r)=>write(path.join(c.checkout,".augnes-local-verification/receipts",r.run.id+".json"),r);
-const gitFor = c => args => execFileSync("git", args, {cwd:c.checkout, env:c.env, timeout:5000, maxBuffer:1024*1024, stdio:["ignore","pipe","pipe"]});
+const gitFor = c => args => {
+  // Whole binary-diff consumers hash raw complete bytes. Match the production
+  // material/integration readers' finite cap without widening other Git reads.
+  const prefixes = [
+    ["diff","--binary","--full-index","--no-ext-diff","--no-textconv"],
+    ["diff","--binary","--no-ext-diff","--no-textconv","--no-renames"],
+    ["diff","--binary","--no-ext-diff","--no-textconv"],
+  ];
+  const binaryDiff = Array.isArray(args) && args.every(value => typeof value === "string") && prefixes.some(prefix =>
+    prefix.every((value,index) => args[index] === value) &&
+    /^[a-f0-9]{40}$/u.test(args[prefix.length] ?? "") &&
+    /^[a-f0-9]{40}$/u.test(args[prefix.length+1] ?? "") &&
+    args[prefix.length+2] === "--" && args.slice(prefix.length+3).every(file =>
+      typeof file === "string" && /^[A-Za-z0-9_./\[\]-]+$/u.test(file) &&
+      !file.startsWith("/") && !file.startsWith("-") &&
+      file.split("/").every(part => part && part !== "." && part !== "..")));
+  return execFileSync("git", args, {cwd:c.checkout, env:c.env, timeout:5000,
+    maxBuffer:(binaryDiff?16:1)*1024*1024, stdio:["ignore","pipe","pipe"]});
+};
 function attachGit(c,gitIncident) {
   c.git = gitFor(c);
   c.commit=value=>{write(path.join(c.checkout,"scripts/fixture.mjs"),"export const value="+value+";\n"+(gitIncident?'import assert from "node:assert/strict";\nassert.equal(value,4);\nconsole.log("corrected behavior");\n':""));c.git(["add","scripts"]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","value "+value]);return c.git(["rev-parse","HEAD"]).toString().trim();};

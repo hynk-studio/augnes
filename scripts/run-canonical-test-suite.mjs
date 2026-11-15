@@ -152,6 +152,9 @@ const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-
 
 const suites = {
   unit: [
+    { id:"local-canonical-fixture-git-capture", label:"complete finite binary diff capture and unchanged Git refusals",
+      requirements:["filesystem","process-owning","immutable-fixture-input"], ...rootNode("scripts/test-local-canonical-fixture-git-capture.mjs"),
+      timeoutMs:30_000, requireNaturalExit:true },
     { id:"local-canonical-stock-verifier",label:"material stock-verifier attribution and corpus controls",
       requirements:["filesystem","process-owning"],...rootNode("scripts/test-local-canonical-stock-verifier.mjs"),
       timeoutMs:30000,requireNaturalExit:true },
