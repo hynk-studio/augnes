@@ -21,6 +21,7 @@ import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { BROWSER_RUNTIME_INPUTS, validCanonicalRuntimeInputs } from "./local-canonical-inputs.mjs";
 import { isBrowserRevision, isBrowserSuccessor, browserPredecessorEvidence, browserReviewTarget, verifyBrowserRemedy, verifyBrowserRevisionPreservation, verifyReviewedBrowserFailure, verifySettledPhaseFailure } from "./local-canonical-browser-revision.mjs";
 import { GIT_ACQUISITION_REPAIR, isGitAcquisitionRevision, gitAcquisitionIncident, isGitObservationRevision, isGitObservationSuccessor, isInventoryBoundRevision, usesGitInventory, gitObservationIncident, gitReviewTarget, permitsFinalDependencySuccessor, delegatesGitRevisionGrant, delegatesProspectiveCommission, verifyGitRevisionFailure, verifyGitRevisionSuccess, readPostPassDecision, permitsPostPassReview, verifyGitSourceRepair, FRESHNESS_REPAIR_DRIVER } from "./local-canonical-git-observation.mjs";
+import * as materialGitObservation from "./local-canonical-git-observation.mjs";
 import { createGitHubObserverAuthorizationTransport } from "./github-main-branch-transport.mjs";
 import {MATERIAL_SOURCE_CORRECTION, MATERIAL_HISTORY_BOUNDARY, isMaterialSourceRevision, delegatesMaterialSourceCommission,
   readIntegrationBudgetDelegation, integrationBudgetAuthorityScope, INTEGRATION_BUDGET_GRANT,
@@ -46,7 +47,7 @@ import { checkoutVerificationFingerprint } from "./local-canonical-checkout-owne
 import { REPOSITORY_PURE_CONTRACT, inspectCurrentPureContractInputs } from "./local-canonical-pure-contract-witness.mjs";
 import { MATERIAL_COMMON_DRIVER, inspectCurrentCommonDriverInputs } from "./local-canonical-common-driver.mjs";
 import { GIT_CONFIG_STOCK_VERIFIER_REPAIR, MATERIAL_COMMON_STOCK_VERIFIER } from "./local-canonical-stock-verifier-witness.mjs";
-import { isStockVerifierRevision, verifyStockVerifierPredecessor } from "./local-canonical-material-stock-predecessor.mjs";
+import { isStockVerifierRevision, verifyStockVerifierPredecessor, verifyMaterialCurrentStockMismatchPredecessor } from "./local-canonical-material-stock-predecessor.mjs";
 import { STOCK_VERIFIER_CLAIM, STOCK_VERIFIER_GRANT, stockVerifierAuthorityScope } from "./local-canonical-git-observation.mjs";
 import {isDirectGitInputRevision, gitInputHistoryBoundary, isGitInputRevision, verifyGitInputRemedy, verifyGitInputPublication,
   GIT_CURRENT_STOCK_COMPARISON, gitRevisionInventory, gitRevisionStockComparison} from "./local-canonical-git-observation.mjs";
@@ -653,6 +654,12 @@ function verifyCompanionRetirementDelegation(p,delegation,evidence) {
       anchor.grant!==prior.source_correction.authorization?.grant_comment_id||
       prior.source_correction.commission.ordinal!==1||prior.source_correction.commission.maximum_invocations!==1)
     throw fail("revision_companion_retirement_delegation_source_invalid");
+}
+function verifyMaterialStockMismatchDelegation(p,delegation,evidence) {
+  // Candidate-driver overlays keep this owner fixed while the exact prior
+  // readers are tested. Older readers expose no new delegation capability.
+  if(materialGitObservation.readMaterialStockMismatchDelegation?.(delegation.body,p))
+    materialGitObservation.verifyMaterialStockMismatchDelegationTarget(p,delegation.body,evidence);
 }
 
 // No admission capability, ledger append, or setup mutation. Evidence and live
@@ -1871,6 +1878,7 @@ export async function authorizeReviewedRevision(p, { transport = createGitHubObs
   const observations = validateReviewedRevisionAuthorityRecords(p, review, grant, permissions, await transport.pullRequest(), settlementReview, contractReview, delegation, forward);
   if (isMaterialSourceRevision(p)) {
     const evidence = readReviewedRevisionEvidence(path.join(repositoryRoot,p.local_relative_path),p,repositoryRoot);
+    verifyMaterialStockMismatchDelegation(p,delegation,evidence);
     if (Date.parse(delegation.created_at) <= Date.parse(evidence.completion.finished_at) ||
         delegation.id === evidence.prior.source_correction.commission?.delegation?.id ||
         delegation.id === evidence.prior.source_correction.authorization?.grant_comment_id)
@@ -2241,6 +2249,7 @@ export async function prepareMaterialSourceRevision(args,{transport}={}) {
       delegation.id===evidence.prior.source_correction.authorization?.grant_comment_id)
     throw fail("revision_material_fresh_authority_required");
   if (requestBoundAllowanceEvidence(p)) await verifyRequestBoundDelegation(p,delegation,evidence,args.repositoryRoot,api);
+  verifyMaterialStockMismatchDelegation(p,delegation,evidence);
   if (isCompanionRetirementFixtureBudget(p)) verifyCompanionRetirementDelegation(p,delegation,evidence);
   if (measuredIntegrationEvidence(p)) await verifyIntegrationBudgetDelegation(p,delegation,evidence,args.repositoryRoot,api);
   if (generatedStockEvidence(p)) await verifyGeneratedStockDelegation(p, delegation, evidence, args.repositoryRoot, api);
@@ -2261,7 +2270,8 @@ export async function prepareMaterialSourceRevision(args,{transport}={}) {
   if (evidence.focused.regression?.kind===REPOSITORY_PURE_CONTRACT)
     inspectCurrentPureContractInputs(args.repositoryRoot,JSON.parse(revisionArtifact(path.dirname(args.file),evidence.focused.regression.after)));
   if ([MATERIAL_COMMON_DRIVER,MATERIAL_COMMON_STOCK_VERIFIER].includes(evidence.focused.regression?.attribution) ||
-      evidence.focused.regression?.attribution==="candidate-driver-prior-implicated-source"&&evidence.focused.regression.path===FRESHNESS_REPAIR_DRIVER)
+      evidence.focused.regression?.attribution==="candidate-driver-prior-implicated-source"&&
+        [FRESHNESS_REPAIR_DRIVER,materialGitObservation.STOCK_MISMATCH_REPAIR_DRIVER].filter(Boolean).includes(evidence.focused.regression.path))
     inspectCurrentCommonDriverInputs(args.repositoryRoot,JSON.parse(revisionArtifact(path.dirname(args.file),evidence.focused.regression.after)));
   if (evidence.focused.regression?.kind===REGISTERED_FIXTURE_BUDGET && !isCompanionRetirementFixtureBudget(p))
     for (const ref of isMaintenanceFixtureBudget(p) ? [evidence.focused.regression.after] : [evidence.focused.regression.after,evidence.focused.regression.registration])
@@ -2397,9 +2407,13 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
     } else if (!acquisitionIncident) {
       const stockPredecessor=stockVerifierEvidence(p)?verifyStockVerifierPredecessor(p,prior,parse(p.focused),{original,stock,parse,bytes,git:originalGit,
         inventory:gitRevisionInventory,stockComparison:gitRevisionStockComparison,stockContract:GIT_CURRENT_STOCK_COMPARISON}):null;
+      const focusedPredecessor=parse(p.focused);
+      const currentStockPredecessor=Object.hasOwn(focusedPredecessor,"predecessor_stock")?
+        verifyMaterialCurrentStockMismatchPredecessor(p,prior,focusedPredecessor,{original,stock,parse,
+          inventory:gitRevisionInventory,stockComparison:gitRevisionStockComparison,stockContract:GIT_CURRENT_STOCK_COMPARISON}):null;
       const validateFailure = observedStock => verifyGitRevisionFailure(original, observedStock, inputs, REVIEWED_REVISION_PHASES,
         isMaterialSourceRevision(p) ? prior.source_correction.commission.ordinal : boundedV7 && p.commission.ordinal === 1 ? 2 : 1,
-        !!p.commission.forward_decision, isMaterialSourceRevision(p) && isSerialAggregateRevision(prior.source_correction), generatedStockEvidence(p), isMaterialSourceRevision(p),stockPredecessor);
+        !!p.commission.forward_decision, isMaterialSourceRevision(p) && isSerialAggregateRevision(prior.source_correction), generatedStockEvidence(p), isMaterialSourceRevision(p),stockPredecessor,null,currentStockPredecessor);
       if (selectiveFixtureWorkloadEvidence(p)) {
         selectiveFixtureWorkloadIncident(p, prior, parse(p.focused).regression, { git: originalGit, bytes, original, completion, stock });
         verifyGitRevisionFailure(original, stock, inputs, REVIEWED_REVISION_PHASES, 1, false, false, false, false, null, SELECTIVE_FIXTURE_WORKLOAD);

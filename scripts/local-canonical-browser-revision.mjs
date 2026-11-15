@@ -1,7 +1,7 @@
 import { digest, classifyInputChange, nonFaultInputChange, inputEventIdentity, validBrowserTarget } from "./local-canonical-inputs.mjs";
 import { browserConsumersForPhase, validBrowserUse, validPhaseBrowserUse, parseBrowserUseLine, BROWSER_IDENTITY_PREFIX } from "./local-canonical-browser-identity.mjs";
 import { usesDeclaredIntegrationBase } from "./local-canonical-integration-base.mjs";
-import { verifiedStockPredecessor } from "./local-canonical-material-stock-predecessor.mjs";
+import { verifiedStockPredecessor, verifiedMaterialCurrentStockMismatchPredecessor } from "./local-canonical-material-stock-predecessor.mjs";
 
 export const BROWSER_REVISION_SCHEMA = "augnes.local-canonical-source-correction.v8";
 export const BROWSER_SUCCESSOR_SCHEMA = "augnes.local-canonical-source-correction.v9";
@@ -199,10 +199,13 @@ export function verifyReviewedBrowserFailure(r, stock, inputs, phaseIds) {
 
 // Both reviewed continuations require the physical ordinal-one Full to have
 // stopped at a natural child failure with settled resources and accounted stock.
-export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBrowser, allowIncompleteBrowser = false, expectedOrdinal = 1, generatedStockSerial = false, ordinaryFixture = false, declaredMaterial = false, stockPredecessor = null, historicalStockKind = null) {
+export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBrowser, allowIncompleteBrowser = false, expectedOrdinal = 1, generatedStockSerial = false, ordinaryFixture = false, declaredMaterial = false, stockPredecessor = null, historicalStockKind = null, currentStockPredecessor = null) {
   const failed = r.phases?.findIndex(p => p.status === "failure") ?? -1;
   const stockVerifier = verifiedStockPredecessor(stockPredecessor,r,stock);
   if(stockPredecessor && (!stockVerifier||!declaredMaterial||generatedStockSerial||ordinaryFixture))throw fail("revision_browser_failure_invalid");
+  const currentMismatch = verifiedMaterialCurrentStockMismatchPredecessor(currentStockPredecessor,r,stock);
+  if(currentStockPredecessor && (!currentMismatch||!declaredMaterial||generatedStockSerial||ordinaryFixture||stockPredecessor||historicalStockKind||
+      expectedOrdinal!==1||r.phases?.[failed]?.id!=="integration"))throw fail("revision_browser_failure_invalid");
   const reason = generatedStockSerial || stockVerifier ? "serial_execution_incomplete" : "phase_failed";
   const ordinary = r.attempt?.source_correction;
   // Only this typed, exhausted direct-Git predecessor can retain the two
@@ -251,7 +254,7 @@ export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBr
   const issues = new Set(["receipt_classified_outcome_not_passing", "receipt_final_result_not_pass", "receipt_non_deciding"]);
   // The generated-stock evidence reader separately proves the exact serial
   // prefix and the causal attempt-reader defect. Ordinary stock stays strict.
-  if (generatedStockSerial || stockVerifier) issues.add("receipt_attempt_records_unverified");
+  if (generatedStockSerial || stockVerifier || currentMismatch) issues.add("receipt_attempt_records_unverified");
   if (selectiveHistory) {
     issues.add("receipt_attempt_records_unverified");
     issues.add("receipt_stale_integration_base");

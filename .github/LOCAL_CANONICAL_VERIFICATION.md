@@ -1620,6 +1620,33 @@ protected Browser; missing, excessive, reordered or unexplained records refuse.
 This represents failed/incomplete evidence, never completed Browser coverage.
 Dedicated Browser phases retain their existing complete-use requirements.
 
+The narrowly retained `settled-material-current-stock-git-mismatch-v1`
+predecessor observation may account for `receipt_attempt_records_unverified`
+only after an exhausted one-use material-v7 commission naturally failed
+integration with declared-base provenance. Bind the immutable receipt, attempt,
+false stock, prior proof and inventory, and retained complete current observation;
+recompute the stock's exact non-equivalent complete-file comparison. The Git
+SHA and byte length must differ, its scoped projection and permissions must
+match, and every other effective resource must remain identical. This historical
+condition never establishes current-input equivalence, a verified historical
+lineage, or completed Browser coverage. The ordinary exact-issue, prefix,
+physical latest-tip/edge, authority, ancestry and inherited-obligation checks
+remain mandatory. A freshly observed complete current inventory binds any new
+target independently. The existing `candidate-driver-prior-implicated-source`
+attribution has one additional closed recipe,
+`scripts/test-local-canonical-material-stock-mismatch.mjs`: the frozen candidate
+driver, helper and controlled original bytes stay identical in both roles;
+only the two named prior strict failure readers replace candidate bytes for
+natural refusal. Bind the full tracked catalogue, exact original hashes,
+runtime, three prepared-dependency observations, separate owned resources,
+streams and cleanup. This is failed-evidence reader repair, not a historical
+timeout cure or a claim that the driver existed at the predecessor. Its posted
+structured conditional assignment is checked verbatim apart from bound revision,
+source, review and task-record anchors, and is additionally restricted to this
+material recipe in preparation and authenticated admission. It is neither
+receiving acceptance nor a deciding grant; existing authenticated one-use
+commission and final-target requirements remain unchanged.
+
 The explicitly selected `git-config-stock-verifier-repair-v1` material case
 also recognizes an intact settled dedicated-Browser serial timeout predecessor.
 Its `settled-browser-timeout-stock-verifier-v1` interpretation validates the

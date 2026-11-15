@@ -22,7 +22,7 @@ import { OPERATOR_REQUEST_LIFECYCLE_PHASES_V1 as GUIDE_REPAIR_PHASES } from "./o
 import { INTEGRATION_BASE_CONTRACT, validAdmittedIntegrationBase, usesDeclaredIntegrationBase } from "./local-canonical-integration-base.mjs";
 import { MATERIAL_COMMON_DRIVER, verifyMaterialCommonDriver, commonDriverDependencies } from "./local-canonical-common-driver.mjs";
 import { GIT_CONFIG_STOCK_VERIFIER_REPAIR, MATERIAL_COMMON_STOCK_VERIFIER, verifyMaterialStockVerifier } from "./local-canonical-stock-verifier-witness.mjs";
-import { verifiedStockPredecessor } from "./local-canonical-material-stock-predecessor.mjs";
+import { verifiedStockPredecessor, verifiedMaterialCurrentStockMismatchPredecessor } from "./local-canonical-material-stock-predecessor.mjs";
 export { MATERIAL_COMMON_DRIVER } from "./local-canonical-common-driver.mjs";
 
 export const isGitObservationRevision = p =>
@@ -332,13 +332,14 @@ function verifyFinalDependencyFailure(r, stock, inputs, phases) {
   return deps[2].before;
 }
 
-export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expectedOrdinal = 1, forward = false, serialPredecessor = false, generatedStockSerial = false, materialContinuation = false, stockPredecessor = null, historicalStockKind = null) {
+export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expectedOrdinal = 1, forward = false, serialPredecessor = false, generatedStockSerial = false, materialContinuation = false, stockPredecessor = null, historicalStockKind = null, currentStockPredecessor = null) {
   const previous = receipt.attempt?.source_correction;
   const { contract, path_kind, binding, resources } = receipt.inputs;
   if (!(usesGitInventory(previous) || serialPredecessor && isSerialAggregateRevision(previous)) || previous.commission.ordinal !== expectedOrdinal ||
       gitRevisionInventory(receipt.inputs) !== previous.inputs.inventory_sha256 ||
       digest({ contract, path_kind, binding, resources }) !== receipt.inputs.fingerprint)
     fail("revision_git_predecessor_invalid");
+  if (forward && currentStockPredecessor) fail("revision_git_predecessor_invalid");
   if (forward) return verifyFinalDependencyFailure(receipt, stock, inputs, phases);
   if (materialContinuation && (!validAdmittedIntegrationBase(receipt.integration_base, receipt.repository) ||
       receipt.integration_base.contract === INTEGRATION_BASE_CONTRACT && !usesDeclaredIntegrationBase(receipt)))
@@ -346,9 +347,12 @@ export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expecte
   const declaredMaterial = materialContinuation && usesDeclaredIntegrationBase(receipt);
   const stockVerifier = verifiedStockPredecessor(stockPredecessor,receipt,stock);
   if(stockPredecessor && (!declaredMaterial || !stockVerifier || generatedStockSerial))fail("revision_git_predecessor_invalid");
+  if(currentStockPredecessor && (!declaredMaterial || !verifiedMaterialCurrentStockMismatchPredecessor(currentStockPredecessor,receipt,stock) ||
+      !isMaterialSourceRevision(previous)||previous.commission.ordinal!==1||previous.commission.maximum_invocations!==1||
+      stockPredecessor||generatedStockSerial||serialPredecessor||historicalStockKind))fail("revision_git_predecessor_invalid");
   const incompleteIntegration = declaredMaterial && receipt.phases?.find(phase => phase.status === "failure")?.id === "integration";
   verifySettledPhaseFailure(receipt, stock, inputs, phases, resources.find(r => r.id === "browser-executable"),
-    incompleteIntegration || stockVerifier || generatedStockSerial || isGitObservationRevision(previous) && expectedOrdinal === 1, expectedOrdinal, generatedStockSerial, false, declaredMaterial, stockPredecessor, historicalStockKind);
+    incompleteIntegration || stockVerifier || generatedStockSerial || isGitObservationRevision(previous) && expectedOrdinal === 1, expectedOrdinal, generatedStockSerial, false, declaredMaterial, stockPredecessor, historicalStockKind, currentStockPredecessor);
   if (hasSerialAccounting(previous) && receipt.phases.some(p=>p.id === "e2e-project-experience" && p.status === "pass" && !validProjectExperienceAccounting(p.serial_budget)))
     fail("revision_inherited_serial_accounting_invalid");
 }
@@ -398,7 +402,7 @@ export function verifyGitRevisionSuccess(r, stock, inputs, phases) {
     fail("revision_positive_stock_invalid");
 }
 
-// The existing candidate-driver overlay has two exact recipes. Neither claims
+// The existing candidate-driver overlay has three exact recipes. None claims
 // a clean historical checkout or grants execution authority.
 export const GUIDE_REPAIR_DRIVER = "scripts/test-project-experience-guide-lifecycle-v1.mjs";
 export const GUIDE_REPAIR_MODULE = "scripts/browser-validate-operator-native-host-execution-v1.mjs";
@@ -413,6 +417,30 @@ export const FRESHNESS_REPAIR_FIXTURES = [FRESHNESS_REPAIR_DRIVER,"scripts/captu
   "scripts/local-canonical-browser-revision.mjs","scripts/fixtures/local-canonical-authority-clock.mjs",
   "scripts/canonical-test-environment.mjs","scripts/local-canonical-inputs.mjs"];
 export const FRESHNESS_REPAIR_SCOPE = "source-extracted-synthetic-consumers-with-real-preservation-guard; not complete preparation or installed probes";
+export const STOCK_MISMATCH_REPAIR_DRIVER = "scripts/test-local-canonical-material-stock-mismatch.mjs";
+export const STOCK_MISMATCH_REPAIR_MODULES = ["scripts/local-canonical-browser-revision.mjs","scripts/local-canonical-git-observation.mjs"];
+export const STOCK_MISMATCH_REPAIR_FIXTURES = [STOCK_MISMATCH_REPAIR_DRIVER,"scripts/capture-canonical-ts-repair.mjs",
+  "scripts/local-canonical-material-stock-predecessor.mjs","scripts/fixtures/local-canonical-material-source.mjs",
+  "scripts/canonical-test-environment.mjs","scripts/local-canonical-inputs.mjs"];
+const stockMismatchRepairSourcePaths = new Set([...STOCK_MISMATCH_REPAIR_MODULES,...STOCK_MISMATCH_REPAIR_FIXTURES,
+  "scripts/local-canonical-attempts.mjs","scripts/test-canonical-ts-repair-evidence.mjs",".github/LOCAL_CANONICAL_VERIFICATION.md"]);
+export const STOCK_MISMATCH_REPAIR_SCOPE = "candidate-reader-with-prior-strict-modules; retained-material-failure-admission-not-qualification";
+
+export function validateStockMismatchRepairOutcome(output,exit) {
+  const prefix="AUGNES_MATERIAL_STOCK_MISMATCH ",lines=output.split(/\r?\n/u).filter(line=>line.startsWith(prefix));
+  let report;try{if(lines.length!==1||!output.endsWith("\n"))fail("revision_stock_mismatch_outcome_invalid");report=JSON.parse(lines[0].slice(prefix.length));}
+  catch{fail("revision_stock_mismatch_outcome_invalid");}
+  if(![0,1].includes(exit)||report?.contract!=="augnes.material-stock-mismatch-boundary.v1"||report.scope!==STOCK_MISMATCH_REPAIR_SCOPE||
+    !sha(report.input_sha256)||!sha(report.historical_sha256)||
+    !equal(Object.keys(report.originals??{}).sort(),["attempt","observation","receipt","stock"])||!Object.values(report.originals).every(sha)||
+    !equal(report.implicated_sources?.map(v=>v.path),STOCK_MISMATCH_REPAIR_MODULES)||
+    report.implicated_sources.some(v=>!sha(v.sha256)||!Number.isSafeInteger(v.byte_size)||v.byte_size<1)||
+    !equal(report.decision,exit===0?{status:"pass"}:{status:"failure",error_code:"revision_browser_stock_unaccounted"})||
+    report.historical_stock_preserved!==true||report.complete_git_still_inequivalent!==true||report.lineage_unverified_preserved!==true||
+    report.deciding!==false||report.cleanup_complete!==true||report.refusal_controls!==(exit===0?35:0)||
+    exit===1&&!output.includes("Error: revision_browser_stock_unaccounted"))fail("revision_stock_mismatch_outcome_invalid");
+  return report;
+}
 
 export function validateFreshnessRepairOutcome(output,exit) {
   const prefix="AUGNES_SERIAL_MATERIAL_FRESHNESS ",lines=output.split(/\r?\n/u).filter(line=>line.startsWith(prefix));
@@ -457,13 +485,16 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
   const regression = focused.regression, file = regression.path;
   const guide = isMaterialSourceRevision(p) && file === GUIDE_REPAIR_DRIVER;
   const freshness = isMaterialSourceRevision(p) && file === FRESHNESS_REPAIR_DRIVER;
-  const command = freshness ? "node "+FRESHNESS_REPAIR_DRIVER : guide ? "node " + GUIDE_REPAIR_DRIVER + " --operator-scope" : "node --import tsx scripts/test-project-client-browser.ts";
+  const stockMismatch = isMaterialSourceRevision(p) && file === STOCK_MISMATCH_REPAIR_DRIVER;
+  const controlled= freshness || stockMismatch;
+  const command = controlled ? "node "+file : guide ? "node " + GUIDE_REPAIR_DRIVER + " --operator-scope" : "node --import tsx scripts/test-project-client-browser.ts";
   const paths = focused.implicated_paths, fixture = regression.fixture_paths;
-  if (!(guide || freshness ? p.commission.evidence_kind === undefined && regression.kind === undefined &&
-        equal(paths,freshness?FRESHNESS_REPAIR_MODULES:[GUIDE_REPAIR_MODULE]) && equal(fixture,freshness?FRESHNESS_REPAIR_FIXTURES:GUIDE_REPAIR_FIXTURES) && sha(p.inputs.inventory_sha256) :
+  if (!(guide || controlled ? p.commission.evidence_kind === undefined && regression.kind === undefined &&
+        equal(paths,stockMismatch?STOCK_MISMATCH_REPAIR_MODULES:freshness?FRESHNESS_REPAIR_MODULES:[GUIDE_REPAIR_MODULE]) &&
+        equal(fixture,stockMismatch?STOCK_MISMATCH_REPAIR_FIXTURES:freshness?FRESHNESS_REPAIR_FIXTURES:GUIDE_REPAIR_FIXTURES) && sha(p.inputs.inventory_sha256) :
         isGitObservationSuccessor(p) && file === "scripts/test-project-client-browser.ts") ||
-      focused.failed_phase !== (freshness ? "authority" : guide ? "e2e-operator-native-host-execution" : "e2e-project-experience") ||
-      !equal(regression.node_args,guide || freshness ? [] : ["--import","tsx"]) || !equal(regression.args,guide ? ["--operator-scope"] : []) ||
+      focused.failed_phase !== (stockMismatch ? "integration" : freshness ? "authority" : guide ? "e2e-operator-native-host-execution" : "e2e-project-experience") ||
+      !equal(regression.node_args,guide || controlled ? [] : ["--import","tsx"]) || !equal(regression.args,guide ? ["--operator-scope"] : []) ||
       !equal(focused.input_remedy_resources,[]) || prior.tree === p.tree ||
       !Array.isArray(paths) || !paths.length || new Set(paths).size !== paths.length || paths.includes(file) ||
       paths.some(name => !/^scripts\/(?:[\w.-]+\/)*[\w.-]+\.(?:ts|tsx|mjs)$/u.test(name) || name.split("/").includes("..")) ||
@@ -480,6 +511,10 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
   });
   const target = catalogue(p.head);
   if ([...paths,...fixture].some(name=>!target.some(v=>v.path===name))) fail("revision_git_regression_invalid");
+  if(stockMismatch){
+    const changed=git(["diff","--name-only",prior.head,p.head,"--"]).toString().trim().split("\n").filter(Boolean);
+    if(!changed.length||changed.some(name=>!stockMismatchRepairSourcePaths.has(name)))fail("revision_git_regression_invalid");
+  }
   for (const name of paths) {
     const oldBlob=git(["rev-parse","--verify",prior.head+":"+name]).toString().trim();
     const newBlob=git(["rev-parse","--verify",p.head+":"+name]).toString().trim();
@@ -508,9 +543,9 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
     return identity;
   };
   const dependencies=before.prepared_dependencies;
-  if (!dependencies || !freshness&&!equal(dependencyIdentity(dependencies.before),dependencyIdentity(dependencies.after)))
+  if (!dependencies || !controlled&&!equal(dependencyIdentity(dependencies.before),dependencyIdentity(dependencies.after)))
     fail("revision_git_regression_invalid");
-  const dependencyIdentities=freshness?commonDriverDependencies(before,repositoryRoot,git,p.head):null;
+  const dependencyIdentities=controlled?commonDriverDependencies(before,repositoryRoot,git,p.head):null;
   if (!focused.commands?.some(c=>c.command===command && c.tested_source_head===p.head &&
       equal(c.record,regression.after) && equal(c.stdout,after.stdout)) ||
       before.stdout?.sha256===after.stdout?.sha256 ||
@@ -521,7 +556,7 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
     if (witness.attribution!=="candidate-driver-prior-implicated-source" || witness.driver_source_head!==p.head ||
         witness.tested_source_head!==head || !equal(readSource(witness),head===p.head?finalSource:source(head)) ||
         !witness.prepared_dependencies ||
-        !(freshness ? equal(commonDriverDependencies(witness,repositoryRoot,git,p.head),dependencyIdentities) :
+        !(controlled ? equal(commonDriverDependencies(witness,repositoryRoot,git,p.head),dependencyIdentities) :
           equal(dependencyIdentity(witness.prepared_dependencies.before),dependencyIdentity(dependencies.before)) &&
           equal(dependencyIdentity(witness.prepared_dependencies.after),dependencyIdentity(dependencies.before))) ||
         witness.fixture_sha256!==fixtureDigest || !sha(witness.environment) || witness.environment!==before.environment ||
@@ -532,14 +567,14 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
         result.cancelled!==false || result.cleanup_completed!==true || result.remaining_owned_processes!==0 ||
         result.termination_reason!=="natural_exit" || result.exit_observed!==true || result.streams_closed!==true ||
         !bytes(witness.stdout,2*1024*1024).length) fail("revision_git_regression_invalid");
-    if (guide || freshness) {
+    if (guide || controlled) {
       const dirty = head === prior.head ? paths.map(name=>" M "+name+"\n").join("") : "";
-      if (witness.scope !== (freshness?FRESHNESS_REPAIR_SCOPE:GUIDE_REPAIR_SCOPE) || witness.checkout_head !== p.head ||
+      if (witness.scope !== (stockMismatch?STOCK_MISMATCH_REPAIR_SCOPE:freshness?FRESHNESS_REPAIR_SCOPE:GUIDE_REPAIR_SCOPE) || witness.checkout_head !== p.head ||
           witness.source_state !== (head === prior.head ? "candidate-with-prior-implicated-overlay" : "clean-candidate") ||
           witness.worktree_before !== dirty || witness.worktree_after !== dirty ||
           witness.input_inventory_sha256 !== p.inputs.inventory_sha256 || !equal(witness.browser_uses,[]))
         fail("revision_git_regression_invalid");
-      if(freshness){
+      if(controlled){
         const combined=bytes(witness.stdout,2*1024*1024),raw=witness.raw_streams;
         if(!equal(Object.keys(raw??{}),["stdout","stderr"])||result.signal!==null||result.spawn_error_code!==null||
             !Number.isSafeInteger(result.duration_ms)||result.duration_ms<0)fail("revision_git_regression_invalid");
@@ -549,9 +584,10 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
           return [name,content];
         }));
         if(!combined.equals(Buffer.concat([streams.stdout,streams.stderr]))&&!combined.equals(Buffer.concat([streams.stderr,streams.stdout])))fail("revision_git_regression_invalid");
-        const report=validateFreshnessRepairOutcome(combined.toString(),exit);
-        if(!streams.stdout.toString().startsWith("AUGNES_SERIAL_MATERIAL_FRESHNESS ")||
-            exit===0&&streams.stderr.length!==0||exit===1&&!streams.stderr.toString().includes("Error: revision_current_preservation_unsafe"))fail("revision_git_regression_invalid");
+        const validate=stockMismatch?validateStockMismatchRepairOutcome:validateFreshnessRepairOutcome;
+        const report=validate(combined.toString(),exit);
+        if(!streams.stdout.toString().startsWith(stockMismatch?"AUGNES_MATERIAL_STOCK_MISMATCH ":"AUGNES_SERIAL_MATERIAL_FRESHNESS ")||
+            exit===0&&streams.stderr.length!==0||exit===1&&!streams.stderr.toString().includes(stockMismatch?"Error: revision_browser_stock_unaccounted":"Error: revision_current_preservation_unsafe"))fail("revision_git_regression_invalid");
         const settled=parse(witness.settlement),cleanup=parse(witness.environment_cleanup);
         if(!equal(settled,{started_at:witness.started_at,finished_at:witness.finished_at,result})||cleanup.completed!==true||cleanup.absent!==true||
             typeof cleanup.lexical_root!=="string"||!cleanup.lexical_root.startsWith("/")||!Array.isArray(cleanup.cleanup)||cleanup.cleanup.length!==1||
@@ -559,8 +595,20 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
         const otherCleanup=parse(before.environment_cleanup);
         if(cleanup.lexical_root!==otherCleanup.lexical_root)fail("revision_git_regression_invalid");
         if(!equal(report.implicated_sources,paths.map(name=>{const content=git(["show",head+":"+name]);return {path:name,byte_size:content.length,sha256:digest(content)};})))fail("revision_git_regression_invalid");
-        const other=validateFreshnessRepairOutcome(bytes(before.stdout,2*1024*1024).toString(),1);
+        const other=validate(bytes(before.stdout,2*1024*1024).toString(),1);
         if(report.input_sha256!==other.input_sha256||report.historical_sha256!==other.historical_sha256)fail("revision_git_regression_invalid");
+        if(stockMismatch){
+          const inputBytes=bytes(witness.controlled_input,2*1024*1024);let input;
+          try{input=JSON.parse(inputBytes);}catch{fail("revision_git_regression_invalid");}
+          if(!equal(Object.keys(input??{}).sort(),["contract","originals"])||input.contract!=="augnes.material-stock-mismatch-input.v1"||
+            !equal(Object.keys(input.originals??{}).sort(),["attempt","observation","receipt","stock"])||
+            Object.values(input.originals).some(value=>typeof value!=="string"||Buffer.byteLength(value)>512*1024)||
+            digest(inputBytes)!==report.input_sha256||digest(input.originals)!==report.historical_sha256||
+            !equal(report.originals,Object.fromEntries(Object.entries(input.originals).map(([key,value])=>[key,digest(Buffer.from(value))])))||
+            !equal(report.originals,{receipt:p.originals.receipt.sha256,attempt:p.originals.attempt.sha256,stock:p.originals.stock.sha256,
+              observation:focused.predecessor_stock?.observation?.sha256})||
+            !equal(witness.controlled_input,before.controlled_input))fail("revision_git_regression_invalid");
+        }
       }else validateGuideRepairOutcome(bytes(witness.stdout,2*1024*1024).toString(),exit);
     }
   }
@@ -701,7 +749,51 @@ function visibleDelegationParagraphs(body) {
   return body.replaceAll("\r\n", "\n").trim().split(/\n[ \t]*\n/u);
 }
 
+// The posted structured assignment remains conditional authority. Its exact
+// operative scope is reusable across revision/source anchors; it is not a
+// grant grammar or a substitute for the independently accepted material recipe.
+const materialStockMismatchDelegationParagraphs = [
+  "## R{revision} delegated continuation — 320-revision tail and exact-input predecessor support",
+  "This assignment follows the [R{previous} receiving assessment](https://github.com/hynk-studio/augnes/pull/{pull_request}#pullrequestreview-{review_id}) at `{head}`. It authorizes scoped diagnosis, justified repair, focused verification, publication and supported preparation in this PR. **It is not an executable grant and creates no current deciding entitlement.** Existing spent commissions remain spent.",
+  "### Outcome and scope",
+  "Resolve the specific `test-vnext-project-work-initialization.ts --cumulative-history-only` completion problem, or return a bounded evidence-backed finding if a repair is not justified. In the same work, implement only the necessary supported predecessor treatment for R{previous}'s retained false15/full-Git-mismatch/lineage-UNVERIFIED result. Existing methods are revisable on evidence; no additional user approval is needed for ordinary work within this scope.",
+  "1. Reuse the retained failure and source narrowing first. The second 320-revision read proves arrival after recovery and portable reconstruction. If needed, add monotonic before/after observations and query counts in the final recall/import/resume/source-lookup/parser/read-only tail. Preserve the complete 320-revision workload, execution order, assertions, cleanup and existing 120,000ms owner bound for initial diagnosis. Do not use Full as a diagnostic probe or reproduce the old timeout merely to manufacture RED.\n2. Prefer a cause-targeted fixture, caller or task-owned setup repair. Show the affected behavior and refusal preservation with bounded controls appropriate to the actual change. Do not call a timeout or budget increase a natural assertion RED/GREEN. If diagnosis instead supports an allowance-only remedy, state a reasoned finite operating budget before collection, within the applicable parent/resource limits. Collect the complete command under that choice and obtain exact-target receiving before admission; do not infer the necessary budget, a stable margin or historical cause from the timeout alone. Do not tune unrelated owners.\n3. Keep the original receipt, false15 stock, complete-input non-equivalence, lineage UNVERIFIED and grant consumption immutable. A genuine new material-source correction may use freshly observed current complete inputs. Do not substitute historical inputs for live ones, downgrade full-file equality to projection equality, reset lineage, or restore configuration owned by another task. The existing metadata-only stock-verifier and legacy Git-input routes do not describe this incident.\n4. Where required, extend the existing predecessor reader narrowly to accept this faithfully retained failed evidence as the predecessor of a genuine correction. Bind the receipt, stock, prior proof/inventory, retained complete observations, physical latest-tip/edges and exact issue set. Preserve rejection of missing/tampered history, reused grants, unsupported input changes and unsupported Browser evidence. Do not add a general lineage/Browser waiver or a new mechanism solely to evade an existing refusal.\n5. Finish task-owned tracking/publication preparation before pinning the new current inputs. Observe the real supported worktree/common Git context; coordinate only within existing resource authority. Do not force shared-config rollback, override the input-selection contract, or acquire an unrelated writer's lock. If concurrent input change makes deciding invalid, retain that result and hold the affected admission rather than relabel it.",
+  "### Conditional qualification and authority",
+  "After a justified correction, its required complete final-target evidence and refusal controls, an actual non-reserving latest-tip preparation, and a separate exact-source/evidence/preparation receiving acceptance, the delegated receiving authority may issue a **distinct authenticated one-use commission** through the supported material-source transition. The receiving decision must evaluate the actual resulting correction, not this plan. The implementation owner may faithfully publish that returned decision and ensuing scoped grant under this task delegation; it must not author its own acceptance or fabricate approval.",
+  "Only that later exact grant permits the final planner-selected qualification, followed by the required separate fresh-process stock, result assessment and cleanup. Preserve the existing one-use limit and original grants; this assignment does not authorize an unchanged retry, recovery, a new project, or a second invocation. If correction/preparation/receiving is not sufficient, hold deciding admission and finish useful authorized diagnosis and handoff. No Ready, merge, deployment or installed adoption is authorized here.",
+  "### Cost, synchronization and handoff",
+  "Reuse still-valid source, runtime and evidence within their actual attribution. Main movement alone is not HOLD; autonomously synchronize and check its effects when needed without resetting the final-target requirements. Before additional costly checks, state the concrete unresolved risk and decision they can change. Carry forward the cumulative preparation/diagnosis/repair/verification/review cost; do not reset it for R{revision}. Keep all existing product/authority semantics, R{fifth}/R{fourth}/R{third}/R{previous} corrections, inherited serial obligations, Companion and peer work.",
+  "Publish the correction and concise English PR result in this PR. Keep detailed internal accounting, raw evidence, review scope and a consolidated next-action handoff in the [canonical task record](https://chatgpt.com/space/{task_page}); update only the related current-status/handoff entries. Stop when the scoped acceptance conditions or a real remaining boundary are established, not for optional improvements."
+];
+export function materialStockMismatchDelegation(p,anchor) {
+  const values={...anchor,pull_request:p.pull_request,previous:anchor.revision-1,
+    third:anchor.revision-2,fourth:anchor.revision-3,fifth:anchor.revision-4};
+  return materialStockMismatchDelegationParagraphs.map(text=>text.replace(/\{([a-z_]+)\}/gu,(_,key)=>String(values[key]))).join("\n\n");
+}
+export function readMaterialStockMismatchDelegation(body,p) {
+  if(!isMaterialSourceRevision(p)||p.commission.evidence_kind!==undefined||p.commission.ordinal!==1||p.commission.maximum_invocations!==1)return null;
+  const paragraphs=visibleDelegationParagraphs(body);
+  if(paragraphs.length!==11)return null;
+  const revision=paragraphs[0].match(/^## R([1-9]\d*) delegated continuation — 320-revision tail and exact-input predecessor support$/u);
+  const source=paragraphs[1].match(new RegExp("^This assignment follows the \\[R([1-9]\\d*) receiving assessment\\]\\(https://github\\.com/hynk-studio/augnes/pull/"+p.pull_request+"#pullrequestreview-([1-9]\\d*)\\) at `([a-f0-9]{40})`\\.","u"));
+  const task=paragraphs[10].match(/\[canonical task record\]\(https:\/\/chatgpt\.com\/space\/(page_[a-f0-9]{32})\)/u);
+  if(!revision||!source||!task||Number(revision[1])<5||Number(source[1])!==Number(revision[1])-1||
+    !Number.isSafeInteger(Number(revision[1]))||!Number.isSafeInteger(Number(source[2])))return null;
+  const anchor={revision:Number(revision[1]),review_id:Number(source[2]),head:source[3],task_page:task[1]};
+  return equal(paragraphs,materialStockMismatchDelegation(p,anchor).split("\n\n"))?anchor:null;
+}
+export function verifyMaterialStockMismatchDelegationTarget(p,body,{prior,focused}) {
+  const anchor=readMaterialStockMismatchDelegation(body,p);
+  if(!anchor||anchor.head!==prior.head||!isMaterialSourceRevision(prior.source_correction)||
+    prior.source_correction.commission.ordinal!==1||prior.source_correction.commission.maximum_invocations!==1||
+    focused.regression?.attribution!=="candidate-driver-prior-implicated-source"||focused.regression.path!==STOCK_MISMATCH_REPAIR_DRIVER||
+    !equal(focused.implicated_paths,STOCK_MISMATCH_REPAIR_MODULES)||!equal(focused.input_remedy_resources,[])||
+    focused.predecessor_stock?.contract!=="settled-material-current-stock-git-mismatch-v1")fail("revision_material_stock_delegation_source_invalid");
+  return anchor;
+}
+
 export function delegatesMaterialSourceCommission(body,p) {
+  if (readMaterialStockMismatchDelegation(body,p)) return true;
   if (isCompanionRetirementFixtureBudget(p)) return !!readCompanionRetirementBudgetDelegation(body,p);
   if (p.commission.evidence_kind === REGISTERED_REQUEST_BOUND_ALLOWANCE) return !!readRequestBoundAllowanceDelegation(body,p);
   if (p.commission.evidence_kind === SELECTIVE_FIXTURE_WORKLOAD) return !!readSelectiveFixtureWorkloadDelegation(body,p);

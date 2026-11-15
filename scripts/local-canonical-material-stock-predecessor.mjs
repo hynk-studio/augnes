@@ -13,6 +13,8 @@ const keys = (value,names) => value && !Array.isArray(value) && equal(Object.key
 const finite = value => Number.isFinite(value) && value >= 0;
 const fail = () => { throw Object.assign(new Error("revision_stock_predecessor_invalid"), {code:"revision_stock_predecessor_invalid"}); };
 const checked = new WeakMap();
+const checkedCurrentMismatch = new WeakMap();
+export const MATERIAL_CURRENT_STOCK_GIT_MISMATCH = "settled-material-current-stock-git-mismatch-v1";
 
 export const isStockVerifierRevision = p => p?.schema === "augnes.local-canonical-source-correction.v7" && p.kind === "reviewed_revision" &&
   p.commission?.source_revision === "material-source-correction-v1" && p.commission.evidence_kind === "git-config-stock-verifier-repair-v1";
@@ -22,6 +24,53 @@ export const isStockVerifierRevision = p => p?.schema === "augnes.local-canonica
 export function verifiedStockPredecessor(value,receipt,stock) {
   const bound = value && checked.get(value);
   return !!bound && bound.receipt === digest(receipt) && bound.stock === digest(stock);
+}
+
+// Retain an actual false stock whose complete current Git file no longer
+// matches the spent material commission. This is historical evidence only:
+// neither the scoped Git projection nor this token establishes current-input
+// equivalence, a verified old lineage, or any execution capability.
+export function verifiedMaterialCurrentStockMismatchPredecessor(value,receipt,stock) {
+  const bound = value && checkedCurrentMismatch.get(value);
+  return !!bound && bound.receipt === digest(receipt) && bound.stock === digest(stock);
+}
+
+export function verifyMaterialCurrentStockMismatchPredecessor(p,prior,focused,{original,stock,parse,inventory,stockComparison,stockContract}) {
+  const incident=focused.predecessor_stock,previous=prior.source_correction;
+  const {integrity,...unsigned}=original;
+  if(!keys(incident,["contract","observation"])||incident.contract!==MATERIAL_CURRENT_STOCK_GIT_MISMATCH||
+    p?.schema!=="augnes.local-canonical-source-correction.v7"||p.kind!=="reviewed_revision"||
+    p.commission?.source_revision!=="material-source-correction-v1"||p.commission.ordinal!==1||p.commission.maximum_invocations!==1||
+    previous?.schema!=="augnes.local-canonical-source-correction.v7"||previous.kind!=="reviewed_revision"||
+    previous.commission?.source_revision!=="material-source-correction-v1"||previous.commission.ordinal!==1||previous.commission.maximum_invocations!==1||
+    !Number.isSafeInteger(previous.authorization?.grant_comment_id)||previous.authorization.grant_comment_id<=0||
+    p.authorization?.grant_comment_id===previous.authorization.grant_comment_id||
+    !equal(original.attempt,prior)||integrity?.content_fingerprint!==p.prior_receipt_fingerprint||digest(unsigned)!==integrity.content_fingerprint||
+    stock.content_fingerprint!==p.prior_receipt_fingerprint||
+    prior.family_id!==p.prior_family_id||prior.attempt_id!==p.prior_attempt_id||prior.number!==p.prior_number||
+    !usesDeclaredIntegrationBase(original)||original.phases?.find(v=>v.status==="failure")?.id!=="integration"||
+    typeof inventory!=="function"||typeof stockComparison!=="function"||stockContract!=="complete-git-config-current-stock-v1")fail();
+  const observed=parse(incident.observation),current=observed.inputInventory;
+  const fingerprint=value=>digest({contract:value.contract,path_kind:value.path_kind,binding:value.binding,resources:value.resources});
+  if(!keys(observed,["observed_at","runtime","inventory","service","inputInventory"])||
+    !Number.isFinite(Date.parse(observed.observed_at))||!(Date.parse(observed.observed_at)>Date.parse(original.run.finished_at))||
+    !(Date.parse(observed.observed_at)<=Date.parse(focused.finished_at))||
+    !current||fingerprint(current)!==current.fingerprint||fingerprint(original.inputs)!==original.inputs.fingerprint||
+    digest(observed.runtime)!==previous.inputs.identity_sha256||inventory(original.inputs)!==previous.inputs.inventory_sha256||
+    observed.inventory!==inventory(current))fail();
+  const comparison=stockComparison(original.inputs,current,stockContract);
+  if(!keys(stock.current_stock_input_comparison,["contract","expected_inventory_sha256","current_inventory_sha256","exact","equivalent"])||
+    !equal(stock.current_stock_input_comparison,comparison)||comparison.exact!==false||comparison.equivalent!==false||
+    !stock.issues?.includes("receipt_attempt_records_unverified"))fail();
+  const before=original.inputs.resources.find(v=>v.id==="git-config"),after=current.resources.find(v=>v.id==="git-config");
+  const stable=value=>Object.fromEntries(Object.entries(value).filter(([key])=>!["inode","mtime_ns","ctime_ns","bytes"].includes(key)));
+  if(!before||!after||before.before.sha256===after.before.sha256||before.before.metadata.bytes===after.before.metadata.bytes||
+    !equal(before.before.git_projection,after.before.git_projection)||before.before.permission_identity!==after.before.permission_identity||
+    !equal(stable(before.before.metadata),stable(after.before.metadata)))fail();
+  const restored=structuredClone(current);restored.resources.find(v=>v.id==="git-config").before=structuredClone(before.before);
+  if(inventory(restored)!==inventory(original.inputs))fail();
+  const value=Object.freeze({contract:MATERIAL_CURRENT_STOCK_GIT_MISMATCH,receipt:p.prior_receipt_fingerprint});
+  checkedCurrentMismatch.set(value,{receipt:digest(original),stock:digest(stock)});return value;
 }
 
 function only(lines,prefix) {

@@ -18,6 +18,8 @@ import {executeFixture,dependencyRecords} from './local-canonical-browser-succes
 import {createPrivateReviewExport,inspectPrivateReviewExport} from '../local-canonical-review-export.mjs';
 import {browserConsumersForPhase,validPhaseBrowserUse} from '../local-canonical-browser-identity.mjs';
 import {runMaterialStockPredecessorControls} from './local-canonical-material-stock-predecessor.mjs';
+import {MATERIAL_CURRENT_STOCK_GIT_MISMATCH,verifyMaterialCurrentStockMismatchPredecessor,
+ verifiedMaterialCurrentStockMismatchPredecessor} from '../local-canonical-material-stock-predecessor.mjs';
 import {finalizeReceipt,inspectReceiptForDecision,canonicalSerialize} from '../local-canonical-receipt.mjs';
 import {inspectIntegrationStock} from '../run-local-canonical-verification.mjs';
 import {checkoutVerificationFingerprint} from '../local-canonical-checkout-ownership.mjs';
@@ -341,7 +343,85 @@ function materialPredecessorCompatibility(c) {
   s=>s.issues=s.issues.filter(v=>!v.startsWith('receipt_browser_identity_invalid:')),s=>s.issues.push('unexplained')]){
   const s=stockFor(receipt);mutate(s);assert.throws(()=>verify(receipt,s));refused++;
  }
+ runMaterialCurrentStockMismatchControls(c,receipt,stockFor);
  console.log(JSON.stringify({material_predecessor_compatibility:{accepted,refused,legacy_requires_complete_browser:true,synthetic_only:true}}));
+}
+
+export function runMaterialCurrentStockMismatchControls(c,base,stockFor,{quiet=false}={}) {
+ const r=clone(base),failed=r.phases.findIndex(v=>v.id==='integration');
+ Object.assign(r.attempt.source_correction.commission,{source_revision:MATERIAL_SOURCE_CORRECTION,ordinal:1,maximum_invocations:1});
+ r.attempt.source_correction.inputs.inventory_sha256=gitRevisionInventory(r.inputs);
+ const original=finalizeReceipt(r),prior=original.attempt,resources=clone(original.inputs.resources);
+ const git=resources.find(v=>v.id==='git-config');git.before.sha256=digest('different complete Git file, identical scoped projection');
+ git.before.metadata.bytes=String(BigInt(git.before.metadata.bytes)+1n);
+ const current={contract:original.inputs.contract,path_kind:original.inputs.path_kind,binding:{},resources};
+ current.fingerprint=digest(current);
+ const snapshot={observed_at:new Date(Date.parse(original.run.finished_at)+1).toISOString(),runtime:clone(c.inputs),
+  inventory:gitRevisionInventory(current),service:{historical_only:true},inputInventory:current};
+ const stock={...stockFor(original),content_fingerprint:original.integrity.content_fingerprint,
+  current_stock_input_comparison:gitRevisionStockComparison(original.inputs,current,GIT_CURRENT_STOCK_COMPARISON)};
+ stock.issues.push('receipt_attempt_records_unverified');stock.issues.sort();
+ const p={schema:'augnes.local-canonical-source-correction.v7',kind:'reviewed_revision',
+  commission:{source_revision:MATERIAL_SOURCE_CORRECTION,ordinal:1,maximum_invocations:1},
+  prior_family_id:prior.family_id,prior_number:prior.number,prior_attempt_id:prior.attempt_id,prior_receipt_fingerprint:original.integrity.content_fingerprint};
+ const ref={artifact:'retained-complete-observation.json',sha256:digest(JSON.stringify(snapshot))};
+ const focused={finished_at:new Date(Date.parse(original.run.finished_at)+2).toISOString(),
+  predecessor_stock:{contract:MATERIAL_CURRENT_STOCK_GIT_MISMATCH,observation:ref}};
+ const check=(receipt=original,observation=snapshot,s=stock,f=focused,q=p)=>{
+  const observedRef={artifact:ref.artifact,sha256:digest(JSON.stringify(observation))};
+  const focus=f===focused&&observation!==snapshot?{...f,predecessor_stock:{...f.predecessor_stock,observation:observedRef}}:f;
+  const parse=reference=>{assert.deepEqual(reference,observedRef);return observation;};
+  const token=verifyMaterialCurrentStockMismatchPredecessor(q,receipt.attempt,focus,{original:receipt,stock:s,parse,
+   inventory:gitRevisionInventory,stockComparison:gitRevisionStockComparison,stockContract:GIT_CURRENT_STOCK_COMPARISON});
+  assert(verifiedMaterialCurrentStockMismatchPredecessor(token,receipt,s));
+  verifyGitRevisionFailure(receipt,s,c.inputs,REVIEWED_REVISION_PHASES,1,false,false,false,true,null,null,token);return token;
+ };
+ const token=check();let accepted=1,refused=0;
+ assert.throws(()=>verifyGitRevisionFailure(original,stock,c.inputs,REVIEWED_REVISION_PHASES,1,false,false,false,true));refused++;
+ assert.throws(()=>verifyGitRevisionFailure(original,stock,c.inputs,REVIEWED_REVISION_PHASES,1,false,false,false,true,null,null,{...token}));refused++;
+ for(const mutate of [o=>o.current_stock_input_comparison.equivalent=true,o=>o.current_stock_input_comparison.current_inventory_sha256=digest('other sample'),
+  o=>o.issues.pop(),o=>o.issues.push('unexplained'),o=>o.content_fingerprint=digest('other receipt')]){
+  const s=clone(stock);mutate(s);assert.throws(()=>check(original,snapshot,s));
+  assert(!verifiedMaterialCurrentStockMismatchPredecessor(token,original,s));refused++;
+ }
+ for(const mutate of [o=>o.outcome.first_fault={invented:true},o=>o.attempt.source_correction.commission.ordinal=2,
+  o=>o.phases[failed].browser_use=[o.phases[failed].browser_use[0],{...o.phases[failed].browser_use[0],consumer:'foreign'}],
+  o=>o.phases[failed].cleanup.remaining_owned_processes=1,o=>o.integration_base.contract='unsupported']){
+  const changed=clone(original);mutate(changed);assert.throws(()=>check(changed));refused++;
+ }
+ for(const [index,mutate] of [o=>delete o.inputInventory,o=>o.inventory=digest('other inventory'),o=>o.runtime={substituted:true},
+  o=>o.observed_at=original.run.started_at,o=>o.inputInventory.resources.pop(),
+  o=>o.inputInventory.resources.find(v=>v.id==='node-executable').before.sha256=digest('other executable'),
+  o=>o.inputInventory.resources.find(v=>v.id==='git-config').before.git_projection.effective_sha256=digest('other scoped projection'),
+  o=>o.inputInventory.resources.find(v=>v.id==='git-config').before.permission_identity=digest('other permissions'),
+  o=>o.inputInventory.resources.find(v=>v.id==='git-config').before.sha256=original.inputs.resources.find(v=>v.id==='git-config').before.sha256,
+  o=>o.inputInventory.resources.find(v=>v.id==='git-config').before.metadata.bytes=original.inputs.resources.find(v=>v.id==='git-config').before.metadata.bytes].entries()){
+  const observation=clone(snapshot);mutate(observation);
+  let s=stock;
+  if(index>=4&&observation.inputInventory){
+   const {contract,path_kind,binding,resources}=observation.inputInventory;
+   observation.inputInventory.fingerprint=digest({contract,path_kind,binding,resources});
+   try{observation.inventory=gitRevisionInventory(observation.inputInventory);s={...stock,
+    current_stock_input_comparison:gitRevisionStockComparison(original.inputs,observation.inputInventory,GIT_CURRENT_STOCK_COMPARISON)};}catch{}
+  }
+  assert.throws(()=>check(original,observation,s));refused++;
+ }
+ for(const mutate of [f=>delete f.predecessor_stock,f=>f.predecessor_stock.contract='unsupported',f=>delete f.predecessor_stock.observation,
+  f=>f.predecessor_stock.observation.sha256=digest('substituted artifact')]){
+  const f=clone(focused);mutate(f);assert.throws(()=>check(original,snapshot,stock,f));refused++;
+ }
+ for(const mutate of [q=>q.prior_family_id=digest('stale tip'),q=>q.prior_number=2,q=>q.prior_attempt_id='replayed tip',
+  q=>q.commission.ordinal=2,q=>q.commission.maximum_invocations=2,q=>delete q.commission.source_revision,
+  q=>q.authorization={grant_comment_id:prior.source_correction.authorization.grant_comment_id}]){
+  const q=clone(p);mutate(q);assert.throws(()=>check(original,snapshot,stock,focused,q));refused++;
+ }
+ assert.throws(()=>verifyGitRevisionFailure(original,stock,c.inputs,REVIEWED_REVISION_PHASES,1,false,false,false,false,null,null,token));refused++;
+ assert.throws(()=>verifyGitRevisionFailure(original,stock,c.inputs,REVIEWED_REVISION_PHASES,1,true,false,false,true,null,null,token));refused++;
+ assert.equal(stock.valid_deciding_evidence,false);assert.equal(stock.current_stock_input_comparison.equivalent,false);
+ assert.deepEqual(original,finalizeReceipt(r));
+ const summary={accepted,refused,synthetic_only:true,historical_false_stock_retained:true,
+  complete_git_comparison_strict:true,unverified_not_relabelled:true};
+ if(!quiet)console.log(JSON.stringify({material_current_stock_git_mismatch:summary}));return summary;
 }
 
 export function seedMaterialSourceFiles(c,write) {

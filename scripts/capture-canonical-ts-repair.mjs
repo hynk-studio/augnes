@@ -8,7 +8,8 @@ import { closeSync, constants, fstatSync, ftruncateSync, openSync, writeSync, ex
 import { digest, observeInputFile, classifyInputChange, nonFaultInputChange, observeCanonicalRuntimeInputs, validCanonicalRuntimeInputs, observePreparedDependencyInputs, preparedDependencyIdentity, comparePreparedDependencyInputs } from "./local-canonical-inputs.mjs";
 import { revisionArtifact } from "./local-canonical-attempts.mjs";
 import { verifyGitSourceRepair, MATERIAL_SOURCE_CORRECTION, GUIDE_REPAIR_DRIVER, GUIDE_REPAIR_MODULE, GUIDE_REPAIR_FIXTURES,
-  GUIDE_REPAIR_SCOPE, validateGuideRepairOutcome, FRESHNESS_REPAIR_DRIVER, FRESHNESS_REPAIR_MODULES, FRESHNESS_REPAIR_FIXTURES, FRESHNESS_REPAIR_SCOPE, validateFreshnessRepairOutcome } from "./local-canonical-git-observation.mjs";
+  GUIDE_REPAIR_SCOPE, validateGuideRepairOutcome, FRESHNESS_REPAIR_DRIVER, FRESHNESS_REPAIR_MODULES, FRESHNESS_REPAIR_FIXTURES, FRESHNESS_REPAIR_SCOPE, validateFreshnessRepairOutcome,
+  STOCK_MISMATCH_REPAIR_DRIVER, STOCK_MISMATCH_REPAIR_MODULES, STOCK_MISMATCH_REPAIR_FIXTURES, STOCK_MISMATCH_REPAIR_SCOPE, validateStockMismatchRepairOutcome } from "./local-canonical-git-observation.mjs";
 import { observeGitRevisionTarget } from "./run-local-canonical-verification.mjs";
 import { readReceiptFile, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
@@ -133,12 +134,14 @@ export function finalizeFocusedCapture(operations) {
   return record;
 }
 
-export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),base,head,priorHead,output,preparationReceipt,completion,driver=TS_REPAIR_DRIVER}) {
-  assert.ok([TS_REPAIR_DRIVER,GUIDE_REPAIR_DRIVER,FRESHNESS_REPAIR_DRIVER].includes(driver),"capture_driver_invalid");
-  const guide=driver===GUIDE_REPAIR_DRIVER,freshness=driver===FRESHNESS_REPAIR_DRIVER,controlled=guide||freshness,
-    modules=freshness?FRESHNESS_REPAIR_MODULES:[guide?GUIDE_REPAIR_MODULE:TS_REPAIR_MODULE],module=modules[0],
-    fixtures=freshness?FRESHNESS_REPAIR_FIXTURES:guide?GUIDE_REPAIR_FIXTURES:TS_REPAIR_FIXTURES,nodeArgs=controlled?[]:["--import","tsx"],args=guide?["--operator-scope"]:[],
+export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),base,head,priorHead,output,preparationReceipt,completion,driver=TS_REPAIR_DRIVER,controlledInput}) {
+  assert.ok([TS_REPAIR_DRIVER,GUIDE_REPAIR_DRIVER,FRESHNESS_REPAIR_DRIVER,STOCK_MISMATCH_REPAIR_DRIVER].includes(driver),"capture_driver_invalid");
+  const guide=driver===GUIDE_REPAIR_DRIVER,freshness=driver===FRESHNESS_REPAIR_DRIVER,stockMismatch=driver===STOCK_MISMATCH_REPAIR_DRIVER,
+    strictControlled=freshness||stockMismatch,controlled=guide||strictControlled,
+    modules=stockMismatch?STOCK_MISMATCH_REPAIR_MODULES:freshness?FRESHNESS_REPAIR_MODULES:[guide?GUIDE_REPAIR_MODULE:TS_REPAIR_MODULE],module=modules[0],
+    fixtures=stockMismatch?STOCK_MISMATCH_REPAIR_FIXTURES:freshness?FRESHNESS_REPAIR_FIXTURES:guide?GUIDE_REPAIR_FIXTURES:TS_REPAIR_FIXTURES,nodeArgs=controlled?[]:["--import","tsx"],args=guide?["--operator-scope"]:[],
     command=["node",...nodeArgs,driver,...args].join(" ");
+  assert.equal(typeof controlledInput==="string",stockMismatch,"capture_controlled_input_invalid");
   const root=realpathSync(repositoryRoot),git=gitAt(root);
   assert.equal(path.resolve(repositoryRoot),root);
   assert.ok([base,head,priorHead].every(v=>/^[a-f0-9]{40}$/u.test(v)),"capture_source_argument_invalid");
@@ -161,6 +164,20 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
   assert.equal(receipt.repository.head_sha,priorHead);
   assert.equal(priorCompletion.attempt_id,receipt.attempt.attempt_id);
   assert.equal(priorCompletion.cleanup_complete,true);
+  let controlledBytes,controlledRef,controlledOriginals;
+  if(stockMismatch){
+    const file=realpathSync(controlledInput),stat=lstatSync(file);
+    assert.ok(file.startsWith(root+"/.augnes-local-verification/")&&stat.isFile()&&!stat.isSymbolicLink()&&stat.nlink===1&&stat.size<=2*1024*1024,"capture_controlled_input_invalid");
+    controlledBytes=readFileSync(file);const input=JSON.parse(controlledBytes);
+    assert.equal(digest(Buffer.from(input.originals.receipt)),digest(readFileSync(preparationReceipt)),"capture_controlled_receipt_mismatch");
+    controlledRef=save("controlled-input.json",controlledBytes);
+    controlledOriginals=Object.fromEntries(Object.entries(input.originals).map(([name,raw])=>{
+      assert.ok(["receipt","attempt","stock","observation"].includes(name)&&typeof raw==="string","capture_controlled_input_invalid");
+      return[name,save("controlled-original-"+name+".log",Buffer.from(raw))];
+    }));
+    assert.equal(Object.keys(controlledOriginals).length,4,"capture_controlled_input_invalid");
+    assert.deepEqual(JSON.parse(input.originals.attempt),receipt.attempt,"capture_controlled_attempt_mismatch");
+  }
   save("predecessor-references.json",{receipt_path:path.resolve(preparationReceipt),receipt_sha256:digest(readFileSync(preparationReceipt)),completion_path:path.resolve(completion),completion_sha256:digest(completionBytes),completion:priorCompletion});
   const runtime=observeCanonicalRuntimeInputs();assert.ok(validCanonicalRuntimeInputs(runtime));
   const headers=path.join(path.dirname(path.dirname(realpathSync(process.execPath))),"include","node");
@@ -198,19 +215,20 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
     save("dependency-initial.json",{acquisition,initial});
     save("dependency-provenance.json",verifyCaptureDependencyProvenance(receipt,initial,root));
     const dependencyPhases=["dependencies-root","dependencies-nested","dependencies-web-planning"];
-    const dependencyInitial=freshness?dependencyPhases.map(phase_id=>({phase_id,observation:observePreparedDependencyInputs({repositoryRoot:root,phaseId:phase_id})})):null;
-    if(freshness)save("dependency-trees-provenance.json",dependencyInitial.map(row=>verifyCaptureDependencyProvenance(receipt,row.observation,root,row.phase_id)));
+    const dependencyInitial=strictControlled?dependencyPhases.map(phase_id=>({phase_id,observation:observePreparedDependencyInputs({repositoryRoot:root,phaseId:phase_id})})):null;
+    if(strictControlled)save("dependency-trees-provenance.json",dependencyInitial.map(row=>verifyCaptureDependencyProvenance(receipt,row.observation,root,row.phase_id)));
     for (const [label,ref,expectedExit] of [["before",priorHead,1],["after",head,0]]) {
       assertCheckoutVerificationOwnership(checkout,root);
       const target=label==="before"?beforeSource:candidate;
-      if(freshness&&!resource){assert.equal(existsSync(resourceRoot),false);resource=createCanonicalTestResourceDirectory(resourceRoot);assert.deepEqual(buildCanonicalChildEnvironment({ambientEnvironment:ambient,temporaryRoot:resourceRoot}),env);}
+      if(strictControlled&&!resource){assert.equal(existsSync(resourceRoot),false);resource=createCanonicalTestResourceDirectory(resourceRoot);assert.deepEqual(buildCanonicalChildEnvironment({ambientEnvironment:ambient,temporaryRoot:resourceRoot}),env);}
+      if(stockMismatch)writeFileSync(path.join(resourceRoot,"material-stock-input.json"),controlledBytes,{flag:"wx",mode:0o600});
       for(const name of modules){replaceCaptureModule(path.join(root,name),label==="before"?originals.get(name):sourceGit(["show",priorHead+":"+name]),sourceGit(["show",ref+":"+name]));overlay=label==="before";}
       const source_before=checkCaptureSource(root,target,git,head,overlay?modules:false);
       const worktree_before=git(["status","--porcelain"]).toString();
       const dependency_before_acquisition={started_at:now()};const dependencyBefore=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"});dependency_before_acquisition.finished_at=now();
       assert.equal(comparePreparedDependencyInputs(initial,dependencyBefore),"unchanged");
-      const treesBefore=freshness?dependencyPhases.map(phase_id=>({phase_id,observation:observePreparedDependencyInputs({repositoryRoot:root,phaseId:phase_id})})):null;
-      if(freshness)for(let i=0;i<treesBefore.length;i++)assert.equal(comparePreparedDependencyInputs(dependencyInitial[i].observation,treesBefore[i].observation),"unchanged");
+      const treesBefore=strictControlled?dependencyPhases.map(phase_id=>({phase_id,observation:observePreparedDependencyInputs({repositoryRoot:root,phaseId:phase_id})})):null;
+      if(strictControlled)for(let i=0;i<treesBefore.length;i++)assert.equal(comparePreparedDependencyInputs(dependencyInitial[i].observation,treesBefore[i].observation),"unchanged");
       const chunks=[],stdout=[],stderr=[],lifecycle=[];const write=which=>({write(chunk){const b=Buffer.from(chunk);chunks.push(b);which.push(b);return true;}});
       if(!inUse){beginCanonicalTestResourceUse(resource);inUse=true;}
       const started_at=now();allSettled=false;
@@ -221,22 +239,24 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
       const settlement=save(label+"-settlement.json",{started_at,finished_at,result});
       assert.ok(allSettled,"capture_child_unsettled");
       let environmentCleanup;
-      if(freshness){settleCanonicalTestResourceUse(resource,result);inUse=false;const cleanup=cleanupCanonicalTestResources([resource]);assert(cleanup.every(v=>v.completed));assert.equal(existsSync(resourceRoot),false);environmentCleanup=save(label+"-environment-cleanup.json",{lexical_root:resourceRoot,completed:true,absent:true,cleanup});resource=null;}
+      if(stockMismatch)assert.deepEqual(readFileSync(path.join(resourceRoot,"material-stock-input.json")),controlledBytes,"capture_controlled_input_changed");
+      if(strictControlled){settleCanonicalTestResourceUse(resource,result);inUse=false;const cleanup=cleanupCanonicalTestResources([resource]);assert(cleanup.every(v=>v.completed));assert.equal(existsSync(resourceRoot),false);environmentCleanup=save(label+"-environment-cleanup.json",{lexical_root:resourceRoot,completed:true,absent:true,cleanup});resource=null;}
       const dependency_after_acquisition={started_at:now()};const dependencyAfter=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"});dependency_after_acquisition.finished_at=now();
       const source_after=checkCaptureSource(root,target,git,head,overlay?modules:false);
-      const treesAfter=freshness?dependencyPhases.map(phase_id=>({phase_id,observation:observePreparedDependencyInputs({repositoryRoot:root,phaseId:phase_id})})):null;
+      const treesAfter=strictControlled?dependencyPhases.map(phase_id=>({phase_id,observation:observePreparedDependencyInputs({repositoryRoot:root,phaseId:phase_id})})):null;
       const worktree_after=git(["status","--porcelain"]).toString();
       const witness={attribution:"candidate-driver-prior-implicated-source",driver_source_head:head,tested_source_head:ref,
-        ...(controlled?{scope:freshness?FRESHNESS_REPAIR_SCOPE:GUIDE_REPAIR_SCOPE,checkout_head:head,source_state:overlay?"candidate-with-prior-implicated-overlay":"clean-candidate",
+        ...(controlled?{scope:stockMismatch?STOCK_MISMATCH_REPAIR_SCOPE:freshness?FRESHNESS_REPAIR_SCOPE:GUIDE_REPAIR_SCOPE,checkout_head:head,source_state:overlay?"candidate-with-prior-implicated-overlay":"clean-candidate",
           worktree_before,worktree_after,input_inventory_sha256:inputBefore.inventory,browser_uses:[]}:{}),
         source_files:catalogueRefs[label],fixture_sha256:digest(candidate.filter(v=>fixtures.includes(v.path))),environment:digest(env),
         file_sha256:digest(sourceGit(["show",head+":"+driver])),modules:modules.map(name=>({path:name,sha256:digest(sourceGit(["show",ref+":"+name]))})),
-        command,node_version:process.versions.node,runtime_inputs_sha256:digest(runtime),prepared_dependencies:freshness?treesBefore.map((row,i)=>({phase_id:row.phase_id,before:row.observation,after:treesAfter[i].observation})):{before:dependencyBefore,after:dependencyAfter},
-        started_at,finished_at,result,stdout:stdoutRef,...(freshness?{raw_streams:{stdout:{ref:rawStdout,bytes:Buffer.concat(stdout).length},stderr:{ref:rawStderr,bytes:Buffer.concat(stderr).length}},settlement,environment_cleanup:environmentCleanup}:{})};
+        command,node_version:process.versions.node,runtime_inputs_sha256:digest(runtime),prepared_dependencies:strictControlled?treesBefore.map((row,i)=>({phase_id:row.phase_id,before:row.observation,after:treesAfter[i].observation})):{before:dependencyBefore,after:dependencyAfter},
+        started_at,finished_at,result,stdout:stdoutRef,...(strictControlled?{raw_streams:{stdout:{ref:rawStdout,bytes:Buffer.concat(stdout).length},stderr:{ref:rawStderr,bytes:Buffer.concat(stderr).length}},settlement,environment_cleanup:environmentCleanup}:{}),
+        ...(stockMismatch?{controlled_input:controlledRef}:{})};
       const witnessRef=save(label+"-witness.json",witness);records.push({label,ref:witnessRef,witness});
       save(label+"-observations.json",{source_before,dependency_before_acquisition,child:{started_at,finished_at},dependency_after_acquisition,source_after});
       assert.equal(comparePreparedDependencyInputs(initial,dependencyAfter),"unchanged");
-      if(freshness)for(let i=0;i<treesAfter.length;i++)assert.equal(comparePreparedDependencyInputs(dependencyInitial[i].observation,treesAfter[i].observation),"unchanged");
+      if(strictControlled)for(let i=0;i<treesAfter.length;i++)assert.equal(comparePreparedDependencyInputs(dependencyInitial[i].observation,treesAfter[i].observation),"unchanged");
       assert.equal(digest(observeCanonicalRuntimeInputs()),digest(runtime),"capture_runtime_changed");
       const browserAfter=observeInputFile(browserExecutable,{readOnlyExecutable:true});
       const browserUses=Buffer.concat(stdout).toString().split(/\r?\n/u).map(parseBrowserUseLine).filter(Boolean);
@@ -245,7 +265,8 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
       if(controlled)assert.deepEqual(browserUses,[],"capture_controlled_fixture_browser_use");
       else browserExpected.actual_version=validateCaptureBrowserUses(browserUses,browserExpected,label==="before"?1:2);
       assert.equal(result.exit_code,expectedExit,"capture_causal_hypothesis_failed");
-      if(freshness)validateFreshnessRepairOutcome(Buffer.concat(chunks).toString(),expectedExit);
+      if(stockMismatch)validateStockMismatchRepairOutcome(Buffer.concat(chunks).toString(),expectedExit);
+      else if(freshness)validateFreshnessRepairOutcome(Buffer.concat(chunks).toString(),expectedExit);
       else if(guide)validateGuideRepairOutcome(Buffer.concat(chunks).toString(),expectedExit);
       else validateResultDraftCaptureOutcome(Buffer.concat(chunks).toString(),expectedExit);
       assert.equal(result.termination_reason,"natural_exit");assert.equal(result.timed_out,false);assert.equal(result.cancelled,false);
@@ -254,16 +275,18 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
       assert.equal(inputAfter.inventory,inputBefore.inventory,"capture_input_inventory_changed");}
     const focused={schema:"augnes.local-canonical-reviewed-revision-focused.v1",basis:"implementation_owner_not_independent_review",
       predecessor_receipt_fingerprint:receipt.integrity.content_fingerprint,runtime_inputs_sha256:digest(runtime),
-      remedy:freshness?"Acquire a new synthetic observation inside each affected source-extracted consumer boundary. The frozen candidate harness executes exact prior/final helper and consumer expressions against the same explicit old sample and the unchanged production preservation guard. This is deterministic boundary evidence, not complete material preparation or installed-Companion probing.":guide?"The native final-follow-up readiness waits for actual GuideBrief settlement before the deliberate project/runtime switch. The common candidate driver retains all operator controls and adopted/invalid/failed replacement boundaries against the entire prior and corrected Browser source. This is controlled sequencing evidence, not historical Browser recreation or corrected real-Browser qualification.":"The genuine corrected result-draft helper waits for an editable element, observes the pending preparation boundary and refreshes/recompares the replacement owner before editability assertions. The common candidate fixture holds the same real response for both entire helper blobs.",
+      remedy:stockMismatch?"Recognize only faithfully retained spent material-source failure with the exact complete Git stock mismatch and historical UNVERIFIED issue. The frozen candidate driver/support input is shared; the two exact prior implicated reader modules naturally refuse while the final readers accept the same failed predecessor. This repairs admission evidence handling, not the historical 320 timeout or current Git equivalence.":freshness?"Acquire a new synthetic observation inside each affected source-extracted consumer boundary. The frozen candidate harness executes exact prior/final helper and consumer expressions against the same explicit old sample and the unchanged production preservation guard. This is deterministic boundary evidence, not complete material preparation or installed-Companion probing.":guide?"The native final-follow-up readiness waits for actual GuideBrief settlement before the deliberate project/runtime switch. The common candidate driver retains all operator controls and adopted/invalid/failed replacement boundaries against the entire prior and corrected Browser source. This is controlled sequencing evidence, not historical Browser recreation or corrected real-Browser qualification.":"The genuine corrected result-draft helper waits for an editable element, observes the pending preparation boundary and refreshes/recompares the replacement owner before editability assertions. The common candidate fixture holds the same real response for both entire helper blobs.",
       ...(freshness?{diagnosis:"The retained synthetic observation is stale at material inspection and deferred preparation. A callback returning that old object does not acquire a new observation."}:guide?{diagnosis:"The prior Full failed its strict unexpected-request gate after an aborted GuideBrief lacked a completed adopted replacement before context destruction. The controlled schedule exposes premature context release in the original readiness predicate; it does not establish the historical timeout cause or real-Browser success."}:{}),
-      failed_phase:freshness?"authority":guide?"e2e-operator-native-host-execution":"e2e-project-experience",implicated_paths:modules,input_remedy_resources:[],source_files:candidate.filter(v=>[...modules,...fixtures].includes(v.path)),
+      failed_phase:stockMismatch?"integration":freshness?"authority":guide?"e2e-operator-native-host-execution":"e2e-project-experience",implicated_paths:modules,input_remedy_resources:[],source_files:candidate.filter(v=>[...modules,...fixtures].includes(v.path)),
+      ...(stockMismatch?{predecessor_stock:{contract:"settled-material-current-stock-git-mismatch-v1",observation:controlledOriginals.observation}}:{}),
       regression:{path:driver,node_args:nodeArgs,args,fixture_paths:fixtures,attribution:"candidate-driver-prior-implicated-source",before:records[0].ref,after:records[1].ref},
       commands:[{command,tested_source_head:head,record:records[1].ref,stdout:records[1].witness.stdout,result:records[1].witness.result}],finished_at:now()};
     // This truthful recipe fragment is supplied only to the focused predicate.
     // It is not preparation, authority, a reservation or a physical commission.
     const p={schema:controlled?"augnes.local-canonical-source-correction.v7":"augnes.local-canonical-source-correction.v10",kind:"reviewed_revision",
       commission:controlled?{ordinal:1,maximum_invocations:1,source_revision:MATERIAL_SOURCE_CORRECTION}:{ordinal:2},head,tree:text(git,"rev-parse",head+"^{tree}"),
-      inputs:{identity_sha256:digest(runtime),...(controlled?{inventory_sha256:inputBefore.inventory}:{})}};
+      inputs:{identity_sha256:digest(runtime),...(controlled?{inventory_sha256:inputBefore.inventory}:{})},
+      ...(stockMismatch?{originals:{receipt:controlledOriginals.receipt,attempt:controlledOriginals.attempt,stock:controlledOriginals.stock}}:{})};
     const prior={head:priorHead,tree:text(git,"rev-parse",priorHead+"^{tree}")};
     const bytes=(ref,max)=>revisionArtifact(out,ref,max),parse=ref=>JSON.parse(bytes(ref));
     save("focused.json",focused);save("predicate-input.json",{scope:"focused-source-predicate-only; no preparation or authority",p,prior,completedAt:priorCompletion.finished_at});
@@ -295,7 +318,7 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
 
 if (process.argv[1] && path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   const args=process.argv.slice(2),options={};
-  for(let i=0;i<args.length;i+=2){assert.ok(["--base","--head","--prior-head","--output","--preparation-receipt","--completion","--driver"].includes(args[i])&&args[i+1],"capture_arguments_invalid");const key=args[i].slice(2).replace(/-([a-z])/gu,(_,v)=>v.toUpperCase());assert.ok(!Object.hasOwn(options,key));options[key]=args[i+1];}
-  assert.equal(Object.keys(options).length,options.driver?7:6);
+  for(let i=0;i<args.length;i+=2){assert.ok(["--base","--head","--prior-head","--output","--preparation-receipt","--completion","--driver","--controlled-input"].includes(args[i])&&args[i+1],"capture_arguments_invalid");const key=args[i].slice(2).replace(/-([a-z])/gu,(_,v)=>v.toUpperCase());assert.ok(!Object.hasOwn(options,key));options[key]=args[i+1];}
+  assert.equal(Object.keys(options).length,6+Number(!!options.driver)+Number(!!options.controlledInput));
   console.log(await captureCanonicalTsRepair(options));
 }

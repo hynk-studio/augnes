@@ -6,7 +6,10 @@ import path from "node:path";
 import { digest, observeInputFile } from "./local-canonical-inputs.mjs";
 import { verifyGitSourceRepair, MATERIAL_SOURCE_CORRECTION, GUIDE_REPAIR_DRIVER, GUIDE_REPAIR_MODULE,
   GUIDE_REPAIR_FIXTURES, GUIDE_REPAIR_SCOPE, validateGuideRepairOutcome, FRESHNESS_REPAIR_DRIVER, FRESHNESS_REPAIR_MODULES,
-  FRESHNESS_REPAIR_FIXTURES,FRESHNESS_REPAIR_SCOPE,validateFreshnessRepairOutcome } from "./local-canonical-git-observation.mjs";
+  FRESHNESS_REPAIR_FIXTURES,FRESHNESS_REPAIR_SCOPE,validateFreshnessRepairOutcome,
+  STOCK_MISMATCH_REPAIR_DRIVER,STOCK_MISMATCH_REPAIR_MODULES,STOCK_MISMATCH_REPAIR_FIXTURES,STOCK_MISMATCH_REPAIR_SCOPE,
+  validateStockMismatchRepairOutcome,materialStockMismatchDelegation,readMaterialStockMismatchDelegation,
+  verifyMaterialStockMismatchDelegationTarget,delegatesMaterialSourceCommission } from "./local-canonical-git-observation.mjs";
 import { OPERATOR_REQUEST_LIFECYCLE_PHASES_V1 } from "./operator-execution-result-contract-v1.mjs";
 import { revisionArtifact } from "./local-canonical-attempts.mjs";
 import { validateResultDraftCaptureOutcome, validateCaptureBrowserUses, replaceCaptureModule, finalizeFocusedCapture, checkCaptureSource, verifyCaptureDependencyProvenance, TS_REPAIR_DRIVER as driver, TS_REPAIR_MODULE as module } from "./capture-canonical-ts-repair.mjs";
@@ -183,5 +186,73 @@ try {
  for(const name of FRESHNESS_REPAIR_MODULES){mkdirSync(path.dirname(path.join(root,name)),{recursive:true});writeFileSync(path.join(root,name),freshnessFiles.get(name),{mode:0o600});}
  const overlayCatalogue=freshnessSource(head).filter(e=>FRESHNESS_REPAIR_MODULES.includes(e.path)),overlayGit=args=>Buffer.from(args[0]==="rev-parse"?head:args[0]==="diff"&&args[1]==="--name-only"?FRESHNESS_REPAIR_MODULES.join("\n"):"");
  assert.equal(checkCaptureSource(root,overlayCatalogue,overlayGit,head,FRESHNESS_REPAIR_MODULES).entries,2);refuse(()=>checkCaptureSource(root,overlayCatalogue,overlayGit,head,[FRESHNESS_REPAIR_MODULES[0]]));
- console.log(JSON.stringify({scope:"structural-only",positive:true,refusals,freshness_recipe:true}));
+ // Retained failed-evidence admission uses the same candidate driver/input on
+ // both sides. These fabricated records exercise seals/refusals, not causality.
+ const mismatchFiles=new Map([...STOCK_MISMATCH_REPAIR_FIXTURES,...STOCK_MISMATCH_REPAIR_MODULES,
+   ...["","apps/augnes_apps/","apps/web_planning/"].flatMap(prefix=>[prefix+"package.json",prefix+"package-lock.json"])].map(name=>[name,Buffer.from(name.endsWith(".json")?"{}":"candidate "+name)]));
+ const mismatchCatalogue=[...mismatchFiles.keys()].sort().map(name=>({path:name,mode:"100644"}));
+ const mismatchContent=(ref,name)=>ref===old&&STOCK_MISMATCH_REPAIR_MODULES.includes(name)?Buffer.from("prior "+name):mismatchFiles.get(name);
+ const mismatchSource=ref=>mismatchCatalogue.map(e=>({...e,byte_size:mismatchContent(ref,e.path).length,sha256:digest(mismatchContent(ref,e.path))}));
+ const controlled={contract:"augnes.material-stock-mismatch-input.v1",originals:{receipt:"synthetic original receipt\n",attempt:"synthetic original attempt\n",stock:"synthetic false stock\n",observation:"synthetic complete observation\n"}};
+ const controlledRef=save("mismatch-controlled-input.json",controlled),originalHashes=Object.fromEntries(Object.entries(controlled.originals).map(([key,value])=>[key,digest(Buffer.from(value))]));
+ const mismatchProof={...nativeProof,branch:"codex/synthetic",pull_request:999,
+   originals:Object.fromEntries(["receipt","attempt","stock"].map(key=>[key,{artifact:key+".json",sha256:originalHashes[key]}]))};
+ const mismatchReport=(ref,exit)=>({contract:"augnes.material-stock-mismatch-boundary.v1",scope:STOCK_MISMATCH_REPAIR_SCOPE,
+   input_sha256:controlledRef.sha256,historical_sha256:digest(controlled.originals),originals:originalHashes,
+   implicated_sources:STOCK_MISMATCH_REPAIR_MODULES.map(name=>({path:name,byte_size:mismatchContent(ref,name).length,sha256:digest(mismatchContent(ref,name))})),
+   decision:exit?{status:"failure",error_code:"revision_browser_stock_unaccounted"}:{status:"pass"},refusal_controls:exit?0:35,
+   historical_stock_preserved:true,complete_git_still_inequivalent:true,lineage_unverified_preserved:true,deciding:false,cleanup_complete:true});
+ const mismatchOutput=(ref,exit)=>"AUGNES_MATERIAL_STOCK_MISMATCH "+JSON.stringify(mismatchReport(ref,exit))+"\n"+(exit?"Error: revision_browser_stock_unaccounted\n":"");
+ const mismatchCommand="node "+STOCK_MISMATCH_REPAIR_DRIVER;
+ const mismatchWitness=(ref,baseWitness)=>{
+   const exit=ref===old?1:0,stdout="AUGNES_MATERIAL_STOCK_MISMATCH "+JSON.stringify(mismatchReport(ref,exit))+"\n",stderr=exit?"Error: revision_browser_stock_unaccounted\n":"";
+   const w={...structuredClone(baseWitness),scope:STOCK_MISMATCH_REPAIR_SCOPE,source_files:save("mismatch-source-"+ref+".json",mismatchSource(ref)),
+     worktree_before:exit?STOCK_MISMATCH_REPAIR_MODULES.map(name=>" M "+name+"\n").join(""):"",worktree_after:exit?STOCK_MISMATCH_REPAIR_MODULES.map(name=>" M "+name+"\n").join(""):"",
+     file_sha256:digest(mismatchFiles.get(STOCK_MISMATCH_REPAIR_DRIVER)),fixture_sha256:digest(mismatchSource(head).filter(v=>STOCK_MISMATCH_REPAIR_FIXTURES.includes(v.path))),
+     modules:STOCK_MISMATCH_REPAIR_MODULES.map(name=>({path:name,sha256:digest(mismatchContent(ref,name))})),command:mismatchCommand,controlled_input:controlledRef,
+     stdout:save("mismatch-output-"+ref+".log",Buffer.from(stdout+stderr)),raw_streams:{stdout:{ref:save("mismatch-stdout-"+ref+".log",Buffer.from(stdout)),bytes:Buffer.byteLength(stdout)},stderr:{ref:save("mismatch-stderr-"+ref+".log",Buffer.from(stderr)),bytes:Buffer.byteLength(stderr)}}};
+   w.settlement=save("mismatch-settlement-"+ref+".json",{started_at:w.started_at,finished_at:w.finished_at,result:w.result});return w;
+ };
+ const mb=mismatchWitness(old,fb),ma=mismatchWitness(head,fa);
+ const mf={...ff,failed_phase:"integration",implicated_paths:STOCK_MISMATCH_REPAIR_MODULES,source_files:mismatchSource(head),
+   predecessor_stock:{contract:"settled-material-current-stock-git-mismatch-v1",observation:{artifact:"retained-observation.json",sha256:originalHashes.observation}},
+   regression:{path:STOCK_MISMATCH_REPAIR_DRIVER,node_args:[],args:[],fixture_paths:STOCK_MISMATCH_REPAIR_FIXTURES,attribution:"candidate-driver-prior-implicated-source",before:"mismatch-before",after:"mismatch-after"},
+   commands:[{command:mismatchCommand,tested_source_head:head,record:"mismatch-after",stdout:ma.stdout}]};
+ const mismatchCheck=(b=mb,a=ma,proof=mismatchProof,f=mf,changed=STOCK_MISMATCH_REPAIR_MODULES)=>verifyGitSourceRepair(proof,prior,f,{repositoryRoot:root,completedAt:"2026-01-01T00:00:00.000Z",
+   git:args=>{if(args[0]==="ls-tree")return Buffer.from(mismatchCatalogue.map(e=>`${e.mode} blob ${"c".repeat(40)}\t${e.path}\0`).join(""));
+     if(args[0]==="show"){const colon=args[1].indexOf(":");return mismatchContent(args[1].slice(0,colon),args[1].slice(colon+1));}
+     if(args[0]==="rev-parse")return Buffer.from(args[2].startsWith(old)?"0".repeat(40):"1".repeat(40));if(args[0]==="diff")return Buffer.from(args[1]==="--name-only"?changed.join("\n"):"@@ -1 +1 @@\n-old\n+new\n");throw Error("unexpected mismatch Git operation");},
+   parse:ref=>typeof ref==="object"?JSON.parse(revisionArtifact(root,ref)):ref==="mismatch-before"?b:a,bytes:(ref,max)=>revisionArtifact(root,ref,max)});
+ assert.equal(mismatchCheck(),head);
+ refuse(()=>mismatchCheck(mb,ma,mismatchProof,mf,[...STOCK_MISMATCH_REPAIR_MODULES,"lib/unrelated-product.ts"]));
+ refuse(()=>mismatchCheck(mb,ma,mismatchProof,mf,[]));
+ for(const change of [f=>f.regression.path=FRESHNESS_REPAIR_DRIVER,f=>f.failed_phase="authority",f=>f.implicated_paths.reverse(),
+   f=>f.regression.fixture_paths.pop(),f=>f.regression.args=["--skip"],f=>f.predecessor_stock.observation.sha256=digest("other observation")]){
+   const f=structuredClone(mf);change(f);refuse(()=>mismatchCheck(mb,ma,mismatchProof,f));
+ }
+ for(const change of [w=>delete w.controlled_input,w=>w.controlled_input=save("mismatch-other-input.json",{...controlled,extra:true}),
+   w=>w.source_files=save("mismatch-wrong-catalogue.json",mismatchSource(head)),w=>w.prepared_dependencies.pop(),
+   w=>w.prepared_dependencies[2].after.content_sha256=digest("changed installed loader"),w=>delete w.settlement,
+   w=>delete w.environment_cleanup,w=>w.raw_streams.stderr.bytes=0,w=>w.source_state="untouched-predecessor"]){
+   const b=structuredClone(mb);change(b);refuse(()=>mismatchCheck(b));
+ }
+ for(const name of ["receipt","attempt","stock"]){const proof=structuredClone(mismatchProof);proof.originals[name].sha256=digest("substituted original");refuse(()=>mismatchCheck(mb,ma,proof));}
+ for(const change of [r=>r.input_sha256="invalid",r=>r.historical_sha256="invalid",r=>r.scope="historical clean checkout",r=>delete r.originals.stock,
+   r=>r.implicated_sources.reverse(),r=>r.decision.status="failure",r=>r.historical_stock_preserved=false,r=>r.complete_git_still_inequivalent=false,
+   r=>r.lineage_unverified_preserved=false,r=>r.deciding=true,r=>r.cleanup_complete=false,r=>r.refusal_controls=0]){
+   const r=structuredClone(mismatchReport(head,0));change(r);refuse(()=>validateStockMismatchRepairOutcome("AUGNES_MATERIAL_STOCK_MISMATCH "+JSON.stringify(r)+"\n",0));
+ }
+ for(const output of [mismatchOutput(old,1).replace("Error: revision_browser_stock_unaccounted","Error: import failed"),mismatchOutput(head,0).trim(),mismatchOutput(head,0)+mismatchOutput(head,0)])refuse(()=>validateStockMismatchRepairOutcome(output,output.includes('Error:')?1:0));
+ const anchor={revision:17,review_id:1234,head:old,task_page:"page_"+"c".repeat(32)},assignment=materialStockMismatchDelegation(mismatchProof,anchor);
+ assert.deepEqual(readMaterialStockMismatchDelegation(assignment,mismatchProof),anchor);assert(delegatesMaterialSourceCommission(assignment,mismatchProof));
+ const delegationEvidence={prior:{head:old,source_correction:structuredClone(nativeProof)},focused:mf};
+ assert.deepEqual(verifyMaterialStockMismatchDelegationTarget(mismatchProof,assignment,delegationEvidence),anchor);
+ for(const body of [assignment.replace("distinct authenticated one-use commission","two commissions"),assignment.replace("creates no current deciding entitlement","creates current deciding entitlement"),
+   assignment.replace("lineage UNVERIFIED","lineage VERIFIED"),assignment.replace("120,000ms","180,000ms"),assignment.replace("No Ready, merge","Ready, merge"),
+   assignment.replace("pull/999#","pull/998#"),"```\n"+assignment+"\n```",assignment+"\n\n<!-- hidden -->"]){assert.equal(readMaterialStockMismatchDelegation(body,mismatchProof),null);refusals++;}
+ for(const change of [e=>e.prior.head=head,e=>e.prior.source_correction.commission.maximum_invocations=2,
+   e=>e.focused.regression.path=FRESHNESS_REPAIR_DRIVER,e=>e.focused.implicated_paths.pop(),e=>e.focused.predecessor_stock.contract="unsupported"]){
+   const e=structuredClone(delegationEvidence);change(e);refuse(()=>verifyMaterialStockMismatchDelegationTarget(mismatchProof,assignment,e));
+ }
+ console.log(JSON.stringify({scope:"structural-only",positive:true,refusals,freshness_recipe:true,material_stock_mismatch_recipe:true}));
 } finally {assert.ok(cleanupCanonicalTestResources([owner]).every(v=>v.completed));assert.equal(existsSync(root),false);}
