@@ -11,7 +11,8 @@ import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
 import { observeCanonicalRuntimeInputs, observePreparedDependencyInputs, digest } from "./local-canonical-inputs.mjs";
 import { observePureContractSource, observePureContractLoader } from "./local-canonical-pure-contract-witness.mjs";
-import { FIXTURE_BUDGET_PATHS, registeredFixtureBudget, fixtureBudgetEnvironment } from "./local-canonical-fixture-budget-witness.mjs";
+import { FIXTURE_BUDGET_PATHS, registeredFixtureBudget, fixtureBudgetEnvironment,
+  REQUEST_BOUND_CHILD_COMMAND, REQUEST_BOUND_CAPTURE_MS } from "./local-canonical-fixture-budget-witness.mjs";
 import { collectHostEnvironment } from "./local-canonical-environment.mjs";
 import { admitVerificationContext } from "./local-canonical-verification-context.mjs";
 import { observeGitRevisionTarget, phaseEnvironment } from "./run-local-canonical-verification.mjs";
@@ -24,8 +25,9 @@ const [directory,role,group,...extra]=process.argv.slice(2);
 const integration = role === "integration" && group === "external-response";
 const maintenance = group === "local-canonical-maintenance";
 const selective = role === "selective" && group === "external-response-selective";
-if(extra.length||!integration&&!selective&&!["direct","registered"].includes(role)||!group||!directory)
-  throw new Error("usage: capture-local-canonical-fixture-budget.mjs <existing-output-directory> <direct|registered|integration|selective> <group>");
+const requestBound = ["request-bound-before","request-bound-after"].includes(role) && group === "request-bound-review";
+if(extra.length||!integration&&!selective&&!requestBound&&!["direct","registered"].includes(role)||!group||!directory)
+  throw new Error("usage: capture-local-canonical-fixture-budget.mjs <existing-output-directory> <direct|registered|integration|selective|request-bound-before|request-bound-after> <group>");
 // The reviewed capture tool may observe an exact historical selective source.
 // Its actual cwd is recorded and admitted; it is never represented as source
 // that already contained this later collector implementation.
@@ -34,9 +36,9 @@ const toolRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const root=selective?realpathSync(process.cwd()):toolRoot;
 assert.equal(realpathSync(process.cwd()),root);
 const out=realpathSync(directory),git=args=>execFileSync("git",["--no-replace-objects",...args],{cwd:root,timeout:10000,maxBuffer:16*1024*1024});
-if([role+".json",role+".log",role+"-lifecycle.log",role+"-collector.log"].some(file=>existsSync(path.join(out,file))))throw new Error("fixture_budget_capture_exists");
+if([role+".json",role+".log",role+"-lifecycle.log",role+"-collector.log",...(requestBound?[role+"-stderr.log"]:[])].some(file=>existsSync(path.join(out,file))))throw new Error("fixture_budget_capture_exists");
 const artifact=(name,value)=>{const data=Buffer.from(typeof value==="string"?value:JSON.stringify(value,null,2)+"\n");writeFileSync(path.join(out,name),data,{flag:"wx",mode:0o600});return{artifact:name,sha256:digest(data)};};
-if (integration || selective) await captureIntegration();
+if (integration || selective || requestBound) await captureIntegration();
 else await captureReviewedFixture();
 
 async function captureIntegration() {
@@ -60,8 +62,9 @@ async function captureIntegration() {
   const host = collectHostEnvironment(root);
   const invocationId = randomBytes(16).toString("hex");
   const command = selective ? process.execPath : "npm";
-  const args = selective ? ["--import", "tsx", "scripts/test-external-response-selective.ts"] : ["run", "test:integration", "--", "--external-response-only"];
-  const label = selective ? "selective fixture workload" : "integration registered fixture allowance";
+  const args = selective ? ["--import", "tsx", "scripts/test-external-response-selective.ts"] :
+    ["run", "test:integration", "--", requestBound ? role === "request-bound-before" ? "--request-bound-review-diagnostic" : "--request-bound-review-only" : "--external-response-only"];
+  const label = selective ? "selective fixture workload" : requestBound ? "request-bound workload allowance" : "integration registered fixture allowance";
   const observe = async () => {
     const runtime = observeCanonicalRuntimeInputs();
     return {
@@ -76,12 +79,17 @@ async function captureIntegration() {
   for (const signal of ["SIGINT", "SIGTERM"]) process.once(signal, () => controller.abort());
   let lease, owner, resources, result, before, after, environment, cleanup, ownership, error, started_at;
   let collectorBytes, tool_source_before, tool_source_after;
-  let output = "", lifecycle = "", outputBytes = 0, truncated = false;
+  let output = "", stderrOutput = "", lifecycle = "", outputBytes = 0, truncated = false;
   const sink = { write(chunk) {
     outputBytes += Buffer.byteLength(chunk);
     if (outputBytes <= 2 * 1024 * 1024) output += chunk;
     else truncated = true;
   } };
+  const stderrSink = requestBound ? {write(chunk) {
+    outputBytes += Buffer.byteLength(chunk);
+    if (outputBytes <= 2 * 1024 * 1024) stderrOutput += chunk;
+    else truncated = true;
+  }} : sink;
   try {
     lease = owners.acquireVerificationCapacity({ context, host: host.public, invocationId });
     owner = owners.acquireCheckoutVerificationOwnership({ repositoryRoot: root });
@@ -97,8 +105,8 @@ async function captureIntegration() {
     result = await runCanonicalChild({
       suite: "fixture-budget-capture", label,
       command, args, cwd: root, env: environment,
-      timeoutMs: selective ? 90000 : AUXILIARY_EXECUTION_BUDGETS.reviewHarnessMs, signal: controller.signal,
-      stdout: sink, stderr: sink, log(line) { lifecycle += line + "\n"; },
+      timeoutMs: selective ? 90000 : requestBound ? REQUEST_BOUND_CAPTURE_MS : AUXILIARY_EXECUTION_BUDGETS.reviewHarnessMs, signal: controller.signal,
+      stdout: sink, stderr: stderrSink, log(line) { lifecycle += line + "\n"; },
     });
     after = await observe();
     if (selective) {
@@ -123,13 +131,15 @@ async function captureIntegration() {
     };
   }
   const record = {
-    contract: selective ? "augnes.selective-fixture-workload-witness.v1" : "augnes.registered-integration-budget-witness.v1",
+    contract: selective ? "augnes.selective-fixture-workload-witness.v1" : requestBound ? "augnes.request-bound-allowance-witness.v1" : "augnes.registered-integration-budget-witness.v1",
     basis: "actual-owned-development-invocation", group, command: [selective ? "node" : "npm", ...args].join(" "),
     tested_source_head: before?.source.head, tree: before?.source.tree,
     started_at, finished_at: new Date().toISOString(), result, before, after, environment,
+    ...(requestBound ? {role,child_command:REQUEST_BOUND_CHILD_COMMAND} : {}),
     ...(selective ? {tool_source_before,tool_source_after} : {}),
     cleanup, ownership, truncated, host: host.public, capacity: lease, checkout: owner?.metadata,
     stdout: artifact(role + ".log", output),
+    ...(requestBound ? {stderr:artifact(role + "-stderr.log",stderrOutput)} : {}),
     lifecycle: artifact(role + "-lifecycle.log", lifecycle),
     collector: artifact(role + "-collector.log", selective ? collectorBytes?.toString("utf8") ?? "" : readFileSync(fileURLToPath(import.meta.url), "utf8")),
     ...(error ? { capture_error: error.code ?? error.name } : {}),

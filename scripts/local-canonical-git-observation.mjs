@@ -1,6 +1,7 @@
+import { readRequestBoundAllowanceDelegation, REQUEST_BOUND_GRANT } from "./local-canonical-request-bound-authority.mjs";
 import { PREPARED_ELIGIBILITY_REPAIR, PREPARED_ELIGIBILITY_CLAIM, PREPARED_ELIGIBILITY_GRANT, verifyPreparedEligibilityRepair } from "./local-canonical-prepared-eligibility-witness.mjs";
 import { VERIFIER_LIFECYCLE_REPAIR, VERIFIER_LIFECYCLE_CLAIM, VERIFIER_LIFECYCLE_GRANT, verifyVerifierLifecycleRepair } from "./local-canonical-verifier-lifecycle-witness.mjs";
-import { isSerialAggregateRevision, hasSerialAccounting } from "./local-canonical-serial-aggregate.mjs";
+import { isSerialAggregateRevision, hasSerialAccounting, SERIAL_HISTORY } from "./local-canonical-serial-aggregate.mjs";
 import { validProjectExperienceAccounting } from "./project-experience-serial-budget.mjs";
 import { digest, classifyInputChange, effectiveInputObservation, inputEventIdentity, nonFaultInputChange, INPUT_CONTRACT, PREPARED_DEPENDENCY_CONTRACT, comparePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
 import { settledIsolatedResources, cancelledPhase, verifySettledPhaseFailure } from "./local-canonical-browser-revision.mjs";
@@ -9,7 +10,8 @@ import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { REGISTERED_FIXTURE_BUDGET, verifyRegisteredFixtureBudget, FIXTURE_BUDGET_CLAIM,
   isMaintenanceFixtureBudget, MAINTENANCE_FIXTURE_CASE, MAINTENANCE_FIXTURE_GRANT,
   REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM, verifyRegisteredIntegrationBudget,
-  SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM, verifySelectiveFixtureWorkload } from "./local-canonical-fixture-budget-witness.mjs";
+  SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM, verifySelectiveFixtureWorkload,
+  REGISTERED_REQUEST_BOUND_ALLOWANCE, REQUEST_BOUND_ALLOWANCE_CLAIM, verifyRequestBoundAllowance } from "./local-canonical-fixture-budget-witness.mjs";
 import { GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM, GENERATED_STOCK_GRANT,
   verifyGeneratedStockRepair } from "./local-canonical-stock-lifecycle-witness.mjs";
 import { REPOSITORY_TYPECHECK, verifyRepositoryTypecheck } from "./local-canonical-typecheck-witness.mjs";
@@ -546,6 +548,7 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
     if (regression.kind===VERIFIER_LIFECYCLE_REPAIR)
       return verifyVerifierLifecycleRepair(p, prior, focused, { git, parse, bytes, completedAt, original, stock, completion, repositoryRoot });
     if (regression.kind===REGISTERED_FIXTURE_BUDGET) return verifyRegisteredFixtureBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
+    if (regression.kind===REGISTERED_REQUEST_BOUND_ALLOWANCE) return verifyRequestBoundAllowance(p,prior,focused,{git,parse,bytes,completedAt,original,stock,completion,repositoryRoot});
     if (regression.kind===SELECTIVE_FIXTURE_WORKLOAD) return verifySelectiveFixtureWorkload(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
     if (regression.kind===REGISTERED_INTEGRATION_BUDGET) return verifyRegisteredIntegrationBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
     if (regression.kind===PREPARED_ELIGIBILITY_REPAIR)
@@ -649,6 +652,7 @@ function visibleDelegationParagraphs(body) {
 }
 
 export function delegatesMaterialSourceCommission(body,p) {
+  if (p.commission.evidence_kind === REGISTERED_REQUEST_BOUND_ALLOWANCE) return !!readRequestBoundAllowanceDelegation(body,p);
   if (p.commission.evidence_kind === SELECTIVE_FIXTURE_WORKLOAD) return !!readSelectiveFixtureWorkloadDelegation(body,p);
   if(p.commission.evidence_kind===GIT_CONFIG_STOCK_VERIFIER_REPAIR)
     return equal(visibleDelegationParagraphs(body),stockVerifierDelegation(p).split("\n\n"));
@@ -794,6 +798,15 @@ function typedMaterialAuthorityBindings(p, kind, claim) {
   ].join("\n");
 }
 
+export const requestBoundAllowanceAuthorityBindings = p => {
+  const v=p.commission.inherited_serial;
+  return typedMaterialAuthorityBindings(p, REGISTERED_REQUEST_BOUND_ALLOWANCE, REQUEST_BOUND_ALLOWANCE_CLAIM)+(v ? "\n"+[
+    "Inherited serial envelope: "+v.envelope_sha256,"Inherited route: "+v.route,"Inherited origin family: "+v.origin_family_id,
+    "Inherited origin attempt: "+v.origin_attempt_id,"Inherited origin receipt: "+v.origin_receipt_fingerprint,SERIAL_HISTORY,
+  ].join("\n") : "");
+};
+export const requestBoundAllowanceAuthorityScope = (p,review,grant) =>
+  typedMaterialAuthorityScope(p,review,grant,requestBoundAllowanceAuthorityBindings(p),REQUEST_BOUND_GRANT);
 export const integrationBudgetAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM);
 export const selectiveFixtureWorkloadAuthorityBindings = p => typedMaterialAuthorityBindings(p, SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM);
 export const maintenanceFixtureAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_FIXTURE_BUDGET, FIXTURE_BUDGET_CLAIM) +

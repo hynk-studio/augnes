@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { requestBoundAllowanceControls } from "./local-canonical-request-bound-allowance.mjs";
+import { requestBoundAuthorityControls } from "./local-canonical-request-bound-authority.mjs";
 import { AUXILIARY_EXECUTION_BUDGETS } from "../local-canonical-closeout-budgets.mjs";
 import { chmodSync, cpSync, linkSync, lstatSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -286,9 +288,12 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
   git(["reset","--hard",head]);
   const generatedControls = generatedDeclarationControls(root, parent, write);
   const selectiveControls = await selectiveFixtureWorkloadControls(parent,h,sourceRoot);
+  const requestBoundControls = requestBoundAllowanceControls(parent);
+  const requestBoundAuthority = requestBoundAuthorityControls();
   rmSync(root,{recursive:true});
   return {contract:REGISTERED_FIXTURE_BUDGET,synthetic_only:true,deciding:false,negative_controls:negatives,source_read_operations:2,distinct_sources:sourceReads.size,
-    existing_dedicated_pair:pairDelta,generated_stock_controls:generatedControls,selective_fixture_controls:selectiveControls,original_incident_reproduction:false,recursive_parent_execution:false};
+    existing_dedicated_pair:pairDelta,generated_stock_controls:generatedControls,selective_fixture_controls:selectiveControls,
+    request_bound_allowance:requestBoundControls,request_bound_authority:requestBoundAuthority,original_incident_reproduction:false,recursive_parent_execution:false};
 }
 
 // These are small synthetic reader controls, not either real selective witness.

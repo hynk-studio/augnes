@@ -22,11 +22,19 @@ export const REGISTERED_INTEGRATION_BUDGET = "registered-integration-child-budge
 export const INTEGRATION_BUDGET_CLAIM = "Measured prospective external-response workload allowance. The historical timeout cause remains UNKNOWN.";
 export const SELECTIVE_FIXTURE_WORKLOAD = "selective-fixture-workload-v1";
 export const SELECTIVE_FIXTURE_WORKLOAD_CLAIM = "Reduced redundant selective fixture work; behavior and bounds retained; stable speedup and historical cause remain unestablished.";
+export const REGISTERED_REQUEST_BOUND_ALLOWANCE = "registered-request-bound-allowance-v1";
+export const REQUEST_BOUND_ALLOWANCE_CLAIM = "Measured prospective request-bound workload allowance; historical cause remains UNKNOWN; neither demonstrated product defect, cure nor qualification PASS.";
+export const REQUEST_BOUND_OWNER = Object.freeze({phase:"integration",suite:"integration",group:"request-bound-review"});
+export const REQUEST_BOUND_FIXTURE_PATH = "scripts/test-request-bound-review.ts";
+export const REQUEST_BOUND_CHILD_COMMAND = "node --import tsx " + REQUEST_BOUND_FIXTURE_PATH;
+export const REQUEST_BOUND_CAPTURE_MS = 105000;
+export const REQUEST_BOUND_BASELINE_ACCEPT = "Independent request-bound baseline review: SOURCE / DEVELOPMENT EVIDENCE ACCEPT. QUALIFICATION HOLD.";
 export const fixtureBudgetEvidenceClaim = kind => kind === REGISTERED_FIXTURE_BUDGET ? FIXTURE_BUDGET_CLAIM :
   kind === REGISTERED_INTEGRATION_BUDGET ? INTEGRATION_BUDGET_CLAIM :
+  kind === REGISTERED_REQUEST_BOUND_ALLOWANCE ? REQUEST_BOUND_ALLOWANCE_CLAIM :
   kind === SELECTIVE_FIXTURE_WORKLOAD ? SELECTIVE_FIXTURE_WORKLOAD_CLAIM : null;
 export const fixtureBudgetFailurePhase = kind => kind === REGISTERED_FIXTURE_BUDGET ? "authority" :
-  [REGISTERED_INTEGRATION_BUDGET, SELECTIVE_FIXTURE_WORKLOAD].includes(kind) ? "integration" : null;
+  [REGISTERED_INTEGRATION_BUDGET, SELECTIVE_FIXTURE_WORKLOAD, REGISTERED_REQUEST_BOUND_ALLOWANCE].includes(kind) ? "integration" : null;
 export const FIXTURE_BUDGET_COLLECTOR = "scripts/capture-local-canonical-fixture-budget.mjs";
 export const FIXTURE_BUDGET_PATHS = Object.freeze({
   wrapper: "scripts/test-local-canonical-review-corrections.mjs",
@@ -1345,6 +1353,7 @@ export function selectiveFixtureWorkloadIncident(p, prior, reg, {git,bytes,origi
   return {registration,child_duration_ms:duration,phase_duration_ms:phase.duration_ms,cause:"UNKNOWN"};
 }
 
+
 export function verifySelectiveFixtureWorkloadReport(report, corrected) {
   const labels = [...selectiveInitialConsumers,...selectiveCases.map(name=>"c-"+name)];
   if (report?.version!=="selective-correction-development.v1" || report.passed!==true || report.failure!=null ||
@@ -1559,4 +1568,243 @@ export function inspectCurrentIntegrationBudgetInputs(root, witness, stockReceip
       !equal(observePureContractLoader(root), witness.after.loader) ||
       comparePreparedDependencyInputs(observePreparedDependencyInputs({ repositoryRoot: root, phaseId: "dependencies-root" }),
         witness.after.dependencies) !== "unchanged" || existsSync(witness.environment.AUGNES_CANONICAL_TEMP_ROOT)) fail();
+}
+
+
+// A prospective allowance for this registered fixture is not product RED/GREEN.
+const requestBoundEnrollment="scripts/test-review-callback-enrollment.ts";
+const requestBoundEvidencePaths=new Set([
+  "scripts/local-canonical-fixture-budget-witness.mjs",FIXTURE_BUDGET_COLLECTOR,
+  "scripts/local-canonical-attempts.mjs","scripts/local-canonical-git-observation.mjs",
+  "scripts/local-canonical-request-bound-authority.mjs","scripts/fixtures/local-canonical-request-bound-authority.mjs",
+  "scripts/fixtures/local-canonical-request-bound-allowance.mjs","scripts/fixtures/local-canonical-fixture-budget.mjs",
+  "scripts/test-local-canonical-review-corrections.mjs","scripts/test-local-canonical-verification-contract.mjs",
+  ".github/LOCAL_CANONICAL_VERIFICATION.md",
+]);
+export const REQUEST_BOUND_COVERAGE_OBLIGATIONS=Object.freeze([
+  "complete-integrated-baseline-including-conflict-resolutions",
+  "request-bound-fixture-and-enrollment-assertions-byte-identical",
+  "approval-backup-revoke-restore-stale-refusal-fresh-approval-retained",
+  "later-request-read-reply-retained","fail-closed-controls-and-natural-cleanup-retained",
+  "only-request-bound-registered-child-deadline-30000-to-45000","historical-cause-and-qualification-remain-unestablished",
+]);
+const requestBoundRequire=ok=>{if(!ok)throw Object.assign(new Error("revision_request_bound_allowance_invalid"),{code:"revision_request_bound_allowance_invalid"});};
+const requestBoundCommit=v=>/^[a-f0-9]{40}$/u.test(v??"");
+const requestBoundSha=v=>/^[a-f0-9]{64}$/u.test(v??"");
+const requestBoundTime=v=>typeof v==="string"&&Number.isFinite(Date.parse(v));
+
+export function requestBoundAllowanceRegistration(git,head) {
+  const source=sourceAt(git,head,FIXTURE_BUDGET_PATHS.suite),tree=ast(source);
+  const prop=(n,name)=>n?.properties?.find(v=>ts().isPropertyAssignment(v)&&v.name.getText(tree)===name)?.initializer;
+  const steps=prop(variable(tree,"suites"),"integration");
+  requestBoundRequire(!tree.parseDiagnostics.length&&steps&&ts().isArrayLiteralExpression(steps)&&steps.elements.every(v=>ts().isObjectLiteralExpression(v)));
+  const child=one(steps.elements.filter(v=>prop(v,"id")?.getText(tree)==='"request-bound-review"')),timeout=prop(child,"timeoutMs");
+  requestBoundRequire(timeout&&ts().isNumericLiteral(timeout)&&child.properties.every(v=>ts().isPropertyAssignment(v)||ts().isSpreadAssignment(v))&&
+    equal(child.properties.filter(ts().isSpreadAssignment).map(n=>n.expression.getText(tree)),['rootNode("'+REQUEST_BOUND_FIXTURE_PATH+'")'])&&
+    prop(child,"group")?.getText(tree)==='"supporting-serial"'&&prop(child,"requireNaturalExit")?.kind===ts().SyntaxKind.TrueKeyword&&
+    equal(child.properties.filter(ts().isPropertyAssignment).map(n=>n.name.getText(tree)).sort(),["group","id","label","requireNaturalExit","requirements","timeoutMs"])&&
+    variable(tree,"rootNode").getText(tree).replace(/\s+/gu,"")==='(...args)=>({command:process.execPath,args:["--import","tsx",...args],cwd:repoRoot,})');
+  const requirements=value(prop(child,"requirements"),tree,null,{});
+  requestBoundRequire(equal(requirements,["database","migrations","filesystem","process-owning","listener-port-owning","mutable-module-state"]));
+  const runner=ast(sourceAt(git,head,"scripts/canonical-child-runner.mjs")),executor=ast(sourceAt(git,head,"scripts/run-local-canonical-verification.mjs"));
+  const parents=nodes(executor,n=>ts().isCallExpression(n)&&n.expression.getText(executor)==="npmPhase"&&n.arguments[0]?.getText(executor)==='"integration"');
+  requestBoundRequire(parents.length===2&&parents.every(n=>n.arguments.length===4&&equal(value(n.arguments[2],executor,null,{}),["run","test:integration"])&&value(n.arguments[3],executor,null,{})===4200000)&&
+    value(variable(runner,"DEFAULT_CANONICAL_TERM_GRACE_MS"),runner,null,{})===8000&&value(variable(runner,"DEFAULT_CANONICAL_KILL_GRACE_MS"),runner,null,{})===5000);
+  return {owner:REQUEST_BOUND_OWNER,child_command:REQUEST_BOUND_CHILD_COMMAND,group:"supporting-serial",label:value(prop(child,"label"),tree,null,{}),requirements,
+    child_ms:value(timeout,tree,null,{}),diagnostic_ms:90000,capture_ms:REQUEST_BOUND_CAPTURE_MS,term_ms:8000,kill_ms:5000,parent_ms:4200000,
+    normalized:digest(replaceNode(source,tree,timeout,"0"))};
+}
+
+export function requestBoundAllowanceSourcePartition(git,baselineHead,finalHead,priorHead=null,beforeHead=baselineHead) {
+  for(const head of [baselineHead,beforeHead,finalHead,...(priorHead?[priorHead]:[])])requestBoundRequire(requestBoundCommit(head));
+  const reader=createCanonicalRevisionReader(git(["rev-parse","--show-toplevel"]).toString().trim());
+  const trees=new Map([...new Set([baselineHead,beforeHead,finalHead,...(priorHead?[priorHead]:[])])].map(head=>[head,reader.tree(head)]));
+  const registrations=[baselineHead,beforeHead,finalHead].map(head=>requestBoundAllowanceRegistration(git,head));
+  requestBoundRequire(registrations[0].child_ms===30000&&registrations[1].child_ms===30000&&registrations[2].child_ms===45000&&
+    registrations.every(r=>r.normalized===registrations[0].normalized));
+  for(const [a,b]of [[baselineHead,beforeHead],[beforeHead,finalHead],...(priorHead?[[priorHead,baselineHead]]:[])])git(["merge-base","--is-ancestor",a,b]);
+  const delta=(a,b)=>{const raw=git(["diff","--binary","--full-index","--no-ext-diff","--no-textconv",a,b,"--"]);
+    return {paths:changedGitFiles(trees.get(a),trees.get(b)),bytes:raw.length,sha256:digest(raw)};};
+  for(const [a,b]of [[baselineHead,beforeHead],[baselineHead,finalHead],[beforeHead,finalHead]]) {
+    for(const file of delta(a,b).paths) {
+      const entry=trees.get(b).get(file)??trees.get(a).get(file);
+      requestBoundRequire((requestBoundEvidencePaths.has(file)||file===FIXTURE_BUDGET_PATHS.suite)&&entry?.type==="blob"&&["100644","100755"].includes(entry.mode));
+    }
+    for(const file of [REQUEST_BOUND_FIXTURE_PATH,requestBoundEnrollment])requestBoundRequire(sameGitEntry(trees.get(a).get(file),trees.get(b).get(file))&&
+      trees.get(a).get(file)?.mode==="100644"&&trees.get(a).get(file)?.type==="blob");
+  }
+  const binding=head=>({head,tree:git(["rev-parse",head+"^{tree}"]).toString().trim(),catalogue_sha256:pureContractGitSource(git,head).summary.inventory_sha256,
+    fixture_sha256:digest(git(["show",head+":"+REQUEST_BOUND_FIXTURE_PATH])),enrollment_sha256:digest(git(["show",head+":"+requestBoundEnrollment])),
+    registration_sha256:digest(requestBoundAllowanceRegistration(git,head))});
+  return {baseline:binding(baselineHead),before:binding(beforeHead),after:binding(finalHead),prior_to_baseline:priorHead?delta(priorHead,baselineHead):null,
+    baseline_to_before:delta(baselineHead,beforeHead),delta:delta(baselineHead,finalHead)};
+}
+
+export function requestBoundAllowanceIncident(p,prior,reg,{git,bytes,original,completion}) {
+  const registration=requestBoundAllowanceRegistration(git,prior.head),incident=reg.incident,previous=prior.source_correction;
+  const phase=original.phases?.find(v=>v.id==="integration");
+  requestBoundRequire(previous?.schema==="augnes.local-canonical-source-correction.v7"&&previous.kind==="reviewed_revision"&&
+    previous.commission?.source_revision==="material-source-correction-v1"&&previous.commission.ordinal===1&&previous.commission.maximum_invocations===1&&
+    prior.number===1&&prior.recovery===null&&equal(prior.budget,{initial:1,recovery:0})&&equal(original.attempt,prior)&&
+    original.integrity?.content_fingerprint===p.prior_receipt_fingerprint&&original.outcome?.disposition==="product_failure"&&
+    original.inputs?.first_fault===null&&equal(original.inputs?.secondary_faults,[])&&completion.disposition==="product_failure"&&
+    completion.cleanup_complete===true&&completion.infrastructure_code===null&&phase?.status==="failure"&&phase.exit_status===1&&
+    phase.timed_out===false&&phase.cleanup?.termination_reason==="natural_exit"&&phase.command==="npm run test:integration"&&phase.log?.truncated===false&&
+    registration.child_ms===30000&&keys(incident,["receipt","log","log_identity","cause"])&&incident.receipt===p.prior_receipt_fingerprint&&incident.cause==="UNKNOWN"&&
+    keys(incident.log_identity,["relative_path","bytes","sha256"])&&incident.log_identity.relative_path===".augnes-local-verification/logs/"+prior.attempt_id+"/integration.log"&&
+    incident.log_identity.relative_path===phase.log.relative_path);
+  const raw=bytes(incident.log,2*1024*1024),text=raw.toString("utf8"),lines=text.split("\n"),label=registration.label;
+  requestBoundRequire(Buffer.from(text).equals(raw)&&raw.length===phase.log.bytes&&raw.length===incident.log_identity.bytes&&digest(raw)===incident.log_identity.sha256&&incident.log.sha256===incident.log_identity.sha256);
+  const start=one(integrationLifecycle(lines,label,"child_start")),spawn=one(integrationLifecycle(lines,label,"child_spawn"));
+  const stop=one(integrationLifecycle(lines,label,"child_cleanup_start")),end=one(integrationLifecycle(lines,label,"child_cleanup_result")),result=one(integrationLifecycle(lines,label,"child_result"));
+  const stopped=Number(stop.match(/ elapsed_ms=(\d+) reason=bounded_timeout /u)?.[1]),duration=Number(end.match(/ elapsed_ms=(\d+) /u)?.[1]);
+  const resultFor=signal=>'[canonical:integration] child_result label='+JSON.stringify(label)+' duration_ms='+duration+
+    ' exit_code=null signal='+signal+' timed_out=true exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=bounded_timeout';
+  requestBoundRequire(start==='[canonical:integration] child_start label='+JSON.stringify(label)+' timeout_ms=30000'&&
+    integer(stopped)&&stopped>=30000&&integer(duration)&&duration>=stopped&&duration<=43000&&
+    stop.endsWith("reason=bounded_timeout exit_observed=false stdout_closed=false stderr_closed=false")&&end.endsWith("reason=bounded_timeout streams_closed=true remaining_owned_processes=0")&&
+    [resultFor("SIGTERM"),resultFor("SIGKILL")].includes(result)&&lines.indexOf(start)<lines.indexOf(spawn)&&lines.indexOf(spawn)<lines.indexOf(stop)&&
+    lines.indexOf(stop)<lines.indexOf(end)&&lines.indexOf(end)<lines.indexOf(result)&&integrationLifecycle(lines,label,"child_exit").length===0);
+  const inventory=JSON.parse(one(lines.filter(l=>l.startsWith("[canonical:integration] group_inventory "))).split("group_inventory ")[1]);
+  const cleanup=one(jsonLines(text).filter(v=>v.suite==="integration"&&Array.isArray(v.resource_cleanup)));
+  requestBoundRequire(inventory.failed_count===1&&inventory.started_count===inventory.settled_count&&inventory.started_count===inventory.completed_count&&
+    equal(inventory.children.filter(v=>v.outcome==="failed"),[{group:"supporting-serial",label,started:true,settled:true,completed:true,outcome:"failed"}])&&
+    cleanupComplete(cleanup.resource_cleanup)&&text.includes("child_timed_out:supporting-serial:"+label)&&integer(phase.duration_ms)&&
+    phase.duration_ms-duration+45000+13000<registration.parent_ms);
+  return {registration,child_duration_ms:duration,phase_duration_ms:phase.duration_ms,cause:"UNKNOWN"};
+}
+
+const requestBoundEnrollmentStages=[
+  "inspect_restored","stale_decision_refusal","restored_subscription_refusal","restored_unsubscribe",
+  "expired_subscription_observation","inspect_fresh_pending","select_fresh","fresh_approval","fresh_subscribe","fresh_unsubscribe",
+].map(stage=>"enrollment/"+stage);
+const requestBoundPhases=["setup_and_first_explicit_cycle","isolation_replay_conflict_and_readback","events_and_adapter_restart",
+  "second_explicit_cycle","version_and_project_races","callback_enrollment","scoped_discovery_and_authority",
+  "database_backup","database_restore","post_restore_preparation","later_request_after_recovery","cleanup"];
+export function validateRequestBoundAllowanceTrace(log,childDuration) {
+  const rows=jsonLines(log),trace=rows.filter(v=>v.test==="request-bound-review-monotonic"),pair=stage=>[[stage,"begin"],[stage,"end"]];
+  const expected=[["test","begin"],...["revoke_after_backup","database_restore","post_restore_preparation","restored_database_invariants"].flatMap(pair),
+    ["enrollment_restoration","begin"],...requestBoundEnrollmentStages.flatMap(pair),["enrollment_restoration","end"],
+    ...["later_request","later_read","later_reply"].flatMap(pair),["cleanup","begin"],
+    ...["close_protocol_client","close_http_server","close_database","remove_fixture_root"].flatMap(pair),["cleanup","end"],["test","end"]];
+  requestBoundRequire(equal(trace.map(v=>[v.stage,v.boundary]),expected)&&integer(childDuration));
+  let previous=-1,offset=null;const starts=new Map(),intervals={};
+  for(const row of trace) {
+    requestBoundRequire(Number.isFinite(row.elapsed_ms)&&row.elapsed_ms>=previous&&row.elapsed_ms>=0&&
+      Number.isFinite(row.since_process_ms)&&row.since_process_ms>=row.elapsed_ms&&row.since_process_ms<=childDuration);
+    const difference=row.since_process_ms-row.elapsed_ms;if(offset===null)offset=difference;
+    requestBoundRequire(Math.abs(difference-offset)<0.001);
+    if(row.boundary==="begin") {
+      requestBoundRequire(row.duration_ms===undefined&&!starts.has(row.stage));starts.set(row.stage,row.elapsed_ms);
+    } else {
+      requestBoundRequire(starts.has(row.stage)&&Number.isFinite(row.duration_ms)&&row.duration_ms>=0&&
+        Math.abs(row.duration_ms-(row.elapsed_ms-starts.get(row.stage)))<0.001);intervals[row.stage]=row.duration_ms;
+    }
+    previous=row.elapsed_ms;
+  }
+  const report=one(rows.filter(v=>v.test==="request-bound-review")),phases=rows.filter(v=>v.test==="request-bound-review-phase"&&v.completed);
+  requestBoundRequire(equal(phases.map(v=>v.completed),requestBoundPhases)&&report.status==="pass"&&
+    equal(report.categories,{A:"PASS",B:"PASS",C:"PASS",D:"PASS",E:"PASS local protocol fixtures",F:"PASS",G:"PASS scripted use; real model/comparison NOT_RUN"})&&
+    report.setup_cycles===1&&report.ordinary_cycles===2&&report.scripted_human_relay===0&&integer(report.callbacks)&&
+    report.actual_chatgpt==="NOT_RUN"&&report.real_model_use==="NOT_RUN"&&report.burden_comparison==="NOT_RUN"&&report.provider_cost==="unknown"&&
+    equal(Object.keys(report.phase_ms??{}),requestBoundPhases)&&
+    phases.every(v=>Number.isSafeInteger(v.duration_ms)&&v.duration_ms>=0&&v.duration_ms===report.phase_ms[v.completed])&&
+    rows.indexOf(phases[7])<rows.indexOf(trace[1])&&rows.indexOf(trace.at(-1))<rows.indexOf(report));
+  return {phases:requestBoundPhases,imports_ms:offset,intervals,child_duration_ms:childDuration};
+}
+
+function requestBoundCapture(ref,role,head,p,{git,parse,bytes}) {
+  const w=parse(ref),{before,after,environment}=w,registration=requestBoundAllowanceRegistration(git,head),beforeRole=role==="request-bound-before";
+  const command="npm run test:integration -- "+(beforeRole?"--request-bound-review-diagnostic":"--request-bound-review-only"),root=environment?.AUGNES_CANONICAL_TEMP_ROOT;
+  requestBoundRequire(w.contract==="augnes.request-bound-allowance-witness.v1"&&w.role===role&&w.basis==="actual-owned-development-invocation"&&
+    w.synthetic_only===undefined&&w.capture_error===undefined&&w.truncated===false&&w.group===REQUEST_BOUND_OWNER.group&&w.child_command===REQUEST_BOUND_CHILD_COMMAND&&
+    w.command===command&&w.tested_source_head===head&&w.tree===git(["rev-parse",head+"^{tree}"]).toString().trim()&&
+    registration.child_ms===(beforeRole?30000:45000)&&natural(w.result)&&integer(w.result.duration_ms)&&w.result.duration_ms<REQUEST_BOUND_CAPTURE_MS&&
+    cleanupComplete([w.cleanup])&&w.ownership?.capacity?.released===true&&w.ownership?.checkout?.released===true&&path.isAbsolute(root??"")&&
+    equal(before?.source,after?.source)&&equal(before?.loader,after?.loader)&&equal(before?.runtime,after?.runtime)&&
+    comparePreparedDependencyInputs(before?.dependencies,after?.dependencies)==="unchanged"&&preparedDependencyIdentity(before.dependencies).phase_id==="dependencies-root"&&
+    requestBoundTime(w.started_at)&&requestBoundTime(w.finished_at)&&Date.parse(w.started_at)<Date.parse(w.finished_at));
+  const expected=pureContractGitSource(git,head).summary,{root_generated,...source}=before.source;
+  requestBoundRequire(equal(source,expected)&&Array.isArray(root_generated)&&root_generated.length<=1&&
+    root_generated.every(v=>keys(v,["path","sha256"])&&v.path==="next-env.d.ts"&&requestBoundSha(v.sha256))&&
+    before.loader.path==="node_modules/tsx/dist/loader.mjs"&&requestBoundSha(before.loader.sha256)&&
+    before.loader.version===JSON.parse(sourceAt(git,head,"package-lock.json")).packages["node_modules/tsx"].version&&
+    digest(before.runtime)===p.inputs.identity_sha256&&[before,after].every(v=>v.target.inventory===gitRevisionInventory(v.target.inputInventory)&&
+      v.target.service.state.preservation_valid===true&&v.target.service.diagnostics.coherent===true)&&
+    before.target.inventory===after.target.inventory&&equal(before.target.service.state,after.target.service.state));
+  const expectedEnvironment=fixtureBudgetEnvironment(root,environment);delete expectedEnvironment.NODE_ENV;
+  Object.assign(expectedEnvironment,{npm_config_cache:path.join(root,"npm-cache"),npm_config_devdir:path.join(root,"node-gyp")});
+  requestBoundRequire(equal(environment,expectedEnvironment)&&environment.AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT===digest(before.runtime.headers.observation)&&
+    bytes(w.collector,128*1024).toString("utf8")===sourceAt(git,p.head,FIXTURE_BUDGET_COLLECTOR));
+  naturalLifecycle(bytes(w.lifecycle,128*1024).toString("utf8"),{suite:"fixture-budget-capture",label:"request-bound workload allowance",
+    timeout:REQUEST_BOUND_CAPTURE_MS,duration:w.result.duration_ms});
+  const raw=bytes(w.stdout,2*1024*1024),stderr=bytes(w.stderr,2*1024*1024),log=raw.toString("utf8");
+  requestBoundRequire(Buffer.from(log).equals(raw)&&Buffer.from(stderr.toString("utf8")).equals(stderr)&&log.endsWith("\n"));
+  const summaryStart=log.lastIndexOf('\n{\n  "suite":');requestBoundRequire(summaryStart>=0);
+  const tail=JSON.parse(log.slice(summaryStart+1).split("\n}",1)[0]+"\n}"),child=one(tail.results);
+  const owned=jsonLines(log).filter(v=>v.suite_resource_owned==="integration"||v.child_resource_owned===REQUEST_BOUND_OWNER.group);
+  const cleanup=one(jsonLines(log).filter(v=>v.suite==="integration"&&v.resource_cleanup)),diagnostics=jsonLines(log).filter(v=>v.diagnostic_only!==undefined);
+  requestBoundRequire(tail.suite==="integration"&&tail.coverage===(beforeRole?"non_deciding_request_bound_diagnostic_only":"focused_request_bound_child_only")&&
+    tail.status==="pass"&&tail.environment_isolation_verified===true&&tail.forbidden_environment_keys_forwarded===0&&tail.canonical_children_checked===1&&
+    tail.concurrency_bound===1&&equal(tail.integration_groups,["supporting-serial"])&&tail.companion_service_maintenance?.acquired===false&&
+    tail.companion_service_maintenance?.release_completed===true&&child.id===REQUEST_BOUND_OWNER.group&&child.label===registration.label&&
+    equal(child.requirements,registration.requirements)&&child.group==="supporting-serial"&&child.status===0&&child.timed_out===false&&child.signal===null&&
+    clean(child)&&child.termination_reason==="natural_exit"&&integer(child.duration_ms)&&child.duration_ms<(beforeRole?90000:45000)&&
+    equal(log.split("\n").filter(l=>l.startsWith("[canonical:integration] child_result ")),[childResultLine(child.label,child.duration_ms)])&&
+    owned.length===2&&new Set(owned.map(v=>v.root)).size===2&&owned.every(v=>typeof v.root==="string"&&path.dirname(v.root)===root)&&
+    cleanupComplete(cleanup.resource_cleanup)&&equal(cleanup.resource_cleanup.map(v=>v.root).sort(),owned.map(v=>v.root).sort())&&
+    equal(diagnostics,beforeRole?[{diagnostic_only:true,deciding:false,owner:REQUEST_BOUND_OWNER.group,measurement_bound_ms:90000,production_bound_ms:30000}]:[])&&
+    !log.split("\n").some(l=>l.startsWith("[local-canonical-browser-use] ")));
+  naturalLifecycle(log,{suite:"integration",label:child.label,timeout:beforeRole?90000:45000,duration:child.duration_ms});
+  return {w,child,trace:validateRequestBoundAllowanceTrace(log,child.duration_ms)};
+}
+
+export function validateRequestBoundBaselineAuthority(p,baseline,record,permission,{completedAt,delegationAt,beforeStartedAt}) {
+  requestBoundRequire(keys(baseline,["base","head","tree","receiving_review"])&&[baseline.base,baseline.head,baseline.tree].every(requestBoundCommit)&&
+    keys(baseline.receiving_review,["id","sha256"])&&integer(baseline.receiving_review.id)&&requestBoundSha(baseline.receiving_review.sha256)&&
+    record?.id===baseline.receiving_review.id&&record.user?.type==="User"&&integer(record.user?.id)&&/^[A-Za-z0-9-]{1,39}$/u.test(record.user?.login??"")&&
+    ["OWNER","MEMBER","COLLABORATOR"].includes(record.author_association)&&["COMMENTED","APPROVED"].includes(record.state)&&record.commit_id===baseline.head&&
+    record.pull_request_url==="https://api.github.com/repos/hynk-studio/augnes/pulls/"+p.pull_request&&typeof record.body==="string"&&
+    Buffer.byteLength(record.body)<=64*1024&&record.body.split(/\r?\n/u)[0]===REQUEST_BOUND_BASELINE_ACCEPT&&
+    [baseline.base,baseline.head,baseline.tree].every(v=>record.body.includes(v))&&permission?.user?.login===record.user.login&&
+    ["admin","maintain"].includes(permission.permission)&&[completedAt,delegationAt,record.submitted_at,beforeStartedAt].every(requestBoundTime)&&
+    Date.parse(completedAt)<Date.parse(delegationAt)&&Date.parse(delegationAt)<Date.parse(record.submitted_at)&&Date.parse(record.submitted_at)<Date.parse(beforeStartedAt));
+  const observation={id:record.id,author:record.user.login,author_id:record.user.id,body_sha256:digest(record.body),
+    timestamp:record.updated_at??record.submitted_at??record.created_at,role:"accepted_revision",commit_id:record.commit_id};
+  requestBoundRequire(digest(observation)===baseline.receiving_review.sha256);return observation;
+}
+
+export function verifyRequestBoundAllowance(p,prior,focused,options) {
+  const {git,parse,completedAt}=options,reg=focused.regression,baseline=reg?.accepted_baseline;
+  requestBoundRequire(keys(reg,["kind","claim","owner","incident","accepted_baseline","before","after","coverage_review"])&&
+    reg.kind===REGISTERED_REQUEST_BOUND_ALLOWANCE&&p.commission.evidence_kind===reg.kind&&reg.claim===REQUEST_BOUND_ALLOWANCE_CLAIM&&
+    equal(reg.owner,REQUEST_BOUND_OWNER)&&focused.failed_phase==="integration"&&equal(focused.input_remedy_resources,[])&&
+    focused.implicated_paths?.includes(FIXTURE_BUDGET_PATHS.suite)&&keys(baseline,["base","head","tree","receiving_review"])&&
+    [baseline.base,baseline.head,baseline.tree].every(requestBoundCommit)&&keys(baseline.receiving_review,["id","sha256"])&&
+    integer(baseline.receiving_review.id)&&requestBoundSha(baseline.receiving_review.sha256)&&
+    git(["rev-parse",baseline.head+"^{tree}"]).toString().trim()===baseline.tree);
+  requestBoundAllowanceIncident(p,prior,reg,options);
+  const beforeHead=parse(reg.before).tested_source_head;requestBoundRequire(requestBoundCommit(beforeHead)&&beforeHead!==p.head);
+  git(["merge-base","--is-ancestor",baseline.base,baseline.head]);git(["merge-base","--is-ancestor",p.base,p.head]);
+  const partition=requestBoundAllowanceSourcePartition(git,baseline.head,p.head,prior.head,beforeHead);
+  const before=requestBoundCapture(reg.before,"request-bound-before",beforeHead,p,options),after=requestBoundCapture(reg.after,"request-bound-after",p.head,p,options);
+  const review=parse(reg.coverage_review);
+  requestBoundRequire(keys(review,["schema","basis","reviewer","verdict","baseline","before","after","prior_to_baseline","baseline_to_before","delta","obligations","reviewed_at"])&&
+    review.schema==="augnes.request-bound-allowance-coverage-review.v1"&&review.basis==="independent-source-and-coverage-review"&&
+    typeof review.reviewer==="string"&&review.reviewer.length>=3&&review.reviewer.length<=200&&review.verdict==="ACCEPT / RETAIN"&&
+    ["baseline","before","after","prior_to_baseline","baseline_to_before","delta"].every(k=>equal(review[k],partition[k]))&&
+    equal(review.obligations,REQUEST_BOUND_COVERAGE_OBLIGATIONS)&&requestBoundTime(review.reviewed_at)&&
+    Date.parse(completedAt)<Date.parse(review.reviewed_at)&&Date.parse(after.w.finished_at)<=Date.parse(review.reviewed_at)&&
+    Date.parse(review.reviewed_at)<=Date.parse(focused.finished_at)&&before.child.duration_ms+13000<45000&&
+    comparePreparedDependencyInputs(before.w.after.dependencies,after.w.before.dependencies)==="unchanged"&&equal(before.w.after.loader,after.w.before.loader)&&
+    after.w.after.target.inventory===p.inputs.inventory_sha256&&Date.parse(completedAt)<Date.parse(before.w.started_at)&&
+    Date.parse(before.w.finished_at)<Date.parse(after.w.started_at)&&Date.parse(after.w.finished_at)<=Date.parse(focused.finished_at)&&
+    focused.commands?.some(c=>c.command===after.w.command&&c.tested_source_head===p.head&&equal(c.record,reg.after)&&equal(c.stdout,after.w.stdout)));
+  return p.head;
+}
+
+export function inspectCurrentRequestBoundInputs(root,witness,stockReceipt=null) {
+  requestBoundRequire(witness?.contract==="augnes.request-bound-allowance-witness.v1"&&witness.role==="request-bound-after"&&
+    witness.group===REQUEST_BOUND_OWNER.group&&witness.child_command===REQUEST_BOUND_CHILD_COMMAND);
+  return inspectCurrentIntegrationBudgetInputs(root,witness,stockReceipt);
 }

@@ -2118,6 +2118,64 @@ It permits one invocation and retains the same reservation, settlement,
 authentication, freshness, history, separate fresh-process stock and independent
 result audit requirements. Reservation or interruption consumes that invocation.
 
+##### Measured request-bound review allowance
+
+`registered-request-bound-allowance-v1` is a bounded evidence kind within the
+existing inventory-bound `material-source-correction-v1` lineage. It covers only
+the registered integration `request-bound-review` child, including its existing
+supporting-serial resource requirements and natural cleanup. It is a prospective
+workload judgment, not a product defect, historical timeout explanation, cure or
+qualification PASS. The predecessor must be the exhausted, naturally settled
+material-source attempt whose original integration log records this child's sole
+30000 ms timeout, complete owned settlement and false stock. Original receipts,
+NOT_RUN phases, UNKNOWN windows and spent authority remain unchanged.
+
+Development integration may precede this correction even when that predecessor
+failed. It does not use or weaken the success-gated `accepted_main_integration`
+transition. A separately recorded complete integrated-baseline review accepts
+the exact base/head/tree and conflict resolutions as source/development evidence,
+with qualification HOLD. This authenticated review follows the new delegation
+and precedes the measured-before capture. The complete predecessor-to-baseline
+delta remains bound; the later evidence-owner delta is separately reviewed.
+
+The explicit collector's `request-bound-before` and `request-bound-after` roles
+select this child through the registered suite and existing environment/resource
+owners. The before capture uses the explicitly non-deciding 90000 ms diagnostic
+selection on a clean 30000 ms registration. The after capture uses the actual
+45000 ms registration without that override. Both must exit naturally, retain
+complete separate stdout/stderr, paired monotonic restore/enrollment/request/read/
+reply/cleanup observations, all substantive assertions and both input inventories.
+The before child's complete natural duration plus the existing 13000 ms TERM/KILL
+reserve must fit the selected 45000 ms allowance. The historical parent prefix
+plus that allowance and reserve must fit the unchanged 4200000 ms parent. Other
+children, product serial envelopes and real Browser budgets stay fixed.
+
+The accepted baseline freezes the complete request-bound and enrollment source,
+and the entire suite except the dedicated 30000-to-45000 ms deadline literal.
+Only the explicitly bounded evidence owners, adverse controls and policy may
+change after that baseline. An intermediate clean measured-before head may add
+those owners; the final source keeps their collector bytes identical. An actual
+separate coverage review binds every delta and retained assertion obligation.
+Runtime, loader, prepared dependencies, source and complete inventory are fixed
+and rechecked by preparation, admission, replay and fresh stock. Generated input
+handling retains its existing owner; no NOT_RUN-derived stock issue is suppressed.
+
+The production reader recognizes the cohesive visible `request-bound-continuation-v1`
+delegation format, with exact branch, PR, spent predecessor and starting source.
+It rejects hidden, quoted, negated, extra or broadened authority and other evidence
+kinds. Authentication, current maintainer permission, observation digest, unedited
+record and post-completion timing are mandatory. This delegation is neither
+exact-target acceptance nor a grant. After real non-reserving preparation and a
+separate final source/evidence/policy/preparation/inventory acceptance, the operator
+may faithfully record that decision and publish a distinct subsequent commission.
+Its first line is `Authorize one NEW prospective v7 reviewed_revision commission
+for the measured request-bound allowance.` Exact source, preparation, complete
+input/runtime identities, inherited serial obligations and physical predecessor
+remain bound. Exactly one admitted invocation is allowed; reservation/interruption
+consumes it, with no ordinal two, recovery or unchanged-target retry. Complete
+planner-selected qualification, separate fresh-process stock, independent result
+audit and cleanup remain required. Model-only review is identified as such.
+
 ##### Generated declaration stock lifecycle correction
 
 The registered source witnesses freeze the complete focused source, including

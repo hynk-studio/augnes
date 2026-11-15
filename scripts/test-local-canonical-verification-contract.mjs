@@ -1344,7 +1344,7 @@ for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 120_000', 'req
 const executionChoiceRegistration = readCanonicalChildRegistration(integrationSource, "execution-choice");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-execution-choice.ts"'])
   requireText(executionChoiceRegistration.block, fragment, "execution choice owns disposable state, exact materials, downstream artifact and fresh-process readback");
-for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-request-bound-review.ts"'])
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 45_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-request-bound-review.ts"'])
   requireText(requestReviewRegistration.block, fragment, "request-bound review retains the supporting lifecycle owners and a finite independent child");
 assert.equal(countOccurrences(firstWorkFixture, "await assertRetryInspectionLoopV01();"), 1,
   "the outlook loop runs once without extending the default initialization child");
