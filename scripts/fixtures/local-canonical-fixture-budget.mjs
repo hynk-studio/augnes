@@ -228,7 +228,7 @@ export async function identityBudgetWitnessControls(parent,_h,sourceRoot) {
     write(FIXTURE_BUDGET_COLLECTOR,"export const controlled_collector=true;\n");
     write("README.md","controlled baseline\n");
     const suite='const rootNode=(...args)=>({command:process.execPath,args:["--import","tsx",...args],cwd:repoRoot,});\n'+
-      'const suites={integration:[{id:"'+owner+'",group:"supporting-serial",requirements:["filesystem","process-owning","project-root","mutable-module-state"],label:'+JSON.stringify(label)+',...rootNode("'+test+'","--contracts"),timeoutMs:60_000}]};\n';
+      'const suites={integration:[{id:"'+owner+'",group:"supporting-serial",requirements:["filesystem","process-owning","project-root","mutable-module-state"],label:'+JSON.stringify(label)+',...rootNode(\n"'+test+'",\n"--contracts",\n),timeoutMs:60_000}]};\n';
     write(FIXTURE_BUDGET_PATHS.suite,suite);const oldHead=commit("controlled original Identity allowance");
     write(FIXTURE_BUDGET_PATHS.suite,suite.replace("timeoutMs:60_000","timeoutMs:90_000"));
     const head=commit("controlled prospective Identity allowance"),tree=git(["rev-parse","HEAD^{tree}"]).toString().trim();
@@ -327,9 +327,14 @@ export async function identityBudgetWitnessControls(parent,_h,sourceRoot) {
       assert.throws(()=>verify(p,f),"Identity summary must refuse substituted "+field);negatives++;
     }
     const badProof=structuredClone(p);badProof.commission.evidence_kind=REGISTERED_FIXTURE_BUDGET;assert.throws(()=>verify(badProof));negatives++;
-    for(const [file,value]of [[test,"changed assertions\n"],["scripts/fixtures/fake-codex-app-server.mjs","changed fake\n"],["lib/vnext/native-host/codex-isolated-auth-projection.ts","changed security\n"],
-      ["scripts/run-local-canonical-verification.mjs",(executor+executor).replaceAll("4_200_000","4_300_000")],[FIXTURE_BUDGET_PATHS.suite,suite.replace("timeoutMs:60_000","timeoutMs:120_000")]]) {
-      write(file,value);const changed=commit("controlled incompatible Identity source");assert.throws(()=>identityBudgetSourcePartition(git,oldHead,changed,p.base));git(["reset","--hard",head]);negatives++;
+    for(const [file,value,registrationOnly]of [[test,"changed assertions\n"],["scripts/fixtures/fake-codex-app-server.mjs","changed fake\n"],["lib/vnext/native-host/codex-isolated-auth-projection.ts","changed security\n"],
+      ["scripts/run-local-canonical-verification.mjs",(executor+executor).replaceAll("4_200_000","4_300_000")],[FIXTURE_BUDGET_PATHS.suite,suite.replace("timeoutMs:60_000","timeoutMs:120_000")],
+      [FIXTURE_BUDGET_PATHS.suite,suite.replace('"--contracts",','"--contracts","--extra",'),true],
+      [FIXTURE_BUDGET_PATHS.suite,suite.replace('"--contracts",','"--rollback-lifecycle",'),true],
+      [FIXTURE_BUDGET_PATHS.suite,suite.replace('"--contracts",','...["--contracts"],'),true]]) {
+      write(file,value);const changed=commit("controlled incompatible Identity source");
+      assert.throws(registrationOnly?()=>identityBudgetRegistration(git,changed):()=>identityBudgetSourcePartition(git,oldHead,changed,p.base));
+      git(["reset","--hard",head]);negatives++;
     }
     write("README.md","unadopted prose\n");const unadopted=commit("controlled unadopted prose");assert.throws(()=>identityBudgetSourcePartition(git,oldHead,unadopted));git(["reset","--hard",head]);negatives++;
     git(["checkout","--detach",oldHead]);write("README.md","adopted prose\n");write("apps/web_planning/README.md","adopted app README\n");const base=commit("controlled adopted prose");

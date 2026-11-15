@@ -1145,10 +1145,12 @@ export function identityBudgetRegistration(git, head) {
   if (!ts().isArrayLiteralExpression(steps)) fail();
   const child=one(steps.elements.filter(n=>ts().isObjectLiteralExpression(n)&&n.properties.some(p=>
     ts().isPropertyAssignment(p)&&p.name.getText(tree)==="id"&&ts().isStringLiteral(p.initializer)&&p.initializer.text===identityOwner)));
+  const launch=one(child.properties.filter(ts().isSpreadAssignment)).expression;
+  if (!ts().isCallExpression(launch)||!ts().isIdentifier(launch.expression)||launch.expression.text!=="rootNode"||launch.typeArguments?.length||
+      launch.arguments.length!==2||launch.arguments.some(n=>!ts().isStringLiteral(n))||
+      !equal(launch.arguments.map(n=>n.text),[identityTest,"--contracts"])) fail();
   if (!equal(child.properties.filter(ts().isPropertyAssignment).map(p=>p.name.getText(tree)).sort(),["group","id","label","requirements","timeoutMs"])||
       child.properties.some(p=>!ts().isPropertyAssignment(p)&&!ts().isSpreadAssignment(p))||
-      !equal(child.properties.filter(ts().isSpreadAssignment).map(p=>p.expression.getText(tree).replace(/\s+/gu,"")),
-        ['rootNode("'+identityTest+'","--contracts")'])||
       value(prop(child,"group"),tree,null,{})!=="supporting-serial"||
       !equal(value(prop(child,"requirements"),tree,null,{}),["filesystem","process-owning","project-root","mutable-module-state"])||
       variable(tree,"rootNode").getText(tree).replace(/\s+/gu,"")!=='(...args)=>({command:process.execPath,args:["--import","tsx",...args],cwd:repoRoot,})'||
