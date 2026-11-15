@@ -3,13 +3,13 @@
 import assert from "node:assert/strict";
 import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { digest, observeInputFile } from "./local-canonical-inputs.mjs";
+import { digest, observeInputFile, INPUT_CONTRACT } from "./local-canonical-inputs.mjs";
 import { verifyGitSourceRepair, MATERIAL_SOURCE_CORRECTION, GUIDE_REPAIR_DRIVER, GUIDE_REPAIR_MODULE,
   GUIDE_REPAIR_FIXTURES, GUIDE_REPAIR_SCOPE, validateGuideRepairOutcome, FRESHNESS_REPAIR_DRIVER, FRESHNESS_REPAIR_MODULES,
   FRESHNESS_REPAIR_FIXTURES,FRESHNESS_REPAIR_SCOPE,validateFreshnessRepairOutcome,
   STOCK_MISMATCH_REPAIR_DRIVER,STOCK_MISMATCH_REPAIR_MODULES,STOCK_MISMATCH_REPAIR_FIXTURES,STOCK_MISMATCH_REPAIR_SCOPE,
   validateStockMismatchRepairOutcome,materialStockMismatchDelegation,readMaterialStockMismatchDelegation,
-  verifyMaterialStockMismatchDelegationTarget,delegatesMaterialSourceCommission } from "./local-canonical-git-observation.mjs";
+  verifyMaterialStockMismatchDelegationTarget,delegatesMaterialSourceCommission,gitRevisionInventory } from "./local-canonical-git-observation.mjs";
 import { OPERATOR_REQUEST_LIFECYCLE_PHASES_V1 } from "./operator-execution-result-contract-v1.mjs";
 import { revisionArtifact } from "./local-canonical-attempts.mjs";
 import { validateResultDraftCaptureOutcome, validateCaptureBrowserUses, replaceCaptureModule, finalizeFocusedCapture, checkCaptureSource, verifyCaptureDependencyProvenance, TS_REPAIR_DRIVER as driver, TS_REPAIR_MODULE as module } from "./capture-canonical-ts-repair.mjs";
@@ -197,6 +197,24 @@ try {
  const controlledRef=save("mismatch-controlled-input.json",controlled),originalHashes=Object.fromEntries(Object.entries(controlled.originals).map(([key,value])=>[key,digest(Buffer.from(value))]));
  const mismatchProof={...nativeProof,branch:"codex/synthetic",pull_request:999,
    originals:Object.fromEntries(["receipt","attempt","stock"].map(key=>[key,{artifact:key+".json",sha256:originalHashes[key]}]))};
+ const sourceResource=(name,index)=>({id:"source-fixture-"+index,classification:"execution",location_fingerprint:digest(path.join(root,name)),
+   before:{present:true,sha256:digest(mismatchFiles.get(name)),metadata:{...structuredClone(observation.metadata),mode:String(0o100644),bytes:String(mismatchFiles.get(name).length),inode:String(100+index),mtime_ns:"1",ctime_ns:"1"}}});
+ const inventoryResources=["git-config","node-executable","node-headers","git-executable","browser-executable"].map(id=>({id,classification:"execution",location_fingerprint:digest("synthetic/"+id),before:structuredClone(observation)}));
+ Object.assign(inventoryResources[0],{gitTracking:{policy:"isolated-current-branches-v1",protected_branches:[digest("synthetic protected branch")]}});
+ inventoryResources[0].before.git_projection={applicable:true,policy:"isolated-current-branches-v1",scope_fingerprint:digest("scoped Git"),effective_sha256:digest("scoped bytes")};
+ inventoryResources.push(...STOCK_MISMATCH_REPAIR_MODULES.map(sourceResource));
+ const inventorySnapshot=resources=>{const input={contract:INPUT_CONTRACT,path_kind:"isolated-model-free-v1",binding:{},resources};
+   input.fingerprint=digest(input);return{inventory:gitRevisionInventory(input),service:{authority:"not_consumed_by_transition"},inputInventory:input};};
+ const initialSnapshot=inventorySnapshot(inventoryResources),restoredResources=structuredClone(inventoryResources);
+ for(const resource of restoredResources.filter(v=>v.id.startsWith("source-fixture-")))Object.assign(resource.before.metadata,{mtime_ns:"2",ctime_ns:"2"});
+ const restoredSnapshot=inventorySnapshot(restoredResources),finalSnapshot=structuredClone(restoredSnapshot);
+ mismatchProof.inputs={...mismatchProof.inputs,inventory_sha256:restoredSnapshot.inventory};
+ const transition={contract:"augnes.material-stock-source-overlay-input-transition.v1",paths:STOCK_MISMATCH_REPAIR_MODULES,
+   initial:save("mismatch-initial-pin.json",initialSnapshot),restored:save("mismatch-restored-pin.json",restoredSnapshot),final:save("mismatch-final-pin.json",finalSnapshot),
+   acquisitions:{initial:{started_at:"2026-01-01T00:00:01.000Z",finished_at:"2026-01-01T00:00:02.000Z"},
+     restored:{started_at:"2026-01-02T01:00:00.000Z",finished_at:"2026-01-02T01:00:01.000Z"},
+     final:{started_at:"2026-01-03T01:00:00.000Z",finished_at:"2026-01-03T01:00:01.000Z"}}};
+ const transitionRef=save("mismatch-overlay-transition.json",transition);
  const mismatchReport=(ref,exit)=>({contract:"augnes.material-stock-mismatch-boundary.v1",scope:STOCK_MISMATCH_REPAIR_SCOPE,
    input_sha256:controlledRef.sha256,historical_sha256:digest(controlled.originals),originals:originalHashes,
    implicated_sources:STOCK_MISMATCH_REPAIR_MODULES.map(name=>({path:name,byte_size:mismatchContent(ref,name).length,sha256:digest(mismatchContent(ref,name))})),
@@ -210,6 +228,7 @@ try {
      worktree_before:exit?STOCK_MISMATCH_REPAIR_MODULES.map(name=>" M "+name+"\n").join(""):"",worktree_after:exit?STOCK_MISMATCH_REPAIR_MODULES.map(name=>" M "+name+"\n").join(""):"",
      file_sha256:digest(mismatchFiles.get(STOCK_MISMATCH_REPAIR_DRIVER)),fixture_sha256:digest(mismatchSource(head).filter(v=>STOCK_MISMATCH_REPAIR_FIXTURES.includes(v.path))),
      modules:STOCK_MISMATCH_REPAIR_MODULES.map(name=>({path:name,sha256:digest(mismatchContent(ref,name))})),command:mismatchCommand,controlled_input:controlledRef,
+     input_inventory_sha256:exit?initialSnapshot.inventory:restoredSnapshot.inventory,source_overlay_input_transition:transitionRef,
      stdout:save("mismatch-output-"+ref+".log",Buffer.from(stdout+stderr)),raw_streams:{stdout:{ref:save("mismatch-stdout-"+ref+".log",Buffer.from(stdout)),bytes:Buffer.byteLength(stdout)},stderr:{ref:save("mismatch-stderr-"+ref+".log",Buffer.from(stderr)),bytes:Buffer.byteLength(stderr)}}};
    w.settlement=save("mismatch-settlement-"+ref+".json",{started_at:w.started_at,finished_at:w.finished_at,result:w.result});return w;
  };
@@ -224,6 +243,36 @@ try {
      if(args[0]==="rev-parse")return Buffer.from(args[2].startsWith(old)?"0".repeat(40):"1".repeat(40));if(args[0]==="diff")return Buffer.from(args[1]==="--name-only"?changed.join("\n"):"@@ -1 +1 @@\n-old\n+new\n");throw Error("unexpected mismatch Git operation");},
    parse:ref=>typeof ref==="object"?JSON.parse(revisionArtifact(root,ref)):ref==="mismatch-before"?b:a,bytes:(ref,max)=>revisionArtifact(root,ref,max)});
  assert.equal(mismatchCheck(),head);
+ const transitionCheck=(value,b=mb,a=ma,proof=mismatchProof)=>{
+   const ref=save("mismatch-mutated-transition-"+refusals+".json",value);
+   return mismatchCheck({...b,source_overlay_input_transition:ref},{...a,source_overlay_input_transition:ref},proof);
+ };
+ for(const change of [v=>v.contract="unknown",v=>v.paths.reverse(),v=>v.final=v.initial,v=>v.restored=v.initial,
+   v=>v.acquisitions.initial.finished_at=mb.finished_at,v=>v.acquisitions.restored.started_at=mb.started_at,
+   v=>v.acquisitions.final.started_at=ma.started_at,v=>v.acquisitions.final.finished_at="2026-01-02T00:00:00.000Z",
+   v=>v.acquisitions.restored.extra=true,v=>v.extra=true]){const value=structuredClone(transition);change(value);refuse(()=>transitionCheck(value));}
+ for(const change of [w=>delete w.source_overlay_input_transition,w=>w.source_overlay_input_transition={...transitionRef,sha256:digest("relabelled transition")},
+   w=>w.input_inventory_sha256=restoredSnapshot.inventory]){const b=structuredClone(mb);change(b);refuse(()=>mismatchCheck(b));}
+ const staleAfter=structuredClone(ma);staleAfter.input_inventory_sha256=initialSnapshot.inventory;refuse(()=>mismatchCheck(mb,staleAfter));
+ for(const change of [resources=>resources.find(v=>v.id==='source-fixture-0').before.sha256=digest("other source bytes"),
+   resources=>resources.find(v=>v.id==='source-fixture-0').before.metadata.bytes="0",
+   resources=>resources.find(v=>v.id==='source-fixture-0').before.metadata.inode="999",
+   resources=>resources.find(v=>v.id==='source-fixture-0').before.metadata.mode=String(0o100664),
+   resources=>resources.find(v=>v.id==='source-fixture-0').before.metadata.uid="999",
+   resources=>resources.find(v=>v.id==='source-fixture-0').location_fingerprint=digest("other physical source"),
+   resources=>resources.find(v=>v.id==='source-fixture-1').before.metadata.mtime_ns="invalid",
+   resources=>Object.assign(resources.find(v=>v.id==='source-fixture-1').before.metadata,{mtime_ns:"1",ctime_ns:"1"}),
+   resources=>resources.find(v=>v.id==='node-executable').before.metadata.mtime_ns="99",
+   resources=>resources.find(v=>v.id==='git-config').before.sha256=digest("other complete Git bytes")]){
+   const resources=structuredClone(restoredResources);change(resources);const snapshot=inventorySnapshot(resources),value=structuredClone(transition);
+   value.restored=save("mismatch-mutated-restored-"+refusals+".json",snapshot);value.final=save("mismatch-mutated-final-"+refusals+".json",snapshot);
+   const proof=structuredClone(mismatchProof);proof.inputs.inventory_sha256=snapshot.inventory;
+   const a={...ma,input_inventory_sha256:snapshot.inventory};refuse(()=>transitionCheck(value,mb,a,proof));
+ }
+ const replayedPin=structuredClone(transition);replayedPin.restored=save("mismatch-replayed-restored.json",initialSnapshot);replayedPin.final=save("mismatch-replayed-final.json",initialSnapshot);
+ refuse(()=>transitionCheck(replayedPin,mb,{...ma,input_inventory_sha256:initialSnapshot.inventory},{...mismatchProof,inputs:{...mismatchProof.inputs,inventory_sha256:initialSnapshot.inventory}}));
+ const finalDrift=structuredClone(restoredResources);finalDrift.find(v=>v.id==='git-config').before.sha256=digest("Git drift after child");
+ const driftTransition=structuredClone(transition);driftTransition.final=save("mismatch-drifted-final.json",inventorySnapshot(finalDrift));refuse(()=>transitionCheck(driftTransition));
  refuse(()=>mismatchCheck(mb,ma,mismatchProof,mf,[...STOCK_MISMATCH_REPAIR_MODULES,"lib/unrelated-product.ts"]));
  refuse(()=>mismatchCheck(mb,ma,mismatchProof,mf,[]));
  for(const change of [f=>f.regression.path=FRESHNESS_REPAIR_DRIVER,f=>f.failed_phase="authority",f=>f.implicated_paths.reverse(),

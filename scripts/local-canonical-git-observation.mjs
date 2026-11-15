@@ -1,3 +1,4 @@
+import path from "node:path";
 import { readRequestBoundAllowanceDelegation, REQUEST_BOUND_GRANT } from "./local-canonical-request-bound-authority.mjs";
 import { PREPARED_ELIGIBILITY_REPAIR, PREPARED_ELIGIBILITY_CLAIM, PREPARED_ELIGIBILITY_GRANT, verifyPreparedEligibilityRepair } from "./local-canonical-prepared-eligibility-witness.mjs";
 import { VERIFIER_LIFECYCLE_REPAIR, VERIFIER_LIFECYCLE_CLAIM, VERIFIER_LIFECYCLE_GRANT, verifyVerifierLifecycleRepair } from "./local-canonical-verifier-lifecycle-witness.mjs";
@@ -442,6 +443,69 @@ export function validateStockMismatchRepairOutcome(output,exit) {
   return report;
 }
 
+// The deliberate prior-source overlay changes physical write timestamps even
+// after exact candidate bytes are restored. Prove only that setup transition;
+// the restored target and its final observation still require raw exact pins.
+function verifyStockMismatchSourceOverlayTransition(p,before,after,{parse,git,repositoryRoot}) {
+  const ref=before.source_overlay_input_transition;
+  if(!ref||!equal(ref,after.source_overlay_input_transition))fail("revision_git_regression_invalid");
+  const transition=parse(ref),keys=(value,names)=>value&&typeof value==="object"&&!Array.isArray(value)&&
+    equal(Object.keys(value).sort(),[...names].sort());
+  if(!keys(transition,["contract","paths","initial","restored","final","acquisitions"])||
+    transition.contract!=="augnes.material-stock-source-overlay-input-transition.v1"||
+    !equal(transition.paths,STOCK_MISMATCH_REPAIR_MODULES)||
+    !keys(transition.acquisitions,["initial","restored","final"])||
+    new Set([transition.initial?.artifact,transition.restored?.artifact,transition.final?.artifact]).size!==3)
+    fail("revision_git_regression_invalid");
+  const snapshots=Object.fromEntries(["initial","restored","final"].map(role=>{
+    const snapshot=parse(transition[role]),input=snapshot?.inputInventory;
+    if(!keys(snapshot,["inventory","service","inputInventory"])||!input||
+      digest({contract:input.contract,path_kind:input.path_kind,binding:input.binding,resources:input.resources})!==input.fingerprint||
+      gitRevisionInventory(input)!==snapshot.inventory)fail("revision_git_regression_invalid");
+    return [role,snapshot];
+  }));
+  const {initial,restored,final}=snapshots;
+  if(initial.inventory===restored.inventory||restored.inventory!==p.inputs.inventory_sha256||final.inventory!==restored.inventory||
+    !equal(restored.inputInventory,final.inputInventory))fail("revision_git_regression_invalid");
+  const headers=input=>Object.fromEntries(Object.entries(input).filter(([key])=>!["resources","fingerprint"].includes(key)));
+  if(!equal(headers(initial.inputInventory),headers(restored.inputInventory))||
+    !equal(initial.inputInventory.resources.map(v=>v.id),restored.inputInventory.resources.map(v=>v.id)))fail("revision_git_regression_invalid");
+  const locations=new Map(STOCK_MISMATCH_REPAIR_MODULES.map(name=>[digest(path.join(repositoryRoot,name)),name]));
+  for(const [location,name]of locations){
+    const source=initial.inputInventory.resources.filter(v=>v.location_fingerprint===location),next=restored.inputInventory.resources.filter(v=>v.location_fingerprint===location);
+    if(source.length!==1||next.length!==1||source[0].classification!=="execution"||!keys(source[0].before,["present","metadata","sha256"])||
+      !keys(next[0].before,["present","metadata","sha256"])||source[0].before.present!==true||next[0].before.present!==true)
+      fail("revision_git_regression_invalid");
+    const original=source[0].before,observed=next[0].before,content=git(["show",p.head+":"+name]);
+    if(!keys(original.metadata,["mode","uid","gid","links","device","inode","bytes","mtime_ns","ctime_ns"])||
+      !keys(observed.metadata,["mode","uid","gid","links","device","inode","bytes","mtime_ns","ctime_ns"])||
+      original.sha256!==digest(content)||observed.sha256!==original.sha256||original.metadata.bytes!==String(content.length)||
+      ![original.metadata,observed.metadata].every(value=>/^\d+$/u.test(value.mode??"")&&value.links==="1"&&
+        (BigInt(value.mode)&0o170022n)===0o100000n&&/^\d+$/u.test(value.mtime_ns??"")&&/^\d+$/u.test(value.ctime_ns??""))||
+      original.metadata.mtime_ns===observed.metadata.mtime_ns&&original.metadata.ctime_ns===observed.metadata.ctime_ns)
+      fail("revision_git_regression_invalid");
+  }
+  for(const [index,resource]of initial.inputInventory.resources.entries()){
+    const current=restored.inputInventory.resources[index];
+    if(!locations.has(resource.location_fingerprint)){if(!equal(resource,current))fail("revision_git_regression_invalid");continue;}
+    const withoutTimes=value=>({...value,before:{...value.before,metadata:Object.fromEntries(Object.entries(value.before.metadata)
+      .filter(([key])=>!["mtime_ns","ctime_ns"].includes(key)))}});
+    if(!equal(withoutTimes(resource),withoutTimes(current)))fail("revision_git_regression_invalid");
+  }
+  const times={};
+  for(const role of ["initial","restored","final"]){
+    const acquisition=transition.acquisitions[role];
+    if(!keys(acquisition,["started_at","finished_at"]))fail("revision_git_regression_invalid");
+    const start=Date.parse(acquisition.started_at),finish=Date.parse(acquisition.finished_at);
+    if(!Number.isFinite(start)||!Number.isFinite(finish)||new Date(start).toISOString()!==acquisition.started_at||
+      new Date(finish).toISOString()!==acquisition.finished_at||start>finish)fail("revision_git_regression_invalid");
+    times[role]={start,finish};
+  }
+  if(!(times.initial.finish<=Date.parse(before.started_at)&&Date.parse(before.finished_at)<=times.restored.start&&
+    times.restored.finish<=Date.parse(after.started_at)&&Date.parse(after.finished_at)<=times.final.start))fail("revision_git_regression_invalid");
+  return {initial_inventory_sha256:initial.inventory,restored_inventory_sha256:restored.inventory};
+}
+
 export function validateFreshnessRepairOutcome(output,exit) {
   const prefix="AUGNES_SERIAL_MATERIAL_FRESHNESS ",lines=output.split(/\r?\n/u).filter(line=>line.startsWith(prefix));
   let report;try {if(lines.length!==1||!output.endsWith("\n"))fail("revision_freshness_outcome_invalid");report=JSON.parse(lines[0].slice(prefix.length));}catch{fail("revision_freshness_outcome_invalid");}
@@ -527,6 +591,7 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
   });
   const finalSource=source(p.head), fixtureDigest=digest(finalSource.filter(v=>fixture.includes(v.path)));
   const before=parse(regression.before),after=parse(regression.after);
+  const sourceOverlay=stockMismatch?verifyStockMismatchSourceOverlayTransition(p,before,after,{parse,git,repositoryRoot}):null;
   const readSource = witness => {
     try { return JSON.parse(bytes(witness.source_files,2*1024*1024)); }
     catch { fail("revision_git_regression_invalid"); }
@@ -572,7 +637,8 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
       if (witness.scope !== (stockMismatch?STOCK_MISMATCH_REPAIR_SCOPE:freshness?FRESHNESS_REPAIR_SCOPE:GUIDE_REPAIR_SCOPE) || witness.checkout_head !== p.head ||
           witness.source_state !== (head === prior.head ? "candidate-with-prior-implicated-overlay" : "clean-candidate") ||
           witness.worktree_before !== dirty || witness.worktree_after !== dirty ||
-          witness.input_inventory_sha256 !== p.inputs.inventory_sha256 || !equal(witness.browser_uses,[]))
+          witness.input_inventory_sha256 !== (stockMismatch ? head===prior.head?sourceOverlay.initial_inventory_sha256:sourceOverlay.restored_inventory_sha256 : p.inputs.inventory_sha256) ||
+          !equal(witness.browser_uses,[]))
         fail("revision_git_regression_invalid");
       if(controlled){
         const combined=bytes(witness.stdout,2*1024*1024),raw=witness.raw_streams;

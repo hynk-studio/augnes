@@ -207,8 +207,12 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
   const bundleBefore=browserBinding?assertBrowserBundle(browserBinding).observation:null;
   assert.ok(browserBefore.present);
   save("runtime.json",{observed_at:now(),runtime,identity_sha256:digest(runtime),browser_expected:browserExpected,browser_bundle_before:bundleBefore,environment:env,environment_sha256:digest(env)});
-  const inputBefore=controlled?await observeGitRevisionTarget(context,browserExecutable,runtime):null;
-  if(controlled)save("input-before.json",inputBefore);
+  const inputAcquisitions={};
+  const observeInputs=async name=>{const started_at=now(),observation=await observeGitRevisionTarget(context,browserExecutable,runtime);
+    inputAcquisitions[name]={started_at,finished_at:now()};return observation;};
+  const inputBefore=controlled?await observeInputs("initial"):null;
+  const inputBeforeRef=controlled?save("input-before.json",inputBefore):null;
+  let restoredInput,restoredInputRef;
 
     const companion=await inspectVerificationCompanionPreservation(context,{freshTransport:true});save("companion-before.json",companion);
     const acquisition={started_at:now()};const initial=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"});acquisition.finished_at=now();
@@ -223,6 +227,13 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
       if(strictControlled&&!resource){assert.equal(existsSync(resourceRoot),false);resource=createCanonicalTestResourceDirectory(resourceRoot);assert.deepEqual(buildCanonicalChildEnvironment({ambientEnvironment:ambient,temporaryRoot:resourceRoot}),env);}
       if(stockMismatch)writeFileSync(path.join(resourceRoot,"material-stock-input.json"),controlledBytes,{flag:"wx",mode:0o600});
       for(const name of modules){replaceCaptureModule(path.join(root,name),label==="before"?originals.get(name):sourceGit(["show",priorHead+":"+name]),sourceGit(["show",ref+":"+name]));overlay=label==="before";}
+      // These two implicated readers are also protected executor inputs. Their
+      // deliberate prior overlay/restoration changes real filesystem timestamps.
+      // Keep the initial pin, then acquire the actual restored candidate before
+      // the positive child. Never restore timestamps or restamp the initial pin.
+      if(stockMismatch&&label==="after"){
+        restoredInput=await observeInputs("restored");restoredInputRef=save("restored-input-before-after-role.json",restoredInput);
+      }
       const source_before=checkCaptureSource(root,target,git,head,overlay?modules:false);
       const worktree_before=git(["status","--porcelain"]).toString();
       const dependency_before_acquisition={started_at:now()};const dependencyBefore=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"});dependency_before_acquisition.finished_at=now();
@@ -247,13 +258,17 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
       const worktree_after=git(["status","--porcelain"]).toString();
       const witness={attribution:"candidate-driver-prior-implicated-source",driver_source_head:head,tested_source_head:ref,
         ...(controlled?{scope:stockMismatch?STOCK_MISMATCH_REPAIR_SCOPE:freshness?FRESHNESS_REPAIR_SCOPE:GUIDE_REPAIR_SCOPE,checkout_head:head,source_state:overlay?"candidate-with-prior-implicated-overlay":"clean-candidate",
-          worktree_before,worktree_after,input_inventory_sha256:inputBefore.inventory,browser_uses:[]}:{}),
+          worktree_before,worktree_after,input_inventory_sha256:stockMismatch&&label==="after"?restoredInput.inventory:inputBefore.inventory,browser_uses:[]}:{}),
         source_files:catalogueRefs[label],fixture_sha256:digest(candidate.filter(v=>fixtures.includes(v.path))),environment:digest(env),
         file_sha256:digest(sourceGit(["show",head+":"+driver])),modules:modules.map(name=>({path:name,sha256:digest(sourceGit(["show",ref+":"+name]))})),
         command,node_version:process.versions.node,runtime_inputs_sha256:digest(runtime),prepared_dependencies:strictControlled?treesBefore.map((row,i)=>({phase_id:row.phase_id,before:row.observation,after:treesAfter[i].observation})):{before:dependencyBefore,after:dependencyAfter},
         started_at,finished_at,result,stdout:stdoutRef,...(strictControlled?{raw_streams:{stdout:{ref:rawStdout,bytes:Buffer.concat(stdout).length},stderr:{ref:rawStderr,bytes:Buffer.concat(stderr).length}},settlement,environment_cleanup:environmentCleanup}:{}),
         ...(stockMismatch?{controlled_input:controlledRef}:{})};
-      const witnessRef=save(label+"-witness.json",witness);records.push({label,ref:witnessRef,witness});
+      // Retain role observations immediately. A stock-mismatch witness gains
+      // its shared transition binding only after the final actual pin is read;
+      // final witness files are each written once, with unchanged role facts.
+      const witnessRef=save(label+(stockMismatch?"-witness-observed.json":"-witness.json"),witness);
+      records.push({label,ref:witnessRef,witness});
       save(label+"-observations.json",{source_before,dependency_before_acquisition,child:{started_at,finished_at},dependency_after_acquisition,source_after});
       assert.equal(comparePreparedDependencyInputs(initial,dependencyAfter),"unchanged");
       if(strictControlled)for(let i=0;i<treesAfter.length;i++)assert.equal(comparePreparedDependencyInputs(dependencyInitial[i].observation,treesAfter[i].observation),"unchanged");
@@ -271,8 +286,15 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
       else validateResultDraftCaptureOutcome(Buffer.concat(chunks).toString(),expectedExit);
       assert.equal(result.termination_reason,"natural_exit");assert.equal(result.timed_out,false);assert.equal(result.cancelled,false);
     }
-    if(controlled){const inputAfter=await observeGitRevisionTarget(context,browserExecutable,runtime);save("input-after.json",inputAfter);
-      assert.equal(inputAfter.inventory,inputBefore.inventory,"capture_input_inventory_changed");}
+    if(controlled){const inputAfter=await observeInputs("final"),inputAfterRef=save("input-after.json",inputAfter);
+      assert.equal(inputAfter.inventory,(stockMismatch?restoredInput:inputBefore).inventory,"capture_input_inventory_changed");
+      if(stockMismatch){
+        const transition=save("source-overlay-input-transition.json",{contract:"augnes.material-stock-source-overlay-input-transition.v1",paths:modules,
+          initial:inputBeforeRef,restored:restoredInputRef,final:inputAfterRef,acquisitions:inputAcquisitions});
+        for(const record of records){record.witness.source_overlay_input_transition=transition;
+          record.ref=save(record.label+"-witness.json",record.witness);}
+      }
+    }
     const focused={schema:"augnes.local-canonical-reviewed-revision-focused.v1",basis:"implementation_owner_not_independent_review",
       predecessor_receipt_fingerprint:receipt.integrity.content_fingerprint,runtime_inputs_sha256:digest(runtime),
       remedy:stockMismatch?"Recognize only faithfully retained spent material-source failure with the exact complete Git stock mismatch and historical UNVERIFIED issue. The frozen candidate driver/support input is shared; the two exact prior implicated reader modules naturally refuse while the final readers accept the same failed predecessor. This repairs admission evidence handling, not the historical 320 timeout or current Git equivalence.":freshness?"Acquire a new synthetic observation inside each affected source-extracted consumer boundary. The frozen candidate harness executes exact prior/final helper and consumer expressions against the same explicit old sample and the unchanged production preservation guard. This is deterministic boundary evidence, not complete material preparation or installed-Companion probing.":guide?"The native final-follow-up readiness waits for actual GuideBrief settlement before the deliberate project/runtime switch. The common candidate driver retains all operator controls and adopted/invalid/failed replacement boundaries against the entire prior and corrected Browser source. This is controlled sequencing evidence, not historical Browser recreation or corrected real-Browser qualification.":"The genuine corrected result-draft helper waits for an editable element, observes the pending preparation boundary and refreshes/recompares the replacement owner before editability assertions. The common candidate fixture holds the same real response for both entire helper blobs.",
@@ -285,7 +307,7 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
     // It is not preparation, authority, a reservation or a physical commission.
     const p={schema:controlled?"augnes.local-canonical-source-correction.v7":"augnes.local-canonical-source-correction.v10",kind:"reviewed_revision",
       commission:controlled?{ordinal:1,maximum_invocations:1,source_revision:MATERIAL_SOURCE_CORRECTION}:{ordinal:2},head,tree:text(git,"rev-parse",head+"^{tree}"),
-      inputs:{identity_sha256:digest(runtime),...(controlled?{inventory_sha256:inputBefore.inventory}:{})},
+      inputs:{identity_sha256:digest(runtime),...(controlled?{inventory_sha256:(stockMismatch?restoredInput:inputBefore).inventory}:{})},
       ...(stockMismatch?{originals:{receipt:controlledOriginals.receipt,attempt:controlledOriginals.attempt,stock:controlledOriginals.stock}}:{})};
     const prior={head:priorHead,tree:text(git,"rev-parse",priorHead+"^{tree}")};
     const bytes=(ref,max)=>revisionArtifact(out,ref,max),parse=ref=>JSON.parse(bytes(ref));

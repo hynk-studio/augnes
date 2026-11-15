@@ -1647,6 +1647,20 @@ material recipe in preparation and authenticated admission. It is neither
 receiving acceptance nor a deciding grant; existing authenticated one-use
 commission and final-target requirements remain unchanged.
 
+Only this source-overlay recipe records a deliberate setup transition from
+the actual initial candidate inventory to a freshly acquired restored-candidate
+inventory before the positive child. Both witnesses bind the same original
+initial/restored/final observations and acquisition chronology. Between initial
+and restored observations, only `mtime_ns` and `ctime_ns` of the two exact
+implicated source locations may change; candidate Git bytes, size, inode,
+permissions, every other raw resource and the complete Git configuration remain
+identical. The negative witness retains its actual initial pin. The positive
+witness and final preparation bind the actual restored complete inventory,
+which must remain raw-exact through the final observation. No physical timestamp
+restoration, projection equality, live-input normalization or general metadata
+exception is permitted. Guide and synthetic-freshness recipes retain their
+existing unchanged-inventory requirement.
+
 The explicitly selected `git-config-stock-verifier-repair-v1` material case
 also recognizes an intact settled dedicated-Browser serial timeout predecessor.
 Its `settled-browser-timeout-stock-verifier-v1` interpretation validates the
