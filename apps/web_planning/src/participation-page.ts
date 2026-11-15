@@ -13,7 +13,7 @@ ${a.local?'<p class="local-banner">Disposable local fixture · simulated separat
 <label>Title for your work<input id="own-title" required maxlength="500"></label><label>Your next step<input id="own-next" required maxlength="500"></label>
 <button id="retain" type="submit">Keep selected originals in my project</button></fieldset></form>
 <button id="load-own-works" type="button">Read my saved contribution work</button><div id="own-works"></div><button id="more-own-works" type="button" hidden>More contribution work</button>
-<form id="project-return-form"><fieldset id="project-return-fields"><legend>Return selected saved results</legend><select id="own-work" aria-label="Saved contribution work"></select><div id="result-files"></div>
+<form id="project-return-form"><label>Saved contribution work<select id="own-work" aria-label="Saved contribution work"></select></label><fieldset id="project-return-fields"><legend>Return selected saved results</legend><div id="result-files"></div>
 <label>What did you learn or change?<textarea id="project-message" required maxlength="500"></textarea></label><label>Suggested next action<input id="project-next" required maxlength="500"></label>
 <label><input id="share-project-source" type="checkbox" required>Share these files and their project author and exact work/revision identifiers with the requester.</label><button id="project-send" type="submit">Send selected saved results</button></fieldset></form></section>
 <form id="return"><fieldset id="fields"><legend>Send your return</legend><p>One answer is allowed. The owner checks it and decides how to use it.</p>
