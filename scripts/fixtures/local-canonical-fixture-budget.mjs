@@ -266,13 +266,14 @@ export async function identityBudgetWitnessControls(parent,_h,sourceRoot) {
       return {scope,manifest:ref("manifest-"+index+".json",manifest),record:ref("diagnostic-"+index+".json",record),stdout:ref("diagnostic-"+index+".log",JSON.stringify({nondeciding_result:record})+"\n"),source,
         limitations:"Controlled reader data only; no actual historical timing or workload claim. Full and selected scopes remain separate; cause is UNKNOWN."};
     });
-    const summary={status:"passed",mode:"contracts",contract_suite:"codex_isolated_auth_contracts.v0.1",projection_version:"controlled",attestation_version:"controlled",seal_version:"controlled",
+    const summary={status:"passed",mode:"contracts",contract_suite:"codex_isolated_auth_contracts.v0.1",projection_version:"codex_isolated_authenticated_execution_projection.v0.1",
+      attestation_version:"codex_isolated_auth_credential_attestation.v0.1",seal_version:"codex_isolated_auth_projection_seal.v0.1",
       projection_fingerprint:"sha256:"+digest("projection"),attestation_fingerprint:"sha256:"+digest("attestation"),seal_fingerprint:"sha256:"+digest("seal"),operational_availability:"available_exact",
-      malicious_consumer_secret_access:false,unique_account_identity_non_null:true,isolated_tmpdir:true,exact_observed_security_policy:true,semantic_profile_version:"controlled",
+      malicious_consumer_secret_access:false,unique_account_identity_non_null:true,isolated_tmpdir:true,exact_observed_security_policy:true,semantic_profile_version:"codex_isolated_auth_semantic_profile.rust-v0.152.1",
       semantic_profile_fingerprint:"sha256:"+digest("semantic"),config_tool_feature_schema_fingerprint:"sha256:"+digest("features"),config_policy_fingerprint:"sha256:"+digest("policy"),
-      observed_security_policy_fingerprint:"sha256:"+digest("security"),user_agent_contract_fingerprint:"sha256:"+digest("agent"),user_agent_negative_shapes_refused:1,installed_cli_preflight:"unavailable",
-      credential_free_fake_preflight:"controlled",no_authorization_preflight_stop:"controlled",unsupported_production_authority:"controlled",test_only_authorized_fake_turn:"controlled",
-      authenticated_child_binding_version:"controlled",arbitrary_child_wrapping_refused:true,spawn_binding_matrix_refused:true,real_keychain_accesses:0,real_provider_calls:0,successful_external_network_egress:0,cleanup_complete:true};
+      observed_security_policy_fingerprint:"sha256:"+digest("security"),user_agent_contract_fingerprint:"sha256:"+digest("agent"),user_agent_negative_shapes_refused:11,installed_cli_preflight:"unavailable",
+      credential_free_fake_preflight:"compatible_exact",no_authorization_preflight_stop:"codex_isolated_auth_external_execution_authorization_required",unsupported_production_authority:"refused_before_turn",test_only_authorized_fake_turn:"completed_once",
+      authenticated_child_binding_version:"codex_isolated_authenticated_child_binding.v0.1",arbitrary_child_wrapping_refused:true,spawn_binding_matrix_refused:true,real_keychain_accesses:0,real_provider_calls:0,successful_external_network_egress:0,cleanup_complete:true};
     const rows=["before_terminal","with_terminal","preflight"].map((kind,i)=>({runtime_policy_case:kind,status:"passed",settlement:i===0?"rejected_null_result":"failed_result",fixture_diagnostic_files:4,fixture_trace_appends:1,state_entries:0,lease_entries:0,network_attempts:0,remaining_owned_processes:0}));
     const output=[...rows,summary].map(v=>JSON.stringify(v)+"\n").join("");
     const resource=path.join(parent,"already-settled-identity"),env=fixtureBudgetEnvironment(resource),loader=observePureContractLoader(root,env),source=observePureContractSource(root),dependencies=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"});
@@ -316,17 +317,30 @@ export async function identityBudgetWitnessControls(parent,_h,sourceRoot) {
     for(const change of [r=>r.outcome.disposition="unclassified_timeout",r=>r.phases[0].timed_out=true,r=>r.phases[0].exit_status=0,r=>r.phases[0].log.truncated=true,r=>r.cleanup.completed=false]) {
       const r=structuredClone(original);change(r);assert.throws(()=>verify(p,focused,r));negatives++;
     }
+    for(const [field,value]of [["projection_version",null],["attestation_version","unrecognized"],["seal_version",{}],["semantic_profile_version","unrecognized"],
+      ["authenticated_child_binding_version",null],["installed_cli_preflight","compatible_exact"],["credential_free_fake_preflight","failed"],
+      ["no_authorization_preflight_stop","allowed_without_authority"],["unsupported_production_authority","permitted"],["test_only_authorized_fake_turn","NOT_RUN"],
+      ["user_agent_negative_shapes_refused",1]]) {
+      const w=parse(after),f=structuredClone(focused);
+      w.stdout=ref("wrong-summary-"+field+".log",[...rows,{...summary,[field]:value}].map(v=>JSON.stringify(v)+"\n").join(""));
+      f.regression.after=ref("wrong-summary-"+field+".json",w);f.commands[0].record=f.regression.after;f.commands[0].stdout=w.stdout;
+      assert.throws(()=>verify(p,f),"Identity summary must refuse substituted "+field);negatives++;
+    }
     const badProof=structuredClone(p);badProof.commission.evidence_kind=REGISTERED_FIXTURE_BUDGET;assert.throws(()=>verify(badProof));negatives++;
     for(const [file,value]of [[test,"changed assertions\n"],["scripts/fixtures/fake-codex-app-server.mjs","changed fake\n"],["lib/vnext/native-host/codex-isolated-auth-projection.ts","changed security\n"],
       ["scripts/run-local-canonical-verification.mjs",(executor+executor).replaceAll("4_200_000","4_300_000")],[FIXTURE_BUDGET_PATHS.suite,suite.replace("timeoutMs:60_000","timeoutMs:120_000")]]) {
       write(file,value);const changed=commit("controlled incompatible Identity source");assert.throws(()=>identityBudgetSourcePartition(git,oldHead,changed,p.base));git(["reset","--hard",head]);negatives++;
     }
     write("README.md","unadopted prose\n");const unadopted=commit("controlled unadopted prose");assert.throws(()=>identityBudgetSourcePartition(git,oldHead,unadopted));git(["reset","--hard",head]);negatives++;
-    git(["checkout","--detach",oldHead]);write("README.md","adopted prose\n");const base=commit("controlled adopted prose");
+    git(["checkout","--detach",oldHead]);write("README.md","adopted prose\n");write("apps/web_planning/README.md","adopted app README\n");const base=commit("controlled adopted prose");
     git(["checkout","--detach",head]);git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","merge","--no-edit",base]);const merged=git(["rev-parse","HEAD"]).toString().trim();
     assert.equal(identityBudgetSourcePartition(git,oldHead,merged,base).adopted_base,base);
+    assert(identityBudgetSourcePartition(git,oldHead,merged,base).adopted_prose.paths.includes("apps/web_planning/README.md"));
     assert.throws(()=>identityBudgetSourcePartition(git,oldHead,merged));negatives++;
     write("README.md","adopted prose plus unreviewed change\n");const wrong=commit("controlled altered adopted prose");assert.throws(()=>identityBudgetSourcePartition(git,oldHead,wrong,base));negatives++;
+    git(["checkout","--detach",base]);write("apps/web_planning/README-copy.md","unregistered app README near miss\n");const nearBase=commit("controlled app README near miss");
+    git(["checkout","--detach",head]);git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","merge","--no-edit",nearBase]);
+    const nearCandidate=git(["rev-parse","HEAD"]).toString().trim();assert.throws(()=>identityBudgetSourcePartition(git,oldHead,nearCandidate,nearBase));negatives++;
     git(["reset","--hard",head]);
     const {identityBudgetAuthorityBindings,identityBudgetAuthorityScope,identityBudgetDelegation,delegatesMaterialSourceCommission,IDENTITY_BUDGET_GRANT,MATERIAL_HISTORY_BOUNDARY,INTEGRATION_BUDGET_LIMIT}=await import("../local-canonical-git-observation.mjs");
     const authorityProof={...p,accepted:{review:{id:82}}},bindings=identityBudgetAuthorityBindings(authorityProof),delegation=identityBudgetDelegation(authorityProof);

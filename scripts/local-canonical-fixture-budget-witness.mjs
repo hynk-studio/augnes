@@ -1177,7 +1177,7 @@ export function identityBudgetSourcePartition(git, before, after, adoptedBase=nu
     const reader=createCanonicalRevisionReader(git(["rev-parse","--show-toplevel"]).toString().trim());
     const old=reader.tree(before),base=reader.tree(adoptedBase),common=reader.tree(ancestor),final=reader.tree(after);
     adopted=changedGitFiles(common,base);
-    if (adopted.some(file=>!/^(?:(?:AGENTS|README)\.md|docs\/[A-Za-z0-9_./-]+\.md)$/u.test(file)||
+    if (adopted.some(file=>!/^(?:(?:AGENTS|README)\.md|docs\/[A-Za-z0-9_./-]+\.md|apps\/web_planning\/README\.md)$/u.test(file)||
         [old.get(file),base.get(file),common.get(file),final.get(file)].some(e=>e&&(e.mode!=="100644"||e.type!=="blob"))||
         !(sameGitEntry(final.get(file),base.get(file))||matchesAdoptedMerge(git,old.get(file),common.get(file),base.get(file),final.get(file))))) fail();
   }
@@ -1208,7 +1208,22 @@ function identityBudgetCompletion(output) {
     "user_agent_negative_shapes_refused","installed_cli_preflight","credential_free_fake_preflight","no_authorization_preflight_stop","unsupported_production_authority",
     "test_only_authorized_fake_turn","authenticated_child_binding_version","arbitrary_child_wrapping_refused","spawn_binding_matrix_refused","real_keychain_accesses","real_provider_calls",
     "successful_external_network_egress","cleanup_complete"];
+  // The unchanged source owners fix these versions and observations: the
+  // projection types, broker binding and contracts' semantic/authority proofs.
+  // In particular, this lane never upgrades an installed CLI to production use.
+  const expected={
+    projection_version:"codex_isolated_authenticated_execution_projection.v0.1",
+    attestation_version:"codex_isolated_auth_credential_attestation.v0.1",
+    seal_version:"codex_isolated_auth_projection_seal.v0.1",
+    semantic_profile_version:"codex_isolated_auth_semantic_profile.rust-v0.152.1",
+    authenticated_child_binding_version:"codex_isolated_authenticated_child_binding.v0.1",
+    installed_cli_preflight:"unavailable",credential_free_fake_preflight:"compatible_exact",
+    no_authorization_preflight_stop:"codex_isolated_auth_external_execution_authorization_required",
+    unsupported_production_authority:"refused_before_turn",test_only_authorized_fake_turn:"completed_once",
+    user_agent_negative_shapes_refused:11,
+  };
   if (!keys(summary,summaryKeys)||summary.status!=="passed"||summary.mode!=="contracts"||summary.contract_suite!=="codex_isolated_auth_contracts.v0.1"||
+      Object.entries(expected).some(([field,value])=>summary[field]!==value)||
       summary.operational_availability!=="available_exact"||summary.malicious_consumer_secret_access!==false||
       ["unique_account_identity_non_null","isolated_tmpdir","exact_observed_security_policy","arbitrary_child_wrapping_refused","spawn_binding_matrix_refused","cleanup_complete"].some(k=>summary[k]!==true)||
       ["real_keychain_accesses","real_provider_calls","successful_external_network_egress"].some(k=>summary[k]!==0)||
