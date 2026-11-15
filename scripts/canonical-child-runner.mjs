@@ -228,9 +228,12 @@ export async function runCanonicalChildGroups({
   const selectedByLabel = new Map(selected.map((entry) => [entry.label, entry]));
   let admissionStopped = false;
   let nextGroupIndex = 0;
+  const exclusiveAdmission = groups.some((group) => group.children.some((child) => child.exclusive === true))
+    ? createExclusiveChildAdmission(maxConcurrency) : null;
   const recordIssue = (issue) => {
     issues.push(issue);
     admissionStopped = true;
+    exclusiveAdmission?.stop();
   };
 
   const runGroup = async (group) => {
@@ -241,52 +244,60 @@ export async function runCanonicalChildGroups({
     );
     for (const child of group.children) {
       if (admissionStopped) break;
-      const expectedLabel = child.label;
-      const entry = selectedByLabel.get(expectedLabel);
-      entry.started = true;
-      let result;
+      const release = exclusiveAdmission ? await exclusiveAdmission.acquire(child.exclusive === true) : null;
+      if (admissionStopped) { release?.(); break; }
       try {
-        result = await runChild(child);
-      } catch (error) {
-        recordIssue({
-          code: "child_runner_rejected", group: groupId, label: expectedLabel,
-          detail: safeIdentifier(error?.code, "runner_error"),
+        const expectedLabel = child.label;
+        const entry = selectedByLabel.get(expectedLabel);
+        entry.started = true;
+        let result;
+        try {
+          result = await runChild(child);
+        } catch (error) {
+          recordIssue({
+            code: "child_runner_rejected", group: groupId, label: expectedLabel,
+            detail: safeIdentifier(error?.code, "runner_error"),
+          });
+          continue;
+        } finally {
+          // Promise settlement does not prove a returned result or resource cleanup.
+          entry.settled = true;
+        }
+        if (!result || typeof result !== "object") {
+          recordIssue({ code: "child_result_missing", group: groupId, label: expectedLabel });
+          continue;
+        }
+        if (result.label !== expectedLabel) {
+          recordIssue({ code: "child_result_conflicting_label", group: groupId, label: expectedLabel });
+          continue;
+        }
+        if (resultsByLabel.has(expectedLabel)) {
+          recordIssue({ code: "child_result_duplicate", group: groupId, label: expectedLabel });
+          continue;
+        }
+        resultsByLabel.set(expectedLabel, { ...result, group: groupId });
+        if (!isCompleteCanonicalChildResult(result)) {
+          recordIssue({ code: "child_result_incomplete", group: groupId, label: expectedLabel });
+          continue;
+        }
+        entry.completed = true;
+        const failure = canonicalChildAcceptanceFailure(result, {
+          suite, timeoutMs: child.timeoutMs,
+          requireNaturalExit: child.requireNaturalExit === true,
+          requireCompleteCleanup: true,
         });
-        continue;
+        if (failure) {
+          recordIssue({
+            code: result.timed_out ? "child_timed_out"
+              : result.spawn_error_code ? "child_spawn_failed" : "child_failed",
+            group: groupId, label: expectedLabel,
+            detail: failure.canonicalResult?.issue ?? failure.code,
+          });
+        }
       } finally {
-        // Promise settlement does not prove a returned result or resource cleanup.
-        entry.settled = true;
-      }
-      if (!result || typeof result !== "object") {
-        recordIssue({ code: "child_result_missing", group: groupId, label: expectedLabel });
-        continue;
-      }
-      if (result.label !== expectedLabel) {
-        recordIssue({ code: "child_result_conflicting_label", group: groupId, label: expectedLabel });
-        continue;
-      }
-      if (resultsByLabel.has(expectedLabel)) {
-        recordIssue({ code: "child_result_duplicate", group: groupId, label: expectedLabel });
-        continue;
-      }
-      resultsByLabel.set(expectedLabel, { ...result, group: groupId });
-      if (!isCompleteCanonicalChildResult(result)) {
-        recordIssue({ code: "child_result_incomplete", group: groupId, label: expectedLabel });
-        continue;
-      }
-      entry.completed = true;
-      const failure = canonicalChildAcceptanceFailure(result, {
-        suite, timeoutMs: child.timeoutMs,
-        requireNaturalExit: child.requireNaturalExit === true,
-        requireCompleteCleanup: true,
-      });
-      if (failure) {
-        recordIssue({
-          code: result.timed_out ? "child_timed_out"
-            : result.spawn_error_code ? "child_spawn_failed" : "child_failed",
-          group: groupId, label: expectedLabel,
-          detail: failure.canonicalResult?.issue ?? failure.code,
-        });
+        // Keep permission through acceptance: a failure must stop admission
+        // before releasing an exclusive owner can wake waiting children.
+        release?.();
       }
     }
     log(
@@ -356,6 +367,49 @@ export async function runCanonicalChildGroups({
     throw error;
   }
   return orderedResults;
+}
+
+function createExclusiveChildAdmission(maxConcurrency) {
+  const waiting = [];
+  let active = 0, exclusiveActive = false, scheduled = false, stopped = false;
+  const schedule = () => {
+    if (scheduled) return;
+    scheduled = true;
+    // Register all ready group heads before idle arbitration. In particular,
+    // a normal first group must not outrun an exclusive second group.
+    queueMicrotask(() => {
+      scheduled = false;
+      if (stopped) {
+        for (const waiter of waiting.splice(0)) waiter.resolve(null);
+        return;
+      }
+      if (exclusiveActive) return;
+      const grant = (waiter) => {
+        active += 1;
+        exclusiveActive = waiter.exclusive;
+        let released = false;
+        waiter.resolve(() => {
+          if (released) return;
+          released = true;
+          active -= 1;
+          if (waiter.exclusive) exclusiveActive = false;
+          schedule();
+        });
+      };
+      const exclusiveIndex = waiting.findIndex((waiter) => waiter.exclusive);
+      if (exclusiveIndex >= 0) {
+        if (active === 0) grant(waiting.splice(exclusiveIndex, 1)[0]);
+        return;
+      }
+      while (active < maxConcurrency && waiting.length > 0) grant(waiting.shift());
+    });
+  };
+  return {
+    acquire(exclusive) {
+      return new Promise((resolve) => { waiting.push({ exclusive, resolve }); schedule(); });
+    },
+    stop() { stopped = true; schedule(); },
+  };
 }
 
 // A malformed command result cannot be successful evidence, even when its
@@ -499,6 +553,9 @@ function assertConcurrentGroupInput(groups, maxConcurrency) {
       throw new Error("canonical concurrent group must own at least one child");
     }
     for (const child of group.children) {
+      if (child?.exclusive !== undefined && typeof child.exclusive !== "boolean") {
+        throw new Error("canonical concurrent child exclusivity is invalid");
+      }
       childLabels.push(child?.label);
     }
   }

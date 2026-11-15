@@ -961,7 +961,13 @@ Independent review and behavior-based adversarial controls remain required;
 changed hashes or the candidate's ability to admit itself are insufficient.
 
 Phase retries, partial-run stitching and favorable-sample selection remain
-forbidden. Two-lane integration concurrency is unchanged. Bounds limit hangs and
+forbidden. Ordinary integration children retain a maximum concurrency of two.
+The Web planning D1 child has exclusive admission within that invocation: it
+starts before other ready children and runs alone through result/cleanup
+acceptance. This addresses repeated aggregate watchdog failures under the
+concurrent arrangement; it does not diagnose their historical cause. Other
+groups retain serial order, all selected-child accounting and failure admission
+rules. No child/phase bound or assertion is relaxed. Bounds limit hangs and
 settlement within supported CPU/memory/disk conditions; a timeout is not
 automatically a performance regression or an infrastructure diagnosis. Historical
 settled-expired-successor runs retain their 30,000 ms bound. Its separately

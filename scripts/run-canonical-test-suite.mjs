@@ -590,6 +590,7 @@ const suites = {
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "backup-restore"],
       label: "durable web planning production handlers and local D1 integrity",
+      exclusive: true,
       ...rootNode("scripts/test-web-planning.mjs"),
       timeoutMs: 120_000,
       requireNaturalExit: true,
@@ -2047,6 +2048,7 @@ try {
       env: childEnvironment,
       timeoutMs,
       requireNaturalExit: step.requireNaturalExit === true,
+      exclusive: step.exclusive === true,
       resourceRoot,
       resourceOwner,
     };
