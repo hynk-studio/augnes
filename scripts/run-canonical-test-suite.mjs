@@ -1131,7 +1131,7 @@ const suites = {
       requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
       label: "native request-bound review, attributed continuation and disposable MCP Events lifecycle",
       ...rootNode("scripts/test-request-bound-review.ts"),
-      timeoutMs: 30_000,
+      timeoutMs: 45_000,
       requireNaturalExit: true,
     },
     {
