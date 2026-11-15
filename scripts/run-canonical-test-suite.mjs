@@ -519,6 +519,18 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "llama.cpp private connection preparation",
+      ...rootNode("scripts/test-prepare-llama-connection.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      label: "llama.cpp Companion text projection and stdio compatibility",
+      ...rootNode("scripts/test-llama-companion-stdio.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "codex-user-hook-migration",
       label: "Codex explicit-reuse hook migration and uninstall contract",
       ...rootNode("scripts/test-codex-augnes-user-hook-migration.mjs"),
