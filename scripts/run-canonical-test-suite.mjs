@@ -37,7 +37,9 @@ const nestedAppRoot = path.join(repoRoot, "apps/augnes_apps");
 const suiteName = process.argv[2];
 const projectWorkFocus = process.argv[3] === "--project-work-only";
 const externalResponseFocus = process.argv[3] === "--external-response-only";
-const integrationFocus = projectWorkFocus || externalResponseFocus;
+const requestBoundFocus = process.argv[3] === "--request-bound-review-only";
+const requestBoundDiagnostic = process.argv[3] === "--request-bound-review-diagnostic";
+const integrationFocus = projectWorkFocus || externalResponseFocus || requestBoundFocus || requestBoundDiagnostic;
 const revisionFocus = process.argv[3] === "--reviewed-revision-only";
 if (process.argv.length > 3 && (process.argv.length !== 4 ||
     !(integrationFocus && suiteName === "integration" || revisionFocus && suiteName === "authority")))
@@ -1984,10 +1986,14 @@ try {
   );
   const selectedSteps = projectWorkFocus
     ? suites[suiteName].filter(step => ["project-work-initialization", "project-work-scoped-host"].includes(step.id))
+    : requestBoundFocus || requestBoundDiagnostic ? integrationInventory.filter(step => step.id === "request-bound-review")
     : externalResponseFocus ? integrationInventory.filter(step => step.id === "external-response")
     : revisionFocus ? suites.authority.filter(step => reviewedRevisionSteps.includes(step)) : suites[suiteName];
   if (externalResponseFocus && selectedSteps.length !== 1)
     throw new Error("external-response integration registration is incomplete");
+  if ((requestBoundFocus || requestBoundDiagnostic) && selectedSteps.length !== 1)
+    throw new Error("request-bound integration registration is incomplete");
+  if (requestBoundDiagnostic) console.log(JSON.stringify({diagnostic_only:true,deciding:false,owner:"request-bound-review",measurement_bound_ms:90000,production_bound_ms:selectedSteps[0].timeoutMs}));
   const preparedSteps = selectedSteps.map((step, index) => {
     const resourceOwner = createCanonicalTestResourceRoot(`ag-c${String(index + 1).padStart(2, "0")}-`);
     const resourceRoot = resourceOwner.root;
@@ -2020,7 +2026,7 @@ try {
         `forbidden ambient environment keys forwarded: ${forbiddenKeys.join(", ")}`,
       );
     }
-    const timeoutMs = step.timeoutMs ?? DEFAULT_CANONICAL_CHILD_TIMEOUT_MS;
+    const timeoutMs = requestBoundDiagnostic ? 90_000 : step.timeoutMs ?? DEFAULT_CANONICAL_CHILD_TIMEOUT_MS;
     return {
       id: step.id ?? `canonical-child-${index + 1}`,
       group: step.group ?? "serial",
@@ -2154,6 +2160,7 @@ try {
   summary = {
         suite: suiteName,
         coverage: projectWorkFocus ? "focused_project_work_children_only" : externalResponseFocus ? "focused_external_response_child_only"
+          : requestBoundDiagnostic ? "non_deciding_request_bound_diagnostic_only" : requestBoundFocus ? "focused_request_bound_child_only"
           : revisionFocus ? "focused_reviewed_revision_children_only" : "complete_suite",
         status: "pass",
         environment_isolation_verified: forbiddenEnvironmentKeysForwarded === 0,

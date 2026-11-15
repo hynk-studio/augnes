@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { digest } from "../plugins/augnes-operator/mcp/review-connection.mjs";
 
-export async function testReviewCallbackEnrollment(f: any) {
+export async function testReviewCallbackEnrollment(f: any, observe: (stage: string, boundary: "begin" | "end") => void = () => {}) {
     const config = JSON.parse(readFileSync(f.configPath, "utf8"));
     const c = { ...config.connections[0], id: `review:${randomBytes(16).toString("hex")}`, secret: randomBytes(32).toString("base64url"),
         storage_key: randomBytes(32).toString("base64url"), callback_origins: [], callback_enrollment: true };
@@ -151,12 +151,20 @@ export async function testReviewCallbackEnrollment(f: any) {
     return {
         async revokeAfterBackup() { assert.equal((await operator("revoke", (await select()).decision)).status, "available"); },
         async assertRestored(db: any) {
-            const view = await inspect(); assert.equal(view.stopped, true); assert(view.candidates.every((r: any) => r.state === "revoked"));
+            observe("enrollment/inspect_restored", "begin");
+            const view = await inspect();
+            observe("enrollment/inspect_restored", "end"); assert.equal(view.stopped, true); assert(view.candidates.every((r: any) => r.state === "revoked"));
+            observe("enrollment/stale_decision_refusal", "begin");
             assert.equal((await operator("approve", { ...beforeRestoreDecision, expires_at: new Date(Date.now() + 60000).toISOString() })).reason, "callback_policy_changed");
+            observe("enrollment/stale_decision_refusal", "end");
             const n = f.networkCounts();
+            observe("enrollment/restored_subscription_refusal", "begin");
             assert.equal((await event("events/subscribe")).value.protocol_error.data.reason, "approval_required");
+            observe("enrollment/restored_subscription_refusal", "end");
             assert.deepEqual(f.networkCounts(), n, "restore does not revive a revoked permission");
+            observe("enrollment/restored_unsubscribe", "begin");
             assert.equal((await event("events/unsubscribe", { ...sub, delivery: stopDelivery })).status, 200);
+            observe("enrollment/restored_unsubscribe", "end");
             assert.equal(db.prepare("SELECT count(*) n FROM vnext_review_subscriptions WHERE connection_ref=? AND stopped=0").get(c.id).n, 0);
             // A stopped restored policy must still allow observation after the
             // old finite candidate expires. Only a NEW local decision may
@@ -165,17 +173,29 @@ export async function testReviewCallbackEnrollment(f: any) {
             try {
                 Date.now = () => clock() + 660000;
                 const counts = f.networkCounts();
+                observe("enrollment/expired_subscription_observation", "begin");
                 assert.equal((await event("events/subscribe")).value.protocol_error.data.reason, "approval_required");
+                observe("enrollment/expired_subscription_observation", "end");
                 assert.deepEqual(f.networkCounts(), counts);
-                const pending = await inspect(); assert.equal(pending.stopped, true);
+                observe("enrollment/inspect_fresh_pending", "begin");
+                const pending = await inspect();
+                observe("enrollment/inspect_fresh_pending", "end"); assert.equal(pending.stopped, true);
                 assert(pending.candidates.some((r: any) => r.origin === "https://receiver.example.com" && r.state === "pending"),
                     "restored stopped policy must permit a fresh bounded observation after candidate expiry");
+                observe("enrollment/select_fresh", "begin");
                 const fresh = await select();
+                observe("enrollment/select_fresh", "end");
                 assert.notEqual(fresh.candidate.candidate_ref, beforeRestoreDecision.candidate_ref);
+                observe("enrollment/fresh_approval", "begin");
                 assert.equal((await operator("approve", { ...fresh.decision, expires_at: new Date(Date.now() + 60000).toISOString() })).status, "available");
+                observe("enrollment/fresh_approval", "end");
+                observe("enrollment/fresh_subscribe", "begin");
                 assert.equal((await event("events/subscribe")).status, 200);
+                observe("enrollment/fresh_subscribe", "end");
                 assert.equal(f.networkCounts().verifyCalls, counts.verifyCalls + 1);
+                observe("enrollment/fresh_unsubscribe", "begin");
                 assert.equal((await event("events/unsubscribe", { ...sub, delivery: stopDelivery })).status, 200);
+                observe("enrollment/fresh_unsubscribe", "end");
             } finally { Date.now = clock; }
         },
     };

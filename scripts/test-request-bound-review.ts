@@ -1,6 +1,7 @@
 // Deterministic native writers, real HTTP routes and MCP handlers. The HTTPS
 // receiver is a disposable protocol fixture, never actual ChatGPT acceptance.
 import assert from "node:assert/strict";
+import { performance } from "node:perf_hooks";
 import { createServer, request as httpRequest } from "node:http";
 import https from "node:https";
 import dns from "node:dns";
@@ -43,6 +44,16 @@ export async function testRequestBoundReview() {
         phaseStart = now;
         console.log(JSON.stringify({ test: "request-bound-review-phase", completed: name, elapsed_ms: now - started, duration_ms: phases[name] }));
     };
+    const monotonicStarted = performance.now();
+    const observationStarts = new Map<string, number>();
+    const observe = (stage: string, boundary: "begin" | "end") => {
+        const now = performance.now();
+        if (boundary === "begin") observationStarts.set(stage, now);
+        console.log(JSON.stringify({ test: "request-bound-review-monotonic", stage, boundary,
+            elapsed_ms: now - monotonicStarted, since_process_ms: now,
+            ...(boundary === "end" ? { duration_ms: now - observationStarts.get(stage)! } : {}) }));
+    };
+    observe("test", "begin");
     let db = new Database(dbPath);
     const guard = installZeroNetworkGuard({ allowLoopback: true });
     const token = randomBytes(32).toString("base64url"), instance = "review-fixture", generation = "generation-1", repository = "a".repeat(64);
@@ -821,7 +832,7 @@ export async function testRequestBoundReview() {
         const enrollment = await testReviewCallbackEnrollment({ db, configPath, raw, signingSecret, signingSecrets,
             networkCounts: () => ({ dnsCalls, verifyCalls, callbacks }), addresses: (value: typeof addresses) => { addresses = value; },
             duringDNS: (action: () => Promise<void>) => { duringDNS = action; }, duringHTTPS: (action: () => Promise<void>) => { duringHTTPS = action; },
-            socketError: (code: string | null) => { socketError = code; }, oversizedResponse: (value: boolean) => { oversizedResponse = value; } });
+            socketError: (code: string | null) => { socketError = code; }, oversizedResponse: (value: boolean) => { oversizedResponse = value; } }, observe);
         phase("callback_enrollment");
         const beforeRestore = db.prepare("SELECT request_ref,response_ref FROM vnext_review_requests ORDER BY request_ref").all();
         phase("scoped_discovery_and_authority");
@@ -831,38 +842,66 @@ export async function testRequestBoundReview() {
             sourceApplication: { application_version: null, build_identity: null, package_contract: null, package_contract_version: null, runtime_contract: null, runtime_schema_version: null },
             reason: "manual_recovery", inspectDatabase: inspectRecoveryDatabaseFile } as unknown as Parameters<typeof createRecoveryBackup>[0]);
         phase("database_backup");
+        observe("revoke_after_backup", "begin");
         await enrollment.revokeAfterBackup();
+        observe("revoke_after_backup", "end");
+        observe("database_restore", "begin");
         await restoreRuntimeDatabase({ ...lifecycle, selectedBackupId: backup.manifest.backup_id } as unknown as Parameters<typeof restoreRuntimeDatabase>[0]);
+        observe("database_restore", "end");
         phase("database_restore");
+        observe("post_restore_preparation", "begin");
         await prepareRuntimeDatabase(lifecycle as unknown as Parameters<typeof prepareRuntimeDatabase>[0]);
+        observe("post_restore_preparation", "end");
         phase("post_restore_preparation");
+        observe("restored_database_invariants", "begin");
         db = new Database(dbPath);
         assert.deepEqual(db.prepare("SELECT request_ref,response_ref FROM vnext_review_requests ORDER BY request_ref").all(), beforeRestore);
         assert.equal((db.prepare("SELECT count(*) n FROM vnext_review_subscriptions WHERE stopped=0").get() as any).n, 0);
+        observe("restored_database_invariants", "end");
+        observe("enrollment_restoration", "begin");
         await enrollment.assertRestored(db);
+        observe("enrollment_restoration", "end");
+        observe("later_request", "begin");
         const later = await request("later request after supported database recovery");
-        assert.equal((await reply(await read(later.request_ref))).status, "saved");
+        observe("later_request", "end");
+        observe("later_read", "begin");
+        const laterMaterial = await read(later.request_ref);
+        observe("later_read", "end");
+        observe("later_reply", "begin");
+        assert.equal((await reply(laterMaterial)).status, "saved");
+        observe("later_reply", "end");
         phase("later_request_after_recovery");
         assert.deepEqual(errors, []);
         assert.equal(guard.attempts.length, 0);
     }
     finally {
+        observe("cleanup", "begin");
         console.log(JSON.stringify({ test: "request-bound-review-phase", started: "cleanup", elapsed_ms: Date.now() - started }));
+        observe("close_protocol_client", "begin");
         await closeProtocolClient();
+        observe("close_protocol_client", "end");
         Database.prototype.prepare = originalPrepare;
         https.request = oldRequest;
         dns.promises.lookup = oldLookup;
+        observe("close_http_server", "begin");
         await closeTrackedServer(server);
+        observe("close_http_server", "end");
+        observe("close_database", "begin");
         if (db.open)
             db.close();
+        observe("close_database", "end");
         guard.restore();
         for (const key of Object.keys(process.env))
             if (!(key in env))
                 delete process.env[key];
         Object.assign(process.env, env);
+        observe("remove_fixture_root", "begin");
         rmSync(root, { recursive: true, force: true });
+        observe("remove_fixture_root", "end");
         phase("cleanup");
+        observe("cleanup", "end");
     }
+    observe("test", "end");
     console.log(JSON.stringify({ test: "request-bound-review", status: "pass", categories: { A: "PASS", B: "PASS", C: "PASS", D: "PASS", E: "PASS local protocol fixtures", F: "PASS", G: "PASS scripted use; real model/comparison NOT_RUN" },
         setup_cycles: 1, ordinary_cycles: 2, scripted_human_relay: 0, elapsed_ms: Date.now() - started, phase_ms: phases, callbacks, actual_chatgpt: "NOT_RUN", real_model_use: "NOT_RUN", burden_comparison: "NOT_RUN", provider_cost: "unknown" }));
 }
