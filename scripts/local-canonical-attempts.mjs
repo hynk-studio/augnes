@@ -2340,7 +2340,9 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
     } else if (ordinaryBudgetSuccessor(p)) {
       const {contract,path_kind,binding,resources}=original.inputs;
       if (digest({contract,path_kind,binding,resources}) !== original.inputs.fingerprint) throw fail("revision_git_predecessor_invalid");
-      verifySettledPhaseFailure(original,stock,inputs,REVIEWED_REVISION_PHASES,resources.find(r=>r.id==="browser-executable"),false,1,false,true);
+      // Identity can stop before the integration Browser consumers. Retain its
+      // valid observed prefix and exact false stock; final coverage is unchanged.
+      verifySettledPhaseFailure(original,stock,inputs,REVIEWED_REVISION_PHASES,resources.find(r=>r.id==="browser-executable"),identityBudgetEvidence(p),1,false,true,identityBudgetEvidence(p));
     } else if (!acquisitionIncident) {
       const stockPredecessor=stockVerifierEvidence(p)?verifyStockVerifierPredecessor(p,prior,parse(p.focused),{original,stock,parse,bytes,git:originalGit,
         inventory:gitRevisionInventory,stockComparison:gitRevisionStockComparison,stockContract:GIT_CURRENT_STOCK_COMPARISON}):null;

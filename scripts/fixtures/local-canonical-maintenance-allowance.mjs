@@ -210,11 +210,14 @@ async function assertIdentityEntryControls(sourceRoot,ordinary,maintenance) {
   const imports=source.replace(/from "(\.\/[^"\n]+)"/gu,(_all,relative)=>
     "from "+JSON.stringify(pathToFileURL(path.resolve(path.dirname(file),relative)).href));
   const controls=await import("data:text/javascript;base64,"+Buffer.from(imports+
-    "\nexport {validGitRevisionEdge,revisionFollows,ordinaryBudgetSuccessor};\n").toString("base64"));
+    "\nexport {validGitRevisionEdge,revisionFollows,ordinaryBudgetSuccessor,identityBudgetEvidence};\n").toString("base64"));
   const identity=clone(maintenance);delete identity.commission.allowance_case;
   identity.commission.evidence_kind="registered-identity-contract-budget-v1";
   assert.equal(controls.ordinaryBudgetSuccessor(identity),true);
   assert.equal(controls.ordinaryBudgetSuccessor(maintenance),true);
+  assert.equal(controls.identityBudgetEvidence(identity),true);
+  assert.equal(controls.identityBudgetEvidence(maintenance),false);
+  assert.equal(controls.identityBudgetEvidence({commission:{evidence_kind:"unregistered-budget"}}),false);
   assert.equal(controls.validGitRevisionEdge(ordinary,identity),true);
   assert.equal(controls.revisionFollows(identity,0,null,[],0),true);
   let refusals=0;

@@ -2080,7 +2080,11 @@ product failure with no material commission, no newer attempt or successor,
 intact original receipt and false stock. Its untruncated physical integration
 log must show only this registered child failing its old watchdog, a natural
 failing parent, truthful selected/started/settled/completed/unstarted inventory
-and complete owned cleanup. Its raw disposition, unresolved historical cause
+and complete owned cleanup. Only this Identity predecessor may retain an
+incomplete valid ordered prefix of integration Browser observations when that
+failed phase stopped before those consumers; its original false-stock issue
+must remain exactly accounted. This accepts no missing final-target coverage.
+Its raw disposition, unresolved historical cause
 and all earlier invocation consumption are preserved. This route's immediate
 root is that latest predecessor; it does not reset the earlier physical lineage
 or reuse its conditional recovery or the Web correction proof.
