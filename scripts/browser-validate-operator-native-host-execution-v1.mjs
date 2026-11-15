@@ -2274,7 +2274,7 @@ await runOperatorExecutionBrowserChildV1({
         assert.deepEqual(revisedPacket.constraints.forbidden_actions, savedBPacket.constraints.forbidden_actions);
         assert.deepEqual(revisedPacket.selected_context.filter(entry => entry.entry_kind === "accepted_state_ref"), savedBPacket.selected_context.filter(entry => entry.entry_kind === "accepted_state_ref"));
         await lifecycle.navigate(`${appOrigin}/workbench/semantic-review`);
-        await lifecycle.waitForCondition(`document.querySelector('[data-current-work-goal]')?.textContent === ${JSON.stringify(revisedGoal)} && document.querySelectorAll('[data-current-work-source-text]').length === 3`, "revised successor fresh Browser read");
+        await lifecycle.waitForCondition(`document.querySelector('[data-current-work-goal]')?.textContent === ${JSON.stringify(revisedGoal)} && document.querySelectorAll('[data-current-work-source-text]').length === 3 && document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-loading="false"]') !== null`, "revised successor fresh Browser read and settled GuideBrief");
         assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-current-work-sources]').textContent.includes(${JSON.stringify(savedCorrection)})`), true);
         console.log(JSON.stringify({ saved_successor_reopen_revision_ui: "pass", fresh_selected_notes: 3, appended_revision_packets: 1, new_runs: 0, semantic_changes: 0 }));
         console.log(JSON.stringify({ outcome_judgment_next_work_ui: "pass", explicit_selected_notes: 2, outcome_source_copies: 0, new_runs: 0, semantic_changes: 0 }));

@@ -137,7 +137,7 @@ const goldenStep = {
   requireNaturalExit: true,
 };
 
-const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-input", "git-input-lifecycle", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-stock", "material-reservation", "serial-aggregate", "serial-material"].map(group => ({
+const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-input", "git-input-direct", "git-input-lifecycle", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-stock", "material-integration-preparation", "material-integration-reservation", "material-reservation", "serial-aggregate", "serial-material"].map(group => ({
   id: "local-canonical-reviewed-revision-" + group,
   label: "reviewed revision controls: " + group,
   sharedFixture: !["revision", "settlement", "browser", "serial-aggregate", "serial-material"].includes(group),
@@ -1524,15 +1524,42 @@ const suites = {
       id: "local-canonical-maintenance",
       label: "prospective maintenance proof, safe inputs and terminal succession",
       ...rootNode("scripts/test-local-canonical-maintenance.mjs"),
-      // Aggregate test liveness, not a product deadline. Complete controls took
-      // ~49s, including ~36s across 5,867 Git calls. Keep those independent
-      // reads and every scenario; add a finite 30s orchestration reserve to the
-      // former 60s bound. Inner 10s setup limits and TERM/KILL cleanup stay intact.
-      // This prospective allowance does not explain the retained 60s timeout.
-      timeoutMs: 90_000,
+      // Aggregate test liveness, not a product deadline. The complete current
+      // workload naturally took 89.406s. Retain the existing 30s orchestration
+      // reserve and round up to 120s; every scenario, independent reader, inner
+      // 10s setup limit and TERM/KILL cleanup obligation stays intact.
+      // This prospective allowance does not explain retained watchdog failures.
+      timeoutMs: 120_000,
       requireNaturalExit: true,
     },
     ...reviewedRevisionSteps,
+    {
+      id: "local-canonical-maintenance-reader",
+      label: "selected maintenance reader evidence and succession",
+      sharedFixture: true,
+      ...rootNode("scripts/fixtures/local-canonical-reviewed-revision.mjs", "--run-maintenance-reader-fixtures"),
+      // Whole-owner liveness includes import/bootstrap, inherited setup,
+      // controls, independent readers, post-reader refusals, preservation,
+      // handoff, restoration and owned cleanup. The retained complete owner
+      // took 72.482s; apply the maintenance owners' finite 30s orchestration
+      // reserve and round up to 110s. Inner/product deadlines stay unchanged.
+      timeoutMs: 110_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "local-canonical-maintenance-budget",
+      label: "measured maintenance aggregate allowance and succession",
+      sharedFixture: true,
+      ...rootNode("scripts/fixtures/local-canonical-reviewed-revision.mjs", "--run-maintenance-budget-fixtures"),
+      // Retained complete work plus the existing 30s orchestration allowance
+      // rounds to 120s. Initial synchronous evidence reuse removes repeated
+      // immutable derivation while final/live checks stay fresh. Add a finite
+      // 30s for the continuation's complete added controls and two 30s readers;
+      // require actual final whole-owner completion under 150s. This is a
+      // prospective allowance, not a speedup or guaranteed-headroom claim.
+      timeoutMs: 150_000,
+      requireNaturalExit: true,
+    },
     {
       label: "prepared dependency eligibility before consumers",
       ...rootNode("scripts/test-prepared-dependency-eligibility.mjs"),

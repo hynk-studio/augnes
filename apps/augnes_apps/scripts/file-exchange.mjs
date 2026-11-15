@@ -1,5 +1,5 @@
 import { constants as fs } from 'node:fs';
-import { open, readFile, unlink, link, mkdir, readdir, lstat, rmdir } from 'node:fs/promises';
+import { open, readFile, unlink, link, rename, mkdir, readdir, lstat, rmdir } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { digest, openFileTask, openFileProject, openFileProjects } from './web-file-client.mjs';
@@ -36,6 +36,14 @@ function draftSummary(body) {
   return { kind: body.kind, basis: body.basis, message: body.message, next_action: body.next_action,
     files: body.files.map(({ data, ...file }) => file) };
 }
+// Repeated preparation of the same exact disclosure uses the writer's existing
+// idempotency identity, even if concurrent callers outlive the pending slot.
+function scopeOperationId(request,expected,scope){
+  const hex=digest(Buffer.from(JSON.stringify([request.work_id,request.revision,request.fingerprint,expected.revision,expected.fingerprint,
+    scope.recipient,scope.brief,scope.next_action,scope.indices,scope.expires]))).slice(7,39).split('');
+  hex[12]='4';hex[16]=(8+(parseInt(hex[16],16)&3)).toString(16);
+  const value=hex.join('');return [value.slice(0,8),value.slice(8,12),value.slice(12,16),value.slice(16,20),value.slice(20)].join('-');
+}
 // Only an explicitly chosen, new private folder receives local files. The request
 // manifest is written last. A failed export never consumes its pending journal.
 async function recoverDraft(directory, {work_id, setup_digest, body}) {
@@ -68,6 +76,19 @@ async function recoverDraft(directory, {work_id, setup_digest, body}) {
   }
 }
 async function newJson(path,value){const out=await open(path,'wx',0o600);try{await out.writeFile(JSON.stringify(value,null,2));await out.sync();}finally{await out.close();}}
+async function retireJournal(journal, expectedText){
+  // Claim the current entry atomically BEFORE inspecting it. The shared scope
+  // name may already hold another operation. Never unlink that reusable name.
+  // Normal publication never writes a claimed-* name; other completers may
+  // only move it away. Thus the later unlink cannot delete a replacement.
+  const claimed=join(pendingDir,'claimed-'+randomUUID());
+  try{await rename(journal,claimed);}catch(error){if(error.code==='ENOENT')return;throw error;}
+  let actual;
+  try{actual=await readFile(claimed,'utf8');}catch(error){if(error.code==='ENOENT')return;throw error;}
+  if(actual===expectedText)await unlink(claimed).catch(error=>{if(error.code!=='ENOENT')throw error;});
+  // A different entry, a crash or a read error leaves the complete original
+  // discoverable as a pending journal. Fresh check/retry/recover uses its body.
+}
 async function run() {
   if(setup==='projects'){
     if(args.length)throw Error('Use projects [CURSOR].');
@@ -162,6 +183,7 @@ async function run() {
     return client.sendReturn(pending,action==='check-use');
   }
   if (action === 'context') return client.planning.current();
+  if (action === 'request-context' && args.length===1) return client.requestContext(Number(args[0]));
   if (action === 'history') {
     const revisions=await client.planning.history();
     if(!args.length)return revisions.map(({revision,fingerprint,recorded_at,definition})=>({revision,fingerprint,recorded_at,goal:definition.goal}));
@@ -182,50 +204,92 @@ async function run() {
   await mkdir(pendingDir,{recursive:true,mode:0o700});
   const directory = await lstat(pendingDir);
   if (!directory.isDirectory() || (directory.mode & 0o077)) throw new Error('Choose a private task setup directory.');
-  const pending = (await readdir(pendingDir)).filter(name=>/^[a-f0-9-]{36}$/.test(name));
-  let operation, journal;
+  const pending = (await readdir(pendingDir)).filter(name=>name==='scope'||/^(?:claimed-)?[a-f0-9-]{36}$/.test(name));
+  let operation, journal, journalText;
   if (['check', 'retry', 'recover'].includes(action)) {
     if (action === 'recover' && !args[0]) throw new Error('Use recover NEW_DIRECTORY after checking an unrecorded, stale save.');
     const selected = (action === 'recover' ? args[1] : args[0]) ?? (pending.length === 1 ? pending[0] : undefined);
     if (!pending.includes(selected)) throw new Error('Select a pending request: ' + pending.join(', '));
     journal = join(pendingDir,selected);
-    operation = JSON.parse(await readFile(journal, 'utf8'));
+    journalText=await readFile(journal, 'utf8');
+    operation = JSON.parse(journalText);
   } else {
     if (pending.length) throw new Error('Check the previous pending file save first.');
     const state = await client.list();
-    const isReturn = action === 'return';
-    const requestVersion = isReturn ? Number(args.shift()) : null;
-    const basis = isReturn ? state.items.find(r => r.kind === 'request' && r.ref.revision === requestVersion)?.ref : null;
-    if (isReturn && !basis) throw new Error('Select a listed request version.');
-    const message = args.shift(), next_action = isReturn ? args.shift() : '';
-    if ((!isReturn && action !== 'request') || !message || (isReturn && !next_action) || !args.length || args.length > 8)
-      throw new Error('Use list, read VERSION NAME [START_BYTE [FIND]], get VERSION NAME NEW_PATH, request MESSAGE FILE..., return REQUEST_VERSION MESSAGE NEXT FILE..., check or retry.');
-    const field = invalidExchangeText({kind:isReturn ? 'return' : 'request', message, next_action});
-    if (field) throw new Error('Provide a nonempty ' + field + ' of at most 500 characters without control characters.');
-    const files = [];
-    let total=0;
-    for (const path of args) {
-      const f=await selectedFile(path);total+=f.bytes;
-      if(total>7340032)throw Error('Choose up to 7 MiB of files together.');
-      files.push(f);
+    if(action==='scope'){
+      if(client.participant||args.length!==2)throw Error('Use an owner task: scope REQUEST_VERSION SCOPE.json.');
+      const selected=state.items.find(r=>r.kind==='request'&&r.ref.revision===Number(args[0]));
+      if(!selected)throw Error('Select a listed request version.');
+      const scope=JSON.parse(await readFile(args[1],'utf8'));
+      if(Object.keys(scope).sort().join(',')!=='brief,expires,indices,next_action,recipient')throw Error('Scope requires recipient, brief, next_action, indices and expires.');
+      const invalid=invalidExchangeText({kind:'return',message:scope.brief,next_action:scope.next_action});
+      if(invalid||typeof scope.recipient!=='string'||!scope.recipient.trim()||!Array.isArray(scope.indices)||!scope.indices.length||scope.indices.length>8||
+        new Set(scope.indices).size!==scope.indices.length||scope.indices.some(i=>!Number.isSafeInteger(i)||i<0||!selected.files[i])||
+        !Number.isSafeInteger(scope.expires)||scope.expires<=Date.now()||scope.expires>Date.now()+90*86400000)throw Error('Choose valid disclosed text, original file indices, recipient and an expiry within 90 days.');
+      scope.recipient=scope.recipient.trim().toLowerCase();
+      operation={type:'participation',work_id:client.work_id,setup_digest:client.setupDigest,
+        body:{...scope,grant_id:scopeOperationId(selected.ref,state.head,scope),request:selected.ref,expected:state.head}};
+    }else{
+      const isReturn = action === 'return';
+      const requestVersion = isReturn ? Number(args.shift()) : null;
+      const basis = isReturn ? state.items.find(r => r.kind === 'request' && r.ref.revision === requestVersion)?.ref : null;
+      if (isReturn && !basis) throw new Error('Select a listed request version.');
+      const message = args.shift(), next_action = isReturn ? args.shift() : '';
+      if ((!isReturn && action !== 'request') || !message || (isReturn && !next_action) || !args.length || args.length > 8)
+        throw new Error('Use list, read VERSION NAME [START_BYTE [FIND]], get VERSION NAME NEW_PATH, request MESSAGE FILE..., scope REQUEST_VERSION SCOPE.json, request-context VERSION, return REQUEST_VERSION MESSAGE NEXT FILE..., check or retry.');
+      const field = invalidExchangeText({kind:isReturn ? 'return' : 'request', message, next_action});
+      if (field) throw new Error('Provide a nonempty ' + field + ' of at most 500 characters without control characters.');
+      const files = [];
+      let total=0;
+      for (const path of args) {
+        const f=await selectedFile(path);total+=f.bytes;
+        if(total>7340032)throw Error('Choose up to 7 MiB of files together.');
+        files.push(f);
+      }
+      operation = { work_id: client.work_id, setup_digest: client.setupDigest, body: { expected: state.head, request_key: randomUUID(),
+        kind: isReturn ? 'return' : 'request', basis, message, next_action, files } };
     }
-    operation = { work_id: client.work_id, setup_digest: client.setupDigest, body: { expected: state.head, request_key: randomUUID(),
-      kind: isReturn ? 'return' : 'request', basis, message, next_action, files } };
-    journal = join(pendingDir,operation.body.request_key);
-    const tmp = journal + '.tmp';
+    // One scope slot in this task's existing journal prevents simultaneous
+    // invocations from publishing two newly keyed copies of the same ask.
+    journal = join(pendingDir,operation.type==='participation'?'scope':operation.body.request_key);
+    const tmp = journal + '.' + randomUUID() + '.tmp';
     const output = await open(tmp, 'wx', 0o600);
     try {
-      await output.writeFile(JSON.stringify(operation)); await output.sync();
+      journalText=JSON.stringify(operation);
+      await output.writeFile(journalText); await output.sync();
       await link(tmp, journal).catch(error => { if (error.code === 'EEXIST') throw new Error('Check the previous pending file save first.'); throw error; });
     } finally { await output.close(); await unlink(tmp); }
   }
   if (operation.work_id !== client.work_id || operation.setup_digest !== client.setupDigest) throw new Error('Pending save belongs to a different task.');
+  if(operation.type==='participation'){
+    let result=await client.participation.resolve(operation.body);
+    if(result.outcome==='unknown'&&result.retry_allowed&&action!=='check'&&action!=='recover'){
+      result={outcome:'saved',grant:await client.participation.create(operation.body)};
+    }
+    if(action==='recover'&&result.outcome==='unknown'&&!result.retry_allowed){
+      await mkdir(args[0],{mode:0o700});
+      await newJson(join(args[0],'scope.json'),operation);
+      await retireJournal(journal,journalText);
+      return {...result,next_action:'The original scope is preserved in scope.json. Review current work before another disclosure.'};
+    }
+    if(result.outcome==='saved')await retireJournal(journal,journalText);
+    return {...result,delivery:'UNKNOWN',next_action:result.outcome==='saved'?
+      'The original scope is recorded. Check expiry/revocation before using its authenticated pull route. Its link is not delivery or reading. Use request-context to recover the response and checked use.':
+      'The scope was not observed. Retain this exact journal; check before retrying. Review stale or expired work before another disclosure.'};
+  }
   const resolving = action === 'check' || action === 'recover';
   const field = invalidExchangeText(operation.body);
   if (field && !resolving) throw new Error('The pending ' + field + ' is invalid. Use check or recover NEW_DIRECTORY.');
   let result;
   try {
-    result = await client.write(operation.body, resolving);
+    // An uncertain acknowledgement must be reconciled before any repeat POST.
+    // A failed read never reaches the write, and a late original commit shares
+    // exactly the original key/body with the existing enforcing writer.
+    if(action==='retry'){
+      result=await client.write(operation.body,true);
+      if(result.outcome==='unknown'&&result.head.revision===operation.body.expected.revision&&result.head.fingerprint===operation.body.expected.fingerprint&&result.retry_allowed!==false)
+        result=await client.write(operation.body);
+    }else result = await client.write(operation.body, resolving);
   } catch (error) {
     // Older clients journaled invalid text. Only a matching Web validation refusal
     // and an authenticated catalog without this key permit explicit local recovery.
@@ -237,7 +301,7 @@ async function run() {
       next_action:'The pending ' + field + ' was refused. Use recover NEW_DIRECTORY to preserve the draft before correcting it.'};
     if (action === 'recover') {
       await recoverDraft(args[0], operation);
-      await unlink(journal);
+      await retireJournal(journal,journalText);
       result.next_action = 'The refused draft and its exact files were recovered. Correct the text before making a new request or return.';
     }
     return result;
@@ -254,7 +318,7 @@ async function run() {
   } else if (action === 'recover' && result.outcome !== 'saved') {
     result.next_action = 'The save is still eligible on its original version. Check it before retrying the exact pending request.';
   }
-  if (result.outcome === 'saved' || (superseded && action === 'recover')) await unlink(journal).catch(error => { if (error.code !== 'ENOENT') throw error; });
+  if (result.outcome === 'saved' || (superseded && action === 'recover')) await retireJournal(journal,journalText);
   return result;
 }
 try { print(await run()); } catch (error) {

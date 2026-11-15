@@ -199,12 +199,22 @@ export function verifyReviewedBrowserFailure(r, stock, inputs, phaseIds) {
 
 // Both reviewed continuations require the physical ordinal-one Full to have
 // stopped at a natural child failure with settled resources and accounted stock.
-export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBrowser, allowIncompleteBrowser = false, expectedOrdinal = 1, generatedStockSerial = false, ordinaryFixture = false, declaredMaterial = false, stockPredecessor = null) {
+export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBrowser, allowIncompleteBrowser = false, expectedOrdinal = 1, generatedStockSerial = false, ordinaryFixture = false, declaredMaterial = false, stockPredecessor = null, historicalStockKind = null) {
   const failed = r.phases?.findIndex(p => p.status === "failure") ?? -1;
   const stockVerifier = verifiedStockPredecessor(stockPredecessor,r,stock);
   if(stockPredecessor && (!stockVerifier||!declaredMaterial||generatedStockSerial||ordinaryFixture))throw fail("revision_browser_failure_invalid");
   const reason = generatedStockSerial || stockVerifier ? "serial_execution_incomplete" : "phase_failed";
   const ordinary = r.attempt?.source_correction;
+  // Only this typed, exhausted direct-Git predecessor can retain the two
+  // historical stock consequences. The original observation is never projected
+  // into a different issue set or applicability dimension.
+  const selectiveHistory = historicalStockKind === "selective-fixture-workload-v1";
+  const previous = ordinary;
+  if (historicalStockKind !== null && (!selectiveHistory || generatedStockSerial || ordinaryFixture || declaredMaterial || stockPredecessor || expectedOrdinal !== 1 ||
+      previous?.schema !== "augnes.local-canonical-source-correction.v10" ||
+      previous.commission?.input_revision !== "direct-protected-git-input-v1" ||
+      previous.commission.ordinal !== 1 || previous.commission.maximum_invocations !== 1 ||
+      r.phases?.[failed]?.id !== "integration")) throw fail("revision_browser_failure_invalid");
   const oldRuntime=r.inputs?.binding?.runtime_inputs,oldNode=r.inputs?.resources?.find(v=>v.id==="node-executable");
   const declaredRange = usesDeclaredIntegrationBase(r);
   if (declaredMaterial && !declaredRange) throw fail("revision_browser_failure_invalid");
@@ -242,6 +252,10 @@ export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBr
   // The generated-stock evidence reader separately proves the exact serial
   // prefix and the causal attempt-reader defect. Ordinary stock stays strict.
   if (generatedStockSerial || stockVerifier) issues.add("receipt_attempt_records_unverified");
+  if (selectiveHistory) {
+    issues.add("receipt_attempt_records_unverified");
+    issues.add("receipt_stale_integration_base");
+  }
   for (const [index, phase] of r.phases.entries()) {
     const records = phase.browser_use ?? [];
     if (index >= failed) issues.add("phase_not_passing:" + phase.id);
@@ -278,7 +292,7 @@ export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBr
   }
   if (stock.status !== "non_deciding_or_stale" || stock.valid_deciding_evidence !== false ||
       !same(stock.dimensions, { historical_integrity: "intact", execution: "incomplete_or_failed", evidence_validity: "invalid_or_incomplete",
-        safety: "preserved_within_observed_scope", current_merge_applicability: (ordinaryFixture || declaredMaterial) && declaredRange &&
+        safety: "preserved_within_observed_scope", current_merge_applicability: selectiveHistory ? "blocked" : (ordinaryFixture || declaredMaterial) && declaredRange &&
           ["different_current_main","current_main_unobserved"].includes(stock.dimensions?.current_merge_applicability) ?
           stock.dimensions.current_merge_applicability : "matches_observed_context" }) ||
       !same(stock.issues, [...issues].sort())) throw fail("revision_browser_stock_unaccounted");
