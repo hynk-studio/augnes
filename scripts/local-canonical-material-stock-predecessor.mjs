@@ -1,5 +1,5 @@
 import path from "node:path";
-import { digest, inputEventIdentity, classifyInputChange, nonFaultInputChange } from "./local-canonical-inputs.mjs";
+import { digest, inputEventIdentity, classifyInputChange, nonFaultInputChange, validCanonicalRuntimeInputs } from "./local-canonical-inputs.mjs";
 import { PROJECT_EXPERIENCE_SERIAL, PROJECT_EXPERIENCE_COMMITMENT, PROJECT_EXPERIENCE_ENVELOPE_MS, projectExperienceElapsed } from "./project-experience-serial-budget.mjs";
 import { validProjectExperienceConnection } from "./project-experience-connection.mjs";
 import { BROWSER_IDENTITY_PREFIX, parseBrowserUseLine, validBrowserUse } from "./local-canonical-browser-identity.mjs";
@@ -35,6 +35,16 @@ export function verifiedMaterialCurrentStockMismatchPredecessor(value,receipt,st
   return !!bound && bound.receipt === digest(receipt) && bound.stock === digest(stock);
 }
 
+// This returns only the immutable historical phase context. The independently
+// bound prospective argument is still required and remains the live target;
+// no historical observation is substituted for its preparation/admission pin.
+export function materialCurrentStockHistoricalRuntime(value,receipt,stock,prospectiveRuntime) {
+  const bound=value&&checkedCurrentMismatch.get(value);
+  if(!verifiedMaterialCurrentStockMismatchPredecessor(value,receipt,stock)||
+    !validCanonicalRuntimeInputs(prospectiveRuntime)||digest(prospectiveRuntime)!==bound.prospective_runtime_sha256)fail();
+  return structuredClone(bound.historical_runtime);
+}
+
 export function verifyMaterialCurrentStockMismatchPredecessor(p,prior,focused,{original,stock,parse,inventory,stockComparison,stockContract}) {
   const incident=focused.predecessor_stock,previous=prior.source_correction;
   const {integrity,...unsigned}=original;
@@ -43,7 +53,8 @@ export function verifyMaterialCurrentStockMismatchPredecessor(p,prior,focused,{o
     p.commission?.source_revision!=="material-source-correction-v1"||p.commission.ordinal!==1||p.commission.maximum_invocations!==1||
     previous?.schema!=="augnes.local-canonical-source-correction.v7"||previous.kind!=="reviewed_revision"||
     previous.commission?.source_revision!=="material-source-correction-v1"||previous.commission.ordinal!==1||previous.commission.maximum_invocations!==1||
-    !Number.isSafeInteger(previous.authorization?.grant_comment_id)||previous.authorization.grant_comment_id<=0||
+    !Number.isSafeInteger(previous.authorization?.grant_comment_id)||previous.authorization.grant_comment_id<=0||!sha(previous.authorization?.grant_sha256)||
+    !sha(p.inputs?.identity_sha256)||!sha(previous.inputs?.identity_sha256)||
     p.authorization?.grant_comment_id===previous.authorization.grant_comment_id||
     !equal(original.attempt,prior)||integrity?.content_fingerprint!==p.prior_receipt_fingerprint||digest(unsigned)!==integrity.content_fingerprint||
     stock.content_fingerprint!==p.prior_receipt_fingerprint||
@@ -56,7 +67,9 @@ export function verifyMaterialCurrentStockMismatchPredecessor(p,prior,focused,{o
     !Number.isFinite(Date.parse(observed.observed_at))||!(Date.parse(observed.observed_at)>Date.parse(original.run.finished_at))||
     !(Date.parse(observed.observed_at)<=Date.parse(focused.finished_at))||
     !current||fingerprint(current)!==current.fingerprint||fingerprint(original.inputs)!==original.inputs.fingerprint||
-    digest(observed.runtime)!==previous.inputs.identity_sha256||inventory(original.inputs)!==previous.inputs.inventory_sha256||
+    !validCanonicalRuntimeInputs(original.inputs.binding?.runtime_inputs)||
+    digest(original.inputs.binding.runtime_inputs)!==previous.inputs.identity_sha256||
+    !equal(observed.runtime,original.inputs.binding.runtime_inputs)||inventory(original.inputs)!==previous.inputs.inventory_sha256||
     observed.inventory!==inventory(current))fail();
   const comparison=stockComparison(original.inputs,current,stockContract);
   if(!keys(stock.current_stock_input_comparison,["contract","expected_inventory_sha256","current_inventory_sha256","exact","equivalent"])||
@@ -70,7 +83,8 @@ export function verifyMaterialCurrentStockMismatchPredecessor(p,prior,focused,{o
   const restored=structuredClone(current);restored.resources.find(v=>v.id==="git-config").before=structuredClone(before.before);
   if(inventory(restored)!==inventory(original.inputs))fail();
   const value=Object.freeze({contract:MATERIAL_CURRENT_STOCK_GIT_MISMATCH,receipt:p.prior_receipt_fingerprint});
-  checkedCurrentMismatch.set(value,{receipt:digest(original),stock:digest(stock)});return value;
+  checkedCurrentMismatch.set(value,{receipt:digest(original),stock:digest(stock),prospective_runtime_sha256:p.inputs.identity_sha256,
+    historical_runtime:structuredClone(original.inputs.binding.runtime_inputs)});return value;
 }
 
 function only(lines,prefix) {

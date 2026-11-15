@@ -23,7 +23,7 @@ import { OPERATOR_REQUEST_LIFECYCLE_PHASES_V1 as GUIDE_REPAIR_PHASES } from "./o
 import { INTEGRATION_BASE_CONTRACT, validAdmittedIntegrationBase, usesDeclaredIntegrationBase } from "./local-canonical-integration-base.mjs";
 import { MATERIAL_COMMON_DRIVER, verifyMaterialCommonDriver, commonDriverDependencies } from "./local-canonical-common-driver.mjs";
 import { GIT_CONFIG_STOCK_VERIFIER_REPAIR, MATERIAL_COMMON_STOCK_VERIFIER, verifyMaterialStockVerifier } from "./local-canonical-stock-verifier-witness.mjs";
-import { verifiedStockPredecessor, verifiedMaterialCurrentStockMismatchPredecessor } from "./local-canonical-material-stock-predecessor.mjs";
+import { verifiedStockPredecessor, verifiedMaterialCurrentStockMismatchPredecessor, materialCurrentStockHistoricalRuntime } from "./local-canonical-material-stock-predecessor.mjs";
 export { MATERIAL_COMMON_DRIVER } from "./local-canonical-common-driver.mjs";
 
 export const isGitObservationRevision = p =>
@@ -352,7 +352,8 @@ export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expecte
       !isMaterialSourceRevision(previous)||previous.commission.ordinal!==1||previous.commission.maximum_invocations!==1||
       stockPredecessor||generatedStockSerial||serialPredecessor||historicalStockKind))fail("revision_git_predecessor_invalid");
   const incompleteIntegration = declaredMaterial && receipt.phases?.find(phase => phase.status === "failure")?.id === "integration";
-  verifySettledPhaseFailure(receipt, stock, inputs, phases, resources.find(r => r.id === "browser-executable"),
+  const historicalInputs=currentStockPredecessor?materialCurrentStockHistoricalRuntime(currentStockPredecessor,receipt,stock,inputs):inputs;
+  verifySettledPhaseFailure(receipt, stock, historicalInputs, phases, resources.find(r => r.id === "browser-executable"),
     incompleteIntegration || stockVerifier || generatedStockSerial || isGitObservationRevision(previous) && expectedOrdinal === 1, expectedOrdinal, generatedStockSerial, false, declaredMaterial, stockPredecessor, historicalStockKind, currentStockPredecessor);
   if (hasSerialAccounting(previous) && receipt.phases.some(p=>p.id === "e2e-project-experience" && p.status === "pass" && !validProjectExperienceAccounting(p.serial_budget)))
     fail("revision_inherited_serial_accounting_invalid");
@@ -438,7 +439,10 @@ export function validateStockMismatchRepairOutcome(output,exit) {
     report.implicated_sources.some(v=>!sha(v.sha256)||!Number.isSafeInteger(v.byte_size)||v.byte_size<1)||
     !equal(report.decision,exit===0?{status:"pass"}:{status:"failure",error_code:"revision_browser_stock_unaccounted"})||
     report.historical_stock_preserved!==true||report.complete_git_still_inequivalent!==true||report.lineage_unverified_preserved!==true||
-    report.deciding!==false||report.cleanup_complete!==true||report.refusal_controls!==(exit===0?35:0)||
+    !equal(Object.keys(report.runtime_contexts??{}).sort(),["current_sha256","current_validation","historical_sha256"])||
+    !sha(report.runtime_contexts.historical_sha256)||!sha(report.runtime_contexts.current_sha256)||
+    report.runtime_contexts.current_validation!==(exit===0?"pass":"not_reached")||
+    report.deciding!==false||report.cleanup_complete!==true||report.refusal_controls!==(exit===0?44:0)||
     exit===1&&!output.includes("Error: revision_browser_stock_unaccounted"))fail("revision_stock_mismatch_outcome_invalid");
   return report;
 }
@@ -674,6 +678,15 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
             !equal(report.originals,{receipt:p.originals.receipt.sha256,attempt:p.originals.attempt.sha256,stock:p.originals.stock.sha256,
               observation:focused.predecessor_stock?.observation?.sha256})||
             !equal(witness.controlled_input,before.controlled_input))fail("revision_git_regression_invalid");
+          let historicalRuntime,historicalIdentity,receiptRuntime;
+          try{
+            historicalRuntime=JSON.parse(input.originals.observation).runtime;
+            historicalIdentity=JSON.parse(input.originals.attempt).source_correction.inputs.identity_sha256;
+            receiptRuntime=JSON.parse(input.originals.receipt).inputs.binding.runtime_inputs;
+          }catch{fail("revision_git_regression_invalid");}
+          if(report.runtime_contexts.historical_sha256!==digest(historicalRuntime)||historicalIdentity!==digest(historicalRuntime)||
+            !equal(historicalRuntime,receiptRuntime)||report.runtime_contexts.current_sha256!==witness.runtime_inputs_sha256||
+            report.runtime_contexts.current_sha256!==p.inputs.identity_sha256)fail("revision_git_regression_invalid");
         }
       }else validateGuideRepairOutcome(bytes(witness.stdout,2*1024*1024).toString(),exit);
     }

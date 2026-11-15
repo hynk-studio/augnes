@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import {readFileSync,lstatSync,realpathSync} from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
-import {digest} from "./local-canonical-inputs.mjs";
+import {digest,observeCanonicalRuntimeInputs} from "./local-canonical-inputs.mjs";
 import {verifyReceiptIntegrity} from "./local-canonical-receipt.mjs";
 import {MATERIAL_SOURCE_CORRECTION,GIT_CURRENT_STOCK_COMPARISON,gitRevisionInventory,
   gitRevisionStockComparison,verifyGitRevisionFailure} from "./local-canonical-git-observation.mjs";
@@ -30,24 +30,30 @@ assert.deepEqual(comparison,stock.current_stock_input_comparison);assert.equal(c
 const ref={artifact:"retained-complete-observation.json",sha256:digest(Buffer.from(input.originals.observation))};
 const p={schema:"augnes.local-canonical-source-correction.v7",kind:"reviewed_revision",
   commission:{source_revision:MATERIAL_SOURCE_CORRECTION,ordinal:1,maximum_invocations:1},
+  inputs:{identity_sha256:digest(snapshot.runtime)},
   prior_family_id:prior.family_id,prior_number:prior.number,prior_attempt_id:prior.attempt_id,prior_receipt_fingerprint:original.integrity.content_fingerprint};
 const focused={finished_at:new Date().toISOString(),predecessor_stock:{contract:MATERIAL_CURRENT_STOCK_GIT_MISMATCH,observation:ref}};
-const token=verifyMaterialCurrentStockMismatchPredecessor(p,prior,focused,{original,stock,parse:reference=>{
+const mint=proof=>verifyMaterialCurrentStockMismatchPredecessor(proof,prior,focused,{original,stock,parse:reference=>{
   assert.deepEqual(reference,ref);return snapshot;
 },inventory:gitRevisionInventory,stockComparison:gitRevisionStockComparison,stockContract:GIT_CURRENT_STOCK_COMPARISON});
+const token=mint(p),currentRuntime=observeCanonicalRuntimeInputs(),currentRuntimeIdentity=digest(currentRuntime);
 assert(verifiedMaterialCurrentStockMismatchPredecessor(token,original,stock));
-const saved=digest({original,prior,stock,snapshot});let decision,refusal_controls=0,failure;
+const saved=digest({original,prior,stock,snapshot});let decision,refusal_controls=0,failure,current_validation="not_reached";
 try {
   verifyGitRevisionFailure(original,stock,snapshot.runtime,original.phases.map(v=>v.id),1,false,false,false,true,null,null,token);
   decision={status:"pass"};
 }catch(error){decision={status:"failure",error_code:error.code??error.message};failure=error;}
 if(!failure){
+  const currentToken=mint({...p,inputs:{identity_sha256:currentRuntimeIdentity}});
+  verifyGitRevisionFailure(original,stock,currentRuntime,original.phases.map(v=>v.id),1,false,false,false,true,null,null,currentToken);
+  current_validation="pass";
   const {runMaterialCurrentStockMismatchControls}=await import("./fixtures/local-canonical-material-source.mjs");
   const controls=runMaterialCurrentStockMismatchControls({inputs:snapshot.runtime},original,receipt=>({...structuredClone(stock),
     content_fingerprint:receipt.integrity.content_fingerprint,issues:stock.issues.filter(v=>v!=="receipt_attempt_records_unverified")}),{quiet:true});
-  assert.equal(controls.accepted,1);assert.equal(controls.refused,35);refusal_controls=controls.refused;
+  assert.equal(controls.accepted,2);assert.equal(controls.refused,44);refusal_controls=controls.refused;
 }
 assert.equal(digest({original,prior,stock,snapshot}),saved);assert(readFileSync(file).equals(bytes));
+assert.equal(digest(currentRuntime),currentRuntimeIdentity);
 const implicated_sources=["scripts/local-canonical-browser-revision.mjs","scripts/local-canonical-git-observation.mjs"].map(name=>{
   const content=readFileSync(path.join(root,name));return{path:name,byte_size:content.length,sha256:digest(content)};
 });
@@ -55,5 +61,6 @@ console.log("AUGNES_MATERIAL_STOCK_MISMATCH "+JSON.stringify({contract:"augnes.m
   input_sha256:digest(bytes),historical_sha256:digest(input.originals),
   originals:Object.fromEntries(Object.entries(input.originals).map(([name,value])=>[name,digest(Buffer.from(value))])),
   implicated_sources,decision,refusal_controls,historical_stock_preserved:true,complete_git_still_inequivalent:true,
+  runtime_contexts:{historical_sha256:digest(snapshot.runtime),current_sha256:currentRuntimeIdentity,current_validation},
   lineage_unverified_preserved:true,deciding:false,cleanup_complete:true}));
 if(failure)throw failure;

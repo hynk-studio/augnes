@@ -19,7 +19,7 @@ import {createPrivateReviewExport,inspectPrivateReviewExport} from '../local-can
 import {browserConsumersForPhase,validPhaseBrowserUse} from '../local-canonical-browser-identity.mjs';
 import {runMaterialStockPredecessorControls} from './local-canonical-material-stock-predecessor.mjs';
 import {MATERIAL_CURRENT_STOCK_GIT_MISMATCH,verifyMaterialCurrentStockMismatchPredecessor,
- verifiedMaterialCurrentStockMismatchPredecessor} from '../local-canonical-material-stock-predecessor.mjs';
+ verifiedMaterialCurrentStockMismatchPredecessor,materialCurrentStockHistoricalRuntime} from '../local-canonical-material-stock-predecessor.mjs';
 import {finalizeReceipt,inspectReceiptForDecision,canonicalSerialize} from '../local-canonical-receipt.mjs';
 import {inspectIntegrationStock} from '../run-local-canonical-verification.mjs';
 import {checkoutVerificationFingerprint} from '../local-canonical-checkout-ownership.mjs';
@@ -363,18 +363,19 @@ export function runMaterialCurrentStockMismatchControls(c,base,stockFor,{quiet=f
  stock.issues.push('receipt_attempt_records_unverified');stock.issues.sort();
  const p={schema:'augnes.local-canonical-source-correction.v7',kind:'reviewed_revision',
   commission:{source_revision:MATERIAL_SOURCE_CORRECTION,ordinal:1,maximum_invocations:1},
+  inputs:{identity_sha256:digest(c.inputs)},
   prior_family_id:prior.family_id,prior_number:prior.number,prior_attempt_id:prior.attempt_id,prior_receipt_fingerprint:original.integrity.content_fingerprint};
  const ref={artifact:'retained-complete-observation.json',sha256:digest(JSON.stringify(snapshot))};
  const focused={finished_at:new Date(Date.parse(original.run.finished_at)+2).toISOString(),
   predecessor_stock:{contract:MATERIAL_CURRENT_STOCK_GIT_MISMATCH,observation:ref}};
- const check=(receipt=original,observation=snapshot,s=stock,f=focused,q=p)=>{
+ const check=(receipt=original,observation=snapshot,s=stock,f=focused,q=p,prospective=c.inputs)=>{
   const observedRef={artifact:ref.artifact,sha256:digest(JSON.stringify(observation))};
   const focus=f===focused&&observation!==snapshot?{...f,predecessor_stock:{...f.predecessor_stock,observation:observedRef}}:f;
   const parse=reference=>{assert.deepEqual(reference,observedRef);return observation;};
   const token=verifyMaterialCurrentStockMismatchPredecessor(q,receipt.attempt,focus,{original:receipt,stock:s,parse,
    inventory:gitRevisionInventory,stockComparison:gitRevisionStockComparison,stockContract:GIT_CURRENT_STOCK_COMPARISON});
   assert(verifiedMaterialCurrentStockMismatchPredecessor(token,receipt,s));
-  verifyGitRevisionFailure(receipt,s,c.inputs,REVIEWED_REVISION_PHASES,1,false,false,false,true,null,null,token);return token;
+  verifyGitRevisionFailure(receipt,s,prospective,REVIEWED_REVISION_PHASES,1,false,false,false,true,null,null,token);return token;
  };
  const token=check();let accepted=1,refused=0;
  assert.throws(()=>verifyGitRevisionFailure(original,stock,c.inputs,REVIEWED_REVISION_PHASES,1,false,false,false,true));refused++;
@@ -417,9 +418,33 @@ export function runMaterialCurrentStockMismatchControls(c,base,stockFor,{quiet=f
  }
  assert.throws(()=>verifyGitRevisionFailure(original,stock,c.inputs,REVIEWED_REVISION_PHASES,1,false,false,false,false,null,null,token));refused++;
  assert.throws(()=>verifyGitRevisionFailure(original,stock,c.inputs,REVIEWED_REVISION_PHASES,1,true,false,false,true,null,null,token));refused++;
+ const prospective=clone(c.inputs);prospective.node.observation.metadata.device=String(BigInt(prospective.node.observation.metadata.device)+1n);
+ prospective.headers.observation.inventory_sha256=digest('new prospective physical header inventory, unchanged content');
+ const prospectiveProof={...clone(p),inputs:{identity_sha256:digest(prospective)}};
+ const prospectiveToken=check(original,snapshot,stock,focused,prospectiveProof,prospective);accepted++;
+ const historical=materialCurrentStockHistoricalRuntime(prospectiveToken,original,stock,prospective);
+ assert.deepEqual(historical,c.inputs);historical.node.observation.metadata.device='0';
+ assert.deepEqual(materialCurrentStockHistoricalRuntime(prospectiveToken,original,stock,prospective),c.inputs);
+ assert.throws(()=>verifyGitRevisionFailure(original,stock,c.inputs,REVIEWED_REVISION_PHASES,1,false,false,false,true,null,null,prospectiveToken));refused++;
+ const tamperedProspective=clone(prospective);tamperedProspective.headers.observation.inventory_sha256=digest('unbound prospective identity');
+ assert.throws(()=>verifyGitRevisionFailure(original,stock,tamperedProspective,REVIEWED_REVISION_PHASES,1,false,false,false,true,null,null,prospectiveToken));refused++;
+ assert.throws(()=>verifyGitRevisionFailure(original,stock,prospective,REVIEWED_REVISION_PHASES,1,false,false,false,true));refused++;
+ for(const mutate of [q=>delete q.inputs,q=>q.inputs.identity_sha256='invalid']){
+  const q=clone(p);mutate(q);assert.throws(()=>check(original,snapshot,stock,focused,q));refused++;
+ }
+ for(const mutate of [r=>r.inputs.binding.runtime_inputs.node.observation.metadata.device='0',
+  r=>delete r.attempt.source_correction.inputs.identity_sha256,r=>delete r.attempt.source_correction.authorization.grant_sha256]){
+  const changed=clone(original);mutate(changed);
+  const {contract,path_kind,binding,resources}=changed.inputs;changed.inputs.fingerprint=digest({contract,path_kind,binding,resources});
+  changed.attempt.contract_fingerprint=changed.inputs.fingerprint;const sealed=finalizeReceipt(changed);
+  const q={...clone(p),prior_receipt_fingerprint:sealed.integrity.content_fingerprint},s={...stock,content_fingerprint:sealed.integrity.content_fingerprint};
+  assert.throws(()=>check(sealed,snapshot,s,focused,q));refused++;
+ }
+ const invalidRuntime={...prospective,headers:{...prospective.headers,observation:{...prospective.headers.observation,inventory_sha256:'invalid'}}};
+ assert.throws(()=>check(original,snapshot,stock,focused,{...clone(p),inputs:{identity_sha256:digest(invalidRuntime)}},invalidRuntime));refused++;
  assert.equal(stock.valid_deciding_evidence,false);assert.equal(stock.current_stock_input_comparison.equivalent,false);
  assert.deepEqual(original,finalizeReceipt(r));
- const summary={accepted,refused,synthetic_only:true,historical_false_stock_retained:true,
+ const summary={accepted,refused,synthetic_only:true,historical_false_stock_retained:true,current_runtime_bound_independently:true,
   complete_git_comparison_strict:true,unverified_not_relabelled:true};
  if(!quiet)console.log(JSON.stringify({material_current_stock_git_mismatch:summary}));return summary;
 }

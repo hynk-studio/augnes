@@ -193,7 +193,10 @@ try {
  const mismatchCatalogue=[...mismatchFiles.keys()].sort().map(name=>({path:name,mode:"100644"}));
  const mismatchContent=(ref,name)=>ref===old&&STOCK_MISMATCH_REPAIR_MODULES.includes(name)?Buffer.from("prior "+name):mismatchFiles.get(name);
  const mismatchSource=ref=>mismatchCatalogue.map(e=>({...e,byte_size:mismatchContent(ref,e.path).length,sha256:digest(mismatchContent(ref,e.path))}));
- const controlled={contract:"augnes.material-stock-mismatch-input.v1",originals:{receipt:"synthetic original receipt\n",attempt:"synthetic original attempt\n",stock:"synthetic false stock\n",observation:"synthetic complete observation\n"}};
+ const historicalRuntime={contract:"synthetic structural historical runtime"};
+ const controlled={contract:"augnes.material-stock-mismatch-input.v1",originals:{
+   receipt:JSON.stringify({inputs:{binding:{runtime_inputs:historicalRuntime}}}),
+   attempt:JSON.stringify({source_correction:{inputs:{identity_sha256:digest(historicalRuntime)}}}),stock:"synthetic false stock\n",observation:JSON.stringify({runtime:historicalRuntime})}};
  const controlledRef=save("mismatch-controlled-input.json",controlled),originalHashes=Object.fromEntries(Object.entries(controlled.originals).map(([key,value])=>[key,digest(Buffer.from(value))]));
  const mismatchProof={...nativeProof,branch:"codex/synthetic",pull_request:999,
    originals:Object.fromEntries(["receipt","attempt","stock"].map(key=>[key,{artifact:key+".json",sha256:originalHashes[key]}]))};
@@ -218,12 +221,13 @@ try {
  const mismatchReport=(ref,exit)=>({contract:"augnes.material-stock-mismatch-boundary.v1",scope:STOCK_MISMATCH_REPAIR_SCOPE,
    input_sha256:controlledRef.sha256,historical_sha256:digest(controlled.originals),originals:originalHashes,
    implicated_sources:STOCK_MISMATCH_REPAIR_MODULES.map(name=>({path:name,byte_size:mismatchContent(ref,name).length,sha256:digest(mismatchContent(ref,name))})),
-   decision:exit?{status:"failure",error_code:"revision_browser_stock_unaccounted"}:{status:"pass"},refusal_controls:exit?0:35,
+   decision:exit?{status:"failure",error_code:"revision_browser_stock_unaccounted"}:{status:"pass"},refusal_controls:exit?0:44,
+   runtime_contexts:{historical_sha256:digest(historicalRuntime),current_sha256:mismatchProof.inputs.identity_sha256,current_validation:exit?"not_reached":"pass"},
    historical_stock_preserved:true,complete_git_still_inequivalent:true,lineage_unverified_preserved:true,deciding:false,cleanup_complete:true});
  const mismatchOutput=(ref,exit)=>"AUGNES_MATERIAL_STOCK_MISMATCH "+JSON.stringify(mismatchReport(ref,exit))+"\n"+(exit?"Error: revision_browser_stock_unaccounted\n":"");
  const mismatchCommand="node "+STOCK_MISMATCH_REPAIR_DRIVER;
- const mismatchWitness=(ref,baseWitness)=>{
-   const exit=ref===old?1:0,stdout="AUGNES_MATERIAL_STOCK_MISMATCH "+JSON.stringify(mismatchReport(ref,exit))+"\n",stderr=exit?"Error: revision_browser_stock_unaccounted\n":"";
+ const mismatchWitness=(ref,baseWitness,report=null)=>{
+   const exit=ref===old?1:0,stdout="AUGNES_MATERIAL_STOCK_MISMATCH "+JSON.stringify(report??mismatchReport(ref,exit))+"\n",stderr=exit?"Error: revision_browser_stock_unaccounted\n":"";
    const w={...structuredClone(baseWitness),scope:STOCK_MISMATCH_REPAIR_SCOPE,source_files:save("mismatch-source-"+ref+".json",mismatchSource(ref)),
      worktree_before:exit?STOCK_MISMATCH_REPAIR_MODULES.map(name=>" M "+name+"\n").join(""):"",worktree_after:exit?STOCK_MISMATCH_REPAIR_MODULES.map(name=>" M "+name+"\n").join(""):"",
      file_sha256:digest(mismatchFiles.get(STOCK_MISMATCH_REPAIR_DRIVER)),fixture_sha256:digest(mismatchSource(head).filter(v=>STOCK_MISMATCH_REPAIR_FIXTURES.includes(v.path))),
@@ -288,8 +292,14 @@ try {
  for(const name of ["receipt","attempt","stock"]){const proof=structuredClone(mismatchProof);proof.originals[name].sha256=digest("substituted original");refuse(()=>mismatchCheck(mb,ma,proof));}
  for(const change of [r=>r.input_sha256="invalid",r=>r.historical_sha256="invalid",r=>r.scope="historical clean checkout",r=>delete r.originals.stock,
    r=>r.implicated_sources.reverse(),r=>r.decision.status="failure",r=>r.historical_stock_preserved=false,r=>r.complete_git_still_inequivalent=false,
-   r=>r.lineage_unverified_preserved=false,r=>r.deciding=true,r=>r.cleanup_complete=false,r=>r.refusal_controls=0]){
+   r=>r.lineage_unverified_preserved=false,r=>r.deciding=true,r=>r.cleanup_complete=false,r=>r.refusal_controls=0,
+   r=>delete r.runtime_contexts,r=>r.runtime_contexts.current_sha256="invalid",r=>r.runtime_contexts.historical_sha256="invalid",
+   r=>r.runtime_contexts.current_validation="not_reached"]){
    const r=structuredClone(mismatchReport(head,0));change(r);refuse(()=>validateStockMismatchRepairOutcome("AUGNES_MATERIAL_STOCK_MISMATCH "+JSON.stringify(r)+"\n",0));
+ }
+ for(const field of ["historical_sha256","current_sha256"]){
+   const report=mismatchReport(head,0);report.runtime_contexts[field]=digest("wrong context "+field);
+   const a=mismatchWitness(head,fa,report),f={...mf,commands:[{...mf.commands[0],stdout:a.stdout}]};refuse(()=>mismatchCheck(mb,a,mismatchProof,f));
  }
  for(const output of [mismatchOutput(old,1).replace("Error: revision_browser_stock_unaccounted","Error: import failed"),mismatchOutput(head,0).trim(),mismatchOutput(head,0)+mismatchOutput(head,0)])refuse(()=>validateStockMismatchRepairOutcome(output,output.includes('Error:')?1:0));
  const anchor={revision:17,review_id:1234,head:old,task_page:"page_"+"c".repeat(32)},assignment=materialStockMismatchDelegation(mismatchProof,anchor);

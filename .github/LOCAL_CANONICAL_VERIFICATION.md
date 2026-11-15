@@ -1661,6 +1661,19 @@ restoration, projection equality, live-input normalization or general metadata
 exception is permitted. Guide and synthetic-freshness recipes retain their
 existing unchanged-inventory requirement.
 
+For this retained failed-stock predecessor only, historical phase validation
+uses the exact runtime sealed by its original receipt, prior proof and retained
+observation. The transient checked result also binds the new target's separate
+runtime commitment; the historical-context reader requires the actual prospective
+argument to be valid and match that commitment before returning an immutable
+copy of the old context. The new target retains its independently acquired
+complete runtime/inventory and strict live preparation, admission and stock
+checks. A new physical Node/header baseline is not normalized to the old one,
+claimed equivalent, or counted as the material repair. The source witness binds
+both runtime contexts and exercises the prospective context separately. Original
+authority, receipt/input tampering and mismatched current arguments refuse;
+ordinary predecessor routes retain their existing runtime comparison.
+
 The explicitly selected `git-config-stock-verifier-repair-v1` material case
 also recognizes an intact settled dedicated-Browser serial timeout predecessor.
 Its `settled-browser-timeout-stock-verifier-v1` interpretation validates the
