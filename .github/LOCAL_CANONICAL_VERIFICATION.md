@@ -1718,8 +1718,23 @@ these commands, collect authority or reserve an invocation. Controlled checker
 fixtures may replay synthetic records; they are not historical incidents,
 product Browser evidence or substitutes for the final real captures.
 
-Material and observations precede successful read-only preparation. That exact
-published source, general evidence semantics, measured allowance, current input
+Material and observations precede successful read-only preparation. The
+measured serial fixture may use the visible four-paragraph
+`measured-serial-fixture-allowance-v1` conditional delegation within the existing
+`registered-fixture-aggregate-budget-v1` / `material-source-correction-v1` owners.
+Its exact operative prose binds branch, PR and complete predecessor identity,
+retains UNKNOWN history and spent limits, states a measured-workload judgment
+rather than an observed product-defect claim, and conditions later commission
+publication on separate independent receiving acceptance. Hidden, negated,
+extra or scope-broadening prose refuses. Preparation and commissioned admission
+share this predicate; authenticated identity/permission, unedited observation
+digest and post-predecessor timing checks remain required. The existing evidence
+owner binds the serial-aggregate owner and source-form facts; no additional
+proof discriminator is introduced. The generic product-defect delegation and
+other special formats retain their historical interpretation. Delegation alone
+provides neither exact-target receiving acceptance nor an execution grant.
+
+The exact published source, general evidence semantics, measured allowance, current input
 commitment and physical lineage then require independent acceptance. Both the
 authenticated review and separate prospective grant bind the explicit evidence
 kind and its limited claim. The kind remains committed through commission

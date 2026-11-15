@@ -6,8 +6,9 @@ import {execFileSync} from "node:child_process";
 import {readFileSync,existsSync,symlinkSync,rmSync,chmodSync,renameSync,lstatSync} from "node:fs";
 import {digest,observeCanonicalRuntimeInputs} from "../local-canonical-inputs.mjs";
 import {observeTypecheckCompiler,observeGeneratedTypeInputs,typecheckDiagnostics,REPOSITORY_TYPECHECK} from "../local-canonical-typecheck-witness.mjs";
-import {inspectGitRevisionPreparation,prepareMaterialSourceRevision,reconstructAttemptTip,reviewedRevisionAuthorityObservation,REVIEWED_REVISION_PHASES} from "../local-canonical-attempts.mjs";
-import {MATERIAL_SOURCE_CORRECTION,MATERIAL_HISTORY_BOUNDARY,gitReviewTarget,verifyGitRevisionFailure} from "../local-canonical-git-observation.mjs";
+import {inspectGitRevisionPreparation,prepareMaterialSourceRevision,reconstructAttemptTip,reviewedRevisionAuthorityObservation,validateReviewedRevisionAuthorityRecords,REVIEWED_REVISION_PHASES} from "../local-canonical-attempts.mjs";
+import {MATERIAL_SOURCE_CORRECTION,MATERIAL_HISTORY_BOUNDARY,gitReviewTarget,verifyGitRevisionFailure,delegatesMaterialSourceCommission} from "../local-canonical-git-observation.mjs";
+import {REGISTERED_FIXTURE_BUDGET,FIXTURE_BUDGET_CLAIM} from "../local-canonical-fixture-budget-witness.mjs";
 import {serialInheritanceFrom,SERIAL_HISTORY} from "../local-canonical-serial-aggregate.mjs";
 import {executeFixture,dependencyRecords} from "./local-canonical-browser-successor.mjs";
 import {inspectClassifiedEvidence,canonicalSerialize} from "../local-canonical-receipt.mjs";
@@ -149,6 +150,7 @@ export async function runSerialMaterialControls(c,h,serialProof,serialAuthority,
   p.authorization={grant_comment_id:73,grant_sha256:digest(reviewedRevisionAuthorityObservation(grant,"execution_commission"))};
   c.authority={review,grant,pr:published,linked:{"repos/hynk-studio/augnes/issues/comments/71":delegation}};h.write(c.file,p);
   const proof=h.proof(c),cap=await h.auth(c,proof);assert.equal(inspect(p).target,prepared.target);
+  const measuredDelegation=measuredSerialDelegationControls(p,review,grant,delegation,published);
   let count=0;
   for(const mutate of [q=>delete q.commission.inherited_serial,q=>q.commission.inherited_serial.envelope_sha256=digest("other"),q=>q.commission.inherited_serial.origin_receipt_fingerprint=digest("other"),
     q=>q.prior_attempt_id="older",q=>q.prior_family_id=serialProof.prior_family_id,q=>q.commission.ordinal=2,q=>q.commission.maximum_invocations=2,q=>q.head=serialProof.head,q=>q.inputs.inventory_sha256=digest("drift")]){
@@ -198,5 +200,51 @@ export async function runSerialMaterialControls(c,h,serialProof,serialAuthority,
   progress("material_complete");
   console.log(JSON.stringify({pure_contract_witness:pureContract,fixture_budget_witness:fixtureBudget,serial_material_controls:{compiler:[red.result.exit_code,green.result.exit_code],source_before:red.tested_source_head,source_after:green.tested_source_head,
     partial_phases:[3,1,12],stock_issues:failed.stock.issues.length,prior_delegation_absent:true,prepared,negative_controls:count,
-    fresh_stock:true,inherited_accounting_enforced:true,originals_unchanged:true},synthetic_only:true,deciding:false}));
+    fresh_stock:true,inherited_accounting_enforced:true,originals_unchanged:true},measured_serial_delegation:measuredDelegation,synthetic_only:true,deciding:false}));
+}
+
+// Independent visible-format fixture plus the actual commissioned-authority
+// consumer. This tests authority only: the unchanged budget witness controls
+// separately refuse inappropriate owner/source forms. No capability is issued
+// here and these synthetic records never enter a physical attempt ledger.
+function measuredSerialDelegationControls(p,review,grant,delegation,published) {
+  assert(delegatesMaterialSourceCommission(delegation.body,p),"retain generic product-defect delegation");
+  const q=clone(p);q.commission.evidence_kind=REGISTERED_FIXTURE_BUDGET;
+  const body=[
+    "Authorize one corrected-source qualification assignment for the measured serial-aggregate fixture allowance on "+q.branch+" in Draft PR #"+q.pull_request+". This measured-serial-fixture-allowance-v1 conditional delegation uses registered-fixture-aggregate-budget-v1 within the existing inventory-bound material-source-correction-v1 owners. Authorize the bounded delegation-compatibility correction, focused verification, same-PR publication and supported non-reserving preparation without repeated intermediate permission requests. The allowance is a measured-workload judgment, not an observed product-defect claim or a proven cure of the historical timeout. This record is neither exact-target receiving acceptance nor a prospective execution grant.",
+    "Predecessor: "+q.prior_family_id+" / "+q.prior_attempt_id+" / "+q.prior_receipt_fingerprint+".",
+    "Historical windows remain UNKNOWN; all prior commissions, issued limits, consumed invocations, receipts and false stock remain unchanged.",
+    "After separate independent receiving acceptance of the actual correction, policy controls, exact published source and real preparation commitment, authorize the operator to record that decision faithfully and publish a separate new prospective commission through the authenticated maintainer identity. Each commission permits exactly one deciding invocation total; reservation or interruption consumes it. No ordinal two, recovery or unchanged-target retry under that commission. A further in-scope material correction requires fresh evidence, independent acceptance and new authenticated authority. Complete planner-selected qualification, separate fresh-process stock, owned cleanup and independent result audit remain required.",
+  ].join("\n\n");
+  assert(delegatesMaterialSourceCommission(body,q));assert(delegatesMaterialSourceCommission(body.replaceAll("\n","\r\n"),q));
+  let refusals=0;
+  for(const mutate of [v=>v.branch+="-other",v=>v.pull_request++,v=>v.prior_family_id=digest("other"),v=>v.prior_attempt_id+="-other",
+    v=>v.prior_receipt_fingerprint=digest("other"),v=>v.commission.evidence_kind="repository-typecheck-v1",v=>delete v.commission.evidence_kind,
+    v=>v.commission.allowance_case="registered-maintenance-direct-v1",v=>delete v.commission.source_revision,v=>delete v.inputs.inventory_sha256]) {
+    const v=clone(q);mutate(v);assert.equal(delegatesMaterialSourceCommission(body,v),false);refusals++;
+  }
+  const badBodies=["Do not "+body,"<!--\n"+body+"\n-->","<details>\n"+body+"\n</details>","```text\n"+body+"\n```",
+    body.split("\n").map(line=>"> "+line).join("\n"),body.split("\n").map(line=>"    "+line).join("\n"),"\u202e"+body,
+    body+"\n\nAlso authorize another invocation.",body.replace("exactly one","at least one"),
+    body.replace("Each commission permits exactly one","Each commission permits two"),
+    body.replace("After separate independent receiving acceptance","After implementation-owner acceptance"),
+    body.replace("This record is neither exact-target receiving acceptance nor a prospective execution grant.","This record is a prospective execution grant."),
+    body.replace("No ordinal two, recovery or unchanged-target retry","Allow ordinal two, recovery or unchanged-target retry")];
+  // The fixed format is case-sensitive; ensure every adverse control changes it.
+  for(const text of badBodies){assert.notEqual(text,body);assert.equal(delegatesMaterialSourceCommission(text,q),false);refusals++;}
+  const d={...clone(delegation),body};q.commission.delegation.sha256=digest(reviewedRevisionAuthorityObservation(d,"task_delegation"));
+  const target=gitReviewTarget(q),oldTarget=gitReviewTarget(p),scope="\n"+REGISTERED_FIXTURE_BUDGET+"\n"+FIXTURE_BUDGET_CLAIM;
+  const r={...clone(review),body:review.body.replace(oldTarget,target)+scope};q.accepted.review.sha256=digest(reviewedRevisionAuthorityObservation(r,"accepted_revision"));
+  const g={...clone(grant),body:grant.body.replace(oldTarget,target)+scope};q.authorization.grant_sha256=digest(reviewedRevisionAuthorityObservation(g,"execution_commission"));
+  const permissions=Object.fromEntries([["accepted_revision",r],["execution_commission",g],["task_delegation",d]].map(([role,record])=>[role,{permission:"admin",user:{login:record.user.login}}]));
+  const check=(v=q,accepted=r,commission=g,assigned=d)=>validateReviewedRevisionAuthorityRecords(v,accepted,commission,permissions,published,null,null,assigned);
+  assert.equal(digest(check().task_delegation),q.commission.delegation.sha256);
+  for(const [accepted,commission]of [[null,g],[r,null],[d,g],[r,d]]){assert.throws(()=>check(q,accepted,commission));refusals++;}
+  for(const role of ["accepted_revision","execution_commission"]) {
+    const v=clone(q),record={...clone(role==="accepted_revision"?r:g),body};
+    if(role==="accepted_revision")v.accepted.review.sha256=digest(reviewedRevisionAuthorityObservation(record,role));
+    else v.authorization.grant_sha256=digest(reviewedRevisionAuthorityObservation(record,role));
+    assert.throws(()=>check(v,role==="accepted_revision"?record:r,role==="execution_commission"?record:g),/revision_authority_scope_invalid/);refusals++;
+  }
+  return {format:"measured-serial-fixture-allowance-v1",legacy_product_defect_retained:true,commissioned_authority_consumer:true,negative_controls:refusals,synthetic_only:true,reserved:false,admitted:false};
 }

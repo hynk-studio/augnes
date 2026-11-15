@@ -594,6 +594,16 @@ export function delegatesMaterialSourceCommission(body,p) {
   if (p.commission.evidence_kind === GENERATED_STOCK_REPAIR)
     return !!readGeneratedStockDelegation(body,p);
   const paragraphs=visibleDelegationParagraphs(body);
+  // Visible measured-serial-fixture-allowance-v1 prose is a conditional
+  // delegation, not a product-defect assertion or execution grant. The same
+  // predicate serves preparation and commissioned admission. The existing
+  // fixture evidence reader binds serial owner/source-form facts separately.
+  if (isMaterialSourceRevision(p) && p.commission.evidence_kind===REGISTERED_FIXTURE_BUDGET && equal(paragraphs,[
+    "Authorize one corrected-source qualification assignment for the measured serial-aggregate fixture allowance on " + p.branch + " in Draft PR #" + p.pull_request + ". This measured-serial-fixture-allowance-v1 conditional delegation uses registered-fixture-aggregate-budget-v1 within the existing inventory-bound material-source-correction-v1 owners. Authorize the bounded delegation-compatibility correction, focused verification, same-PR publication and supported non-reserving preparation without repeated intermediate permission requests. The allowance is a measured-workload judgment, not an observed product-defect claim or a proven cure of the historical timeout. This record is neither exact-target receiving acceptance nor a prospective execution grant.",
+    "Predecessor: " + p.prior_family_id + " / " + p.prior_attempt_id + " / " + p.prior_receipt_fingerprint + ".",
+    MATERIAL_HISTORY_BOUNDARY,
+    "After separate independent receiving acceptance of the actual correction, policy controls, exact published source and real preparation commitment, authorize the operator to record that decision faithfully and publish a separate new prospective commission through the authenticated maintainer identity. Each commission permits exactly one deciding invocation total; reservation or interruption consumes it. No ordinal two, recovery or unchanged-target retry under that commission. A further in-scope material correction requires fresh evidence, independent acceptance and new authenticated authority. Complete planner-selected qualification, separate fresh-process stock, owned cleanup and independent result audit remain required.",
+  ])) return true;
   return paragraphs.length===4 && paragraphs[0] === "Authorize one materially corrected-source qualification assignment on " + p.branch + " in Draft PR #" + p.pull_request + ". Adopt the reusable material-source-correction-v1 transition within the existing inventory-bound v7 owners for the observed in-scope product defect." &&
     paragraphs[1] === "Predecessor: " + p.prior_family_id + " / " + p.prior_attempt_id + " / " + p.prior_receipt_fingerprint + "." &&
     paragraphs[2] === MATERIAL_HISTORY_BOUNDARY &&
