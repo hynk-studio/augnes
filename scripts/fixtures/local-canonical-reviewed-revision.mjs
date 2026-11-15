@@ -460,7 +460,7 @@ if(process.argv[2]==="--cold"){
       assert(readFileSync(file).equals(Buffer.from(value)),"material_predecessor_capture_mutation");
     write(file,value);
   };
-  try { await runSerialAggregateControls(c,{prepare,artifact,read,write:writePredecessor,proof,auth,begin,stock,receipt,storeReceipt,run,
+  try { await runSerialAggregateControls(c,{prepare,artifact,read,write:writePredecessor,proof,auth,begin,stock,receipt,storeReceipt,run,observeFixtureLive,
     fresh:packet=>freshReader(c,packet,run),behavior:(subject)=>behavior(subject,false,run)},material); }
   finally {releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});assert(cleanupCanonicalTestResources([owner])[0].completed);}
 }else if(process.argv[2]==="--run-browser-fixtures"){

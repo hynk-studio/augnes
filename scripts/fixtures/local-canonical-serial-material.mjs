@@ -29,6 +29,9 @@ export function seedSerialMaterialCompiler(c,h,sourceRoot) {
 }
 
 export async function runSerialMaterialControls(c,h,serialProof,serialAuthority,sourceRoot,browserRecord) {
+  // The serial handoff retains synthetic identity, not a current sample. Only
+  // these positive material admissions acquire again; explicit overrides win.
+  const begin=(subject,proof,authority,extra={})=>h.begin(subject,proof,authority,{revisionLive:h.observeFixtureLive(subject),...extra});
   // Bounded value-free progress for this complete registered fixture. These
   // observations do not change a deadline or classify a historical timeout.
   const progress = stage => console.error("AUGNES_SERIAL_MATERIAL_STAGE " + JSON.stringify({ stage, at: performance.now() }));
@@ -67,7 +70,7 @@ export async function runSerialMaterialControls(c,h,serialProof,serialAuthority,
   // actual compiler exit. The outer executor still reports failure exit one.
   c.failurePhase="typecheck";
   progress("compiler_failure_start");
-  const failed=await executeFixture(c,{...h,behavior:compiler},serialProof,serialAuthority,null,dependencyRecords(c));
+  const failed=await executeFixture(c,{...h,begin,behavior:compiler},serialProof,serialAuthority,null,dependencyRecords(c));
   progress("compiler_failure_stock_complete");
   assert.equal(failed.child.result.exit_code,2);assert.equal(failed.stock.issues.length,17);
   assert.deepEqual(failed.receipt.phases.map(p=>p.status),[...Array(3).fill("pass"),"failure",...Array(12).fill("not_run")]);
@@ -99,15 +102,20 @@ export async function runSerialMaterialControls(c,h,serialProof,serialAuthority,
     "After separate independent acceptance of the actual correction, policy controls, exact published source and real preparation commitment, authorize the operator to record that decision faithfully and publish a separate new prospective commission through the authenticated maintainer identity. Each commission permits exactly one deciding invocation total; reservation or interruption consumes it. No ordinal two, recovery or unchanged-target retry under that commission. A further in-scope material correction requires fresh evidence, independent acceptance and new authenticated authority. Complete planner-selected qualification, separate fresh-process stock, owned cleanup and independent result audit remain required."
   ].join("\n\n")};delegation.updated_at=delegation.created_at;
   p.commission.delegation={id:delegation.id,sha256:digest(reviewedRevisionAuthorityObservation(delegation,"task_delegation"))};
-  const inspect=q=>{const m=clone(q);delete m.authorization;delete m.accepted.review;delete m.local_relative_path;const file=path.join(c.artifacts,"material.json");h.write(file,m);
-    return inspectGitRevisionPreparation({file,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live:c.live});};
+  const inspect=(q,live=h.observeFixtureLive(c))=>{const m=clone(q);delete m.authorization;delete m.accepted.review;delete m.local_relative_path;const file=path.join(c.artifacts,"material.json");h.write(file,m);
+    return inspectGitRevisionPreparation({file,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live});};
+  const retainedLive=digest(c.live),oldLive=clone(c.live);
+  oldLive.service.diagnostics.finished_at=new Date(Date.now()-60_001).toISOString();
+  assert.throws(()=>inspect(p,oldLive),error=>error.code==="revision_current_preservation_unsafe" &&
+    error.revisionPreservation.failed_conditions.includes("observation_stale"));
+  assert.equal(digest(c.live),retainedLive);assert(!existsSync(edge));
   const prepared=inspect(p);assert.equal(prepared.authorized,false);assert.equal(prepared.reserved,false);assert.equal(prepared.consumed,1);assert(!existsSync(edge));
   const published={...oldAuthority.pr,head:{...oldAuthority.pr.head,sha:p.head}};
-  const args={file:path.join(c.artifacts,"material.json"),repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live:c.live};
+  const args={file:path.join(c.artifacts,"material.json"),repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live:()=>h.observeFixtureLive(c)};
   const transport={pullRequest:async()=>published,grant:async()=>delegation,permission:async()=>({permission:"admin",user:{login:delegation.user.login}})};
   // Exercise the positive preparation once, through deferred live acquisition.
   let observed=0;
-  const deferred=await prepareMaterialSourceRevision({...args,live:async()=>{observed++;return c.live;}},{transport});
+  const deferred=await prepareMaterialSourceRevision({...args,live:async()=>{observed++;return h.observeFixtureLive(c);}},{transport});
   assert.equal(deferred.published_head_checked,true);
   assert.equal(observed,1);assert.equal(deferred.target,prepared.target);
   assert.equal(deferred.authorized,false);assert.equal(deferred.reserved,false);assert(!existsSync(edge));
@@ -116,13 +124,13 @@ export async function runSerialMaterialControls(c,h,serialProof,serialAuthority,
   assert(lstatSync(dependencyLink).isSymbolicLink());
   try {
     await assert.rejects(prepareMaterialSourceRevision({...args,live:async()=>{
-      renameSync(dependencyLink,heldLink);return c.live;
+      renameSync(dependencyLink,heldLink);return h.observeFixtureLive(c);
     }},{transport}),e=>e.code==="ENOENT");
   } finally {if(existsSync(heldLink))renameSync(heldLink,dependencyLink);}
   const lateGenerated=path.join(c.checkout,".next/dev/types/late.ts");
   try {
     await assert.rejects(prepareMaterialSourceRevision({...args,live:async()=>{
-      h.write(lateGenerated,"export type Added = true;\n");return c.live;
+      h.write(lateGenerated,"export type Added = true;\n");return h.observeFixtureLive(c);
     }},{transport}),/revision_typecheck_generated_changed/);
   } finally {rmSync(path.join(c.checkout,".next/dev"),{recursive:true,force:true});}
   const parentPath="scripts/run-local-canonical-verification.mjs",parentSource=readFileSync(path.join(c.checkout,parentPath),"utf8");
@@ -180,7 +188,7 @@ export async function runSerialMaterialControls(c,h,serialProof,serialAuthority,
   // Only this disposable fixture consumes its new synthetic grant.
   delete c.failurePhase;
   progress("success_stock_start");
-  const success=await executeFixture(c,{...h,begin:(subject,proof,authority,extra)=>h.begin(subject,proof,authority,{...extra,runId:"serial-material-new"})},proof,cap,browserRecord,dependencyRecords(c));
+  const success=await executeFixture(c,{...h,begin:(subject,proof,authority,extra)=>begin(subject,proof,authority,{...extra,runId:"serial-material-new"})},proof,cap,browserRecord,dependencyRecords(c));
   assert(success.stock.valid_deciding_evidence);
   progress("success_stock_complete");
   const invalid=clone(success.receipt);delete invalid.phases.find(v=>v.id==="e2e-project-experience").serial_budget;
@@ -200,7 +208,7 @@ export async function runSerialMaterialControls(c,h,serialProof,serialAuthority,
   progress("material_complete");
   console.log(JSON.stringify({pure_contract_witness:pureContract,fixture_budget_witness:fixtureBudget,serial_material_controls:{compiler:[red.result.exit_code,green.result.exit_code],source_before:red.tested_source_head,source_after:green.tested_source_head,
     partial_phases:[3,1,12],stock_issues:failed.stock.issues.length,prior_delegation_absent:true,prepared,negative_controls:count,
-    fresh_stock:true,inherited_accounting_enforced:true,originals_unchanged:true},measured_serial_delegation:measuredDelegation,synthetic_only:true,deciding:false}));
+    fresh_stock:true,inherited_accounting_enforced:true,originals_unchanged:true,explicit_stale_rejected:true,retained_sample_unchanged:digest(c.live)===retainedLive},measured_serial_delegation:measuredDelegation,synthetic_only:true,deciding:false}));
 }
 
 // Independent visible-format fixture plus the actual commissioned-authority

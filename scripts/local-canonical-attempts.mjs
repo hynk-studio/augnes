@@ -20,7 +20,7 @@ import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 
 import { BROWSER_RUNTIME_INPUTS, validCanonicalRuntimeInputs } from "./local-canonical-inputs.mjs";
 import { isBrowserRevision, isBrowserSuccessor, browserPredecessorEvidence, browserReviewTarget, verifyBrowserRemedy, verifyBrowserRevisionPreservation, verifyReviewedBrowserFailure, verifySettledPhaseFailure } from "./local-canonical-browser-revision.mjs";
-import { GIT_ACQUISITION_REPAIR, isGitAcquisitionRevision, gitAcquisitionIncident, isGitObservationRevision, isGitObservationSuccessor, isInventoryBoundRevision, usesGitInventory, gitObservationIncident, gitReviewTarget, permitsFinalDependencySuccessor, delegatesGitRevisionGrant, delegatesProspectiveCommission, verifyGitRevisionFailure, verifyGitRevisionSuccess, readPostPassDecision, permitsPostPassReview, verifyGitSourceRepair } from "./local-canonical-git-observation.mjs";
+import { GIT_ACQUISITION_REPAIR, isGitAcquisitionRevision, gitAcquisitionIncident, isGitObservationRevision, isGitObservationSuccessor, isInventoryBoundRevision, usesGitInventory, gitObservationIncident, gitReviewTarget, permitsFinalDependencySuccessor, delegatesGitRevisionGrant, delegatesProspectiveCommission, verifyGitRevisionFailure, verifyGitRevisionSuccess, readPostPassDecision, permitsPostPassReview, verifyGitSourceRepair, FRESHNESS_REPAIR_DRIVER } from "./local-canonical-git-observation.mjs";
 import { createGitHubObserverAuthorizationTransport } from "./github-main-branch-transport.mjs";
 import {MATERIAL_SOURCE_CORRECTION, MATERIAL_HISTORY_BOUNDARY, isMaterialSourceRevision, delegatesMaterialSourceCommission,
   readIntegrationBudgetDelegation, integrationBudgetAuthorityScope, INTEGRATION_BUDGET_GRANT,
@@ -2222,7 +2222,8 @@ export async function prepareMaterialSourceRevision(args,{transport}={}) {
   }
   if (evidence.focused.regression?.kind===REPOSITORY_PURE_CONTRACT)
     inspectCurrentPureContractInputs(args.repositoryRoot,JSON.parse(revisionArtifact(path.dirname(args.file),evidence.focused.regression.after)));
-  if ([MATERIAL_COMMON_DRIVER,MATERIAL_COMMON_STOCK_VERIFIER].includes(evidence.focused.regression?.attribution))
+  if ([MATERIAL_COMMON_DRIVER,MATERIAL_COMMON_STOCK_VERIFIER].includes(evidence.focused.regression?.attribution) ||
+      evidence.focused.regression?.attribution==="candidate-driver-prior-implicated-source"&&evidence.focused.regression.path===FRESHNESS_REPAIR_DRIVER)
     inspectCurrentCommonDriverInputs(args.repositoryRoot,JSON.parse(revisionArtifact(path.dirname(args.file),evidence.focused.regression.after)));
   if (evidence.focused.regression?.kind===REGISTERED_FIXTURE_BUDGET)
     for (const ref of isMaintenanceFixtureBudget(p) ? [evidence.focused.regression.after] : [evidence.focused.regression.after,evidence.focused.regression.registration])

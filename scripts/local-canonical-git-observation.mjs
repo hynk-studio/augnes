@@ -18,7 +18,7 @@ import { REPOSITORY_TYPECHECK, verifyRepositoryTypecheck } from "./local-canonic
 import { REPOSITORY_PURE_CONTRACT, verifyRepositoryPureContract } from "./local-canonical-pure-contract-witness.mjs";
 import { OPERATOR_REQUEST_LIFECYCLE_PHASES_V1 as GUIDE_REPAIR_PHASES } from "./operator-execution-result-contract-v1.mjs";
 import { INTEGRATION_BASE_CONTRACT, validAdmittedIntegrationBase, usesDeclaredIntegrationBase } from "./local-canonical-integration-base.mjs";
-import { MATERIAL_COMMON_DRIVER, verifyMaterialCommonDriver } from "./local-canonical-common-driver.mjs";
+import { MATERIAL_COMMON_DRIVER, verifyMaterialCommonDriver, commonDriverDependencies } from "./local-canonical-common-driver.mjs";
 import { GIT_CONFIG_STOCK_VERIFIER_REPAIR, MATERIAL_COMMON_STOCK_VERIFIER, verifyMaterialStockVerifier } from "./local-canonical-stock-verifier-witness.mjs";
 import { verifiedStockPredecessor } from "./local-canonical-material-stock-predecessor.mjs";
 export { MATERIAL_COMMON_DRIVER } from "./local-canonical-common-driver.mjs";
@@ -405,6 +405,28 @@ export const GUIDE_REPAIR_FIXTURES = [GUIDE_REPAIR_DRIVER,
   "scripts/project-experience-guide-lifecycle-v1.mjs", "scripts/project-experience-request-verdict-v1.mjs",
   "scripts/operator-execution-result-contract-v1.mjs", "scripts/capture-canonical-ts-repair.mjs"];
 export const GUIDE_REPAIR_SCOPE = "controlled actual-hook/source-boundary; not real Browser qualification";
+export const FRESHNESS_REPAIR_DRIVER = "scripts/test-local-canonical-serial-material-freshness.mjs";
+export const FRESHNESS_REPAIR_MODULES = ["scripts/fixtures/local-canonical-reviewed-revision.mjs","scripts/fixtures/local-canonical-serial-material.mjs"];
+export const FRESHNESS_REPAIR_FIXTURES = [FRESHNESS_REPAIR_DRIVER,"scripts/capture-canonical-ts-repair.mjs",
+  "scripts/local-canonical-browser-revision.mjs","scripts/fixtures/local-canonical-authority-clock.mjs",
+  "scripts/canonical-test-environment.mjs","scripts/local-canonical-inputs.mjs"];
+export const FRESHNESS_REPAIR_SCOPE = "source-extracted-synthetic-consumers-with-real-preservation-guard; not complete preparation or installed probes";
+
+export function validateFreshnessRepairOutcome(output,exit) {
+  const prefix="AUGNES_SERIAL_MATERIAL_FRESHNESS ",lines=output.split(/\r?\n/u).filter(line=>line.startsWith(prefix));
+  let report;try {if(lines.length!==1||!output.endsWith("\n"))fail("revision_freshness_outcome_invalid");report=JSON.parse(lines[0].slice(prefix.length));}catch{fail("revision_freshness_outcome_invalid");}
+  if(![0,1].includes(exit)||report?.contract!=="augnes.serial-material-freshness-boundary.v1"||report.scope!==FRESHNESS_REPAIR_SCOPE||
+      !sha(report.input_sha256)||!sha(report.historical_sha256)||!equal(report.implicated_sources?.map(v=>v.path),FRESHNESS_REPAIR_MODULES)||
+      report.implicated_sources.some(v=>!sha(v.sha256)||!Number.isSafeInteger(v.byte_size)||v.byte_size<1)||
+      !equal(Object.keys(report.source_boundaries??{}),["observation","handoff","inspect","deferred"])||Object.values(report.source_boundaries).some(v=>!sha(v))||
+      report.explicit_stale_guard!==true||report.explicit_old_inspect!==true||report.explicit_old_deferred!==true||report.identity_refusals!==4||
+      report.callback_invocations!==1||report.supplied_history_unchanged!==true||report.synthetic_only!==true||report.deciding!==false||report.cleanup_complete!==true||
+      !equal(Object.keys(report.boundaries??{}),["inspect","deferred"]))fail("revision_freshness_outcome_invalid");
+  const expected=exit===0?{status:"pass",acquisitions:1}:{status:"failure",acquisitions:0,error_code:"revision_current_preservation_unsafe",failed_conditions:["observation_stale"]};
+  if(Object.values(report.boundaries).some(v=>!equal(v,expected))||exit===1&&(!output.includes("Error: revision_current_preservation_unsafe")||!equal(report.positive_admission,{not_reached:true}))||
+      exit===0&&(report.positive_admission?.fresh!==true||report.positive_admission.explicit_override_rejected!==true||report.positive_admission.acquisitions!==2||!sha(report.positive_admission.source_sha256)))fail("revision_freshness_outcome_invalid");
+  return report;
+}
 
 export function validateGuideRepairOutcome(output, exit) {
   if (exit === 1) {
@@ -432,13 +454,14 @@ export function validateGuideRepairOutcome(output, exit) {
 export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, completedAt, repositoryRoot}) {
   const regression = focused.regression, file = regression.path;
   const guide = isMaterialSourceRevision(p) && file === GUIDE_REPAIR_DRIVER;
-  const command = guide ? "node " + GUIDE_REPAIR_DRIVER + " --operator-scope" : "node --import tsx scripts/test-project-client-browser.ts";
+  const freshness = isMaterialSourceRevision(p) && file === FRESHNESS_REPAIR_DRIVER;
+  const command = freshness ? "node "+FRESHNESS_REPAIR_DRIVER : guide ? "node " + GUIDE_REPAIR_DRIVER + " --operator-scope" : "node --import tsx scripts/test-project-client-browser.ts";
   const paths = focused.implicated_paths, fixture = regression.fixture_paths;
-  if (!(guide ? p.commission.evidence_kind === undefined && regression.kind === undefined &&
-        equal(paths,[GUIDE_REPAIR_MODULE]) && equal(fixture,GUIDE_REPAIR_FIXTURES) && sha(p.inputs.inventory_sha256) :
+  if (!(guide || freshness ? p.commission.evidence_kind === undefined && regression.kind === undefined &&
+        equal(paths,freshness?FRESHNESS_REPAIR_MODULES:[GUIDE_REPAIR_MODULE]) && equal(fixture,freshness?FRESHNESS_REPAIR_FIXTURES:GUIDE_REPAIR_FIXTURES) && sha(p.inputs.inventory_sha256) :
         isGitObservationSuccessor(p) && file === "scripts/test-project-client-browser.ts") ||
-      focused.failed_phase !== (guide ? "e2e-operator-native-host-execution" : "e2e-project-experience") ||
-      !equal(regression.node_args,guide ? [] : ["--import","tsx"]) || !equal(regression.args,guide ? ["--operator-scope"] : []) ||
+      focused.failed_phase !== (freshness ? "authority" : guide ? "e2e-operator-native-host-execution" : "e2e-project-experience") ||
+      !equal(regression.node_args,guide || freshness ? [] : ["--import","tsx"]) || !equal(regression.args,guide ? ["--operator-scope"] : []) ||
       !equal(focused.input_remedy_resources,[]) || prior.tree === p.tree ||
       !Array.isArray(paths) || !paths.length || new Set(paths).size !== paths.length || paths.includes(file) ||
       paths.some(name => !/^scripts\/(?:[\w.-]+\/)*[\w.-]+\.(?:ts|tsx|mjs)$/u.test(name) || name.split("/").includes("..")) ||
@@ -483,8 +506,9 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
     return identity;
   };
   const dependencies=before.prepared_dependencies;
-  if (!dependencies || !equal(dependencyIdentity(dependencies.before),dependencyIdentity(dependencies.after)))
+  if (!dependencies || !freshness&&!equal(dependencyIdentity(dependencies.before),dependencyIdentity(dependencies.after)))
     fail("revision_git_regression_invalid");
+  const dependencyIdentities=freshness?commonDriverDependencies(before,repositoryRoot,git,p.head):null;
   if (!focused.commands?.some(c=>c.command===command && c.tested_source_head===p.head &&
       equal(c.record,regression.after) && equal(c.stdout,after.stdout)) ||
       before.stdout?.sha256===after.stdout?.sha256 ||
@@ -495,8 +519,9 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
     if (witness.attribution!=="candidate-driver-prior-implicated-source" || witness.driver_source_head!==p.head ||
         witness.tested_source_head!==head || !equal(readSource(witness),head===p.head?finalSource:source(head)) ||
         !witness.prepared_dependencies ||
-        !equal(dependencyIdentity(witness.prepared_dependencies.before),dependencyIdentity(dependencies.before)) ||
-        !equal(dependencyIdentity(witness.prepared_dependencies.after),dependencyIdentity(dependencies.before)) ||
+        !(freshness ? equal(commonDriverDependencies(witness,repositoryRoot,git,p.head),dependencyIdentities) :
+          equal(dependencyIdentity(witness.prepared_dependencies.before),dependencyIdentity(dependencies.before)) &&
+          equal(dependencyIdentity(witness.prepared_dependencies.after),dependencyIdentity(dependencies.before))) ||
         witness.fixture_sha256!==fixtureDigest || !sha(witness.environment) || witness.environment!==before.environment ||
         witness.file_sha256!==digest(git(["show",p.head+":"+file])) ||
         !equal(witness.modules,paths.map(name=>({path:name,sha256:digest(git(["show",head+":"+name]))}))) ||
@@ -505,14 +530,36 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
         result.cancelled!==false || result.cleanup_completed!==true || result.remaining_owned_processes!==0 ||
         result.termination_reason!=="natural_exit" || result.exit_observed!==true || result.streams_closed!==true ||
         !bytes(witness.stdout,2*1024*1024).length) fail("revision_git_regression_invalid");
-    if (guide) {
-      const dirty = head === prior.head ? " M " + GUIDE_REPAIR_MODULE + "\n" : "";
-      if (witness.scope !== GUIDE_REPAIR_SCOPE || witness.checkout_head !== p.head ||
+    if (guide || freshness) {
+      const dirty = head === prior.head ? paths.map(name=>" M "+name+"\n").join("") : "";
+      if (witness.scope !== (freshness?FRESHNESS_REPAIR_SCOPE:GUIDE_REPAIR_SCOPE) || witness.checkout_head !== p.head ||
           witness.source_state !== (head === prior.head ? "candidate-with-prior-implicated-overlay" : "clean-candidate") ||
           witness.worktree_before !== dirty || witness.worktree_after !== dirty ||
           witness.input_inventory_sha256 !== p.inputs.inventory_sha256 || !equal(witness.browser_uses,[]))
         fail("revision_git_regression_invalid");
-      validateGuideRepairOutcome(bytes(witness.stdout,2*1024*1024).toString(),exit);
+      if(freshness){
+        const combined=bytes(witness.stdout,2*1024*1024),raw=witness.raw_streams;
+        if(!equal(Object.keys(raw??{}),["stdout","stderr"])||result.signal!==null||result.spawn_error_code!==null||
+            !Number.isSafeInteger(result.duration_ms)||result.duration_ms<0)fail("revision_git_regression_invalid");
+        const streams=Object.fromEntries(Object.entries(raw).map(([name,row])=>{
+          const content=bytes(row.ref,2*1024*1024);
+          if(!Number.isSafeInteger(row.bytes)||row.bytes<0||content.length!==row.bytes||!Buffer.from(content.toString("utf8")).equals(content))fail("revision_git_regression_invalid");
+          return [name,content];
+        }));
+        if(!combined.equals(Buffer.concat([streams.stdout,streams.stderr]))&&!combined.equals(Buffer.concat([streams.stderr,streams.stdout])))fail("revision_git_regression_invalid");
+        const report=validateFreshnessRepairOutcome(combined.toString(),exit);
+        if(!streams.stdout.toString().startsWith("AUGNES_SERIAL_MATERIAL_FRESHNESS ")||
+            exit===0&&streams.stderr.length!==0||exit===1&&!streams.stderr.toString().includes("Error: revision_current_preservation_unsafe"))fail("revision_git_regression_invalid");
+        const settled=parse(witness.settlement),cleanup=parse(witness.environment_cleanup);
+        if(!equal(settled,{started_at:witness.started_at,finished_at:witness.finished_at,result})||cleanup.completed!==true||cleanup.absent!==true||
+            typeof cleanup.lexical_root!=="string"||!cleanup.lexical_root.startsWith("/")||!Array.isArray(cleanup.cleanup)||cleanup.cleanup.length!==1||
+            cleanup.cleanup.some(v=>v.completed!==true))fail("revision_git_regression_invalid");
+        const otherCleanup=parse(before.environment_cleanup);
+        if(cleanup.lexical_root!==otherCleanup.lexical_root)fail("revision_git_regression_invalid");
+        if(!equal(report.implicated_sources,paths.map(name=>{const content=git(["show",head+":"+name]);return {path:name,byte_size:content.length,sha256:digest(content)};})))fail("revision_git_regression_invalid");
+        const other=validateFreshnessRepairOutcome(bytes(before.stdout,2*1024*1024).toString(),1);
+        if(report.input_sha256!==other.input_sha256||report.historical_sha256!==other.historical_sha256)fail("revision_git_regression_invalid");
+      }else validateGuideRepairOutcome(bytes(witness.stdout,2*1024*1024).toString(),exit);
     }
   }
   return p.head;

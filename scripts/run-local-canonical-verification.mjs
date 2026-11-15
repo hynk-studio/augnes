@@ -123,6 +123,8 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/prepare-local-canonical-serial-aggregate.mjs",
   "scripts/prepare-local-canonical-material-source.mjs",
   "scripts/local-canonical-typecheck-witness.mjs",
+  "scripts/test-local-canonical-serial-material-freshness.mjs",
+  "scripts/capture-canonical-ts-repair.mjs",
   "scripts/local-canonical-pure-contract-witness.mjs",
   "scripts/local-canonical-fixture-budget-witness.mjs",
   "scripts/local-canonical-stock-lifecycle-witness.mjs",

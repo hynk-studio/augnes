@@ -1803,6 +1803,40 @@ readiness deadline, input protection, physical restoration and owned cleanup.
 The existing v10 TS recipe and ordinary historical-driver evidence remain
 separate and unchanged; unsupported drivers, arguments or attributions refuse.
 
+The same explicit candidate-driver attribution also supports the finite
+`node scripts/test-local-canonical-serial-material-freshness.mjs` recipe. Both
+roles use the frozen candidate harness; only the entire existing
+`scripts/fixtures/local-canonical-reviewed-revision.mjs` and
+`scripts/fixtures/local-canonical-serial-material.mjs` modules receive their
+exact predecessor bytes for RED. This is source-extracted synthetic consumer
+boundary evidence with the unchanged production preservation guard, not a
+clean predecessor driver, complete material preparation or an installed
+Companion probe. The complete focused serial-material owner supplies the
+separate real preparation, admission, mutation, lineage and stock controls.
+
+The harness executes the actual observation initializer, serial helper handoff,
+material inspection and deferred callback expressions against one identical
+explicit old disposable sample. Both old positive boundaries must naturally
+fail solely with `observation_stale`; setup, extraction, unrelated refusal,
+timeout and cleanup failures cannot supply RED. GREEN requires one new
+acquisition at each positive boundary, deferred invocation, retained explicit
+old-sample refusals, unchanged history bytes and the existing identity/binding
+refusals. The new positive-admission wrapper separately retains explicit
+`revisionLive` overrides; its absence at the predecessor is not causal RED.
+
+The existing collector's exact `--driver` selector records complete effective
+source catalogues, both implicated modules, common runtime/input inventory,
+all three prepared dependency identities, original stdout/stderr and natural
+settlement. Each role removes its owned environment; the second creates the
+same absent path afresh with the identical lexical environment. Preparation
+rereads the three dependency identities after asynchronous live acquisition.
+Only this inventory-bound material-v7 recipe with absent `evidence_kind` is
+admitted. TS, guide, HTTP and stock-verifier recipes retain their own predicates.
+No evidence kind, commission family, authority grammar, deadline or invocation
+allowance is added. Separate exact-target receiving, prospective authenticated
+authority, unchanged planner qualification, fresh stock and result audit remain
+required.
+
 #### Selective integration fixture workload correction
 
 An explicitly reviewed material-source commission may use the typed evidence

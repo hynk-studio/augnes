@@ -8,11 +8,11 @@ import { closeSync, constants, fstatSync, ftruncateSync, openSync, writeSync, ex
 import { digest, observeInputFile, classifyInputChange, nonFaultInputChange, observeCanonicalRuntimeInputs, validCanonicalRuntimeInputs, observePreparedDependencyInputs, preparedDependencyIdentity, comparePreparedDependencyInputs } from "./local-canonical-inputs.mjs";
 import { revisionArtifact } from "./local-canonical-attempts.mjs";
 import { verifyGitSourceRepair, MATERIAL_SOURCE_CORRECTION, GUIDE_REPAIR_DRIVER, GUIDE_REPAIR_MODULE, GUIDE_REPAIR_FIXTURES,
-  GUIDE_REPAIR_SCOPE, validateGuideRepairOutcome } from "./local-canonical-git-observation.mjs";
+  GUIDE_REPAIR_SCOPE, validateGuideRepairOutcome, FRESHNESS_REPAIR_DRIVER, FRESHNESS_REPAIR_MODULES, FRESHNESS_REPAIR_FIXTURES, FRESHNESS_REPAIR_SCOPE, validateFreshnessRepairOutcome } from "./local-canonical-git-observation.mjs";
 import { observeGitRevisionTarget } from "./run-local-canonical-verification.mjs";
 import { readReceiptFile, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
-import { createCanonicalTestResourceRoot, beginCanonicalTestResourceUse, settleCanonicalTestResourceUse, cleanupCanonicalTestResources, buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
+import { createCanonicalTestResourceRoot, createCanonicalTestResourceDirectory, beginCanonicalTestResourceUse, settleCanonicalTestResourceUse, cleanupCanonicalTestResources, buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
 import { acquireCheckoutVerificationOwnership, assertCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { admitVerificationContext, inspectVerificationCompanionPreservation } from "./local-canonical-verification-context.mjs";
 import { selectBrowserPath, assertSelectedBrowser, assertBrowserBundle } from "./local-canonical-browser-input.mjs";
@@ -50,7 +50,7 @@ export function checkCaptureSource(root, catalogue, git, expectedHead, changedMo
   assert.equal(text(git,"diff","--cached","--name-only"),"","capture_index_changed");
   assert.equal(text(git,"ls-files","--others","--exclude-standard"),"","capture_untracked_source");
   const changed=text(git,"diff","--name-only");
-  assert.equal(changed,changedModule ? (typeof changedModule === "string" ? changedModule : TS_REPAIR_MODULE) : "","capture_unexpected_delta");
+  assert.equal(changed,changedModule ? (Array.isArray(changedModule) ? changedModule.join("\n") : typeof changedModule === "string" ? changedModule : TS_REPAIR_MODULE) : "","capture_unexpected_delta");
   for(const entry of catalogue) {
     const file=path.join(root,entry.path),s=lstatSync(file);
     assert.ok(s.isFile()&&!s.isSymbolicLink()&&s.nlink===1&&realpathSync(file)===file&&!(s.mode&0o022),"capture_unsafe_source:"+entry.path);
@@ -61,14 +61,15 @@ export function checkCaptureSource(root, catalogue, git, expectedHead, changedMo
   }
   return {started_at,finished_at:now(),entries:catalogue.length,source_sha256:digest(catalogue)};
 }
-export function verifyCaptureDependencyProvenance(receipt, observation, root) {
+export function verifyCaptureDependencyProvenance(receipt, observation, root, phaseId="dependencies-root") {
   assert.ok(verifyReceiptIntegrity(receipt),"capture_dependency_receipt_integrity");
-  const phase=receipt.phases.find(p=>p.id==="dependencies-root"),prepared=receipt.inputs.prepared_dependencies.find(p=>p.phase_id==="dependencies-root");
+  const roots={"dependencies-root":"","dependencies-nested":"apps/augnes_apps","dependencies-web-planning":"apps/web_planning"};assert.ok(Object.hasOwn(roots,phaseId));
+  const phase=receipt.phases.find(p=>p.id===phaseId),prepared=receipt.inputs.prepared_dependencies.find(p=>p.phase_id===phaseId);
   assert.ok(phase?.status==="pass"&&phase.exit_status===0&&phase.command==="npm ci --no-audit --no-fund"&&
     phase.cleanup?.completed===true&&phase.cleanup.exit_observed===true&&phase.cleanup.streams_closed===true&&
     phase.cleanup.remaining_owned_processes===0&&phase.cleanup.termination_reason==="natural_exit"&&phase.timed_out===false,
     "capture_dependency_preparation_missing");
-  assert.equal(observation.location_fingerprint,digest(path.join(root,"node_modules")));
+  assert.equal(observation.location_fingerprint,digest(path.join(root,roots[phaseId],"node_modules")));
   assert.ok(prepared?.unchanged===true&&prepared.error===null&&preparedDependencyIdentity(observation)&&
     comparePreparedDependencyInputs(prepared.before,prepared.after)==="unchanged"&&
     comparePreparedDependencyInputs(prepared.after,observation)==="unchanged","capture_dependency_provenance_mismatch");
@@ -133,9 +134,10 @@ export function finalizeFocusedCapture(operations) {
 }
 
 export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),base,head,priorHead,output,preparationReceipt,completion,driver=TS_REPAIR_DRIVER}) {
-  assert.ok([TS_REPAIR_DRIVER,GUIDE_REPAIR_DRIVER].includes(driver),"capture_driver_invalid");
-  const guide=driver===GUIDE_REPAIR_DRIVER,module=guide?GUIDE_REPAIR_MODULE:TS_REPAIR_MODULE,
-    fixtures=guide?GUIDE_REPAIR_FIXTURES:TS_REPAIR_FIXTURES,nodeArgs=guide?[]:["--import","tsx"],args=guide?["--operator-scope"]:[],
+  assert.ok([TS_REPAIR_DRIVER,GUIDE_REPAIR_DRIVER,FRESHNESS_REPAIR_DRIVER].includes(driver),"capture_driver_invalid");
+  const guide=driver===GUIDE_REPAIR_DRIVER,freshness=driver===FRESHNESS_REPAIR_DRIVER,controlled=guide||freshness,
+    modules=freshness?FRESHNESS_REPAIR_MODULES:[guide?GUIDE_REPAIR_MODULE:TS_REPAIR_MODULE],module=modules[0],
+    fixtures=freshness?FRESHNESS_REPAIR_FIXTURES:guide?GUIDE_REPAIR_FIXTURES:TS_REPAIR_FIXTURES,nodeArgs=controlled?[]:["--import","tsx"],args=guide?["--operator-scope"]:[],
     command=["node",...nodeArgs,driver,...args].join(" ");
   const root=realpathSync(repositoryRoot),git=gitAt(root);
   assert.equal(path.resolve(repositoryRoot),root);
@@ -165,16 +167,16 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
   const {raw,entries,blobs}=captureGitCatalogue(git,head),cache=new Map(entries.map(e=>[JSON.stringify(["show",head+":"+e.path]),blobs.get(e.oid)]));
   // Only this immutable Git adapter is cached. Physical source checks read disk.
   const sourceGit=args=>{const key=JSON.stringify(args);if(!cache.has(key))cache.set(key,git(args));return cache.get(key);};
-  const catalogue=ref=>entries.map(({path:name,mode})=>{const b=sourceGit(["show",(name===module?ref:head)+":"+name]);return {path:name,mode,byte_size:b.length,sha256:digest(b)};});
+  const catalogue=ref=>entries.map(({path:name,mode})=>{const b=sourceGit(["show",(modules.includes(name)?ref:head)+":"+name]);return {path:name,mode,byte_size:b.length,sha256:digest(b)};});
   const candidate=catalogue(head),beforeSource=catalogue(priorHead);
   save("git-catalogue.json",{command:["git","ls-tree","-rz",head],bytes:raw.length,sha256:digest(raw),utf8:raw.toString()});
   const catalogueRefs={before:save("before-source.json",beforeSource),after:save("after-source.json",candidate)};
-  const original=readFileSync(path.join(root,module));
-  assert.deepEqual(original,sourceGit(["show",head+":"+module]));
+  const originals=new Map(modules.map(name=>[name,readFileSync(path.join(root,name))]));
+  for(const name of modules)assert.deepEqual(originals.get(name),sourceGit(["show",head+":"+name]));
   const checkout=acquireCheckoutVerificationOwnership({repositoryRoot:root});
-  let resource, inUse=false,allSettled=true,overlay=false,primary;const records=[],results=[];
+  let resource,resourceRoot, inUse=false,allSettled=true,overlay=false,primary;const records=[],results=[];
   try {
-    resource=createCanonicalTestResourceRoot("ag-suite-",{shortSocketPaths:true});
+    resource=createCanonicalTestResourceRoot("ag-suite-",{shortSocketPaths:true});resourceRoot=resource.root;
   const ambient={...process.env,AUGNES_CANONICAL_NODE_HEADERS:headers,AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT:digest(runtime.headers.observation)};
   const env=buildCanonicalChildEnvironment({ambientEnvironment:ambient,temporaryRoot:resource.root});
   const browserExecutable=selectBrowserPath([env.AUGNES_BROWSER_EXECUTABLE_PATH,"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome","/Applications/Chromium.app/Contents/MacOS/Chromium","/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge","/usr/bin/google-chrome","/usr/bin/google-chrome-stable","/usr/bin/chromium","/usr/bin/chromium-browser"],{repositoryRoot:root,env});
@@ -188,69 +190,80 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
   const bundleBefore=browserBinding?assertBrowserBundle(browserBinding).observation:null;
   assert.ok(browserBefore.present);
   save("runtime.json",{observed_at:now(),runtime,identity_sha256:digest(runtime),browser_expected:browserExpected,browser_bundle_before:bundleBefore,environment:env,environment_sha256:digest(env)});
-  const inputBefore=guide?await observeGitRevisionTarget(context,browserExecutable,runtime):null;
-  if(guide)save("input-before.json",inputBefore);
+  const inputBefore=controlled?await observeGitRevisionTarget(context,browserExecutable,runtime):null;
+  if(controlled)save("input-before.json",inputBefore);
 
     const companion=await inspectVerificationCompanionPreservation(context,{freshTransport:true});save("companion-before.json",companion);
     const acquisition={started_at:now()};const initial=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"});acquisition.finished_at=now();
     save("dependency-initial.json",{acquisition,initial});
     save("dependency-provenance.json",verifyCaptureDependencyProvenance(receipt,initial,root));
+    const dependencyPhases=["dependencies-root","dependencies-nested","dependencies-web-planning"];
+    const dependencyInitial=freshness?dependencyPhases.map(phase_id=>({phase_id,observation:observePreparedDependencyInputs({repositoryRoot:root,phaseId:phase_id})})):null;
+    if(freshness)save("dependency-trees-provenance.json",dependencyInitial.map(row=>verifyCaptureDependencyProvenance(receipt,row.observation,root,row.phase_id)));
     for (const [label,ref,expectedExit] of [["before",priorHead,1],["after",head,0]]) {
       assertCheckoutVerificationOwnership(checkout,root);
       const target=label==="before"?beforeSource:candidate;
-      replaceCaptureModule(path.join(root,module),label==="before"?original:sourceGit(["show",priorHead+":"+module]),sourceGit(["show",ref+":"+module]));overlay=label==="before";
-      const source_before=checkCaptureSource(root,target,git,head,overlay?module:false);
+      if(freshness&&!resource){assert.equal(existsSync(resourceRoot),false);resource=createCanonicalTestResourceDirectory(resourceRoot);assert.deepEqual(buildCanonicalChildEnvironment({ambientEnvironment:ambient,temporaryRoot:resourceRoot}),env);}
+      for(const name of modules){replaceCaptureModule(path.join(root,name),label==="before"?originals.get(name):sourceGit(["show",priorHead+":"+name]),sourceGit(["show",ref+":"+name]));overlay=label==="before";}
+      const source_before=checkCaptureSource(root,target,git,head,overlay?modules:false);
       const worktree_before=git(["status","--porcelain"]).toString();
       const dependency_before_acquisition={started_at:now()};const dependencyBefore=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"});dependency_before_acquisition.finished_at=now();
       assert.equal(comparePreparedDependencyInputs(initial,dependencyBefore),"unchanged");
+      const treesBefore=freshness?dependencyPhases.map(phase_id=>({phase_id,observation:observePreparedDependencyInputs({repositoryRoot:root,phaseId:phase_id})})):null;
+      if(freshness)for(let i=0;i<treesBefore.length;i++)assert.equal(comparePreparedDependencyInputs(dependencyInitial[i].observation,treesBefore[i].observation),"unchanged");
       const chunks=[],stdout=[],stderr=[],lifecycle=[];const write=which=>({write(chunk){const b=Buffer.from(chunk);chunks.push(b);which.push(b);return true;}});
       if(!inUse){beginCanonicalTestResourceUse(resource);inUse=true;}
       const started_at=now();allSettled=false;
       const result=await runCanonicalChild({suite:"focused-ts-repair",label,command:process.execPath,args:[...nodeArgs,driver,...args],cwd:root,env,timeoutMs:60_000,
         stdout:write(stdout),stderr:write(stderr),log:line=>{lifecycle.push(line);console.log(line);}});
       const finished_at=now();results.push(result);allSettled=settled(result);
-      const stdoutRef=save(label+"-output.log",Buffer.concat(chunks));save(label+"-stdout.log",Buffer.concat(stdout));save(label+"-stderr.log",Buffer.concat(stderr));save(label+"-lifecycle.log",Buffer.from(lifecycle.join("\n")+"\n"));
-      save(label+"-settlement.json",{started_at,finished_at,result});
+      const stdoutRef=save(label+"-output.log",Buffer.concat(chunks)),rawStdout=save(label+"-stdout.log",Buffer.concat(stdout)),rawStderr=save(label+"-stderr.log",Buffer.concat(stderr));save(label+"-lifecycle.log",Buffer.from(lifecycle.join("\n")+"\n"));
+      const settlement=save(label+"-settlement.json",{started_at,finished_at,result});
       assert.ok(allSettled,"capture_child_unsettled");
+      let environmentCleanup;
+      if(freshness){settleCanonicalTestResourceUse(resource,result);inUse=false;const cleanup=cleanupCanonicalTestResources([resource]);assert(cleanup.every(v=>v.completed));assert.equal(existsSync(resourceRoot),false);environmentCleanup=save(label+"-environment-cleanup.json",{lexical_root:resourceRoot,completed:true,absent:true,cleanup});resource=null;}
       const dependency_after_acquisition={started_at:now()};const dependencyAfter=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"});dependency_after_acquisition.finished_at=now();
-      const source_after=checkCaptureSource(root,target,git,head,overlay?module:false);
+      const source_after=checkCaptureSource(root,target,git,head,overlay?modules:false);
+      const treesAfter=freshness?dependencyPhases.map(phase_id=>({phase_id,observation:observePreparedDependencyInputs({repositoryRoot:root,phaseId:phase_id})})):null;
       const worktree_after=git(["status","--porcelain"]).toString();
       const witness={attribution:"candidate-driver-prior-implicated-source",driver_source_head:head,tested_source_head:ref,
-        ...(guide?{scope:GUIDE_REPAIR_SCOPE,checkout_head:head,source_state:overlay?"candidate-with-prior-implicated-overlay":"clean-candidate",
+        ...(controlled?{scope:freshness?FRESHNESS_REPAIR_SCOPE:GUIDE_REPAIR_SCOPE,checkout_head:head,source_state:overlay?"candidate-with-prior-implicated-overlay":"clean-candidate",
           worktree_before,worktree_after,input_inventory_sha256:inputBefore.inventory,browser_uses:[]}:{}),
         source_files:catalogueRefs[label],fixture_sha256:digest(candidate.filter(v=>fixtures.includes(v.path))),environment:digest(env),
-        file_sha256:digest(sourceGit(["show",head+":"+driver])),modules:[{path:module,sha256:digest(sourceGit(["show",ref+":"+module]))}],
-        command,node_version:process.versions.node,runtime_inputs_sha256:digest(runtime),prepared_dependencies:{before:dependencyBefore,after:dependencyAfter},
-        started_at,finished_at,result,stdout:stdoutRef};
+        file_sha256:digest(sourceGit(["show",head+":"+driver])),modules:modules.map(name=>({path:name,sha256:digest(sourceGit(["show",ref+":"+name]))})),
+        command,node_version:process.versions.node,runtime_inputs_sha256:digest(runtime),prepared_dependencies:freshness?treesBefore.map((row,i)=>({phase_id:row.phase_id,before:row.observation,after:treesAfter[i].observation})):{before:dependencyBefore,after:dependencyAfter},
+        started_at,finished_at,result,stdout:stdoutRef,...(freshness?{raw_streams:{stdout:{ref:rawStdout,bytes:Buffer.concat(stdout).length},stderr:{ref:rawStderr,bytes:Buffer.concat(stderr).length}},settlement,environment_cleanup:environmentCleanup}:{})};
       const witnessRef=save(label+"-witness.json",witness);records.push({label,ref:witnessRef,witness});
       save(label+"-observations.json",{source_before,dependency_before_acquisition,child:{started_at,finished_at},dependency_after_acquisition,source_after});
       assert.equal(comparePreparedDependencyInputs(initial,dependencyAfter),"unchanged");
+      if(freshness)for(let i=0;i<treesAfter.length;i++)assert.equal(comparePreparedDependencyInputs(dependencyInitial[i].observation,treesAfter[i].observation),"unchanged");
       assert.equal(digest(observeCanonicalRuntimeInputs()),digest(runtime),"capture_runtime_changed");
       const browserAfter=observeInputFile(browserExecutable,{readOnlyExecutable:true});
       const browserUses=Buffer.concat(stdout).toString().split(/\r?\n/u).map(parseBrowserUseLine).filter(Boolean);
       save(label+"-browser.json",{observed_at:now(),before:browserBefore,after:browserAfter,prior_observed_version:browserExpected.actual_version??null,actual_uses:browserUses});
       assert.ok(nonFaultInputChange(classifyInputChange(browserBefore,browserAfter,{classification:"execution",readOnlyExecutable:true})),"capture_browser_changed");
-      if(guide)assert.deepEqual(browserUses,[],"capture_controlled_fixture_browser_use");
+      if(controlled)assert.deepEqual(browserUses,[],"capture_controlled_fixture_browser_use");
       else browserExpected.actual_version=validateCaptureBrowserUses(browserUses,browserExpected,label==="before"?1:2);
       assert.equal(result.exit_code,expectedExit,"capture_causal_hypothesis_failed");
-      if(guide)validateGuideRepairOutcome(Buffer.concat(chunks).toString(),expectedExit);
+      if(freshness)validateFreshnessRepairOutcome(Buffer.concat(chunks).toString(),expectedExit);
+      else if(guide)validateGuideRepairOutcome(Buffer.concat(chunks).toString(),expectedExit);
       else validateResultDraftCaptureOutcome(Buffer.concat(chunks).toString(),expectedExit);
       assert.equal(result.termination_reason,"natural_exit");assert.equal(result.timed_out,false);assert.equal(result.cancelled,false);
     }
-    if(guide){const inputAfter=await observeGitRevisionTarget(context,browserExecutable,runtime);save("input-after.json",inputAfter);
+    if(controlled){const inputAfter=await observeGitRevisionTarget(context,browserExecutable,runtime);save("input-after.json",inputAfter);
       assert.equal(inputAfter.inventory,inputBefore.inventory,"capture_input_inventory_changed");}
     const focused={schema:"augnes.local-canonical-reviewed-revision-focused.v1",basis:"implementation_owner_not_independent_review",
       predecessor_receipt_fingerprint:receipt.integrity.content_fingerprint,runtime_inputs_sha256:digest(runtime),
-      remedy:guide?"The native final-follow-up readiness waits for actual GuideBrief settlement before the deliberate project/runtime switch. The common candidate driver retains all operator controls and adopted/invalid/failed replacement boundaries against the entire prior and corrected Browser source. This is controlled sequencing evidence, not historical Browser recreation or corrected real-Browser qualification.":"The genuine corrected result-draft helper waits for an editable element, observes the pending preparation boundary and refreshes/recompares the replacement owner before editability assertions. The common candidate fixture holds the same real response for both entire helper blobs.",
-      ...(guide?{diagnosis:"The prior Full failed its strict unexpected-request gate after an aborted GuideBrief lacked a completed adopted replacement before context destruction. The controlled schedule exposes premature context release in the original readiness predicate; it does not establish the historical timeout cause or real-Browser success."}:{}),
-      failed_phase:guide?"e2e-operator-native-host-execution":"e2e-project-experience",implicated_paths:[module],input_remedy_resources:[],source_files:candidate.filter(v=>[module,...fixtures].includes(v.path)),
+      remedy:freshness?"Acquire a new synthetic observation inside each affected source-extracted consumer boundary. The frozen candidate harness executes exact prior/final helper and consumer expressions against the same explicit old sample and the unchanged production preservation guard. This is deterministic boundary evidence, not complete material preparation or installed-Companion probing.":guide?"The native final-follow-up readiness waits for actual GuideBrief settlement before the deliberate project/runtime switch. The common candidate driver retains all operator controls and adopted/invalid/failed replacement boundaries against the entire prior and corrected Browser source. This is controlled sequencing evidence, not historical Browser recreation or corrected real-Browser qualification.":"The genuine corrected result-draft helper waits for an editable element, observes the pending preparation boundary and refreshes/recompares the replacement owner before editability assertions. The common candidate fixture holds the same real response for both entire helper blobs.",
+      ...(freshness?{diagnosis:"The retained synthetic observation is stale at material inspection and deferred preparation. A callback returning that old object does not acquire a new observation."}:guide?{diagnosis:"The prior Full failed its strict unexpected-request gate after an aborted GuideBrief lacked a completed adopted replacement before context destruction. The controlled schedule exposes premature context release in the original readiness predicate; it does not establish the historical timeout cause or real-Browser success."}:{}),
+      failed_phase:freshness?"authority":guide?"e2e-operator-native-host-execution":"e2e-project-experience",implicated_paths:modules,input_remedy_resources:[],source_files:candidate.filter(v=>[...modules,...fixtures].includes(v.path)),
       regression:{path:driver,node_args:nodeArgs,args,fixture_paths:fixtures,attribution:"candidate-driver-prior-implicated-source",before:records[0].ref,after:records[1].ref},
       commands:[{command,tested_source_head:head,record:records[1].ref,stdout:records[1].witness.stdout,result:records[1].witness.result}],finished_at:now()};
     // This truthful recipe fragment is supplied only to the focused predicate.
     // It is not preparation, authority, a reservation or a physical commission.
-    const p={schema:guide?"augnes.local-canonical-source-correction.v7":"augnes.local-canonical-source-correction.v10",kind:"reviewed_revision",
-      commission:guide?{ordinal:1,maximum_invocations:1,source_revision:MATERIAL_SOURCE_CORRECTION}:{ordinal:2},head,tree:text(git,"rev-parse",head+"^{tree}"),
-      inputs:{identity_sha256:digest(runtime),...(guide?{inventory_sha256:inputBefore.inventory}:{})}};
+    const p={schema:controlled?"augnes.local-canonical-source-correction.v7":"augnes.local-canonical-source-correction.v10",kind:"reviewed_revision",
+      commission:controlled?{ordinal:1,maximum_invocations:1,source_revision:MATERIAL_SOURCE_CORRECTION}:{ordinal:2},head,tree:text(git,"rev-parse",head+"^{tree}"),
+      inputs:{identity_sha256:digest(runtime),...(controlled?{inventory_sha256:inputBefore.inventory}:{})}};
     const prior={head:priorHead,tree:text(git,"rev-parse",priorHead+"^{tree}")};
     const bytes=(ref,max)=>revisionArtifact(out,ref,max),parse=ref=>JSON.parse(bytes(ref));
     save("focused.json",focused);save("predicate-input.json",{scope:"focused-source-predicate-only; no preparation or authority",p,prior,completedAt:priorCompletion.finished_at});
@@ -263,7 +276,7 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
   } catch(error) {primary=error;throw error;}
   finally {
     const cleanup=finalizeFocusedCapture({
-      restore:()=>{if(overlay){replaceCaptureModule(path.join(root,module),sourceGit(["show",priorHead+":"+module]),original);}return {overlay_restored:overlay};},
+      restore:()=>{for(const name of modules){const current=readFileSync(path.join(root,name));if(!current.equals(originals.get(name)))replaceCaptureModule(path.join(root,name),sourceGit(["show",priorHead+":"+name]),originals.get(name));}return {overlay_restored:overlay};},
       resources:()=>{
         if(!allSettled)return {completed:false,reason:"consumers_unsettled"};
         if(!resource)return {completed:true,created:false};
@@ -273,7 +286,7 @@ export async function captureCanonicalTsRepair({repositoryRoot=process.cwd(),bas
       ownership:()=>releaseCheckoutVerificationOwnership(checkout,root,{consumersSettled:allSettled}),
       source:()=>checkCaptureSource(root,candidate,git,head),
     });
-    try {save("cleanup.json",{finished_at:now(),all_settled:allSettled,parent_root:resource?.root??null,parent_absent:!resource||!existsSync(resource.root),...cleanup});}
+    try {save("cleanup.json",{finished_at:now(),all_settled:allSettled,parent_root:resourceRoot??null,parent_absent:!resourceRoot||!existsSync(resourceRoot),...cleanup});}
     catch(error){if(!primary)throw error;console.error("capture_cleanup_record_failed",error.code??error.name);}
     if(!primary&&cleanup.errors.length)throw Object.assign(new Error("capture_cleanup_incomplete"),{cleanupErrors:cleanup.errors});
   }

@@ -5,7 +5,8 @@ import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, symlinkSync, 
 import path from "node:path";
 import { digest, observeInputFile } from "./local-canonical-inputs.mjs";
 import { verifyGitSourceRepair, MATERIAL_SOURCE_CORRECTION, GUIDE_REPAIR_DRIVER, GUIDE_REPAIR_MODULE,
-  GUIDE_REPAIR_FIXTURES, GUIDE_REPAIR_SCOPE, validateGuideRepairOutcome } from "./local-canonical-git-observation.mjs";
+  GUIDE_REPAIR_FIXTURES, GUIDE_REPAIR_SCOPE, validateGuideRepairOutcome, FRESHNESS_REPAIR_DRIVER, FRESHNESS_REPAIR_MODULES,
+  FRESHNESS_REPAIR_FIXTURES,FRESHNESS_REPAIR_SCOPE,validateFreshnessRepairOutcome } from "./local-canonical-git-observation.mjs";
 import { OPERATOR_REQUEST_LIFECYCLE_PHASES_V1 } from "./operator-execution-result-contract-v1.mjs";
 import { revisionArtifact } from "./local-canonical-attempts.mjs";
 import { validateResultDraftCaptureOutcome, validateCaptureBrowserUses, replaceCaptureModule, finalizeFocusedCapture, checkCaptureSource, verifyCaptureDependencyProvenance, TS_REPAIR_DRIVER as driver, TS_REPAIR_MODULE as module } from "./capture-canonical-ts-repair.mjs";
@@ -128,5 +129,59 @@ try {
  const physicalNative=nativeSource(head).filter(e=>e.path===GUIDE_REPAIR_MODULE),nativeGit=args=>Buffer.from(args[0]==="rev-parse"?head:args[0]==="diff"&&args[1]==="--name-only"?GUIDE_REPAIR_MODULE:"");
  assert.equal(checkCaptureSource(root,physicalNative,nativeGit,head,GUIDE_REPAIR_MODULE).entries,1);
  refuse(()=>checkCaptureSource(root,physicalNative,nativeGit,head));
- console.log(JSON.stringify({scope:"structural-only",positive:true,refusals}));
+ // One additional fixed candidate-driver recipe. Every source and dependency
+ // remains bound; these fabricated outcomes test predicates, not causality.
+ const freshnessFiles=new Map([...FRESHNESS_REPAIR_FIXTURES,...FRESHNESS_REPAIR_MODULES,
+   ...["","apps/augnes_apps/","apps/web_planning/"].flatMap(prefix=>[prefix+"package.json",prefix+"package-lock.json"])].map(name=>[name,Buffer.from(name.endsWith(".json")?"{}":"candidate "+name)]));
+ const freshnessCatalogue=[...freshnessFiles.keys()].sort().map(name=>({path:name,mode:"100644"}));
+ const freshnessContent=(ref,name)=>ref===old&&FRESHNESS_REPAIR_MODULES.includes(name)?Buffer.from("prior "+name):freshnessFiles.get(name);
+ const freshnessSource=ref=>freshnessCatalogue.map(e=>({...e,byte_size:freshnessContent(ref,e.path).length,sha256:digest(freshnessContent(ref,e.path))}));
+ const freshnessDependencies=["dependencies-root","dependencies-nested","dependencies-web-planning"].map((phase_id,i)=>{
+   const dir=["","apps/augnes_apps","apps/web_planning"][i],observation={...structuredClone(dep),phase_id,location_fingerprint:digest(path.join(root,dir,"node_modules"))};
+   return {phase_id,before:observation,after:structuredClone(observation)};
+ });
+ const freshnessReport=(ref,exit)=>({contract:"augnes.serial-material-freshness-boundary.v1",scope:FRESHNESS_REPAIR_SCOPE,
+   input_sha256:"a".repeat(64),historical_sha256:"b".repeat(64),implicated_sources:FRESHNESS_REPAIR_MODULES.map(name=>({path:name,byte_size:freshnessContent(ref,name).length,sha256:digest(freshnessContent(ref,name))})),
+   source_boundaries:Object.fromEntries(["observation","handoff","inspect","deferred"].map(k=>[k,"c".repeat(64)])),
+   explicit_stale_guard:true,explicit_old_inspect:true,explicit_old_deferred:true,identity_refusals:4,callback_invocations:1,
+   boundaries:Object.fromEntries(["inspect","deferred"].map(k=>[k,exit?{status:"failure",acquisitions:0,error_code:"revision_current_preservation_unsafe",failed_conditions:["observation_stale"]}:{status:"pass",acquisitions:1}])),
+   positive_admission:exit?{not_reached:true}:{fresh:true,explicit_override_rejected:true,acquisitions:2,source_sha256:"d".repeat(64)},supplied_history_unchanged:true,synthetic_only:true,deciding:false,cleanup_complete:true});
+ const freshnessOutput=(ref,exit)=>"AUGNES_SERIAL_MATERIAL_FRESHNESS "+JSON.stringify(freshnessReport(ref,exit))+"\n"+(exit?"Error: revision_current_preservation_unsafe\n":"");
+ const freshnessCommand="node "+FRESHNESS_REPAIR_DRIVER;
+ const freshnessWitness=(ref,baseWitness)=>({...structuredClone(baseWitness),scope:FRESHNESS_REPAIR_SCOPE,source_files:save("freshness-source-"+ref+".json",freshnessSource(ref)),
+   worktree_before:ref===old?FRESHNESS_REPAIR_MODULES.map(name=>" M "+name+"\n").join(""):"",worktree_after:ref===old?FRESHNESS_REPAIR_MODULES.map(name=>" M "+name+"\n").join(""):"",
+   file_sha256:digest(freshnessFiles.get(FRESHNESS_REPAIR_DRIVER)),fixture_sha256:digest(freshnessSource(head).filter(v=>FRESHNESS_REPAIR_FIXTURES.includes(v.path))),
+   modules:FRESHNESS_REPAIR_MODULES.map(name=>({path:name,sha256:digest(freshnessContent(ref,name))})),command:freshnessCommand,prepared_dependencies:structuredClone(freshnessDependencies),
+   stdout:save("freshness-output-"+ref+".log",Buffer.from(freshnessOutput(ref,ref===old?1:0)))});
+ const fb=freshnessWitness(old,nb),fa=freshnessWitness(head,na);
+ for(const [ref,w,exit]of [[old,fb,1],[head,fa,0]]){
+   w.started_at=new Date(Date.parse(w.finished_at)-1).toISOString();Object.assign(w.result,{signal:null,spawn_error_code:null,duration_ms:1});
+   const output=freshnessOutput(ref,exit),stdout=output.split("\n")[0]+"\n",stderr=exit?"Error: revision_current_preservation_unsafe\n":"";
+   w.raw_streams={stdout:{ref:save("freshness-stdout-"+ref+".log",Buffer.from(stdout)),bytes:Buffer.byteLength(stdout)},stderr:{ref:save("freshness-stderr-"+ref+".log",Buffer.from(stderr)),bytes:Buffer.byteLength(stderr)}};
+   w.settlement=save("freshness-settlement-"+ref+".json",{started_at:w.started_at,finished_at:w.finished_at,result:w.result});
+   w.environment_cleanup=save("freshness-cleanup-"+ref+".json",{lexical_root:root+"/recreated-environment",completed:true,absent:true,cleanup:[{completed:true}]});
+ }
+ const ff={...nf,failed_phase:"authority",implicated_paths:FRESHNESS_REPAIR_MODULES,source_files:freshnessSource(head),
+   regression:{path:FRESHNESS_REPAIR_DRIVER,node_args:[],args:[],fixture_paths:FRESHNESS_REPAIR_FIXTURES,attribution:"candidate-driver-prior-implicated-source",before:"freshness-before",after:"freshness-after"},
+   commands:[{command:freshnessCommand,tested_source_head:head,record:"freshness-after",stdout:fa.stdout}]};
+ const freshnessCheck=(b=fb,a=fa,proof=nativeProof,f=ff)=>verifyGitSourceRepair(proof,prior,f,{repositoryRoot:root,completedAt:"2026-01-01T00:00:00.000Z",
+   git:args=>{if(args[0]==="ls-tree")return Buffer.from(freshnessCatalogue.map(e=>`${e.mode} blob ${"c".repeat(40)}\t${e.path}\0`).join(""));
+     if(args[0]==="show"){const colon=args[1].indexOf(":");return freshnessContent(args[1].slice(0,colon),args[1].slice(colon+1));}
+     if(args[0]==="rev-parse")return Buffer.from(args[2].startsWith(old)?"0".repeat(40):"1".repeat(40));if(args[0]==="diff")return Buffer.from("@@ -1 +1 @@\n-old\n+new\n");throw Error("unexpected freshness Git operation");},
+   parse:ref=>typeof ref==="object"?JSON.parse(revisionArtifact(root,ref)):ref==="freshness-before"?b:a,bytes:(ref,max)=>revisionArtifact(root,ref,max)});
+ assert.equal(freshnessCheck(),head);
+ for(const change of [f=>f.regression.args=["--other"],f=>f.regression.node_args=["--import","tsx"],f=>f.regression.path=GUIDE_REPAIR_DRIVER,f=>f.regression.fixture_paths.pop(),
+   f=>f.implicated_paths.reverse(),f=>f.implicated_paths.pop(),f=>f.failed_phase="integration",f=>f.regression.kind="fixture-freshness",f=>f.regression.attribution="historical-clean-driver"]){const f=structuredClone(ff);change(f);refuse(()=>freshnessCheck(fb,fa,nativeProof,f));}
+ for(const change of [w=>w.prepared_dependencies.pop(),w=>w.prepared_dependencies[1].after.content_sha256="0".repeat(64),w=>w.prepared_dependencies[2].before.location_fingerprint=digest("other"),
+   w=>w.worktree_before="",w=>w.worktree_after="",w=>w.modules.pop(),w=>w.source_state="clean-predecessor",w=>w.result.timed_out=true,w=>w.result.cleanup_completed=false,w=>w.environment="0".repeat(64),w=>delete w.raw_streams,w=>w.raw_streams.stderr.bytes=0,w=>delete w.environment_cleanup,w=>delete w.settlement]){const b=structuredClone(fb);change(b);refuse(()=>freshnessCheck(b));}
+ for(const change of [r=>r.explicit_old_inspect=false,r=>r.explicit_old_deferred=false,r=>r.explicit_stale_guard=false,r=>r.callback_invocations=0,r=>r.identity_refusals=0,
+   r=>r.supplied_history_unchanged=false,r=>r.cleanup_complete=false,r=>r.synthetic_only=false,r=>r.deciding=true,r=>r.boundaries.inspect.acquisitions=0,
+   r=>r.boundaries.deferred.status="failure",r=>r.positive_admission.explicit_override_rejected=false]){const r=freshnessReport(head,0);change(r);refuse(()=>validateFreshnessRepairOutcome("AUGNES_SERIAL_MATERIAL_FRESHNESS "+JSON.stringify(r)+"\n",0));}
+ for(const output of ["Error: import failed\n",freshnessOutput(old,1).replace("Error: revision_current_preservation_unsafe","Error: unrelated"),freshnessOutput(old,1).replace('"observation_stale"','"same_service"'),freshnessOutput(head,0).trim(),freshnessOutput(head,0)+freshnessOutput(head,0)])refuse(()=>validateFreshnessRepairOutcome(output,output.includes("revision_current_preservation_unsafe")?1:0));
+ const swapped=structuredClone(fb);swapped.source_files=save("freshness-substituted-source.json",freshnessSource(head));refuse(()=>freshnessCheck(swapped));
+ const changedInput=structuredClone(fa),changedReport=freshnessReport(head,0);changedReport.input_sha256="f".repeat(64);changedInput.stdout=save("freshness-input-substituted.log",Buffer.from("AUGNES_SERIAL_MATERIAL_FRESHNESS "+JSON.stringify(changedReport)+"\n"));refuse(()=>freshnessCheck(fb,changedInput));
+ for(const name of FRESHNESS_REPAIR_MODULES){mkdirSync(path.dirname(path.join(root,name)),{recursive:true});writeFileSync(path.join(root,name),freshnessFiles.get(name),{mode:0o600});}
+ const overlayCatalogue=freshnessSource(head).filter(e=>FRESHNESS_REPAIR_MODULES.includes(e.path)),overlayGit=args=>Buffer.from(args[0]==="rev-parse"?head:args[0]==="diff"&&args[1]==="--name-only"?FRESHNESS_REPAIR_MODULES.join("\n"):"");
+ assert.equal(checkCaptureSource(root,overlayCatalogue,overlayGit,head,FRESHNESS_REPAIR_MODULES).entries,2);refuse(()=>checkCaptureSource(root,overlayCatalogue,overlayGit,head,[FRESHNESS_REPAIR_MODULES[0]]));
+ console.log(JSON.stringify({scope:"structural-only",positive:true,refusals,freshness_recipe:true}));
 } finally {assert.ok(cleanupCanonicalTestResources([owner]).every(v=>v.completed));assert.equal(existsSync(root),false);}
