@@ -860,9 +860,15 @@ export const requestBoundAllowanceAuthorityScope = (p,review,grant) =>
   typedMaterialAuthorityScope(p,review,grant,requestBoundAllowanceAuthorityBindings(p),REQUEST_BOUND_GRANT);
 export const integrationBudgetAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM);
 export const IDENTITY_BUDGET_GRANT = "Authorize one NEW prospective v7 reviewed_revision commission for the registered Identity contracts allowance.";
-export const identityBudgetAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_IDENTITY_BUDGET, IDENTITY_BUDGET_CLAIM) +
+export const identityBudgetAuthorityBindings = p => {
+  const v=p.commission.inherited_serial;
+  return typedMaterialAuthorityBindings(p, REGISTERED_IDENTITY_BUDGET, IDENTITY_BUDGET_CLAIM) +
   "\nRegistered owner: integration / supporting-serial / codex-isolated-auth-projection; command: node --import tsx scripts/test-codex-isolated-auth-projection.ts --contracts." +
-  "\nProspective watchdog: 60000 to 90000 ms; integration phase: 4200000 ms unchanged; complete workload, executable checks, single-use ownership and cleanup unchanged.";
+  "\nProspective watchdog: 60000 to 90000 ms; integration phase: 4200000 ms unchanged; complete workload, executable checks, single-use ownership and cleanup unchanged."+(v ? "\n"+[
+    "Inherited serial envelope: "+v.envelope_sha256,"Inherited route: "+v.route,"Inherited origin family: "+v.origin_family_id,
+    "Inherited origin attempt: "+v.origin_attempt_id,"Inherited origin receipt: "+v.origin_receipt_fingerprint,SERIAL_HISTORY,
+  ].join("\n") : "");
+};
 export const identityBudgetDelegation = p => [
   "Authorize one registered Identity contracts allowance preparation and conditional qualification assignment on " + p.branch + " in Draft PR #" + p.pull_request + ". Select " + REGISTERED_IDENTITY_BUDGET + " within the existing inventory-bound material-source-correction-v1 owners.",
   "Predecessor: " + p.prior_family_id + " / " + p.prior_attempt_id + " / " + p.prior_receipt_fingerprint + ".",

@@ -13,7 +13,8 @@ import { inspectReceiptForDecision } from "../local-canonical-receipt.mjs";
 import { verifySettledPhaseFailure } from "../local-canonical-browser-revision.mjs";
 import { REVIEWED_REVISION_PHASES } from "../local-canonical-attempts.mjs";
 import { MATERIAL_SOURCE_CORRECTION, MATERIAL_HISTORY_BOUNDARY, gitRevisionInventory, maintenanceFixtureAuthorityBindings,
-  maintenanceFixtureDelegation, INTEGRATION_BUDGET_LIMIT } from "../local-canonical-git-observation.mjs";
+  maintenanceFixtureDelegation, INTEGRATION_BUDGET_LIMIT, identityBudgetAuthorityBindings,
+  identityBudgetAuthorityScope, IDENTITY_BUDGET_GRANT } from "../local-canonical-git-observation.mjs";
 import { REGISTERED_FIXTURE_BUDGET, FIXTURE_BUDGET_CLAIM, MAINTENANCE_FIXTURE_CASE, MAINTENANCE_FIXTURE_GRANT,
   FIXTURE_BUDGET_PATHS, FIXTURE_BUDGET_COLLECTOR, fixtureBudgetSourceDelta, fixtureBudgetEnvironment, maintenanceFixtureBudgetRegistration,
   maintenanceFixtureCompletionNames, registeredFixtureBudget } from "../local-canonical-fixture-budget-witness.mjs";
@@ -22,6 +23,7 @@ import { gitFixtureDeclaration } from "./local-canonical-git-observation.mjs";
 import { executeFixture, dependencyRecords } from "./local-canonical-browser-successor.mjs";
 import { baseReceipt } from "./local-canonical-receipt-v3.mjs";
 import { PROJECT_EXPERIENCE_COMMITMENT } from "../project-experience-serial-budget.mjs";
+import { inheritedSerialAuthorityScope } from "../local-canonical-serial-aggregate.mjs";
 
 const ownerId="local-canonical-maintenance", test="scripts/test-local-canonical-maintenance.mjs", suite=FIXTURE_BUDGET_PATHS.suite;
 const clone=structuredClone,now=()=>new Date().toISOString(),decision="Source review decision: ACCEPT / RETAIN for prospective qualification.";
@@ -243,6 +245,31 @@ async function assertIdentityEntryControls(sourceRoot,ordinary,maintenance) {
   const previousCommission=controls.revisionCommissionIdentity(previous),grants=[previous.authorization.grant_comment_id];
   assert.equal(controls.validGitRevisionEdge(previous,next),true);
   assert.equal(controls.revisionFollows(next,1,previousCommission,grants,1),true);
+  const scoped=clone(next);scoped.accepted.review={id:identity.authorization.grant_comment_id+100,sha256:digest("controlled review")};
+  const bindings=identityBudgetAuthorityBindings(scoped),review={body:[decision,bindings,MATERIAL_HISTORY_BOUNDARY].join("\n\n")};
+  const grant={body:[IDENTITY_BUDGET_GRANT,bindings,"Accepted review: https://github.com/hynk-studio/augnes/pull/"+scoped.pull_request+
+    "#pullrequestreview-"+scoped.accepted.review.id,MATERIAL_HISTORY_BOUNDARY,INTEGRATION_BUDGET_LIMIT].join("\n\n")};
+  assert.equal(identityBudgetAuthorityScope(scoped,review,grant),true);
+  assert.equal(inheritedSerialAuthorityScope(scoped,review.body),true);
+  assert.equal(inheritedSerialAuthorityScope(scoped,grant.body),true);
+  for(const field of ["Inherited serial envelope: ","Inherited origin family: ","Inherited origin receipt: "]){
+    const remove=body=>body.split("\n").filter(line=>!line.startsWith(field)).join("\n");
+    assert.equal(identityBudgetAuthorityScope(scoped,review,{body:remove(grant.body)}),false);refusals++;
+    assert.equal(identityBudgetAuthorityScope(scoped,{body:remove(review.body)},grant),false);refusals++;
+    assert.equal(inheritedSerialAuthorityScope(scoped,remove(grant.body)),false);
+    const substitute=body=>body.split("\n").map(line=>line.startsWith(field)?field+digest("substituted inherited binding"):line).join("\n");
+    assert.equal(identityBudgetAuthorityScope(scoped,review,{body:substitute(grant.body)}),false);refusals++;
+    assert.equal(inheritedSerialAuthorityScope(scoped,substitute(grant.body)),false);
+  }
+  assert.equal(identityBudgetAuthorityBindings(identity).includes("Inherited serial envelope: "),false);
+  const ordinaryScoped=clone(identity);ordinaryScoped.accepted.review=clone(scoped.accepted.review);
+  const ordinaryBindings=identityBudgetAuthorityBindings(ordinaryScoped);
+  const ordinaryReview={body:[decision,ordinaryBindings,MATERIAL_HISTORY_BOUNDARY].join("\n\n")};
+  const ordinaryGrant={body:[IDENTITY_BUDGET_GRANT,ordinaryBindings,"Accepted review: https://github.com/hynk-studio/augnes/pull/"+ordinaryScoped.pull_request+
+    "#pullrequestreview-"+ordinaryScoped.accepted.review.id,MATERIAL_HISTORY_BOUNDARY,INTEGRATION_BUDGET_LIMIT].join("\n\n")};
+  assert.equal(identityBudgetAuthorityScope(ordinaryScoped,ordinaryReview,ordinaryGrant),true);
+  assert.equal(inheritedSerialAuthorityScope(ordinaryScoped,ordinaryReview.body),true);
+  assert.equal(inheritedSerialAuthorityScope(ordinaryScoped,ordinaryGrant.body),true);
   for(const mutate of [v=>delete v.commission.inherited_serial,v=>v.commission.inherited_serial.origin_receipt_fingerprint=digest("different origin"),
     v=>v.commission.inherited_serial.envelope_sha256=digest("different envelope"),v=>v.commission.input_acquisition="unrelated",
     v=>v.commission.maximum_invocations=2,v=>v.commission.ordinal=2]) {
