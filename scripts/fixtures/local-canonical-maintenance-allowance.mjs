@@ -213,7 +213,7 @@ async function assertIdentityEntryControls(sourceRoot,ordinary,maintenance) {
   // test API or reserving any Identity attempt. Shared physical reservation,
   // race, history and stock controls above continue to exercise their owners.
   const file=path.join(sourceRoot,"scripts/local-canonical-attempts.mjs"),source=readFileSync(file,"utf8");
-  const imports=source.replace(/from "(\.\/[^"\n]+)"/gu,(_all,relative)=>
+  const imports=source.replace(/from "(\.\.?\/[^"\n]+)"/gu,(_all,relative)=>
     "from "+JSON.stringify(pathToFileURL(path.resolve(path.dirname(file),relative)).href));
   const controls=await import("data:text/javascript;base64,"+Buffer.from(imports+
     "\nexport {validGitRevisionEdge,revisionFollows,revisionCommissionIdentity,ordinaryBudgetSuccessor,identityBudgetEvidence,verifyCompanionRetirementDelegation};\n").toString("base64"));
