@@ -88,7 +88,8 @@ export async function runProspectiveReviewedIntegrationFixture(c,h,complete) {
 
 async function materialIntegrationControls(c,h,mode,callback,seedSources,prepareDependencies,complete=null) {
  const readerMode=mode==='maintenance-reader',accounted=mode==='accounted-prospective';
- const started=performance.now(),stage=name=>console.log(JSON.stringify({material_integration_stage:name,elapsed_ms:Math.round(performance.now()-started),synthetic_only:true}));
+ let currentStage='source_setup';
+ const started=performance.now(),stage=name=>{currentStage=name;console.log(JSON.stringify({material_integration_stage:name,elapsed_ms:Math.round(performance.now()-started),synthetic_only:true}));};
  const prior=accounted?complete.receipt:c.materialFinalReceipt,a=prior.attempt,successStock=accounted?complete.stock:h.read(path.join(c.artifacts,'fresh-stock.json'));
  const git=(...args)=>c.git(args).toString().trim(),commit=()=>git('-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','--quiet','-m',accounted?'synthetic reviewed prospective integration':'synthetic reviewed material integration');
  const families=path.join(c.anchor,'.augnes-local-verification/families'),ledger=path.join(families,a.family_id),edge=path.join(ledger,'correction-successor.json');
@@ -346,6 +347,13 @@ async function materialIntegrationControls(c,h,mode,callback,seedSources,prepare
     delivery_revision:p.integration.delivery_revision,nonoverlap_adjustments:p.integration.adjustments.length,linear_correction_commits:p.integration.correction_chain.length}:
     {eligible_successful_exhausted_material_v7:true}),refusals,full_phases:receipt.phases.length,
    budget:{initial:1,recovery:0},historical_grants:beforeTip.revision_grants,historical_consumption:1,old_prefix_without_current_authority:true,fresh_stock:true,competing_and_interrupted_edges_retained:true,originals_unchanged:true}}));
+ } catch(error) {
+  if(accounted)try{console.error(JSON.stringify({prospective_reviewed_integration_error:{stage:currentStage,
+    name:typeof error?.name==='string'?error.name.slice(0,80):'unknown',
+    code:typeof error?.code==='string'?error.code.slice(0,120):null,
+    message:typeof error?.message==='string'?error.message.replace(/[\x00-\x1f\x7f]/gu,' ').slice(0,512):null,
+    elapsed_ms:Math.round(performance.now()-started),synthetic_only:true}}));}catch{/* Diagnostics never replace the original error. */}
+  throw error;
  } finally {
   restoreLedger();git('reset','--hard',a.head);git('update-ref','refs/remotes/origin/main',oldMain);if(createdMain)git('branch','-D','material-accepted-main');h.write(exclude,excludeBytes);
   for(const dir of ['','apps/augnes_apps','apps/web_planning'])rmSync(path.join(c.checkout,dir,'node_modules'),{recursive:true,force:true});

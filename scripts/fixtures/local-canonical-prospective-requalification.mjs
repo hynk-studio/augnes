@@ -47,8 +47,13 @@ function snapshot(root) {
   visit(root); return found;
 }
 
-export async function runProspectiveRequalificationControls(c, h, registeredOwner, { onComplete } = {}) {
+export async function runProspectiveRequalificationControls(c, h, registeredOwner, { onComplete, positivePredecessorOnly = false } = {}) {
   assert(onComplete === undefined || typeof onComplete === "function");
+  assert.equal(typeof positivePredecessorOnly, "boolean");
+  assert(!positivePredecessorOnly || typeof onComplete === "function");
+  // Only the selected integration continuation omits the existing campaign's
+  // 1 historical-runtime, 73 pre-success, 1 duplicate and 6 post-success
+  // refusal witnesses. The default still executes every original assertion.
   const selected = prospectiveRequalificationRegisteredOwner({ commission: registeredOwner === undefined ? {} : { registered_owner: registeredOwner } });
   const label = selected.label, bound = selected.bound_ms, elapsed = bound + 178;
   let refusals = 0;
@@ -148,7 +153,9 @@ export async function runProspectiveRequalificationControls(c, h, registeredOwne
       equivalence: ref("equivalence.json", equivalence), current: ref("current-baseline.json", current) } };
   const verifyHistorical = inputs => verifyGitRevisionFailure(failed.receipt, failed.stock, inputs, REVIEWED_REVISION_PHASES,
     old.commission.ordinal, false, false, false, true);
-  assert.throws(() => verifyHistorical(c.inputs), { code: "revision_browser_failure_invalid" }); refusals++;
+  if (!positivePredecessorOnly) {
+    assert.throws(() => verifyHistorical(c.inputs), { code: "revision_browser_failure_invalid" }); refusals++;
+  }
   assert.doesNotThrow(() => verifyHistorical(prospectiveHistoricalRuntime(p, failed.receipt, c.inputs)));
   p.focused = ref("focused.json", focused);
   p.source = ref("source.json", { ...read(p.source), reviewed_at: now() });
@@ -194,6 +201,7 @@ export async function runProspectiveRequalificationControls(c, h, registeredOwne
   let parsed = h.proof(c), capability = await h.auth(c, parsed);
   assert.equal((await prepare()).target, prepared.target); noReservation();
 
+  if (!positivePredecessorOnly) {
   // A recognized prospective marker cannot select a permissive legacy reader
   // or be represented as infrastructure recovery. Require the early guard's
   // exact reason, not an incidental missing-artifact/schema failure.
@@ -348,6 +356,7 @@ export async function runProspectiveRequalificationControls(c, h, registeredOwne
     h.write(file, Buffer.concat([bytes, Buffer.from("\n")])); return { authorization: capability, live: c.live };
   } })); refusals++;
   h.write(path.join(c.artifacts, p.focused.artifact), focused); noReservation();
+  }
 
   // Restore the exact preparation source after negative controls and reserve
   // once. A new physical process independently validates synthetic success.
@@ -359,7 +368,9 @@ export async function runProspectiveRequalificationControls(c, h, registeredOwne
   const complete = await executeFixture(c, { ...h, behavior: syntheticBehavior(0),
     begin: (subject, proof, auth, extra) => {
       const attempt = h.begin(subject, proof, auth, { ...extra, runId: "synthetic-prospective-complete" });
-      assert.throws(() => h.begin(subject, proof, auth, extra)); refusals++;
+      if (!positivePredecessorOnly) {
+        assert.throws(() => h.begin(subject, proof, auth, extra)); refusals++;
+      }
       assert.equal(tip().reviewed_revision_consumed, 1); return attempt;
     }, decorateReceipt(receipt) { receipt.integration_base.contract = "augnes.local-canonical-integration-base.v2"; },
   }, parsed, capability, browser, dependencyRecords(c));
@@ -369,6 +380,7 @@ export async function runProspectiveRequalificationControls(c, h, registeredOwne
   assert.deepEqual(tip().revision_grants, [11, 32, 62, 82]);
   assert.equal(tip().reviewed_revision_consumed, 1);
   assert(validReviewedRevisionAttempt(complete.receipt.attempt));
+  if (!positivePredecessorOnly) {
   // The old sanitized export drops the original incident and authority bodies.
   // It must reject this basis instead of producing a plausible repair export.
   const originalReceipt = canonicalSerialize(complete.receipt);
@@ -395,6 +407,7 @@ export async function runProspectiveRequalificationControls(c, h, registeredOwne
   rmSync(attemptFile);
   try { assert.throws(() => h.begin(c, parsed, capability)); refusals++; assert(existsSync(edge)); }
   finally { h.write(attemptFile, attemptBytes); }
+  }
   unchanged();
   assert.equal(gitRevisionInventory(complete.receipt.inputs), p.inputs.inventory_sha256);
   console.log(JSON.stringify({ prospective_requalification: { synthetic_only: true, real_authority: false, registered_owner_executions: 0,
@@ -402,6 +415,9 @@ export async function runProspectiveRequalificationControls(c, h, registeredOwne
     non_reserving_preparation: true, one_slot_reservation: true, fresh_process_stock: true,
     original_history_preserved: true, prior_false_stock: failed.stock.valid_deciding_evidence,
     new_synthetic_stock: complete.stock.valid_deciding_evidence, history_cause: "UNKNOWN", refusals,
+    controls_mode: positivePredecessorOnly ? "successful-predecessor-only" : "complete-prospective-campaign",
+    original_refusal_campaign: { executed: refusals, skipped: positivePredecessorOnly ? 81 : 0,
+      status: positivePredecessorOnly ? "not_repeated; prior complete campaign evidence must retain its actual source attribution" : "executed" },
     grant_ids: tip().revision_grants, issued_limit: 1, consumed: 1, recovery: 0,
     current_git_stock_policy: GIT_CURRENT_STOCK_COMPARISON } }));
   if (onComplete) {

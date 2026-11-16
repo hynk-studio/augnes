@@ -585,6 +585,7 @@ if(process.argv[2]==="--cold"){
     await runMaterialSourceControls(c,helpers,"material-source");
     await runProspectiveRequalificationControls(c,helpers,registeredOwner,{
       onComplete:accountedIntegration?complete=>runProspectiveReviewedIntegrationFixture(c,helpers,complete):undefined,
+      positivePredecessorOnly:accountedIntegration,
     });
   } finally {
     if(lifecycle.pendingChildren===0&&c?.owner)releaseCheckoutVerificationOwnership(c.owner,c.checkout);
