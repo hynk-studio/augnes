@@ -158,6 +158,15 @@ The opt-in connected-project reader consumes the same confirmed codes to retain
 its `unauthorized` and `refresh_required` outcomes without inferring either from
 an HTTP status alone. Refusals expose no work material and do not retry.
 
+The connected reader's [one-time connection preparation](../apps/augnes_apps/README.md#opt-in-connection-to-one-native-project)
+also retains the selected runtime location and Companion checkout lookup key,
+alongside the existing workspace/project key. Prepared connections revalidate
+that target and withhold a response if its generation changes during a read.
+Fresh sessions reuse the saved connection; an unavailable target never selects
+a different healthy runtime. These lookup bindings do not replace route
+authentication or authorize service lifecycle effects. Legacy singleton
+configuration and full Operator clients do not gain multi-service support.
+
 Work currentness conflicts retain the client's proposed text and require
 explicit Resume/source read before another preview. A lost or invalid save
 response remains `save_outcome_unknown`, including when the writer committed;
