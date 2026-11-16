@@ -446,7 +446,9 @@ if(process.argv[2]==="--cold"){
   // A separate development-only entry. Its generated authority, clock and
   // receipts never alter a retained incident or authorize host qualification.
   const {seedProspectiveRequalificationFiles,runProspectiveRequalificationControls}=await import("./local-canonical-prospective-requalification.mjs");
-  for(const registeredOwner of [undefined,"model-host-succession-benchmark"]){
+  const selection=process.argv[3];
+  assert(process.argv.length===3||process.argv.length===4&&selection==="--registered-owner=model-host-succession-benchmark");
+  const registeredOwner=selection===undefined?undefined:"model-host-succession-benchmark";
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
   const lifecycle={pendingChildren:0},run=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);
   let c;
@@ -467,7 +469,6 @@ if(process.argv[2]==="--cold"){
     settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,
       cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});
     assert(cleanupCanonicalTestResources([owner])[0].completed);
-  }
   }
 }else if(process.argv[2]==="--run-maintenance-allowance-fixtures"){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
