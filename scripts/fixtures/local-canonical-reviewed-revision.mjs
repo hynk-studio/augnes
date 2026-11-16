@@ -389,7 +389,7 @@ if(process.argv[2]==="--cold"){
   try{const p=proof(c),a=await auth(c,p);write(c.ready,"ready");while(!existsSync(c.go))await new Promise(r=>setTimeout(r,5));
     try{begin(c,p,a);console.log("admitted");}catch(e){assert(["EEXIST","ENOENT","attempt_latest_tip_required","revision_validated_lineage_changed","revision_material_changed_during_validation"].includes(e.code),e.message);console.log("refused");}
   }finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
-}else if (["--run-maintenance-reader-fixtures","--run-maintenance-budget-fixtures"].includes(process.argv[2]) || ["git","git-input","git-input-direct","git-input-lifecycle","git-input-successor","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor","material-source","material-controls","material-successor","material-final","material-stock","material-integration-preparation","material-integration-reservation","material-reservation"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
+}else if (["--run-maintenance-reader-fixtures","--run-maintenance-budget-fixtures"].includes(process.argv[2]) || ["git","git-input","git-input-direct","git-input-lifecycle","git-input-successor","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor","material-source","material-controls","material-no-remedy-source","material-no-remedy-controls","material-no-remedy-successor","material-successor","material-final","material-stock","material-integration-preparation","material-integration-reservation","material-reservation"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
   const readerMode=process.argv[2]==="--run-maintenance-reader-fixtures";
   const budgetMode=process.argv[2]==="--run-maintenance-budget-fixtures",maintenanceMode=readerMode||budgetMode;
   const group = readerMode?"maintenance-reader":budgetMode?"maintenance-budget":process.argv[2].slice(6,-9), handoff = JSON.parse(process.argv[3]);
@@ -432,7 +432,7 @@ if(process.argv[2]==="--cold"){
     else if (group.startsWith("final")) await checkFinalDependency(c,helpers,group);
     else if (group.startsWith("post-pass")) await checkPostPass(c,helpers,group);
     else await checkSpentCommission(c,helpers,group);
-    if (["git","commission","final-input","post-pass","post-pass-controls","material-source","material-controls","material-successor","material-final"].includes(group)) {
+    if (["git","commission","final-input","post-pass","post-pass-controls","material-source","material-controls","material-no-remedy-source","material-no-remedy-controls","material-no-remedy-successor","material-successor","material-final"].includes(group)) {
       const {env,owner,git,commit,...state}=c;
       write(path.join(dir,"context.json"),{...state,proofPath:path.relative(c.checkout,c.file)});
     }

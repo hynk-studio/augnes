@@ -21,7 +21,7 @@ export function validSerialInheritance(value) {
 }
 export const hasSerialAccounting = p => isSerialAggregateRevision(p) ||
   p?.schema === "augnes.local-canonical-source-correction.v7" && p.kind === "reviewed_revision" &&
-  p.commission?.source_revision === "material-source-correction-v1" && validSerialInheritance(p.commission.inherited_serial);
+  (p.commission?.source_revision === "material-source-correction-v1" || p.commission?.requalification === "accepted-no-remedy-diagnosis-v1") && validSerialInheritance(p.commission.inherited_serial);
 export const serialInheritanceFrom = (previous, next) => isSerialAggregateRevision(previous) ? {
   route:SERIAL_AGGREGATE_ROUTE,envelope_sha256:previous.commission.envelope_sha256,
   origin_family_id:next.prior_family_id,origin_number:next.prior_number,
