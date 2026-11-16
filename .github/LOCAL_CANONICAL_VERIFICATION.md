@@ -1622,6 +1622,19 @@ review and subsequent authenticated one-use material commission cover this
 transition; neither the recovery authority nor another task's qualification
 allowance supplies deciding authority here.
 
+An optional referenced `settlement.start` may then bind an actual supported
+Start of that same already-installed service under its original fresh-continuation
+request and applicable continuation contract. Validate the unchanged stopped
+recovery first, then the original human request, completed supported call,
+installed source, chronology and corroborating live observation before selecting
+that live terminal baseline. The original stopped observation remains immutable.
+Transcript and artifact references are review material bound by the later
+authenticated receiving record and commission; they are not signed call receipts
+or another task's deciding authority. An unavailable absolute call timestamp is
+not invented, and no Start is repeated to create evidence. This material
+transition does not admit a different prospective-requalification basis or
+retrospectively validate an overlapping failed preservation check.
+
 Preparation and admission both validate that transition before comparing a
 fresh current observation strictly with its settled baseline. Missing, changed,
 unsettled, unsupported-source, unsupported-authority or other-service evidence

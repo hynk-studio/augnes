@@ -2071,7 +2071,7 @@ function readMaterialRecoverySettlement(p, original, prior, completion, parse, b
   const invalid = () => { throw fail("revision_material_settlement_invalid"); };
   const s=parse(p.settlement), old=original.cleanup?.companion_service;
   if (!revisionKeys(s,["prior","target","historical_state","recorded_at","recovery_source","authority","human_source",
-      "decision","operation","application","applied","restored_observation","configuration"]) ||
+      "decision","operation","application","applied","restored_observation","configuration",...(s.start!==undefined?["start"]:[])]) ||
       !revisionEqual(s.prior,{family_id:prior.family_id,number:prior.number,attempt_id:prior.attempt_id,
         receipt_fingerprint:p.prior_receipt_fingerprint,head:prior.head,tree:prior.tree,
         grant_comment_id:prior.source_correction?.authorization?.grant_comment_id}) ||
@@ -2149,7 +2149,84 @@ function readMaterialRecoverySettlement(p, original, prior, completion, parse, b
       !revisionEqual(observed.observation.diagnostics.manager_after,recoveryManagerProjection(t.manager)) ||
       Date.parse(observed.observation.diagnostics.finished_at)<Date.parse(application.finished_at) ||
       Date.parse(s.recorded_at)<Date.parse(observed.observation.diagnostics.finished_at)) invalid();
-  return {identity,record:s,restored:observed.observation,configuration};
+  const terminal=s.start===undefined?observed.observation:
+    readMaterialRecoveryStart(s,observed.observation,configuration,operation,parse,bytes,git);
+  return {identity,record:s,restored:observed.observation,terminal,configuration};
+}
+const liveProbeNames=["ui_health","bridge_health","ui_ownership","bridge_ownership"];
+const liveManagerKeys=["manager_pid","manager_process_identity","supervisor_pid","supervisor_process_identity","restart_count","generation_id","instance_id"];
+function safeLiveObservation(observation, identity, configuration) {
+  const {state,diagnostics:d}=observation??{}, before=d?.manager_before, after=d?.manager_after, runtime=d?.runtime;
+  const label=configuration.service_label??("com.augnes.companion"+(configuration.test_scope?".test":"")+"."+configuration.service_identity.slice(0,16));
+  return state?.status==="live" && state.checkout_relation==="exact" && state.preservation_valid===true &&
+    state.service_identity===identity && sha(state.preservation_binding) && d?.contract==="augnes.companion-preservation-observation.v2" &&
+    d.samples===1 && d.coherent===true && d.live_identity_valid===true && revisionTime(d.started_at) && revisionTime(d.finished_at) &&
+    Date.parse(d.finished_at)>=Date.parse(d.started_at) && d.before_binding===state.preservation_binding && d.after_binding===state.preservation_binding &&
+    d.repository_observation_before==="observed" && d.repository_observation_after==="observed" &&
+    sha(d.repository_binding_before) && d.repository_binding_before===d.repository_binding_after &&
+    runtime?.verified===true && liveProbeNames.every(key=>runtime.probe_available?.[key]===true && runtime.probe_valid?.[key]===true) &&
+    [before,after].every(m=>m?.status==="live" && m.reason==="companion_service_live" && revisionTime(m.updated_at) &&
+      Number.isSafeInteger(m.manager_pid) && m.manager_pid>0 && sha(m.manager_process_identity) &&
+      Number.isSafeInteger(m.supervisor_pid) && m.supervisor_pid>0 && sha(m.supervisor_process_identity) &&
+      Number.isSafeInteger(m.restart_count) && m.restart_count>=0 && typeof m.generation_id==="string" && !!m.generation_id &&
+      typeof m.instance_id==="string" && !!m.instance_id) && liveManagerKeys.every(key=>before[key]===after[key]) &&
+    runtime.supervisor_pid===after.supervisor_pid && runtime.generation_id===after.generation_id && runtime.instance_id===after.instance_id &&
+    d.loaded_job?.pid===after.manager_pid && d.loaded_job.label===label && sha(d.loaded_job.fingerprint) &&
+    d.material_states?.maintenance_lease_path==="missing" &&
+    ["configuration_path","desired_state_path","manager_state_path","manager_lock_path","runtime_manifest_path","runtime_token_path","runtime_access_path","runtime_lock_path"]
+      .every(key=>d.material_states[key]==="valid");
+}
+function readMaterialRecoveryStart(settlement,stopped,configuration,operation,parse,bytes,git) {
+  const invalid=()=>{throw fail("revision_material_start_invalid");}, edge=parse(settlement.start);
+  if(!revisionKeys(edge,["human_source","human_message_id","call_id","continuation_contract","continuation_contract_origin",
+    "source","decision","other_owner","corroboration","live_observation"]) ||
+    !revisionKeys(edge.source,["head","tree"]) || !revisionCommit(edge.source.head) || !revisionCommit(edge.source.tree))invalid();
+  const human=parse(edge.human_source), decision=parse(edge.decision), other=parse(edge.other_owner), corroboration=parse(edge.corroboration),
+    live=parse(edge.live_observation), contract=bytes(edge.continuation_contract).toString("utf8");
+  const items=Array.isArray(human.items)?human.items:[], messageIndex=items.findIndex(item=>item.type==="userMessage" && item.id===edge.human_message_id),
+    calls=items.filter(item=>item.type==="mcpToolCall" && item.tool==="augnes_start_companion_service"), call=calls[0], callIndex=items.indexOf(call);
+  const texts=items[messageIndex]?.content?.filter(block=>block.type==="text").map(block=>block.text)??[], instruction=texts.join("\n");
+  const origin=edge.continuation_contract_origin, readIndex=items.findIndex(item=>item.type==="commandExecution" &&
+    item.status==="completed" && item.exitCode===0 && typeof item.command==="string" && typeof origin==="string" && item.command.includes(origin));
+  const source=digest(Buffer.concat(recoveryServicePaths.flatMap(name=>[Buffer.from(name+"\0"),git(["show",edge.source.head+":"+name]),Buffer.from("\0")])));
+  const peerCall=other.items?.filter(item=>item.type==="mcpToolCall" && item.id===edge.call_id)??[], files=corroboration.files,
+    desired=files?.["desired-state.json"], manager=files?.["manager-state.json"]?.fields, journal=files?.["stale-manager-recovery.json"];
+  const turnAt=human.turn?.startedAt*1000, desiredAt=Date.parse(desired?.fields?.updated_at), d=live?.diagnostics;
+  // This evidence binds an original fresh-continuation request and its observed
+  // completed lifecycle call. It neither assigns a made-up per-call timestamp
+  // nor turns the other task's qualification budget into this task's authority.
+  if(typeof origin!=="string" || !path.isAbsolute(origin) || !origin.endsWith("/augnes-live-repository-continuity/SKILL.md") ||
+    !contract.includes("name: augnes-live-repository-continuity") ||
+    !contract.includes("`augnes_start_companion_service` exactly once, require exactly one verified") ||
+    !contract.includes("Resume/continue authority permits\n   starting an already-installed exact service as a reversible prerequisite;") ||
+    !contract.includes("it does not permit installation.") || !contract.includes("Do not\n   loop or retry either tool.") ||
+    !Array.isArray(human.items) || messageIndex<0 || readIndex<=messageIndex || callIndex<=readIndex || calls.length!==1 ||
+    typeof human.thread?.id!=="string" || !human.thread.id || human.thread.id!==other.thread?.id ||
+    typeof human.turn?.id!=="string" || !human.turn.id || human.turn.id!==other.turn?.id || !Number.isFinite(turnAt) ||
+    !/(?:continue|resume|이어서|재개)/iu.test(instruction) || !instruction.includes("https://github.com/hynk-studio/augnes/pull/") ||
+    !instruction.includes(decision.head) || decision.repository!=="hynk-studio/augnes" ||
+    !revisionCommit(decision.head) || !revisionCommit(decision.tree) || !revisionCommit(decision.base) ||
+    git(["rev-parse",decision.head+"^{tree}"]).toString().trim()!==decision.tree ||
+    typeof decision.branch!=="string" || !decision.branch.startsWith("codex/") || typeof decision.root!=="string" || !path.isAbsolute(decision.root) ||
+    !revisionTime(decision.recorded_at) || !revisionTime(other.observed_at) || !revisionTime(corroboration.observed_at) ||
+    !call || call.id!==edge.call_id || call.server!=="augnes-live-companion" || call.status!=="completed" ||
+    !Number.isSafeInteger(call.durationMs) || call.durationMs<=0 || !revisionKeys(call.arguments,["repositoryRoot"]) ||
+    call.arguments.repositoryRoot!==configuration.repository_root || peerCall.length!==1 || !revisionEqual(peerCall[0],call) ||
+    git(["rev-parse",edge.source.head+"^{tree}"]).toString().trim()!==edge.source.tree || source!==configuration.service_source_fingerprint ||
+    !safeLiveObservation(live,stopped.state.service_identity,configuration) ||
+    d.repository_binding_before!==stopped.diagnostics.repository_binding_before ||
+    d.repository_binding_after!==stopped.diagnostics.repository_binding_after ||
+    turnAt<Date.parse(stopped.diagnostics.finished_at) || !revisionTime(desired?.fields?.updated_at) ||
+    desired.fields.desired_state!=="running" || !sha(desired.sha256) || !Number.isSafeInteger(desired.bytes) || desired.bytes<=0 ||
+    desiredAt<turnAt || desiredAt>Date.parse(d.started_at) ||
+    Date.parse(d.finished_at)>Date.parse(decision.recorded_at) ||
+    Date.parse(decision.recorded_at)>Date.parse(other.observed_at) ||
+    Date.parse(d.finished_at)>Date.parse(corroboration.observed_at) ||
+    Date.parse(settlement.recorded_at)<Math.max(Date.parse(other.observed_at),Date.parse(corroboration.observed_at)) ||
+    journal?.sha256!==settlement.operation.sha256 || journal.fields?.status!=="settled" || journal.fields.operation_binding!==operation.operation_binding ||
+    !manager || !["manager_pid","manager_process_identity","supervisor_pid","supervisor_process_identity"]
+      .every(key=>manager[key]===d.manager_after[key]) || manager.status!=="live" || manager.reason!=="companion_service_live")invalid();
+  return live;
 }
 function verifyRevisionCurrentPreservation(evidence, proof, live) {
   const settlement=evidence.materialSettlement, service=usesRevisionInventory(proof)?live?.service:live;
@@ -2174,9 +2251,12 @@ function verifyRevisionCurrentPreservation(evidence, proof, live) {
         throw fail("revision_current_settlement_unsafe");
     }
   }
+  const terminal=settlement?.terminal??settlement?.restored;
   if (settlement && (Date.parse(service?.diagnostics?.finished_at)<Date.parse(settlement.record.recorded_at) ||
-      !safeStoppedObservation(service,settlement.identity))) throw fail("revision_current_settlement_unsafe");
-  verifyBrowserRevisionPreservation(settlement?settlement.restored.state:evidence.original.cleanup.companion_service.after,
+      (terminal.state.status==="live" ? !safeLiveObservation(service,settlement.identity,settlement.configuration) ||
+        !liveManagerKeys.every(key=>service.diagnostics.manager_after[key]===terminal.diagnostics.manager_after[key]) :
+        !safeStoppedObservation(service,settlement.identity)))) throw fail("revision_current_settlement_unsafe");
+  verifyBrowserRevisionPreservation(settlement?terminal.state:evidence.original.cleanup.companion_service.after,
     service,{requireSameBinding:isInventoryBoundRevision(proof)||isSerialAggregateRevision(proof)});
 }
 
