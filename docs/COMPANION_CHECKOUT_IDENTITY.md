@@ -203,7 +203,7 @@ does not start a supervisor or change stopped intent.
 
 The diagnostic field and absence reason are additive private manager-state
 information. The configuration, manager-state and public MCP wire versions are
-unchanged; public live/preservation acceptance is not relaxed. The four-file
+unchanged; public live/preservation acceptance is not relaxed. The five-file
 service source fingerprint changes and still requires explicit source adoption.
 An unchanged Operator package label never demonstrates byte parity or adoption.
 Older readers cannot interpret the new retirement record and must not operate
@@ -291,7 +291,7 @@ an exact operator decision must authorize the candidate's **separate recovery
 execution**, the installation it targets and a coordinated window with no other
 lifecycle/maintenance writers. The accepted installation stays unchanged while
 the reviewed candidate CLI runs from its separate checkout. Inspect/prepare bind
-both its executing four-file source fingerprint and the installation's current
+both its executing five-file source fingerprint and the installation's current
 fingerprint. Thus recovery does not require installing itself first.
 
 With the reviewed absolute paths, pinned Node and a private evidence directory:
