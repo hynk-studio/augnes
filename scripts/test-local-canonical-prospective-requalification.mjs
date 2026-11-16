@@ -216,7 +216,9 @@ try {
     refuses(() => verifyProspectiveRequalification(p, prior, f, context));
   }
   assert.equal(isProspectiveRequalification(p), true);
-  for (const mutate of [v => v.schema = "augnes.local-canonical-source-correction.v5", v => v.commission.source_revision = "material-source-correction-v1",
+  for (const mutate of [
+    ...["ordinary-initial-runtime-settlement-v1", false, null, {}].map(value => v => v.commission.preparation_revision = value),
+    v => v.schema = "augnes.local-canonical-source-correction.v5", v => v.commission.source_revision = "material-source-correction-v1",
     v => v.commission.source_revision = "unknown", v => delete v.commission.source_revision, v => delete v.inputs.inventory_sha256,
     v => v.commission.route = "serial-aggregate-budget-v1"]) {
     const q = clone(p); mutate(q); assert.equal(isProspectiveRequalification(q), false); refusals++;

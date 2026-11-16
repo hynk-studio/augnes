@@ -286,6 +286,7 @@ export function verifyProspectiveRequalification(p, prior, focused, { git, parse
   const selected = prospectiveRequalificationRegisteredOwner(p);
   requireThat(isProspectiveRequalification(p) && !Object.hasOwn(focused, "regression") &&
     !Object.hasOwn(p.commission, "evidence_kind") && !Object.hasOwn(p.commission, "allowance_case") &&
+    !Object.hasOwn(p.commission, "preparation_revision") &&
     keys(r, ["kind", "claim", "owner", "incident", "retained", "equivalence", "current"]) &&
     r.kind === PROSPECTIVE_REQUALIFICATION && r.claim === PROSPECTIVE_REQUALIFICATION_CLAIM && r.owner === selected.owner &&
     focused.failed_phase === selected.phase && equal(focused.input_remedy_resources, []) &&

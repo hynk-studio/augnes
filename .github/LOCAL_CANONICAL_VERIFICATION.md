@@ -2154,6 +2154,75 @@ and current compiler bytes when applicable. Its material has no execution
 authorization or accepted-review field; it acquires no capability, lease,
 reservation, successor or consumption.
 
+##### Ordinary initial runtime-settlement preparation
+
+`ordinary-initial-runtime-settlement-v1` is a separately reviewed preparation
+case in the existing inventory-bound v7 `reviewed_revision` owners. It follows
+only a settled ordinary first attempt with no source correction or recovery.
+Its complete immutable receipt must retain eight natural PASS phases, the
+operability native installation assertion failure, and seven NOT_RUN phases.
+The child failure remains exit 1 with no spawn error or timeout and complete
+child cleanup. The separate installed stopped-to-live transition remains a
+`safety_violation`: aggregate cleanup is false and original fresh stock remains
+false with its exact seventeen issues. The new case neither changes these
+records nor interprets the native assertion as a product defect, natural RED,
+spawn failure or successful aggregate cleanup. Existing external-settlement
+requirements remain unchanged.
+
+Preparation accounts for both faults through original native diagnostic and
+permission observations, a byte-identical complete Node/npm runtime relocation,
+launcher-child resolution, limited naturally passing native setup evidence,
+retained exact live Companion preservation, released original resources and
+source-owner coordination. Earlier successful setup on a different npm version
+has only its recorded scope; it is not final-source qualification. The complete
+prior-to-final source manifest may contain only the reviewed admission support,
+policy and control delta, with the specifically registered control addition.
+Product, accepted selectors, native workload, assertions, phase order and bounds
+remain fixed. The proof binds the full input inventory, support source delta and
+settlement in the preparation target and commission identity.
+
+The existing material-preparation CLI accepts this case without a material-source
+correction marker. An authenticated unedited preparation-only delegation follows
+the physical predecessor. Real preparation reads publication, source/runtime and
+complete inputs, the latest physical tip and fresh Companion/foreign-owner state;
+it obtains no capability, successor, ownership, reservation or consumption. Its
+result identifies missing independent exact-target acceptance and a separate
+prospective execution grant. Neither the delegation nor preparation supplies
+those records. Separate independent acceptance of the final published support
+source and complete preparation must precede a genuinely new immutable
+maintainer grant beginning:
+`Authorize one NEW prospective v7 reviewed_revision commission for an ordinary initial runtime settlement.`
+
+When the immutable original has a valid admitted integration-base v2 record,
+current main movement remains informational for this same declared-base case.
+Preparation and authenticated publication bind that integrity-checked original,
+the unchanged declared base and exact Draft source, with source ancestry and
+complete inputs still required. A v1 record, changed original or unrelated route
+does not acquire this interpretation.
+
+Before any later human-authorized launch, confirm an effective service-stable
+arrangement with the affected owners for the exact target through Full, cleanup,
+separate fresh-process stock and resource release. Preparation acknowledgments
+do not establish an active deciding window or a global lease. This is a
+point-of-use operating condition, not a new coordination service, execution grant
+or resource owner. Fresh current live identity and foreign-owner checks remain
+mandatory; the proposed grant carries this condition explicitly.
+
+That later grant binds the exact source, inventory, runtime, settlement,
+predecessor, preparation-only delegation and actual acceptance. It permits ordinal
+one only, maximum one invocation, zero recovery and zero unchanged-target retry;
+reservation or interruption consumes it. The spent edge is terminal under this
+case and does not imply another commission. Admission seals immutable original
+and physical-lineage reads across the asynchronous observer, then rechecks
+current preserved live state and all current input/ownership/freshness gates
+immediately before the exclusive append. The existing isolated execution reader
+continues to require unchanged live preservation before and after actual work.
+Cold reconstruction, receipt validation and export use the same edge and complete
+attempt-role validation. Full still has all sixteen phases; complete coverage,
+separate fresh-process stock, independent result audit and cleanup remain required
+before any qualification claim. Preparation grants no deciding execution,
+installation, merge, deployment or adoption authority.
+
 Rollback removes prospective admission; it never deletes historical proofs,
 markers, grant identities, consumed reservations or failed receipts. Older readers
 may refuse the new discriminator. Retain each admitted reader and originals for

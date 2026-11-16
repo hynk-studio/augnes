@@ -1007,7 +1007,8 @@ export function delegatesGitRevisionGrant(body, branch, pullRequest) {
 export function gitReviewTarget(p) {
   return digest({schema:p.schema, branch:p.branch, pull_request:p.pull_request, base:p.base, head:p.head, tree:p.tree,
     prior:[p.prior_family_id,p.prior_number,p.prior_attempt_id,p.prior_receipt_fingerprint],
-    originals:p.originals, inputs:p.inputs, source:p.source, focused:p.focused, commission:p.commission});
+    originals:p.originals, inputs:p.inputs, source:p.source, focused:p.focused, commission:p.commission,
+    ...(p.commission?.preparation_revision === "ordinary-initial-runtime-settlement-v1" ? {settlement:p.settlement} : {})});
 }
 
 // Separate visible authorization for a preparation/consumer boundary correction.
