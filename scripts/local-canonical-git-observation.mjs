@@ -425,7 +425,11 @@ export const STOCK_MISMATCH_REPAIR_FIXTURES = [STOCK_MISMATCH_REPAIR_DRIVER,"scr
   "scripts/local-canonical-material-stock-predecessor.mjs","scripts/fixtures/local-canonical-material-source.mjs",
   "scripts/canonical-test-environment.mjs","scripts/local-canonical-inputs.mjs"];
 const stockMismatchRepairSourcePaths = new Set([...STOCK_MISMATCH_REPAIR_MODULES,...STOCK_MISMATCH_REPAIR_FIXTURES,
-  "scripts/local-canonical-attempts.mjs","scripts/test-canonical-ts-repair-evidence.mjs",".github/LOCAL_CANONICAL_VERIFICATION.md"]);
+  "scripts/local-canonical-attempts.mjs","scripts/test-canonical-ts-repair-evidence.mjs",".github/LOCAL_CANONICAL_VERIFICATION.md",
+  // The existing recovery continuation consumers and their exact fixture
+  // adapters. The full frozen catalogue and all other source refusals remain.
+  "scripts/run-local-canonical-verification.mjs","scripts/fixtures/local-canonical-browser-revision.mjs",
+  "scripts/fixtures/local-canonical-maintenance-allowance.mjs"]);
 export const STOCK_MISMATCH_REPAIR_SCOPE = "candidate-reader-with-prior-strict-modules; retained-material-failure-admission-not-qualification";
 
 export function validateStockMismatchRepairOutcome(output,exit) {

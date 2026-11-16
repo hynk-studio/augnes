@@ -247,6 +247,10 @@ try {
      if(args[0]==="rev-parse")return Buffer.from(args[2].startsWith(old)?"0".repeat(40):"1".repeat(40));if(args[0]==="diff")return Buffer.from(args[1]==="--name-only"?changed.join("\n"):"@@ -1 +1 @@\n-old\n+new\n");throw Error("unexpected mismatch Git operation");},
    parse:ref=>typeof ref==="object"?JSON.parse(revisionArtifact(root,ref)):ref==="mismatch-before"?b:a,bytes:(ref,max)=>revisionArtifact(root,ref,max)});
  assert.equal(mismatchCheck(),head);
+ for(const file of ["scripts/run-local-canonical-verification.mjs","scripts/fixtures/local-canonical-browser-revision.mjs",
+   "scripts/fixtures/local-canonical-maintenance-allowance.mjs"])
+   assert.equal(mismatchCheck(mb,ma,mismatchProof,mf,[...STOCK_MISMATCH_REPAIR_MODULES,file]),head);
+ refuse(()=>mismatchCheck(mb,ma,mismatchProof,mf,[...STOCK_MISMATCH_REPAIR_MODULES,"scripts/fixtures/unreviewed-recovery.mjs"]));
  const transitionCheck=(value,b=mb,a=ma,proof=mismatchProof)=>{
    const ref=save("mismatch-mutated-transition-"+refusals+".json",value);
    return mismatchCheck({...b,source_overlay_input_transition:ref},{...a,source_overlay_input_transition:ref},proof);
