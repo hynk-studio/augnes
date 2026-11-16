@@ -170,21 +170,30 @@ function verifyOriginal(p, r, prior, completion, stock, phases) {
     safeLive({ state: service.after, diagnostics: service.observations?.after }), "predecessor_unsettled");
   requireThat(Array.isArray(phases) && phases.length === 16 && phases[8] === "operability" &&
     equal(r.phases?.map(v => v.id), phases), "phases_invalid");
+  const environments = i?.binding?.phase_environment_fingerprints;
+  requireThat(Array.isArray(environments) && equal(environments.map(v => v?.id), phases) &&
+    environments.every(v => keys(v, "id fingerprint") && sha(v.fingerprint)), "phases_invalid");
   let previous = Date.parse(r.run.started_at);
   const browser = i?.resources?.find(v => v.id === "browser-executable");
   for (const [index, phase] of r.phases.entries()) {
     const expected = index < 8 ? "pass" : index === 8 ? "failure" : "not_run";
-    requireThat(phase.status === expected && phase.head_sha === prior.head && phase.base_sha === r.repository.base_sha && phase.invocation_id === r.run.invocation_id &&
+    // Retain this ordinary writer's exact source-binding shape. The nine
+    // executed records contain null source fields; the unexecuted records keep
+    // their declared source and omit their unobserved environment. This does
+    // not repair those records or suppress the original strict stock issue.
+    requireThat(phase.status === expected && phase.head_sha === (index <= 8 ? null : prior.head) &&
+      phase.base_sha === (index <= 8 ? null : r.repository.base_sha) && phase.invocation_id === r.run.invocation_id &&
       phase.timed_out === false, "phases_invalid");
     if (index <= 8) {
       requireThat(phase.exit_status === (index < 8 ? 0 : 1) && phase.failure_code === (index < 8 ? null : "phase_failed") &&
+        phase.environment_fingerprint === environments[index].fingerprint &&
         phaseCleanup(phase) && finite(phase.duration_ms) && phase.duration_ms > 0 && time(phase.started_at) && time(phase.finished_at) &&
         Date.parse(phase.started_at) >= previous && Date.parse(phase.finished_at) >= Date.parse(phase.started_at) &&
         Date.parse(phase.finished_at) <= Date.parse(r.run.finished_at) && validPhaseBrowserUse(phase, phase.browser_use, browser), "phases_invalid");
       previous = Date.parse(phase.finished_at);
     } else requireThat(phase.exit_status === null && phase.failure_code === "phase_not_run" && phase.started_at === null && phase.finished_at === null &&
       phase.duration_ms === null && phase.cleanup?.completed === false && phase.cleanup.remaining_owned_processes === null &&
-      (phase.browser_use === undefined || equal(phase.browser_use, [])), "phases_invalid");
+      !Object.hasOwn(phase, "environment_fingerprint") && (phase.browser_use === undefined || equal(phase.browser_use, [])), "phases_invalid");
   }
   requireThat(r.phases[8].command === "npm run test:operability" && r.phases[8].cwd_scope === "root", "phases_invalid");
   requireThat(i?.contract === INPUT_CONTRACT && i.path_kind === "isolated-model-free-v1" && Array.isArray(i.resources) &&
