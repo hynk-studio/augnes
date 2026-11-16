@@ -47,7 +47,8 @@ function snapshot(root) {
   visit(root); return found;
 }
 
-export async function runProspectiveRequalificationControls(c, h, registeredOwner) {
+export async function runProspectiveRequalificationControls(c, h, registeredOwner, { onComplete } = {}) {
+  assert(onComplete === undefined || typeof onComplete === "function");
   const selected = prospectiveRequalificationRegisteredOwner({ commission: registeredOwner === undefined ? {} : { registered_owner: registeredOwner } });
   const label = selected.label, bound = selected.bound_ms, elapsed = bound + 178;
   let refusals = 0;
@@ -403,4 +404,14 @@ export async function runProspectiveRequalificationControls(c, h, registeredOwne
     new_synthetic_stock: complete.stock.valid_deciding_evidence, history_cause: "UNKNOWN", refusals,
     grant_ids: tip().revision_grants, issued_limit: 1, consumed: 1, recovery: 0,
     current_git_stock_policy: GIT_CURRENT_STOCK_COMPARISON } }));
+  if (onComplete) {
+    // Hand over the exact completed prospective receipt and its real reader
+    // result. The selected continuation must preserve this physical lineage.
+    const before = tip(), receiptBytes = canonicalSerialize(complete.receipt), stockBytes = canonicalSerialize(complete.stock);
+    await onComplete(complete);
+    assert.deepEqual(tip(), before);
+    assert.equal(canonicalSerialize(complete.receipt), receiptBytes);
+    assert.equal(canonicalSerialize(complete.stock), stockBytes);
+    unchanged();
+  }
 }

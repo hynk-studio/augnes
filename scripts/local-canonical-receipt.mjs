@@ -141,6 +141,7 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     currentInputStateValid = null,
     currentAttemptRecordsValid = null,
     historicalMaterialIntegrationPrefix = false,
+    historicalProspectiveIntegrationPrefix = false,
     integrationCurrentIssues = ["receipt_integration_current_authorization_unverified"],
     maintenanceCurrentIssues = ["receipt_maintenance_current_authorization_unverified"],
     improvementCurrentIssue = "receipt_improvement_current_authorization_unverified",
@@ -640,12 +641,16 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     if (currentAttemptRecordsValid !== true) issues.push("receipt_attempt_records_unverified");
     if (currentInputStateValid !== true) issues.push("receipt_current_inputs_unverified");
   }
-  const historicalPrefix=historicalMaterialIntegrationPrefix===true&&currentAttemptRecordsValid===true&&receipt.receipt_version===4&&isMaterialSourceRevision(receipt.attempt?.source_correction);
-  if(historicalPrefix)issues.push("receipt_historical_material_integration_prefix");
+  const materialPrefix=historicalMaterialIntegrationPrefix===true&&currentAttemptRecordsValid===true&&receipt.receipt_version===4&&isMaterialSourceRevision(receipt.attempt?.source_correction);
+  const prospectivePrefix=historicalProspectiveIntegrationPrefix===true&&currentAttemptRecordsValid===true&&receipt.receipt_version===4&&isProspectiveRequalification(receipt.attempt?.source_correction);
+  const historicalPrefix=materialPrefix||prospectivePrefix;
+  if(materialPrefix)issues.push("receipt_historical_material_integration_prefix");
+  if(prospectivePrefix)issues.push("receipt_historical_prospective_integration_prefix");
   const applicabilityCodes = new Set(["receipt_historical_failed_maintenance_prefix", "receipt_historical_failed_integration_prefix", "receipt_historical_material_integration_prefix", "receipt_integration_current_applicability_refused", "receipt_integration_current_inputs_invalid", "receipt_stale_integration_base", "receipt_current_integration_base_unavailable", "receipt_current_integration_base_invalid", "receipt_stale_head", "receipt_current_worktree_dirty", "receipt_stale_branch_state", "receipt_current_inputs_unverified", "receipt_improvement_current_applicability_refused", "receipt_improvement_current_runtime_invalid", "receipt_maintenance_current_applicability_refused", "receipt_maintenance_current_runtime_invalid", "receipt_maintenance_current_inputs_invalid"]);
   // The physical owner alone reports this validated historical prefix. Keep all
   // issue codes and the false deciding result; current drift is not corruption
   // of its original successful evidence. Other routes retain their semantics.
+  applicabilityCodes.add("receipt_historical_prospective_integration_prefix");
   if(historicalPrefix)
     for(const code of ["receipt_stale_verification_context","receipt_stale_checkout_identity","receipt_stale_origin","receipt_stale_lockfiles",
       "receipt_stale_executor","receipt_stale_plan","receipt_stale_owners","receipt_stale_targeted_phases","receipt_stale_environment"])

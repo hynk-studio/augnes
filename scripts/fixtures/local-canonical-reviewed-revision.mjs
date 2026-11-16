@@ -22,7 +22,7 @@ import {GIT_ACQUISITION_REPAIR,gitAcquisitionIncident,gitRevisionInventory,gitRe
 import {CANONICAL_NODE_VERSION} from "../local-canonical-environment.mjs";
 import {inspectGitRevisionPreparation} from "../local-canonical-attempts.mjs";
 import {baseReceipt} from "./local-canonical-receipt-v3.mjs";
-import {runMaterialSourceControls,seedMaterialSourceFiles,prepareMaterialSourcePredecessor,inspectMaterialIntegrationCold} from "./local-canonical-material-source.mjs";
+import {runMaterialSourceControls,seedMaterialSourceFiles,prepareMaterialSourcePredecessor,inspectMaterialIntegrationCold,runProspectiveReviewedIntegrationFixture} from "./local-canonical-material-source.mjs";
 import {runMaintenanceAllowanceControls} from "./local-canonical-maintenance-allowance.mjs";
 
 const self=fileURLToPath(import.meta.url), quiet={write(){}}, clone=v=>structuredClone(v);
@@ -565,9 +565,10 @@ if(process.argv[2]==="--cold"){
   // A separate development-only entry. Its generated authority, clock and
   // receipts never alter a retained incident or authorize host qualification.
   const {seedProspectiveRequalificationFiles,runProspectiveRequalificationControls}=await import("./local-canonical-prospective-requalification.mjs");
-  const selection=process.argv[3];
-  assert(process.argv.length===3||process.argv.length===4&&selection==="--registered-owner=model-host-succession-benchmark");
-  const registeredOwner=selection===undefined?undefined:"model-host-succession-benchmark";
+  const selections=process.argv.slice(3),allowed=["--registered-owner=model-host-succession-benchmark","--accounted-reviewed-integration"];
+  assert(selections.length<=allowed.length&&new Set(selections).size===selections.length&&selections.every(value=>allowed.includes(value)));
+  const registeredOwner=selections.includes(allowed[0])?"model-host-succession-benchmark":undefined;
+  const accountedIntegration=selections.includes("--accounted-reviewed-integration");
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
   const lifecycle={pendingChildren:0},run=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);
   let c;
@@ -582,7 +583,9 @@ if(process.argv[2]==="--cold"){
       releaseOwner:()=>releaseCheckoutVerificationOwnership(c.owner,c.checkout),
       acquireOwner:()=>c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout})};
     await runMaterialSourceControls(c,helpers,"material-source");
-    await runProspectiveRequalificationControls(c,helpers,registeredOwner);
+    await runProspectiveRequalificationControls(c,helpers,registeredOwner,{
+      onComplete:accountedIntegration?complete=>runProspectiveReviewedIntegrationFixture(c,helpers,complete):undefined,
+    });
   } finally {
     if(lifecycle.pendingChildren===0&&c?.owner)releaseCheckoutVerificationOwnership(c.owner,c.checkout);
     settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,

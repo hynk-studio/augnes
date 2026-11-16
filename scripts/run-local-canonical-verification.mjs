@@ -1591,6 +1591,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   };
   let improvementCurrentIssue = null, maintenanceCurrentIssues = [], integrationCurrentIssues = [], currentAttemptRecordsValid = null;
   let historicalMaterialIntegrationPrefix = false;
+  let historicalProspectiveIntegrationPrefix = false;
   const gitCurrentStockContract = receipt.receipt_version === 4 && (isMaterialSourceRevision(receipt.attempt?.source_correction) || isProspectiveRequalification(receipt.attempt?.source_correction))
     ? GIT_CURRENT_STOCK_COMPARISON : null;
   let gitCurrentStockComparison = null;
@@ -1605,7 +1606,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
     }));
   } else if (receipt.receipt_version === 4) currentAttemptRecordsValid = await inspectAttemptRecords({
     anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, revisionInputs: runtimeInputs,
-    onHistoricalPrefix:()=>{historicalMaterialIntegrationPrefix=true;},
+    onHistoricalPrefix:kind=>{if(kind==="successful_prospective_integration")historicalProspectiveIntegrationPrefix=true;else historicalMaterialIntegrationPrefix=true;},
     gitCurrentStockContract,
     observeRevision: reviewed ? async () => {
       const proof = receipt.attempt.source_correction;
@@ -1631,6 +1632,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
     currentInputStateValid,
     currentAttemptRecordsValid,
     historicalMaterialIntegrationPrefix,
+    historicalProspectiveIntegrationPrefix,
     improvementCurrentIssue,
     maintenanceCurrentIssues,
     integrationCurrentIssues,

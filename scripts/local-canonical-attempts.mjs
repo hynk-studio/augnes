@@ -212,7 +212,7 @@ export function supportsSourceCorrection(proof) {
     (!hasProspectiveRequalificationMarker(proof) || isProspectiveRequalification(proof)) &&
     (!Object.hasOwn(proof.commission ?? {},"preparation_revision") || isOrdinaryInitialPreparationRevision(proof) && !hasProspectiveRequalificationMarker(proof) &&
       !Object.hasOwn(proof.commission ?? {}, "source_revision")) &&
-    (!Object.hasOwn(proof,"integration_case") || isReviewedIntegration(proof)) &&
+    (!hasReviewedIntegrationMarker(proof) || isReviewedIntegration(proof)) &&
     (!hasMaintenanceMarker(proof) || isMaintenance(proof) && !Object.hasOwn(proof,"maintenance_authority") && !Object.hasOwn(proof,"evidence_kind")) &&
     (!hasImprovementMarker(proof) || isImprovement(proof) && !Object.hasOwn(proof,"improvement_authority") && !Object.hasOwn(proof,"evidence_kind")) && (
     proof.schema === "augnes.local-canonical-source-correction.v1" ||
@@ -245,16 +245,22 @@ export function beginAttempt(options) {
 
 const isAcceptedMainIntegration = proof => proof?.schema === "augnes.local-canonical-source-correction.v2" && proof.kind === "accepted_main_integration";
 export const isReviewedIntegration = proof => isAcceptedMainIntegration(proof) && proof.integration_case === "reviewed";
+export const REVIEWED_INTEGRATION_DELIVERY = "accounted-verifier-chain-v1";
+const isAccountedReviewedIntegration = proof => isReviewedIntegration(proof) &&
+  proof.integration?.delivery_revision === REVIEWED_INTEGRATION_DELIVERY;
 export const hasReviewedIntegrationMarker = value => [value,value?.source_correction,value?.attempt,value?.attempt?.source_correction]
-  .some(v => v && (Object.hasOwn(v,"integration_case") || Object.hasOwn(v,"integration_authority")));
+  .some(v => v && (Object.hasOwn(v,"integration_case") || Object.hasOwn(v,"integration_authority") ||
+    ["delivery_revision","adjustments","adjustment_delta_sha256","correction_chain"].some(key=>Object.hasOwn(v.integration??{},key))));
 const followsSuccessfulMaintenance = (prior, completion, proof) =>
   isAcceptedMainIntegration(proof) && validMaintenanceAttempt(prior) &&
   completion.disposition === "completed_success" && completion.cleanup_complete === true;
 
 // This is only a shape/ledger screen. The integration reader below also replays
 // the original proof, authenticated records, complete Full and retained stock.
-const followsSuccessfulMaterialIntegration = (prior, completion, proof) =>
-  isReviewedIntegration(proof) && isMaterialSourceRevision(prior?.source_correction) &&
+const integrationRevisionBasis = (priorProof, proof) => isMaterialSourceRevision(priorProof) ||
+  isAccountedReviewedIntegration(proof) && isProspectiveRequalification(priorProof) && validProspectiveRequalificationOwner(priorProof);
+const followsSuccessfulReviewedIntegration = (prior, completion, proof) =>
+  isReviewedIntegration(proof) && integrationRevisionBasis(prior?.source_correction,proof) &&
   validReviewedRevisionAttempt(prior) && prior.source_correction.commission.ordinal === 1 &&
   prior.source_correction.commission.maximum_invocations === 1 &&
   completion?.contract === ATTEMPT_CONTRACT && completion.attempt_id === prior.attempt_id &&
@@ -291,7 +297,7 @@ export function prepareAcceptedMainIntegrationCandidate({anchorRoot,repositoryRo
   return afterRevisionValidation(typeof live === "function" ? live : null, () => {
     const tip = reconstructAttemptTip({anchorRoot,repositoryRoot,branch:proof.branch});
     const root=path.join(anchorRoot,".augnes-local-verification/families",tip.family_id);
-    const material=followsSuccessfulMaterialIntegration(read(path.join(root,`attempt-${tip.number}.json`)),read(path.join(root,`completion-${tip.number}.json`)),proof);
+    const material=followsSuccessfulReviewedIntegration(read(path.join(root,`attempt-${tip.number}.json`)),read(path.join(root,`completion-${tip.number}.json`)),proof);
     if (tip.family_id !== proof.prior_family_id || tip.number !== proof.prior_number || tip.attempt_id !== proof.prior_attempt_id || tip.reviewed_revision_consumed && !material || tip.improvement_consumed)
       throw fail("attempt_latest_tip_required");
     if(material && proof.authorization && tip.revision_grants.includes(proof.authorization.grant_comment_id))throw fail("integration_grant_reused");
@@ -300,7 +306,7 @@ export function prepareAcceptedMainIntegrationCandidate({anchorRoot,repositoryRo
   }, (finish, current, check) => {
     finish({assertCurrent:check,revisionInputs:runtimeInputs,revisionLive:typeof live === "function" ? current : live});
     const review=readCandidateReview(path.join(repositoryRoot,proof.local_relative_path),proof);
-    const prepared=isReviewedIntegration(proof)&&review.material_predecessor?{preparation_sha256:review.preparation.sha256,runtime_inputs_sha256:digest(runtimeInputs),
+    const prepared=isReviewedIntegration(proof)&&(review.material_predecessor||review.revision_predecessor)?{preparation_sha256:review.preparation.sha256,runtime_inputs_sha256:digest(runtimeInputs),
       inventory_sha256:(typeof live === "function" ? current : live).inventory,
       commitment:digest({target:integrationTarget(proof),preparation_sha256:review.preparation.sha256})}:{};
     return {eligible_evidence:true,authorized:false,reserved:false,head:proof.head,tree:proof.tree,
@@ -337,7 +343,7 @@ function prepareAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, hea
     if (tip.family_id !== proof.prior_family_id || tip.number !== proof.prior_number || tip.attempt_id !== proof.prior_attempt_id ||
           (revision ? !revisionFollows(proof, tip.reviewed_revision_consumed ?? 0, tip.revision_commission, tip.revision_grants ?? [],
             read(path.join(anchorRoot,".augnes-local-verification/families",tip.family_id,`attempt-${tip.number}.json`)).source_correction?.commission?.maximum_invocations) :
-          tip.reviewed_revision_consumed && !followsSuccessfulMaterialIntegration(
+          tip.reviewed_revision_consumed && !followsSuccessfulReviewedIntegration(
             read(path.join(anchorRoot,".augnes-local-verification/families",tip.family_id,`attempt-${tip.number}.json`)),
             read(path.join(anchorRoot,".augnes-local-verification/families",tip.family_id,`completion-${tip.number}.json`)),proof) && !followsSelectedMaintenance(
             read(path.join(anchorRoot,".augnes-local-verification/families",tip.family_id,`attempt-${tip.number}.json`)),
@@ -512,10 +518,12 @@ function prepareAttemptInspection({ anchorRoot, repositoryRoot = anchorRoot, rec
           const root=path.join(anchorRoot,".augnes-local-verification/families",familyId),edge=read(path.join(root,"correction-successor.json"));
           const next=read(path.join(anchorRoot,".augnes-local-verification/families",edge.family_id,"attempt-1.json"));
           const completion=read(path.join(root,`completion-${attempt.number}.json`));
-          if (!followsSuccessfulMaterialIntegration(attempt,completion,next.source_correction) || !validReviewedIntegrationAttempt(next)) return false;
+          if (!followsSuccessfulReviewedIntegration(attempt,completion,next.source_correction) || !validReviewedIntegrationAttempt(next)) return false;
           const material=readReviewedIntegration(repositoryRoot,next.source_correction,attempt,completion);
-          if (digest(material.materialPredecessor.receipt)!==digest(receipt)) return false;
-          historicalPrefix=true;markHistoricalPrefix();
+          if (digest(material.reviewedPredecessor.receipt)!==digest(receipt)) return false;
+          historicalPrefix=true;
+          if(isProspectiveRequalification(attempt.source_correction))historicalPrefixKind="successful_prospective_integration";
+          markHistoricalPrefix();
         } else if (tip.reviewed_revision_consumed !== attempt.source_correction.commission.ordinal) return false;
       }
       if(isReviewedIntegration(attempt.source_correction)) {
@@ -771,7 +779,7 @@ function readAttemptLineage({ anchorRoot, repositoryRoot = null, branch }, throu
     const next = read(path.join(anchorRoot, ".augnes-local-verification", "families", edge.family_id, "attempt-1.json"));
     if (hasRetiredQualificationMarker(next)) throw fail("qualification_route_retired");
     const proof = next.source_correction;
-    materialIntegrationEdge=followsSuccessfulMaterialIntegration(attempt,completion,proof);
+    materialIntegrationEdge=followsSuccessfulReviewedIntegration(attempt,completion,proof);
     selectedMaintenanceEdge=followsSelectedMaintenance(attempt,completion,proof);
     if(materialIntegrationEdge && revisionGrants.includes(proof.authorization?.grant_comment_id))throw fail("integration_grant_reused");
     if (revisionCount && !revisionEdge && !materialIntegrationEdge && !selectedMaintenanceEdge) throw fail("attempt_revision_commission_terminal");
@@ -1075,7 +1083,7 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
   if(isReviewedIntegration(proof)){
     const root=path.join(anchorRoot,".augnes-local-verification/families",proof.prior_family_id);
     const prior=read(path.join(root,`attempt-${proof.prior_number}.json`)),completion=read(path.join(root,`completion-${proof.prior_number}.json`));
-    if(isMaterialSourceRevision(prior.source_correction)){
+    if(integrationRevisionBasis(prior.source_correction,proof)){
       preparedMaterialIntegration=readReviewedIntegration(repositoryRoot,proof,prior,completion);
       verifyRevisionOriginals(anchorRoot,repositoryRoot,prior.source_correction);
     }
@@ -1085,7 +1093,7 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
   if (realpathSync(priorRoot) !== priorRoot) throw fail("source_correction_unsafe_predecessor");
   const prior = read(path.join(priorRoot, `attempt-${proof.prior_number}.json`));
   const completion = read(path.join(priorRoot, `completion-${proof.prior_number}.json`));
-  const materialIntegration=followsSuccessfulMaterialIntegration(prior,completion,proof);
+  const materialIntegration=followsSuccessfulReviewedIntegration(prior,completion,proof);
   if (isReviewedRevision(prior.source_correction) && !materialIntegration) throw fail("attempt_revision_commission_terminal");
   if (hasMaintenanceMarker(prior) && !followsSuccessfulMaintenance(prior, completion, proof)) throw fail("maintenance_terminal");
   if (hasImprovementMarker(prior)) throw fail("improvement_terminal");
@@ -1309,10 +1317,52 @@ const treeEntries = (git,ref) => new Map(git(["ls-tree","-rz","--full-tree",ref]
   const split=row.indexOf("\t");return [row.slice(split+1),row.slice(0,split)];
 }));
 
+// New deliveries explicitly select complete verifier-integration accounting.
+// Existing absent-selector proofs retain their strict union/single correction.
+const verifierIntegrationPath = name => name === ".github/LOCAL_CANONICAL_VERIFICATION.md" ||
+  /^scripts\/(?:(?:local-canonical|canonical|test-local-canonical|test-canonical|prepare-local-canonical|run-local-canonical)-[A-Za-z0-9_-]+|run-canonical-test-suite|fixtures\/local-canonical-[A-Za-z0-9_-]+)\.mjs$/u.test(name);
+const verifierIntegrationEntries = entries => entries.length<=200 && entries.every(row=>verifierIntegrationPath(row.path) &&
+  Object.entries(row).every(([key,value])=>key==="path" || value===null || /^100(?:644|755) blob [a-f0-9]{40}$/u.test(value)));
+
+// Read-only capture and validation share the existing Git owner. Every supplied
+// entry/delta is still compared with these immutable objects at each boundary.
+export function observeReviewedIntegrationSource(root,{predecessor,acceptedMain,commit,head}) {
+  const git=integrationGit(root),identity=ref=>git(["rev-parse",ref+"^{tree}"]).toString().trim();
+  integrationRequire([predecessor,acceptedMain,commit,head].every(x=>/^[a-f0-9]{40}$/u.test(x??"")),"topology_invalid");
+  integrationRequire(git(["show","-s","--format=%P",commit]).toString().trim()===`${predecessor} ${acceptedMain}`,"topology_invalid");
+  const mergeBase=git(["merge-base",predecessor,acceptedMain]).toString().trim();
+  const base=treeEntries(git,mergeBase),previous=treeEntries(git,predecessor),main=treeEntries(git,acceptedMain),actual=treeEntries(git,commit);
+  const overlaps=[],adjustments=[];
+  for(const name of [...new Set([...base.keys(),...previous.keys(),...main.keys(),...actual.keys()])].sort()){
+    const b=base.get(name),a=previous.get(name),m=main.get(name),value=actual.get(name);
+    if(a!==b&&m!==b&&a!==m)overlaps.push({path:name,base:b??null,predecessor:a??null,main:m??null,result:value??null});
+    else {const expected=a===b?m:a;if(expected!==value)adjustments.push({path:name,expected:expected??null,result:value??null});}
+  }
+  integrationRequire(verifierIntegrationEntries(overlaps)&&verifierIntegrationEntries(adjustments),"verifier_scope_invalid");
+  const chain=[];
+  for(let cursor=head;cursor!==commit;){
+    integrationRequire(chain.length<16,"correction_chain_unbounded");
+    const parents=git(["show","-s","--format=%P",cursor]).toString().trim().split(" ");
+    integrationRequire(parents.length===1&&/^[a-f0-9]{40}$/u.test(parents[0]),"correction_chain_invalid");
+    const parent=parents[0],paths=integrationPaths(git,parent,cursor),before=treeEntries(git,parent),after=treeEntries(git,cursor);
+    const entries=paths.map(name=>({path:name,before:before.get(name)??null,result:after.get(name)??null}));
+    integrationRequire(entries.length>0&&verifierIntegrationEntries(entries),"verifier_scope_invalid");
+    chain.push({commit:cursor,parent,parent_tree:identity(parent),tree:identity(cursor),delta_sha256:integrationDelta(git,parent,cursor),paths,entries});
+    cursor=parent;
+  }
+  integrationRequire(chain.length>0,"correction_chain_invalid");
+  const overlapNames=overlaps.map(x=>x.path),adjustmentNames=adjustments.map(x=>x.path);
+  return {delivery_revision:REVIEWED_INTEGRATION_DELIVERY,commit,tree:identity(commit),merge_base:mergeBase,overlaps,adjustments,
+    delta_sha256:integrationDelta(git,predecessor,commit),
+    resolution_delta_sha256:overlapNames.length?integrationDelta(git,predecessor,commit,overlapNames):digest(Buffer.alloc(0)),
+    adjustment_delta_sha256:adjustmentNames.length?integrationDelta(git,predecessor,commit,adjustmentNames):digest(Buffer.alloc(0)),
+    correction_chain:chain.reverse(),correction_delta_sha256:integrationDelta(git,commit,head),correction_paths:integrationPaths(git,commit,head)};
+}
+
 function materialIntegrationAuthority(prior,value) {
   integrationKeys(value,"records observations");
   const r=value.records,p=prior.source_correction;
-  integrationRequire(isMaterialSourceRevision(p)&&validReviewedRevisionAttempt(prior),"material_predecessor_invalid");
+  integrationRequire((isMaterialSourceRevision(p)||isProspectiveRequalification(p)&&validProspectiveRequalificationOwner(p))&&validReviewedRevisionAttempt(prior),"material_predecessor_invalid");
   integrationKeys(r,"review grant permissions settlement_review contract_review delegation forward");
   integrationKeys(r.permissions,Object.keys(prior.revision_authority).join(" "));
   const observations=validateReviewedRevisionAuthorityEvidence(p,r.review,r.grant,r.permissions,
@@ -1325,6 +1375,12 @@ function materialIntegrationAuthority(prior,value) {
 // historical PR assembled from today's source or substituted publication state.
 export async function observeMaterialIntegrationPredecessorAuthority(prior,{transport}={}) {
   integrationRequire(isMaterialSourceRevision(prior?.source_correction)&&validReviewedRevisionAttempt(prior),"material_predecessor_invalid");
+  return observeReviewedIntegrationPredecessorAuthority(prior,{transport});
+}
+export async function observeReviewedIntegrationPredecessorAuthority(prior,{transport}={}) {
+  const basis=prior?.source_correction;
+  integrationRequire((isMaterialSourceRevision(basis)||isProspectiveRequalification(basis)&&validProspectiveRequalificationOwner(basis))&&
+    validReviewedRevisionAttempt(prior),"material_predecessor_invalid");
   const p=prior.source_correction,api=transport??createGitHubObserverAuthorizationTransport(p.pull_request);
   const records={review:await api.review(p.accepted.review.id),grant:await api.grant(p.authorization.grant_comment_id),permissions:{},
     settlement_review:null,contract_review:null,delegation:await api.grant(p.commission.delegation.id),forward:null};
@@ -1341,8 +1397,9 @@ export async function observeMaterialIntegrationPredecessorAuthority(prior,{tran
 }
 
 function readMaterialIntegrationPredecessor(root,p,prior,completion,reader,review) {
-  integrationRequire(followsSuccessfulMaterialIntegration(prior,completion,p),"material_predecessor_invalid");
-  integrationKeys(review.material_predecessor,"stock authority");
+  integrationRequire(followsSuccessfulReviewedIntegration(prior,completion,p),"material_predecessor_invalid");
+  const references=isAccountedReviewedIntegration(p)?review.revision_predecessor:review.material_predecessor;
+  integrationKeys(references,"stock authority");
   const original=read(path.join(root,p.prior_receipt_path),512*1024);
   integrationRequire(verifyReceiptIntegrity(original)&&digest(original.attempt)===digest(prior)&&
     original.integrity.content_fingerprint===p.prior_receipt_fingerprint&&completion.receipt_fingerprint===p.prior_receipt_fingerprint,
@@ -1350,9 +1407,9 @@ function readMaterialIntegrationPredecessor(root,p,prior,completion,reader,revie
   const proof=prior.source_correction;
   verifyStoredRevisionProof(root,proof);
   const evidence=readReviewedRevisionEvidence(path.join(root,proof.local_relative_path),proof,root);
-  const stock=reader(review.material_predecessor.stock,{canonical:false,maximum:512*1024});
+  const stock=reader(references.stock,{canonical:false,maximum:512*1024});
   verifyGitRevisionSuccess(original,stock,evidence.inputs,REVIEWED_REVISION_PHASES);
-  const authority=reader(review.material_predecessor.authority,{maximum:256*1024});
+  const authority=reader(references.authority,{maximum:256*1024});
   materialIntegrationAuthority(prior,authority);
   integrationRequire(Date.parse(prior.started_at)>Date.parse(authority.observations.execution_commission.timestamp)&&
     Date.parse(completion.finished_at)>=Date.parse(original.run.finished_at),"material_chronology_invalid");
@@ -1396,8 +1453,15 @@ export function readReviewedIntegration(root,p,prior,completion) {
       p.authorization.acceptance_review_id!==p.authorization.grant_comment_id && [p.authorization.acceptance_review_sha256,p.authorization.grant_comment_sha256].every(sha),"authorization_invalid");
   }
   const i=p.integration;
-  integrationKeys(i,"commit tree merge_base overlaps delta_sha256 resolution_delta_sha256 correction_delta_sha256 correction_paths");
+  const accounted=Object.hasOwn(i??{},"delivery_revision");
+  integrationKeys(i,"commit tree merge_base overlaps delta_sha256 resolution_delta_sha256 correction_delta_sha256 correction_paths"+
+    (accounted?" delivery_revision adjustments adjustment_delta_sha256 correction_chain":""));
   const git=integrationGit(root), identity=ref=>git(["rev-parse",ref+"^{tree}"]).toString().trim();
+  if(accounted){
+    integrationRequire(isAccountedReviewedIntegration(p)&&identity(p.head)===p.tree,"topology_invalid");
+    const observed=observeReviewedIntegrationSource(root,{predecessor:prior.head,acceptedMain:p.base,commit:i.commit,head:p.head});
+    integrationRequire(digest(i)===digest(observed),"complete_accounting_invalid");
+  }else{
   integrationRequire([i.commit,i.tree,i.merge_base,p.base,p.head,p.tree].every(x=>/^[a-f0-9]{40}$/u.test(x??"")) &&
     git(["show","-s","--format=%P",i.commit]).toString().trim()===`${prior.head} ${p.base}` && identity(i.commit)===i.tree && identity(p.head)===p.tree &&
     git(["show","-s","--format=%P",p.head]).toString().trim()===i.commit && git(["merge-base",prior.head,p.base]).toString().trim()===i.merge_base,"topology_invalid");
@@ -1414,12 +1478,14 @@ export function readReviewedIntegration(root,p,prior,completion) {
     i.resolution_delta_sha256===(names.length?integrationDelta(git,prior.head,i.commit,names):digest(Buffer.alloc(0))) &&
     i.correction_delta_sha256===integrationDelta(git,i.commit,p.head) &&
     Array.isArray(i.correction_paths) && i.correction_paths.length>0 && digest(i.correction_paths)===digest(integrationPaths(git,i.commit,p.head)),"complete_delta_invalid");
+  }
   const reader=artifactReader(path.dirname(path.join(root,relative)),rememberRevisionFile);
   const review=reader(p.review),planner=reader(p.planner);
   const material=isMaterialSourceRevision(prior.source_correction);
   integrationKeys(review,"schema kind head tree predecessor_head predecessor_tree source_review delta_sha256 changed_paths authority_reference reviewed_at integration_sha256 planner_sha256 reviewer implementation_actor no_write disposition judgments report"+
-    (material?" material_predecessor preparation":""));
-  integrationKeys(review.judgments,"complete_integration complete_overlaps complete_corrections verifier_policy_adjustments_only affected_consumers authority_and_lineage no_weakened_contract");
+    (accounted?" revision_predecessor preparation":material?" material_predecessor preparation":""));
+  integrationKeys(review.judgments,"complete_integration complete_overlaps complete_corrections verifier_policy_adjustments_only affected_consumers authority_and_lineage no_weakened_contract"+
+    (accounted?" complete_nonoverlap_adjustments complete_correction_chain successful_predecessor_evidence":""));
   integrationRequire(review.integration_sha256===digest(i) && review.planner_sha256===p.planner.sha256 &&
     typeof review.reviewed_at==="string" && Number.isFinite(Date.parse(review.reviewed_at)) && new Date(review.reviewed_at).toISOString()===review.reviewed_at && Date.parse(review.reviewed_at)<=Date.now() &&
     typeof review.reviewer==="string" && review.reviewer.length>0 && review.reviewer!==review.implementation_actor && typeof review.implementation_actor==="string" && review.implementation_actor.length>0 &&
@@ -1429,9 +1495,9 @@ export function readReviewedIntegration(root,p,prior,completion) {
   const report=reader(review.report,{json:false,maximum:128*1024});
   integrationRequire([p.head,p.tree,digest(i),review.delta_sha256].every(x=>report.includes(x)) && planner.base===p.base && planner.head===p.head &&
     planner.selected_plan==="full-canonical" && digest(planner.phases)===digest(REVIEWED_REVISION_PHASES) && Array.isArray(planner.owners) && planner.owners.length>0,"review_or_planner_unbound");
-  const materialPredecessor=material?readMaterialIntegrationPredecessor(root,p,prior,completion,reader,review):null;
-  const preparation=material?readIntegrationPreparation(root,p,reader,review):null;
-  return {review,planner,completion,materialPredecessor,preparation};
+  const reviewedPredecessor=material||accounted?readMaterialIntegrationPredecessor(root,p,prior,completion,reader,review):null;
+  const preparation=material||accounted?readIntegrationPreparation(root,p,reader,review):null;
+  return {review,planner,completion,materialPredecessor:material?reviewedPredecessor:null,reviewedPredecessor,preparation};
 }
 
 export function integrationMaterial(repositoryRoot,p,anchorRoot=repositoryRoot) {
@@ -1548,7 +1614,7 @@ const usesFreshRevisionGrant = p => isBrowserSuccessor(p) || isGitObservationSuc
 function validGitRevisionEdge(previous, next) {
   if (isOrdinaryInitialPreparationRevision(previous)) return false;
   if (isOrdinaryInitialPreparationRevision(next)) return previous === null && ordinaryInitialProofShape(next);
-  if (isMaterialSourceRevision(previous) && isReviewedIntegration(next))
+  if (isReviewedIntegration(next) && integrationRevisionBasis(previous,next))
     return previous.commission.ordinal === 1 && previous.commission.maximum_invocations === 1;
   if (ordinaryBudgetSuccessor(next)) return previous?.schema === "augnes.local-canonical-source-correction.v2" &&
     previous.kind === "source_revision" && !Object.hasOwn(previous,"commission") &&

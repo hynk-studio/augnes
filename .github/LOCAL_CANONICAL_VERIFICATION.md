@@ -1318,6 +1318,43 @@ file exemption, mutable merge replay, external verifier overlay or prerequisite
 main merge is used. Preparation and stock read existing objects and never create
 Git objects or reserve accounting.
 
+New reviewed deliveries may explicitly select
+`integration.delivery_revision:"accounted-verifier-chain-v1"`. Absence retains
+the historical strict union and single compatibility-correction meaning above;
+unknown selectors and mixed or downgraded markers refuse. This selection also
+admits the latest completely settled successful prospective-requalification v7
+predecessor, through its actual registered-owner proof and authority readers.
+Only the existing material basis or the closed prospective basis qualifies:
+original 60/90-second registration, proof, incident, immutable authority bodies
+and chronology, Full/Browser natural completion, dependency/input identities,
+valid stock, cleanup, one-shot consumption and latest physical lineage are
+revalidated. A success label or current PR projection is not historical proof.
+
+The selected delivery derives every differing overlap and every deviation from
+the non-overlap union from the actual merge-base, predecessor, accepted-main
+and integration trees. `adjustments` binds each non-overlap path's expected and
+result entry, including deletion or mode/blob changes, and
+`adjustment_delta_sha256` binds the complete selected delta. It also records
+`correction_chain`, one through sixteen nonempty linear commits from that real
+ordered-parent merge to the exact final head. Each step binds its commit,
+single parent, parent/result trees, complete delta, paths and before/result
+entries; aggregate correction paths/delta remain bound. Omitted, reordered,
+substituted or unaccounted paths, bytes, modes, entries or commits refuse. The
+read-only capture and reader create no Git objects and do not replay a merge.
+
+Resolutions, non-overlap adjustments and chain steps are restricted to the
+canonical verifier/policy source families, regular file entries or explicitly
+accounted deletions; unrelated product changes are not admitted as integration
+adjustments. Independent review still judges the complete delta and affected
+consumers. This is neither a four-file exception nor a claim of production
+failure or repair. The selected review uses `revision_predecessor` stock and
+original authority references plus actual `preparation`, and explicitly accepts
+complete non-overlap accounting, the correction chain and successful-predecessor
+evidence in addition to the existing judgments. Historical material reviews and
+their `material_predecessor` field keep their interpretation. A superseded
+prospective receipt has its own validated historical-prefix stock classification;
+it is not relabeled material evidence or made current deciding evidence.
+
 That review file is evidence, not authority. Acceptance must begin with
 `Accept this reviewed integration candidate and its complete source delivery.`
 and the distinct later commission with
