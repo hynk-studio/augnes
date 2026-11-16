@@ -282,6 +282,10 @@ observation and refuses device changes during a run.
 
 ### Non-circular, post-review operational handoff
 
+For an offline stale manager, use the separate retirement below. The
+lost-relationship operation above is not a generic stale-lock remover and its
+settled record must not be replayed or replaced for another incident.
+
 Source development does not authorize these commands on production. After review,
 an exact operator decision must authorize the candidate's **separate recovery
 execution**, the installation it targets and a coordinated window with no other
@@ -327,3 +331,103 @@ recovery evidence is not that qualification. Only a subsequent reviewed source-
 adoption decision can advance the installed checkout and refresh its source
 binding through supported installation/update while preserving stopped intent.
 No source adoption, Start, merge or follow-on qualification is automatic.
+
+### Offline stale-manager retirement
+
+`stale-manager-recovery-inspect`, `stale-manager-recovery-prepare` and
+`stale-manager-recovery-apply` extend the existing lifecycle owner for an inert
+installation whose retained live manager record no longer identifies a current
+owner. A reboot and PID reuse can produce this state; that context does not
+establish the complete startup failure cause or authorize cleanup.
+
+This entry requires all of the following in two matching, read-only snapshots:
+
+- Exact durable enrollment, installed configuration and launch definition,
+  pinned Node, actual installed five-file source fingerprint and separately
+  executing recovery source fingerprint.
+- Matching, structurally valid retained live manager, manager lock and runtime
+  ownership records. Every retained manager, supervisor and runtime-member
+  birth identity must be confirmed absent or differ from the process currently
+  using its PID. A matching live process or unavailable observation refuses.
+- Empty supervisor/UI/bridge process groups, no active PID in the exact loaded
+  job (or explicit OS absence), and all five runtime materials absent. An
+  unrecorded or foreign group member also refuses; no process is signalled.
+- No maintenance, decommission or conflicting lifecycle writer. An existing
+  ownership-retirement record may be missing or validly settled. Its complete
+  bytes and binding remain protected even when its incident/source differ.
+
+No ordinary process-ownership rule is relaxed. In particular, a different birth
+identity still refuses automatic manager-lock acquisition. This explicit
+operation treats the current process as unrelated and binds its observation;
+it never adopts, signals or replaces it. Changing witnesses, source, enrollment,
+configuration, launch definition, desired state, manager material, historical
+record or runtime material refuse admission or the next affected effect.
+
+The CLI accepts the same separate reviewed checkout and explicit target-root
+arguments as the lost-relationship operation. Inspect and prepare are read-only;
+preparation expires after five minutes:
+
+```bash
+"$REVIEWED_NODE" "$REVIEWED_CANDIDATE/scripts/augnes-companion-service.mjs" \
+  stale-manager-recovery-inspect --repository-root "$INSTALLED_CHECKOUT"
+"$REVIEWED_NODE" "$REVIEWED_CANDIDATE/scripts/augnes-companion-service.mjs" \
+  stale-manager-recovery-prepare --repository-root "$INSTALLED_CHECKOUT" \
+  > "$PRIVATE_PREVIEW"
+```
+
+Review both source identities, exact target, binding, process witnesses and
+effects before the separate human application decision. Extract only the
+returned decision to a new absolute user-owned `0600` file using the exclusive
+procedure above. A changed preparation binding requires review; an old preview
+or another incident's settled record is not a grant. After authorization:
+
+```bash
+"$REVIEWED_NODE" "$REVIEWED_CANDIDATE/scripts/augnes-companion-service.mjs" \
+  stale-manager-recovery-apply --repository-root "$INSTALLED_CHECKOUT" \
+  "$PRIVATE_DECISION"
+"$REVIEWED_NODE" "$REVIEWED_CANDIDATE/scripts/augnes-companion-service.mjs" \
+  stale-manager-recovery-inspect --repository-root "$INSTALLED_CHECKOUT"
+```
+
+Apply acquires the existing lifecycle lock and records a distinct operation in
+`stale-manager-recovery.json` before its first effect. It unloads only the exact
+no-PID job, confirms explicit OS absence, persists stopped intent and an explicit
+stopped manager record, then retires only the exact old manager lock through the
+existing hash/parent-bound file owner. The new record retains the original
+manager/lock witnesses and planned stopped records; `ownership-recovery.json`
+stays byte-for-byte at its original location. Configuration, enrollment, launch
+definition, installed sources, database and project data remain unchanged. No
+runtime material is deleted because this entry requires it already absent.
+
+Before every effect, the owner rechecks its lock, decision, both sources, full
+protected material and stable process witnesses. Settlement requires the job
+unloaded, no original owned process or runtime-group member present, runtime
+materials and manager lock absent, exact stopped records and a sealed `settled`
+operation. Repeating that settled decision only reconciles current conditions;
+it performs no new effects. Later source/material/lifecycle changes can refuse
+reconciliation rather than relabel history. A new incident is not substituted
+into the retained operation.
+
+After an interrupted/unknown outcome, inspect first. Even if all metadata effects
+finished, an unsealed operation reports `incomplete` and candidate lifecycle
+entry points refuse it. Fresh preparation binds the current remainder; it is
+not an automatic retry. The operation journals each lifecycle-lock owner. A
+crashed applier's lock may be reclaimed only through the existing lock owner,
+with an exact journal match and confirmed process absence. A reused PID,
+unavailable witness or another writer's lock refuses. Never delete locks or
+rewrite either recovery record manually.
+
+An exclusive coordinated window remains mandatory through settlement. Older
+installed clients do not understand this new pending-operation record and must
+not issue lifecycle/maintenance writes while it is incomplete. The shared lock
+protects cooperating concurrent applications, not every same-user writer.
+On refusal, preserve the journal and original evidence, hold only affected
+actions, and review the current remainder before any new application decision.
+
+After `settled`, use the actual unchanged installed reader to obtain a fresh,
+coherent `installed_stopped/exact` preservation observation. This state can
+satisfy isolated qualification preservation without restarting Companion.
+Keep lifecycle writers quiescent through qualification and fresh receipt
+validation. Recovery does not consume, transfer or create a qualification
+allowance. A later Start or installed source adoption remains a distinct
+decision; recovery source can execute separately without either.
