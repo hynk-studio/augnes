@@ -410,6 +410,18 @@ async function ordinaryInitialControls(parentRoot,lifecycle) {
     const grant={id:11,user,author_association:"OWNER",issue_url:delegation.issue_url,created_at:time(-1000),updated_at:time(-1000),body:ordinaryInitialPreparationGrant(c.proof)};
     c.proof.authorization={grant_comment_id:grant.id,grant_sha256:digest(reviewedRevisionAuthorityObservation(grant,"execution_commission"))};c.authority.review=review;c.authority.grant=grant;write(c.file,c.proof);
     let p=proof(c),a=await auth(c,p);const original=readFileSync(c.file);
+    // Hash binding alone cannot establish chronology. The authenticated
+    // source decision must follow the complete later settlement, not merely
+    // the earlier focused/source records. Equality also remains a refusal.
+    for(const offset of [-1,0]){
+      const prematureReview={...review,submitted_at:new Date(Date.parse(seed.settlement.recorded_at)+offset).toISOString()},prematureProof=clone(c.proof);
+      prematureProof.accepted.review.sha256=digest(reviewedRevisionAuthorityObservation(prematureReview,"accepted_revision"));
+      c.authority.review=prematureReview;write(c.file,prematureProof);
+      const premature=proof(c),authorization=await auth(c,premature);
+      assert.throws(()=>begin(c,premature,authorization),/revision_git_target_unverified/,"acceptance must be strictly after complete ordinary settlement");
+      assert(!existsSync(edge));assert.deepEqual(preserved.map(file=>digest(readFileSync(file))),hashes);
+      c.authority.review=review;write(c.file,original);
+    }
     for(const mutate of [v=>v.extra=true,v=>v.commission.ordinal=2,v=>v.commission.maximum_invocations=2,v=>v.commission.source_revision="material-source-correction-v1",
       v=>v.commission.preparation_revision="unknown",v=>v.commission.reviewed_workload=false,v=>v.kind="companion_readiness_timeout",v=>delete v.authorization,v=>delete v.accepted.review]){
       const bad=clone(c.proof);mutate(bad);write(c.file,bad);assert.throws(()=>proof(c));assert.throws(()=>begin(c,{...bad,local_relative_path:p.local_relative_path},a));assert(!existsSync(edge));write(c.file,original);
@@ -424,7 +436,7 @@ async function ordinaryInitialControls(parentRoot,lifecycle) {
     await assert.rejects(begin(c,p,a,{observeRevision:async()=>{write(coordination,"{}");return{authorization:a,live:refresh()};},assertCurrent(){}}),/revision_validated_material_changed/);
     write(coordination,saved);assert(!existsSync(edge));
     const native=readFileSync(nativeFile);write(nativeFile,Buffer.from("wrong original native log"));assert.throws(()=>begin(c,p,a),/revision_ordinary_initial_original_log_(?:unsafe|changed)/);write(nativeFile,native);assert(!existsSync(edge));
-    findings.push("wrong physical tip, extra/retired/mixed markers, absent grant/review, permission/body change, foreign writer, observer-time tamper and changed original log all refuse before append");
+    findings.push("authenticated acceptance before/equal to complete settlement, wrong physical tip, extra/retired/mixed markers, absent grant/review, permission/body change, foreign writer, observer-time tamper and changed original log all refuse before append");
     const competing=[0,1].map(index=>begin(c,p,a,{runId:"ordinary-prepared-"+index,observeRevision:async()=>({authorization:a,live:refresh()}),assertCurrent(){}}));
     const results=await Promise.allSettled(competing),winners=results.filter(value=>value.status==="fulfilled");assert.equal(winners.length,1);assert.equal(results.filter(value=>value.status==="rejected").length,1);
     const admitted=winners[0].value;assert(validReviewedRevisionAttempt(admitted));assert.deepEqual(admitted.budget,{initial:1,recovery:0});

@@ -1006,7 +1006,10 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
       if (!inventoryMatches ||
           (evidence.retainedObservation || evidence.postPass) && Date.parse(revisionAuthorization.observations.forward_decision.timestamp) <= Date.parse(evidence.completion.finished_at) ||
           isGitObservationSuccessor(proof) && Date.parse(revisionAuthorization.observations.task_delegation.timestamp) <= Date.parse(evidence.completion.finished_at) ||
-          Date.parse(sourceDecision.timestamp) <= Math.max(Date.parse(evidence.source.reviewed_at), Date.parse(evidence.focused.finished_at)))
+          // This acceptance covers the complete ordinary settlement, whose
+          // final record is later than the focused/source material alone.
+          Date.parse(sourceDecision.timestamp) <= Math.max(Date.parse(evidence.source.reviewed_at), Date.parse(evidence.focused.finished_at),
+            ...(evidence.ordinaryInitial ? [Date.parse(evidence.ordinaryInitial.record.recorded_at)] : [])))
         throw fail("revision_git_target_unverified");
     }
     // The historical blocked receipt is never reclassified. Admission after it

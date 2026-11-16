@@ -94,7 +94,9 @@ export function createOrdinaryInitialPreparationFixture() {
   ctx.inputs = { contract: "augnes.local-canonical-runtime-inputs.v1", node: { location_fingerprint: digest(targetNode), observation: node },
     headers: { location_fingerprint: headers.location_fingerprint, observation: headers } };
   ctx.inputInventory = { contract: INPUT_CONTRACT, path_kind: "isolated-model-free-v1", binding: {}, resources: [gitRole, role("node-executable", node, targetNode),
-    { ...role("node-headers", headers, path.join(targetRoot, "include/node")), nodeHeaders: true }, role("git-executable", executable("git")), browser], first_fault: null, secondary_faults: [], events: [] };
+    { ...role("node-headers", headers, path.join(targetRoot, "include/node")), nodeHeaders: true },
+    role("npm-executable", { ...npm, metadata: { ...npm.metadata } }, path.join(targetRoot, "lib/node_modules/npm/bin/npm-cli.js")),
+    role("git-executable", executable("git")), browser], first_fault: null, secondary_faults: [], events: [] };
   ctx.runtimeCopy = { recorded_at: at(200), source: sourceRoot, target: targetRoot, all_entries_identical: true, source_preserved: true, entries: 4, file_bytes: 69,
     catalog: [{ path: "bin/node", type: "file", bytes: 10, sha256: node.sha256, mode: 493 }, { path: "bin/npm", type: "symlink", target: "../lib/node_modules/npm/bin/npm-cli.js" },
       { path: "lib/node_modules/npm/bin/npm-cli.js", type: "file", bytes: 54, sha256: npm.sha256, mode: 493 }, { path: "include/node/node.h", type: "file", bytes: 5, sha256: digest("header"), mode: 420 }] };
@@ -248,6 +250,18 @@ export function runOrdinaryInitialPreparationControls() {
     const c = createOrdinaryInitialPreparationFixture(); mutate(c); if (reseal) c.seal();
     if (rawName) { const updated = c.put(rawName, c.nativeBefore); c.focused.native_setup.sources_before = updated; c.p.focused = c.put("focused.json", c.focused); }
     assert.throws(() => read(c), undefined, label); refused++;
+  }
+  const currentNpm = c => c.inputInventory.resources.find(v => v.id === "npm-executable");
+  for (const [label, mutate] of [
+    ["byte-identical npm 11.16.0 at another PATH location", c => currentNpm(c).location_fingerprint = digest("/controlled/alternate-runtime/lib/node_modules/npm/bin/npm-cli.js")],
+    ["original Documents npm", c => currentNpm(c).location_fingerprint = c.original.inputs.resources.find(v => v.id === "npm-executable").location_fingerprint],
+    ["missing current npm", c => c.inputInventory.resources = c.inputInventory.resources.filter(v => v.id !== "npm-executable")],
+    ["changed current npm bytes", c => currentNpm(c).before.sha256 = digest("different current npm bytes")],
+    ["changed current npm size", c => currentNpm(c).before.metadata.bytes = "55"],
+    ["wrong current npm role", c => currentNpm(c).classification = "ambient"],
+  ]) {
+    const c = createOrdinaryInitialPreparationFixture(); mutate(c); c.seal();
+    assert.throws(() => read(c), { code: "revision_ordinary_initial_current_npm_invalid" }, label); refused++;
   }
   for (const [label, change] of [
     ["receipt bytes changed", c => c.artifacts.set("receipt.json", Buffer.from("{}"))],
