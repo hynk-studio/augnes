@@ -247,6 +247,81 @@ async function assertStopped(f) {
   assert.equal(birth(f.liveWitness.pid), f.liveWitness.identity, "unrelated live witnesses survive unchanged");
 }
 
+function productionLayout(f, suffix) {
+  const home = path.join(f.root, suffix);
+  fs.mkdirSync(home, { mode: 0o700 });
+  const calls = [];
+  const options = { repositoryRoot: f.repositoryRoot, homeDirectory: home,
+    environment: { HOME: home, PATH: path.dirname(process.execPath) }, nodePath: process.execPath, waitMs: 0,
+    launchctl: args => {
+      assert.deepEqual(args, ["print", `gui/${process.getuid()}/${layout.service_label}`],
+        "a disposable stopped installation may only observe launchd");
+      calls.push([...args]);
+      return { status: 113, stdout: "" };
+    } };
+  const layout = core.resolveCompanionServiceLayout(options);
+  assert.equal(layout.test, null);
+  assert.equal(layout.home, home);
+  return { options, layout, calls };
+}
+
+run("fresh-production-layout-stopped-install", async f => {
+  const { options, layout, calls } = productionLayout(f, "fresh-production-home");
+  const checkouts = path.join(layout.home, "Library", "Application Support", "Augnes", "v1", "checkouts");
+  assert(!fs.existsSync(checkouts), "production-shaped intermediate directories begin absent");
+  assert(!fs.existsSync(path.dirname(layout.service_directory)));
+  assert.equal((await core.inspectCompanionService(options)).status, "not_installed");
+  assert(!fs.existsSync(checkouts), "inspection must not manufacture missing installation parents");
+  const installed = await core.installCompanionService({ ...options, start: false });
+  assert.equal(installed.service.status, "installed_stopped");
+  assert.equal(installed.service.checkout_relation, "exact");
+  const observed = await core.inspectCompanionService(options);
+  assert.equal(observed.status, "installed_stopped");
+  assert.equal(observed.checkout_relation, "exact");
+  assert(calls.length > 0, "the private launch observer was used");
+  assert.equal(read(layout.desired_state_path).desired_state, "stopped");
+  assert.equal(read(layout.configuration_path).database_path, null);
+  assert(!fs.existsSync(layout.lifecycle_lock_path));
+  assert(!fs.existsSync(layout.manager_state_path));
+  assert(!fs.existsSync(layout.stale_manager_recovery_path));
+  assert(!fs.existsSync(layout.runtime_directory), "stopped installation creates no runtime resources");
+  assert.equal(f.effects(), 0);
+});
+
+run("present-invalid-production-sidecar-refused", async f => {
+  const { options, layout, calls } = productionLayout(f, "invalid-production-home");
+  const malformedRecord = { contract: "augnes-companion-stale-manager-recovery.v0.1",
+    service_identity: layout.service_identity, status: "retiring", evidence: {},
+    created_at: new Date().toISOString(), target: {}, operation_binding: "0".repeat(64), lifecycle_owners: [] };
+  for (const kind of ["malformed-json", "malformed-record", "unreadable"]) {
+    const bytes = kind === "malformed-json" ? "{invalid JSON\n" : JSON.stringify(malformedRecord) + "\n";
+    fs.mkdirSync(layout.service_directory, { recursive: true, mode: 0o700 });
+    fs.writeFileSync(layout.stale_manager_recovery_path, bytes, { mode: 0o600 });
+    try {
+      if (kind === "unreadable") {
+        fs.chmodSync(layout.stale_manager_recovery_path, 0o000);
+        assert.throws(() => fs.readFileSync(layout.stale_manager_recovery_path), { code: "EACCES" },
+          "the real private sidecar must be unreadable, not an absence simulation");
+      }
+      const observed = await core.inspectCompanionService(options);
+      assert.equal(observed.status, "recovery_required", kind);
+      assert.equal(observed.start_available, false, kind);
+      const refusal = kind === "unreadable" ? /companion_service_stale_checkout_decommission_refused/u
+        : /companion_service_recovery_stale_manager_record_invalid/u;
+      assert.match(observed.reason, refusal, kind);
+      await assert.rejects(core.installCompanionService({ ...options, start: false }), refusal);
+      for (const key of ["configuration_path", "desired_state_path", "launch_agent_path", "lifecycle_lock_path"])
+        assert(!fs.existsSync(layout[key]), `${kind} must not admit installation`);
+      assert.equal(calls.length, 0, "invalid present sidecars refuse before any launch observer/effect");
+    } finally {
+      fs.chmodSync(layout.stale_manager_recovery_path, 0o600);
+      assert.equal(fs.readFileSync(layout.stale_manager_recovery_path, "utf8"), bytes);
+      fs.unlinkSync(layout.stale_manager_recovery_path);
+    }
+  }
+  assert.equal(f.effects(), 0);
+});
+
 run("reused-manager-stopped-history-and-replay", async f => {
   const originalBytes = fs.readFileSync(f.layout.ownership_recovery_path);
   const before = await core.inspectCompanionService(f.options);

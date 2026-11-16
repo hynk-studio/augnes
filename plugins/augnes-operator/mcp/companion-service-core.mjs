@@ -2127,12 +2127,17 @@ function staleManagerTargets(evidence, at) {
 }
 
 function readStaleManagerRecovery(layout) {
+  // Ordinary inspection/install reaches this guard before a new production
+  // checkout's intermediate config directories exist. Only explicit absence
+  // skips the bounded present-record reader; unavailable/invalid stays refused.
+  if (readRegularJson(layout.stale_manager_recovery_path).state === "missing") return null;
   const snapshot = recoveryMaterial(layout, "stale_manager_recovery_path");
   if (snapshot.material.state === "missing") return null;
   let record;
   try { record = JSON.parse(snapshot.contents); } catch { throw recoveryRefused("stale_manager_record_invalid"); }
   if (record?.contract !== STALE_MANAGER_RECOVERY_CONTRACT || record.service_identity !== layout.service_identity ||
-      !["retiring", "settled"].includes(record.status) || !isObject(record.evidence) || !isIsoTimestamp(record.created_at) ||
+      !["retiring", "settled"].includes(record.status) || !isObject(record.evidence) ||
+      !isObject(record.evidence.desired) || !isObject(record.evidence.manager) || !isIsoTimestamp(record.created_at) ||
       !staleManagerEqual(record.target, staleManagerTargets(record.evidence, record.created_at)) ||
       record.operation_binding !== sha256(JSON.stringify([record.evidence, record.target, record.created_at])) ||
       !Array.isArray(record.lifecycle_owners) || record.lifecycle_owners.length === 0 ||
