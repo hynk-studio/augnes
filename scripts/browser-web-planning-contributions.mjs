@@ -46,10 +46,22 @@ export async function browserCrossProjectContributions({owner,participant,local,
   await set(writing,'authored-file','notice.md');await click(writing,'open-authored');await settled(writing);
   await set(writing,'authored-text','Arrival 18:00. Use the east ramp. Noise is not yet measured.\n');await click(writing,'save');await settled(writing);
   const made=await writing.eval('saved');assert.equal(made.revision,2);
-  await click(b,'load-own-works');await settled(b);await choose(b,'own-work',made.work_id);
+  await click(b,'load-own-works');await settled(b);
+  // Programmatic value assignment can select a disabled descendant. Check the
+  // native state first so fieldset inheritance cannot hide a blocked user path.
+  assert.deepEqual(await b.eval("({selector:$('own-work').matches(':disabled'),fields:$('project-return-fields').matches(':disabled')})"),{selector:false,fields:true});
+  await choose(b,'own-work',made.work_id);
+  assert.equal(await b.eval("!$('project-return-fields').matches(':disabled')&&!document.querySelector('#result-files input:checked')&&!$('share-project-source').checked&&$('share-project-source').required"),true);
+  await b.eval("document.querySelector('#result-files input').checked=true;$('share-project-source').checked=true");
+  await choose(b,'own-work',made.work_id);
+  assert.equal(await b.eval("!document.querySelector('#result-files input:checked')&&!$('share-project-source').checked"),true,'a selection change clears file and attribution consent');
   await b.eval("document.querySelector('#result-files input').click()");await set(b,'project-message','Confirmed the arrival and east ramp; noise remains unknown.');await set(b,'project-next','Check the notice before use.');await click(b,'share-project-source');
-  const returning=await barrier(b,api+'/project-return');await click(b,'project-send');await returning.wait();await returning.release('disconnect');
+  const returning=await barrier(b,api+'/project-return');await click(b,'project-send');await returning.wait();
+  assert.equal(await b.eval("busy&&$('own-work').matches(':disabled')&&$('project-return-fields').matches(':disabled')"),true,'an in-flight return locks selection and result fields');
+  await returning.release('disconnect');await settled(b);
+  assert.equal(await b.eval("!busy&&pendingChoices.length>0&&$('own-work').matches(':disabled')&&$('project-return-fields').matches(':disabled')"),true,'a pending return keeps selection and result fields locked');
   assert.equal(await b.eval('pending.operation'),'project-return');await enter(b,link);assert.equal(await b.eval('pending'),null);
+  assert.equal(await b.eval("!state.can_submit&&$('project-return-fields').matches(':disabled')"),true,'an answered request cannot submit another selected return');
   const sent=await b.eval('state.items[1]');assert.equal(sent.contributor.project.work.fingerprint,made.fingerprint);
   assert(!JSON.stringify(sent).includes('B_PRIVATE'));assert.equal((await local.db.prepare('SELECT count(*) n FROM web_planning_revision WHERE work_id=?').bind(a.work_id).first()).n,3);
   checks.push('Cross-project browser: ordinary B editor saves its own result, exact selected files return with B attribution; committed response loss and reload produce no duplicate answer');
