@@ -469,7 +469,7 @@ if(process.argv[2]==="--cold"){
     write(file,value);
   };
   try { await runSerialAggregateControls(c,{prepare,artifact,read,write:writePredecessor,proof,auth,begin,stock,receipt,storeReceipt,run,
-    fresh:packet=>freshReader(c,packet,run),behavior:(subject)=>behavior(subject,false,run)},material); }
+    observeLive:observeFixtureLive,fresh:packet=>freshReader(c,packet,run),behavior:(subject)=>behavior(subject,false,run)},material); }
   finally {releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});assert(cleanupCanonicalTestResources([owner])[0].completed);}
 }else if(process.argv[2]==="--run-browser-fixtures"){
   browserProgress("setup_start");
