@@ -64,7 +64,8 @@ export function createOrdinaryInitialPreparationFixture() {
   const serviceAfter = observation(state(), 58), firstFault = { resource: "installed_service_change", disposition: "safety_violation", observed_at: at(60), monotonic_ns: "1" };
   const event = { ...firstFault, classification: "safety", after: null }; event.identity = digest(event);
   const observedPhases = phases.map((id, index) => ({ id, status: index < 8 ? "pass" : index === 8 ? "failure" : "not_run",
-    head_sha: ctx.prior.head, base_sha: ctx.p.base, invocation_id: "controlled-invocation", timed_out: false,
+    head_sha: index <= 8 ? null : ctx.prior.head, base_sha: index <= 8 ? null : ctx.p.base,
+    ...(index <= 8 ? { environment_fingerprint: digest("controlled phase environment") } : {}), invocation_id: "controlled-invocation", timed_out: false,
     command: id === "operability" ? "npm run test:operability" : "controlled command " + id, cwd_scope: "root", browser: index >= 9,
     exit_status: index < 8 ? 0 : index === 8 ? 1 : null, failure_code: index < 8 ? null : index === 8 ? "phase_failed" : "phase_not_run",
     duration_ms: index <= 8 ? 1 : null, started_at: index <= 8 ? at(index + 1) : null, finished_at: index <= 8 ? at(index + 2) : null,
@@ -82,7 +83,8 @@ export function createOrdinaryInitialPreparationFixture() {
       companion_service: { restored: false, scope: "accepted_checkout_read_only", maintenance_acquired: false, maintenance_released: true, before: stopped,
         after: serviceAfter.state, observations: { before: { coherent: true, live_identity_valid: true }, after: serviceAfter.diagnostics } } },
     checkout_ownership: { acquired: true, released: true }, capacity_ownership: { acquired: true, released: true }, phases: observedPhases,
-    inputs: { contract: INPUT_CONTRACT, path_kind: "isolated-model-free-v1", binding: { head: ctx.prior.head, tree: ctx.prior.tree },
+    inputs: { contract: INPUT_CONTRACT, path_kind: "isolated-model-free-v1", binding: { head: ctx.prior.head, tree: ctx.prior.tree,
+      phase_environment_fingerprints: phases.map(id => ({ id, fingerprint: digest("controlled phase environment") })) },
       resources: [role("node-executable", node, oldNode), role("npm-executable", npm, path.join(sourceRoot, "lib/node_modules/npm/bin/npm-cli.js")), gitRole,
         role("git-executable", executable("git")), browser], first_fault: firstFault, secondary_faults: [], events: [event] } };
   ctx.completion = { contract: ctx.prior.contract, attempt_id: ctx.prior.attempt_id, receipt_fingerprint: "", cleanup_complete: false,
@@ -151,11 +153,13 @@ export function createOrdinaryInitialPreparationFixture() {
   ctx.put = (name, value) => { const raw = Buffer.isBuffer(value) ? Buffer.from(value) : Buffer.from(JSON.stringify(value)); ctx.artifacts.set(name, raw); return { artifact: name, sha256: digest(raw) }; };
   ctx.bytes = (reference, maximum = 2 * 1024 * 1024) => { const raw = ctx.artifacts.get(reference.artifact); assert.ok(raw && raw.length <= maximum && digest(raw) === reference.sha256, "controlled artifact changed"); return Buffer.from(raw); };
   ctx.parse = reference => JSON.parse(ctx.bytes(reference));
-  ctx.seal = () => {
+  ctx.seal = ({ phaseBindings = true } = {}) => {
     const p = ctx.p, prior = ctx.prior, original = ctx.original;
     original.attempt = prior; original.repository.head_sha = prior.head; original.repository.tree_sha = prior.tree; original.repository.branch = prior.branch;
     original.inputs.binding = { ...original.inputs.binding, head: prior.head, tree: prior.tree };
-    for (const phase of original.phases) { phase.head_sha = prior.head; phase.base_sha = original.repository.base_sha; }
+    if (phaseBindings) for (const [index, phase] of original.phases.entries()) {
+      phase.head_sha = index <= 8 ? null : prior.head; phase.base_sha = index <= 8 ? null : original.repository.base_sha;
+    }
     original.phases[8].log = { bytes: ctx.nativeLog.length, truncated: false, relative_path: `.augnes-local-verification/logs/${original.run.id}/operability.log` };
     original.inputs.fingerprint = digest({ contract: original.inputs.contract, path_kind: original.inputs.path_kind, binding: original.inputs.binding, resources: original.inputs.resources });
     prior.contract_fingerprint = original.inputs.fingerprint;
@@ -263,6 +267,27 @@ export function runOrdinaryInitialPreparationControls() {
     const c = createOrdinaryInitialPreparationFixture(); mutate(c); c.seal();
     assert.throws(() => read(c), { code: "revision_ordinary_initial_current_npm_invalid" }, label); refused++;
   }
+  for (const [label, mutate] of [
+    ["historical synthetic default with bound executed source", c => { for (const phase of c.original.phases.slice(0, 9)) { phase.head_sha = c.prior.head; phase.base_sha = c.original.repository.base_sha; } }],
+    ["wrong executed head", c => c.original.phases[0].head_sha = "f".repeat(40)],
+    ["wrong executed base", c => c.original.phases[0].base_sha = "f".repeat(40)],
+    ["missing executed source field", c => delete c.original.phases[0].head_sha],
+    ["null unexecuted head", c => c.original.phases[9].head_sha = null],
+    ["wrong unexecuted base", c => c.original.phases[9].base_sha = "f".repeat(40)],
+    ["wrong executed environment", c => c.original.phases[0].environment_fingerprint = digest("wrong phase environment")],
+    ["missing executed environment", c => delete c.original.phases[0].environment_fingerprint],
+    ["duplicate bound environment ID", c => c.original.inputs.binding.phase_environment_fingerprints[1].id = c.original.inputs.binding.phase_environment_fingerprints[0].id],
+    ["missing bound environment", c => c.original.inputs.binding.phase_environment_fingerprints.pop()],
+    ["invalid bound environment SHA", c => c.original.inputs.binding.phase_environment_fingerprints[0].fingerprint = "invalid"],
+    ["invented unexecuted environment", c => c.original.phases[9].environment_fingerprint = c.original.inputs.binding.phase_environment_fingerprints[9].fingerprint],
+    ["null unexecuted environment differs from retained omission", c => c.original.phases[9].environment_fingerprint = null],
+  ]) {
+    const c = createOrdinaryInitialPreparationFixture(); mutate(c); c.seal({ phaseBindings: false });
+    assert.throws(() => read(c), { code: "revision_ordinary_initial_phases_invalid" }, label); refused++;
+  }
+  const missingEnvironmentIssue = createOrdinaryInitialPreparationFixture();
+  missingEnvironmentIssue.stock.issues = missingEnvironmentIssue.stock.issues.filter(code => code !== "receipt_phase_environment_binding_invalid"); missingEnvironmentIssue.seal();
+  assert.throws(() => read(missingEnvironmentIssue), { code: "revision_ordinary_initial_stock_invalid" }); refused++;
   for (const [label, change] of [
     ["receipt bytes changed", c => c.artifacts.set("receipt.json", Buffer.from("{}"))],
     ["source manifest incomplete", c => { c.manifest.entries.pop(); c.focused.source_manifest = c.put("manifest.json", c.manifest); c.p.focused = c.put("focused.json", c.focused); }],
