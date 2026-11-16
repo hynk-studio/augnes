@@ -150,6 +150,13 @@ const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-
 
 const suites = {
   unit: [
+    {
+      id: "local-canonical-initial-preparation",
+      label: "ordinary initial preparation controls with immutable failure history",
+      ...rootNode("scripts/test-local-canonical-initial-preparation.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
     { id:"local-canonical-stock-verifier",label:"material stock-verifier attribution and corpus controls",
       requirements:["filesystem","process-owning"],...rootNode("scripts/test-local-canonical-stock-verifier.mjs"),
       timeoutMs:30000,requireNaturalExit:true },
