@@ -10,6 +10,7 @@ import {
   PROSPECTIVE_REQUALIFICATION_DIAGNOSTIC_SCOPE as DIAGNOSTIC_SCOPE,
   PROSPECTIVE_CURRENT_BASELINE_CONTRACT,
   PROSPECTIVE_REQUALIFICATION_GRANT as GRANT, PROSPECTIVE_REQUALIFICATION_LIMIT as LIMIT,
+  PROSPECTIVE_REQUALIFICATION_BENCHMARK as BENCHMARK, prospectiveRequalificationRegisteredOwner,
   isProspectiveRequalification, prospectiveRequalificationDelegation, delegatesProspectiveRequalification,
   prospectiveRequalificationAuthorityBindings, prospectiveRequalificationAuthorityScope,
   prospectiveRequalificationSourceEquivalence, verifyProspectiveRequalification, prospectiveHistoricalRuntime,
@@ -22,7 +23,8 @@ beginCanonicalTestResourceUse(resource);
 const clone = structuredClone, before = "1".repeat(40), target = "2".repeat(40), base = "3".repeat(40);
 const suite = "scripts/run-canonical-test-suite.mjs", driver = "scripts/run-local-canonical-verification.mjs", attempts = "scripts/local-canonical-attempts.mjs";
 const file = name => readFileSync(new URL("../" + name, import.meta.url));
-const common = new Map([OWNER, suite, driver, attempts, "package.json"].map(name => [name, file(name)]));
+const benchmarkOwner = prospectiveRequalificationRegisteredOwner({ commission: { registered_owner: BENCHMARK } });
+const common = new Map([OWNER, benchmarkOwner.owner, suite, driver, attempts, "package.json"].map(name => [name, file(name)]));
 const versions = new Map([[before, new Map(common)], [target, new Map(common)]]);
 versions.get(target).set("scripts/local-canonical-prospective-requalification.mjs", Buffer.from("// Synthetic support-only source bytes.\n"));
 const changed = (a, b) => [...new Set([...versions.get(a).keys(), ...versions.get(b).keys()])].filter(name =>
@@ -96,6 +98,84 @@ try {
   focused.prospective.equivalence = ref(derived);
   assert.equal(derived.registration.bound_ms, 60000); assert.equal(derived.planner.phases.length, 16);
   assert.deepEqual(verifyProspectiveRequalification(p, prior, focused, context), { equivalence: derived, current: currentBaseline });
+  // Historical absence retains the original owner, wire and equivalence form.
+  assert.equal(prospectiveRequalificationRegisteredOwner(p).owner, OWNER);
+  assert.deepEqual(Object.keys(derived.registration).sort(), ["bound_ms", "command", "label", "suite_remainder_sha256"]);
+  assert(prospectiveRequalificationDelegation(p).includes("registered continuation-admission owner, complete workload, assertions, original 60000 ms child bound"));
+  assert(!prospectiveRequalificationAuthorityBindings(p, digest("legacy target")).includes("Registered owner:"));
+  {
+    const q = clone(p); q.commission.registered_owner = BENCHMARK;
+    const f = clone(focused), o = clone(original);
+    const modelLog = failedLog.replaceAll(label, benchmarkOwner.label).replaceAll("60000", "90000").replaceAll("60178", "90178");
+    const modelEquivalence = prospectiveRequalificationSourceEquivalence(git, before, target, BENCHMARK);
+    assert.equal(modelEquivalence.owner.path, benchmarkOwner.owner);
+    assert.equal(modelEquivalence.registration.command, benchmarkOwner.command);
+    assert.equal(modelEquivalence.registration.bound_ms, 90000);
+    f.prospective.owner = benchmarkOwner.owner; f.prospective.equivalence = ref(modelEquivalence);
+    f.prospective.incident.log = ref(modelLog);
+    f.prospective.incident.log_identity = { relative_path: logPath, bytes: Buffer.byteLength(modelLog), sha256: digest(modelLog) };
+    o.phases[0].log.bytes = Buffer.byteLength(modelLog);
+    const setLog = text => {
+      const altered = clone(f), receipt = clone(o);
+      altered.prospective.incident.log = ref(text);
+      altered.prospective.incident.log_identity = { relative_path: logPath, bytes: Buffer.byteLength(text), sha256: digest(text) };
+      receipt.phases[0].log.bytes = Buffer.byteLength(text);
+      writeFileSync(path.join(resource.root, logPath), text, { mode: 0o600 });
+      return { altered, receipt };
+    };
+    writeFileSync(path.join(resource.root, logPath), modelLog, { mode: 0o600 });
+    assert.deepEqual(verifyProspectiveRequalification(q, prior, f, { ...context, original: o }), { equivalence: modelEquivalence, current: currentBaseline });
+    for (const mutate of [v => delete v.commission.registered_owner, v => v.commission.registered_owner = "continuation-admission",
+      v => v.commission.registered_owner = "other-owner", v => v.commission.registered_owner = undefined,
+      v => v.commission.registered_owner = { ...benchmarkOwner }]) {
+      const candidate = clone(q); mutate(candidate);
+      refuses(() => verifyProspectiveRequalification(candidate, prior, f, { ...context, original: o }));
+    }
+    for (const mutate of [v => v.prospective.owner = OWNER, v => v.prospective.equivalence = ref(derived),
+      v => v.failed_phase = "authority", v => v.prospective.bound_ms = 90000]) {
+      const altered = clone(f); mutate(altered);
+      refuses(() => verifyProspectiveRequalification(q, prior, altered, { ...context, original: o }));
+    }
+    const wrongCommand = clone(o); wrongCommand.phases[0].command = benchmarkOwner.command;
+    refuses(() => verifyProspectiveRequalification(q, prior, f, { ...context, original: wrongCommand }));
+    for (const text of [modelLog.replaceAll(benchmarkOwner.label, label), modelLog.replace("timeout_ms=90000", "timeout_ms=60000"),
+      modelLog.replace("duration_ms=90178", "duration_ms=89178"), modelLog.replaceAll("[canonical:unit]", "[canonical:authority]"),
+      modelLog.replace("[canonical:unit] child_active", "unclassified product payload\n[canonical:unit] child_active"),
+      ...["AssertionError [ERR_ASSERTION]", "input_invalidation", "safety_violation", "revision_current_preservation_unsafe"].map(error => modelLog + error + "\n")]) {
+      const { altered, receipt } = setLog(text);
+      refuses(() => verifyProspectiveRequalification(q, prior, altered, { ...context, original: receipt }));
+    }
+    writeFileSync(path.join(resource.root, logPath), modelLog, { mode: 0o600 });
+    // Even matching changes at both endpoints cannot redefine a closed owner.
+    const source = file(suite).toString();
+    for (const replacement of [
+      source.replace('...rootNode("scripts/test-model-host-succession-benchmark.ts"),\n      timeoutMs: 90_000,', '...rootNode("scripts/test-model-host-succession-benchmark.ts"),\n      timeoutMs: 90_001,'),
+      source.replace(benchmarkOwner.label, "other benchmark label"),
+      source.replace('args: ["--import", "tsx", ...args]', 'args: ["--import", "tsx", "--skip", ...args]'),
+    ]) {
+      assert.notEqual(replacement, source);
+      versions.get(before).set(suite, Buffer.from(replacement)); versions.get(target).set(suite, Buffer.from(replacement));
+      refuses(() => prospectiveRequalificationSourceEquivalence(git, before, target, BENCHMARK));
+      versions.get(before).set(suite, file(suite)); versions.get(target).set(suite, file(suite));
+    }
+    const plan = file(driver).toString(), alteredPlan = plan.replace('npmPhase("unit", "Canonical unit suite", ["test"], 3_600_000)', 'npmPhase("unit", "Canonical unit suite", ["test:other"], 3_600_000)');
+    assert.notEqual(alteredPlan, plan);
+    versions.get(before).set(driver, Buffer.from(alteredPlan)); versions.get(target).set(driver, Buffer.from(alteredPlan));
+    refuses(() => prospectiveRequalificationSourceEquivalence(git, before, target, BENCHMARK));
+    versions.get(before).set(driver, file(driver)); versions.get(target).set(driver, file(driver));
+    const key = digest("benchmark preparation"), text = prospectiveRequalificationAuthorityBindings(q, key);
+    assert(text.includes("Registered owner: " + BENCHMARK)); assert(text.includes("Registered child bound: 90000 ms"));
+    const review = { body: ["Source review decision: ACCEPT / RETAIN for prospective qualification.", text, HISTORY,
+      "Independent reviewer: synthetic separate model. Recording operator: synthetic maintainer. Source, evidence and preparation review only; not external or reference-host validation."].join("\n\n") };
+    const grant = { body: [GRANT, text, "Accepted review: https://github.com/hynk-studio/augnes/pull/7#pullrequestreview-12", HISTORY, LIMIT].join("\n\n") };
+    assert(prospectiveRequalificationAuthorityScope(q, review, grant, key));
+    assert(delegatesProspectiveRequalification(prospectiveRequalificationDelegation(q), q));
+    assert.equal(delegatesProspectiveRequalification(prospectiveRequalificationDelegation(p), q), false); refusals++;
+    assert.equal(delegatesProspectiveRequalification(prospectiveRequalificationDelegation(q).replace("90000", "60000"), q), false); refusals++;
+    assert.equal(prospectiveRequalificationAuthorityScope(p, review, grant, key), false); refusals++;
+    writeFileSync(path.join(resource.root, logPath), failedLog, { mode: 0o600 });
+    assert.deepEqual(verifyProspectiveRequalification(p, prior, focused, context), { equivalence: derived, current: currentBaseline });
+  }
   const retainedRuntimeIdentity = digest({ currentRuntime, historicalRuntime, original, p });
   assert.strictEqual(prospectiveHistoricalRuntime(p, original, currentRuntime), historicalRuntime);
   assert.deepEqual(parse(p.inputs.current), currentRuntime);

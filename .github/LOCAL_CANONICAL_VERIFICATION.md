@@ -1425,10 +1425,21 @@ The immediate predecessor must be the latest physically completed, fully spent
 supported commission. Retain its original attempt, receipt, completion, false
 stock and full physical successor chain, with every prior issued maximum and
 consumed reservation. The selected incident must bind the complete original
-phase and authority output to the registered
-`node --import tsx scripts/test-operational-continuation-admission.ts` child
-and its unchanged 60,000 ms watchdog: one bounded child timeout, its settled
-termination, the natural outer unit-phase failure and complete owned cleanup.
+phase and authority output to a closed registered owner. Historical proofs with
+no `commission.registered_owner` continue to select
+`node --import tsx scripts/test-operational-continuation-admission.ts` and its
+unchanged 60,000 ms watchdog. The only explicit selector is
+`commission.registered_owner = model-host-succession-benchmark`, selecting
+`node --import tsx scripts/test-model-host-succession-benchmark.ts` and its
+unchanged 90,000 ms watchdog. Each descriptor fixes the unit phase, canonical
+label, command and bound; the reader cross-checks the immutable registrations at
+both source endpoints and the complete physical incident. Callers cannot supply
+commands, labels, phases or deadlines, or use a selector to reinterpret the
+other owner's history. The incident requires one bounded child timeout, its
+settled termination, the natural outer unit-phase failure and complete owned
+cleanup. The evidenced benchmark window accepts only that child's matching
+runner lifecycle lines before its timeout result, retaining all original bytes
+and refusing product/assertion/input/safety payload instead of filtering it.
 The historical raw disposition is preserved. Earlier passing phases retain
 their actual evidence; the failed
 phase remains failed and every unexecuted phase remains NOT_RUN. Another child,
@@ -1511,6 +1522,11 @@ contains no execution authorization. It creates no lease, successor reservation
 or consumed invocation. The exact delegation, acceptance bindings and grant
 wording belong to
 [`local-canonical-prospective-requalification.mjs`](../scripts/local-canonical-prospective-requalification.mjs).
+The benchmark selector also binds its descriptor-derived owner, phase, command,
+label and bound in the exact delegation/acceptance/commission text. Historical
+absent-selector authority text, source-equivalence form and refusal behavior
+remain unchanged. A broad implementation assignment is not substituted for the
+supported typed conditional delegation, acceptance or execution commission.
 Publishing these instructions, support code, a preparation or synthetic focused
 controls does not grant a deciding invocation.
 

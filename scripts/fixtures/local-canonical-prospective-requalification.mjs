@@ -17,13 +17,13 @@ import { PROSPECTIVE_REQUALIFICATION, PROSPECTIVE_REQUALIFICATION_CLAIM,
   PROSPECTIVE_REQUALIFICATION_HISTORY_BOUNDARY, PROSPECTIVE_REQUALIFICATION_GRANT,
   PROSPECTIVE_REQUALIFICATION_LIMIT, PROSPECTIVE_REQUALIFICATION_OWNER,
   PROSPECTIVE_REQUALIFICATION_DIAGNOSTIC_SCOPE, PROSPECTIVE_CURRENT_BASELINE_CONTRACT,
-  prospectiveHistoricalRuntime, prospectiveRequalificationSourceEquivalence,
+  prospectiveHistoricalRuntime, prospectiveRequalificationSourceEquivalence, prospectiveRequalificationRegisteredOwner,
+  PROSPECTIVE_REQUALIFICATION_REGISTERED_OWNERS, PROSPECTIVE_REQUALIFICATION_BENCHMARK,
   prospectiveRequalificationDelegation, prospectiveRequalificationAuthorityBindings } from "../local-canonical-prospective-requalification.mjs";
 
 const clone = structuredClone;
 const now = () => new Date().toISOString();
 const reader = "scripts/test-local-canonical-prospective-requalification.mjs";
-const label = "authenticated source-linked continuation admission and fresh managed Start contract";
 const natural = { exit_code: 0, signal: null, timed_out: false, cancelled: false, spawn_error_code: null,
   exit_observed: true, streams_closed: true, cleanup_started: true, cleanup_completed: true,
   remaining_owned_processes: 0, termination_reason: "natural_exit", duration_ms: 1 };
@@ -31,7 +31,7 @@ const natural = { exit_code: 0, signal: null, timed_out: false, cancelled: false
 export function seedProspectiveRequalificationFiles(c, write) {
   // These are inert source snapshots. No owner import, private service, model
   // or canonical suite runs inside this disposable Git repository.
-  for (const file of [PROSPECTIVE_REQUALIFICATION_OWNER, "scripts/run-canonical-test-suite.mjs",
+  for (const file of [...PROSPECTIVE_REQUALIFICATION_REGISTERED_OWNERS.map(owner => owner.owner), "scripts/run-canonical-test-suite.mjs",
     "scripts/run-local-canonical-verification.mjs", "scripts/local-canonical-attempts.mjs"])
     write(path.join(c.checkout, file), readFileSync(new URL("../../" + file, import.meta.url)));
 }
@@ -47,7 +47,9 @@ function snapshot(root) {
   visit(root); return found;
 }
 
-export async function runProspectiveRequalificationControls(c, h) {
+export async function runProspectiveRequalificationControls(c, h, registeredOwner) {
+  const selected = prospectiveRequalificationRegisteredOwner({ commission: registeredOwner === undefined ? {} : { registered_owner: registeredOwner } });
+  const label = selected.label, bound = selected.bound_ms, elapsed = bound + 178;
   let refusals = 0;
   const git = (...args) => c.git(args).toString().trim();
   const tip = () => reconstructAttemptTip({ anchorRoot: c.anchor, repositoryRoot: c.checkout, branch: c.branch });
@@ -61,12 +63,12 @@ export async function runProspectiveRequalificationControls(c, h) {
   const old = h.proof(c), oldCapability = await h.auth(c, old);
   assert.equal(old.commission.maximum_invocations, 1);
   const watchdog = [
-    `[canonical:unit] child_start label=${JSON.stringify(label)} timeout_ms=60000`,
+    `[canonical:unit] child_start label=${JSON.stringify(label)} timeout_ms=${bound}`,
     `[canonical:unit] child_spawn label=${JSON.stringify(label)} pid=4321 wait=process_exit`,
-    `[canonical:unit] child_active label=${JSON.stringify(label)} elapsed_ms=30003 timeout_ms=60000 exit_observed=false stdout_closed=false stderr_closed=false wait=process_exit`,
-    `[canonical:unit] child_cleanup_start label=${JSON.stringify(label)} elapsed_ms=60004 reason=bounded_timeout exit_observed=false stdout_closed=false stderr_closed=false`,
-    `[canonical:unit] child_cleanup_result label=${JSON.stringify(label)} elapsed_ms=60178 reason=bounded_timeout streams_closed=true remaining_owned_processes=0`,
-    `[canonical:unit] child_result label=${JSON.stringify(label)} duration_ms=60178 exit_code=null signal=SIGTERM timed_out=true exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=bounded_timeout`,
+    `[canonical:unit] child_active label=${JSON.stringify(label)} elapsed_ms=30003 timeout_ms=${bound} exit_observed=false stdout_closed=false stderr_closed=false wait=process_exit`,
+    `[canonical:unit] child_cleanup_start label=${JSON.stringify(label)} elapsed_ms=${bound + 4} reason=bounded_timeout exit_observed=false stdout_closed=false stderr_closed=false`,
+    `[canonical:unit] child_cleanup_result label=${JSON.stringify(label)} elapsed_ms=${elapsed} reason=bounded_timeout streams_closed=true remaining_owned_processes=0`,
+    `[canonical:unit] child_result label=${JSON.stringify(label)} duration_ms=${elapsed} exit_code=null signal=SIGTERM timed_out=true exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=bounded_timeout`,
     `Error: child_timed_out:unit:${label}`,
     "  code: 'canonical_child_timeout',",
     JSON.stringify({ suite: "unit", resource_cleanup: [{ completed: true, failure_count: 0, failures: [] }] }),
@@ -117,12 +119,13 @@ export async function runProspectiveRequalificationControls(c, h) {
   const p = c.proof;
   Object.assign(p.commission, { source_revision: PROSPECTIVE_REQUALIFICATION, maximum_invocations: 1,
     input_acquisition: old.commission.input_acquisition });
+  if (registeredOwner !== undefined) p.commission.registered_owner = registeredOwner;
   p.inputs.inventory_sha256 = c.live.inventory;
   p.originals.stock = ref("prior-stock.log", JSON.stringify(failed.stock));
   const command = "node --import tsx " + reader;
   const stdout = ref("synthetic-focused.log", "synthetic prospective support PASS; not host qualification\n");
   const result = ref("synthetic-focused.json", { command, tested_source_head: p.head, finished_at: now(), result: natural });
-  const equivalence = prospectiveRequalificationSourceEquivalence(c.git, predecessorHead, p.head);
+  const equivalence = prospectiveRequalificationSourceEquivalence(c.git, predecessorHead, p.head, registeredOwner);
   const sourceBytes = c.git(["show", p.head + ":" + reader]);
   const relative = `.augnes-local-verification/logs/${c.prior.run.id}/unit.log`;
   const current = { contract: PROSPECTIVE_CURRENT_BASELINE_CONTRACT, observed_at: now(),
@@ -135,7 +138,7 @@ export async function runProspectiveRequalificationControls(c, h) {
     source_files: [{ path: reader, byte_size: sourceBytes.length, sha256: digest(sourceBytes) }],
     commands: [{ command, tested_source_head: p.head, result: natural, record: result, stdout }],
     prospective: { kind: PROSPECTIVE_REQUALIFICATION, claim: PROSPECTIVE_REQUALIFICATION_CLAIM,
-      owner: PROSPECTIVE_REQUALIFICATION_OWNER,
+      owner: selected.owner,
       incident: { receipt: p.prior_receipt_fingerprint, cause: "UNKNOWN", log: ref("watchdog.log", watchdog),
         log_identity: { relative_path: relative, bytes: Buffer.byteLength(watchdog), sha256: digest(watchdog) } },
       retained: { scope: PROSPECTIVE_REQUALIFICATION_DIAGNOSTIC_SCOPE,
@@ -204,6 +207,10 @@ export async function runProspectiveRequalificationControls(c, h) {
     assert.equal(supportsSourceCorrection(mixed), false);
     h.write(file, mixed);
     assert.throws(() => readSourceCorrectionProof(file, c.checkout), mixedRoute); refusals++;
+    const selectorOnly = { ...legacy, commission: { registered_owner: PROSPECTIVE_REQUALIFICATION_BENCHMARK } };
+    const selectorFile = path.join(c.artifacts, `mixed-selector-${index}.json`); h.write(selectorFile, selectorOnly);
+    assert.equal(supportsSourceCorrection(selectorOnly), false);
+    assert.throws(() => readSourceCorrectionProof(selectorFile, c.checkout), mixedRoute); refusals++;
   }
   for (const mutate of [q => delete q.inputs.inventory_sha256, q => q.commission.route = "other-route"]) {
     const mixed = clone(p); mutate(mixed);
@@ -248,7 +255,9 @@ export async function runProspectiveRequalificationControls(c, h) {
   for (const mutate of [q => delete q.commission.source_revision, q => q.commission.source_revision = "material-source-correction-v1",
     q => q.commission.source_revision = "unknown", q => q.commission.ordinal = 2, q => q.commission.maximum_invocations = 2,
     q => q.commission.evidence_kind = "registered-fixture-validity-window-v1", q => q.commission.forward_decision = { id: 80, sha256: digest("forward") },
-    q => q.branch += "-renamed", q => q.prior_attempt_id = "older-tip", q => q.inputs.inventory_sha256 = digest("other-input")]) {
+    q => q.branch += "-renamed", q => q.prior_attempt_id = "older-tip", q => q.inputs.inventory_sha256 = digest("other-input"),
+    q => q.commission.registered_owner = "arbitrary-owner", q => q.commission.registered_owner = null,
+    q => registeredOwner === undefined ? q.commission.registered_owner = PROSPECTIVE_REQUALIFICATION_BENCHMARK : delete q.commission.registered_owner]) {
     const altered = clone(p); mutate(altered); await assert.rejects(() => prepare(altered)); refusals++; noReservation();
   }
   for (const mutate of [v => v.runtime_inputs_sha256 = p.inputs.predecessor_sha256,
@@ -354,6 +363,8 @@ export async function runProspectiveRequalificationControls(c, h) {
     }, decorateReceipt(receipt) { receipt.integration_base.contract = "augnes.local-canonical-integration-base.v2"; },
   }, parsed, capability, browser, dependencyRecords(c));
   assert.equal(complete.stock.valid_deciding_evidence, true);
+  assert.equal(complete.receipt.attempt.source_correction.commission.registered_owner, registeredOwner);
+  if (registeredOwner === undefined) assert(!Object.hasOwn(complete.receipt.attempt.source_correction.commission, "registered_owner"));
   assert.deepEqual(tip().revision_grants, [11, 32, 62, 82]);
   assert.equal(tip().reviewed_revision_consumed, 1);
   assert(validReviewedRevisionAttempt(complete.receipt.attempt));
@@ -379,12 +390,14 @@ export async function runProspectiveRequalificationControls(c, h) {
   try { assert.throws(() => h.begin(c, parsed, capability)); refusals++; assert(existsSync(edge)); }
   finally { h.write(completionFile, completionBytes); }
   const attemptFile = path.join(currentFamily, "attempt-1.json"), attemptBytes = readFileSync(attemptFile);
+  assert.equal(JSON.parse(attemptBytes).source_correction.commission.registered_owner, registeredOwner);
   rmSync(attemptFile);
   try { assert.throws(() => h.begin(c, parsed, capability)); refusals++; assert(existsSync(edge)); }
   finally { h.write(attemptFile, attemptBytes); }
   unchanged();
   assert.equal(gitRevisionInventory(complete.receipt.inputs), p.inputs.inventory_sha256);
   console.log(JSON.stringify({ prospective_requalification: { synthetic_only: true, real_authority: false, registered_owner_executions: 0,
+    registered_owner: selected.id, registered_bound_ms: bound,
     non_reserving_preparation: true, one_slot_reservation: true, fresh_process_stock: true,
     original_history_preserved: true, prior_false_stock: failed.stock.valid_deciding_evidence,
     new_synthetic_stock: complete.stock.valid_deciding_evidence, history_cause: "UNKNOWN", refusals,

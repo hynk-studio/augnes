@@ -46,7 +46,7 @@ import { isStockVerifierRevision, verifyStockVerifierPredecessor } from "./local
 import { STOCK_VERIFIER_CLAIM, STOCK_VERIFIER_GRANT, stockVerifierAuthorityScope } from "./local-canonical-git-observation.mjs";
 import { REGISTERED_FIXTURE_VALIDITY_WINDOW, FIXTURE_VALIDITY_WINDOW_CLAIM } from "./local-canonical-fixture-validity-witness.mjs";
 import { isProspectiveRequalification, hasProspectiveRequalificationMarker, PROSPECTIVE_REQUALIFICATION, PROSPECTIVE_REQUALIFICATION_GRANT,
-  delegatesProspectiveRequalification, prospectiveRequalificationAuthorityScope,
+  delegatesProspectiveRequalification, prospectiveRequalificationAuthorityScope, validProspectiveRequalificationOwner,
   verifyProspectiveRequalification, prospectiveHistoricalRuntime } from "./local-canonical-prospective-requalification.mjs";
 import {isDirectGitInputRevision, gitInputHistoryBoundary, isGitInputRevision, verifyGitInputRemedy, verifyGitInputPublication,
   GIT_CURRENT_STOCK_COMPARISON, gitRevisionInventory, gitRevisionStockComparison} from "./local-canonical-git-observation.mjs";
@@ -1539,6 +1539,7 @@ function revisionCommissionIdentity(proof) {
     ...(isGitInputRevision(proof) ? {input_revision: proof.commission.input_revision} : {}),
     ...(isGitAcquisitionRevision(proof) ? {input_acquisition: proof.commission.input_acquisition} : {}),
     ...(isSingleInvocationRevision(proof) ? {source_revision: proof.commission.source_revision,
+      ...(isProspectiveRequalification(proof) && Object.hasOwn(proof.commission,"registered_owner") ? {registered_owner:proof.commission.registered_owner} : {}),
       ...(proof.commission.evidence_kind ? {evidence_kind:proof.commission.evidence_kind} : {}),
       ...(proof.commission.allowance_case ? {allowance_case:proof.commission.allowance_case} : {}),
       ...(proof.commission.inherited_serial ? {inherited_serial:proof.commission.inherited_serial} : {})} : {}) });
@@ -1576,7 +1577,8 @@ function revisionMaterialShape(p, preparing = false) {
     revisionId(p.pull_request) && sha(p.prior_family_id) && [1, 2].includes(p.prior_number) && typeof p.prior_attempt_id === "string" &&
     sha(p.prior_receipt_fingerprint) && revisionKeys(c, ["root_family_id", "root_number", "root_attempt_id", "root_receipt_fingerprint", "ordinal", "maximum_invocations", ...(isSerialAggregateRevision(p) ? ["route", "envelope_sha256"] : []),
       ...(successor || gitSuccessor ? ["initial_authorization"] : []), ...(gitSuccessor ? ["initial_accepted", "delegation"] : isInventoryBoundRevision(p) ? ["delegation", ...(c.forward_decision ? ["forward_decision"] : []), ...(c.input_acquisition !== undefined ? ["input_acquisition"] : []), ...(c.source_revision !== undefined ? ["source_revision"] : [])] : []),
-      ...(Object.hasOwn(c, "input_revision") ? ["input_revision"] : []), ...(Object.hasOwn(c,"inherited_serial") ? ["inherited_serial"] : []), ...(Object.hasOwn(c,"evidence_kind") ? ["evidence_kind"] : []), ...(Object.hasOwn(c,"allowance_case") ? ["allowance_case"] : [])]) &&
+      ...(Object.hasOwn(c, "input_revision") ? ["input_revision"] : []), ...(Object.hasOwn(c,"registered_owner") ? ["registered_owner"] : []), ...(Object.hasOwn(c,"inherited_serial") ? ["inherited_serial"] : []), ...(Object.hasOwn(c,"evidence_kind") ? ["evidence_kind"] : []), ...(Object.hasOwn(c,"allowance_case") ? ["allowance_case"] : [])]) &&
+    (!Object.hasOwn(c,"registered_owner") || isProspectiveRequalification(p) && validProspectiveRequalificationOwner(p)) &&
     (!Object.hasOwn(c,"allowance_case") || isMaterialSourceRevision(p) && isMaintenanceFixtureBudget(p)) &&
     (!Object.hasOwn(c,"evidence_kind") || isMaterialSourceRevision(p) && materialEvidenceClaim(c.evidence_kind) !== null) &&
     (!Object.hasOwn(c,"inherited_serial") || isSingleInvocationRevision(p) && validSerialInheritance(c.inherited_serial)) &&
