@@ -1076,12 +1076,29 @@ Reuse [independent project-client acceptance](#independent-project-client-accept
 Add only missing checks for the affected target, lifecycle or shared-state path;
 these are not a universal matrix for every pull request.
 
+When claiming ordinary product operation, reuse a positive ordinary-work case and,
+when continuation is in scope, fresh-session re-entry under the existing
+[complexity-compression](#complexity-compression) and
+[operability](#operability-evaluation) criteria. A consumer without the development
+conversation should reach the intended work through an established connection,
+perform the permitted task, understand its result and, where applicable, recover
+the saved basis without internal-ID relay, routine per-call target setup or
+approval of already delegated steps. Existing authentication and authority checks
+still apply. State the actual persistence scope: saved work/results, any supported
+retention of unsaved drafts and uncertain pending writes have different
+guarantees. This adds no durable autosave, crash-recovery or cross-device
+synchronization claim.
+
 - Verify the intended enrolled service and canonical workspace separately from
   runtime generation and the work's project/repository binding. Exercise A
   unavailable while B remains healthy: the operation must not silently move to
   B. Pending previews, saves and late results retain their original target and
   basis across selection changes or restart, using existing currentness and
   uncertain-effect checks rather than automatic redispatch.
+  Through the existing entry, explain the affected work, what is confirmed or
+  still unknown about saving, execution or cancellation, and the next supported
+  action. Unaffected independently authorized work remains usable; exact
+  diagnostics are optional detail.
 - Distinguish retained history, present ownership evidence, service health,
   preservation proof and task-owned cleanup. Historical records remain
   attributable without granting control over a replacement or unrelated

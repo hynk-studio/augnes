@@ -199,8 +199,9 @@ implementation and its qualification are not included.
 ### Later: explicit Companion targets and independent lifecycle scopes
 
 Extend the merged project/client separation in #1432 and isolated verification
-environments in #1434 rather than replacing them. The following is a dependency
-order for bounded future increments, not a fixed four-PR program: existing valid
+environments in #1434 rather than replacing them. Establish the target and resource
+boundaries required by the chosen multi-instance increment before activation. The
+following is not a fixed four-PR program or a global serial queue: existing valid
 implementation and evidence may satisfy a dependency, and compatible increments
 may be combined where their boundaries remain demonstrable.
 
@@ -225,6 +226,8 @@ may be combined where their boundaries remain demonstrable.
    required check justifies change, map each check to its actual target and shared
    dependencies. Narrow affected holds or preservation dependencies only with
    evidence supporting that boundary; retain established requirements elsewhere.
+   This refinement may proceed independently under its existing owner without
+   waiting for general multi-instance support.
 
 [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#parallel-companion-qualification)
 owns affected qualification evidence; concrete protocol changes belong to 02 and
@@ -233,6 +236,15 @@ verification policy. This direction neither grants service mutation, execution o
 retry authority nor adds completion conditions to unrelated current PRs. It leaves
 #1430's remaining scope, R1–R8, L1/L2/G1, P2–P5 and current work assignments unchanged;
 only a selected increment's affected behavior needs the corresponding evidence.
+
+The first bounded connection increment is selected in
+[#1659](https://github.com/hynk-studio/augnes/issues/1659) under #1430 and #1212:
+ordinary connected work retains its intended Companion target through permitted
+use, applicable re-entry and scoped failure. The issue owns implementation scope
+and executor intake status; registration is not execution or completed support.
+Reuse adequate current behavior and coordinate actual overlap with existing
+owners. This does not commission whole L1, general multi-instance rollout or
+unrelated verification recovery, and it does not gate independent Web work.
 
 ### Proposed qualification after a protected Git-input interruption
 
@@ -834,7 +846,7 @@ or project-authority boundary.
 | Logical responsibility | Current foothold | Target connection or limit |
 |---|---|---|
 | Project-owned continuing work | Native current-work/source/decision owners and host-native entries. | Retain purpose, judgments, commitments and authorized continuation; a cooperating provider does not acquire the project's direction. |
-| Private web work | [Web Planning](../../apps/web_planning/README.md) has one configured owner, independent authored work and selected files. | Web is not a mirror of the native database. The [explicit selected-source handoff](../WEB_EXPORT_NATIVE_HANDOFF.md) admits permitted current-revision text to an authorized native target, not full project migration, automatic synchronization or transferred authority. |
+| Private web work | [Web Planning](../../apps/web_planning/README.md#independent-private-projects-opt-in) retains its configured-owner default and supports opt-in independent private projects (#1627/#1631), alongside authored work and selected files. See the [current Web undertaking scope](#web-undertaking-implementation-commission--2026-11-11); source integration is not hosted adoption. | Web is not a mirror of the native database. The [explicit selected-source handoff](../WEB_EXPORT_NATIVE_HANDOFF.md) admits permitted current-revision text to an authorized native target, not full project migration, automatic synchronization or transferred authority. |
 | Discovery and bounded exchange | #1447's distributed public component and #1443's request/contribution owners. | Selective public/shared reading, current offers and request-bound cross-owner submission need their own supported access boundaries. They are not already supplied by private Web Planning or a global directory. |
 | Independent provider work | Existing participant-owned runtimes/resources and manual/configured request-return paths. | Providers keep private methods, credentials and their own policies. Discovery, willingness, per-task commitment and execution remain separate; preparation is not general automatic commissioning. |
 | Checked use and later capability | Recipient check/use writers, #1453's conditional experience, source/material/correction and ordinary later-task use. | Connect permitted results to a reusable method and genuinely new use without copying authority or private inputs. Each recipient owns adoption; cross-project offers, settlement and independent undertaking growth remain bounded future connections. |
