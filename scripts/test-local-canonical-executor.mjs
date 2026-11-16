@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { isMaintenance } from "./local-canonical-maintenance.mjs";
 import { isImprovement } from "./local-canonical-improvement.mjs";
-import { hasRetiredQualificationMarker, isReviewedIntegration, isReviewedRevision, REVIEWED_REVISION_PHASES, readSourceCorrectionProof as readCorrectionProof } from "./local-canonical-attempts.mjs";
+import { hasRetiredQualificationMarker, isReviewedIntegration, isReviewedRevision, REVIEWED_REVISION_PHASES, materialRecoveryPreservationGuard, readSourceCorrectionProof as readCorrectionProof } from "./local-canonical-attempts.mjs";
 
 import { isGitObservationRevision, isInventoryBoundRevision, isMaterialSourceRevision, MATERIAL_SOURCE_CORRECTION,
   GIT_CURRENT_STOCK_COMPARISON, gitRevisionInventory, gitRevisionStockComparison } from "./local-canonical-git-observation.mjs";
@@ -66,6 +66,7 @@ import {
   assertRuntimeInputSelection,
   executeLocalCanonicalVerification,
   computeExecutorSourceFingerprint,
+  usesLegacyRevisionSettlement,
 } from "./run-local-canonical-verification.mjs";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
 import {
@@ -1084,11 +1085,17 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
         { code: scenario.endsWith("_missing") ? "ENOENT" : "ERR_ASSERTION" });
       return {};
     };
+    const sourceCorrection = revisionLane ? { schema: browserRefusal ? "augnes.local-canonical-source-correction.v8" : "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", ...(revisionSettlement ? { settlement: { sha256: "c".repeat(64) } } : {}) } : null;
+    // Mirror the initializer outside the extracted block. These synthetic
+    // profiles contain no validated material settlement, so the real owner
+    // selects null; a material proof must supply its genuinely retained guard.
+    const recoveryPreservationGuard = materialRecoveryPreservationGuard(sourceCorrection);
+    assert.equal(recoveryPreservationGuard, null);
     const context = {
       checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
       controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, baseSha: "0".repeat(40), headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
-      isMaintenance, isImprovement, isReviewedIntegration, isReviewedRevision, isBrowserRevision, isGitObservationRevision, isInventoryBoundRevision, isSerialAggregateRevision, digest, REVIEWED_REVISION_PHASES,
-      sourceCorrection: revisionLane ? { schema: browserRefusal ? "augnes.local-canonical-source-correction.v8" : "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", ...(revisionSettlement ? { settlement: { sha256: "c".repeat(64) } } : {}) } : null,
+      isMaintenance, isImprovement, isReviewedIntegration, isReviewedRevision, isBrowserRevision, isGitObservationRevision, isInventoryBoundRevision, isSerialAggregateRevision, usesLegacyRevisionSettlement, recoveryPreservationGuard, digest, REVIEWED_REVISION_PHASES,
+      sourceCorrection,
       authorizeReviewedRevision: async () => { authorityObserved = true; if (scenario === "revision_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
       observeReviewedRevisionSettlementState: async () => {
         assert(authorityObserved); assertCheckoutVerificationOwnership(activeOwner, root);
@@ -1352,6 +1359,8 @@ assert(stockDispatchStart > 0 && stockDispatchEnd > stockDispatchStart);
 const stockDispatch = executorSource.slice(stockDispatchStart, stockDispatchEnd);
 const coexistenceRoot = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-succession-dispatch-")));
 function dispatchContext(candidate, authority, settlement = async () => null) {
+  const recoveryPreservationGuard = materialRecoveryPreservationGuard(candidate);
+  assert.equal(recoveryPreservationGuard, null, "dispatch-only synthetic profiles have no retained material cleanup guard");
   let observed = null, inspectedOptions = null;
   const consume = async options => {
     inspectedOptions = options;
@@ -1363,7 +1372,7 @@ function dispatchContext(candidate, authority, settlement = async () => null) {
   return { get observed() { return observed; }, get inspectedOptions() { return inspectedOptions; }, context: {
     sourceCorrection:candidate, receipt:{receipt_version:4,inputs:frozenInputs,attempt:{source_correction:candidate}},
     inputs:{snapshot:()=>frozenInputs,check(){}}, repositoryRoot:coexistenceRoot,
-    isMaintenance,isImprovement,isReviewedIntegration,isReviewedRevision,isBrowserRevision,isGitObservationRevision,isInventoryBoundRevision,isSerialAggregateRevision,isMaterialSourceRevision,
+    isMaintenance,isImprovement,isReviewedIntegration,isReviewedRevision,isBrowserRevision,isGitObservationRevision,isInventoryBoundRevision,isSerialAggregateRevision,isMaterialSourceRevision,usesLegacyRevisionSettlement,recoveryPreservationGuard,
     GIT_CURRENT_STOCK_COMPARISON,gitRevisionInventory,gitRevisionStockComparison,
     mode:"full",checkoutContext:"isolated-worktree",plan:{selected_plan:"full-canonical"},
     digest,REVIEWED_REVISION_PHASES,phaseDefinitions:REVIEWED_REVISION_PHASES.map(id=>({id})),
