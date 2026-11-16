@@ -284,7 +284,7 @@ function componentOrder(a, b) {
   for (let i = 0; i < Math.min(x.length, y.length); i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1;
   return x.length - y.length;
 }
-function verifyRuntime(p, focused, original, inputs, parse, bytes) {
+function verifyRuntime(p, focused, original, inputs, inventory, parse, bytes) {
   requireThat(validCanonicalRuntimeInputs(inputs) && digest(inputs) === p.inputs.identity_sha256, "runtime_invalid");
   const copy = jsonRef(focused.runtime_relocation, parse, bytes), launch = jsonRef(focused.launcher_resolution, parse, bytes);
   requireThat(absolute(copy.source) && absolute(copy.target) && copy.source !== copy.target &&
@@ -298,7 +298,8 @@ function verifyRuntime(p, focused, original, inputs, parse, bytes) {
     copy.file_bytes === copy.catalog.filter(row => row.type === "file").reduce((n, row) => n + row.bytes, 0), "runtime_relocation_invalid");
   const row = name => copy.catalog.find(v => v.path === name), node = row("bin/node"), npm = row("lib/node_modules/npm/bin/npm-cli.js");
   const before = original.inputs.resources.find(v => v.id === "node-executable"), beforeNpm = original.inputs.resources.find(v => v.id === "npm-executable");
-  const targetNode = path.join(copy.target, "bin/node"), targetHeaders = path.join(copy.target, "include/node");
+  const targetNode = path.join(copy.target, "bin/node"), targetHeaders = path.join(copy.target, "include/node"),
+    targetNpm = path.join(copy.target, "lib/node_modules/npm/bin/npm-cli.js");
   const headerRows = copy.catalog.filter(v => v.type === "file" && v.path.startsWith("include/node/"))
     .map(v => ({ path: v.path.slice("include/node/".length), sha256: v.sha256 })).sort(componentOrder);
   requireThat(node?.type === "file" && npm?.type === "file" && node.sha256 === before?.before?.sha256 && node.bytes === Number(before.before.metadata.bytes) &&
@@ -308,11 +309,15 @@ function verifyRuntime(p, focused, original, inputs, parse, bytes) {
     inputs.headers.location_fingerprint === digest(targetHeaders) && headerRows.length > 0 && digest(headerRows) === inputs.headers.observation.content_sha256 &&
     copy.catalog.filter(v => v.type === "file" && v.path.startsWith("include/node/")).reduce((n, v) => n + v.bytes, 0) === inputs.headers.observation.bytes &&
     row("bin/npm")?.type === "symlink" && row("bin/npm").target === "../lib/node_modules/npm/bin/npm-cli.js", "runtime_relocation_invalid");
+  const currentNpm = inventory.resources.filter(v => v.id === "npm-executable");
+  requireThat(currentNpm.length === 1 && currentNpm[0].classification === "execution" && currentNpm[0].location_fingerprint === digest(targetNpm) &&
+    currentNpm[0].before?.present === true && currentNpm[0].before.sha256 === npm.sha256 &&
+    currentNpm[0].before.metadata?.bytes === String(npm.bytes), "current_npm_invalid");
   const l = launch.observed;
   requireThat(launch.exit_code === 0 && launch.npm_version === original.environment.npm_version && launch.offline === true && launch.network_or_registry_request === false &&
     launch.deciding === false && launch.stderr === "" && after(launch.at, copy.recorded_at) &&
     l?.executable === targetNode && l.version === "v" + CANONICAL_NODE_VERSION && l.npm_node_execpath === targetNode &&
-    l.npm_execpath === path.join(copy.target, "lib/node_modules/npm/bin/npm-cli.js") && l.child?.executable === targetNode &&
+    l.npm_execpath === targetNpm && l.child?.executable === targetNode &&
     l.child.version === l.version && l.headers_exist === true && typeof launch.stdout === "string" &&
     launch.stdout.split("\n").some(line => { try { return equal(JSON.parse(line), l); } catch { return false; } }), "launcher_invalid");
   return { copy, launch };
@@ -418,7 +423,7 @@ export function readOrdinaryInitialPreparationEvidence(p, { original, prior, com
       return resource?.location_fingerprint === inputs[role].location_fingerprint && equal(resource.before, inputs[role].observation);
     }), "current_inventory_invalid");
   verifyNativeFailure(focused, original, parse, bytes);
-  const runtime = verifyRuntime(p, focused, original, inputs, parse, bytes);
+  const runtime = verifyRuntime(p, focused, original, inputs, input, parse, bytes);
   const setup = verifyNativeSetup(focused, original, prior, parse, bytes, git);
   verifySupportChecks(p, focused, completion, inputs, parse, bytes);
   requireThat(keys(record, "schema prior_receipt_fingerprint target recorded_at after_state live_observation coordination history") &&
