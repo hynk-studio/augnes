@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { ORDINARY_INITIAL_PREPARATION, isOrdinaryInitialPreparationRevision } from "./local-canonical-initial-preparation.mjs";
 import { isMaintenance } from "./local-canonical-maintenance.mjs";
 import { isImprovement } from "./local-canonical-improvement.mjs";
 import { hasRetiredQualificationMarker, isReviewedIntegration, isReviewedRevision, REVIEWED_REVISION_PHASES, readSourceCorrectionProof as readCorrectionProof } from "./local-canonical-attempts.mjs";
@@ -1087,7 +1088,7 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
     const context = {
       checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
       controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, baseSha: "0".repeat(40), headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
-      isMaintenance, isImprovement, isReviewedIntegration, isReviewedRevision, isBrowserRevision, isGitObservationRevision, isInventoryBoundRevision, isSerialAggregateRevision, digest, REVIEWED_REVISION_PHASES,
+      isMaintenance, isImprovement, isReviewedIntegration, isReviewedRevision, isBrowserRevision, isGitObservationRevision, isInventoryBoundRevision, isSerialAggregateRevision, isOrdinaryInitialPreparationRevision, digest, REVIEWED_REVISION_PHASES,
       sourceCorrection: revisionLane ? { schema: browserRefusal ? "augnes.local-canonical-source-correction.v8" : "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", ...(revisionSettlement ? { settlement: { sha256: "c".repeat(64) } } : {}) } : null,
       authorizeReviewedRevision: async () => { authorityObserved = true; if (scenario === "revision_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
       observeReviewedRevisionSettlementState: async () => {
@@ -1363,7 +1364,7 @@ function dispatchContext(candidate, authority, settlement = async () => null) {
   return { get observed() { return observed; }, get inspectedOptions() { return inspectedOptions; }, context: {
     sourceCorrection:candidate, receipt:{receipt_version:4,inputs:frozenInputs,attempt:{source_correction:candidate}},
     inputs:{snapshot:()=>frozenInputs,check(){}}, repositoryRoot:coexistenceRoot,
-    isMaintenance,isImprovement,isReviewedIntegration,isReviewedRevision,isBrowserRevision,isGitObservationRevision,isInventoryBoundRevision,isSerialAggregateRevision,isMaterialSourceRevision,
+    isMaintenance,isImprovement,isReviewedIntegration,isReviewedRevision,isBrowserRevision,isGitObservationRevision,isInventoryBoundRevision,isSerialAggregateRevision,isMaterialSourceRevision,isOrdinaryInitialPreparationRevision,
     GIT_CURRENT_STOCK_COMPARISON,gitRevisionInventory,gitRevisionStockComparison,
     mode:"full",checkoutContext:"isolated-worktree",plan:{selected_plan:"full-canonical"},
     digest,REVIEWED_REVISION_PHASES,phaseDefinitions:REVIEWED_REVISION_PHASES.map(id=>({id})),
@@ -1484,6 +1485,21 @@ try {
     if(unavailable&&mode==="admission")await assert.rejects(runDispatch(body,harness),hasCode("revision_current_settlement_unsafe"));
     else assert.equal((await runDispatch(body,harness))?.live??null,unavailable?null:live);
     assert.deepEqual(calls,["authority","live"]);
+  }
+  for (const unavailable of [false,true]) for (const [mode,body] of [["admission",admissionDispatch],["stock",stockDispatch]]) {
+    const candidate={schema:"augnes.local-canonical-source-correction.v7",kind:"reviewed_revision",settlement:{sha256:"c".repeat(64)},
+      commission:{preparation_revision:ORDINARY_INITIAL_PREPARATION},inputs:{inventory_sha256:gitRevisionInventory(stockInputs)}},calls=[];
+    const live=Object.freeze({inventory:gitRevisionInventory(stockInputs),inputInventory:stockInputs,foreign_checkout_owners:[],
+      observed_at:new Date().toISOString(),service:{synthetic_retained_live_state:true}});
+    const harness=dispatchContext(candidate,async()=>{calls.push("authority");return{};},async()=>{throw new Error("legacy_settlement_reader_must_not_override_inventory");});
+    Object.assign(harness.context,{receipt:{receipt_version:4,inputs:stockInputs,attempt:{source_correction:candidate}},
+      inputs:{snapshot:()=>stockInputs,check(){}},observeGitRevisionTarget:async(_context,_browser,_runtime,options)=>{
+        assert.deepEqual(options,{settlement:true});calls.push("inventory_and_live_owners");
+        if(unavailable)throw Object.assign(new Error(),{code:"revision_ordinary_initial_current_unsafe"});return live;
+      }});
+    if(unavailable&&mode==="admission")await assert.rejects(runDispatch(body,harness),hasCode("revision_ordinary_initial_current_unsafe"));
+    else assert.equal((await runDispatch(body,harness))?.live??null,unavailable?null:live);
+    assert.deepEqual(calls,["authority","inventory_and_live_owners"]);
   }
   for (const change of [v=>v.worktree_dirty=true,v=>v.head_sha="b".repeat(40),v=>v.branch="other"]) {
     const current={worktree_dirty:false,head_sha:"a".repeat(40),branch:"fixture"};
