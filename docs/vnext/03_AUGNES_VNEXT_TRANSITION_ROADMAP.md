@@ -181,18 +181,58 @@ selection from authenticated preparation, Browser sessions, repository-bound
 Companion writers and supported run observation/control, including project-scoped
 semantic-preview transport. Source integration is separate from installed adoption.
 
-The next infrastructure slice extends the existing Local Canonical executor to
-explicitly admitted, separately owned verification worktrees on the authorized
-Mac. Its Draft PR owns the actual overlap, cancellation, capacity, preservation
-and receipt evidence. The introducing PR still requires its own exact-head
-qualification through the established canonical checkout; proposed-path evidence
-does not waive that gate. The active [verification policy](../../.github/LOCAL_CANONICAL_VERIFICATION.md)
-owns admission and lifecycle requirements.
+The infrastructure slice merged in [#1434](https://github.com/hynk-studio/augnes/pull/1434).
+It extends the existing Local Canonical executor to explicitly admitted, separately
+owned verification worktrees on the authorized host, with bounded overlap,
+cancellation, capacity, preservation and receipt evidence. This establishes the
+reviewed isolated-worktree path, not general multi-Companion operation or two
+simultaneously completed Full Canonical runs. Source integration, installed adoption
+and each candidate's qualification remain distinct. The active
+[verification policy](../../.github/LOCAL_CANONICAL_VERIFICATION.md) owns admission
+and lifecycle requirements.
 
 The Full Canonical queue is not declared solved. Further environment qualification
 and proportionate verification selection remain open under #1430, with current
 planner coverage and fixed timing gates preserved. The separate #1429 research
 implementation and its qualification are not included.
+
+### Later: explicit Companion targets and independent lifecycle scopes
+
+Extend the merged project/client separation in #1432 and isolated verification
+environments in #1434 rather than replacing them. The following is a dependency
+order for bounded future increments, not a fixed four-PR program: existing valid
+implementation and evidence may satisfy a dependency, and compatible increments
+may be combined where their boundaries remain demonstrable.
+
+1. **Make the execution target explicit.** Distinguish the selected project,
+   Companion service target and verification environment. Preserve a compatible
+   unambiguous singleton default; in multi-instance operation, an unavailable
+   selected target must not silently fall back to a healthy different target.
+   [02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#parallel-companion-target-boundaries)
+   owns the target, discovery and compatibility boundaries.
+2. **Scope ownership to actual resource conflicts.** Identify the resources
+   affected by lifecycle changes and execution. Coordinate genuinely shared
+   mutation while preserving independently permitted work on non-conflicting
+   resources; an instance label alone proves neither isolation nor a
+   project-wide veto.
+3. **Enable compatible multiple instances.** Use the established target and
+   ownership boundaries for a bounded multi-instance increment, with affected
+   compatibility, lifecycle and recovery behavior demonstrated. Single-instance
+   operation remains valid. Multiple services do not by themselves establish
+   independent same-project managed deliveries or expand current-work semantics.
+4. **Refine verification dependency scope on evidence.** Where demonstrated
+   recurring or cumulative cost, a material integrity defect or an unreliable
+   required check justifies change, map each check to its actual target and shared
+   dependencies. Narrow affected holds or preservation dependencies only with
+   evidence supporting that boundary; retain established requirements elsewhere.
+
+[04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#parallel-companion-qualification)
+owns affected qualification evidence; concrete protocol changes belong to 02 and
+their enforcing implementation owners, and verification changes belong to the
+verification policy. This direction neither grants service mutation, execution or
+retry authority nor adds completion conditions to unrelated current PRs. It leaves
+#1430's remaining scope, R1–R8, L1/L2/G1, P2–P5 and current work assignments unchanged;
+only a selected increment's affected behavior needs the corresponding evidence.
 
 ### Proposed qualification after a protected Git-input interruption
 

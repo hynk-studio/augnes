@@ -1065,6 +1065,56 @@ Report measured resource use, timing failures and unsupported capacity instead
 of weakening gates. A bounded successful overlap is not a general throughput
 claim; proportionate verification selection remains separately evaluated work.
 
+## Parallel Companion qualification
+
+When a change implements or claims parallel Companion handling, evaluate the
+[target boundaries](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#parallel-companion-target-boundaries)
+under their [support status and sequence](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#later-explicit-companion-targets-and-independent-lifecycle-scopes).
+Reuse [independent project-client acceptance](#independent-project-client-acceptance),
+[isolated verification acceptance](#isolated-verification-acceptance), and
+[same-project contribution qualification](#same-project-independent-contribution-qualification).
+Add only missing checks for the affected target, lifecycle or shared-state path;
+these are not a universal matrix for every pull request.
+
+- Verify the intended enrolled service and canonical workspace separately from
+  runtime generation and the work's project/repository binding. Exercise A
+  unavailable while B remains healthy: the operation must not silently move to
+  B. Pending previews, saves and late results retain their original target and
+  basis across selection changes or restart, using existing currentness and
+  uncertain-effect checks rather than automatic redispatch.
+- Distinguish retained history, present ownership evidence, service health,
+  preservation proof and task-owned cleanup. Historical records remain
+  attributable without granting control over a replacement or unrelated
+  process. Recovery observations do not erase earlier failures or renew
+  execution authority; an unknown owner or effect remains explicitly unknown.
+- Verify isolation against actual mutable-resource identity, not distinct names
+  or directories alone. Exercise relevant physical aliases and shared-capacity
+  contention through supported owners, retaining aggregate limits and scoped
+  cleanup. An added process or instance does not receive another copy of a
+  shared budget. Report unsupported resource arrangements rather than claiming
+  isolation from logical separation.
+- Where multiple actors address the same canonical project in a workspace,
+  exercise competing proposals against that project's accepted state through
+  existing conflict, recheck, decision and authorized-transition owners.
+  Separate-store or cross-project A/B success does not establish same-project
+  coordination; an extra runtime does not acquire authority over accepted state.
+- Evaluate compatible activation and rollback for affected clients, discovery,
+  lifecycle readers and services. In multi-instance mode, targetless legacy
+  discovery must not become accepted routing merely because only B is healthy;
+  establish target binding or exclude that unsupported client path. Retired
+  historical records do not themselves require permanent multi-instance mode.
+- For a parallel-execution claim, reuse the actual-work overlap and
+  cancellation/failure evidence above, not merely coexisting idle processes.
+  For a claimed workflow benefit, compare completed useful work and
+  [total burden](#cost-and-user-burden) against the relevant supported baseline,
+  including setup, waiting, diagnosis, recovery, review and user corrections.
+
+Report which mechanisms were exercised through actual supported native owners
+and which remain fixture-only or untested. Fixtures and model reviews are not
+external-user evidence or proof of actual native multi-instance operation.
+This design establishes no measured usefulness, net benefit or adoption.
+Current verification gates and authority boundaries remain unchanged.
+
 ## Method-improvement evidence
 
 For the [public connection Skill's first-use path](../CODEX_MCP_AUGNES_BRIDGE_USAGE_V0_1.md#public-setup-and-first-continuation),
