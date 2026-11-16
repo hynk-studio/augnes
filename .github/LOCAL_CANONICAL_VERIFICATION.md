@@ -1465,6 +1465,26 @@ unchanged owner, original suite remainder, planner functions and complete
 Separate acceptance reviews the actual retained diagnostic contents and their
 limitations; a declared successful sample alone supplies no authority.
 
+Historical and current execution windows remain separate. This basis validates
+the historical failure against its original hash-bound runtime, without copying
+that observation into the new current inputs. Across the two completed windows,
+only the Node device field and the header metadata-inventory digest may differ;
+all other runtime fields, including content, path and permission identities,
+must remain equal. This compatibility comparison changes neither stored full
+observations nor their digests and never applies within a new invocation.
+
+The closed `focused.prospective.current` artifact binds
+`augnes.prospective-current-baseline.v1`, its observation time, current runtime
+and inventory digests, and the exact five-field Companion state (status,
+checkout relation, installed-service identity, preservation validity and state
+binding). It must retain the historical installed-service identity. Its bytes
+are sealed with the other material and included in the preparation commitment.
+Preparation and reservation compare fresh, coherent current observations to
+this declared current baseline with the existing same-binding check. A restart
+or input change after preparation still refuses; historical preservation and
+all other revision routes keep their existing checks. A fresh accepted window
+is not evidence that the historical timeout was repaired.
+
 Use the existing non-reserving preparation, authenticated review/grant transport,
 exclusive successor reservation, append-only ledger, receipt and fresh-process
 stock owners. A genuinely new operative delegation must identify this basis and

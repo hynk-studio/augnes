@@ -47,7 +47,7 @@ import { STOCK_VERIFIER_CLAIM, STOCK_VERIFIER_GRANT, stockVerifierAuthorityScope
 import { REGISTERED_FIXTURE_VALIDITY_WINDOW, FIXTURE_VALIDITY_WINDOW_CLAIM } from "./local-canonical-fixture-validity-witness.mjs";
 import { isProspectiveRequalification, hasProspectiveRequalificationMarker, PROSPECTIVE_REQUALIFICATION, PROSPECTIVE_REQUALIFICATION_GRANT,
   delegatesProspectiveRequalification, prospectiveRequalificationAuthorityScope,
-  verifyProspectiveRequalification } from "./local-canonical-prospective-requalification.mjs";
+  verifyProspectiveRequalification, prospectiveHistoricalRuntime } from "./local-canonical-prospective-requalification.mjs";
 import {isDirectGitInputRevision, gitInputHistoryBoundary, isGitInputRevision, verifyGitInputRemedy, verifyGitInputPublication,
   GIT_CURRENT_STOCK_COMPARISON, gitRevisionInventory, gitRevisionStockComparison} from "./local-canonical-git-observation.mjs";
 
@@ -1026,7 +1026,8 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
         !revisionEqual(revisionInputs,evidence.inputs) || digest(revisionLive) !== liveBinding) throw fail("revision_authenticated_authority_required");
     if (evidence.externalSettlement) assertReviewedRevisionLiveSettlement(evidence.externalSettlement, revisionLive);
     if (usesRevisionInventory(proof) || isBrowserRevision(proof))
-      verifyBrowserRevisionPreservation(evidence.original.cleanup.companion_service.after, usesRevisionInventory(proof) ? revisionLive?.service : revisionLive, {requireSameBinding:isInventoryBoundRevision(proof) || isSerialAggregateRevision(proof)});
+      verifyBrowserRevisionPreservation(isProspectiveRequalification(proof) ? evidence.prospective.current.companion : evidence.original.cleanup.companion_service.after,
+        usesRevisionInventory(proof) ? revisionLive?.service : revisionLive, {requireSameBinding:isInventoryBoundRevision(proof) || isSerialAggregateRevision(proof)});
     if (reserve) append(priorRoot, "correction-successor.json", successor);
     if (!revisionEqual(read(path.join(priorRoot, "correction-successor.json")), successor)) throw fail("revision_successor_already_bound");
     return;
@@ -2297,7 +2298,8 @@ function prepareRevisionInspection({ file, repositoryRoot, predecessorRoot, anch
       throw fail("revision_preparation_target_changed");
   }
   assertUnchanged();
-  verifyBrowserRevisionPreservation(evidence.original.cleanup.companion_service.after, usesRevisionInventory(p) ? live?.service : live, {requireSameBinding:isInventoryBoundRevision(p) || isSerialAggregateRevision(p)});
+  verifyBrowserRevisionPreservation(isProspectiveRequalification(p) ? evidence.prospective.current.companion : evidence.original.cleanup.companion_service.after,
+    usesRevisionInventory(p) ? live?.service : live, {requireSameBinding:isInventoryBoundRevision(p) || isSerialAggregateRevision(p)});
   return { target: isSerialAggregateRevision(p) ? serialReviewTarget(p) : usesGitInventory(p) ? gitReviewTarget(p) : browserReviewTarget(p), predecessor: p.prior_receipt_fingerprint, runtime_inputs: p.inputs.identity_sha256,
     head: p.head, tree: p.tree, authorized: false, reserved: false,
     ...(isSerialAggregateRevision(p) ? {route:SERIAL_AGGREGATE_ROUTE,logical_root_family_id:candidateFamilyId(p.branch),consumed:tip.reviewed_revision_consumed ?? 0,issued_limit:1,envelope_sha256:PROJECT_EXPERIENCE_COMMITMENT,incident:evidence.serialIncident} : {}),
@@ -2381,7 +2383,9 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
     } else if (!acquisitionIncident) {
       const stockPredecessor=stockVerifierEvidence(p)?verifyStockVerifierPredecessor(p,prior,parse(p.focused),{original,stock,parse,bytes,git:originalGit,
         inventory:gitRevisionInventory,stockComparison:gitRevisionStockComparison,stockContract:GIT_CURRENT_STOCK_COMPARISON}):null;
-      const validateFailure = observedStock => verifyGitRevisionFailure(original, observedStock, inputs, REVIEWED_REVISION_PHASES,
+      // A prospective assignment authenticates the historical failure with its
+      // own sealed runtime; current inputs remain fully bound and re-observed.
+      const validateFailure = observedStock => verifyGitRevisionFailure(original, observedStock, prospectiveHistoricalRuntime(p, original, inputs), REVIEWED_REVISION_PHASES,
         isSingleInvocationRevision(p) ? prior.source_correction.commission.ordinal : boundedV7 && p.commission.ordinal === 1 ? 2 : 1,
         !!p.commission.forward_decision, isSingleInvocationRevision(p) && isSerialAggregateRevision(prior.source_correction), generatedStockEvidence(p), isSingleInvocationRevision(p),stockPredecessor);
       if (selectiveFixtureWorkloadEvidence(p)) {

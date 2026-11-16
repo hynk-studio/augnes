@@ -7,6 +7,7 @@ import path from "node:path";
 import { digest } from "./local-canonical-inputs.mjs";
 
 export const PROSPECTIVE_REQUALIFICATION = "prospective-requalification-v1";
+export const PROSPECTIVE_CURRENT_BASELINE_CONTRACT = "augnes.prospective-current-baseline.v1";
 export const PROSPECTIVE_REQUALIFICATION_OWNER = "scripts/test-operational-continuation-admission.ts";
 export const PROSPECTIVE_REQUALIFICATION_CLAIM = "Explicit prospective requalification under unchanged product workload and bounds. The settled watchdog failure remains failed and its cause UNKNOWN; no material repair, recovered cause, reliability margin or prior qualification coverage is claimed.";
 export const PROSPECTIVE_REQUALIFICATION_HISTORY_BOUNDARY = "Historical windows remain UNKNOWN; all prior commissions, issued limits, consumed invocations, receipts, false stock and incomplete coverage remain unchanged. This decision does not replenish recovery or reinterpret a prior failure as PASS.";
@@ -41,6 +42,29 @@ const one = values => { requireThat(values.length === 1); return values[0]; };
 export const isProspectiveRequalification = p => p?.schema === "augnes.local-canonical-source-correction.v7" &&
   p.kind === "reviewed_revision" && Object.hasOwn(p.inputs ?? {}, "inventory_sha256") &&
   p.commission?.source_revision === PROSPECTIVE_REQUALIFICATION && !Object.hasOwn(p.commission, "route");
+
+// Historical receipt validation consumes its own saved runtime observation.
+// Current preparation/admission still consumes p.inputs.current and binds it
+// exactly; this selector never substitutes historical inputs into that target.
+export function prospectiveHistoricalRuntime(p, original, currentInputs) {
+  if (!isProspectiveRequalification(p)) return currentInputs;
+  const historical = original?.inputs?.binding?.runtime_inputs;
+  requireThat(currentInputs && typeof currentInputs === "object" && !Array.isArray(currentInputs) &&
+    sha(p.inputs.identity_sha256) && digest(currentInputs) === p.inputs.identity_sha256 &&
+    historical && typeof historical === "object" && !Array.isArray(historical) &&
+    sha(p.inputs.predecessor_sha256) && digest(historical) === p.inputs.predecessor_sha256);
+  const comparable = runtime => {
+    const value = structuredClone(runtime);
+    if (value.node?.observation?.metadata) delete value.node.observation.metadata.device;
+    if (value.headers?.observation) delete value.headers.observation.inventory_sha256;
+    return value;
+  };
+  // These two metadata identities may differ between assignments. All paths,
+  // bytes, permissions and other metadata remain exact. The current target
+  // still retains both complete fields; their historical cause is not inferred.
+  requireThat(equal(comparable(currentInputs), comparable(historical)));
+  return historical;
+}
 
 // A recognized basis must not be laundered through a legacy schema, recovery
 // proof or lossy receipt projection. Detection is deliberately separate from
@@ -213,7 +237,7 @@ export function verifyProspectiveRequalification(p, prior, focused, { git, parse
   const r = focused.prospective;
   requireThat(isProspectiveRequalification(p) && !Object.hasOwn(focused, "regression") &&
     !Object.hasOwn(p.commission, "evidence_kind") && !Object.hasOwn(p.commission, "allowance_case") &&
-    keys(r, ["kind", "claim", "owner", "incident", "retained", "equivalence"]) &&
+    keys(r, ["kind", "claim", "owner", "incident", "retained", "equivalence", "current"]) &&
     r.kind === PROSPECTIVE_REQUALIFICATION && r.claim === PROSPECTIVE_REQUALIFICATION_CLAIM && r.owner === PROSPECTIVE_REQUALIFICATION_OWNER &&
     focused.failed_phase === "unit" && equal(focused.input_remedy_resources, []) &&
     completion.disposition === "product_failure" && completion.cleanup_complete === true && completion.infrastructure_code === null &&
@@ -230,5 +254,18 @@ export function verifyProspectiveRequalification(p, prior, focused, { git, parse
   }
   const equivalence = prospectiveRequalificationSourceEquivalence(git, prior.head, p.head);
   requireThat(equal(parse(r.equivalence), equivalence));
-  return equivalence;
+  const current = parse(r.current), state = current?.companion;
+  const observed = Date.parse(current?.observed_at), completed = Date.parse(completion.finished_at), finished = Date.parse(focused.finished_at);
+  requireThat(keys(current, ["contract", "observed_at", "runtime_inputs_sha256", "inventory_sha256", "companion"]) &&
+    current.contract === PROSPECTIVE_CURRENT_BASELINE_CONTRACT && typeof current.observed_at === "string" &&
+    Number.isFinite(observed) && Number.isFinite(completed) && Number.isFinite(finished) && observed > completed && observed <= finished &&
+    sha(current.runtime_inputs_sha256) && current.runtime_inputs_sha256 === p.inputs.identity_sha256 &&
+    sha(current.inventory_sha256) && current.inventory_sha256 === p.inputs.inventory_sha256 &&
+    keys(state, ["status", "checkout_relation", "service_identity", "preservation_valid", "preservation_binding"]) &&
+    ["live", "installed_stopped"].includes(state.status) && state.checkout_relation === "exact" && state.preservation_valid === true &&
+    /^sha256:[a-f0-9]{64}$/u.test(state.service_identity ?? "") && sha(state.preservation_binding) &&
+    state.service_identity === original.cleanup?.companion_service?.after?.service_identity);
+  // A saved bounded state is a baseline, not a reusable live observation. The
+  // caller retains the existing fresh/coherent service read and exact binding.
+  return { equivalence, current };
 }

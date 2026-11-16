@@ -8,10 +8,11 @@ import {
   PROSPECTIVE_REQUALIFICATION as KIND, PROSPECTIVE_REQUALIFICATION_OWNER as OWNER,
   PROSPECTIVE_REQUALIFICATION_CLAIM as CLAIM, PROSPECTIVE_REQUALIFICATION_HISTORY_BOUNDARY as HISTORY,
   PROSPECTIVE_REQUALIFICATION_DIAGNOSTIC_SCOPE as DIAGNOSTIC_SCOPE,
+  PROSPECTIVE_CURRENT_BASELINE_CONTRACT,
   PROSPECTIVE_REQUALIFICATION_GRANT as GRANT, PROSPECTIVE_REQUALIFICATION_LIMIT as LIMIT,
   isProspectiveRequalification, prospectiveRequalificationDelegation, delegatesProspectiveRequalification,
   prospectiveRequalificationAuthorityBindings, prospectiveRequalificationAuthorityScope,
-  prospectiveRequalificationSourceEquivalence, verifyProspectiveRequalification,
+  prospectiveRequalificationSourceEquivalence, verifyProspectiveRequalification, prospectiveHistoricalRuntime,
 } from "./local-canonical-prospective-requalification.mjs";
 import { createCanonicalTestResourceRoot, beginCanonicalTestResourceUse, settleCanonicalTestResourceUse,
   cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
@@ -46,11 +47,20 @@ const bytes = (r, maximum = 2 * 1024 * 1024) => {
   assert(data.length <= maximum && digest(data) === r.sha256, "synthetic artifact hash is binding"); return data;
 };
 const parse = r => JSON.parse(bytes(r));
+const historicalRuntime = { contract: "synthetic-runtime", node: { location_fingerprint: digest("node path"),
+  observation: { sha256: digest("node bytes"), permission_identity: digest("node permissions"),
+    metadata: { device: "16777230", inode: "1", mtime_ns: "2", ctime_ns: "3", bytes: "4" } } },
+  headers: { location_fingerprint: digest("headers path"), observation: { inventory_sha256: digest("old headers inventory"),
+    content_sha256: digest("headers bytes"), permission_sha256: digest("headers permissions"), bytes: 10, entries: 2 } } };
+const currentRuntime = clone(historicalRuntime);
+currentRuntime.node.observation.metadata.device = "16777232";
+currentRuntime.headers.observation.inventory_sha256 = digest("current headers inventory");
 const p = { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", branch: "codex/synthetic-prospective",
   base, head: target, tree: "4".repeat(40), pull_request: 7,
   prior_family_id: digest("original family"), prior_number: 1, prior_attempt_id: "2026-07-24T00-00-00-000Z-full-111111111111-synthetic",
   prior_receipt_fingerprint: digest("original failed receipt"),
-  inputs: { inventory_sha256: digest("current inventory"), identity_sha256: digest("current runtime") },
+  inputs: { inventory_sha256: digest("current inventory"), identity_sha256: digest(currentRuntime),
+    predecessor_sha256: digest(historicalRuntime), current: ref(currentRuntime) },
   commission: { source_revision: KIND, root_receipt_fingerprint: digest("original failed receipt"), ordinal: 1, maximum_invocations: 1, delegation: { id: 11 } },
   accepted: { head: target, tree: "4".repeat(40), base, review: { id: 12 } } };
 const prior = { head: before, attempt_id: p.prior_attempt_id };
@@ -62,24 +72,69 @@ const failedLog = `[canonical:unit] child_start label=${JSON.stringify(label)} t
 const logPath = `.augnes-local-verification/logs/${p.prior_attempt_id}/unit.log`;
 mkdirSync(path.dirname(path.join(resource.root, logPath)), { recursive: true, mode: 0o700 });
 writeFileSync(path.join(resource.root, logPath), failedLog, { mode: 0o600 });
-const original = { final: { reason_codes: ["phase_failed", "selected_phases_incomplete"] }, phases: [{ id: "unit", status: "failure", command: "npm test", exit_status: 1, timed_out: false,
+const historicalState = { status: "live", checkout_relation: "exact", service_identity: "sha256:" + digest("installed service"),
+  preservation_valid: true, preservation_binding: digest("historical service observation") };
+const currentBaseline = { contract: PROSPECTIVE_CURRENT_BASELINE_CONTRACT, observed_at: "2026-07-24T00:00:02.000Z",
+  runtime_inputs_sha256: p.inputs.identity_sha256, inventory_sha256: p.inputs.inventory_sha256,
+  companion: { ...historicalState, preservation_binding: digest("current service observation") } };
+const original = { inputs: { binding: { runtime_inputs: historicalRuntime } }, cleanup: { companion_service: { after: historicalState } },
+  final: { reason_codes: ["phase_failed", "selected_phases_incomplete"] }, phases: [{ id: "unit", status: "failure", command: "npm test", exit_status: 1, timed_out: false,
   cleanup: { completed: true, exit_observed: true, streams_closed: true, remaining_owned_processes: 0, termination_reason: "natural_exit" },
   log: { relative_path: logPath, bytes: Buffer.byteLength(failedLog), truncated: false } }] };
-const completion = { disposition: "product_failure", cleanup_complete: true, infrastructure_code: null };
+const completion = { disposition: "product_failure", cleanup_complete: true, infrastructure_code: null, finished_at: "2026-07-24T00:00:01.000Z" };
 const context = { git, parse, bytes, original, completion, repositoryRoot: resource.root };
-const focused = { failed_phase: "unit", input_remedy_resources: [],
+const focused = { failed_phase: "unit", input_remedy_resources: [], finished_at: "2026-07-24T00:00:03.000Z",
   commands: [{ command: "node --import tsx scripts/test-local-canonical-prospective-requalification.mjs", tested_source_head: target }],
   prospective: { kind: KIND, claim: CLAIM, owner: OWNER,
     incident: { receipt: p.prior_receipt_fingerprint, log: ref(failedLog),
       log_identity: { relative_path: logPath, bytes: Buffer.byteLength(failedLog), sha256: digest(failedLog) }, cause: "UNKNOWN" },
     retained: { scope: DIAGNOSTIC_SCOPE, artifacts: ["runner", "observer", "result", "stdout"].map(role => ({ role, original: ref("Synthetic retained " + role + " bytes; never executed or claimed as qualification.\n") })) },
-    equivalence: null } };
+    equivalence: null, current: ref(currentBaseline) } };
 const refuses = work => { assert.throws(work); refusals++; };
 try {
   const derived = prospectiveRequalificationSourceEquivalence(git, before, target);
   focused.prospective.equivalence = ref(derived);
   assert.equal(derived.registration.bound_ms, 60000); assert.equal(derived.planner.phases.length, 16);
-  assert.deepEqual(verifyProspectiveRequalification(p, prior, focused, context), derived);
+  assert.deepEqual(verifyProspectiveRequalification(p, prior, focused, context), { equivalence: derived, current: currentBaseline });
+  const retainedRuntimeIdentity = digest({ currentRuntime, historicalRuntime, original, p });
+  assert.strictEqual(prospectiveHistoricalRuntime(p, original, currentRuntime), historicalRuntime);
+  assert.deepEqual(parse(p.inputs.current), currentRuntime);
+  assert.equal(digest({ currentRuntime, historicalRuntime, original, p }), retainedRuntimeIdentity);
+  const ordinary = clone(p); ordinary.commission.source_revision = "material-source-correction-v1";
+  assert.strictEqual(prospectiveHistoricalRuntime(ordinary, null, currentRuntime), currentRuntime);
+  const identical = clone(p); identical.inputs.identity_sha256 = digest(historicalRuntime);
+  assert.strictEqual(prospectiveHistoricalRuntime(identical, original, historicalRuntime), historicalRuntime);
+  for (const [proof, receipt, inputs] of [[p, original, historicalRuntime], [p, {}, currentRuntime],
+    [{ ...p, inputs: { ...p.inputs, predecessor_sha256: digest("different predecessor") } }, original, currentRuntime],
+    [p, { inputs: { binding: { runtime_inputs: {} } } }, currentRuntime]])
+    refuses(() => prospectiveHistoricalRuntime(proof, receipt, inputs));
+  for (const mutate of [r => r.contract += "-changed", r => r.node.location_fingerprint = digest("other node path"),
+    r => r.node.observation.sha256 = digest("other node bytes"), r => r.node.observation.permission_identity = digest("other permissions"),
+    r => r.node.observation.metadata.inode = "99", r => r.node.observation.metadata.mtime_ns = "99", r => r.node.observation.metadata.ctime_ns = "99",
+    r => r.node.observation.metadata.bytes = "99", r => r.headers.location_fingerprint = digest("other headers path"),
+    r => r.headers.observation.content_sha256 = digest("other headers bytes"), r => r.headers.observation.permission_sha256 = digest("other header permissions"),
+    r => r.headers.observation.entries++, r => r.headers.observation.bytes++]) {
+    const changedRuntime = clone(currentRuntime); mutate(changedRuntime);
+    const q = clone(p); q.inputs.identity_sha256 = digest(changedRuntime);
+    refuses(() => prospectiveHistoricalRuntime(q, original, changedRuntime));
+  }
+  for (const status of ["live", "installed_stopped"]) {
+    const current = clone(currentBaseline); current.companion.status = status;
+    const f = clone(focused); f.prospective.current = ref(current);
+    assert.deepEqual(verifyProspectiveRequalification(p, prior, f, context).current, current);
+  }
+  for (const mutate of [c => c.contract = "unknown", c => delete c.observed_at, c => c.observed_at = 0,
+    c => c.observed_at = "unobserved", c => c.observed_at = completion.finished_at,
+    c => c.observed_at = "2026-07-24T00:00:00.000Z", c => c.observed_at = "2026-07-24T00:00:04.000Z",
+    c => c.runtime_inputs_sha256 = p.inputs.predecessor_sha256, c => c.inventory_sha256 = digest("wrong current inventory"),
+    c => c.companion.status = "recovery_required", c => c.companion.checkout_relation = "foreign",
+    c => c.companion.preservation_valid = false, c => c.companion.service_identity = "malformed",
+    c => c.companion.service_identity = "sha256:" + digest("foreign service"), c => c.companion.preservation_binding = "malformed",
+    c => delete c.companion.preservation_binding, c => c.companion.extra = "undeclared", c => c.extra = "undeclared"]) {
+    const current = clone(currentBaseline); mutate(current);
+    const f = clone(focused); f.prospective.current = ref(current);
+    refuses(() => verifyProspectiveRequalification(p, prior, f, context));
+  }
   assert.equal(isProspectiveRequalification(p), true);
   for (const mutate of [v => v.schema = "augnes.local-canonical-source-correction.v5", v => v.commission.source_revision = "material-source-correction-v1",
     v => v.commission.source_revision = "unknown", v => delete v.commission.source_revision, v => delete v.inputs.inventory_sha256,
@@ -87,6 +142,7 @@ try {
     const q = clone(p); mutate(q); assert.equal(isProspectiveRequalification(q), false); refusals++;
   }
   for (const mutate of [f => f.regression = { kind: "natural-red-green" }, f => delete f.prospective,
+    f => delete f.prospective.current, f => f.prospective.current.sha256 = digest("changed current artifact"),
     f => f.prospective.claim = "historical timeout repaired", f => f.prospective.owner = "scripts/other.ts",
     f => f.prospective.kind = "material-source-correction-v1", f => f.prospective.incident.cause = "proven scheduling delay",
     f => f.prospective.incident.receipt = digest("older receipt"), f => f.failed_phase = "integration",

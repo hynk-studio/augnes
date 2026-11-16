@@ -7,16 +7,17 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { digest } from "../local-canonical-inputs.mjs";
 import { prepareProspectiveRequalification, reconstructAttemptTip, reviewedRevisionAuthorityObservation,
-  validReviewedRevisionAttempt, supportsSourceCorrection, readSourceCorrectionProof,
+  REVIEWED_REVISION_PHASES, validReviewedRevisionAttempt, supportsSourceCorrection, readSourceCorrectionProof,
   validRecoveryProof, readRecoveryProof } from "../local-canonical-attempts.mjs";
-import { gitRevisionInventory, GIT_CURRENT_STOCK_COMPARISON } from "../local-canonical-git-observation.mjs";
+import { gitRevisionInventory, GIT_CURRENT_STOCK_COMPARISON, verifyGitRevisionFailure } from "../local-canonical-git-observation.mjs";
 import { createPrivateReviewExport, inspectPrivateReviewExport } from "../local-canonical-review-export.mjs";
 import { canonicalSerialize, finalizeReceipt, inspectReceiptForDecision } from "../local-canonical-receipt.mjs";
 import { dependencyRecords, executeFixture } from "./local-canonical-browser-successor.mjs";
 import { PROSPECTIVE_REQUALIFICATION, PROSPECTIVE_REQUALIFICATION_CLAIM,
   PROSPECTIVE_REQUALIFICATION_HISTORY_BOUNDARY, PROSPECTIVE_REQUALIFICATION_GRANT,
   PROSPECTIVE_REQUALIFICATION_LIMIT, PROSPECTIVE_REQUALIFICATION_OWNER,
-  PROSPECTIVE_REQUALIFICATION_DIAGNOSTIC_SCOPE, prospectiveRequalificationSourceEquivalence,
+  PROSPECTIVE_REQUALIFICATION_DIAGNOSTIC_SCOPE, PROSPECTIVE_CURRENT_BASELINE_CONTRACT,
+  prospectiveHistoricalRuntime, prospectiveRequalificationSourceEquivalence,
   prospectiveRequalificationDelegation, prospectiveRequalificationAuthorityBindings } from "../local-canonical-prospective-requalification.mjs";
 
 const clone = structuredClone;
@@ -96,11 +97,27 @@ export async function runProspectiveRequalificationControls(c, h) {
   c.git(["add", reader]);
   c.git(["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "--quiet", "-m", "synthetic prospective support"]);
   c.acceptedHead = git("rev-parse", "HEAD"); c.acceptedTree = git("rev-parse", "HEAD^{tree}"); c.grantId = 82;
+  // A new assignment observes current metadata and the same installed service
+  // with a new preservation binding. Replace snapshots instead of mutating the
+  // prior receipt's shared fixture objects or any retained original bytes.
+  c.inputs = clone(c.inputs);
+  c.inputs.node.observation.metadata.device = "32";
+  c.inputs.headers.observation.inventory_sha256 = digest("prospective current header inventory");
+  c.gitDeclaration = clone(c.gitDeclaration);
+  for (const [id, member] of [["node-executable", "node"], ["node-headers", "headers"]])
+    c.gitDeclaration.resources.find(resource => resource.id === id).before = clone(c.inputs[member].observation);
+  c.live = clone(c.live);
+  c.live.inventory = gitRevisionInventory(c.gitDeclaration);
+  c.live.service.state.preservation_binding = digest("prospective current service binding");
+  Object.assign(c.live.service.diagnostics, { before_binding: c.live.service.state.preservation_binding,
+    after_binding: c.live.service.state.preservation_binding, finished_at: now() });
+  assert.notEqual(digest(c.inputs), digest(failed.receipt.inputs.binding.runtime_inputs));
+  assert.notEqual(c.live.service.state.preservation_binding, failed.receipt.cleanup.companion_service.after.preservation_binding);
   h.prepare(c);
   const p = c.proof;
   Object.assign(p.commission, { source_revision: PROSPECTIVE_REQUALIFICATION, maximum_invocations: 1,
     input_acquisition: old.commission.input_acquisition });
-  p.inputs.inventory_sha256 = old.inputs.inventory_sha256;
+  p.inputs.inventory_sha256 = c.live.inventory;
   p.originals.stock = ref("prior-stock.log", JSON.stringify(failed.stock));
   const command = "node --import tsx " + reader;
   const stdout = ref("synthetic-focused.log", "synthetic prospective support PASS; not host qualification\n");
@@ -108,6 +125,8 @@ export async function runProspectiveRequalificationControls(c, h) {
   const equivalence = prospectiveRequalificationSourceEquivalence(c.git, predecessorHead, p.head);
   const sourceBytes = c.git(["show", p.head + ":" + reader]);
   const relative = `.augnes-local-verification/logs/${c.prior.run.id}/unit.log`;
+  const current = { contract: PROSPECTIVE_CURRENT_BASELINE_CONTRACT, observed_at: now(),
+    runtime_inputs_sha256: p.inputs.identity_sha256, inventory_sha256: p.inputs.inventory_sha256, companion: clone(c.live.service.state) };
   const focused = { schema: "augnes.local-canonical-reviewed-revision-focused.v1", basis: "implementation_owner_not_independent_review",
     predecessor_receipt_fingerprint: p.prior_receipt_fingerprint, runtime_inputs_sha256: p.inputs.identity_sha256,
     finished_at: now(), remedy: "Explicit future qualification of unchanged product behavior, not a repair of the historical timeout.",
@@ -122,7 +141,11 @@ export async function runProspectiveRequalificationControls(c, h) {
       retained: { scope: PROSPECTIVE_REQUALIFICATION_DIAGNOSTIC_SCOPE,
         artifacts: ["runner", "observer", "result", "stdout"].map(role => ({ role,
           original: ref("synthetic-diagnostic-" + role + ".log", "synthetic diagnostic " + role + "; no historical causality or coverage\n") })) },
-      equivalence: ref("equivalence.json", equivalence) } };
+      equivalence: ref("equivalence.json", equivalence), current: ref("current-baseline.json", current) } };
+  const verifyHistorical = inputs => verifyGitRevisionFailure(failed.receipt, failed.stock, inputs, REVIEWED_REVISION_PHASES,
+    old.commission.ordinal, false, false, false, true);
+  assert.throws(() => verifyHistorical(c.inputs), { code: "revision_browser_failure_invalid" }); refusals++;
+  assert.doesNotThrow(() => verifyHistorical(prospectiveHistoricalRuntime(p, failed.receipt, c.inputs)));
   p.focused = ref("focused.json", focused);
   p.source = ref("source.json", { ...read(p.source), reviewed_at: now() });
   const authority = clone(c.authority), delegation = { ...authority.grant, id: 80, created_at: now(), body: prospectiveRequalificationDelegation(p) };
@@ -146,6 +169,8 @@ export async function runProspectiveRequalificationControls(c, h) {
   const prepared = await prepare();
   assert.equal(prepared.authorized, false); assert.equal(prepared.reserved, false);
   assert.equal(prepared.consumed, 1); noReservation();
+  assert.equal(prepared.runtime_inputs, digest(c.inputs));
+  assert.deepEqual(read(p.inputs.current), c.inputs);
   await delay(2);
   const exact = prospectiveRequalificationAuthorityBindings(p, prepared.target);
   const review = { ...authority.review, id: 81, commit_id: p.head, submitted_at: now(), body: [
@@ -226,7 +251,33 @@ export async function runProspectiveRequalificationControls(c, h) {
     q => q.branch += "-renamed", q => q.prior_attempt_id = "older-tip", q => q.inputs.inventory_sha256 = digest("other-input")]) {
     const altered = clone(p); mutate(altered); await assert.rejects(() => prepare(altered)); refusals++; noReservation();
   }
+  for (const mutate of [v => v.runtime_inputs_sha256 = p.inputs.predecessor_sha256,
+    v => v.inventory_sha256 = digest("stale current baseline inventory"), v => v.observed_at = read(p.originals.completion).finished_at,
+    v => v.companion.service_identity = "sha256:" + digest("foreign installed service"),
+    v => v.companion.preservation_binding = "invalid", v => v.companion.preservation_binding = digest("stale current binding"),
+    v => v.companion.checkout_relation = "foreign",
+    v => v.companion.preservation_valid = false, v => v.extra = "undeclared baseline field"]) {
+    const baseline = clone(current); mutate(baseline);
+    const altered = clone(p), f = clone(focused);
+    f.prospective.current = ref("refused-current-baseline.json", baseline);
+    altered.focused = ref("refused-current-focused.json", f);
+    await assert.rejects(() => prepare(altered)); refusals++; noReservation();
+  }
+  {
+    const altered = clone(p), f = clone(focused); delete f.prospective.current;
+    altered.focused = ref("missing-current-focused.json", f);
+    await assert.rejects(() => prepare(altered)); refusals++; noReservation();
+  }
   await assert.rejects(() => prepare(p, { ...c.live, inventory: digest("changed inventory") })); refusals++; noReservation();
+  for (const mutate of [v => v.state.preservation_binding = digest("changed after preparation"),
+    v => v.state.service_identity = "sha256:" + digest("changed service after preparation"),
+    v => v.state.status = v.state.status === "live" ? "installed_stopped" : "live",
+    v => v.diagnostics.coherent = false]) {
+    const live = clone(c.live); mutate(live.service);
+    live.service.diagnostics.before_binding = live.service.state.preservation_binding;
+    live.service.diagnostics.after_binding = live.service.state.preservation_binding;
+    await assert.rejects(() => prepare(p, live), { code: "revision_current_preservation_unsafe" }); refusals++; noReservation();
+  }
   await assert.rejects(() => prepare(p, c.live, { ...transport(), permission: async login => ({ permission: "read", user: { login } }) })); refusals++; noReservation();
   const oldDelegation = delegation.body;
   delegation.body = "Analyze the future option only; no implementation or execution authority.";
@@ -244,12 +295,15 @@ export async function runProspectiveRequalificationControls(c, h) {
     noReservation();
   }
   bindPreparation(p);
-  const oldRuntime = clone(c.inputs);
-  try {
-    await assert.rejects(() => prepareProspectiveRequalification(preparationArgs(async () => {
-      c.inputs.node.observation.sha256 = digest("late runtime replacement"); return clone(c.live);
-    }), { transport: transport() })); refusals++;
-  } finally { c.inputs = oldRuntime; }
+  for (const mutate of [v => v.node.observation.sha256 = digest("late runtime replacement"),
+    v => v.node.observation.metadata.device = "64", v => v.headers.observation.inventory_sha256 = digest("late header inventory")]) {
+    const oldRuntime = clone(c.inputs);
+    try {
+      await assert.rejects(() => prepareProspectiveRequalification(preparationArgs(async () => {
+        mutate(c.inputs); return clone(c.live);
+      }), { transport: transport() })); refusals++;
+    } finally { c.inputs = oldRuntime; }
+  }
   noReservation();
 
   // A fresh grant must follow review and cannot reuse the predecessor's grant,
@@ -267,6 +321,18 @@ export async function runProspectiveRequalificationControls(c, h) {
     })); refusals++; noReservation();
   }
   assert.throws(() => h.begin(c, parsed, { observations: {} })); refusals++; noReservation();
+  for (const mutate of [v => v.state.preservation_binding = digest("changed reservation binding"),
+    v => v.state.service_identity = "sha256:" + digest("changed reservation service"),
+    v => v.state.status = v.state.status === "live" ? "installed_stopped" : "live"]) {
+    const live = clone(c.live); mutate(live.service);
+    live.service.diagnostics.before_binding = live.service.state.preservation_binding;
+    live.service.diagnostics.after_binding = live.service.state.preservation_binding;
+    assert.throws(() => h.begin(c, parsed, capability, { revisionLive: live }), { code: "revision_current_preservation_unsafe" });
+    refusals++; noReservation();
+  }
+  const changedRuntime = clone(c.inputs); changedRuntime.node.observation.metadata.device = "64";
+  assert.throws(() => h.begin(c, parsed, capability, { revisionInputs: changedRuntime }), { code: "revision_authenticated_authority_required" });
+  refusals++; noReservation();
   await assert.rejects(() => h.begin(c, parsed, capability, { assertCurrent() {}, observeRevision: async () => {
     const file = path.join(c.artifacts, p.focused.artifact), bytes = readFileSync(file);
     h.write(file, Buffer.concat([bytes, Buffer.from("\n")])); return { authorization: capability, live: c.live };
