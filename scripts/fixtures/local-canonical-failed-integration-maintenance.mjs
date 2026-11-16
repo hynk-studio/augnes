@@ -48,6 +48,15 @@ const replaceOnce=(source,before,after)=>{
 };
 export function seedFailedIntegrationFixtureSources(c) {
   const sources=new Map(fixturePartitionPaths.map(name=>[name,fs.readFileSync(path.join(repository,name),"utf8")]));
+  // Later no-remedy registrations are absent from both historical source maps.
+  // Normalize the disposable copies before reversing the integration pair.
+  const noRemedy='"material-no-remedy-source", "material-no-remedy-controls", "material-no-remedy-successor", ';
+  for(const file of fixturePartitionPaths.slice(1)){
+    const compact=file.includes("fixtures/"),added=compact?noRemedy.replaceAll(", ",","):noRemedy;
+    const source=sources.get(file);
+    assert.equal(source.split(added).length,compact?3:2,"historical no-remedy registration occurrences");
+    sources.set(file,source.replaceAll(added,""));
+  }
   // These pre-existing incidents and their reader remedy retain 90 seconds.
   // Current 120-second source is not historical execution evidence.
   for(const file of ["scripts/run-canonical-test-suite.mjs","scripts/test-local-canonical-verification-contract.mjs"]){
