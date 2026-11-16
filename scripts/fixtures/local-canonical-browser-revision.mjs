@@ -23,10 +23,14 @@ export function browserFixtureReceipt(c, a) {
   const event={resource:prior.id,classification:"execution",disposition:"safety_violation",after,observed_at:time(-84000),monotonic_ns:"12"};
   event.identity=inputEventIdentity(event);
   const fault={resource:prior.id,disposition:event.disposition,observed_at:event.observed_at,monotonic_ns:event.monotonic_ns};
-  const state={status:"live",checkout_relation:"exact",service_identity:"sha256:"+digest("fixture service"),preservation_valid:true,preservation_binding:digest("binding")};
+  const state={status:"live",checkout_relation:"exact",service_identity:"sha256:"+(c.recoveryConfiguration?.service_identity??digest("fixture service")),preservation_valid:true,preservation_binding:digest("binding")};
   const observed={contract:"augnes.companion-preservation-observation.v2",samples:1,coherent:true,live_identity_valid:true,
     before_binding:state.preservation_binding,after_binding:state.preservation_binding,repository_observation_before:"observed",repository_observation_after:"observed",
     repository_binding_before:digest("repo"),repository_binding_after:digest("repo"),finished_at:time(-80000)};
+  if(c.recoveryManager){const m=c.recoveryManager;observed.manager_before=observed.manager_after={status:m.status,reason:m.reason,
+    updated_at:m.updated_at,manager_pid:m.manager_pid,manager_process_identity:m.manager_process_identity,
+    supervisor_pid:m.supervisor_pid,supervisor_process_identity:m.supervisor_process_identity,restart_count:m.restart_count,
+    generation_id:m.runtime_ownership.generation_id,instance_id:m.runtime_ownership.instance_id};}
   const owned={released:true,acquired:true,required:true,failure_code:null};
   const settled={completed:true,remaining_owned_processes:0,exit_observed:true,streams_closed:true,listener_residue_count:null};
   return finalizeReceipt({receipt_version:4,repository:{branch:c.branch,head_sha:a.head,base_sha:c.base,tree_sha:a.tree,worktree_before:"clean",worktree_after:"clean"},

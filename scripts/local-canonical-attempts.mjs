@@ -11,6 +11,7 @@ import { SERIAL_AGGREGATE_ROUTE, isSerialAggregateRevision, serialReviewTarget, 
 import { PROJECT_EXPERIENCE_COMMITMENT } from "./project-experience-serial-budget.mjs";
 import { mkdirSync, lstatSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
 import { AsyncLocalStorage } from "node:async_hooks";
+import { resolveCompanionServiceLayout } from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { assertInputContractBinding, digest, validNodeHeaders, classifyInputChange, nonFaultInputChange, inputEventIdentity, comparePreparedDependencyInputs, preparedDependencyIdentity, observePreparedDependencyInputs, PREPARED_DEPENDENCY_CONTRACT } from "./local-canonical-inputs.mjs";
@@ -60,6 +61,7 @@ export const REVIEWED_REVISION_SCHEMA = "augnes.local-canonical-source-correctio
 export const REVIEWED_REVISION_PHASES = Object.freeze(["dependencies-root", "dependencies-nested", "dependencies-web-planning", "typecheck", "build", "unit", "authority", "integration", "operability", "e2e-project-experience", "e2e-operator-review-control", "e2e-operator-native-host-execution", "e2e-operator-work-expectation", "e2e-operator-multi-candidate", "e2e-continuity", "e2e-golden"]);
 export const isReviewedRevision = proof => (proof?.schema === REVIEWED_REVISION_SCHEMA && proof.kind === "reviewed_revision") || isBrowserRevision(proof) || isGitObservationRevision(proof);
 const revisionCapabilities = new WeakMap();
+const recoveryPreservationGuards = new WeakMap();
 const usesRevisionInventory = p => usesGitInventory(p) || isSerialAggregateRevision(p);
 
 // One call owns its validation and continuation. Nothing validated is exported
@@ -837,7 +839,23 @@ export function isWebPlanningClientRevision(proof) {
 // the corrected module. Proof artifacts and Git objects remain independently
 // inspectable. This is local evidence, not independent attestation.
 export function readSourceCorrectionProof(file, repositoryRoot) {
-  return readSourceCorrectionMaterial(file, repositoryRoot).proof;
+  const material=readSourceCorrectionMaterial(file,repositoryRoot), proof=material.proof;
+  if (material.evidence?.materialSettlement) {
+    const target=digest(proof), evidence=structuredClone({materialSettlement:material.evidence.materialSettlement});
+    recoveryPreservationGuards.set(proof,live=>{
+      if(digest(proof)!==target)throw fail("source_correction_identity_invalid");
+      verifyRevisionCurrentPreservation(evidence,proof,live);
+    });
+  }
+  return proof;
+}
+// A narrow cleanup check from already validated material, never an admission
+// capability. Historical lineage replay does not touch today's installed files.
+export function materialRecoveryPreservationGuard(proof) {
+  if(!isMaterialSourceRevision(proof)||!proof.settlement)return null;
+  const guard=recoveryPreservationGuards.get(proof);
+  if(!guard)throw fail("revision_material_settlement_guard_missing");
+  return guard;
 }
 
 function readSourceCorrectionMaterial(file, repositoryRoot) {
@@ -1042,7 +1060,7 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
         !revisionEqual(revisionInputs,evidence.inputs) || digest(revisionLive) !== liveBinding) throw fail("revision_authenticated_authority_required");
     if (evidence.externalSettlement) assertReviewedRevisionLiveSettlement(evidence.externalSettlement, revisionLive);
     if (usesRevisionInventory(proof) || isBrowserRevision(proof))
-      verifyBrowserRevisionPreservation(evidence.original.cleanup.companion_service.after, usesRevisionInventory(proof) ? revisionLive?.service : revisionLive, {requireSameBinding:isInventoryBoundRevision(proof) || isSerialAggregateRevision(proof)});
+      verifyRevisionCurrentPreservation(evidence, proof, revisionLive);
     if (reserve) append(priorRoot, "correction-successor.json", successor);
     if (!revisionEqual(read(path.join(priorRoot, "correction-successor.json")), successor)) throw fail("revision_successor_already_bound");
     return;
@@ -1608,7 +1626,7 @@ function revisionMaterialShape(p, preparing = false) {
       !c.forward_decision) &&
     (!isBrowserRevision(p) || c.ordinal === (successor ? 2 : 1) && p.settlement === undefined) &&
     (!isGitObservationRevision(p) || !p.settlement && p.accepted.head === p.head && p.accepted.tree === p.tree && p.accepted.base === p.base && sha(p.inputs?.inventory_sha256)) &&
-    (!isInventoryBoundRevision(p) || !p.settlement && validReviewRef(c.delegation) && (!c.forward_decision || c.ordinal === 2 && validReviewRef(c.forward_decision) && c.forward_decision.id !== c.delegation.id) && sha(p.inputs.inventory_sha256) &&
+    (!isInventoryBoundRevision(p) || (!p.settlement || isMaterialSourceRevision(p) && revisionRef(p.settlement)) && validReviewRef(c.delegation) && (!c.forward_decision || c.ordinal === 2 && validReviewRef(c.forward_decision) && c.forward_decision.id !== c.delegation.id) && sha(p.inputs.inventory_sha256) &&
       (c.ordinal !== 1 || p.accepted.head === p.head && p.accepted.tree === p.tree && p.accepted.base === p.base)) &&
     (!gitSuccessor || revisionKeys(c.initial_accepted, ["head", "tree", "base", "review"]) &&
       [c.initial_accepted.head, c.initial_accepted.tree, c.initial_accepted.base].every(revisionCommit) &&
@@ -1643,7 +1661,7 @@ function revisionShape(p) {
     (!p.authorization.settlement_review || revisionKeys(p.authorization.settlement_review, ["id", "sha256", "head"]) &&
       revisionId(p.authorization.settlement_review.id) && sha(p.authorization.settlement_review.sha256) && revisionCommit(p.authorization.settlement_review.head)) &&
     (!isGitObservationRevision(p) || !p.authorization.settlement_review) &&
-    (p.settlement === undefined || revisionRef(p.settlement) && p.authorization.settlement_review && c.ordinal === 1) &&
+    (p.settlement === undefined || revisionRef(p.settlement) && (isMaterialSourceRevision(p) || p.authorization.settlement_review) && c.ordinal === 1) &&
     revisionId(p.authorization.grant_comment_id) && sha(p.authorization.grant_sha256);
 }
 
@@ -1879,6 +1897,8 @@ export async function authorizeReviewedRevision(p, { transport = createGitHubObs
   if (isMaterialSourceRevision(p)) {
     const evidence = readReviewedRevisionEvidence(path.join(repositoryRoot,p.local_relative_path),p,repositoryRoot);
     verifyMaterialStockMismatchDelegation(p,delegation,evidence);
+    if (evidence.materialSettlement && Date.parse(observations.accepted_revision.timestamp)<=Date.parse(evidence.materialSettlement.record.recorded_at))
+      throw fail("revision_material_settlement_review_required");
     if (Date.parse(delegation.created_at) <= Date.parse(evidence.completion.finished_at) ||
         delegation.id === evidence.prior.source_correction.commission?.delegation?.id ||
         delegation.id === evidence.prior.source_correction.authorization?.grant_comment_id)
@@ -2033,6 +2053,131 @@ function readRevisionSettlement(p, original, completion, parse, bytes) {
       managed.managed_execution?.stage !== "no_run" || managed.managed_execution.attention_required !== false ||
       managed.managed_execution.reconciliation_required !== false) throw fail("revision_settlement_invalid");
   return { identity, record: s, restored };
+}
+
+// A separately authorized, already settled recovery is historical evidence,
+// never a lifecycle action or a deciding entitlement. Its raw originals and
+// provenance are committed by the ordinary exact-target material review/grant.
+const recoveryServicePaths = ["scripts/augnes-companion-service.mjs",
+  "plugins/augnes-operator/mcp/companion-service-core.mjs", "plugins/augnes-operator/mcp/checkout-identity.mjs",
+  "plugins/augnes-operator/mcp/node-runtime-policy.mjs", "plugins/augnes-operator/mcp/checkout-identity-darwin.py"];
+function recoveryManagerProjection(manager) {
+  return {status:manager.status,reason:manager.reason,updated_at:manager.updated_at,manager_pid:manager.manager_pid,
+    manager_process_identity:manager.manager_process_identity,supervisor_pid:manager.supervisor_pid,
+    supervisor_process_identity:manager.supervisor_process_identity,restart_count:manager.restart_count,
+    generation_id:manager.runtime_ownership?.generation_id??null,instance_id:manager.runtime_ownership?.instance_id??null};
+}
+function readMaterialRecoverySettlement(p, original, prior, completion, parse, bytes, git) {
+  const invalid = () => { throw fail("revision_material_settlement_invalid"); };
+  const s=parse(p.settlement), old=original.cleanup?.companion_service;
+  if (!revisionKeys(s,["prior","target","historical_state","recorded_at","recovery_source","authority","human_source",
+      "decision","operation","application","applied","restored_observation","configuration"]) ||
+      !revisionEqual(s.prior,{family_id:prior.family_id,number:prior.number,attempt_id:prior.attempt_id,
+        receipt_fingerprint:p.prior_receipt_fingerprint,head:prior.head,tree:prior.tree,
+        grant_comment_id:prior.source_correction?.authorization?.grant_comment_id}) ||
+      !revisionEqual(s.target,{base:p.base,head:p.head,tree:p.tree,runtime_inputs_sha256:p.inputs.identity_sha256,
+        inventory_sha256:p.inputs.inventory_sha256}) || !revisionEqual(s.historical_state,old?.after) ||
+      old?.restored!==true || original.cleanup.completed!==true || completion.cleanup_complete!==true ||
+      old.after.status!=="live" || old.after.checkout_relation!=="exact" || old.after.preservation_valid!==true ||
+      old.observations?.after?.coherent!==true || old.observations.after.live_identity_valid!==true ||
+      !revisionTime(s.recorded_at) || Date.parse(s.recorded_at)<=Date.parse(completion.finished_at) ||
+      !revisionKeys(s.recovery_source,["head","tree","review"]) || !revisionCommit(s.recovery_source.head) ||
+      !revisionCommit(s.recovery_source.tree)) invalid();
+  const authority=parse(s.authority), human=parse(s.human_source), decision=parse(s.decision), operation=parse(s.operation),
+    application=parse(s.application), applied=parse(s.applied), observed=parse(s.restored_observation), configuration=parse(s.configuration);
+  const review=bytes(s.recovery_source.review), e=operation.evidence, t=operation.target;
+  if (!e || !t?.manager || !t?.desired || !e.manager || !e.desired || !e.material || !e.manager_lock) invalid();
+  const identity=old.after.service_identity, service=identity?.replace(/^sha256:/u,"");
+  const source=digest(Buffer.concat(recoveryServicePaths.flatMap(name=>[Buffer.from(name+"\0"),git(["show",s.recovery_source.head+":"+name]),Buffer.from("\0")])));
+  const text=review.toString("utf8"), scope=authority.scope;
+  // The receiving reviewer checks the human-origin transcript and authority
+  // provenance. This reader binds their exact bytes, source, scope and chronology;
+  // it does not turn a local declaration into an authenticated execution grant.
+  const messages=human.turns?.flatMap(turn=>turn.human_messages??[])??[];
+  const matchingHuman=messages.filter(message=>message.type==="userMessage" && typeof message.id==="string" &&
+    message.content?.some(block=>block.type==="text" && block.text===authority.human_instruction));
+  if (git(["rev-parse",s.recovery_source.head+"^{tree}"]).toString().trim()!==s.recovery_source.tree ||
+      !text.includes("ACCEPT_SOURCE_FOR_SCOPED_RECOVERY_PREPARATION") ||
+      ![s.recovery_source.head,s.recovery_source.tree,source].every(value=>text.includes(value)) ||
+      authority.source_review_sha256!==s.recovery_source.review.sha256 || !revisionTime(authority.recorded_at) ||
+      typeof authority.human_instruction!=="string" || !authority.human_instruction.trim() ||
+      typeof scope!=="string" || !scope.includes(s.recovery_source.head) || !scope.includes(configuration.repository_root) ||
+      typeof authority.receiving_record!=="string" || !/^https:\/\/chatgpt\.com\/space\/page_[a-f0-9]{32}$/u.test(authority.receiving_record) ||
+      typeof human.threadId!=="string" || !human.threadId || matchingHuman.length!==1 ||
+      Date.parse(authority.recorded_at)>Date.parse(application.started_at) ||
+      !revisionTime(application.started_at) || !revisionTime(application.finished_at) || application.exit_code!==0 ||
+      Date.parse(application.started_at)<=Date.parse(completion.finished_at) ||
+      Date.parse(application.finished_at)<Date.parse(application.started_at) ||
+      !Array.isArray(application.command) || !application.command.includes("stale-manager-recovery-apply") ||
+      !application.command.includes(configuration.repository_root) ||
+      operation.contract!=="augnes-companion-stale-manager-recovery.v0.1" || operation.status!=="settled" ||
+      operation.service_identity!==service || !revisionTime(operation.created_at) ||
+      Date.parse(operation.created_at)<Date.parse(application.started_at) || Date.parse(operation.created_at)>Date.parse(application.finished_at) ||
+      operation.operation_binding!==digest(JSON.stringify([e,t,operation.created_at])) ||
+      operation.decision_binding!==digest(JSON.stringify(decision)) ||
+      decision.contract!==operation.contract || decision.service_identity!==service || decision.recovery_source!==source ||
+      !sha(decision.expected_binding) || decision.expected_binding!==digest(JSON.stringify(e)) ||
+      (typeof decision.expires_at!=="string" || !Number.isFinite(Date.parse(decision.expires_at))) || Date.parse(decision.expires_at)<=Date.parse(operation.created_at) ||
+      e.recovery_source!==source || e.installed_source!==configuration.service_source_fingerprint || observed.source!==e.installed_source ||
+      configuration.contract!=="augnes-companion-service.v0.1" || configuration.service_identity!==service ||
+      ![1,2].includes(configuration.schema_version) || typeof configuration.repository_root!=="string" || !path.isAbsolute(configuration.repository_root) ||
+      !sha(configuration.repository_fingerprint) || e.manager.repository_fingerprint!==configuration.repository_fingerprint ||
+      e.manager.service_identity!==service || e.manager_lock.service_identity!==service ||
+      e.manager_lock.repository_fingerprint!==configuration.repository_fingerprint ||
+      e.material.configuration_path?.sha256!==s.configuration.sha256 ||
+      e.manager.status!=="live" || e.manager.reason!=="companion_service_live" ||
+      !["manager_pid","manager_process_identity","supervisor_pid","supervisor_process_identity"].every(key=>
+        e.manager[key]===old.observations.after.manager_after?.[key]) ||
+      !["generation_id","instance_id"].every(key=>e.manager.runtime_ownership?.[key]===old.observations.after.manager_after?.[key]) ||
+      !revisionEqual(t.desired,e.desired.desired_state==="stopped"?e.desired:{...e.desired,desired_state:"stopped",updated_at:operation.created_at}) ||
+      !revisionEqual(t.manager,{...e.manager,status:"installed_stopped",reason:"companion_service_explicitly_stopped",
+        supervisor_pid:null,supervisor_process_identity:null,runtime_ownership:null,restart_after:null,updated_at:operation.created_at}) ||
+      !Array.isArray(operation.lifecycle_owners) || operation.lifecycle_owners.length!==1 ||
+      operation.lifecycle_owners[0].owner_pid<=0 || operation.lifecycle_owners[0].service_identity!==service ||
+      operation.lifecycle_owners[0].repository_fingerprint!==configuration.repository_fingerprint ||
+      applied.command!=="stale-manager-recovery-apply" || applied.result!=="settled" || applied.remaining_owned_processes!==0 ||
+      applied.operation_binding!==operation.operation_binding || applied.authority?.runtime_lifecycle_effect!==true ||
+      Object.entries(applied.authority).some(([key,value])=>key!=="runtime_lifecycle_effect" && value!==false) ||
+      !safeStoppedObservation(observed.observation,identity) ||
+      observed.observation.diagnostics.samples!==1 ||
+      observed.observation.diagnostics.repository_observation_before!=="observed" ||
+      observed.observation.diagnostics.repository_observation_after!=="observed" ||
+      !sha(observed.observation.diagnostics.repository_binding_before) ||
+      observed.observation.diagnostics.repository_binding_before!==e.repository_binding ||
+      observed.observation.diagnostics.repository_binding_after!==e.repository_binding ||
+      !revisionEqual(observed.observation.diagnostics.manager_before,recoveryManagerProjection(t.manager)) ||
+      !revisionEqual(observed.observation.diagnostics.manager_after,recoveryManagerProjection(t.manager)) ||
+      Date.parse(observed.observation.diagnostics.finished_at)<Date.parse(application.finished_at) ||
+      Date.parse(s.recorded_at)<Date.parse(observed.observation.diagnostics.finished_at)) invalid();
+  return {identity,record:s,restored:observed.observation,configuration};
+}
+function verifyRevisionCurrentPreservation(evidence, proof, live) {
+  const settlement=evidence.materialSettlement, service=usesRevisionInventory(proof)?live?.service:live;
+  if (settlement) {
+    // The unchanged installed reader predates the new operation sidecar. Seal
+    // its exact settled bytes separately at each current-consumption boundary.
+    const configuration=settlement.configuration;
+    const layout=resolveCompanionServiceLayout({repositoryRoot:configuration.repository_root});
+    if (layout.service_identity!==configuration.service_identity ||
+        layout.repository.repository_fingerprint!==configuration.repository_fingerprint ||
+        layout.configuration_path!==configuration.configuration_path ||
+        (layout.test?.scope??null)!==(configuration.test_scope??null) ||
+        (layout.test?.root??null)!==(configuration.test_root??null)) throw fail("revision_current_settlement_unsafe");
+    const file=layout.configuration_path;
+    for (const [name,expected] of [[file,settlement.record.configuration.sha256],
+      [path.join(path.dirname(file),"stale-manager-recovery.json"),settlement.record.operation.sha256]]) {
+      const before=lstatSync(name,{bigint:true});
+      if (!before.isFile() || before.isSymbolicLink() || before.nlink!==1n || (before.mode&0o022n) ||
+          before.size>512n*1024n || (typeof process.getuid==="function" && before.uid!==BigInt(process.getuid())) || realpathSync(name)!==name) throw fail("revision_current_settlement_unsafe");
+      const value=readFileSync(name), after=lstatSync(name,{bigint:true});
+      if (!revisionEqual(fileIdentity(before),fileIdentity(after)) || digest(value)!==expected)
+        throw fail("revision_current_settlement_unsafe");
+    }
+  }
+  if (settlement && (Date.parse(service?.diagnostics?.finished_at)<Date.parse(settlement.record.recorded_at) ||
+      !safeStoppedObservation(service,settlement.identity))) throw fail("revision_current_settlement_unsafe");
+  verifyBrowserRevisionPreservation(settlement?settlement.restored.state:evidence.original.cleanup.companion_service.after,
+    service,{requireSameBinding:isInventoryBoundRevision(proof)||isSerialAggregateRevision(proof)});
 }
 
 export function assertReviewedRevisionLiveSettlement(settlement, live) {
@@ -2323,7 +2468,7 @@ function prepareRevisionInspection({ file, repositoryRoot, predecessorRoot, anch
       throw fail("revision_preparation_target_changed");
   }
   assertUnchanged();
-  verifyBrowserRevisionPreservation(evidence.original.cleanup.companion_service.after, usesRevisionInventory(p) ? live?.service : live, {requireSameBinding:isInventoryBoundRevision(p) || isSerialAggregateRevision(p)});
+  verifyRevisionCurrentPreservation(evidence, p, live);
   return { target: isSerialAggregateRevision(p) ? serialReviewTarget(p) : usesGitInventory(p) ? gitReviewTarget(p) : browserReviewTarget(p), predecessor: p.prior_receipt_fingerprint, runtime_inputs: p.inputs.identity_sha256,
     head: p.head, tree: p.tree, authorized: false, reserved: false,
     ...(isSerialAggregateRevision(p) ? {route:SERIAL_AGGREGATE_ROUTE,logical_root_family_id:candidateFamilyId(p.branch),consumed:tip.reviewed_revision_consumed ?? 0,issued_limit:1,envelope_sha256:PROJECT_EXPERIENCE_COMMITMENT,incident:evidence.serialIncident} : {}),
@@ -2445,7 +2590,8 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
   const externalSettlement = newCommission && p.settlement && settledServiceIncident(original) &&
     revisionEqual(p.accepted, prior.source_correction.accepted) && p.authorization.settlement_review?.head === prior.head
     ? readRevisionSettlement(p, original, completion, parse, bytes) : null;
-  if (p.settlement && !externalSettlement) throw fail("revision_settlement_predecessor_invalid");
+  const materialSettlement = isMaterialSourceRevision(p) && p.settlement ? readMaterialRecoverySettlement(p, original, prior, completion, parse, bytes, sourceGit) : null;
+  if (p.settlement && !externalSettlement && !materialSettlement) throw fail("revision_settlement_predecessor_invalid");
   if (original.receipt_version !== 4 || hasRetiredQualificationMarker(original) || original.integrity?.content_fingerprint !== digest(content) ||
       !revisionEqual(original.attempt, prior) || prior.attempt_id !== p.prior_attempt_id || prior.family_id !== p.prior_family_id || prior.number !== p.prior_number ||
       prior.branch !== p.branch || original.integrity.content_fingerprint !== p.prior_receipt_fingerprint ||
@@ -2609,7 +2755,7 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
       focused.serial_envelope_sha256 !== PROJECT_EXPERIENCE_COMMITMENT || focused.failed_phase !== "e2e-project-experience"))
     throw fail("serial_focused_contract_invalid");
   const integrationBudget = usesGeneratedStockWitness(p) ? parse(focused.regression.after) : null;
-  return { serialIncident, original, prior, completion, stock, inputs, source, focused, dependencySafety, externalSettlement, browserIncident, postPass, acquisitionIncident,
+  return { serialIncident, original, prior, completion, stock, inputs, source, focused, dependencySafety, externalSettlement, materialSettlement, browserIncident, postPass, acquisitionIncident,
     stockVerifier:stockVerifierEvidence(p)?parse(focused.regression.after):null,
     requestBoundAllowance:requestBoundAllowanceEvidence(p)?parse(focused.regression.after):null,
     requestBoundBefore:requestBoundAllowanceEvidence(p)?parse(focused.regression.before):null,

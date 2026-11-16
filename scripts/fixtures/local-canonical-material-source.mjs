@@ -4,12 +4,13 @@ import assert from 'node:assert/strict';
 import {readFileSync,existsSync,rmSync,readdirSync,writeFileSync} from 'node:fs';
 import {syncBuiltinESMExports} from 'node:module';
 import path from 'node:path';
+import {resolveCompanionServiceLayout} from '../../plugins/augnes-operator/mcp/companion-service-core.mjs';
 import {setTimeout as delay} from 'node:timers/promises';
 import {fixtureNow} from './local-canonical-authority-clock.mjs';
 import {digest} from '../local-canonical-inputs.mjs';
 import {CANONICAL_NODE_VERSION} from '../local-canonical-environment.mjs';
 import {beginAttempt,finishAttempt,readSourceCorrectionProof,inspectGitRevisionPreparation,inspectAttemptRecords,reconstructAttemptTip,reviewedRevisionAuthorityObservation,
- prepareAcceptedMainIntegrationCandidate,integrationMaterial,integrationTarget,authorizeIntegration,INTEGRATION_ACCEPT,INTEGRATION_GRANT,
+ materialRecoveryPreservationGuard,prepareAcceptedMainIntegrationCandidate,integrationMaterial,integrationTarget,authorizeIntegration,INTEGRATION_ACCEPT,INTEGRATION_GRANT,
  observeMaterialIntegrationPredecessorAuthority,readReviewedIntegration} from '../local-canonical-attempts.mjs';
 import {MATERIAL_SOURCE_CORRECTION,MATERIAL_HISTORY_BOUNDARY,gitReviewTarget,verifyGitRevisionFailure,verifyGitRevisionSuccess,
  GIT_CURRENT_STOCK_COMPARISON,gitRevisionInventory,gitRevisionStockComparison} from '../local-canonical-git-observation.mjs';
@@ -21,13 +22,81 @@ import {runMaterialStockPredecessorControls} from './local-canonical-material-st
 import {MATERIAL_CURRENT_STOCK_GIT_MISMATCH,verifyMaterialCurrentStockMismatchPredecessor,
  verifiedMaterialCurrentStockMismatchPredecessor,materialCurrentStockHistoricalRuntime} from '../local-canonical-material-stock-predecessor.mjs';
 import {finalizeReceipt,inspectReceiptForDecision,canonicalSerialize} from '../local-canonical-receipt.mjs';
-import {inspectIntegrationStock} from '../run-local-canonical-verification.mjs';
+import {inspectIntegrationStock,usesLegacyRevisionSettlement} from '../run-local-canonical-verification.mjs';
 import {checkoutVerificationFingerprint} from '../local-canonical-checkout-ownership.mjs';
 import {seedFailedIntegrationFixtureSources} from './local-canonical-failed-integration-maintenance.mjs';
 const clone=structuredClone,now=()=>new Date(fixtureNow()).toISOString();
 const driver='scripts/material-source-behavior.mjs',product='apps/web_planning/src/exchange-client.js.txt';
 const predecessorDriver='scripts/material-predecessor.mjs';
 const decision='Source review decision: ACCEPT / RETAIN for prospective qualification.';
+const recoveryPaths=['scripts/augnes-companion-service.mjs','plugins/augnes-operator/mcp/companion-service-core.mjs',
+ 'plugins/augnes-operator/mcp/checkout-identity.mjs','plugins/augnes-operator/mcp/node-runtime-policy.mjs',
+ 'plugins/augnes-operator/mcp/checkout-identity-darwin.py'];
+function materialRecoveryEnvironment(c) {
+ if(!c.recoveryRoot)return;
+ for(const [key,value] of Object.entries({AUGNES_COMPANION_SERVICE_TEST_MODE:'1',AUGNES_COMPANION_SERVICE_TEST_SCOPE:'material-recovery-fixture',
+  AUGNES_COMPANION_SERVICE_TEST_ROOT:c.recoveryRoot})){process.env[key]=value;c.env[key]=value;}
+}
+function recoveryProjection(m){return{status:m.status,reason:m.reason,updated_at:m.updated_at,manager_pid:m.manager_pid,
+ manager_process_identity:m.manager_process_identity,supervisor_pid:m.supervisor_pid,supervisor_process_identity:m.supervisor_process_identity,
+ restart_count:m.restart_count,generation_id:m.runtime_ownership?.generation_id??null,instance_id:m.runtime_ownership?.instance_id??null};}
+function seedMaterialRecoveryIdentity(c,h){
+ c.recoveryRoot=path.join(c.root,'synthetic-service');materialRecoveryEnvironment(c);
+ const layout=resolveCompanionServiceLayout({repositoryRoot:c.checkout});
+ c.recoveryConfiguration={contract:'augnes-companion-service.v0.1',schema_version:2,service_identity:layout.service_identity,
+  repository_root:c.checkout,repository_fingerprint:layout.repository.repository_fingerprint,configuration_path:layout.configuration_path,
+  test_scope:layout.test.scope,test_root:layout.test.root,service_source_fingerprint:digest('unchanged synthetic installed source')};
+ c.recoveryManager={contract:'augnes-companion-service.v0.1',schema_version:1,service_identity:layout.service_identity,
+  repository_fingerprint:layout.repository.repository_fingerprint,status:'live',reason:'companion_service_live',updated_at:now(),
+  manager_pid:42,manager_process_identity:digest('fixture manager birth'),supervisor_pid:43,
+  supervisor_process_identity:digest('fixture supervisor birth'),restart_count:0,restart_after:null,
+  runtime_ownership:{generation_id:'fixture-generation',instance_id:'fixture-instance'}};
+ const live=c.live?.service??c.live;if(!live)return;live.state.service_identity='sha256:'+layout.service_identity;
+ live.diagnostics.manager_before=live.diagnostics.manager_after=recoveryProjection(c.recoveryManager);
+}
+function materialRecoverySettlement(c,h,p){
+ const ref=(name,value)=>h.artifact(c,name,value), m=c.recoveryManager, configuration=c.recoveryConfiguration;
+ const source=digest(Buffer.concat(recoveryPaths.flatMap(name=>[Buffer.from(name+'\0'),c.git(['show',p.head+':'+name]),Buffer.from('\0')])));
+ const recorded=now(), configurationRef=ref('recovery-configuration.json',configuration),
+  evidence={repository_binding:digest('post-recovery repository binding'),recovery_source:source,
+   installed_source:configuration.service_source_fingerprint,manager:m,desired:{desired_state:'running'},
+   manager_lock:{service_identity:configuration.service_identity,repository_fingerprint:configuration.repository_fingerprint},
+   material:{configuration_path:{sha256:configurationRef.sha256}}};
+ const target={desired:{...evidence.desired,desired_state:'stopped',updated_at:recorded},
+  manager:{...m,status:'installed_stopped',reason:'companion_service_explicitly_stopped',supervisor_pid:null,
+   supervisor_process_identity:null,runtime_ownership:null,restart_after:null,updated_at:recorded}};
+ const review=ref('recovery-source-review.log',['Synthetic independent model source review. No installed operation.',
+  'ACCEPT_SOURCE_FOR_SCOPED_RECOVERY_PREPARATION',p.head,p.tree,source].join('\n'));
+ const authority=ref('recovery-authority.json',{recorded_at:recorded,human_instruction:'synthetic apply',
+  scope:'Apply reviewed '+p.head+' on '+configuration.repository_root,receiving_record:'https://chatgpt.com/space/page_00000000000000000000000000000000',source_review_sha256:review.sha256});
+ const human=ref('recovery-human-source.json',{threadId:'synthetic-task-thread',turns:[{human_messages:[{type:'userMessage',id:'synthetic-message',content:[{type:'text',text:'synthetic apply'}]}]}]});
+ const decision={contract:'augnes-companion-stale-manager-recovery.v0.1',service_identity:configuration.service_identity,
+  expected_binding:digest(JSON.stringify(evidence)),recovery_source:source,expires_at:new Date(Date.parse(recorded)+60000).toISOString()};
+ const operation={contract:decision.contract,service_identity:configuration.service_identity,status:'settled',created_at:recorded,
+  evidence,target,operation_binding:digest(JSON.stringify([evidence,target,recorded])),decision_binding:digest(JSON.stringify(decision)),
+  lifecycle_owners:[{owner_pid:44,service_identity:configuration.service_identity,repository_fingerprint:configuration.repository_fingerprint}]};
+ const old=clone(c.prior.cleanup.companion_service.after), current=clone(c.live);
+ current.service.state={...old,status:'installed_stopped',preservation_binding:digest('synthetic settled recovery binding')};
+ Object.assign(current.service.diagnostics,{coherent:true,live_identity_valid:true,loaded_job:null,
+  manager_before:recoveryProjection(target.manager),manager_after:recoveryProjection(target.manager),
+  before_binding:current.service.state.preservation_binding,after_binding:current.service.state.preservation_binding,
+  repository_binding_before:evidence.repository_binding,repository_binding_after:evidence.repository_binding,
+  material_states:Object.fromEntries(['maintenance_lease_path','runtime_manifest_path','runtime_token_path','runtime_access_path','runtime_lock_path'].map(key=>[key,'missing'])),finished_at:recorded});
+ const observed=ref('recovery-observation.json',{source:evidence.installed_source,observation:current.service});
+ const settlement={prior:{family_id:c.prior.attempt.family_id,number:c.prior.attempt.number,attempt_id:c.prior.attempt.attempt_id,
+  receipt_fingerprint:p.prior_receipt_fingerprint,head:c.prior.attempt.head,tree:c.prior.attempt.tree,
+  grant_comment_id:c.prior.attempt.source_correction.authorization.grant_comment_id},historical_state:old,
+  target:{base:p.base,head:p.head,tree:p.tree,runtime_inputs_sha256:p.inputs.identity_sha256,inventory_sha256:p.inputs.inventory_sha256},
+  recorded_at:recorded,recovery_source:{head:p.head,tree:p.tree,review},authority,human_source:human,
+  decision:ref('recovery-decision.json',decision),operation:ref('recovery-operation.json',operation),
+  application:ref('recovery-application.json',{command:['node','stale-manager-recovery-apply',configuration.repository_root],started_at:recorded,finished_at:recorded,exit_code:0}),
+  applied:ref('recovery-applied.json',{command:'stale-manager-recovery-apply',result:'settled',operation_binding:operation.operation_binding,
+   remaining_owned_processes:0,authority:{runtime_lifecycle_effect:true,repository_execution_authority:false}}),restored_observation:observed,configuration:configurationRef};
+ h.write(configuration.configuration_path,readFileSync(path.join(c.artifacts,configurationRef.artifact)));
+ const operationRef=settlement.operation;h.write(path.join(path.dirname(configuration.configuration_path),'stale-manager-recovery.json'),readFileSync(path.join(c.artifacts,operationRef.artifact)));
+ p.settlement=ref('material-settlement.json',settlement);c.live=current;c.materialSettlement=settlement;
+}
+
 
 const integrationTransport=records=>({review:async()=>clone(records.acceptance),grant:async()=>clone(records.grant),
  permission:async login=>clone([records.acceptance_permission,records.grant_permission].find(v=>v.user.login===login)),
@@ -450,6 +519,9 @@ export function runMaterialCurrentStockMismatchControls(c,base,stockFor,{quiet=f
 }
 
 export function seedMaterialSourceFiles(c,write) {
+ for(const name of recoveryPaths)write(path.join(c.checkout,name),'// Disposable synthetic recovery source; no service operation.\n');
+ c.git(['add','plugins']);
+ seedMaterialRecoveryIdentity(c,{});
  write(path.join(c.checkout,product),JSON.stringify({primary:false,journal:false})+'\n');
  write(path.join(c.checkout,driver),'import assert from "node:assert/strict"; import {readFileSync} from "node:fs"; const state=JSON.parse(readFileSync(new URL("../apps/web_planning/src/exchange-client.js.txt",import.meta.url))); assert.equal(state[process.argv[2]??"primary"],true); console.log("corrected "+(process.argv[2]??"primary"));\n');
  write(path.join(c.checkout,predecessorDriver),'import assert from "node:assert/strict"; assert.fail("synthetic prior defect");\n');
@@ -459,6 +531,7 @@ export function seedMaterialSourceFiles(c,write) {
 // path. Reusable material-source controls need no retired workload controller.
 export async function prepareMaterialSourcePredecessor(c,h,initial,firstAttempt,initialAuthority) {
  const authority=clone(c.authority),dependencies=dependencyRecords(c);
+ seedMaterialRecoveryIdentity(c,h);
  c.behaviorPath=predecessorDriver;
  const first=await executeFixture(c,{...h,begin:()=>firstAttempt},initial,initialAuthority,null,dependencies);
  assert.equal(first.stock.valid_deciding_evidence,false);assert.equal(first.child.result.exit_code,1);
@@ -493,6 +566,7 @@ export async function prepareMaterialSourcePredecessor(c,h,initial,firstAttempt,
 }
 
 export async function runMaterialSourceControls(c,h,group) {
+ materialRecoveryEnvironment(c);
  const ref=(name,value)=>h.artifact(c,name,value),read=r=>h.read(path.join(c.artifacts,r.artifact));
  const inspect=(p,live=c.live)=>{const material=clone(p);delete material.authorization;delete material.accepted.review;delete material.local_relative_path;
   const file=path.join(c.artifacts,'material.json');h.write(file,material);
@@ -549,6 +623,10 @@ export async function runMaterialSourceControls(c,h,group) {
    'After separate independent acceptance of the actual correction, policy controls, exact published source and real preparation commitment, authorize the operator to record that decision faithfully and publish a separate new prospective commission through the authenticated maintainer identity. Each commission permits exactly one deciding invocation total; reservation or interruption consumes it. No ordinal two, recovery or unchanged-target retry under that commission. A further in-scope material correction requires fresh evidence, independent acceptance and new authenticated authority. Complete planner-selected qualification, separate fresh-process stock, owned cleanup and independent result audit remain required.'
   ].join('\n\n')};delegation.updated_at=delegation.created_at;
   p.commission.delegation={id,sha256:digest(reviewedRevisionAuthorityObservation(delegation,'task_delegation'))};
+  if(field==='primary'){
+   const ordinary=inspect(p);assert.equal(ordinary.authorized,false);assert.equal(ordinary.reserved,false);
+   materialRecoverySettlement(c,h,p);
+  }
   const prepared=inspect(p);assert.equal(prepared.authorized,false);assert.equal(prepared.reserved,false);assert.equal(prepared.consumed,c.prior.attempt.source_correction.commission.maximum_invocations);
   await delay(2);const review={...authority.review,id:id+1,commit_id:p.head,submitted_at:now(),body:[decision,p.head,p.tree,p.base,gitReviewTarget(p),p.prior_receipt_fingerprint,MATERIAL_HISTORY_BOUNDARY].join('\n')};
   p.accepted.review={id:review.id,sha256:digest(reviewedRevisionAuthorityObservation(review,'accepted_revision'))};
@@ -571,6 +649,39 @@ export async function runMaterialSourceControls(c,h,group) {
  const p=c.proof,focused=read(p.focused);let n=0;
  if(group==='material-controls') {
   materialPredecessorCompatibility(c);
+  const settlement=read(p.settlement), baseline=clone(c.live), originalTarget=gitReviewTarget(p);
+  assert.equal(usesLegacyRevisionSettlement(p),false);
+  assert.equal(usesLegacyRevisionSettlement({schema:'augnes.local-canonical-source-correction.v7',kind:'reviewed_revision',settlement:{sha256:digest('legacy')}}),true);
+  assert.equal(usesLegacyRevisionSettlement({...clone(p),settlement:undefined}),false);
+  const runner=readFileSync(new URL('../run-local-canonical-verification.mjs',import.meta.url),'utf8');
+  assert(runner.includes('usesLegacyRevisionSettlement(sourceCorrection) ? await observeReviewedRevisionSettlementState'));
+  assert(runner.includes('if (usesLegacyRevisionSettlement(proof)) live = await observeReviewedRevisionSettlementState'));
+  assert(runner.includes('recoveryPreservationGuard?.({service:observed});'));
+  const guard=materialRecoveryPreservationGuard(h.proof(c));guard({service:baseline.service});
+  assert.throws(()=>materialRecoveryPreservationGuard(clone(p)),/revision_material_settlement_guard_missing/);
+  for(const change of [q=>delete q.settlement,q=>q.settlement.sha256=digest('tampered original')]){
+   const q=clone(p);change(q);assert.throws(()=>inspect(q));assert.notEqual(gitReviewTarget(q),originalTarget);n++;
+  }
+  for(const [key,change]of [['operation',q=>q.status='retiring'],['operation',q=>q.service_identity=digest('wrong service')],
+   ['operation',q=>q.evidence.manager.manager_process_identity=digest('wrong birth')],
+   ['decision',q=>q.recovery_source=digest('unsupported source')],['authority',q=>q.scope='unscoped apply'],
+   ['authority',q=>q.source_review_sha256=digest('unreviewed')],['human_source',q=>q.turns=[]],
+   ['restored_observation',q=>q.observation.diagnostics.coherent=false],['configuration',q=>q.repository_root=c.anchor]]){
+   const altered=clone(settlement),value=clone(read(altered[key]));change(value);altered[key]=ref('invalid-recovery-'+(++n)+'.json',value);
+   assert.throws(()=>inspect({...p,settlement:ref('invalid-settlement-'+n+'.json',altered)}));
+  }
+  for(const change of [q=>q.service.state.service_identity='sha256:'+digest('other service'),q=>{
+   q.service.state.preservation_binding=digest('other current binding');q.service.diagnostics.before_binding=q.service.diagnostics.after_binding=q.service.state.preservation_binding;
+  },q=>q.service.diagnostics.finished_at=new Date(fixtureNow()-61000).toISOString()]){
+   const current=clone(baseline);change(current);assert.throws(()=>inspect(p,current));assert.throws(()=>guard({service:current.service}));n++;
+  }
+  const sidecar=path.join(path.dirname(c.recoveryConfiguration.configuration_path),'stale-manager-recovery.json'),originalSidecar=readFileSync(sidecar);
+  h.write(sidecar,JSON.stringify({...read(settlement.operation),status:'retiring'}));
+  try{assert.throws(()=>inspect(p));assert.throws(()=>guard({service:baseline.service}));n++;}finally{h.write(sidecar,originalSidecar);}
+  assert.equal(inspect(p).target,originalTarget);guard({service:baseline.service});
+  console.log(JSON.stringify({material_recovery_transition:{preparation_pass:true,ordinary_no_transition_pass:true,missing_transition_refused:true,cleanup_guard_pass:true,refusals:n,
+   exact_originals_preserved:true,installed_operation:false,synthetic_only:true,actual_cli_legacy_selectors_checked:true}}));
+
   const tracking=c.git(['rev-parse','refs/remotes/origin/main']).toString().trim();
   const divergent=c.git(['commit-tree',c.tree,'-p',c.head,'-m','synthetic current main']).toString().trim();
   c.git(['update-ref','refs/remotes/origin/main',divergent]);
@@ -642,6 +753,19 @@ export async function runMaterialSourceControls(c,h,group) {
  }
  if(group==='material-successor'){
  const parsed=h.proof(c),cap=await h.auth(c,parsed);
+ const edge=path.join(c.anchor,'.augnes-local-verification/families',parsed.prior_family_id,'correction-successor.json');
+ const emptyEdge=existsSync(edge);let recoveryAdmissionRefusals=0;
+ if(parsed.settlement){
+  for(const change of [q=>q.service.state.service_identity='sha256:'+digest('other current service'),q=>{
+   q.service.state.preservation_binding=digest('changed current binding');q.service.diagnostics.before_binding=q.service.diagnostics.after_binding=q.service.state.preservation_binding;
+  },q=>q.service.diagnostics.finished_at=new Date(fixtureNow()-61000).toISOString()]){
+   const current=clone(c.live);change(current);assert.throws(()=>h.begin(c,parsed,cap,{revisionLive:current}));
+   assert.equal(existsSync(edge),emptyEdge);recoveryAdmissionRefusals++;
+  }
+  const saved=c.proof.authorization, replay={...clone(saved),grant_comment_id:c.prior.attempt.source_correction.authorization.grant_comment_id};
+  c.proof.authorization=replay;bind();assert.throws(()=>h.proof(c),/revision_commission_lineage_invalid/);c.proof.authorization=saved;bind();recoveryAdmissionRefusals++;
+ }
+
  // Its focused primary correction passes, but a distinct in-scope journal
  // condition fails naturally. It needs its own complete correction and grant.
  c.behaviorArgs=['journal'];c.failurePhase='integration';
@@ -653,6 +777,7 @@ export async function runMaterialSourceControls(c,h,group) {
   r.phases.find(p=>p.id==='integration').browser_use=[];
  }});delete c.failurePhase;
  assert.equal(failed.stock.valid_deciding_evidence,false);assert.equal(failed.child.result.exit_code,1);
+ if(parsed.settlement)console.log(JSON.stringify({material_recovery_actual_admission:{accepted:true,refusals:recoveryAdmissionRefusals,synthetic_only:true,installed_operation:false,consumed_once:true}}));
  assert.equal(failed.stock.dimensions.current_merge_applicability,'different_current_main');
  assert(failed.stock.issues.includes('receipt_browser_identity_invalid:integration'));
  assert.throws(()=>h.begin(c,parsed,cap),/attempt_latest_tip_required/);unchanged();

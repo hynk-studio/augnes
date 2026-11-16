@@ -23,7 +23,7 @@ import {
 import path from "node:path";
 import os from "node:os";
 import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, createInputReader, classifyInputChange, nonFaultInputChange, inputReadOptions, supportedInputContract, createGitTrackingResource, observeCanonicalRuntimeInputs, canonicalRuntimeInputEnvironment, observePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
-import { beginAttempt, finishAttempt, prepareAttemptDependencies, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords, hasRetiredQualificationMarker, isReviewedRevision, isWebPlanningClientRevision, authorizeReviewedRevision, REVIEWED_REVISION_PHASES, improvementMaterial, maintenanceMaterial, isReviewedIntegration, hasReviewedIntegrationMarker, integrationMaterial, authorizeIntegration, observeIntegrationAuthority } from "./local-canonical-attempts.mjs";
+import { materialRecoveryPreservationGuard, beginAttempt, finishAttempt, prepareAttemptDependencies, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords, hasRetiredQualificationMarker, isReviewedRevision, isWebPlanningClientRevision, authorizeReviewedRevision, REVIEWED_REVISION_PHASES, improvementMaterial, maintenanceMaterial, isReviewedIntegration, hasReviewedIntegrationMarker, integrationMaterial, authorizeIntegration, observeIntegrationAuthority } from "./local-canonical-attempts.mjs";
 import { isImprovement, hasImprovementMarker, authorizeImprovement, observeImprovementAuthority } from "./local-canonical-improvement.mjs";
 import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-evidence-retention.mjs";
 import { isGitObservationRevision, isInventoryBoundRevision, isMaterialSourceRevision, gitRevisionInventory,
@@ -94,6 +94,8 @@ import {
   inspectCompanionService,
   releaseCompanionServiceMaintenance,
 } from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
+
+export const usesLegacyRevisionSettlement = proof => !!proof?.settlement && !isMaterialSourceRevision(proof);
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -532,6 +534,7 @@ export async function executeLocalCanonicalVerification({
   const sourceCorrection = sourceCorrectionProofPath ? readSourceCorrectionProof(resolveArtifactPath(sourceCorrectionProofPath), repositoryRoot) : null;
   if ((isReviewedIntegration(sourceCorrection) || isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection)) && (((isReviewedIntegration(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection)) ? !["full","changed"].includes(mode) : mode !== "full") || checkoutContext !== "isolated-worktree" || recoveryProofPath || plan.selected_plan !== "full-canonical"))
     throw Object.assign(new Error("reviewed_revision_full_route_required"), { code: "reviewed_revision_full_route_required" });
+  const recoveryPreservationGuard = materialRecoveryPreservationGuard(sourceCorrection);
   const hostResult = collectHostEnvironment(repositoryRoot);
   const runtimeInputs = isReviewedIntegration(sourceCorrection) || isReviewedRevision(sourceCorrection) || isImprovement(sourceCorrection) || isMaintenance(sourceCorrection) ? observeRevisionInputs(sourceCorrection, hostResult) : null;
   assertRuntimeInputSelection(runtimeInputs);
@@ -804,7 +807,7 @@ export async function executeLocalCanonicalVerification({
                   return {authorization:await authorizeImprovement(sourceCorrection,material),live:null};
                 }
                 const authorization = await authorizeReviewedRevision(sourceCorrection);
-                let live = sourceCorrection?.settlement ? await observeReviewedRevisionSettlementState(verificationContext) :
+                let live = usesLegacyRevisionSettlement(sourceCorrection) ? await observeReviewedRevisionSettlementState(verificationContext) :
                   isBrowserRevision(sourceCorrection) ? await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: true }) : null;
                 if (isGitObservationRevision(sourceCorrection) || isInventoryBoundRevision(sourceCorrection) || isSerialAggregateRevision(sourceCorrection)) {
                   live = await observeGitRevisionTarget(verificationContext, hostResult.browserExecutablePath, runtimeInputs);
@@ -941,6 +944,7 @@ export async function executeLocalCanonicalVerification({
           const observed = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: isBrowserRevision(sourceCorrection) || isGitObservationRevision(sourceCorrection) || isInventoryBoundRevision(sourceCorrection) || isSerialAggregateRevision(sourceCorrection) });
           serviceLifecycleAfter = observed.state;
           serviceObservations.after = observed.diagnostics;
+          recoveryPreservationGuard?.({service:observed});
         } else {
           serviceLifecycleAfter = boundedLifecycleState(
             await inspectCompanionService({ repositoryRoot: verificationAnchorRoot(verificationContext) }),
@@ -1616,7 +1620,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
           if (gitCurrentStockComparison.current_inventory_sha256 !== live.inventory || !gitCurrentStockComparison.equivalent) live = null;
         } else if (gitRevisionInventory(receipt.inputs) !== live.inventory) live = null;
       }
-      if (proof.settlement) live = await observeReviewedRevisionSettlementState(verificationContext);
+      if (usesLegacyRevisionSettlement(proof)) live = await observeReviewedRevisionSettlementState(verificationContext);
       return {authorization,live};
     } : null,
     assertCurrent: checkCurrentInputs,

@@ -1610,6 +1610,27 @@ mandatory. Observer cancellations, safety violations, successful receipts,
 interruption and incomplete settlement are not material-source incidents. The
 older dependency/restoration exceptions are not widened.
 
+An optional material-source `settlement` may separately bind an intervening,
+reviewed and actually authorized installed-service recovery. This does not
+reinterpret the predecessor as a service incident or change its completed
+cleanup, failed receipt, false stock, input mismatch or consumed commission.
+The material target commits the settlement and all referenced originals: exact
+physical predecessor, historical service state, same installation and service,
+reviewed recovery source, original application authority, settled operation and
+post-recovery preservation observation. The ordinary exact-source receiving
+review and subsequent authenticated one-use material commission cover this
+transition; neither the recovery authority nor another task's qualification
+allowance supplies deciding authority here.
+
+Preparation and admission both validate that transition before comparing a
+fresh current observation strictly with its settled baseline. Missing, changed,
+unsettled, unsupported-source, unsupported-authority or other-service evidence
+refuses. Current state, binding, full input inventory, freshness, physical
+latest-tip and exclusive reservation checks remain mandatory through cleanup
+and separate stock. Without a validated transition, the original same-state
+and same-binding path is unchanged. Disposable regression evidence is not an
+installed recovery, and an old observation is never a new current sample.
+
 For a material continuation whose predecessor has a valid version 4 receipt
 with admitted integration-base v2 provenance, a naturally failed integration
 phase may retain incomplete Browser use. Earlier passing phases still require every registered
