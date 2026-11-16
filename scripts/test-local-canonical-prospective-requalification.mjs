@@ -215,9 +215,12 @@ try {
     const f = clone(focused); f.prospective.current = ref(current);
     refuses(() => verifyProspectiveRequalification(p, prior, f, context));
   }
+  for (const value of ["ordinary-initial-runtime-settlement-v1", false, null, {}]) {
+    const q = clone(p); q.commission.preparation_revision = value;
+    refuses(() => verifyProspectiveRequalification(q, prior, focused, context));
+  }
   assert.equal(isProspectiveRequalification(p), true);
   for (const mutate of [
-    ...["ordinary-initial-runtime-settlement-v1", false, null, {}].map(value => v => v.commission.preparation_revision = value),
     v => v.schema = "augnes.local-canonical-source-correction.v5", v => v.commission.source_revision = "material-source-correction-v1",
     v => v.commission.source_revision = "unknown", v => delete v.commission.source_revision, v => delete v.inputs.inventory_sha256,
     v => v.commission.route = "serial-aggregate-budget-v1"]) {
