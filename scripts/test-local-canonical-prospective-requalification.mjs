@@ -158,7 +158,7 @@ try {
       refuses(() => prospectiveRequalificationSourceEquivalence(git, before, target, BENCHMARK));
       versions.get(before).set(suite, file(suite)); versions.get(target).set(suite, file(suite));
     }
-    const plan = file(driver).toString(), alteredPlan = plan.replace('npmPhase("unit", "Canonical unit suite", ["test"], 3_600_000)', 'npmPhase("unit", "Canonical unit suite", ["test:other"], 3_600_000)');
+    const plan = file(driver).toString(), alteredPlan = plan.replaceAll('npmPhase("unit", "Canonical unit suite", ["test"], 3_600_000)', 'npmPhase("unit", "Canonical unit suite", ["test:other"], 3_600_000)');
     assert.notEqual(alteredPlan, plan);
     versions.get(before).set(driver, Buffer.from(alteredPlan)); versions.get(target).set(driver, Buffer.from(alteredPlan));
     refuses(() => prospectiveRequalificationSourceEquivalence(git, before, target, BENCHMARK));

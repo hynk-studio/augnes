@@ -211,7 +211,8 @@ function suiteContract(git, head, selected) {
 function plannerContract(git, head, selected) {
   const tree = ast(at(git, head, driver).toString()), T = ts();
   if (selected === benchmark) {
-    const unit = one(nodes(tree, node => T.isCallExpression(node) && node.expression.getText(tree) === "npmPhase" &&
+    const full = one(tree.statements.filter(node => T.isFunctionDeclaration(node) && node.name?.text === "fullPhases"));
+    const unit = one(nodes(full, node => T.isCallExpression(node) && node.expression.getText(tree) === "npmPhase" &&
       T.isStringLiteral(node.arguments[0]) && node.arguments[0].text === selected.phase));
     requireThat(equal(syntax(unit.getText(tree)), syntax('npmPhase("unit", "Canonical unit suite", ["test"], 3_600_000)')));
   }
