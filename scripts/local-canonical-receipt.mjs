@@ -1,4 +1,5 @@
 import { isMaintenance, hasMaintenanceMarker, validMaintenanceAttempt } from "./local-canonical-maintenance.mjs";
+import { isProspectiveRequalification, hasProspectiveRequalificationMarker } from "./local-canonical-prospective-requalification.mjs";
 import { hasSerialAccounting } from "./local-canonical-serial-aggregate.mjs";
 import { validProjectExperienceAccounting } from "./project-experience-serial-budget.mjs";
 import { createHash } from "node:crypto";
@@ -164,6 +165,8 @@ export function inspectReceiptForDecision(receipt, options = {}) {
   if (isImprovement(receipt?.attempt?.source_correction) && improvementCurrentIssue) issues.push(improvementCurrentIssue);
   if (hasImprovementMarker(receipt) && !validImprovementAttempt(receipt?.attempt)) issues.push("receipt_improvement_invalid");
   if (hasRetiredQualificationMarker(receipt)) issues.push("receipt_qualification_route_retired");
+  if (hasProspectiveRequalificationMarker(receipt) && (!isProspectiveRequalification(receipt?.attempt?.source_correction) ||
+      !validReviewedRevisionAttempt(receipt?.attempt))) issues.push("receipt_prospective_requalification_invalid");
   if (receipt?.attempt?.source_correction && (!supportsSourceCorrection(receipt.attempt.source_correction) || receipt.receipt_version !== 4))
     issues.push("receipt_source_correction_invalid");
   try {

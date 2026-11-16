@@ -197,7 +197,7 @@ async function prepareSettlement(c) {
 
 // Acquisition edge controls are synthetic, use the existing fixture/ledger/transport,
 // and never touch the actual commission or retained receipt.
-async function acquisitionProposalControls(parentRoot, lifecycle, retainMaterialPredecessor = false) {
+async function acquisitionProposalControls(parentRoot, lifecycle, retainMaterialPredecessor = false, seedSources = null) {
   return withAdjacentAuthorityClock(async () => {
   const runOwned = createTrackedReviewChildRunner(lifecycle, runCanonicalChild);
   const root=path.join(parentRoot,"acquisition-proposal");mkdirSync(root);
@@ -214,6 +214,7 @@ async function acquisitionProposalControls(parentRoot, lifecycle, retainMaterial
   };
   try {
     if(retainMaterialPredecessor) seedMaterialSourceFiles(c,write);
+    if(seedSources) seedSources(c,write);
     write(path.join(c.checkout,input),"export const coherent = false;\n");
     write(path.join(c.checkout,driver),'import assert from "node:assert/strict"; import {coherent} from "./local-canonical-inputs.mjs"; console.log({coherent}); assert.equal(coherent,true);\n');commit();
     write(path.join(c.checkout,".git/info/exclude"),".augnes-local-verification/\n");c.git(["update-ref","refs/remotes/origin/main",c.base]);
@@ -419,6 +420,31 @@ if(process.argv[2]==="--cold"){
     }
   } finally {
     if (lifecycle.pendingChildren===0 && c?.owner) releaseCheckoutVerificationOwnership(c.owner,c.checkout);
+    settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,
+      cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});
+    assert(cleanupCanonicalTestResources([owner])[0].completed);
+  }
+}else if(process.argv[2]==="--run-prospective-requalification-fixtures"){
+  // A separate development-only entry. Its generated authority, clock and
+  // receipts never alter a retained incident or authorize host qualification.
+  const {seedProspectiveRequalificationFiles,runProspectiveRequalificationControls}=await import("./local-canonical-prospective-requalification.mjs");
+  const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
+  const lifecycle={pendingChildren:0},run=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);
+  let c;
+  try {
+    await acquisitionProposalControls(owner.root,lifecycle,true,seedProspectiveRequalificationFiles);
+    const root=path.join(owner.root,"acquisition-proposal");c=read(path.join(root,"context.json"));c.root=root;
+    c.checkout=path.join(root,"checkout");c.anchor=path.join(root,"anchor");c.file=path.join(c.checkout,c.proofPath);c.artifacts=path.dirname(c.file);
+    c.env=buildCanonicalChildEnvironment({temporaryRoot:owner.root});attachGit(c,true);
+    c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});c.live=observeFixtureLive(c);
+    const helpers={prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,run,
+      behavior:subject=>behavior(subject,false,run),fresh:packet=>freshReader(c,packet,run),
+      releaseOwner:()=>releaseCheckoutVerificationOwnership(c.owner,c.checkout),
+      acquireOwner:()=>c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout})};
+    await runMaterialSourceControls(c,helpers,"material-source");
+    await runProspectiveRequalificationControls(c,helpers);
+  } finally {
+    if(lifecycle.pendingChildren===0&&c?.owner)releaseCheckoutVerificationOwnership(c.owner,c.checkout);
     settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,
       cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});
     assert(cleanupCanonicalTestResources([owner])[0].completed);

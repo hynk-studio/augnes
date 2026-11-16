@@ -231,7 +231,11 @@ research form for ordinary fixes or documentation or universal search counts.
   at most one linked recovery invocation for a frozen candidate only after a
   substantiated infrastructure cause has been corrected and verified. Product
   failures, unknown timeouts, safety violations and cosmetic commits do not
-  reset or acquire that allowance.
+  reset or acquire that allowance. The policy's separately authenticated
+  [prospective-requalification path](.github/LOCAL_CANONICAL_VERIFICATION.md#explicit-prospective-requalification-after-a-settled-watchdog-failure)
+  can authorize a new bounded verification decision after a supported settled
+  watchdog failure without claiming a repair. It neither replenishes recovery
+  nor changes the historical result, required evidence or issued grant limits.
 
 ## Pull requests
 

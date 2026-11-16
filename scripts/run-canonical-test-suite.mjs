@@ -151,6 +151,11 @@ const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-
 const suites = {
   unit: [
     {
+      id: "prospective-requalification-evidence", label: "explicit prospective requalification evidence and authority refusals",
+      requirements: ["filesystem", "immutable-fixture-input"],
+      ...rootNode("scripts/test-local-canonical-prospective-requalification.mjs"), timeoutMs: 30_000, requireNaturalExit: true,
+    },
+    {
       id: "fixture-validity-window-evidence", label: "controlled validity-window evidence and retained-source refusals",
       requirements: ["filesystem", "immutable-fixture-input"],
       ...rootNode("scripts/test-local-canonical-fixture-validity.mjs"), timeoutMs: 30_000, requireNaturalExit: true,

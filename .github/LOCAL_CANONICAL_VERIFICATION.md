@@ -1361,18 +1361,21 @@ records and separate stock reader. It represents a materially revised source
 or execution-input target after the latest settled failed predecessor, including
 a predecessor whose earlier grant is terminal. It does not renew that grant,
 rewrite its record or change the interpretation of any legacy route.
+The separately selected prospective-requalification case below instead records
+an explicit new verification decision with an unchanged product workload; it is
+not a material-source repair or an exception inferred from an ordinary approval.
 
 The proof binds the accepted source/review, a separate prospective commission,
 the actual source delta, immutable runtime inputs, retained original receipt,
 attempt, completion and separate stock, and applicable focused evidence.
 Implementation-owner final-source checks remain distinct from the receiving
 reviewer's independent audit. An older predecessor, wrong authority/source/input,
-unsettled cleanup or unchanged candidate refuses before consumption. Accepted
-focused evidence may be reused with its original source/input attribution; it
-never supplies unexecuted phase coverage.
+unsettled cleanup or an unchanged candidate under a source-repair route refuses
+before consumption. Accepted focused evidence may be reused with its original
+source/input attribution; it never supplies unexecuted phase coverage.
 
-One commission permits at most two deciding invocations across its entire
-exclusive successor chain: the initial complete invocation and at most one
+The default v7 commission permits at most two deciding invocations across its
+entire exclusive successor chain: the initial complete invocation and at most one
 complete invocation after a demonstrated directly implicated defect or input
 problem has been materially corrected and supported by focused checks. Source,
 proof, branch, checkout or family changes cannot reset this ceiling. No unchanged
@@ -1385,10 +1388,11 @@ the precise blocker.
 A genuinely new authenticated v7 commission may follow a spent v7 commission at
 its latest settled tip. A settled v10 ordinal-two Full with a naturally failed
 phase can also supply that tip. Its original commission, grants, false stock,
-receipts and exclusive edges remain spent and reconstructible. This boundary
-requires a material change to implicated source and the full protected input
-inventory, including shared Git configuration. Run the same behavioral script
-and arguments on the settled predecessor and on the candidate. Bind both Git
+receipts and exclusive edges remain spent and reconstructible. For the
+source-repair forms, this boundary requires a material change to implicated
+source and the full protected input inventory, including shared Git
+configuration. Run the same behavioral script and arguments on the settled
+predecessor and on the candidate. Bind both Git
 blobs, runtime identities, exit results and output originals. The predecessor
 must fail and the candidate must pass naturally with clean settlement. The test
 driver may stay unchanged when it exercises the corrected source. A successful
@@ -1405,6 +1409,121 @@ permission. If ordinal one fails, retain that initial acceptance and grant for
 accounting. A new commit-anchored contract review on the same PR binds the
 second candidate and its preparation commitment. The same readers check its
 material repair, current inventory, predecessor and exclusive reservation.
+
+#### Explicit prospective requalification after a settled watchdog failure
+
+`commission.source_revision = prospective-requalification-v1` is a distinct,
+closed basis within the existing inventory-bound v7 `reviewed_revision` proof.
+It is not `material-source-correction-v1`, a new material `evidence_kind`, or a
+revival of retired condition-requalification v5. Its purpose is to admit an
+explicitly reviewed new exact-target verification decision when a supported
+settled watchdog result leaves the historical cause UNKNOWN and supplies no
+justified product correction. A later passing diagnostic neither identifies
+that cause nor retroactively makes the failed run successful.
+
+The immediate predecessor must be the latest physically completed, fully spent
+supported commission. Retain its original attempt, receipt, completion, false
+stock and full physical successor chain, with every prior issued maximum and
+consumed reservation. The selected incident must bind the complete original
+phase and authority output to the registered
+`node --import tsx scripts/test-operational-continuation-admission.ts` child
+and its unchanged 60,000 ms watchdog: one bounded child timeout, its settled
+termination, the natural outer unit-phase failure and complete owned cleanup.
+The historical raw disposition is preserved. Earlier passing phases retain
+their actual evidence; the failed
+phase remains failed and every unexecuted phase remains NOT_RUN. Another child,
+an observed assertion failure, a safety or input fault, log/receipt mismatch,
+unsettled resources, missing originals or an ambiguous physical tip cannot be
+reclassified as this incident. A known unresolved material defect is not made
+acceptable by labeling its cause unknown.
+
+The accepted target binds the complete source delta and exact protected input
+inventory. Product sources, substantive assertions, existing registered product
+workload, child and parent bounds, phase order and complete planner-selected
+Full/Browser plan stay unchanged. Only the reviewed admission support, its
+focused contract controls and corresponding policy may change for this basis.
+An additive pure reader control may not replace, select away or reroute the
+original product workload; the rest of the original suite stays unchanged. The
+initial implementation changes admission support and therefore has its own exact
+head/tree; it is not an unchanged historical source. This is not a requirement
+to manufacture cosmetic commits. A genuinely later separately authorized
+prospective assignment may retain the product and existing support source if
+all incident, evidence, current-input, physical-lineage and one-use authority
+gates still hold. No fabricated natural RED, unrelated product edit, cosmetic
+repair claim, old phase coverage or increased watchdog allowance can substitute
+for this contract.
+
+The focused proof selects `focused.prospective`, not `focused.regression`. Its
+closed form binds the claim and owner, original incident receipt/log identity
+with `cause: UNKNOWN`, and a Git-derived source-equivalence original. Retained
+diagnostic originals have exactly the ordered roles `runner`, `observer`,
+`result` and `stdout`, with their hashes and explicit limited scope. They are
+retained and inspected, not interpreted as a repaired historical failure,
+reliable timing margin or deciding coverage. Source equivalence checks the
+unchanged owner, original suite remainder, planner functions and complete
+16-phase inventory, but does not invent historical runtime observations.
+Separate acceptance reviews the actual retained diagnostic contents and their
+limitations; a declared successful sample alone supplies no authority.
+
+Use the existing non-reserving preparation, authenticated review/grant transport,
+exclusive successor reservation, append-only ledger, receipt and fresh-process
+stock owners. A genuinely new operative delegation must identify this basis and
+follow the completed predecessor. Source and focused control checks establish
+that the support is reviewable; they do not require a prior Full PASS or grant
+execution authority. Actual exact-target preparation then observes the current
+source, runtime, complete inputs and installed Companion without reserving;
+existing ownership and capacity checks remain final-admission prerequisites.
+Separate acceptance reviews the published target, complete delta, retained
+incident, original diagnostics and preparation commitment. A
+distinct subsequent authenticated commission binds that same basis, delegation,
+acceptance, predecessor, source and preparation. Analysis-only delegation, old
+source acceptance, an earlier spent grant, edited authority, wrong chronology,
+wrong target or stale preparation refuses. Separate model review is named as
+such; recording it does not turn it into human or external independent validation.
+
+`node scripts/prepare-local-canonical-prospective-requalification.mjs <material.json>`
+is the thin read-only caller for this distinct basis. It uses
+`prepareProspectiveRequalification` in the existing shared preparation owner,
+not the material-repair entry point. It requires the actual admitted checkout
+and reference-host environment, authentic Draft publication and delegation,
+physical predecessor and current input/Companion observations; its material
+contains no execution authorization. It creates no lease, successor reservation
+or consumed invocation. The exact delegation, acceptance bindings and grant
+wording belong to
+[`local-canonical-prospective-requalification.mjs`](../scripts/local-canonical-prospective-requalification.mjs).
+Publishing these instructions, support code, a preparation or synthetic focused
+controls does not grant a deciding invocation.
+
+The new commission has ordinal one, maximum one and recovery zero. Reservation
+consumes it, including interruption before attempt append; a conclusive refusal
+before reservation consumes nothing. No ordinal two, unchanged admitted retry,
+automatic replacement commission, recovery or grant carry-over follows from a
+failed or interrupted result. Task, branch, checkout, proof or family renaming
+cannot reset this assignment's accounting or select an older predecessor. A
+later genuinely new owner decision would require its own applicable complete
+authority; this contract neither pre-authorizes it nor imposes a lifetime global
+quota in place of the task owner's finite decisions.
+
+The discriminator and all incident, source, input, preparation and authority
+bindings must survive physical reconstruction. The current lossy private review
+export explicitly refuses this route with
+`review_export_prospective_requalification_requires_original`; review requires
+the complete original receipt, proof and referenced artifacts. It must not strip
+the new basis into a seemingly compatible derivative. Missing, mixed, downgraded
+or unsupported forms refuse instead of falling back to material repair or a
+generic/legacy route. Asynchronous authority or input observation does not permit
+changed proof, source, inventory or physical tip to reach reservation. Existing
+retired-marker refusals remain intact throughout the chain. An exported summary
+never creates current qualification or independent attestation.
+
+A future PASS qualifies only its exact new accepted target and completed plan.
+It preserves the historical failure, false stock, UNKNOWN cause and cumulative
+cost. The new receipt, separate fresh stock, independent result review and owned
+cleanup remain required. It does not establish actual-model, UI or hosted
+participant acceptance, install or adopt Companion, or authorize Ready, merge or
+deployment. Removing this support removes prospective admission only: keep
+historical originals, consumed edges, grant identities and the admitted reader
+revision for read-only reconstruction.
 
 #### Prospective acquisition correction after a spent basic-v7 observation race
 

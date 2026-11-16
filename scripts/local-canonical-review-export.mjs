@@ -7,6 +7,7 @@ import { canonicalSerialize, assertPublicSafeReceipt, verifyReceiptIntegrity } f
 import { digest, validInputFailureDiagnostics } from "./local-canonical-inputs.mjs";
 import { hasSerialAccounting } from "./local-canonical-serial-aggregate.mjs";
 import { validProjectExperienceAccounting } from "./project-experience-serial-budget.mjs";
+import { hasProspectiveRequalificationMarker } from "./local-canonical-prospective-requalification.mjs";
 
 
 export const REVIEW_EXPORT_SCHEMA = "augnes.local-canonical-private-review.v1";
@@ -17,6 +18,11 @@ export function createPrivateReviewExport(receipt) {
   if (hasMaintenanceMarker(receipt)) throw new Error("review_export_maintenance_requires_original");
   if (hasReviewedIntegrationMarker(receipt)) throw new Error("review_export_integration_requires_original");
   if (hasImprovementMarker(receipt)) throw new Error("review_export_improvement_requires_original");
+  // The legacy projection omits the original incident, diagnostic limitations
+  // and authority bodies. Do not silently turn this separate decision basis
+  // into a structurally plausible material-repair export.
+  if (hasProspectiveRequalificationMarker(receipt))
+    throw new Error("review_export_prospective_requalification_requires_original");
   if (hasRetiredQualificationMarker(receipt)) throw new Error("review_export_retired_route_use_historical_revision");
   if (![3, 4].includes(receipt?.receipt_version)) throw new Error("review_export_version_unsupported");
   const integrity = verifyReceiptIntegrity(receipt);
@@ -72,6 +78,8 @@ export function createPrivateReviewExport(receipt) {
 }
 
 export function inspectPrivateReviewExport(value) {
+  if (hasProspectiveRequalificationMarker(value))
+    return {structurally_valid:false,deciding:false,independent_attestation:false,original_receipt_fingerprint:null};
   if (hasReviewedIntegrationMarker(value)) return {structurally_valid:false,deciding:false,independent_attestation:false,original_receipt_fingerprint:null};
   if (hasMaintenanceMarker(value)) return {structurally_valid:false,deciding:false,independent_attestation:false,original_receipt_fingerprint:null};
   if (hasImprovementMarker(value)) return {structurally_valid:false,deciding:false,independent_attestation:false,original_receipt_fingerprint:null};

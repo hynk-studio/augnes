@@ -6,6 +6,7 @@ import { hasRetiredQualificationMarker, isReviewedIntegration, isReviewedRevisio
 import { isGitObservationRevision, isInventoryBoundRevision, isMaterialSourceRevision, MATERIAL_SOURCE_CORRECTION,
   GIT_CURRENT_STOCK_COMPARISON, gitRevisionInventory, gitRevisionStockComparison } from "./local-canonical-git-observation.mjs";
 import { isSerialAggregateRevision } from "./local-canonical-serial-aggregate.mjs";
+import { isProspectiveRequalification, PROSPECTIVE_REQUALIFICATION } from "./local-canonical-prospective-requalification.mjs";
 import { isBrowserRevision, verifyBrowserRevisionPreservation } from "./local-canonical-browser-revision.mjs";
 import assert from "node:assert/strict";
 import { digest, INPUT_CONTRACT } from "./local-canonical-inputs.mjs";
@@ -1363,7 +1364,7 @@ function dispatchContext(candidate, authority, settlement = async () => null) {
   return { get observed() { return observed; }, get inspectedOptions() { return inspectedOptions; }, context: {
     sourceCorrection:candidate, receipt:{receipt_version:4,inputs:frozenInputs,attempt:{source_correction:candidate}},
     inputs:{snapshot:()=>frozenInputs,check(){}}, repositoryRoot:coexistenceRoot,
-    isMaintenance,isImprovement,isReviewedIntegration,isReviewedRevision,isBrowserRevision,isGitObservationRevision,isInventoryBoundRevision,isSerialAggregateRevision,isMaterialSourceRevision,
+    isMaintenance,isImprovement,isReviewedIntegration,isReviewedRevision,isBrowserRevision,isGitObservationRevision,isInventoryBoundRevision,isSerialAggregateRevision,isMaterialSourceRevision,isProspectiveRequalification,
     GIT_CURRENT_STOCK_COMPARISON,gitRevisionInventory,gitRevisionStockComparison,
     mode:"full",checkoutContext:"isolated-worktree",plan:{selected_plan:"full-canonical"},
     digest,REVIEWED_REVISION_PHASES,phaseDefinitions:REVIEWED_REVISION_PHASES.map(id=>({id})),
@@ -1494,19 +1495,20 @@ try {
     assert.equal(harness.result.valid,false,"stock refuses source changes after immutable validation");
     assert.deepEqual(harness.result.identity,current,"the final verdict receives the final source observation");
   }
-  for (const material of [false,true]) for (const change of ["metadata","content","claimed-hash"]) {
+  for (const basis of [null,MATERIAL_SOURCE_CORRECTION,PROSPECTIVE_REQUALIFICATION]) for (const change of ["metadata","content","claimed-hash"]) {
+    const currentOnlyComparison = basis !== null;
     const current=changedStockMetadata(["inode","mtime_ns","ctime_ns"]);
     if(change==="content")stockGit(current).before.sha256=digest("different complete config");
     const candidate={schema:"augnes.local-canonical-source-correction.v7",kind:"reviewed_revision",inputs:{inventory_sha256:gitRevisionInventory(stockInputs)},
-      commission:material?{source_revision:MATERIAL_SOURCE_CORRECTION}:{}};
+      commission:basis?{source_revision:basis}:{}};
     const harness=dispatchContext(candidate,async()=>({role:"revision"}));
     Object.assign(harness.context,{receipt:{receipt_version:4,inputs:stockInputs,attempt:{source_correction:candidate}},
       inputs:{snapshot:()=>stockInputs,check(){}},observeGitRevisionTarget:async()=>({inventory:change==="claimed-hash"?digest("forged hash"):gitRevisionInventory(current),inputInventory:current})});
     const observed=await runDispatch(stockDispatch,harness);
-    assert.equal(harness.inspectedOptions.gitCurrentStockContract,material?GIT_CURRENT_STOCK_COMPARISON:null);
-    assert.equal(observed.live!==null,material&&change==="metadata");
-    assert.equal(harness.result.comparison?.contract??null,material?GIT_CURRENT_STOCK_COMPARISON:null);
-    if(material)assert.equal(harness.result.comparison.expected_inventory_sha256,gitRevisionInventory(stockInputs));
+    assert.equal(harness.inspectedOptions.gitCurrentStockContract,currentOnlyComparison?GIT_CURRENT_STOCK_COMPARISON:null);
+    assert.equal(observed.live!==null,currentOnlyComparison&&change==="metadata");
+    assert.equal(harness.result.comparison?.contract??null,currentOnlyComparison?GIT_CURRENT_STOCK_COMPARISON:null);
+    if(currentOnlyComparison)assert.equal(harness.result.comparison.expected_inventory_sha256,gitRevisionInventory(stockInputs));
     await assert.rejects(runDispatch(admissionDispatch,harness),hasCode("revision_git_inputs_changed"));
     assert.equal(harness.inspectedOptions.gitCurrentStockContract,undefined,"admission never selects the current-stock comparison");
   }
@@ -1554,7 +1556,7 @@ console.log(
       executor_observation_failure_and_cleanup_remain_distinct: true,
       git_current_stock: {contract:GIT_CURRENT_STOCK_COMPARISON,exact_and_metadata_cases:7,
         git_field_refusals:stockMutations.length,other_resource_and_version_refusals:5,unknown_equal_shape_refusals:3,
-        production_dispatch_cases:6,admission_stays_raw_strict:true},
+        production_dispatch_cases:9,admission_stays_raw_strict:true},
       hosted_ci_absent: true,
     },
     null,
