@@ -1,3 +1,4 @@
+import { AUXILIARY_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
 import { spawnSync } from "node:child_process";
 import { isUtf8 } from "node:buffer";
 import { createHash } from "node:crypto";
@@ -155,7 +156,7 @@ export function parseCanonicalBlobBatch(output, objects) {
 
 function git(cwd, args, options = {}) {
   const result = spawnSync("git", args, {
-    cwd, stdio: ["pipe", "pipe", "pipe"], timeout: 30_000,
+    cwd, stdio: ["pipe", "pipe", "pipe"], timeout: AUXILIARY_EXECUTION_BUDGETS.verificationOperationMs,
     maxBuffer: MAX_BYTES, ...options,
   });
   if (result.error) throw result.error;

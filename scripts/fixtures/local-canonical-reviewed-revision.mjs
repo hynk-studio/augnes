@@ -1,3 +1,4 @@
+import { AUXILIARY_EXECUTION_BUDGETS } from "../local-canonical-closeout-budgets.mjs";
 import { runSerialAggregateControls } from "./local-canonical-serial-aggregate.mjs";
 // Synthetic fixture only: production proof, authority, edge and fresh reader.
 import { fixtureNow, withAdjacentAuthorityClock } from "./local-canonical-authority-clock.mjs";
@@ -49,7 +50,7 @@ const transport=(c,mutate=v=>v)=>createGitHubObserverAuthorizationTransport(999,
 }});
 async function freshReader(c, packet, run = runCanonicalChild) {
   const result=await run({command:process.execPath,args:[self,"--cold",packet],cwd:c.checkout,env:c.env,
-    suite:"reviewed-revision",label:"fresh receipt reader",timeoutMs:15000,stdout:quiet,stderr:process.stderr});
+    suite:"reviewed-revision",label:"fresh receipt reader",timeoutMs:AUXILIARY_EXECUTION_BUDGETS.verificationOperationMs,stdout:quiet,stderr:process.stderr});
   assert(result.exit_observed && result.streams_closed && result.cleanup_completed && result.remaining_owned_processes===0);
   assert.equal(result.exit_code,0);
 }
@@ -91,7 +92,7 @@ const gitFor = c => args => {
       typeof file === "string" && /^[A-Za-z0-9_./\[\]-]+$/u.test(file) &&
       !file.startsWith("/") && !file.startsWith("-") &&
       file.split("/").every(part => part && part !== "." && part !== "..")));
-  return execFileSync("git", args, {cwd:c.checkout, env:c.env, timeout:5000,
+  return execFileSync("git", args, {cwd:c.checkout, env:c.env, timeout:AUXILIARY_EXECUTION_BUDGETS.verificationOperationMs,
     maxBuffer:(binaryDiff?16:1)*1024*1024, stdio:["ignore","pipe","pipe"]});
 };
 function attachGit(c,gitIncident) {
@@ -226,7 +227,7 @@ async function acquisitionProposalControls(parentRoot, lifecycle, retainMaterial
   const complete=(a,r)=>{storeReceipt(c,r);finishAttempt(a,{receiptFingerprint:r.integrity.content_fingerprint,disposition:r.outcome.disposition,cleanupComplete:true});
     const file=path.join(c.anchor,".augnes-local-verification/families",a.family_id,"completion-1.json");write(file,{...read(file),finished_at:time(-60000)});return file;};
   const acquisitionBehavior=async()=>{
-    const result=await runOwned({command:process.execPath,args:[driver],cwd:c.checkout,env:c.env,suite:"git-acquisition-proposal",label:"owned behavioral control",timeoutMs:5000,stdout:quiet,stderr:quiet,log(){}});
+    const result=await runOwned({command:process.execPath,args:[driver],cwd:c.checkout,env:c.env,suite:"git-acquisition-proposal",label:"owned behavioral control",timeoutMs:AUXILIARY_EXECUTION_BUDGETS.verificationOperationMs,stdout:quiet,stderr:quiet,log(){}});
     assert(result.cleanup_completed&&result.remaining_owned_processes===0&&result.exit_observed&&result.streams_closed);
     return {command:"node "+driver,tested_source_head:c.git(["rev-parse","HEAD"]).toString().trim(),finished_at:time(0),result,environment:digest("synthetic controlled runtime")};
   };
@@ -335,7 +336,7 @@ async function acquisitionProposalControls(parentRoot, lifecycle, retainMaterial
     const coldPacket=path.join(c.artifacts,"interrupted-stock-packet.json");
     write(coldPacket,{anchor:c.anchor,checkout:c.checkout,branch:c.branch,file:c.file,inputs:c.inputs,live:c.live,authority:c.authority,receipt:receipt(c,attempt)});
     const cold=await runOwned({command:process.execPath,args:[self,"--cold-acquisition",coldPacket],cwd:c.checkout,env:c.env,
-      suite:"reviewed-revision",label:"fresh interrupted acquisition stock",timeoutMs:15000,stdout:quiet,stderr:process.stderr,log(){}});
+      suite:"reviewed-revision",label:"fresh interrupted acquisition stock",timeoutMs:AUXILIARY_EXECUTION_BUDGETS.verificationOperationMs,stdout:quiet,stderr:process.stderr,log(){}});
     assert(cold.exit_code===0&&cold.exit_observed&&cold.streams_closed&&cold.cleanup_completed&&cold.remaining_owned_processes===0);
     const exportable=finalizeReceipt({...clone(baseReceipt),...receipt(c,attempt),final:{result:"failure",exit_status:1,reason_codes:["interrupted"]}});
     const exported=createPrivateReviewExport(exportable);
@@ -491,7 +492,7 @@ if(process.argv[2]==="--cold"){
       assert.equal(stock({...c,live:stale},r,a),false,"stale current observation must refuse stock");
     }
     c.live=observeFixtureLive(c);
-    const git=args=>execFileSync("git",args,{cwd:c.checkout,encoding:"utf8",timeout:5000}).trim();
+    const git=args=>execFileSync("git",args,{cwd:c.checkout,encoding:"utf8",timeout:AUXILIARY_EXECUTION_BUDGETS.verificationOperationMs}).trim();
     const currentIdentity={...c.stockContext.currentIdentity,head_sha:git(["rev-parse","HEAD"]),branch:git(["symbolic-ref","--short","HEAD"])};
     const result=inspectReceiptForDecision(r,{...c.stockContext,currentIdentity,currentAttemptRecordsValid:stock(c,r,a),
       currentInputStateValid:digest(c.inputs)===p.inputs.identity_sha256 && !r.inputs.prepared_dependencies?.some(v=>v.after===null)});
@@ -671,10 +672,10 @@ if(process.argv[2]==="--cold"){
       write(file,{anchor:raceAnchor,checkout,file:path.join(checkout,path.relative(c.checkout,c.file)),inputs:c.inputs,authority:c.authority,live:c.live,ready:readyFile,go});ready.push(readyFile);packets.push(file);
     }
     let raceOutput="";const racing=packets.map(async file=>{
-      children++;const result=await runCanonicalChild({command:process.execPath,args:[self,"--race",file],cwd:c.checkout,env:c.env,suite:"reviewed-revision",label:"settlement competing reservation",timeoutMs:10000,stdout:{write(chunk){raceOutput+=chunk;}},stderr:process.stderr});
+      children++;const result=await runCanonicalChild({command:process.execPath,args:[self,"--race",file],cwd:c.checkout,env:c.env,suite:"reviewed-revision",label:"settlement competing reservation",timeoutMs:AUXILIARY_EXECUTION_BUDGETS.verificationOperationMs,stdout:{write(chunk){raceOutput+=chunk;}},stderr:process.stderr});
       assert(result.exit_observed&&result.streams_closed&&result.cleanup_completed&&result.remaining_owned_processes===0);children--;assert.equal(result.exit_code,0);
     });
-    const deadline=Date.now()+8000;while(!ready.every(existsSync)&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,5));assert(ready.every(existsSync));write(go,"go");await Promise.all(racing);
+    const deadline=Date.now()+AUXILIARY_EXECUTION_BUDGETS.verificationOperationMs;while(!ready.every(existsSync)&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,5));assert(ready.every(existsSync));write(go,"go");await Promise.all(racing);
     assert.equal(raceOutput.split("\n").filter(line=>line==="admitted").length,1);assert.equal(raceOutput.split("\n").filter(line=>line==="refused").length,1);unchanged();
     p=proof(c);a=await auth(c,p);const attempt=begin(c,p,a),r=receipt(c,attempt,"completed_success");storeReceipt(c,r);
     finishAttempt(attempt,{receiptFingerprint:r.integrity.content_fingerprint,disposition:"completed_success",cleanupComplete:true});assert(stock(c,r,a));
@@ -685,7 +686,7 @@ if(process.argv[2]==="--cold"){
     assert(inspectPrivateReviewExport(exported).structurally_valid);assert(validReviewedRevisionAttempt(exported.attempt));
     assert.equal(exported.attempt.source_correction.settlement.artifact,undefined);assert.equal(exported.attempt.source_correction.authorization.settlement_review.id,13);
     const packet=path.join(owner.root,"cold-settlement.json");write(packet,{anchor:c.anchor,checkout:c.checkout,file:c.file,inputs:c.inputs,authority:c.authority,receipt:r,live:c.live});
-    children++;const cold=await runCanonicalChild({command:process.execPath,args:[self,"--cold",packet],cwd:c.checkout,env:c.env,suite:"reviewed-revision",label:"settlement fresh reader",timeoutMs:10000,stdout:quiet,stderr:process.stderr});
+    children++;const cold=await runCanonicalChild({command:process.execPath,args:[self,"--cold",packet],cwd:c.checkout,env:c.env,suite:"reviewed-revision",label:"settlement fresh reader",timeoutMs:AUXILIARY_EXECUTION_BUDGETS.verificationOperationMs,stdout:quiet,stderr:process.stderr});
     assert(cold.exit_observed&&cold.streams_closed&&cold.cleanup_completed&&cold.remaining_owned_processes===0);children--;assert.equal(cold.exit_code,0);
     const savedSettlement=readFileSync(path.join(c.artifacts,"settlement.json"));write(path.join(c.artifacts,"settlement.json"),"{}");assert.equal(stock(c,r,a),false);write(path.join(c.artifacts,"settlement.json"),savedSettlement);
     assert.deepEqual(c.spent.map(f=>digest(readFileSync(f))),c.spentHashes);assert.equal(c.prior.cleanup.completed,false);assert.equal(c.prior.outcome.safety,"blocked");
@@ -719,7 +720,7 @@ if(process.argv[2]==="--cold"){
   finally{settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});assert(cleanupCanonicalTestResources([owner])[0].completed);}
 }else if(process.argv[2]==="--run-revision-fixtures"){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);const c=setup(owner.root), findings=[], lifecycle={pendingChildren:0};let liveChildren=0;
-  const child=async(args,options={})=>{liveChildren++;const r=await runCanonicalChild({command:process.execPath,args:[self,...args],cwd:c.checkout,env:c.env,suite:"reviewed-revision",label:"fresh synthetic consumer",timeoutMs:10000,stdout:quiet,stderr:process.stderr,...options});assert(r.exit_observed&&r.streams_closed&&r.cleanup_completed&&r.remaining_owned_processes===0);liveChildren--;assert.equal(r.exit_code,0);return r;};
+  const child=async(args,options={})=>{liveChildren++;const r=await runCanonicalChild({command:process.execPath,args:[self,...args],cwd:c.checkout,env:c.env,suite:"reviewed-revision",label:"fresh synthetic consumer",timeoutMs:AUXILIARY_EXECUTION_BUDGETS.verificationOperationMs,stdout:quiet,stderr:process.stderr,...options});assert(r.exit_observed&&r.streams_closed&&r.cleanup_completed&&r.remaining_owned_processes===0);liveChildren--;assert.equal(r.exit_code,0);return r;};
   try{
     findings.push(...await ordinaryInitialControls(owner.root,lifecycle));
     findings.push(...await acquisitionProposalControls(owner.root,lifecycle));
@@ -885,7 +886,7 @@ if(process.argv[2]==="--cold"){
     const raceRoot=path.join(owner.root,"race");mkdirSync(raceRoot);const race=setup(raceRoot);prepare(race);releaseCheckoutVerificationOwnership(race.owner,race.checkout);race.owner=null;
     const go=path.join(raceRoot,"go"),packets=[],ready=[];
     for(let i=0;i<2;i++){const checkout=path.join(raceRoot,"consumer-"+i);cpSync(race.checkout,checkout,{recursive:true});const file=path.join(raceRoot,"packet-"+i+".json"),readyFile=path.join(raceRoot,"ready-"+i);ready.push(readyFile);write(file,{anchor:race.anchor,checkout,file:path.join(checkout,path.relative(race.checkout,race.file)),inputs:race.inputs,authority:race.authority,ready:readyFile,go});packets.push(file);}
-    let output="";const jobs=packets.map(file=>child(["--race",file],{stdout:{write(chunk){output+=chunk;}}}));const until=Date.now()+8000;while(!ready.every(existsSync)&&Date.now()<until)await new Promise(r=>setTimeout(r,5));assert(ready.every(existsSync));write(go,"go");await Promise.all(jobs);
+    let output="";const jobs=packets.map(file=>child(["--race",file],{stdout:{write(chunk){output+=chunk;}}}));const until=Date.now()+AUXILIARY_EXECUTION_BUDGETS.verificationOperationMs;while(!ready.every(existsSync)&&Date.now()<until)await new Promise(r=>setTimeout(r,5));assert(ready.every(existsSync));write(go,"go");await Promise.all(jobs);
     assert.equal(output.split("\n").filter(l=>l==="admitted").length,1);assert.equal(output.split("\n").filter(l=>l==="refused").length,1);
     const tip=reconstructAttemptTip({anchorRoot:race.anchor,branch:race.branch});rmSync(path.join(race.anchor,".augnes-local-verification/families",tip.family_id,"attempt-1.json"));
     assert.throws(()=>reconstructAttemptTip({anchorRoot:race.anchor,branch:race.branch}),{code:"ENOENT"});assert(existsSync(path.join(race.legacyRoot,"correction-successor.json")));
