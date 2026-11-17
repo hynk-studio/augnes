@@ -322,8 +322,9 @@ function prepareAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, hea
   const familyId = candidateFamilyId(branch, sourceCorrection);
   const artifact = directory(anchorRoot, ".augnes-local-verification");
   const initialRoot = path.join(artifact,"families",candidateFamilyId(branch));
+  let currentTip;
   if (pathPresent(initialRoot)) {
-    const currentTip = reconstructAttemptTip({anchorRoot,repositoryRoot,branch});
+    currentTip = reconstructAttemptTip({anchorRoot,repositoryRoot,branch});
     if (currentTip.improvement_consumed && !isMaintenance(sourceCorrection)) throw fail("improvement_terminal");
     // Eligibility is checked against the immutable successful predecessor below;
     // selecting this kind alone cannot reopen a spent maintenance commission.
@@ -331,7 +332,8 @@ function prepareAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, hea
   }
   if (sourceCorrection && read(path.join(anchorRoot, ".augnes-local-verification", "families", sourceCorrection.prior_family_id, `attempt-${sourceCorrection.prior_number}.json`)).branch !== branch) throw fail("source_correction_predecessor_invalid");
   if (sourceCorrection) {
-    const tip = reconstructAttemptTip({ anchorRoot, repositoryRoot, branch });
+    // Reuse only this synchronous validation; the sealed at-use boundary remains below.
+    const tip = currentTip ?? reconstructAttemptTip({ anchorRoot, repositoryRoot, branch });
     const proof = sourceCorrection;
     if (isNoRemedyRequalification(proof) && tip.no_remedy_requalification_consumed) throw fail("attempt_requalification_consumed");
     const revision = isReviewedRevision(sourceCorrection);
