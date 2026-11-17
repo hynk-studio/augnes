@@ -868,14 +868,23 @@ Keep the meaning and owner of each time bound distinct:
 - A task's cumulative resource budget and invocation grant limit authority,
   not program speed. An adjusted fixture allowance does not replenish either.
 
-The synthetic `reviewedRevisionSteps` controls use a generous two-minute inner
-watchdog and three-minute enclosing watchdog. These bounds cover the complete
-fixture, including setup and owned cleanup; they are hang protection, not a
-latency acceptance criterion or a measured completion guarantee. Keep natural
-exit, substantive assertions, intentional timeout controls, product deadlines,
-and process cleanup intact. Historical results retain the bounds and outcomes
-actually observed. A changed watchdog grants no deciding invocation and changes
-no admission, receipt, or consumed-authority interpretation.
+The synthetic `reviewedRevisionSteps` controls use one fixed permissive policy:
+a 60-minute complete-fixture watchdog and a 65-minute enclosing control, with
+five minutes reserved for termination and cleanup. Ordinary child, Git and
+readiness waits in the reviewed-revision fixture, and the Canonical revision
+reader's Git subprocess, use the same 60-minute operation ceiling; the complete
+fixture remains bounded as a whole. This adopts the largest
+built-in [Bazel test timeout, `eternal` (3,600 seconds)](https://bazel.build/reference/test-encyclopedia#how-tests-are-executed).
+The authority phase has an independent six-hour resource ceiling, matching the
+[GitHub Actions default job timeout](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idtimeout-minutes).
+It may stop an incomplete serial workload; it does not guarantee every child
+its worst-case allowance. These are hang protection, not latency acceptance
+criteria or incident-by-incident measured-time-plus-margin calibrations. Keep
+natural exits, substantive assertions, deliberate timeout experiments, product
+deadlines and process cleanup intact. Historical results retain the bounds and
+outcomes actually observed. Historical admission readers retain their old finite
+scope; inspecting current registrations does not admit them. A changed watchdog
+grants no deciding invocation and changes no receipt or consumed authority.
 
 Use retained results to identify the failing owner, its configured bound, last
 completed stage, exit/signal and cleanup before choosing a check. A natural
@@ -2647,30 +2656,22 @@ one prior consumption. Reservation/interruption consumes ordinal two with zero
 unchanged-target retry or extra recovery. Existing failed/spent-boundary rules
 retain their independent scope; this amendment is not unlimited post-PASS authority.
 
-Reviewed-revision controls run as serial authority registrations. Each requires
-a natural exit within 30 seconds with one 15-second nested fixture. Git,
-commission and successor cases pass their synthetic checkout and ledger between
-registrations in the suite's private physical resource root. Each registration
-retains its own environment; the suite owns the handoff until consumers settle.
-The final-input case forks the unreserved synthetic first ordinal and checks
-the refused predecessor and passing successor through independent stock processes.
-Three subsequent registrations fork the same unreserved fixture for a positive
-predecessor, material/authority controls and its successor. They retain these bounds
-and cleanup owners; the additional negative controls do not enlarge a deadline.
-`node scripts/run-canonical-test-suite.mjs authority
---reviewed-revision-only` selects these actual registrations with their normal
-resource and cleanup owners. The aggregate has no additional registration.
-The serial-material registration additionally executes three actual compiler
-children and serial incident/lineage controls in its own disposable root. Its
-80-second nested owner and 95-second outer natural-exit limit are focused-test
-bounds for the complete fixture, including its witnesses and fresh receipt
-reads. The 15-second outer separation and individual compiler/reader limits
-remain intact. These prospective allowances do not identify a historical
-timeout cause; all production serial limits and other registrations stay fixed.
-The shared values live in `scripts/local-canonical-closeout-budgets.mjs`; the
-existing contract check reads their effective inner/outer registrations. This
-calibration does not add `serial-material` to the fixture-budget evidence-owner
-catalog or authorize a new deciding invocation.
+Reviewed-revision controls run as serial authority registrations under the fixed
+permissive watchdog policy in "Time budgets and timeout triage". Git, commission
+and successor cases pass their synthetic checkout and ledger between registrations
+in the suite's private physical resource root. Each registration retains its own
+environment; the suite owns the handoff until consumers settle. The final-input
+case forks the unreserved synthetic first ordinal and checks the refused
+predecessor and passing successor through independent stock processes. Subsequent
+registrations retain these resource and cleanup owners. The serial-material
+registration includes actual compiler children and serial incident/lineage controls
+in its disposable root. `node scripts/run-canonical-test-suite.mjs authority
+--reviewed-revision-only` selects the actual registrations with their normal
+resource and cleanup owners; it has no additional aggregate registration.
+Shared watchdog values live in `scripts/local-canonical-closeout-budgets.mjs`.
+Current-source contract checks inspect their effective registrations separately
+from historical admission, whose finite evidence-owner catalog remains unchanged.
+No watchdog change authorizes a new deciding invocation.
 
 The new commission's initial ordinal binds its latest tip as its root. All old
 grant IDs and consumption are reconstructed from the existing exclusive chain.

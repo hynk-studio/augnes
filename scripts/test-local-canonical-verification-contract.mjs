@@ -7,7 +7,7 @@ import { RESEARCH_REGISTRATION_PATH, RESEARCH_SOURCE_PATHS, RESEARCH_OWNER_ID,
 import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { assertVerificationDocumentation } from "./validate-canonical-docs-change.mjs";
 import { buildPhasePlan, OPERATING_POLICY_PHASE_IDS } from "./run-local-canonical-verification.mjs";
-import { integrationBudgetRegistration, registeredFixtureBudget, REGISTERED_INTEGRATION_BUDGET, verifyIntegrationBudgetAdoptedEntries } from "./local-canonical-fixture-budget-witness.mjs";
+import { integrationBudgetRegistration, registeredFixtureBudget, inspectReviewedFixtureRegistration, REGISTERED_INTEGRATION_BUDGET, verifyIntegrationBudgetAdoptedEntries } from "./local-canonical-fixture-budget-witness.mjs";
 import { integrationBudgetAuthorityBindings, integrationBudgetAuthorityScope, INTEGRATION_BUDGET_GRANT,
   INTEGRATION_BUDGET_LIMIT, MATERIAL_HISTORY_BOUNDARY } from "./local-canonical-git-observation.mjs";
 import { spawnSync } from "node:child_process";
@@ -780,13 +780,18 @@ const revisionSteps = canonicalSuite.slice(canonicalSuite.indexOf("const reviewe
 for (const fragment of ['["revision", "settlement", "browser", "git", "git-input", "git-input-direct", "git-input-lifecycle", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-stock", "material-integration-preparation", "material-integration-reservation", "material-reservation", "serial-aggregate", "serial-material"].map(group', '"--reviewed-revision-controls", group',
   'requireNaturalExit: true'])
   requireText(revisionSteps, fragment, "each reviewed fixture group has its own bounded natural-exit registration");
-// Inspect effective values through the existing finite registration reader,
-// using the same working-tree source as this behavioral contract check.
-// Selecting its supported aggregate owner does not admit a material correction.
-const revisionBudgets = registeredFixtureBudget(([, target]) =>
-  Buffer.from(readRepositoryFile(target.slice(target.indexOf(":") + 1))), "fixture", "serial-aggregate");
+// Inspect current registrations without expanding the historical admission
+// reader's finite protocol. The current permissive policy must remain refused
+// by that old admission entry point.
+const revisionSource = ([, target]) => Buffer.from(readRepositoryFile(target.slice(target.indexOf(":") + 1)));
+const revisionBudgets = inspectReviewedFixtureRegistration(revisionSource, "fixture", "serial-aggregate");
+assert.throws(() => registeredFixtureBudget(revisionSource, "fixture", "serial-aggregate"), /revision_fixture_budget_invalid/u);
+for (const [selectedPlan, targetedPhaseIds] of [["full-canonical", []], ["owner-targeted", ["targeted-change-validator", "dependencies-root", "dependencies-nested", "dependencies-web-planning", "authority"]]]) {
+  const authority = buildPhasePlan({mode: "changed", selectedPlan, targetedPhaseIds}).find(phase => phase.id === "authority");
+  assert.equal(authority.timeoutMs, 21_600_000, "both authority execution routes use the fixed six-hour resource ceiling");
+}
 for (const [group, limits] of Object.entries(revisionBudgets.limits)) {
-  assert.deepEqual(limits, {inner: 120_000, outer: 180_000},
+  assert.deepEqual(limits, {inner: 3_600_000, outer: 3_900_000},
     `reviewed fixture hang bounds: ${group}`);
   assert(limits.outer - limits.inner >= DEFAULT_CANONICAL_TERM_GRACE_MS +
     DEFAULT_CANONICAL_KILL_GRACE_MS + 2_000,

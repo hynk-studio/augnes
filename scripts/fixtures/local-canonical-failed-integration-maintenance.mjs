@@ -1,3 +1,4 @@
+import { historicalReviewedFixtureSource } from "./local-canonical-reviewed-budget-history.mjs";
 // Disposable synthetic incident material. No record from this fixture is real
 // authority, host accounting, workload execution, or qualification evidence.
 import assert from "node:assert/strict";
@@ -74,7 +75,17 @@ export function seedFailedIntegrationFixtureSources(c) {
   }
   const helpers=["scripts/canonical-child-runner.mjs","scripts/fixtures/local-canonical-material-stock-predecessor.mjs"];
   const budgetOwner="scripts/local-canonical-closeout-budgets.mjs";
-  for(const helper of [...helpers,budgetOwner])write(path.join(c.checkout,helper),fs.readFileSync(path.join(repository,helper)));
+  // Preserve this archived partition's complete registration table: its two
+  // added groups use 15/30 seconds, and named older groups keep their old bounds.
+  // This is disposable protocol data, never a claim about today's execution.
+  for(const helper of [...helpers,budgetOwner])write(path.join(c.checkout,helper),historicalReviewedFixtureSource(fs.readFileSync(path.join(repository,helper),"utf8"))
+    .replace("reviewFixtureMs: 120_000,", "reviewFixtureMs: 15_000,")
+    .replace("reviewControlMs: 180_000,", "reviewControlMs: 30_000,")
+    .replace("reviewRevisionFixtureMs: 120_000,", "reviewRevisionFixtureMs: 20_000,")
+    .replace("reviewSerialAggregateFixtureMs: 120_000,", "reviewSerialAggregateFixtureMs: 20_000,")
+    .replace("reviewSerialAggregateControlMs: 180_000,", "reviewSerialAggregateControlMs: 40_000,")
+    .replace("reviewSerialMaterialFixtureMs: 120_000,", "reviewSerialMaterialFixtureMs: 80_000,")
+    .replace("reviewSerialMaterialControlMs: 180_000,", "reviewSerialMaterialControlMs: 95_000,"));
   // These five entries are never parsed or executed by this incident reader.
   // Keep their hash-binding role small and explicit; the actual five-file
   // transformation, registration, budgets and helpers above remain byte exact.

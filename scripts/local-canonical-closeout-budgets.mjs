@@ -4,6 +4,7 @@
 export const CLOSEOUT_EXECUTION_BUDGETS = Object.freeze({
   executorHarnessMs: 120_000,
   receiptHarnessMs: 90_000,
+  authorityPhaseMs: 21_600_000,
 });
 
 // Shared limits still consumed by current observation and child-result checks.
@@ -13,17 +14,18 @@ export const AUXILIARY_EXECUTION_BUDGETS = Object.freeze({
   reviewHarnessMs: 300_000,
   observerControlsMs: 20_000,
   reviewAcceptanceFixtureMs: 30_000,
-  // Synthetic reviewed-fixture watchdogs are hang bounds, not performance
-  // requirements. Allow two minutes for the complete setup/assertion/cleanup
-  // workload and three minutes for its enclosing control. The one-minute
-  // difference includes the existing 8s TERM / 5s KILL settlement and wrapper
-  // cleanup. Keep the named registrations for source-bound historical readers;
-  // their former near-observed allowances remain in Git history.
-  reviewRevisionFixtureMs: 120_000,
-  reviewSerialAggregateFixtureMs: 120_000,
-  reviewSerialAggregateControlMs: 180_000,
-  reviewSerialMaterialFixtureMs: 120_000,
-  reviewSerialMaterialControlMs: 180_000,
+  // Fixed permissive whole-workload policy: Bazel's largest built-in test
+  // timeout (eternal, 60 minutes), plus five minutes for enclosing settlement.
+  // These are hang/resource ceilings, never per-incident latency thresholds.
+  // Named registrations remain for immutable historical protocol projections.
+  verificationOperationMs: 3_600_000,
+  reviewFixtureMs: 3_600_000,
+  reviewControlMs: 3_900_000,
+  reviewRevisionFixtureMs: 3_600_000,
+  reviewSerialAggregateFixtureMs: 3_600_000,
+  reviewSerialAggregateControlMs: 3_900_000,
+  reviewSerialMaterialFixtureMs: 3_600_000,
+  reviewSerialMaterialControlMs: 3_900_000,
   reviewAdverseFixtureMs: 12_000,
   reviewChildResultHarnessMs: 60_000,
 });

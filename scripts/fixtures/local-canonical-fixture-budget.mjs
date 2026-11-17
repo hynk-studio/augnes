@@ -1,5 +1,5 @@
+import { historicalReviewedFixtureSource } from "./local-canonical-reviewed-budget-history.mjs";
 import assert from "node:assert/strict";
-import { AUXILIARY_EXECUTION_BUDGETS } from "../local-canonical-closeout-budgets.mjs";
 import { chmodSync, cpSync, linkSync, lstatSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
@@ -36,9 +36,9 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
   for(const name of ["browser-verification-owners.v1.json","local-canonical-change-owners.v1.json","canonical-research-tests.v1.json"])write("scripts/"+name,{});
   for(const name of ["tsx","esbuild","@esbuild"])cpSync(path.join(sourceRoot,"node_modules",name),path.join(root,"node_modules",name),{recursive:true});
   // Freeze this synthetic 15/30 -> 20/40 allowance example independently of
-  // the current generous hang bounds. Other groups retain the same current
-  // registration at both endpoints; this is not a replay of a real incident.
-  const finalSources=Object.fromEntries(Object.values(FIXTURE_BUDGET_PATHS).map(file=>[file,readFileSync(path.join(sourceRoot,file),"utf8")
+  // the current generous hang bounds. Other groups retain fixed 120/180-second
+  // synthetic registrations at both endpoints; this is not a real replay.
+  const finalSources=Object.fromEntries(Object.values(FIXTURE_BUDGET_PATHS).map(file=>[file,historicalReviewedFixtureSource(readFileSync(path.join(sourceRoot,file),"utf8"))
     .replace(/reviewSerialAggregateFixtureMs: [0-9_]+,/u,"reviewSerialAggregateFixtureMs: 20_000,")
     .replace(/reviewSerialAggregateControlMs: [0-9_]+,/u,"reviewSerialAggregateControlMs: 40_000,")]));
   for(const [file,text]of Object.entries(finalSources))write(file,text
@@ -152,7 +152,7 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
     r=>r.phases[0].log.truncated=true,r=>r.phases[0].log.bytes++,r=>r.phases[0].command="other",r=>r.phases[0].cleanup.termination_reason="bounded_timeout"]) {
     const r=structuredClone(original);mutate(r);assert.throws(()=>verify(p,focused,r));negatives++;
   }
-  for(const changes of [s=>s.replace('assert.equal(result.exit_code, 0, lastChildDiagnostic)','assert.equal(result.exit_code, 1, lastChildDiagnostic)'),s=>s.replace('AUXILIARY_EXECUTION_BUDGETS.reviewSerialMaterialFixtureMs',String(AUXILIARY_EXECUTION_BUDGETS.reviewSerialMaterialFixtureMs+1)),
+  for(const changes of [s=>s.replace('assert.equal(result.exit_code, 0, lastChildDiagnostic)','assert.equal(result.exit_code, 1, lastChildDiagnostic)'),s=>s.replace('AUXILIARY_EXECUTION_BUDGETS.reviewSerialMaterialFixtureMs','120001'),
     s=>s.replace('--reviewed-revision-controls','--substituted-controls')]) {
     const wrapperSource=finalSources[FIXTURE_BUDGET_PATHS.wrapper],changedWrapper=changes(wrapperSource);
     assert.notEqual(changedWrapper,wrapperSource,"controlled wrapper mutation must change source");
