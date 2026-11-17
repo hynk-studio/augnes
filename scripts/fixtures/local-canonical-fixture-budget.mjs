@@ -1,5 +1,5 @@
+import { historicalReviewedFixtureSource } from "./local-canonical-reviewed-budget-history.mjs";
 import assert from "node:assert/strict";
-import { AUXILIARY_EXECUTION_BUDGETS } from "../local-canonical-closeout-budgets.mjs";
 import { chmodSync, cpSync, linkSync, lstatSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
@@ -8,7 +8,7 @@ import { gitFixtureDeclaration } from "./local-canonical-git-observation.mjs";
 import { verifyGitSourceRepair, verifyGitRevisionFailure, MATERIAL_SOURCE_CORRECTION, gitRevisionInventory, gitReviewTarget,
   DIRECT_GIT_INPUT_REVISION, DIRECT_GIT_INPUT_HISTORY_BOUNDARY } from "../local-canonical-git-observation.mjs";
 import { REGISTERED_FIXTURE_BUDGET, FIXTURE_BUDGET_CLAIM, FIXTURE_BUDGET_COLLECTOR, FIXTURE_BUDGET_PATHS,
-  fixtureBudgetSourceDelta, fixtureBudgetEnvironment, inspectCurrentFixtureBudgetInputs, inspectCurrentIntegrationBudgetInputs,
+  fixtureBudgetSourceDelta, registeredFixtureBudget, fixtureBudgetEnvironment, inspectCurrentFixtureBudgetInputs, inspectCurrentIntegrationBudgetInputs,
   fixtureBudgetMeasurementStages, SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM,
   SELECTIVE_FIXTURE_PATH, SELECTIVE_FIXTURE_COMMAND, SELECTIVE_FIXTURE_OWNER, SELECTIVE_COVERAGE_OBLIGATIONS,
   selectiveFixtureWorkloadRegistration, selectiveFixtureWorkloadIncident, selectiveFixtureWorkloadSourcePartition,
@@ -35,10 +35,15 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
   write("package.json",{type:"module",dependencies:{tsx:version}});write("package-lock.json",{packages:{"node_modules/tsx":{version}}});write("tsconfig.json",{compilerOptions:{target:"ES2022"}});
   for(const name of ["browser-verification-owners.v1.json","local-canonical-change-owners.v1.json","canonical-research-tests.v1.json"])write("scripts/"+name,{});
   for(const name of ["tsx","esbuild","@esbuild"])cpSync(path.join(sourceRoot,"node_modules",name),path.join(root,"node_modules",name),{recursive:true});
-  const finalSources=Object.fromEntries(Object.values(FIXTURE_BUDGET_PATHS).map(file=>[file,readFileSync(path.join(sourceRoot,file),"utf8")]));
+  // Freeze this synthetic 15/30 -> 20/40 allowance example independently of
+  // the current generous hang bounds. Other groups retain fixed 120/180-second
+  // synthetic registrations at both endpoints; this is not a real replay.
+  const finalSources=Object.fromEntries(Object.values(FIXTURE_BUDGET_PATHS).map(file=>[file,historicalReviewedFixtureSource(readFileSync(path.join(sourceRoot,file),"utf8"))
+    .replace(/reviewSerialAggregateFixtureMs: [0-9_]+,/u,"reviewSerialAggregateFixtureMs: 20_000,")
+    .replace(/reviewSerialAggregateControlMs: [0-9_]+,/u,"reviewSerialAggregateControlMs: 40_000,")]));
   for(const [file,text]of Object.entries(finalSources))write(file,text
-    .replace('name === "serial-aggregate" ? AUXILIARY_EXECUTION_BUDGETS.reviewSerialAggregateFixtureMs : ',"")
-    .replace('group === "serial-aggregate" ? AUXILIARY_EXECUTION_BUDGETS.reviewSerialAggregateControlMs : ',"")
+    .replace('name === "serial-aggregate" ? AUXILIARY_EXECUTION_BUDGETS.reviewSerialAggregateFixtureMs : ', 'name === "serial-aggregate" ? 15000 : ')
+    .replace('group === "serial-aggregate" ? AUXILIARY_EXECUTION_BUDGETS.reviewSerialAggregateControlMs : ', 'group === "serial-aggregate" ? 30000 : ')
     .replace(/  reviewSerialAggregate(?:Fixture|Control)Ms: [0-9_]+,\n/gu,""));
   const workloadFile="scripts/fixtures/local-canonical-serial-aggregate.mjs",workloadSource=readFileSync(path.join(sourceRoot,workloadFile),"utf8");
   write(workloadFile,workloadSource);
@@ -83,6 +88,9 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
     stdout:ref("measurement.log",measuredOutput),lifecycle:ref("measurement-lifecycle.log","termination_reason=natural_exit"),patch:ref("measurement-patch.log",patch),
     collector:ref("measurement-collector.log","scripts/fixtures/local-canonical-reviewed-revision.mjs --run-serial-aggregate-fixtures"),observer:ref("measurement-observer.log",'CONTROL_STAGE stage:"before_imports"'),prefix,source_head:oldHead};
   const delta=fixtureBudgetSourceDelta(git,oldHead,head,"serial-aggregate");
+  assert.deepEqual(delta.before,{inner:15000,outer:30000});
+  assert.deepEqual(delta.after,{inner:20000,outer:40000});
+  const registeredBudgets=registeredFixtureBudget(git,head,"serial-aggregate");
   const source=observePureContractSource(root),dependencies=observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"});
   const config=["package.json","package-lock.json","tsconfig.json","scripts/browser-verification-owners.v1.json","scripts/local-canonical-change-owners.v1.json","scripts/canonical-research-tests.v1.json"].map(file=>({path:file,sha256:digest(readFileSync(path.join(root,file)))}));
   const captured=async role=>{
@@ -94,7 +102,7 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
     const selected=JSON.stringify({serial_aggregate_controls:findings,synthetic_only:true,cleanup_owned_by_fixture:true})+"\n"+
       "AUGNES_REVIEW_CHILD_RESULT "+JSON.stringify({...normal,control_id:"reviewed-revision-serial-aggregate"})+"\n";
     const output=role==="direct"?selected+JSON.stringify({status:"pass",checks:["reviewed revision controls: serial-aggregate"],cleanup_complete:true})+"\n":
-      delta.groups.map(group=>lifecycle("authority","reviewed revision controls: "+group,group==="serial-aggregate"?40000:group==="serial-material"?AUXILIARY_EXECUTION_BUDGETS.reviewSerialMaterialControlMs:30000,10,0,group==="serial-aggregate"?selected:"")).join("")+
+      delta.groups.map(group=>lifecycle("authority","reviewed revision controls: "+group,registeredBudgets.limits[group].outer,10,0,group==="serial-aggregate"?selected:"")).join("")+
         JSON.stringify({suite:"authority",status:"pass",coverage:"focused_reviewed_revision_children_only",results:delta.groups.map(group=>({id:"local-canonical-reviewed-revision-"+group,...normal,status:0})),companion_service_maintenance:null},null,2)+"\n";
     const args=role==="direct"?["--import","tsx",FIXTURE_BUDGET_PATHS.wrapper,"--reviewed-revision-controls","serial-aggregate"]:[FIXTURE_BUDGET_PATHS.suite,"authority","--reviewed-revision-only"];
     return ref(role+".json",{contract:"augnes.registered-fixture-budget-witness.v1",basis:"actual-owned-development-invocation",role,command:["node",...args].join(" "),tested_source_head:head,tree,dirty:"",
@@ -144,7 +152,7 @@ export async function fixtureBudgetWitnessControls(parent,h,sourceRoot) {
     r=>r.phases[0].log.truncated=true,r=>r.phases[0].log.bytes++,r=>r.phases[0].command="other",r=>r.phases[0].cleanup.termination_reason="bounded_timeout"]) {
     const r=structuredClone(original);mutate(r);assert.throws(()=>verify(p,focused,r));negatives++;
   }
-  for(const changes of [s=>s.replace('assert.equal(result.exit_code, 0, lastChildDiagnostic)','assert.equal(result.exit_code, 1, lastChildDiagnostic)'),s=>s.replace('AUXILIARY_EXECUTION_BUDGETS.reviewSerialMaterialFixtureMs',String(AUXILIARY_EXECUTION_BUDGETS.reviewSerialMaterialFixtureMs+1)),
+  for(const changes of [s=>s.replace('assert.equal(result.exit_code, 0, lastChildDiagnostic)','assert.equal(result.exit_code, 1, lastChildDiagnostic)'),s=>s.replace('AUXILIARY_EXECUTION_BUDGETS.reviewSerialMaterialFixtureMs','120001'),
     s=>s.replace('--reviewed-revision-controls','--substituted-controls')]) {
     const wrapperSource=finalSources[FIXTURE_BUDGET_PATHS.wrapper],changedWrapper=changes(wrapperSource);
     assert.notEqual(changedWrapper,wrapperSource,"controlled wrapper mutation must change source");

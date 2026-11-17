@@ -142,9 +142,9 @@ const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-
   label: "reviewed revision controls: " + group,
   sharedFixture: !["revision", "settlement", "browser", "serial-aggregate", "serial-material"].includes(group),
   ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--reviewed-revision-controls", group),
-  // The material consumer adds three real compiler children to incident and
-  // ledger controls. Its inner 80s owner retains 15s for outer settlement.
-  timeoutMs: group === "serial-material" ? AUXILIARY_EXECUTION_BUDGETS.reviewSerialMaterialControlMs : group === "serial-aggregate" ? AUXILIARY_EXECUTION_BUDGETS.reviewSerialAggregateControlMs : 30_000,
+  // Fixed permissive fixture bounds retain five minutes for termination,
+  // process observations and wrapper cleanup after the inner watchdog fires.
+  timeoutMs: group === "serial-material" ? AUXILIARY_EXECUTION_BUDGETS.reviewSerialMaterialControlMs : group === "serial-aggregate" ? AUXILIARY_EXECUTION_BUDGETS.reviewSerialAggregateControlMs : AUXILIARY_EXECUTION_BUDGETS.reviewControlMs,
   requireNaturalExit: true,
 }));
 

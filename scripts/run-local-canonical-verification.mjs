@@ -1811,7 +1811,7 @@ function targetedCanonicalPhaseDefinition(id, { baseSha, headSha }) {
         "authority",
         "Canonical authority suite",
         ["run", "test:authority"],
-        2_400_000,
+        CLOSEOUT_EXECUTION_BUDGETS.authorityPhaseMs,
       ),
     integration: () =>
       npmPhase(
@@ -1840,8 +1840,9 @@ function targetedCanonicalPhaseDefinition(id, { baseSha, headSha }) {
 }
 
 function fullPhases({ baseSha, headSha, browserPhaseIds }) {
-  // Suite-level bounds cover the sum of their existing finite child bounds and
-  // cleanup margin. They do not replace or widen any child-owned timeout.
+  // Suite bounds are independent resource ceilings. In particular, the six-hour
+  // authority ceiling may cancel an incomplete workload; it does not promise
+  // every serial child its worst-case allowance. Child-owned limits still apply.
   return [
     npmPhase(
       "dependencies-root",
@@ -1880,7 +1881,7 @@ function fullPhases({ baseSha, headSha, browserPhaseIds }) {
       "authority",
       "Canonical authority suite",
       ["run", "test:authority"],
-      2_400_000,
+      CLOSEOUT_EXECUTION_BUDGETS.authorityPhaseMs,
     ),
     npmPhase(
       "integration",

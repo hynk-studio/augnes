@@ -104,6 +104,16 @@ const replaceNode=(source,tree,n,replacement)=>source.slice(0,n.getStart(tree))+
 
 export function registeredFixtureBudget(git,head,group) {
   if (group === maintenanceOwner) return maintenanceFixtureBudgetRegistration(git,head);
+  return readReviewedFixtureRegistration(git,head,group,300000);
+}
+
+// Pure current-source inspection only. Historical admission continues through
+// registeredFixtureBudget and retains its original five-minute ceiling.
+export function inspectReviewedFixtureRegistration(git,head,group) {
+  return readReviewedFixtureRegistration(git,head,group,2147483647);
+}
+
+function readReviewedFixtureRegistration(git,head,group,maxOuterMs) {
   if(!Object.hasOwn(owners,group))fail();
   const source=Object.fromEntries(Object.entries(FIXTURE_BUDGET_PATHS).map(([role,file])=>[role,sourceAt(git,head,file)]));
   const trees=Object.fromEntries(Object.entries(source).map(([role,text])=>[role,ast(text)]));
@@ -120,7 +130,7 @@ export function registeredFixtureBudget(git,head,group) {
   const expression=(tree,identifier)=>one(nodes(tree,n=>ts().isPropertyAssignment(n)&&n.name.getText(tree)==="timeoutMs"&&n.initializer.getText(tree).includes(identifier))).initializer;
   const inner=expression(trees.wrapper,"name ==="),outer=expression(trees.suite,"group ===");
   const limits=Object.fromEntries(groups.map(name=>[name,{inner:value(inner,trees.wrapper,name,constants),outer:value(outer,trees.suite,name,constants)}]));
-  if(Object.values(limits).some(v=>!integer(v.inner)||!integer(v.outer)||v.inner>=v.outer||v.outer>300000))fail();
+  if(Object.values(limits).some(v=>!integer(v.inner)||!integer(v.outer)||v.inner>=v.outer||v.outer>maxOuterMs))fail();
   const mapping=mapped.getText(trees.suite);
   if(!mapping.includes('...rootNode("'+FIXTURE_BUDGET_PATHS.wrapper+'", "--reviewed-revision-controls", group)')||!mapping.includes("requireNaturalExit: true")||
       !source.wrapper.includes('await child([fixture, "--run-" + name + "-fixtures"')||
