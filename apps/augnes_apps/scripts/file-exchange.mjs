@@ -76,6 +76,17 @@ async function recoverDraft(directory, {work_id, setup_digest, body}) {
   }
 }
 async function newJson(path,value){const out=await open(path,'wx',0o600);try{await out.writeFile(JSON.stringify(value,null,2));await out.sync();}finally{await out.close();}}
+async function writeNewDownload(destination, bytes) {
+  const output = await open(destination, 'wx', 0o600);
+  try {
+    await output.writeFile(bytes);
+  } catch (error) {
+    await unlink(destination);
+    throw error;
+  } finally {
+    await output.close();
+  }
+}
 async function retireJournal(journal, expectedText){
   // Claim the current entry atomically BEFORE inspecting it. The shared scope
   // name may already hold another operation. Never unlink that reusable name.
@@ -169,6 +180,16 @@ async function run() {
   if(action==='inspect-origin' && args.length===1)return client.recordedOrigin(Number(args[0]));
   if(action==='read-origin' && args.length>=1&&args.length<=3)return client.readOrigin(Number(args[0]),Number(args[1]??0),args[2]??'');
   if(action==='read-saved' && args.length===2)return client.savedFile(Number(args[0]),args[1]);
+  if (action === 'list-saved') {
+    if (args.length !== 1) throw new Error('Use list-saved VERSION.');
+    return client.listSavedFiles(Number(args[0]));
+  }
+  if (action === 'get-saved') {
+    if (args.length !== 3) throw new Error('Use get-saved VERSION NAME NEW_PATH.');
+    const { revision, file, bytes } = await client.getSavedFile(Number(args[0]), args[1]);
+    await writeNewDownload(args[2], bytes);
+    return { revision, file };
+  }
   if(action==='prepare-use'){
     const [observation,choice,target,journal,goal]=args;
     if(!observation||!choice||!target||!journal||args.length!==(target==='new'?5:4))throw Error('Use prepare-use OBSERVATION.json CHOICE.json current|DEST_SETUP.json|new NEW_PENDING.json [NEW_GOAL].');
@@ -198,8 +219,7 @@ async function run() {
     return client.readPage(Number(args[0]),args[1],Number(args[2]??0),args[3]??'');
   if (action === 'get' && args.length === 3) {
     const { file, bytes } = await client.get(Number(args[0]), args[1]);
-    const output = await open(args[2], 'wx', 0o600);
-    try { await output.writeFile(bytes); } catch (error) { await unlink(args[2]); throw error; } finally { await output.close(); }
+    await writeNewDownload(args[2], bytes);
     return file;
   }
   await mkdir(pendingDir,{recursive:true,mode:0o700});
@@ -237,7 +257,7 @@ async function run() {
       if (isReturn && !basis) throw new Error('Select a listed request version.');
       const message = args.shift(), next_action = isReturn ? args.shift() : '';
       if ((!isReturn && action !== 'request') || !message || (isReturn && !next_action) || !args.length || args.length > 8)
-        throw new Error('Use list, read VERSION NAME [START_BYTE [FIND]], get VERSION NAME NEW_PATH, request MESSAGE FILE..., scope REQUEST_VERSION SCOPE.json, request-context VERSION, return REQUEST_VERSION MESSAGE NEXT FILE..., check or retry.');
+        throw new Error('Use list-saved VERSION or get-saved VERSION NAME NEW_PATH for ordinary saved files. Exchange commands include list, read VERSION NAME [START_BYTE [FIND]], get VERSION NAME NEW_PATH, request MESSAGE FILE..., scope REQUEST_VERSION SCOPE.json, request-context VERSION, return REQUEST_VERSION MESSAGE NEXT FILE..., check or retry.');
       const field = invalidExchangeText({kind:isReturn ? 'return' : 'request', message, next_action});
       if (field) throw new Error('Provide a nonempty ' + field + ' of at most 500 characters without control characters.');
       const files = [];

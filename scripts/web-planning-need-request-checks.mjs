@@ -13,7 +13,7 @@ import { digest, openFileTask } from '../apps/augnes_apps/scripts/web-file-clien
 // This is a controlled HTTP exchange between simulated principals, over real
 // production writers/D1 and separate CLI processes. It never contacts a person.
 export async function checkNeedDrivenRequest({start,root,passed}){
-  let runtime,dropAfter=null,dropBefore=null,failRead=null;
+  let runtime,dropAfter=null,dropBefore=null,failRead=null,corruptDownload=null;
   const mutations=[];
   const gateway=trackServerConnections(http.createServer(async(req,res)=>{
     try{
@@ -24,6 +24,10 @@ export async function checkNeedDrivenRequest({start,root,passed}){
       const response=await runtime.mf.dispatchFetch(runtime.env.APP_ORIGIN+req.url,{
         method:req.method,headers:req.headers,...(req.method==='POST'?{body:Buffer.concat(chunks)}:{})});
       const bytes=Buffer.from(await response.arrayBuffer());
+      if (req.method === 'GET' && req.url === corruptDownload) {
+        corruptDownload = null;
+        bytes[0] ^= 1;
+      }
       if(req.method==='POST'&&req.url===dropAfter){assert.equal(response.status,200);dropAfter=null;res.destroy();return;}
       const headers=Object.fromEntries(response.headers);
       if(response.headers.getSetCookie)headers['set-cookie']=response.headers.getSetCookie();
@@ -129,6 +133,14 @@ export async function checkNeedDrivenRequest({start,root,passed}){
     assert.deepEqual(fresh.current.sources,base.sources);
     const saved=await cli('A',setup,['read-saved',String(fresh.decisions[0].destination.revision),'request-integration-checklist.md']);
     assert.equal(saved.text,output);assert.equal(saved.file.digest,digest(Buffer.from(output)));
+    const version = String(saved.revision.revision);
+    const destination = path.join(dir, 'earlier-checklist.md');
+    const selection = await cli('A', setup, ['list-saved', version]);
+    assert.deepEqual(selection.revision, saved.revision);
+    assert.deepEqual(selection.files.find(file => file.name === saved.file.name), saved.file);
+    assert.deepEqual((await cli('A', setup, ['list-saved', String(base.revision)])).files, []);
+    assert.match(await cli('B', participantSetup, ['get-saved', version, saved.file.name, destination], false), /Owner task setup required/);
+    assert.match(await cli('A', setup, ['get-saved', version, 'absent.txt', destination], false), /listed saved revision and file/);
     const feedback=await cli('B',participantSetup,['feedback']);assert.equal(feedback.feedback.length,2);
     assert(!JSON.stringify(feedback).includes('reported_check'));
     assert.equal(count(prefix+'/exchanges/save'),1);assert.equal(count(prefix+'/participation/create'),1);assert.equal(count(part+'/save'),1);
@@ -142,7 +154,22 @@ export async function checkNeedDrivenRequest({start,root,passed}){
     const second=await cli('A',setup,['request','Check only the remaining local obligation.',source]);
     dropBefore=prefix+'/participation/create';await cli('A',setup,['scope',String(second.item.ref.revision),scopeFile],false);
     const latest=(await ok(owner,prefix)).saved,draft=planningDraft(latest);draft.definition.success_criteria=['Reassess local work before a new disclosure.'];
-    const ticket=await ok(owner,prefix+'/ticket',{...draft,expected:headBinding(latest)});await ok(owner,prefix+'/save',{...draft,ticket:ticket.ticket});
+    const replacement = Buffer.from([0, 255, 13, 10]);
+    draft.files = draft.files.filter(file => file.name !== saved.file.name);
+    draft.files.push({ name: saved.file.name, role: saved.file.role, data: replacement.toString('base64') });
+    const ticket=await ok(owner,prefix+'/ticket',{...draft,expected:headBinding(latest)});
+    const updated=(await ok(owner,prefix+'/save',{...draft,ticket:ticket.ticket})).saved;
+    const laterDestination = path.join(dir, 'revised-checklist');
+    await cli('A', setup, ['get-saved', String(updated.revision), saved.file.name, laterDestination]);
+    assert.deepEqual(await readFile(laterDestination), replacement);
+    const oldIndex = selection.files.findIndex(file => file.name === saved.file.name);
+    corruptDownload = prefix + '/files/' + version + '/' + saved.revision.fingerprint.slice(7) + '/' + oldIndex;
+    assert.match(await cli('A', setup, ['get-saved', version, saved.file.name, destination], false), /digest mismatch/);
+    const download = await cli('A', setup, ['get-saved', version, saved.file.name, destination]);
+    assert.deepEqual(download, { revision: saved.revision, file: saved.file });
+    assert.match(await cli('A', setup, ['get-saved', String(updated.revision), saved.file.name, destination], false), /EEXIST/);
+    assert.deepEqual(await readFile(destination), Buffer.from(output));
+    passed('ordinary saved-file export: revision-bound original bytes survive same-name replacement; fresh CLI processes preserve binary content and refuse scope changes and overwrites');
     const posts=count(prefix+'/participation/create');
     const stale=await cli('A',setup,['retry']);assert.equal(stale.outcome,'unknown');assert.equal(stale.retry_allowed,false);
     assert.equal(count(prefix+'/participation/create'),posts);
