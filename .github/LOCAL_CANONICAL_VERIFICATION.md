@@ -1504,6 +1504,67 @@ Original receipts and artifacts are required; lossy review export refuses.
 committed-evidence eligibility, live-input readiness and missing prospective
 authority are separate results. It cannot mint a capability or reserve.
 
+### Reviewed ordinary watchdog integration successor
+
+The explicit reviewed v2 integration may select
+`integration.predecessor_basis:"settled-ordinary-watchdog-integration-v1"`
+with `delivery_revision:"accounted-verifier-chain-v1"`. This is a distinct
+basis after a settled ordinary initial watchdog failure. The historical
+successful-predecessor integration route and frozen replacement dispositions
+keep their original meanings; omitting or changing the selector cannot obtain
+this basis.
+
+The selected predecessor has one ordinary initial attempt, no correction or
+recovery, complete owned cleanup, and an intact failed Full receipt: six
+natural passing phases, an authority phase that naturally fails after the
+registered `reviewed-revision` child reaches its watchdog, and nine NOT_RUN
+phases. Retained false stock and original authority/log/accounting remain
+negative evidence. The child is not natural functional RED, its historical
+cause may remain UNKNOWN, and no new historical execution or RED/GREEN pair is
+required. Unsafe, unsettled, input-faulted or differently failed predecessors
+do not satisfy this closed basis.
+
+The existing integration source owner binds the ordered predecessor/adopted-main
+merge, every overlap and non-overlap adjustment, and all necessary introducing
+support descendants through the final published head. One through sixteen
+nonempty linear verifier/policy commits are permitted; unrelated product changes,
+unaccounted entries and non-linear or empty chains refuse. The final head need
+not equal the earlier merge or retain identical changed support blobs. Independent
+review covers the complete source delivery and preserved substantive assertions.
+The adopted main supplies the fixed permissive registered watchdog conditions;
+the final support preserves its existing control order, coverage and bounds.
+
+The review uses `ordinary_watchdog_predecessor` references for retained stock,
+the actual original authority log and external accounting, plus the same actual
+`preparation` used by reviewed integration. The reader verifies original
+receipt/completion integrity and chronology, the child timeout and natural outer
+failure, already-spent external commission and amendments, and preserved legacy
+accounting. It never fabricates `revision_authority` or an old/new physical edge.
+Preparation, admission, cold reconstruction and stock replay this same evidence.
+The original initial family is retained; only a later authorized exclusive
+successor append can consume the new candidate.
+
+`prepareAcceptedMainIntegrationCandidate` performs non-reserving preparation
+with the exact final source, runtime, protected inventory, physical checkout and
+all three prepared dependency identities. Its eligible result is not authenticated
+acceptance or execution authority. A distinct non-implementing source/evidence
+review and separate later authenticated COMPLETE receiving remain necessary.
+The existing integration acceptance/grant grammar binds that review and preparation;
+for this basis only, the grant also specifies canonical UTC `starts_at` and
+`expires_at`, with creation no later than start and start before expiry.
+Admission rechecks the finite window at the final synchronous append boundary.
+Cold and fresh receipt inspection check the recorded attempt start against the
+original window, not today's expiry. Old, superseded and amendment IDs cannot
+be reused as a new grant.
+
+The new candidate retains initial1/recovery0, exact-target authenticated authority,
+exclusive append, immutable receipt and shared-resource cleanup requirements.
+Reservation or interruption consumes its one invocation. There is no automatic
+renewal, branch reset, infrastructure reclassification or unchanged-target retry.
+This introducing support keeps the product candidate's planner-selected Full,
+all required Browser coverage, separate fresh-process stock and independent
+result review. No separate support-Full-then-product-Full sequence is imposed.
+
 ### Reviewed source and execution-input revision (source-correction v7)
 
 `reviewed_revision` uses the existing `--source-correction-proof`, authenticated

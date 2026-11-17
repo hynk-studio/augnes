@@ -124,6 +124,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/prepare-local-canonical-material-source.mjs",
   "scripts/prepare-local-canonical-prospective-requalification.mjs",
   "scripts/local-canonical-prospective-requalification.mjs",
+  "scripts/local-canonical-ordinary-watchdog-integration.mjs",
   "scripts/local-canonical-typecheck-witness.mjs",
   "scripts/local-canonical-pure-contract-witness.mjs",
   "scripts/local-canonical-fixture-budget-witness.mjs",
@@ -1477,7 +1478,7 @@ export async function inspectIntegrationStock({anchorRoot,repositoryRoot,receipt
     assertCurrent:()=>{try{assertCurrent?.();}catch{integrationCurrentIssues.push("receipt_integration_current_inputs_invalid");}},
     observeRevision:async()=>{
       const p=receipt.attempt.source_correction,e=integrationMaterial(repositoryRoot,p,anchorRoot);
-      try{await observeIntegrationAuthority(p,e,transport);integrationCurrentIssues.splice(integrationCurrentIssues.indexOf("receipt_integration_current_authorization_unverified"),1);}
+      try{await observeIntegrationAuthority(p,e,transport,{executionAt:receipt.attempt.started_at});integrationCurrentIssues.splice(integrationCurrentIssues.indexOf("receipt_integration_current_authorization_unverified"),1);}
       catch(error){integrationCurrentIssues.push(error?.code==="integration_current_applicability_refused"?"receipt_integration_current_applicability_refused":"receipt_integration_current_authorization_unverified");}
       return {authorization:null,live:null};
     }});
