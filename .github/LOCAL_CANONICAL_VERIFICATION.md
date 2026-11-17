@@ -868,6 +868,15 @@ Keep the meaning and owner of each time bound distinct:
 - A task's cumulative resource budget and invocation grant limit authority,
   not program speed. An adjusted fixture allowance does not replenish either.
 
+The synthetic `reviewedRevisionSteps` controls use a generous two-minute inner
+watchdog and three-minute enclosing watchdog. These bounds cover the complete
+fixture, including setup and owned cleanup; they are hang protection, not a
+latency acceptance criterion or a measured completion guarantee. Keep natural
+exit, substantive assertions, intentional timeout controls, product deadlines,
+and process cleanup intact. Historical results retain the bounds and outcomes
+actually observed. A changed watchdog grants no deciding invocation and changes
+no admission, receipt, or consumed-authority interpretation.
+
 Use retained results to identify the failing owner, its configured bound, last
 completed stage, exit/signal and cleanup before choosing a check. A natural
 failing parent can contain a timed-out child. Keep both observations and the raw

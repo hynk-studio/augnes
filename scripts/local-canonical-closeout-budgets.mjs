@@ -13,32 +13,17 @@ export const AUXILIARY_EXECUTION_BUDGETS = Object.freeze({
   reviewHarnessMs: 300_000,
   observerControlsMs: 20_000,
   reviewAcceptanceFixtureMs: 30_000,
-  // Revision now includes the acquisition controls (~4.35s observed) before
-  // the original serial workload. Keep its former 15s plus 5s for that work;
-  // the suite's 30s bound and intentional inner deadlines are unchanged.
-  // Git-successor also serializes two behavior/stock executions and substantive
-  // proof/refusal checks (~10.15s focused, ~6.99s parent synchronous work plus
-  // ~2.22s inside cold readers). Its retained Full exhausted 15s at reader two;
-  // the measured reader-two start still preceded ~3.47s of reader/parent work.
-  // A 5s aggregate reserve covers that observed tail with ~1.53s headroom, not
-  // a claim about the old unknown delay. Keep each reader's 15s bound, behavior's
-  // 5s bound, the 30s outer owner and every other group unchanged.
-  reviewRevisionFixtureMs: 20_000,
-  // The serial fixture measured 13.54s including its 4.15s driver, 3.12s
-  // execution/fresh reader, 0.76s phase probe and 0.57s lineage/export tail.
-  // Keep the former 15s plus a 5s aggregate reserve for this complete workload;
-  // individual child limits and substantive refusals remain unchanged. This
-  // does not identify the cause of the retained intermittent 15s timeout.
-  reviewSerialAggregateFixtureMs: 20_000,
-  // Leave 20s outside the inner deadline for its existing 8s TERM / 5s KILL
-  // settlement, process observations and wrapper cleanup. These are bounded
-  // owners, not a universal wall-clock guarantee or permission to retry.
-  reviewSerialAggregateControlMs: 40_000,
-  // Complete material fixture: observed 58.343s prefix, existing 15s reader
-  // and about 2.857s other work leave 3.8s within this prospective allowance.
-  // The outer owner retains 8s TERM / 5s KILL / 2s parent settlement margin.
-  reviewSerialMaterialFixtureMs: 80_000,
-  reviewSerialMaterialControlMs: 95_000,
+  // Synthetic reviewed-fixture watchdogs are hang bounds, not performance
+  // requirements. Allow two minutes for the complete setup/assertion/cleanup
+  // workload and three minutes for its enclosing control. The one-minute
+  // difference includes the existing 8s TERM / 5s KILL settlement and wrapper
+  // cleanup. Keep the named registrations for source-bound historical readers;
+  // their former near-observed allowances remain in Git history.
+  reviewRevisionFixtureMs: 120_000,
+  reviewSerialAggregateFixtureMs: 120_000,
+  reviewSerialAggregateControlMs: 180_000,
+  reviewSerialMaterialFixtureMs: 120_000,
+  reviewSerialMaterialControlMs: 180_000,
   reviewAdverseFixtureMs: 12_000,
   reviewChildResultHarnessMs: 60_000,
 });

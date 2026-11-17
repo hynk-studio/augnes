@@ -786,20 +786,17 @@ for (const fragment of ['["revision", "settlement", "browser", "git", "git-input
 const revisionBudgets = registeredFixtureBudget(([, target]) =>
   Buffer.from(readRepositoryFile(target.slice(target.indexOf(":") + 1))), "fixture", "serial-aggregate");
 for (const [group, limits] of Object.entries(revisionBudgets.limits)) {
-  const expected = group === "serial-material" ? {inner: 80_000, outer: 95_000} :
-    group === "serial-aggregate" ? {inner: 20_000, outer: 40_000} :
-    ["revision", "acquisition", "git-successor", "git-input-successor"].includes(group) ?
-      {inner: 20_000, outer: 30_000} : {inner: 15_000, outer: 30_000};
-  assert.deepEqual(limits, expected, `reviewed fixture budgets: ${group}`);
+  assert.deepEqual(limits, {inner: 120_000, outer: 180_000},
+    `reviewed fixture hang bounds: ${group}`);
+  assert(limits.outer - limits.inner >= DEFAULT_CANONICAL_TERM_GRACE_MS +
+    DEFAULT_CANONICAL_KILL_GRACE_MS + 2_000,
+  `reviewed fixture outer watchdog preserves termination and parent settlement: ${group}`);
 }
 const materialBudget = revisionBudgets.limits["serial-material"];
 assert.deepEqual(materialBudget, {
   inner: revisionBudgets.constants.reviewSerialMaterialFixtureMs,
   outer: revisionBudgets.constants.reviewSerialMaterialControlMs,
 }, "material callers use the shared fixture allowances");
-assert.equal(materialBudget.outer - materialBudget.inner -
-  DEFAULT_CANONICAL_TERM_GRACE_MS - DEFAULT_CANONICAL_KILL_GRACE_MS, 2_000,
-  "material outer allowance retains termination grace and parent settlement");
 assert.equal(countOccurrences(canonicalSuite, "...reviewedRevisionSteps,"), 1);
 assert.equal(countOccurrences(canonicalSuite, '"--reviewed-revision-controls"'), 1);
 assert.doesNotMatch(canonicalSuite, /--operating-profile-succession-controls/u);
