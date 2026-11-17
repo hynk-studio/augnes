@@ -977,6 +977,96 @@ historical authorization is preserved at the pinned Git revision in
 contracts allowance below is a separately bound prospective fixture judgment.
 No other child/phase bound changes.
 
+### One-candidate product replacement disposition (#1430 / #1608)
+
+This disposition permits qualification of the product-only replacement in
+[Draft PR #1662](https://github.com/hynk-studio/augnes/pull/1662), on
+`codex/1608-native-navigation-product-only-20261117`. It applies only to this
+replacement assignment; it is not a new generic succession or PASS/PASS route.
+The source anchors are:
+
+| Role | Exact identity |
+|---|---|
+| Declared base | `3e7ca9036085a69781488d64f156b2cbb623f547` |
+| Reviewed extraction donor | `c718cb6ee7d2b0b914b5d5f73ce3677690fc4b96` |
+| Donor tree | `ce83c271f94c3d9ca97c5119ad741961afe7b799` |
+| Preserved #1614 source | `0b35e30c8eec86cd32c104c1224e54d80b033a47` |
+
+The final published target may differ from the donor only in this policy file.
+Independent source review must verify the donor's complete 25-path product,
+regression and documentation extraction against the preserved source, and every
+remaining tree entry against the declared base. Every final executable and
+test blob must remain identical to the donor. The final base, head, tree and
+branch are bound separately after publication; the donor is not a substitute
+for that exact target. Main movement is reported under the existing declared-
+range applicability rules, not an automatic failure or permission to expand
+this source scope.
+
+For this target only, an independently audited old/new family mapping replaces
+the source-correction-proof and same-branch physical successor-edge requirements
+above. Use the unchanged ordinary initial executor admission, without
+`--source-correction-proof` or a fabricated historical edge. This is an explicit
+policy exception, not support inferred from the v7 reader. The executor and
+fresh stock validate the new family; the separate reviewed mapping establishes
+cross-family history and authority accounting. Neither represents the other.
+
+Retain the complete latest settled #1614 predecessor, original physical lineage,
+attempt, completion, receipt, false stock, diagnostic originals, issued limits
+and consumed grants. Review historical material using its source-bound reader
+where required, without promoting it to current deciding evidence. Preserve all
+failures, UNKNOWN causes, incomplete coverage and original evidence attribution;
+the extraction claims no repair of the historical timeout. Cumulative task cost
+continues across both PRs. Do not edit old ledger records or create a synthetic
+successor, completion or reservation for them.
+
+After independent review of this disposition, perform operator-assembled,
+non-reserving preparation on the authorized Mac through the existing read-only
+environment, input, Git-identity and Companion observation owners. This is not
+a successful v7 preparation or a source-correction admission. Record the clean
+exact published source, complete current input inventory and
+runtime identities, current Companion preservation state, resource ownership,
+and the old/new family mapping with hashes of the retained originals. Confirm
+the physical latest tip and the replacement family's unused initial admission,
+with no existing attempt or reservation, at preparation and again immediately
+before launch. Exclude a competing successor, replacement assignment or active
+owner affecting either candidate or the actual shared resources; unrelated
+work remains independent. Use one designated executor and the existing checkout
+and capacity ownership controls. A conflict, missing original or stale
+preparation holds the affected execution until resolved; renaming a branch or
+assignment does not resolve it.
+
+A separate reviewer must accept the complete final source, policy, historical
+originals, mapping and actual preparation as COMPLETE. Identify the reviewer
+and recording operator honestly. Only then may a distinct authenticated
+commission authorize the exact base/head/tree/branch and preparation commitment,
+binding this disposition, the predecessor and new family, the separate acceptance
+and a finite budget. Keep private incident and cost records in the task record;
+they remain required review material. Source review, this policy, publication
+and preparation each grant no deciding invocation on their own.
+
+Immediately before launch, the designated executor must verify the original,
+unedited maintainer-authenticated commission, current permission, exact target
+and preparation binding, and retain the authenticated records for the separate
+audit. The ordinary executor and stock do not perform this cross-family
+authority check; their successful admission is not a substitute for it.
+
+The commission permits one admitted deciding invocation only. Reservation or
+interruption consumes it. No recovery, second initial invocation, automatic
+renewal or branch-family reset is authorized. A conclusive pre-admission refusal
+supplies no execution coverage and does not automatically authorize redispatch;
+reconcile the actual ledger before another action, especially after uncertain
+delivery. The existing ordinary reader's recovery capability does not expand
+this commission's narrower authority. Preserve both families and their original
+consumption in the separate result audit.
+
+Review this authority-documentation change and run its existing static validator
+before using the disposition; a prior Full PASS or prior merge of this policy
+is not required to perform that review. The resulting product candidate still
+requires its complete exact-target planner-selected Full and Browser coverage,
+unchanged assertions and deadlines, owned cleanup, separate fresh-process stock
+and independent result review. This disposition authorizes no Ready, auto-merge,
+merge, deployment or installed adoption, and changes no other admission route.
+
 ### Prospective behavior-preserving improvement (source-correction v2)
 
 The separately dispatched `behavior_preserving_improvement` case represents a
