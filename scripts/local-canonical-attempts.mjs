@@ -1177,6 +1177,12 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
               if(observed)integrationRequire(observed.prerequisite&&comparePreparedDependencyInputs(expected,observed.prerequisite)==="unchanged","recorded_prerequisite_changed");
             }
           }
+          if(ordinaryWatchdogIntegration){
+            const preserved=material.ordinaryPredecessor.receipt.cleanup.companion_service.after;
+            if(reserve||preparing)verifyBrowserRevisionPreservation(preserved,revisionLive?.service,{requireSameBinding:true});
+            else if(stockReceipt?.inputs)verifyBrowserRevisionPreservation(preserved,{state:stockReceipt.cleanup?.companion_service?.after,
+              diagnostics:stockReceipt.cleanup?.companion_service?.observations?.after},{requireSameBinding:true});
+          }
         }
         if (!preparing) {
           if (reserve) assertIntegrationAuthorization(proof,material,revisionAuthorization);

@@ -239,12 +239,16 @@ export async function runOrdinaryWatchdogIntegrationControls(c,h) {
   bind();await delay(2);
   const reserve=async extra=>beginAttempt(request({observeRevision:async()=>({authorization:await authorizeIntegration(proof,integrationMaterial(c.checkout,proof,c.anchor),transport(records)),live:refresh()}),...extra}));
   for(const id of [1000,1001,original.id,amendment.id]){grant.id=id;bind();await assert.rejects(()=>reserve());noEdge();refusals++;}grant.id=3002;bind();
-  for(const mutate of [()=>records.grant_permission={...permission,permission:"read"},()=>records.acceptance.commit_id=main,
+  for(const mutate of [()=>{records.grant_permission={...permission,permission:"read"};records.acceptance_permission={...permission,permission:"read"};},()=>records.acceptance.commit_id=main,
     ()=>grant.body=INTEGRATION_GRANT+"\n"+canonicalSerialize({...grantValue,expires_at:grantedAt}),
     ()=>grant.body=INTEGRATION_GRANT+"\n"+canonicalSerialize({...grantValue,starts_at:utc(Date.parse(grantedAt)+3600000),expires_at:utc(Date.parse(grantedAt)+7200000)})]) {
     const saved=clone(records);try{mutate();bind();await assert.rejects(()=>reserve());noEdge();refusals++;}finally{Object.assign(records,saved);Object.assign(grant,saved.grant);Object.assign(acceptance,saved.acceptance);records.grant=grant;records.acceptance=acceptance;bind();}
   }
-  const outcomes=await Promise.allSettled([reserve(),reserve()]);assert.equal(outcomes.filter(v=>v.status==="fulfilled").length,1);assert.equal(outcomes.filter(v=>v.status==="rejected").length,1);
+  const outcomes=await Promise.allSettled([reserve(),reserve()]);
+  const reservationDiagnostic=JSON.stringify(outcomes.map(v=>v.status==="fulfilled"?{status:v.status,attempt_id:v.value.attempt_id}:
+    {status:v.status,code:v.reason?.code??null,message:v.reason?.message??String(v.reason)}));
+  assert.equal(outcomes.filter(v=>v.status==="fulfilled").length,1,reservationDiagnostic);
+  assert.equal(outcomes.filter(v=>v.status==="rejected").length,1,reservationDiagnostic);
   const admitted=outcomes.find(v=>v.status==="fulfilled").value;assert.deepEqual(admitted.budget,{initial:1,recovery:0});
   const receipt=fixtureReceipt(c,admitted,currentDeclaration,packages);h.storeReceipt(c,receipt);finishAttempt(admitted,{receiptFingerprint:receipt.integrity.content_fingerprint,disposition:"completed_success",cleanupComplete:true});
   assert.equal(await inspectAttemptRecords({anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt}),true);
