@@ -1329,6 +1329,12 @@ original 60/90-second registration, proof, incident, immutable authority bodies
 and chronology, Full/Browser natural completion, dependency/input identities,
 valid stock, cleanup, one-shot consumption and latest physical lineage are
 revalidated. A success label or current PR projection is not historical proof.
+In this explicitly selected delivery only, successful predecessor stock may
+retain `different_current_main` when its original admitted declared-base v2
+observation records that difference. The exact predecessor and receipt remain
+bound, all other success predicates still apply, and the stock is not rewritten
+or projected onto the new target. Absent selection, legacy integration and
+post-pass readers retain their original strict stock-applicability requirement.
 
 The selected delivery derives every differing overlap and every deviation from
 the non-overlap union from the actual merge-base, predecessor, accepted-main

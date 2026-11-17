@@ -1408,7 +1408,7 @@ function readMaterialIntegrationPredecessor(root,p,prior,completion,reader,revie
   verifyStoredRevisionProof(root,proof);
   const evidence=readReviewedRevisionEvidence(path.join(root,proof.local_relative_path),proof,root);
   const stock=reader(references.stock,{canonical:false,maximum:512*1024});
-  verifyGitRevisionSuccess(original,stock,evidence.inputs,REVIEWED_REVISION_PHASES);
+  verifyGitRevisionSuccess(original,stock,evidence.inputs,REVIEWED_REVISION_PHASES,isAccountedReviewedIntegration(p)?p:null);
   const authority=reader(references.authority,{maximum:256*1024});
   materialIntegrationAuthority(prior,authority);
   integrationRequire(Date.parse(prior.started_at)>Date.parse(authority.observations.execution_commission.timestamp)&&

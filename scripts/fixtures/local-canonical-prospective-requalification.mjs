@@ -365,6 +365,9 @@ export async function runProspectiveRequalificationControls(c, h, registeredOwne
   const browser = { contract: "augnes.local-canonical-browser-use.v2", executable_name: "Fixture",
     location_fingerprint: browserExe.location_fingerprint, before: browserExe.before, after: browserExe.before,
     actual_version: "Chrome/1", runtime_versions: { http: "Chrome/1", cdp: "Chrome/1" }, disposition: "unchanged", unchanged: true };
+  const observedMain = positivePredecessorOnly ? git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid',
+    'commit-tree', c.tree, '-p', c.head, '-m', 'synthetic observed main after declared base') : null;
+  if (observedMain) git('update-ref', 'refs/remotes/origin/main', observedMain);
   const complete = await executeFixture(c, { ...h, behavior: syntheticBehavior(0),
     begin: (subject, proof, auth, extra) => {
       const attempt = h.begin(subject, proof, auth, { ...extra, runId: "synthetic-prospective-complete" });
@@ -372,9 +375,19 @@ export async function runProspectiveRequalificationControls(c, h, registeredOwne
         assert.throws(() => h.begin(subject, proof, auth, extra)); refusals++;
       }
       assert.equal(tip().reviewed_revision_consumed, 1); return attempt;
-    }, decorateReceipt(receipt) { receipt.integration_base.contract = "augnes.local-canonical-integration-base.v2"; },
+    }, decorateReceipt(receipt) {
+      receipt.integration_base.contract = "augnes.local-canonical-integration-base.v2";
+      if (observedMain) {
+        receipt.integration_base.base_matches_current_main = false;
+        receipt.integration_base.observation.sha = observedMain;
+      }
+    },
   }, parsed, capability, browser, dependencyRecords(c));
   assert.equal(complete.stock.valid_deciding_evidence, true);
+  if (positivePredecessorOnly) {
+    assert.deepEqual(complete.stock.issues, []);
+    assert.equal(complete.stock.dimensions.current_merge_applicability, 'different_current_main');
+  }
   assert.equal(complete.receipt.attempt.source_correction.commission.registered_owner, registeredOwner);
   if (registeredOwner === undefined) assert(!Object.hasOwn(complete.receipt.attempt.source_correction.commission, "registered_owner"));
   assert.deepEqual(tip().revision_grants, [11, 32, 62, 82]);

@@ -22,6 +22,7 @@ import { GIT_CONFIG_STOCK_VERIFIER_REPAIR, MATERIAL_COMMON_STOCK_VERIFIER, verif
 import { verifiedStockPredecessor } from "./local-canonical-material-stock-predecessor.mjs";
 import { REGISTERED_FIXTURE_VALIDITY_WINDOW, FIXTURE_VALIDITY_WINDOW_CLAIM,
   verifyRegisteredFixtureValidityWindow } from "./local-canonical-fixture-validity-witness.mjs";
+import { isProspectiveRequalification, validProspectiveRequalificationOwner } from "./local-canonical-prospective-requalification.mjs";
 export { MATERIAL_COMMON_DRIVER } from "./local-canonical-common-driver.mjs";
 
 export const isGitObservationRevision = p =>
@@ -354,8 +355,21 @@ export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expecte
 
 // A later audit does not turn this complete successful invocation into a failed
 // phase. Only the inventory-bound second ordinal can retain it as a positive tip.
-export function verifyGitRevisionSuccess(r, stock, inputs, phases) {
+export function verifyGitRevisionSuccess(r, stock, inputs, phases, reviewedIntegration = null) {
   const i = r.inputs, previous = r.attempt?.source_correction;
+  // Only the explicitly selected integration reader may retain a successful
+  // declared-range predecessor whose observed main differs. This is original
+  // stock applicability, not applicability of the new integration target.
+  if (reviewedIntegration !== null) {
+    const p = reviewedIntegration;
+    if (p?.schema !== "augnes.local-canonical-source-correction.v2" || p.kind !== "accepted_main_integration" ||
+        p.integration_case !== "reviewed" || p.integration?.delivery_revision !== "accounted-verifier-chain-v1" ||
+        !(isMaterialSourceRevision(previous) || isProspectiveRequalification(previous) && validProspectiveRequalificationOwner(previous)) ||
+        p.prior_family_id !== r.attempt.family_id || p.prior_number !== r.attempt.number ||
+        p.prior_attempt_id !== r.run.id || p.prior_receipt_fingerprint !== r.integrity.content_fingerprint ||
+        p.branch !== r.repository.branch || p.base !== p.accepted_main || p.pull_request !== previous.pull_request)
+      fail("revision_positive_integration_context_invalid");
+  }
   const { contract, path_kind, binding, resources } = i;
   const environments = binding.phase_environment_fingerprints;
   const browser = resources.find(v => v.id === "browser-executable");
@@ -391,9 +405,13 @@ export function verifyGitRevisionSuccess(r, stock, inputs, phases) {
       i.prepared_dependencies.some(v=>v.before?.contract !== PREPARED_DEPENDENCY_CONTRACT || v.before.phase_id !== v.phase_id ||
         !preparedDependencyIdentity(v.before) || v.unchanged !== true || v.error !== null || comparePreparedDependencyInputs(v.before,v.after) !== "unchanged"))
     fail("revision_positive_predecessor_invalid");
+  const differentMain = reviewedIntegration !== null && usesDeclaredIntegrationBase(r) &&
+    r.integration_base.observation !== null && r.integration_base.base_matches_current_main === false &&
+    stock.dimensions?.current_merge_applicability === "different_current_main";
   if (stock.status !== "valid" || stock.valid_deciding_evidence !== true || stock.content_fingerprint !== r.integrity.content_fingerprint ||
       !equal(stock.issues,[]) || !equal(stock.dimensions,{historical_integrity:"intact",execution:"complete_pass",
-        evidence_validity:"valid_in_recorded_context",safety:"preserved_within_observed_scope",current_merge_applicability:"matches_observed_context"}))
+        evidence_validity:"valid_in_recorded_context",safety:"preserved_within_observed_scope",
+        current_merge_applicability:differentMain ? "different_current_main" : "matches_observed_context"}))
     fail("revision_positive_stock_invalid");
 }
 

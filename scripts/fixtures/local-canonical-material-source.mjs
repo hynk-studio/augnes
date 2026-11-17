@@ -109,7 +109,7 @@ async function materialIntegrationControls(c,h,mode,callback,seedSources,prepare
  if(accounted)assert(isProspectiveRequalification(a.source_correction));
  else assert.equal(a.source_correction.commission.source_revision,MATERIAL_SOURCE_CORRECTION);
  assert.deepEqual(a.budget,{initial:1,recovery:0});assert.equal(a.source_correction.commission.maximum_invocations,1);
- assert.doesNotThrow(()=>verifyGitRevisionSuccess(prior,successStock,c.inputs,REVIEWED_REVISION_PHASES));
+ if(!accounted)assert.doesNotThrow(()=>verifyGitRevisionSuccess(prior,successStock,c.inputs,REVIEWED_REVISION_PHASES));
  let receipt,proof,p,review,records,main,head,tree,packages,declaration,inputInventory,live,preparation,authority,priorTransport,partitionSources;
  let retain=false,createdMain=false,refusals=stored?.refusals??0;
  const noEdge=()=>assert(!existsSync(edge));
@@ -209,6 +209,11 @@ async function materialIntegrationControls(c,h,mode,callback,seedSources,prepare
   const request=extra=>({anchorRoot:c.anchor,repositoryRoot:c.checkout,checkoutOwner:c.owner,branch:c.branch,head,tree,acceptedMain:main,runId:'material-reviewed-integration',
    contractFingerprint:digest(declaration),sourceCorrection:proof,revisionInputs:c.inputs,revisionLive:live,assertCurrent(){},...extra});
   rebuild();
+  if(accounted){
+   assert.equal(successStock.dimensions.current_merge_applicability,'different_current_main');
+   assert.throws(()=>verifyGitRevisionSuccess(prior,successStock,c.inputs,REVIEWED_REVISION_PHASES),{code:'revision_positive_stock_invalid'});refusals++;
+   assert.doesNotThrow(()=>verifyGitRevisionSuccess(prior,successStock,c.inputs,REVIEWED_REVISION_PHASES,p));
+  }
   if(!stored){
   const prepared=prepare();assert.equal(prepared.eligible_evidence,true);assert.equal(prepared.authorized,false);assert.equal(prepared.reserved,false);assert.deepEqual(prepared.budget,{initial:1,recovery:0});noEdge();stage('prepared');
   }
@@ -218,7 +223,7 @@ async function materialIntegrationControls(c,h,mode,callback,seedSources,prepare
   for(const mutate of [r=>r.phases=[],r=>r.phases.pop(),r=>r.outcome.safety='blocked',r=>r.outcome.disposition='product_failure',
    r=>r.cleanup.completed=false,r=>r.phases[0].cleanup.streams_closed=false,r=>r.phases[0].timed_out=true,r=>r.phases.find(v=>v.browser_use.length).browser_use.pop(),
    r=>r.attempt.source_correction.commission.ordinal=2]){
-   const r=clone(prior);mutate(r);assert.throws(()=>verifyGitRevisionSuccess(r,successStock,c.inputs,REVIEWED_REVISION_PHASES));refusals++;
+   const r=clone(prior);mutate(r);assert.throws(()=>verifyGitRevisionSuccess(r,successStock,c.inputs,REVIEWED_REVISION_PHASES,...(accounted?[p]:[])));refusals++;
   }
   for(const mutate of [v=>v.source_correction.commission.maximum_invocations=2,v=>v.source_correction.commission.source_revision='unknown',
    v=>v.source_correction.commission.reviewed_workload='spent-terminal-git-successor-workload-v1']){
@@ -269,7 +274,26 @@ async function materialIntegrationControls(c,h,mode,callback,seedSources,prepare
     mutate();let error;try{rebuild();prepare();}catch(e){error=e;}assert(error);noEdge();refusals++;resetProof();
    }
    for(const stock of [{...clone(successStock),issues:['unverified']},{...clone(successStock),dimensions:{}}]){
-    assert.throws(()=>verifyGitRevisionSuccess(prior,stock,c.inputs,REVIEWED_REVISION_PHASES));refusals++;
+    assert.throws(()=>verifyGitRevisionSuccess(prior,stock,c.inputs,REVIEWED_REVISION_PHASES,p));refusals++;
+   }
+   for(const mutate of [q=>q.schema='augnes.local-canonical-source-correction.v1',q=>q.kind='source_revision',
+    q=>delete q.integration_case,q=>delete q.integration.delivery_revision,q=>q.integration.delivery_revision='unknown',
+    q=>q.prior_family_id=digest('other family'),q=>q.prior_number=2,q=>q.prior_attempt_id='other attempt',
+    q=>q.prior_receipt_fingerprint=digest('other receipt'),q=>q.branch+='-other',q=>q.pull_request++,q=>q.accepted_main=a.head]){
+    const context=clone(p);mutate(context);
+    assert.throws(()=>verifyGitRevisionSuccess(prior,successStock,c.inputs,REVIEWED_REVISION_PHASES,context),{code:'revision_positive_integration_context_invalid'});refusals++;
+   }
+   for(const mutate of [r=>r.integration_base.contract='augnes.local-canonical-integration-base.v1',
+    r=>{r.integration_base.observation=null;r.integration_base.base_matches_current_main=null;},
+    r=>r.integration_base.base_matches_current_main=true,r=>r.integration_base.observation.sha=r.repository.base_sha,
+    r=>r.integration_base.requested_base_sha=a.head,r=>r.integration_base.tested_head_sha=p.head,
+    r=>r.integration_base.checked_at=new Date(0).toISOString(),r=>r.integration_base.observation.source='unobserved']){
+    const malformed=clone(prior);mutate(malformed);
+    assert.throws(()=>verifyGitRevisionSuccess(malformed,successStock,c.inputs,REVIEWED_REVISION_PHASES,p),{code:'revision_positive_stock_invalid'});refusals++;
+   }
+   for(const applicability of ['unknown','unobserved','blocked']){
+    const stock=clone(successStock);stock.dimensions.current_merge_applicability=applicability;
+    assert.throws(()=>verifyGitRevisionSuccess(prior,stock,c.inputs,REVIEWED_REVISION_PHASES,p),{code:'revision_positive_stock_invalid'});refusals++;
    }
    // The material-only entry point must retain its original closed meaning.
    await assert.rejects(()=>observeMaterialIntegrationPredecessorAuthority(a,{transport:priorTransport}));refusals++;noEdge();
@@ -308,7 +332,7 @@ async function materialIntegrationControls(c,h,mode,callback,seedSources,prepare
   }
   assert.deepEqual(admitted.budget,{initial:1,recovery:0});
   const start=admitted.started_at,finish=new Date().toISOString(),r=clone(prior),own={...r.checkout_ownership,checkout_fingerprint:preparation.checkout_fingerprint,acquired_at:start,released_at:finish};
-  Object.assign(r.repository,{base_sha:main,head_sha:head,tree_sha:tree});Object.assign(r.integration_base,{requested_base_sha:main,tested_head_sha:head,checked_at:start});Object.assign(r.integration_base.observation,{sha:main,observed_at:start});
+  Object.assign(r.repository,{base_sha:main,head_sha:head,tree_sha:tree});Object.assign(r.integration_base,{requested_base_sha:main,tested_head_sha:head,checked_at:start,base_matches_current_main:true});Object.assign(r.integration_base.observation,{sha:main,observed_at:start});
   r.run={id:admitted.attempt_id,invocation_id:digest(admitted.attempt_id).slice(0,32),started_at:start,finished_at:finish,duration_ms:Date.parse(finish)-Date.parse(start)};
   r.attempt=admitted;r.inputs=inputInventory;r.checkout_ownership=own;r.capacity_ownership={...r.capacity_ownership,...own,invocation_id:r.run.invocation_id};r.verification_context.checkout_fingerprint=preparation.checkout_fingerprint;
   for(const [i,key]of ['root_lock_sha256','nested_lock_sha256','web_planning_lock_sha256'].entries())r.dependencies[key]=packages[i].before.sources.find(v=>v.name==='package-lock.json').sha256;
