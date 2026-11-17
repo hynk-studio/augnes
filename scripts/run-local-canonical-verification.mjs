@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { isOrdinaryInitialPreparationRevision } from "./local-canonical-initial-preparation.mjs";
 import { isMaintenance, hasMaintenanceMarker, authorizeMaintenance, observeMaintenanceAuthority, inspectMaintenanceInputs } from "./local-canonical-maintenance.mjs";
 import {isSelectedMaintenanceIncident} from "./local-canonical-maintenance-reader-incident.mjs";
 import { isSerialAggregateRevision } from "./local-canonical-serial-aggregate.mjs";
@@ -95,7 +96,7 @@ import {
   releaseCompanionServiceMaintenance,
 } from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 
-export const usesLegacyRevisionSettlement = proof => !!proof?.settlement && !isMaterialSourceRevision(proof);
+export const usesLegacyRevisionSettlement = proof => !!proof?.settlement && !isMaterialSourceRevision(proof) && !isOrdinaryInitialPreparationRevision(proof);
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -156,6 +157,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-receipt.mjs",
   "scripts/local-canonical-inputs.mjs",
   "scripts/local-canonical-attempts.mjs",
+  "scripts/local-canonical-initial-preparation.mjs",
   "scripts/local-canonical-improvement.mjs",
   "scripts/local-canonical-maintenance.mjs",
   "scripts/local-canonical-failed-integration-fixture.mjs",
@@ -811,7 +813,7 @@ export async function executeLocalCanonicalVerification({
                 let live = usesLegacyRevisionSettlement(sourceCorrection) ? await observeReviewedRevisionSettlementState(verificationContext) :
                   isBrowserRevision(sourceCorrection) ? await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: true }) : null;
                 if (isGitObservationRevision(sourceCorrection) || isInventoryBoundRevision(sourceCorrection) || isSerialAggregateRevision(sourceCorrection)) {
-                  live = await observeGitRevisionTarget(verificationContext, hostResult.browserExecutablePath, runtimeInputs);
+                  live = await observeGitRevisionTarget(verificationContext, hostResult.browserExecutablePath, runtimeInputs, {settlement:isOrdinaryInitialPreparationRevision(sourceCorrection)});
                   if (gitRevisionInventory(inputs.snapshot()) !== live.inventory) throw Object.assign(new Error("revision_git_inputs_changed"), {code:"revision_git_inputs_changed"});
                 }
                 return { authorization, live };
@@ -1336,7 +1338,7 @@ export function prepareInvocationInputs({ verificationContext, isolatedResources
 }
 
 // The preflight, admission and separate stock process re-read the very same inventory.
-export async function observeGitRevisionTarget(verificationContext, browserExecutablePath, runtimeInputs) {
+export async function observeGitRevisionTarget(verificationContext, browserExecutablePath, runtimeInputs, {settlement=false}={}) {
   assertVerificationContext(verificationContext, repositoryRoot);
   if (verificationContext.kind !== "isolated-worktree" || !browserExecutablePath || !runtimeInputs) throw new Error("revision_git_current_inputs_invalid");
   const snapshot = () => freezeInputContract({
@@ -1345,9 +1347,10 @@ export async function observeGitRevisionTarget(verificationContext, browserExecu
   }).snapshot();
   const inputInventory = snapshot();
   const inventory = gitRevisionInventory(inputInventory);
-  const service = await inspectVerificationCompanionPreservation(verificationContext,{freshTransport:true});
+  const current = settlement ? await observeReviewedRevisionSettlementState(verificationContext) :
+    {service:await inspectVerificationCompanionPreservation(verificationContext,{freshTransport:true})};
   if (gitRevisionInventory(snapshot()) !== inventory) throw new Error("revision_git_inputs_changed");
-  return {inventory,service,inputInventory};
+  return {inventory,inputInventory,...current};
 }
 
 function invocationInputResources({ verificationContext, browserExecutablePath, runtimeInputs = null }) {
@@ -1615,7 +1618,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
       const authorization = await authorizeReviewedRevision(proof);
       let live = isBrowserRevision(proof) ? await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: true }) : null;
       if (isGitObservationRevision(proof) || isInventoryBoundRevision(proof) || isSerialAggregateRevision(proof)) {
-        live = await observeGitRevisionTarget(verificationContext, validationHost.browserExecutablePath, runtimeInputs);
+        live = await observeGitRevisionTarget(verificationContext, validationHost.browserExecutablePath, runtimeInputs, {settlement:isOrdinaryInitialPreparationRevision(proof)});
         if (gitCurrentStockContract === GIT_CURRENT_STOCK_COMPARISON) {
           gitCurrentStockComparison = gitRevisionStockComparison(receipt.inputs, live.inputInventory, gitCurrentStockContract);
           if (gitCurrentStockComparison.current_inventory_sha256 !== live.inventory || !gitCurrentStockComparison.equivalent) live = null;

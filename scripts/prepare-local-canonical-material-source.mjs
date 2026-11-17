@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { isOrdinaryInitialPreparationRevision } from "./local-canonical-initial-preparation.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFileSync, realpathSync } from "node:fs";
@@ -18,7 +19,7 @@ const p=JSON.parse(readFileSync(file,"utf8")),context=admitVerificationContext({
 const host=collectHostEnvironment(repositoryRoot);
 assertDecidingEnvironment({host:host.public,nodePolicy:evaluateNodePolicy(),diskMinimumBytes:FULL_MINIMUM_DISK_BYTES});
 if (!host.browserExecutablePath) throw new Error("revision_preparation_browser_unavailable");
-const runtimeInputs=observeRevisionInputs(p,host),live=()=>observeGitRevisionTarget(context,host.browserExecutablePath,runtimeInputs);
+const runtimeInputs=observeRevisionInputs(p,host),live=()=>observeGitRevisionTarget(context,host.browserExecutablePath,runtimeInputs,{settlement:isOrdinaryInitialPreparationRevision(p)});
 const prepare=Object.hasOwn(p.commission??{},"requalification") ? prepareNoRemedyRequalification : prepareMaterialSourceRevision;
 const result=await prepare({file,repositoryRoot,predecessorRoot:repositoryRoot,
   anchorRoot:verificationAnchorRoot(context),runtimeInputs,live});

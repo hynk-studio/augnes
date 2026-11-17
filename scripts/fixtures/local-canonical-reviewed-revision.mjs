@@ -9,7 +9,7 @@ import path from "node:path";
 import {execFileSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
 import {digest,inputEventIdentity,observePreparedDependencyInputs,createGitTrackingResource,freezeInputContract} from "../local-canonical-inputs.mjs";
-import {REVIEWED_REVISION_PHASES,beginAttempt,finishAttempt,readSourceCorrectionProof,inspectAttemptRecords,reconstructAttemptTip,authorizeReviewedRevision,reviewedRevisionAuthorityObservation,validReviewedRevisionAttempt} from "../local-canonical-attempts.mjs";
+import {REVIEWED_REVISION_PHASES,beginAttempt,finishAttempt,readSourceCorrectionProof,inspectAttemptRecords,reconstructAttemptTip,authorizeReviewedRevision,reviewedRevisionAuthorityObservation,validReviewedRevisionAttempt,prepareMaterialSourceRevision,ordinaryInitialPreparationDelegation,ordinaryInitialPreparationGrant,ORDINARY_INITIAL_PREPARATION_HISTORY,ORDINARY_INITIAL_LAUNCH_CONDITION} from "../local-canonical-attempts.mjs";
 import {acquireCheckoutVerificationOwnership,releaseCheckoutVerificationOwnership} from "../local-canonical-checkout-ownership.mjs";
 import {createGitHubObserverAuthorizationTransport} from "../github-main-branch-transport.mjs";
 import {createCanonicalTestResourceRoot,beginCanonicalTestResourceUse,settleCanonicalTestResourceUse,cleanupCanonicalTestResources,buildCanonicalChildEnvironment} from "../canonical-test-environment.mjs";
@@ -18,7 +18,7 @@ import {finalizeReceipt,inspectReceiptForDecision} from "../local-canonical-rece
 import {createPrivateReviewExport,inspectPrivateReviewExport} from "../local-canonical-review-export.mjs";
 import {runBrowserRevisionControls, browserFixtureReceipt} from "./local-canonical-browser-revision.mjs";
 import {checkSpentCommission,completeGitRevisionControls,checkFinalDependency,checkPostPass,gitFixtureDeclaration,gitFixtureReceipt,runGitRevisionControls,runGitInputRevisionControls} from "./local-canonical-git-observation.mjs";
-import {GIT_ACQUISITION_REPAIR,gitAcquisitionIncident,gitRevisionInventory} from "../local-canonical-git-observation.mjs";
+import {GIT_ACQUISITION_REPAIR,gitAcquisitionIncident,gitRevisionInventory,gitReviewTarget} from "../local-canonical-git-observation.mjs";
 import {CANONICAL_NODE_VERSION} from "../local-canonical-environment.mjs";
 import {inspectGitRevisionPreparation} from "../local-canonical-attempts.mjs";
 import {baseReceipt} from "./local-canonical-receipt-v3.mjs";
@@ -359,6 +359,123 @@ async function acquisitionProposalControls(parentRoot, lifecycle, retainMaterial
   });
 }
 
+// Synthetic ordinary-initial records are written to a disposable real Git and
+// physical family. Only the admission/support owners run: no Full phase, native
+// service, provider, actual retained family or execution authority is used.
+async function ordinaryInitialControls(parentRoot,lifecycle) {
+  const {createOrdinaryInitialPreparationFixture}=await import("../test-local-canonical-initial-preparation.mjs");
+  const seed=createOrdinaryInitialPreparationFixture(),root=path.join(parentRoot,"ordinary-initial");mkdirSync(root,{mode:0o700});
+  const c={root,checkout:path.join(root,"checkout"),anchor:path.join(root,"anchor"),branch:seed.p.branch};
+  mkdirSync(c.checkout,{mode:0o700});mkdirSync(c.anchor,{mode:0o700});c.env=buildCanonicalChildEnvironment({temporaryRoot:root});c.git=gitFor(c);
+  const commit=label=>{c.git(["add","."]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m",label]);return c.git(["rev-parse","HEAD"]).toString().trim();};
+  c.git(["init","--quiet","-b",c.branch]);write(path.join(c.checkout,".git/info/exclude"),".augnes-local-verification/\n");
+  for(const [name,raw]of seed.files.prior)if(name!=="scripts/local-canonical-attempts.mjs")write(path.join(c.checkout,name),raw);
+  c.base=commit("controlled base");
+  write(path.join(c.checkout,"scripts/local-canonical-attempts.mjs"),seed.files.prior.get("scripts/local-canonical-attempts.mjs"));
+  seed.prior.head=commit("controlled ordinary initial source");seed.prior.tree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();
+  for(const [name,raw]of seed.files.final)write(path.join(c.checkout,name),raw);
+  seed.p.head=commit("controlled admission support");seed.p.tree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();
+  c.git(["update-ref","refs/remotes/origin/main",c.base]);
+  seed.git=c.git;seed.p.base=c.base;seed.p.pull_request=999;seed.prior.branch=c.branch;seed.prior.family_id=family(c.branch);seed.original.repository.base_sha=c.base;
+  seed.original.integration_base={contract:"augnes.local-canonical-integration-base.v2",requested_base_sha:c.base,tested_head_sha:seed.prior.head,status:"admitted",reason_code:null,
+    base_is_ancestor_of_head:true,base_matches_current_main:true,checked_at:"2030-01-01T00:00:01.000Z",observation:{source:"github_authenticated_main_branch_get",
+      repository_id:"hynk-studio/augnes",branch:"main",sha:c.base,observed_at:"2030-01-01T00:00:01.000Z"}};
+  // The reusable pure seed uses a fixed future clock. Rebase only synthetic
+  // record times; production freshness remains the native clock everywhere.
+  const shift=Date.now()-Date.UTC(2030,0,1)-602000,seen=new WeakSet();
+  const rebase=value=>{
+    if(!value||typeof value!=="object"||Buffer.isBuffer(value)||value instanceof Map||seen.has(value))return;
+    seen.add(value);for(const [key,item]of Object.entries(value)){
+      if(typeof item==="string"&&/^2030-01-01T/u.test(item))value[key]=new Date(Date.parse(item)+shift).toISOString();else rebase(item);
+    }
+  };
+  rebase(seed);for(const event of seed.original.inputs.events){const body={...event};delete body.identity;event.identity=digest(body);}
+  seed.seal();Object.assign(seed.original.integrity,{algorithm:"sha256",canonicalization:"json-sorted-keys-v1"});seed.p.originals.receipt=seed.put("receipt.json",seed.original);seed.source.reviewed_at=new Date(Date.UTC(2030,0,1)+450000+shift).toISOString();seed.p.source=seed.put("source.json",seed.source);
+  c.artifacts=path.join(c.checkout,".augnes-local-verification/ordinary-initial");c.file=path.join(c.artifacts,"proof.json");
+  const refresh=()=>{const live=clone(seed.live),now=new Date().toISOString();live.observed_at=now;live.service.diagnostics.started_at=now;live.service.diagnostics.finished_at=now;return live;};
+  c.inputs=seed.inputs;c.live=refresh();c.proof=seed.p;c.prior=seed.original;
+  const legacy=path.join(c.anchor,".augnes-local-verification/families",seed.prior.family_id),edge=path.join(legacy,"correction-successor.json");
+  const flush=()=>{for(const [name,raw]of seed.artifacts)write(path.join(c.artifacts,name),raw);write(c.file,c.proof);};
+  flush();write(path.join(legacy,"attempt-1.json"),seed.bytes(c.proof.originals.attempt));write(path.join(legacy,"completion-1.json"),seed.bytes(c.proof.originals.completion));
+  write(path.join(c.checkout,".augnes-local-verification/receipts",seed.prior.attempt_id+".json"),seed.bytes(c.proof.originals.receipt));
+  const nativeFile=path.join(c.checkout,seed.original.phases[8].log.relative_path);write(nativeFile,seed.nativeLog);
+  const preserved=[path.join(legacy,"attempt-1.json"),path.join(legacy,"completion-1.json"),path.join(c.artifacts,"receipt.json"),path.join(c.artifacts,"stock.log"),nativeFile];
+  const hashes=preserved.map(file=>digest(readFileSync(file))),findings=[];
+  const user={login:"synthetic-fixture",id:1,type:"User"},delegation={id:9,user,author_association:"OWNER",issue_url:"https://api.github.com/repos/hynk-studio/augnes/issues/999",
+    created_at:time(-200000),updated_at:time(-200000),body:ordinaryInitialPreparationDelegation(c.proof)};
+  c.proof.commission.delegation={id:delegation.id,sha256:digest(reviewedRevisionAuthorityObservation(delegation,"task_delegation"))};write(c.file,c.proof);
+  c.authority={linked:{"repos/hynk-studio/augnes/issues/comments/9":delegation},pr:{number:999,state:"open",draft:true,merged:false,auto_merge:null,
+    head:{sha:c.proof.head,ref:c.branch,repo:{full_name:"hynk-studio/augnes"}},base:{sha:c.base,ref:"main",repo:{full_name:"hynk-studio/augnes"}}}};
+  // Current main movement is informational for this integrity-bound v2
+  // original; the declared comparison and exact Draft source stay unchanged.
+  c.git(["update-ref","refs/remotes/origin/main",seed.prior.head]);c.authority.pr.base.sha=seed.prior.head;
+  const prepareOptions=()=>({file:c.file,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live:async()=>refresh()});
+  c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});
+  try {
+    const prepared=await prepareMaterialSourceRevision(prepareOptions(),{transport:transport(c)});
+    assert.equal(prepared.authorized,false);assert.equal(prepared.reserved,false);assert.equal(prepared.consumed,0);assert.equal(prepared.original_consumed,1);assert.equal(prepared.recovery_consumed,0);assert.equal(prepared.ordinal,1);
+    assert.deepEqual(prepared.missing,["authenticated_candidate_acceptance","prospective_explicit_execution_grant"]);assert(!existsSync(edge));
+    assert.equal(c.git(["rev-parse","refs/remotes/origin/main"]).toString().trim(),seed.prior.head);assert.notEqual(seed.prior.head,c.base);assert.equal(c.proof.base,c.base);
+    assert.throws(()=>begin(c,{...c.proof,local_relative_path:path.relative(c.checkout,c.file)},null));assert(!existsSync(edge));
+    assert.equal(read(path.join(c.artifacts,"stock.log")).issues.length,17);assert.equal(read(path.join(c.artifacts,"receipt.json")).cleanup.completed,false);
+    findings.push("real non-reserving preparation follows ordinary initial with declared v2 base despite current-main movement; no acceptance/grant/capability/reservation is minted; all 17 false issues remain unchanged");
+    const second=path.join(legacy,"attempt-2.json");write(second,{...seed.prior,number:2,attempt_id:"competing-latest-tip"});
+    await assert.rejects(prepareMaterialSourceRevision(prepareOptions(),{transport:transport(c)}),/revision_preparation_target_changed|revision_latest_settled_required/);rmSync(second);assert(!existsSync(edge));
+    const q=clone(c.proof);q.prior_attempt_id="wrong-tip";write(c.file,q);await assert.rejects(prepareMaterialSourceRevision(prepareOptions(),{transport:transport(c)}));write(c.file,c.proof);
+    const review={id:10,user,author_association:"OWNER",state:"COMMENTED",commit_id:c.proof.head,pull_request_url:"https://api.github.com/repos/hynk-studio/augnes/pulls/999",
+      submitted_at:time(-2000),body:"Source review decision: ACCEPT / RETAIN for prospective qualification.\n"+[c.proof.base,c.proof.head,c.proof.tree,gitReviewTarget(c.proof),c.proof.prior_receipt_fingerprint,
+        c.proof.inputs.inventory_sha256,c.proof.inputs.identity_sha256,c.proof.settlement.sha256,c.proof.commission.preparation_revision,ORDINARY_INITIAL_PREPARATION_HISTORY].join("\n")};
+    c.proof.accepted.review={id:review.id,sha256:digest(reviewedRevisionAuthorityObservation(review,"accepted_revision"))};
+    const grant={id:11,user,author_association:"OWNER",issue_url:delegation.issue_url,created_at:time(-1000),updated_at:time(-1000),body:ordinaryInitialPreparationGrant(c.proof)};
+    c.proof.authorization={grant_comment_id:grant.id,grant_sha256:digest(reviewedRevisionAuthorityObservation(grant,"execution_commission"))};c.authority.review=review;c.authority.grant=grant;write(c.file,c.proof);
+    let p=proof(c),a=await auth(c,p);const original=readFileSync(c.file);
+    // Hash binding alone cannot establish chronology. The authenticated
+    // source decision must follow the complete later settlement, not merely
+    // the earlier focused/source records. Equality also remains a refusal.
+    for(const offset of [-1,0]){
+      const prematureReview={...review,submitted_at:new Date(Date.parse(seed.settlement.recorded_at)+offset).toISOString()},prematureProof=clone(c.proof);
+      prematureProof.accepted.review.sha256=digest(reviewedRevisionAuthorityObservation(prematureReview,"accepted_revision"));
+      c.authority.review=prematureReview;write(c.file,prematureProof);
+      const premature=proof(c),authorization=await auth(c,premature);
+      assert.throws(()=>begin(c,premature,authorization),/revision_git_target_unverified/,"acceptance must be strictly after complete ordinary settlement");
+      assert(!existsSync(edge));assert.deepEqual(preserved.map(file=>digest(readFileSync(file))),hashes);
+      c.authority.review=review;write(c.file,original);
+    }
+    for(const mutate of [v=>v.extra=true,v=>v.commission.ordinal=2,v=>v.commission.maximum_invocations=2,v=>v.commission.source_revision="material-source-correction-v1",
+      v=>v.commission.preparation_revision="unknown",v=>v.commission.reviewed_workload=false,v=>v.kind="companion_readiness_timeout",v=>delete v.authorization,v=>delete v.accepted.review]){
+      const bad=clone(c.proof);mutate(bad);write(c.file,bad);assert.throws(()=>proof(c));assert.throws(()=>begin(c,{...bad,local_relative_path:p.local_relative_path},a));assert(!existsSync(edge));write(c.file,original);
+    }
+    await assert.rejects(auth(c,p,(value,endpoint)=>{if(endpoint.includes("/collaborators/"))value.permission="read";return value;}));
+    await assert.rejects(auth(c,p,(value,endpoint)=>{if(endpoint.endsWith("/comments/11"))value.body="ordinary approval";return value;}));
+    const missingWindowGrant={...grant,body:grant.body.replace(ORDINARY_INITIAL_LAUNCH_CONDITION+"\n\n","")},missingWindowProof=clone(c.proof);
+    missingWindowProof.authorization.grant_sha256=digest(reviewedRevisionAuthorityObservation(missingWindowGrant,"execution_commission"));
+    c.authority.grant=missingWindowGrant;write(c.file,missingWindowProof);await assert.rejects(auth(c,proof(c)),/revision_authority_scope_invalid/);c.authority.grant=grant;write(c.file,original);
+    await assert.rejects(begin(c,p,a,{observeRevision:async()=>({authorization:a,live:{...refresh(),foreign_checkout_owners:[{owner:"foreign"}]}}),assertCurrent(){}}));assert(!existsSync(edge));
+    const coordination=path.join(c.artifacts,"coordination-0.json"),saved=readFileSync(coordination);
+    await assert.rejects(begin(c,p,a,{observeRevision:async()=>{write(coordination,"{}");return{authorization:a,live:refresh()};},assertCurrent(){}}),/revision_validated_material_changed/);
+    write(coordination,saved);assert(!existsSync(edge));
+    const native=readFileSync(nativeFile);write(nativeFile,Buffer.from("wrong original native log"));assert.throws(()=>begin(c,p,a),/revision_ordinary_initial_original_log_(?:unsafe|changed)/);write(nativeFile,native);assert(!existsSync(edge));
+    findings.push("authenticated acceptance before/equal to complete settlement, wrong physical tip, extra/retired/mixed markers, absent grant/review, permission/body change, foreign writer, observer-time tamper and changed original log all refuse before append");
+    const competing=[0,1].map(index=>begin(c,p,a,{runId:"ordinary-prepared-"+index,observeRevision:async()=>({authorization:a,live:refresh()}),assertCurrent(){}}));
+    const results=await Promise.allSettled(competing),winners=results.filter(value=>value.status==="fulfilled");assert.equal(winners.length,1);assert.equal(results.filter(value=>value.status==="rejected").length,1);
+    const admitted=winners[0].value;assert(validReviewedRevisionAttempt(admitted));assert.deepEqual(admitted.budget,{initial:1,recovery:0});
+    // A complete structural receipt fixture is expressly non-deciding. These
+    // phase records are synthetic shapes, never observations of Full execution.
+    const r=finalizeReceipt({...clone(baseReceipt),...receipt(c,admitted,"completed_success"),receipt_version:4,
+      evidence:{...clone(baseReceipt.evidence),mode:"full",selected_plan:"full-canonical",deciding:false},verification_context:{kind:"isolated-worktree"},
+      phases:REVIEWED_REVISION_PHASES.map(id=>({...clone(baseReceipt.phases[0]),id,status:"pass",cleanup:{completed:true,remaining_owned_processes:0,termination_reason:"natural_exit",exit_observed:true,streams_closed:true}}))});
+    storeReceipt(c,r);finishAttempt(admitted,{receiptFingerprint:r.integrity.content_fingerprint,disposition:"completed_success",cleanupComplete:true});c.live=refresh();assert(stock(c,r,a));
+    const tip=reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch});assert.equal(tip.reviewed_revision_consumed,1);assert.deepEqual(tip.revision_grants,[11]);
+    assert.throws(()=>begin(c,p,a),/attempt_latest_tip_required/);assert.deepEqual(preserved.map(file=>digest(readFileSync(file))),hashes);
+    const exported=createPrivateReviewExport(r);assert.equal(exported.attempt.source_correction.commission.preparation_revision,c.proof.commission.preparation_revision);assert(inspectPrivateReviewExport(exported).structurally_valid);
+    const packet=path.join(root,"ordinary-cold.json");write(packet,{anchor:c.anchor,checkout:c.checkout,file:c.file,inputs:c.inputs,live:refresh(),authority:c.authority,receipt:r});
+    await freshReader(c,packet,createTrackedReviewChildRunner(lifecycle,runCanonicalChild));
+    assert.deepEqual(read(path.join(c.artifacts,"stock.log")).issues,seed.stock.issues);assert.equal(read(path.join(legacy,"completion-1.json")).cleanup_complete,false);
+    findings.push("two asynchronously validated contenders produce one exclusive reservation; fresh physical reconstruction/stock/export agree; max1/recovery0 and exact replay refusal preserve ordinary original bytes");
+    return findings;
+  } finally {if(c.owner)releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
+}
+
 if(process.argv[2]==="--cold"){
   const c=read(process.argv[3]);
   if(c.integrationRecords) await inspectMaterialIntegrationCold(c);
@@ -571,10 +688,15 @@ if(process.argv[2]==="--cold"){
     if(lifecycle.pendingChildren===0)settleCanonicalTestResourceUse(owner,{exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0});
     assert(cleanupCanonicalTestResources([owner])[0].completed);
   }
+}else if(process.argv[2]==="--run-ordinary-initial-fixtures"){
+  const owner=createCanonicalTestResourceRoot("ag-resource-test-"),lifecycle={pendingChildren:0};beginCanonicalTestResourceUse(owner);
+  try{console.log(JSON.stringify({ordinary_initial_controls:await ordinaryInitialControls(owner.root,lifecycle),synthetic_only:true,deciding:false}));}
+  finally{settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});assert(cleanupCanonicalTestResources([owner])[0].completed);}
 }else if(process.argv[2]==="--run-revision-fixtures"){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);const c=setup(owner.root), findings=[], lifecycle={pendingChildren:0};let liveChildren=0;
   const child=async(args,options={})=>{liveChildren++;const r=await runCanonicalChild({command:process.execPath,args:[self,...args],cwd:c.checkout,env:c.env,suite:"reviewed-revision",label:"fresh synthetic consumer",timeoutMs:10000,stdout:quiet,stderr:process.stderr,...options});assert(r.exit_observed&&r.streams_closed&&r.cleanup_completed&&r.remaining_owned_processes===0);liveChildren--;assert.equal(r.exit_code,0);return r;};
   try{
+    findings.push(...await ordinaryInitialControls(owner.root,lifecycle));
     findings.push(...await acquisitionProposalControls(owner.root,lifecycle));
     prepare(c);let p=proof(c),a=await auth(c,p);
     // The shared v7 schema must reach this complete validator. Renaming the
