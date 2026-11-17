@@ -150,10 +150,13 @@ export function readOrdinaryWatchdogIntegrationPredecessor(root,p,prior,completi
   requireThat(stock.valid_deciding_evidence===false && stock.status==="non_deciding_or_stale" && stock.content_fingerprint===p.prior_receipt_fingerprint &&
     equal(stock.issues,issues) && equal(stock.dimensions,{execution:"incomplete_or_failed",historical_integrity:"intact",evidence_validity:"invalid_or_incomplete",
       safety:"preserved_within_observed_scope",current_merge_applicability:"matches_observed_context"}),"stock_invalid");
-  const phase=receipt.phases[6],log=reader(references.log,{json:false,maximum:2*1024*1024});
-  requireThat(phase.log?.truncated===false && Buffer.byteLength(log)===phase.log.bytes && phase.log.relative_path===
+  const phase=receipt.phases[6],logBytes=reader(references.log,{json:false,maximum:2*1024*1024});
+  requireThat(Buffer.isBuffer(logBytes),"log_invalid");
+  const log=logBytes.toString("utf8");
+  requireThat(Buffer.from(log,"utf8").equals(logBytes),"log_utf8_invalid");
+  requireThat(phase.log?.truncated===false && logBytes.length===phase.log.bytes && phase.log.relative_path===
     `.augnes-local-verification/logs/${prior.attempt_id}/authority.log`,"log_invalid");
-  requireThat(retainedBytes(root,phase.log.relative_path,2*1024*1024,remember).equals(Buffer.from(log)),"original_log_changed");
+  requireThat(retainedBytes(root,phase.log.relative_path,2*1024*1024,remember).equals(logBytes),"original_log_changed");
   const children=log.split("\n").filter(line=>line.startsWith("AUGNES_REVIEW_CHILD_RESULT ")).map(line=>JSON.parse(line.slice("AUGNES_REVIEW_CHILD_RESULT ".length)));
   const failed=children.filter(v=>v.control_id===CONTROL);requireThat(failed.length===1,"child_invalid");
   const child=failed[0];

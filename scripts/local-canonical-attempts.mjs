@@ -1201,6 +1201,9 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
       throw fail("attempt_candidate_superseded");
     return;
   }
+  // Source/ownership/input observers above may block. Recheck this selected
+  // finite commission after the last mutable boundary, immediately before wx.
+  if(reserve&&ordinaryWatchdogIntegration)assertIntegrationAuthorization(proof,preparedMaterialIntegration,revisionAuthorization);
   if (reserve) {
     append(priorRoot, "correction-successor.json", successor);
   }
