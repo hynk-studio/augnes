@@ -119,6 +119,35 @@ research form for ordinary fixes or documentation or universal search counts.
   for comparisons, exposure, burden, and next-decision reporting; existing
   verification, provenance, and deciding-run refusal rules still apply.
 
+### Task delegation and execution accounting
+
+For newly assigned work, prefer a task-scoped delegation with a finite cumulative
+budget over repeated command-by-command approval. Bind authority to the approved
+goal, scope, environment, and allowed effects. Exact-target or single-use grants
+remain required where an applicable contract or concrete risk requires them;
+do not invent universal attempt caps for ordinary development.
+
+- Distinguish task authority from execution evidence and final acceptance.
+  Attempt records bind the actual source, inputs, plan, environment, and outcome;
+  final acceptance still requires applicable evidence for the submitted target.
+  An in-scope method or candidate change does not itself expand or renew authority.
+- Carry total consumption across rounds, candidates, replacement grants, and
+  delegates. Remaining capacity is derived from approved limits, consumption, and
+  outstanding reservations not already counted as consumed; it is not a spending
+  target. Keep unlike units separate and distinguish measured, estimated, and
+  unknown cost. Adjust budgets only within existing delegated authority and
+  record the reason without erasing consumption or changing issued grant limits.
+- Use existing supported admission and accounting mechanisms. Reconcile duplicate
+  requests and uncertain executions before a new attempt; do not automatically
+  refund consumed or unsettled allocations. A reservation already counted as
+  consumed must not be deducted twice. These rules do not implement a new
+  automatic grant path or replace current runtime enforcement.
+
+Apply this default to new assignments without changing ongoing assignments,
+issued grants, explicit limits, STOP instructions, or historical results.
+A new round, candidate, or grant for the same problem is not a fresh budget.
+The Local Canonical policy and its final-target gates remain binding.
+
 ### Bounded completion and problem response
 
 - Within the approved goal, contracts, authority, and budget, contributors choose
@@ -146,6 +175,13 @@ research form for ordinary fixes or documentation or universal search counts.
   general guidance neither renews spent authority nor creates a new retry.
 
 ### Practical review and closure
+
+Development audits determine whether the approved objective, material change
+impacts, and applicable contracts support acceptance and, where authorized,
+merging. Audit comments alone do not establish new mandatory acceptance criteria.
+Investigation or modification of verification infrastructure is limited to what
+the current acceptance decision needs, unless infrastructure improvement is
+itself an approved objective; existing shared-verification conditions still apply.
 
 - Block on material outcome, regression, or contract defects; missing or
   conflicting required evidence; or an applicable authority violation. State the
