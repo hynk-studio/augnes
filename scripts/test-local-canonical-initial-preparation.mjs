@@ -212,6 +212,9 @@ export function runOrdinaryInitialPreparationControls() {
     ["second ordinal", c => c.p.commission.ordinal = 2],
     ["recovery allowance", c => c.p.commission.maximum_invocations = 2],
     ["product route disguise", c => c.p.commission.source_revision = "material-source-correction-v1"],
+    ["prospective route disguise", c => c.p.commission.source_revision = "prospective-requalification-v1"],
+    ...["model-host-succession-benchmark", false, null, {}].map(value =>
+      ["foreign registered-owner marker " + JSON.stringify(value), c => c.p.commission.registered_owner = value]),
     ["non initial predecessor", c => c.prior.source_correction = { kind: "source_revision" }, true],
     ["recovered predecessor", c => c.prior.recovery = { infrastructure_code: "ENOENT" }, true],
     ["forged old cleanup", c => c.original.cleanup.completed = true, true],

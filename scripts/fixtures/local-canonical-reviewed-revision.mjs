@@ -22,7 +22,7 @@ import {GIT_ACQUISITION_REPAIR,gitAcquisitionIncident,gitRevisionInventory,gitRe
 import {CANONICAL_NODE_VERSION} from "../local-canonical-environment.mjs";
 import {inspectGitRevisionPreparation} from "../local-canonical-attempts.mjs";
 import {baseReceipt} from "./local-canonical-receipt-v3.mjs";
-import {runMaterialSourceControls,seedMaterialSourceFiles,prepareMaterialSourcePredecessor,inspectMaterialIntegrationCold} from "./local-canonical-material-source.mjs";
+import {runMaterialSourceControls,seedMaterialSourceFiles,prepareMaterialSourcePredecessor,inspectMaterialIntegrationCold,runProspectiveReviewedIntegrationFixture} from "./local-canonical-material-source.mjs";
 import {runMaintenanceAllowanceControls} from "./local-canonical-maintenance-allowance.mjs";
 
 const self=fileURLToPath(import.meta.url), quiet={write(){}}, clone=v=>structuredClone(v);
@@ -75,7 +75,25 @@ function receipt(c,a,disposition="product_failure"){
   phases:[{id:"integration",status:disposition==="completed_success"?"pass":"failure"}],outcome:{disposition,safety:fault?"blocked":"preserved_within_observed_scope",first_fault:fault},checkout_ownership:{released:true},capacity_ownership:{released:true},
   cleanup:{completed:true,remaining_owned_processes:0,companion_service:{restored:true},isolated_resources:{completed:true}}});}
 const storeReceipt=(c,r)=>write(path.join(c.checkout,".augnes-local-verification/receipts",r.run.id+".json"),r);
-const gitFor = c => args => execFileSync("git", args, {cwd:c.checkout, env:c.env, timeout:5000, maxBuffer:1024*1024, stdio:["ignore","pipe","pipe"]});
+const gitFor = c => args => {
+  // Whole binary-diff consumers hash raw complete bytes. Match the production
+  // material/integration readers' finite cap without widening other Git reads.
+  const prefixes = [
+    ["diff","--binary","--full-index","--no-ext-diff","--no-textconv"],
+    ["diff","--binary","--no-ext-diff","--no-textconv","--no-renames"],
+    ["diff","--binary","--no-ext-diff","--no-textconv"],
+  ];
+  const binaryDiff = Array.isArray(args) && args.every(value => typeof value === "string") && prefixes.some(prefix =>
+    prefix.every((value,index) => args[index] === value) &&
+    /^[a-f0-9]{40}$/u.test(args[prefix.length] ?? "") &&
+    /^[a-f0-9]{40}$/u.test(args[prefix.length+1] ?? "") &&
+    args[prefix.length+2] === "--" && args.slice(prefix.length+3).every(file =>
+      typeof file === "string" && /^[A-Za-z0-9_./\[\]-]+$/u.test(file) &&
+      !file.startsWith("/") && !file.startsWith("-") &&
+      file.split("/").every(part => part && part !== "." && part !== "..")));
+  return execFileSync("git", args, {cwd:c.checkout, env:c.env, timeout:5000,
+    maxBuffer:(binaryDiff?16:1)*1024*1024, stdio:["ignore","pipe","pipe"]});
+};
 function attachGit(c,gitIncident) {
   c.git = gitFor(c);
   c.commit=value=>{write(path.join(c.checkout,"scripts/fixture.mjs"),"export const value="+value+";\n"+(gitIncident?'import assert from "node:assert/strict";\nassert.equal(value,4);\nconsole.log("corrected behavior");\n':""));c.git(["add","scripts"]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","value "+value]);return c.git(["rev-parse","HEAD"]).toString().trim();};
@@ -197,7 +215,7 @@ async function prepareSettlement(c) {
 
 // Acquisition edge controls are synthetic, use the existing fixture/ledger/transport,
 // and never touch the actual commission or retained receipt.
-async function acquisitionProposalControls(parentRoot, lifecycle, retainMaterialPredecessor = false) {
+async function acquisitionProposalControls(parentRoot, lifecycle, retainMaterialPredecessor = false, seedSources = null) {
   return withAdjacentAuthorityClock(async () => {
   const runOwned = createTrackedReviewChildRunner(lifecycle, runCanonicalChild);
   const root=path.join(parentRoot,"acquisition-proposal");mkdirSync(root);
@@ -214,6 +232,7 @@ async function acquisitionProposalControls(parentRoot, lifecycle, retainMaterial
   };
   try {
     if(retainMaterialPredecessor) seedMaterialSourceFiles(c,write);
+    if(seedSources) seedSources(c,write);
     write(path.join(c.checkout,input),"export const coherent = false;\n");
     write(path.join(c.checkout,driver),'import assert from "node:assert/strict"; import {coherent} from "./local-canonical-inputs.mjs"; console.log({coherent}); assert.equal(coherent,true);\n');commit();
     write(path.join(c.checkout,".git/info/exclude"),".augnes-local-verification/\n");c.git(["update-ref","refs/remotes/origin/main",c.base]);
@@ -423,6 +442,8 @@ async function ordinaryInitialControls(parentRoot,lifecycle) {
       c.authority.review=review;write(c.file,original);
     }
     for(const mutate of [v=>v.extra=true,v=>v.commission.ordinal=2,v=>v.commission.maximum_invocations=2,v=>v.commission.source_revision="material-source-correction-v1",
+      v=>v.commission.source_revision="prospective-requalification-v1",v=>v.commission.registered_owner="model-host-succession-benchmark",
+      v=>v.commission.registered_owner=false,v=>v.commission.registered_owner=null,
       v=>v.commission.preparation_revision="unknown",v=>v.commission.reviewed_workload=false,v=>v.kind="companion_readiness_timeout",v=>delete v.authorization,v=>delete v.accepted.review]){
       const bad=clone(c.proof);mutate(bad);write(c.file,bad);assert.throws(()=>proof(c));assert.throws(()=>begin(c,{...bad,local_relative_path:p.local_relative_path},a));assert(!existsSync(edge));write(c.file,original);
     }
@@ -540,6 +561,38 @@ if(process.argv[2]==="--cold"){
       cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});
     assert(cleanupCanonicalTestResources([owner])[0].completed);
   }
+}else if(process.argv[2]==="--run-prospective-requalification-fixtures"){
+  // A separate development-only entry. Its generated authority, clock and
+  // receipts never alter a retained incident or authorize host qualification.
+  const {seedProspectiveRequalificationFiles,runProspectiveRequalificationControls}=await import("./local-canonical-prospective-requalification.mjs");
+  const selections=process.argv.slice(3),allowed=["--registered-owner=model-host-succession-benchmark","--accounted-reviewed-integration"];
+  assert(selections.length<=allowed.length&&new Set(selections).size===selections.length&&selections.every(value=>allowed.includes(value)));
+  const registeredOwner=selections.includes(allowed[0])?"model-host-succession-benchmark":undefined;
+  const accountedIntegration=selections.includes("--accounted-reviewed-integration");
+  const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
+  const lifecycle={pendingChildren:0},run=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);
+  let c;
+  try {
+    await acquisitionProposalControls(owner.root,lifecycle,true,seedProspectiveRequalificationFiles);
+    const root=path.join(owner.root,"acquisition-proposal");c=read(path.join(root,"context.json"));c.root=root;
+    c.checkout=path.join(root,"checkout");c.anchor=path.join(root,"anchor");c.file=path.join(c.checkout,c.proofPath);c.artifacts=path.dirname(c.file);
+    c.env=buildCanonicalChildEnvironment({temporaryRoot:owner.root});attachGit(c,true);
+    c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});c.live=observeFixtureLive(c);
+    const helpers={prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,run,
+      behavior:subject=>behavior(subject,false,run),fresh:packet=>freshReader(c,packet,run),
+      releaseOwner:()=>releaseCheckoutVerificationOwnership(c.owner,c.checkout),
+      acquireOwner:()=>c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout})};
+    await runMaterialSourceControls(c,helpers,"material-source");
+    await runProspectiveRequalificationControls(c,helpers,registeredOwner,{
+      onComplete:accountedIntegration?complete=>runProspectiveReviewedIntegrationFixture(c,helpers,complete):undefined,
+      positivePredecessorOnly:accountedIntegration,
+    });
+  } finally {
+    if(lifecycle.pendingChildren===0&&c?.owner)releaseCheckoutVerificationOwnership(c.owner,c.checkout);
+    settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,
+      cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});
+    assert(cleanupCanonicalTestResources([owner])[0].completed);
+  }
 }else if(process.argv[2]==="--run-maintenance-allowance-fixtures"){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
   const lifecycle={pendingChildren:0},run=createTrackedReviewChildRunner(lifecycle,runCanonicalChild),c=setup(owner.root);
@@ -560,7 +613,7 @@ if(process.argv[2]==="--cold"){
     write(file,value);
   };
   try { await runSerialAggregateControls(c,{prepare,artifact,read,write:writePredecessor,proof,auth,begin,stock,receipt,storeReceipt,run,
-    fresh:packet=>freshReader(c,packet,run),behavior:(subject)=>behavior(subject,false,run)},material); }
+    observeLive:observeFixtureLive,fresh:packet=>freshReader(c,packet,run),behavior:(subject)=>behavior(subject,false,run)},material); }
   finally {releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});assert(cleanupCanonicalTestResources([owner])[0].completed);}
 }else if(process.argv[2]==="--run-browser-fixtures"){
   browserProgress("setup_start");

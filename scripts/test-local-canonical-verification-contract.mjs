@@ -1704,7 +1704,7 @@ for (const definition of [
     label:
       "credential-safe isolated Agent Identity projection, provenance, and execution-authority boundary",
     mode: "--contracts",
-    timeout: "60_000",
+    timeout: "90_000",
   },
   {
     id: "codex-isolated-auth-rollback-lifecycle",

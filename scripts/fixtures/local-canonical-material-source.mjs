@@ -1,7 +1,7 @@
 // Disposable synthetic authority. Real readers, physical ledger, behavioral
 // subprocesses and fresh stock; these records never authorize host qualification.
 import assert from 'node:assert/strict';
-import {readFileSync,existsSync,rmSync,readdirSync,writeFileSync} from 'node:fs';
+import {readFileSync,existsSync,rmSync,readdirSync,writeFileSync,chmodSync} from 'node:fs';
 import {syncBuiltinESMExports} from 'node:module';
 import path from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
@@ -10,7 +10,8 @@ import {digest} from '../local-canonical-inputs.mjs';
 import {CANONICAL_NODE_VERSION} from '../local-canonical-environment.mjs';
 import {beginAttempt,finishAttempt,readSourceCorrectionProof,inspectGitRevisionPreparation,inspectAttemptRecords,reconstructAttemptTip,reviewedRevisionAuthorityObservation,
  prepareAcceptedMainIntegrationCandidate,integrationMaterial,integrationTarget,authorizeIntegration,INTEGRATION_ACCEPT,INTEGRATION_GRANT,
- observeMaterialIntegrationPredecessorAuthority,readReviewedIntegration} from '../local-canonical-attempts.mjs';
+ observeMaterialIntegrationPredecessorAuthority,observeReviewedIntegrationPredecessorAuthority,
+ observeReviewedIntegrationSource,REVIEWED_INTEGRATION_DELIVERY,readReviewedIntegration} from '../local-canonical-attempts.mjs';
 import {MATERIAL_SOURCE_CORRECTION,MATERIAL_HISTORY_BOUNDARY,gitReviewTarget,verifyGitRevisionFailure,verifyGitRevisionSuccess,
  GIT_CURRENT_STOCK_COMPARISON,gitRevisionInventory,gitRevisionStockComparison} from '../local-canonical-git-observation.mjs';
 import {REVIEWED_REVISION_PHASES} from '../local-canonical-attempts.mjs';
@@ -22,6 +23,7 @@ import {finalizeReceipt,inspectReceiptForDecision,canonicalSerialize} from '../l
 import {inspectIntegrationStock} from '../run-local-canonical-verification.mjs';
 import {checkoutVerificationFingerprint} from '../local-canonical-checkout-ownership.mjs';
 import {seedFailedIntegrationFixtureSources} from './local-canonical-failed-integration-maintenance.mjs';
+import {isProspectiveRequalification} from '../local-canonical-prospective-requalification.mjs';
 const clone=structuredClone,now=()=>new Date(fixtureNow()).toISOString();
 const driver='scripts/material-source-behavior.mjs',product='apps/web_planning/src/exchange-client.js.txt';
 const predecessorDriver='scripts/material-predecessor.mjs';
@@ -33,19 +35,22 @@ const integrationTransport=records=>({review:async()=>clone(records.acceptance),
 
 async function materialHistoricalPrefix(c,prior,context) {
  let callbacks=0,validated=false;
+ const prospective=isProspectiveRequalification(prior.attempt.source_correction),prefix=prospective?'receipt_historical_prospective_integration_prefix':'receipt_historical_material_integration_prefix';
  const currentAttemptRecordsValid=await inspectAttemptRecords({anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt:prior,
-  onHistoricalPrefix(){validated=true;},observeRevision:async()=>{callbacks++;throw Error('historical prefix must not project current authority');}});
+  onHistoricalPrefix(kind){if(prospective)assert.equal(kind,'successful_prospective_integration');validated=true;},observeRevision:async()=>{callbacks++;throw Error('historical prefix must not project current authority');}});
  assert.equal(currentAttemptRecordsValid,true);assert.equal(callbacks,0);assert.equal(validated,true);
  const current={...context,expectedRunId:prior.run.id,currentExecutorFingerprint:digest('changed current executor'),
   currentLocks:{root:digest('changed current root lock'),nested:digest('changed current nested lock'),webPlanning:digest('changed current web lock')}};
- const historical=inspectReceiptForDecision(prior,{...current,currentAttemptRecordsValid,historicalMaterialIntegrationPrefix:validated});
- assert(historical.issues.includes('receipt_historical_material_integration_prefix'));assert(historical.issues.includes('receipt_stale_executor'));
+ const prefixState=prospective?{historicalProspectiveIntegrationPrefix:validated}:{historicalMaterialIntegrationPrefix:validated};
+ const historical=inspectReceiptForDecision(prior,{...current,currentAttemptRecordsValid,...prefixState});
+ assert(historical.issues.includes(prefix));assert(historical.issues.includes('receipt_stale_executor'));
  assert(historical.issues.includes('receipt_stale_lockfiles'));assert(historical.issues.includes('receipt_stale_head'));
  assert.equal(historical.dimensions.evidence_validity,'valid_in_recorded_context');assert.equal(historical.dimensions.current_merge_applicability,'blocked');assert.equal(historical.valid_deciding_evidence,false);
  const changed=clone(prior);changed.phases.pop();const malformed=finalizeReceipt(changed);let wronglyValidated=false;
  const invalid=await inspectAttemptRecords({anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt:malformed,onHistoricalPrefix(){wronglyValidated=true;}});
  assert.equal(invalid,false);assert.equal(wronglyValidated,false);
- const refused=inspectReceiptForDecision(malformed,{...current,currentAttemptRecordsValid:invalid,historicalMaterialIntegrationPrefix:wronglyValidated});
+ const refused=inspectReceiptForDecision(malformed,{...current,currentAttemptRecordsValid:invalid,
+  ...(prospective?{historicalProspectiveIntegrationPrefix:wronglyValidated}:{historicalMaterialIntegrationPrefix:wronglyValidated})});
  assert.equal(refused.dimensions.evidence_validity,'invalid_or_incomplete');assert.equal(refused.valid_deciding_evidence,false);
 }
 
@@ -56,7 +61,7 @@ export async function inspectMaterialIntegrationCold(c) {
  assert.equal(observed.currentAttemptRecordsValid,true);
  const result=inspectReceiptForDecision(receipt,{...c.stockContext,...observed});
  assert.equal(result.valid_deciding_evidence,true,JSON.stringify(result.issues));
- await materialHistoricalPrefix(c,c.materialPredecessor,c.stockContext);
+ await materialHistoricalPrefix(c,c.reviewedPredecessor??c.materialPredecessor,c.stockContext);
  const tip=reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:receipt.repository.branch});
  assert.equal(tip.attempt_id,receipt.run.id);assert.equal(tip.reviewed_revision_consumed,1);
  assert.deepEqual(tip.revision_grants,c.materialGrants);
@@ -73,11 +78,20 @@ export async function runMaintenanceReaderIntegrationFixture(c,h,callback,{seedS
  return materialIntegrationControls(c,h,'maintenance-reader',callback,seedSources,prepareDependencies);
 }
 
-async function materialIntegrationControls(c,h,mode,callback,seedSources,prepareDependencies) {
- const readerMode=mode==='maintenance-reader';
- const started=performance.now(),stage=name=>console.log(JSON.stringify({material_integration_stage:name,elapsed_ms:Math.round(performance.now()-started),synthetic_only:true}));
- const prior=c.materialFinalReceipt,a=prior.attempt,successStock=h.read(path.join(c.artifacts,'fresh-stock.json'));
- const git=(...args)=>c.git(args).toString().trim(),commit=()=>git('-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','--quiet','-m','synthetic reviewed material integration');
+// Continue the real successful prospective fixture; its proof and commission
+// remain prospective throughout original-authority and historical-prefix reads.
+export async function runProspectiveReviewedIntegrationFixture(c,h,complete) {
+ assert(isProspectiveRequalification(complete.receipt.attempt.source_correction));
+ assert.equal(complete.stock.valid_deciding_evidence,true);
+ return materialIntegrationControls(c,h,'accounted-prospective',null,null,null,complete);
+}
+
+async function materialIntegrationControls(c,h,mode,callback,seedSources,prepareDependencies,complete=null) {
+ const readerMode=mode==='maintenance-reader',accounted=mode==='accounted-prospective';
+ let currentStage='source_setup';
+ const started=performance.now(),stage=name=>{currentStage=name;console.log(JSON.stringify({material_integration_stage:name,elapsed_ms:Math.round(performance.now()-started),synthetic_only:true}));};
+ const prior=accounted?complete.receipt:c.materialFinalReceipt,a=prior.attempt,successStock=accounted?complete.stock:h.read(path.join(c.artifacts,'fresh-stock.json'));
+ const git=(...args)=>c.git(args).toString().trim(),commit=()=>git('-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','--quiet','-m',accounted?'synthetic reviewed prospective integration':'synthetic reviewed material integration');
  const families=path.join(c.anchor,'.augnes-local-verification/families'),ledger=path.join(families,a.family_id),edge=path.join(ledger,'correction-successor.json');
  const originalFiles=new Map(),capture=folder=>{for(const entry of readdirSync(folder,{withFileTypes:true})){const file=path.join(folder,entry.name);if(entry.isDirectory())capture(file);else originalFiles.set(file,readFileSync(file));}};
  capture(families);capture(c.artifacts);
@@ -86,18 +100,21 @@ async function materialIntegrationControls(c,h,mode,callback,seedSources,prepare
  const restoreLedger=()=>{rmSync(families,{recursive:true,force:true});for(const [file,bytes]of ledgerFiles)h.write(file,bytes);};
  const preserved=()=>{for(const [file,bytes]of originalFiles)assert(readFileSync(file).equals(bytes),file+' remains unchanged');};
  const oldMain=git('rev-parse','refs/remotes/origin/main'),exclude=path.join(c.checkout,'.git/info/exclude'),excludeBytes=readFileSync(exclude);
- const folder=path.join(c.checkout,'.augnes-local-verification/material-reviewed-integration'),file=path.join(folder,'proof.json');
+ const folder=path.join(c.checkout,accounted?'.augnes-local-verification/prospective-reviewed-integration':'.augnes-local-verification/material-reviewed-integration'),file=path.join(folder,'proof.json');
  const handoff=path.join(c.root,'material-integration-context.json'),stored=mode==='admit'?h.read(handoff):null;
  const ref=(name,value)=>{h.write(path.join(folder,name),typeof value==='object'&&!Buffer.isBuffer(value)?canonicalSerialize(value):value);return{artifact:name,sha256:digest(readFileSync(path.join(folder,name)))}};
  const delta=(before,after,files=[])=>digest(c.git(['diff','--binary','--no-ext-diff','--no-textconv','--no-renames',before,after,'--',...files]));
  const beforeTip=reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch});
- assert.deepEqual(beforeTip.revision_grants,[11,32,62,72]);assert.equal(beforeTip.reviewed_revision_consumed,1);
- assert.equal(a.source_correction.commission.source_revision,MATERIAL_SOURCE_CORRECTION);
+ assert.deepEqual(beforeTip.revision_grants,accounted?[11,32,62,82]:[11,32,62,72]);assert.equal(beforeTip.reviewed_revision_consumed,1);
+ if(accounted)assert(isProspectiveRequalification(a.source_correction));
+ else assert.equal(a.source_correction.commission.source_revision,MATERIAL_SOURCE_CORRECTION);
  assert.deepEqual(a.budget,{initial:1,recovery:0});assert.equal(a.source_correction.commission.maximum_invocations,1);
- assert.doesNotThrow(()=>verifyGitRevisionSuccess(prior,successStock,c.inputs,REVIEWED_REVISION_PHASES));
+ if(!accounted)assert.doesNotThrow(()=>verifyGitRevisionSuccess(prior,successStock,c.inputs,REVIEWED_REVISION_PHASES));
  let receipt,proof,p,review,records,main,head,tree,packages,declaration,inputInventory,live,preparation,authority,priorTransport,partitionSources;
  let retain=false,createdMain=false,refusals=stored?.refusals??0;
  const noEdge=()=>assert(!existsSync(edge));
+ const collectPriorAuthority=accounted?observeReviewedIntegrationPredecessorAuthority:observeMaterialIntegrationPredecessorAuthority;
+ const predecessorKey=accounted?'revision_predecessor':'material_predecessor';
  try {
   if(stored){
    p=stored.p;review=stored.review;preparation=stored.preparation;({head,tree}=p);main=p.base;
@@ -107,13 +124,28 @@ async function materialIntegrationControls(c,h,mode,callback,seedSources,prepare
    inputInventory={...declaration,fingerprint:digest(declaration),checks:1,events:[],first_fault:null,secondary_faults:[],prepared_dependencies:packages};
    live={...clone(c.live),inventory:gitRevisionInventory(inputInventory),inputInventory};
   }else{
-  const overlap='scripts/fixture.mjs',oldSource=c.git(['show',a.head+':'+overlap]);
+  const overlap=accounted?'scripts/test-local-canonical-prospective-requalification.mjs':'scripts/fixture.mjs',oldSource=c.git(['show',a.head+':'+overlap]);
+  const dependencyPaths=['','apps/augnes_apps','apps/web_planning'].flatMap(dir=>['package.json','package-lock.json'].map(name=>path.posix.join(dir,name)));
+  const adjustmentPaths=accounted?['scripts/local-canonical-integration-adjustment-fixture.mjs','scripts/local-canonical-integration-deleted-fixture.mjs','scripts/local-canonical-integration-mode-fixture.mjs']:[];
   git('checkout','-b','material-accepted-main',c.base);createdMain=true;
   h.write(path.join(c.checkout,overlap),'export const incoming=true;\n');
+  if(accounted){
+   // Safe dependency sources enter through accepted main's ordinary union;
+   // only verifier adjustments belong to the new merge/correction accounting.
+   h.write(exclude,Buffer.concat([excludeBytes,Buffer.from('\nnode_modules/\n')]));
+   dependencyRecords(c,c.checkout);
+   for(const name of adjustmentPaths)h.write(path.join(c.checkout,name),'export const integrated=false;\n');
+  }
   if(readerMode){partitionSources=seedFailedIntegrationFixtureSources(c);seedSources?.();}
-  git('add',overlap);commit();main=git('rev-parse','HEAD');
+  git('add',overlap,...(accounted?[...dependencyPaths,...adjustmentPaths]:[]));commit();main=git('rev-parse','HEAD');
   git('checkout',c.branch);try{git('merge','--no-ff','--no-commit',main);}catch{/* The retained source and incoming main deliberately differ. */}
-  h.write(path.join(c.checkout,overlap),Buffer.concat([oldSource,Buffer.from('\nexport const incoming=true;\n')]));git('add',overlap);commit();
+  h.write(path.join(c.checkout,overlap),Buffer.concat([oldSource,Buffer.from('\nexport const incoming=true;\n')]));
+  if(accounted){
+   h.write(path.join(c.checkout,adjustmentPaths[0]),'export const integrated=true;\n');
+   rmSync(path.join(c.checkout,adjustmentPaths[1]));
+   chmodSync(path.join(c.checkout,adjustmentPaths[2]),0o755);
+  }
+  git('add',overlap,...adjustmentPaths);commit();
   const merge=git('rev-parse','HEAD'),mergeTree=git('rev-parse','HEAD^{tree}'),mergeBase=git('merge-base',a.head,main);
   h.write(exclude,Buffer.concat([excludeBytes,Buffer.from('\nnode_modules/\n')]));
   packages=dependencyRecords(c,c.checkout).map(v=>({...v,prerequisite:v.before}));
@@ -121,13 +153,21 @@ async function materialIntegrationControls(c,h,mode,callback,seedSources,prepare
   // binding for its later direct-capture parser controls. Observe it before the
   // correction commit; all other groups retain their original dependency path.
   if(readerMode&&prepareDependencies)packages=prepareDependencies(packages);
-  const compatibility='scripts/verifier-fixture.mjs';h.write(path.join(c.checkout,compatibility),'export const reviewedCompatibility=true;\n');
-  const corrections=[compatibility,...['','apps/augnes_apps','apps/web_planning'].flatMap(dir=>['package.json','package-lock.json'].map(name=>path.posix.join(dir,name)))].sort();
-  git('add',...corrections);commit();head=git('rev-parse','HEAD');tree=git('rev-parse','HEAD^{tree}');git('update-ref','refs/remotes/origin/main',main);
+  const compatibility=accounted?'scripts/local-canonical-integration-compatibility-fixture.mjs':'scripts/verifier-fixture.mjs';h.write(path.join(c.checkout,compatibility),'export const reviewedCompatibility=true;\n');
+  const corrections=[compatibility,...(accounted?[]:dependencyPaths)].sort();
+  git('add',...corrections);commit();
+  if(accounted){
+   const support='scripts/local-canonical-integration-support-fixture.mjs';
+   h.write(path.join(c.checkout,support),'export const completeSupport=true;\n');
+   h.write(path.join(c.checkout,compatibility),'export const reviewedCompatibility="complete";\n');
+   git('add',support,compatibility);
+  }
+  if(accounted)commit();
+  head=git('rev-parse','HEAD');tree=git('rev-parse','HEAD^{tree}');git('update-ref','refs/remotes/origin/main',main);
   const entry=rev=>{const row=git('ls-tree',rev,'--',overlap);return row.slice(0,row.indexOf('\t'));};
   p={schema:'augnes.local-canonical-source-correction.v2',kind:'accepted_main_integration',integration_case:'reviewed',branch:c.branch,base:main,accepted_main:main,head,tree,pull_request:999,
    prior_family_id:a.family_id,prior_number:1,prior_attempt_id:a.attempt_id,prior_receipt_fingerprint:prior.integrity.content_fingerprint,prior_receipt_path:path.relative(c.checkout,priorPath),
-   integration:{commit:merge,tree:mergeTree,merge_base:mergeBase,overlaps:[{path:overlap,base:entry(mergeBase),predecessor:entry(a.head),main:entry(main),result:entry(merge)}],
+   integration:accounted?observeReviewedIntegrationSource(c.checkout,{predecessor:a.head,acceptedMain:main,commit:merge,head}):{commit:merge,tree:mergeTree,merge_base:mergeBase,overlaps:[{path:overlap,base:entry(mergeBase),predecessor:entry(a.head),main:entry(main),result:entry(merge)}],
     delta_sha256:delta(a.head,merge),resolution_delta_sha256:delta(a.head,merge,[overlap]),correction_delta_sha256:delta(merge,head),correction_paths:corrections},
    planner:ref('planner.json',{base:main,head,selected_plan:'full-canonical',phases:[...REVIEWED_REVISION_PHASES],owners:['local-canonical-integrity']}),review:null,budget:{initial:1,recovery:0},authorization:null};
   declaration={contract:prior.inputs.contract,path_kind:prior.inputs.path_kind,binding:{...clone(prior.inputs.binding),head,tree},resources:clone(prior.inputs.resources)};
@@ -138,20 +178,42 @@ async function materialIntegrationControls(c,h,mode,callback,seedSources,prepare
    grant:async id=>clone([c.authority.grant,...Object.values(c.authority.linked)].find(v=>v.id===id)),
    permission:async login=>({permission:'admin',user:clone([c.authority.review,c.authority.grant,...Object.values(c.authority.linked)].find(v=>v.user.login===login).user)}),
    pullRequest:async()=>{historicalPrReads++;throw Error('a historical PR projection is forbidden');}};
-  authority=await observeMaterialIntegrationPredecessorAuthority(a,{transport:priorTransport});assert.equal(historicalPrReads,0);
+  authority=await collectPriorAuthority(a,{transport:priorTransport});assert.equal(historicalPrReads,0);
   preparation={schema:'augnes.local-canonical-integration-preparation.v1',target:integrationTarget(p),checkout_fingerprint:checkoutVerificationFingerprint(c.checkout),runtime_inputs:clone(c.inputs),
    input_inventory:inputInventory,inventory_sha256:live.inventory,dependencies:packages.map(v=>v.before)};
   review={schema:'augnes.local-canonical-candidate-review.v1',kind:p.kind,head,tree,predecessor_head:a.head,predecessor_tree:a.tree,source_review:'complete',
    delta_sha256:delta(a.head,head),changed_paths:git('diff','--name-only',a.head,head,'--').split('\n').sort(),authority_reference:'https://github.com/hynk-studio/augnes/pull/999',reviewed_at:new Date().toISOString(),
    integration_sha256:digest(p.integration),planner_sha256:p.planner.sha256,reviewer:'synthetic-separate-reviewer',implementation_actor:'synthetic-implementer',no_write:true,disposition:'accept',
-   judgments:Object.fromEntries('complete_integration complete_overlaps complete_corrections verifier_policy_adjustments_only affected_consumers authority_and_lineage no_weakened_contract'.split(' ').map(k=>[k,true])),
-   material_predecessor:{stock:ref('successful-stock.json',successStock),authority:ref('original-authority.json',authority)},preparation:ref('preparation.json',preparation),report:null};
+   judgments:Object.fromEntries(('complete_integration complete_overlaps complete_corrections verifier_policy_adjustments_only affected_consumers authority_and_lineage no_weakened_contract'+
+    (accounted?' complete_nonoverlap_adjustments complete_correction_chain successful_predecessor_evidence':'')).split(' ').map(k=>[k,true])),
+   [predecessorKey]:{stock:ref('successful-stock.json',successStock),authority:ref('original-authority.json',authority)},preparation:ref('preparation.json',preparation),report:null};
+  if(accounted){
+   assert.equal(p.integration.delivery_revision,REVIEWED_INTEGRATION_DELIVERY);
+   assert.equal(p.integration.correction_chain.length,2);assert.equal(p.integration.adjustments.length,3);
+   assert(p.integration.adjustments.some(row=>row.result===null));
+   assert(p.integration.adjustments.some(row=>row.expected?.startsWith('100644 ')&&row.result?.startsWith('100755 ')));
+   const sourceRequest={predecessor:a.head,acceptedMain:main,commit:merge,head},objects=git('count-objects','-v');
+   assert.deepEqual(observeReviewedIntegrationSource(c.checkout,sourceRequest),p.integration);
+   assert.equal(git('count-objects','-v'),objects,'source capture must only read existing Git objects');
+   const objectCommit=(sourceTree,parent)=>git('-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit-tree',sourceTree,'-p',parent,'-m','synthetic refused integration topology');
+   const outside=objectCommit(a.tree,head),empty=objectCommit(p.tree,head);
+   assert.throws(()=>observeReviewedIntegrationSource(c.checkout,{...sourceRequest,head:outside}),{code:'integration_verifier_scope_invalid'});refusals++;
+   assert.throws(()=>observeReviewedIntegrationSource(c.checkout,{...sourceRequest,head:empty}),{code:'integration_verifier_scope_invalid'});refusals++;
+   let longHead=head;
+   for(let index=0;index<15;index++)longHead=objectCommit(index%2===0?p.integration.correction_chain[0].tree:p.tree,longHead);
+   assert.throws(()=>observeReviewedIntegrationSource(c.checkout,{...sourceRequest,head:longHead}),{code:'integration_correction_chain_unbounded'});refusals++;
+  }
   }
   const rebuild=()=>{review.report=ref('review.md',`Synthetic separate review ${p.head} ${p.tree} ${digest(p.integration)} ${review.delta_sha256}\n`);p.review=ref('review.json',review);h.write(file,canonicalSerialize(p));proof=readSourceCorrectionProof(file,c.checkout);};
   const prepare=()=>prepareAcceptedMainIntegrationCandidate({anchorRoot:c.anchor,repositoryRoot:c.checkout,proof,acceptedMain:main,runtimeInputs:c.inputs,live});
   const request=extra=>({anchorRoot:c.anchor,repositoryRoot:c.checkout,checkoutOwner:c.owner,branch:c.branch,head,tree,acceptedMain:main,runId:'material-reviewed-integration',
    contractFingerprint:digest(declaration),sourceCorrection:proof,revisionInputs:c.inputs,revisionLive:live,assertCurrent(){},...extra});
   rebuild();
+  if(accounted){
+   assert.equal(successStock.dimensions.current_merge_applicability,'different_current_main');
+   assert.throws(()=>verifyGitRevisionSuccess(prior,successStock,c.inputs,REVIEWED_REVISION_PHASES),{code:'revision_positive_stock_invalid'});refusals++;
+   assert.doesNotThrow(()=>verifyGitRevisionSuccess(prior,successStock,c.inputs,REVIEWED_REVISION_PHASES,p));
+  }
   if(!stored){
   const prepared=prepare();assert.equal(prepared.eligible_evidence,true);assert.equal(prepared.authorized,false);assert.equal(prepared.reserved,false);assert.deepEqual(prepared.budget,{initial:1,recovery:0});noEdge();stage('prepared');
   }
@@ -161,16 +223,16 @@ async function materialIntegrationControls(c,h,mode,callback,seedSources,prepare
   for(const mutate of [r=>r.phases=[],r=>r.phases.pop(),r=>r.outcome.safety='blocked',r=>r.outcome.disposition='product_failure',
    r=>r.cleanup.completed=false,r=>r.phases[0].cleanup.streams_closed=false,r=>r.phases[0].timed_out=true,r=>r.phases.find(v=>v.browser_use.length).browser_use.pop(),
    r=>r.attempt.source_correction.commission.ordinal=2]){
-   const r=clone(prior);mutate(r);assert.throws(()=>verifyGitRevisionSuccess(r,successStock,c.inputs,REVIEWED_REVISION_PHASES));refusals++;
+   const r=clone(prior);mutate(r);assert.throws(()=>verifyGitRevisionSuccess(r,successStock,c.inputs,REVIEWED_REVISION_PHASES,...(accounted?[p]:[])));refusals++;
   }
   for(const mutate of [v=>v.source_correction.commission.maximum_invocations=2,v=>v.source_correction.commission.source_revision='unknown',
    v=>v.source_correction.commission.reviewed_workload='spent-terminal-git-successor-workload-v1']){
-   const changed=clone(a);mutate(changed);await assert.rejects(()=>observeMaterialIntegrationPredecessorAuthority(changed,{transport:priorTransport}));noEdge();refusals++;
+   const changed=clone(a);mutate(changed);await assert.rejects(()=>collectPriorAuthority(changed,{transport:priorTransport}));noEdge();refusals++;
   }
   for(const badTransport of [{...priorTransport,permission:async login=>({permission:'read',user:{login}})},
    {...priorTransport,review:async id=>({...await priorTransport.review(id),commit_id:main})},
    {...priorTransport,grant:async id=>({...await priorTransport.grant(id),body:'unrelated or edited old commission'})}]){
-   await assert.rejects(()=>observeMaterialIntegrationPredecessorAuthority(a,{transport:badTransport}));noEdge();refusals++;
+   await assert.rejects(()=>collectPriorAuthority(a,{transport:badTransport}));noEdge();refusals++;
   }
   const originalP=clone(p),originalReview=clone(review);
   const resetProof=()=>{p=clone(originalP);review=clone(originalReview);rebuild();};
@@ -178,12 +240,64 @@ async function materialIntegrationControls(c,h,mode,callback,seedSources,prepare
    let error;try{mutate();rebuild();prepare();}catch(e){error=e;}assert(error);noEdge();refusals++;resetProof();
   }
   const completionFile=path.join(ledger,'completion-1.json'),completion=readFileSync(completionFile);
-  for(const mutate of [()=>delete review.material_predecessor,()=>delete review.preparation,()=>review.material_predecessor.stock=ref('invalid-stock.json',{...successStock,valid_deciding_evidence:false}),
-   ()=>review.material_predecessor.authority=ref('invalid-authority.json',{...clone(authority),observations:{}}),
+  for(const mutate of [()=>delete review[predecessorKey],()=>delete review.preparation,()=>review[predecessorKey].stock=ref('invalid-stock.json',{...successStock,valid_deciding_evidence:false}),
+   ()=>review[predecessorKey].authority=ref('invalid-authority.json',{...clone(authority),observations:{}}),
    ()=>review.preparation=ref('invalid-preparation.json',{...preparation,inventory_sha256:digest('unbound current inputs')})]){
    let error;try{mutate();rebuild();readReviewedIntegration(c.checkout,proof,a,JSON.parse(completion));}catch(e){error=e;}assert(error);noEdge();refusals++;resetProof();
   }
   for(const patch of [{disposition:'product_failure'},{cleanup_complete:false}]){h.write(completionFile,{...JSON.parse(completion),...patch});try{assert.throws(prepare);noEdge();refusals++;}finally{h.write(completionFile,completion);}}
+  if(accounted){
+   // Rebind the complete review after each deliberate manifest change. A stale
+   // review digest must not hide an actual accounting or selector refusal.
+   for(const mutate of [
+    ()=>p.schema='augnes.local-canonical-source-correction.v1',()=>p.schema='unknown',
+    ()=>p.commission={source_revision:'prospective-requalification-v1'},
+    ()=>delete p.integration.delivery_revision,()=>p.integration.delivery_revision='unknown',()=>p.integration.delivery_revision=null,
+    ()=>p.integration.delivery_revision=false,()=>p.integration.overlaps.pop(),()=>p.integration.overlaps[0].result=p.integration.overlaps[0].main,
+    ()=>p.integration.adjustments.pop(),()=>p.integration.adjustments.push(clone(p.integration.adjustments[0])),
+    ()=>p.integration.adjustments[0].expected=null,()=>p.integration.adjustments[0].result=null,
+    ()=>p.integration.adjustments.find(row=>row.result===null).result=p.integration.adjustments[0].result,
+    ()=>p.integration.adjustments.find(row=>row.result?.startsWith('100755 ')).result=p.integration.adjustments.find(row=>row.result?.startsWith('100755 ')).expected,
+    ()=>p.integration.adjustment_delta_sha256=digest('unaccounted adjustment bytes'),
+    ()=>p.integration.correction_chain=[],()=>p.integration.correction_chain.reverse(),()=>p.integration.correction_chain.pop(),
+    ()=>p.integration.correction_chain.push(clone(p.integration.correction_chain[0])),
+    ()=>p.integration.correction_chain=Array.from({length:17},()=>clone(p.integration.correction_chain[0])),
+    ()=>p.integration.correction_chain[0].parent=p.base,()=>p.integration.correction_chain[0].parent_tree=p.tree,
+    ()=>p.integration.correction_chain[0].tree=a.tree,()=>p.integration.correction_chain[0].delta_sha256=digest('wrong step delta'),
+    ()=>p.integration.correction_chain[1].paths.pop(),()=>p.integration.correction_chain[1].entries.pop(),
+    ()=>p.integration.correction_chain[1].entries[0].before=null,()=>p.integration.correction_chain[1].entries[0].result=null,
+    ()=>p.integration.correction_delta_sha256=digest('incomplete aggregate delta'),()=>p.integration.correction_paths.pop(),
+    ()=>review.material_predecessor=clone(review.revision_predecessor),
+    ()=>review.judgments.complete_nonoverlap_adjustments=false,()=>review.judgments.complete_correction_chain=false,
+    ()=>review.judgments.successful_predecessor_evidence=false,
+   ]){
+    mutate();let error;try{rebuild();prepare();}catch(e){error=e;}assert(error);noEdge();refusals++;resetProof();
+   }
+   for(const stock of [{...clone(successStock),issues:['unverified']},{...clone(successStock),dimensions:{}}]){
+    assert.throws(()=>verifyGitRevisionSuccess(prior,stock,c.inputs,REVIEWED_REVISION_PHASES,p));refusals++;
+   }
+   for(const mutate of [q=>q.schema='augnes.local-canonical-source-correction.v1',q=>q.kind='source_revision',
+    q=>delete q.integration_case,q=>delete q.integration.delivery_revision,q=>q.integration.delivery_revision='unknown',
+    q=>q.prior_family_id=digest('other family'),q=>q.prior_number=2,q=>q.prior_attempt_id='other attempt',
+    q=>q.prior_receipt_fingerprint=digest('other receipt'),q=>q.branch+='-other',q=>q.pull_request++,q=>q.accepted_main=a.head]){
+    const context=clone(p);mutate(context);
+    assert.throws(()=>verifyGitRevisionSuccess(prior,successStock,c.inputs,REVIEWED_REVISION_PHASES,context),{code:'revision_positive_integration_context_invalid'});refusals++;
+   }
+   for(const mutate of [r=>r.integration_base.contract='augnes.local-canonical-integration-base.v1',
+    r=>{r.integration_base.observation=null;r.integration_base.base_matches_current_main=null;},
+    r=>r.integration_base.base_matches_current_main=true,r=>r.integration_base.observation.sha=r.repository.base_sha,
+    r=>r.integration_base.requested_base_sha=a.head,r=>r.integration_base.tested_head_sha=p.head,
+    r=>r.integration_base.checked_at=new Date(0).toISOString(),r=>r.integration_base.observation.source='unobserved']){
+    const malformed=clone(prior);mutate(malformed);
+    assert.throws(()=>verifyGitRevisionSuccess(malformed,successStock,c.inputs,REVIEWED_REVISION_PHASES,p),{code:'revision_positive_stock_invalid'});refusals++;
+   }
+   for(const applicability of ['unknown','unobserved','blocked']){
+    const stock=clone(successStock);stock.dimensions.current_merge_applicability=applicability;
+    assert.throws(()=>verifyGitRevisionSuccess(prior,stock,c.inputs,REVIEWED_REVISION_PHASES,p),{code:'revision_positive_stock_invalid'});refusals++;
+   }
+   // The material-only entry point must retain its original closed meaning.
+   await assert.rejects(()=>observeMaterialIntegrationPredecessorAuthority(a,{transport:priorTransport}));refusals++;noEdge();
+  }
   stage('read_only_refusals');
   }
   await delay(2);
@@ -200,7 +314,7 @@ async function materialIntegrationControls(c,h,mode,callback,seedSources,prepare
   bindAuthority();await delay(2);
   const reserve=async extra=>beginAttempt(request({observeRevision:async()=>({authorization:await authorizeIntegration(proof,integrationMaterial(c.checkout,proof,c.anchor),integrationTransport(records)),live}),...extra}));
   if(!stored&&!readerMode){
-  grant.id=72;bindAuthority();await assert.rejects(()=>reserve());noEdge();grant.id=3002;bindAuthority();refusals++;
+  grant.id=beforeTip.revision_grants.at(-1);bindAuthority();await assert.rejects(()=>reserve());noEdge();grant.id=3002;bindAuthority();refusals++;
   await assert.rejects(()=>reserve({assertCurrent(){throw Error('synthetic unsafe current preparation');}}),/unsafe/);noEdge();refusals++;
   const preparationFile=path.join(folder,'preparation.json'),preparationBytes=readFileSync(preparationFile);
   try{await assert.rejects(()=>reserve({observeRevision:async()=>{const authorization=await authorizeIntegration(proof,integrationMaterial(c.checkout,proof,c.anchor),integrationTransport(records));h.write(preparationFile,{changed:true});return{authorization,live};}}));noEdge();refusals++;}
@@ -208,7 +322,7 @@ async function materialIntegrationControls(c,h,mode,callback,seedSources,prepare
   stage('admission_refusals');
   // Only immutable evidence and source objects cross this serial boundary.
   // The later group rebuilds live inputs and new invocation-local authority.
-  p.authorization=null;rebuild();h.write(handoff,{p,review,preparation,declaration,refusals});retain=true;return;
+  if(!accounted){p.authorization=null;rebuild();h.write(handoff,{p,review,preparation,declaration,refusals});retain=true;return;}
   }
   let admitted;
   if(readerMode)admitted=await reserve();
@@ -218,7 +332,7 @@ async function materialIntegrationControls(c,h,mode,callback,seedSources,prepare
   }
   assert.deepEqual(admitted.budget,{initial:1,recovery:0});
   const start=admitted.started_at,finish=new Date().toISOString(),r=clone(prior),own={...r.checkout_ownership,checkout_fingerprint:preparation.checkout_fingerprint,acquired_at:start,released_at:finish};
-  Object.assign(r.repository,{base_sha:main,head_sha:head,tree_sha:tree});Object.assign(r.integration_base,{requested_base_sha:main,tested_head_sha:head,checked_at:start});Object.assign(r.integration_base.observation,{sha:main,observed_at:start});
+  Object.assign(r.repository,{base_sha:main,head_sha:head,tree_sha:tree});Object.assign(r.integration_base,{requested_base_sha:main,tested_head_sha:head,checked_at:start,base_matches_current_main:true});Object.assign(r.integration_base.observation,{sha:main,observed_at:start});
   r.run={id:admitted.attempt_id,invocation_id:digest(admitted.attempt_id).slice(0,32),started_at:start,finished_at:finish,duration_ms:Date.parse(finish)-Date.parse(start)};
   r.attempt=admitted;r.inputs=inputInventory;r.checkout_ownership=own;r.capacity_ownership={...r.capacity_ownership,...own,invocation_id:r.run.invocation_id};r.verification_context.checkout_fingerprint=preparation.checkout_fingerprint;
   for(const [i,key]of ['root_lock_sha256','nested_lock_sha256','web_planning_lock_sha256'].entries())r.dependencies[key]=packages[i].before.sources.find(v=>v.name==='package-lock.json').sha256;
@@ -240,7 +354,8 @@ async function materialIntegrationControls(c,h,mode,callback,seedSources,prepare
   const drift=await inspectIntegrationStock({anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt,assertCurrent(){throw Error('current inputs changed');},transport:integrationTransport(records)});
   const driftResult=inspectReceiptForDecision(receipt,{...context,...drift});assert.equal(drift.currentAttemptRecordsValid,true);assert.equal(driftResult.dimensions.evidence_validity,'valid_in_recorded_context');assert.equal(driftResult.valid_deciding_evidence,false);
   const packet=path.join(folder,'cold-packet.json'),stockOutput=path.join(folder,'fresh-stock.json');
-  h.write(packet,{anchor:c.anchor,checkout:c.checkout,inputs:c.inputs,live,materialPredecessor:prior,materialGrants:beforeTip.revision_grants,integrationRecords:records,stockContext:context,stockOutput});
+  h.write(packet,{anchor:c.anchor,checkout:c.checkout,inputs:c.inputs,live,
+   ...(accounted?{reviewedPredecessor:prior}:{materialPredecessor:prior}),materialGrants:beforeTip.revision_grants,integrationRecords:records,stockContext:context,stockOutput});
   await h.fresh(packet);assert.equal(h.read(stockOutput).valid_deciding_evidence,true);stage('cold_stock');
   await assert.rejects(()=>reserve());assert.throws(prepare);assert.throws(()=>beginAttempt(request({sourceCorrection:null})));preserved();
   // Reconstruct the same synthetic reservation boundary to test interruption;
@@ -251,8 +366,18 @@ async function materialIntegrationControls(c,h,mode,callback,seedSources,prepare
    const fs=await import('node:fs');fs.default.writeFileSync=function(target,...args){if(String(target).endsWith('attempt-1.json')&&!originalFiles.has(String(target)))throw Error('synthetic interruption after material integration edge');return originalWrite(target,...args);};syncBuiltinESMExports();
    await assert.rejects(()=>reserve(),/synthetic interruption/);assert(existsSync(edge));assert.throws(()=>reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}));await assert.rejects(()=>reserve());
   }finally{const fs=await import('node:fs');fs.default.writeFileSync=originalWrite;syncBuiltinESMExports();}
-  console.log(JSON.stringify({material_integration:{synthetic_only:true,eligible_successful_exhausted_material_v7:true,refusals,full_phases:receipt.phases.length,
+  console.log(JSON.stringify({[accounted?'prospective_reviewed_integration':'material_integration']:{synthetic_only:true,
+   ...(accounted?{eligible_successful_exhausted_prospective_v7:true,registered_owner:a.source_correction.commission.registered_owner??null,
+    delivery_revision:p.integration.delivery_revision,nonoverlap_adjustments:p.integration.adjustments.length,linear_correction_commits:p.integration.correction_chain.length}:
+    {eligible_successful_exhausted_material_v7:true}),refusals,full_phases:receipt.phases.length,
    budget:{initial:1,recovery:0},historical_grants:beforeTip.revision_grants,historical_consumption:1,old_prefix_without_current_authority:true,fresh_stock:true,competing_and_interrupted_edges_retained:true,originals_unchanged:true}}));
+ } catch(error) {
+  if(accounted)try{console.error(JSON.stringify({prospective_reviewed_integration_error:{stage:currentStage,
+    name:typeof error?.name==='string'?error.name.slice(0,80):'unknown',
+    code:typeof error?.code==='string'?error.code.slice(0,120):null,
+    message:typeof error?.message==='string'?error.message.replace(/[\x00-\x1f\x7f]/gu,' ').slice(0,512):null,
+    elapsed_ms:Math.round(performance.now()-started),synthetic_only:true}}));}catch{/* Diagnostics never replace the original error. */}
+  throw error;
  } finally {
   restoreLedger();git('reset','--hard',a.head);git('update-ref','refs/remotes/origin/main',oldMain);if(createdMain)git('branch','-D','material-accepted-main');h.write(exclude,excludeBytes);
   for(const dir of ['','apps/augnes_apps','apps/web_planning'])rmSync(path.join(c.checkout,dir,'node_modules'),{recursive:true,force:true});

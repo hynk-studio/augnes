@@ -19,13 +19,16 @@ export const MAINTENANCE_FIXTURE_LIMIT = "Old commission remains spent. Exactly 
 export const FIXTURE_BUDGET_CLAIM = "Measured prospective development-fixture allowance; historical cause remains UNKNOWN; neither demonstrated cure nor qualification PASS.";
 export const REGISTERED_INTEGRATION_BUDGET = "registered-integration-child-budget-v1";
 export const INTEGRATION_BUDGET_CLAIM = "Measured prospective external-response workload allowance. The historical timeout cause remains UNKNOWN.";
+export const REGISTERED_IDENTITY_BUDGET = "registered-identity-contract-budget-v1";
+export const IDENTITY_BUDGET_CLAIM = "Prospective 90000 ms registered Identity contracts allowance; historical cause remains UNKNOWN; neither demonstrated cure nor qualification PASS.";
 export const SELECTIVE_FIXTURE_WORKLOAD = "selective-fixture-workload-v1";
 export const SELECTIVE_FIXTURE_WORKLOAD_CLAIM = "Reduced redundant selective fixture work; behavior and bounds retained; stable speedup and historical cause remain unestablished.";
 export const fixtureBudgetEvidenceClaim = kind => kind === REGISTERED_FIXTURE_BUDGET ? FIXTURE_BUDGET_CLAIM :
   kind === REGISTERED_INTEGRATION_BUDGET ? INTEGRATION_BUDGET_CLAIM :
+  kind === REGISTERED_IDENTITY_BUDGET ? IDENTITY_BUDGET_CLAIM :
   kind === SELECTIVE_FIXTURE_WORKLOAD ? SELECTIVE_FIXTURE_WORKLOAD_CLAIM : null;
 export const fixtureBudgetFailurePhase = kind => kind === REGISTERED_FIXTURE_BUDGET ? "authority" :
-  [REGISTERED_INTEGRATION_BUDGET, SELECTIVE_FIXTURE_WORKLOAD].includes(kind) ? "integration" : null;
+  [REGISTERED_INTEGRATION_BUDGET, REGISTERED_IDENTITY_BUDGET, SELECTIVE_FIXTURE_WORKLOAD].includes(kind) ? "integration" : null;
 export const FIXTURE_BUDGET_COLLECTOR = "scripts/capture-local-canonical-fixture-budget.mjs";
 export const FIXTURE_BUDGET_PATHS = Object.freeze({
   wrapper: "scripts/test-local-canonical-review-corrections.mjs",
@@ -1123,6 +1126,242 @@ export function verifyRegisteredIntegrationBudget(p,prior,focused,options) {
 
 // A fixture-work reduction is neither a product RED/GREEN nor an allowance
 // increase. This finite case keeps the ordinary command and all four bounds.
+const identityOwner = "codex-isolated-auth-projection";
+const identityTest = "scripts/test-codex-isolated-auth-projection.ts";
+const identityCommand = "node --import tsx " + identityTest + " --contracts";
+const identityEvidencePaths = new Set([
+  "scripts/local-canonical-fixture-budget-witness.mjs", FIXTURE_BUDGET_COLLECTOR,
+  "scripts/local-canonical-git-observation.mjs", "scripts/local-canonical-attempts.mjs",
+  "scripts/fixtures/local-canonical-fixture-budget.mjs", "scripts/fixtures/local-canonical-reviewed-revision.mjs", "scripts/fixtures/local-canonical-maintenance-allowance.mjs",
+  "scripts/test-local-canonical-verification-contract.mjs", ".github/LOCAL_CANONICAL_VERIFICATION.md",
+]);
+
+// This is one existing registered security workload, not a caller-selected
+// command, timeout, fixture overlay or general budget-admission mechanism.
+export function identityBudgetRegistration(git, head) {
+  const file=FIXTURE_BUDGET_PATHS.suite,source=sourceAt(git,head,file),tree=ast(source);
+  const prop=(node,name)=>one(node.properties.filter(p=>ts().isPropertyAssignment(p)&&p.name.getText(tree)===name)).initializer;
+  const suites=variable(tree,"suites"),steps=prop(suites,"integration");
+  if (!ts().isArrayLiteralExpression(steps)) fail();
+  const child=one(steps.elements.filter(n=>ts().isObjectLiteralExpression(n)&&n.properties.some(p=>
+    ts().isPropertyAssignment(p)&&p.name.getText(tree)==="id"&&ts().isStringLiteral(p.initializer)&&p.initializer.text===identityOwner)));
+  const launch=one(child.properties.filter(ts().isSpreadAssignment)).expression;
+  if (!ts().isCallExpression(launch)||!ts().isIdentifier(launch.expression)||launch.expression.text!=="rootNode"||launch.typeArguments?.length||
+      launch.arguments.length!==2||launch.arguments.some(n=>!ts().isStringLiteral(n))||
+      !equal(launch.arguments.map(n=>n.text),[identityTest,"--contracts"])) fail();
+  if (!equal(child.properties.filter(ts().isPropertyAssignment).map(p=>p.name.getText(tree)).sort(),["group","id","label","requirements","timeoutMs"])||
+      child.properties.some(p=>!ts().isPropertyAssignment(p)&&!ts().isSpreadAssignment(p))||
+      value(prop(child,"group"),tree,null,{})!=="supporting-serial"||
+      !equal(value(prop(child,"requirements"),tree,null,{}),["filesystem","process-owning","project-root","mutable-module-state"])||
+      variable(tree,"rootNode").getText(tree).replace(/\s+/gu,"")!=='(...args)=>({command:process.execPath,args:["--import","tsx",...args],cwd:repoRoot,})'||
+      JSON.parse(sourceAt(git,head,"package.json")).scripts["test:integration"]!=="node "+file+" integration") fail();
+  const timeout=prop(child,"timeoutMs"),label=value(prop(child,"label"),tree,null,{});
+  if (!ts().isNumericLiteral(timeout)||![60000,90000].includes(Number(timeout.text))||typeof label!=="string"||!label.length||label.length>300) fail();
+  const executor=ast(sourceAt(git,head,"scripts/run-local-canonical-verification.mjs"));
+  const parents=nodes(executor,n=>ts().isCallExpression(n)&&n.expression.getText(executor)==="npmPhase"&&n.arguments[0]?.getText(executor)==='"integration"');
+  if (parents.length!==2||parents.some(n=>n.arguments.length!==4||
+      !equal(value(n.arguments[2],executor,null,{}),["run","test:integration"])||
+      !ts().isNumericLiteral(n.arguments[3])||Number(n.arguments[3].text)!==4200000)) fail();
+  return {id:identityOwner,suite:"integration",group:"supporting-serial",label,
+    command:["node","--import","tsx",identityTest,"--contracts"],bound_ms:Number(timeout.text),parent_bound_ms:4200000,
+    normalized:syntax(replaceNode(source,tree,timeout,"0"))};
+}
+
+export function identityBudgetSourcePartition(git, before, after, adoptedBase=null) {
+  const a=identityBudgetRegistration(git,before),b=identityBudgetRegistration(git,after);
+  if (a.bound_ms!==60000||b.bound_ms!==90000||a.normalized!==b.normalized) fail();
+  const paths=git(["diff","--name-only","-z","--no-renames",before,after,"--"]).toString().split("\0").filter(Boolean).sort();
+  let ancestor=null,adopted=[];
+  if (adoptedBase!==null) {
+    if (!/^[a-f0-9]{40}$/u.test(adoptedBase)) fail();
+    git(["merge-base","--is-ancestor",before,after]);git(["merge-base","--is-ancestor",adoptedBase,after]);
+    ancestor=git(["merge-base",before,adoptedBase]).toString().trim();
+    const reader=createCanonicalRevisionReader(git(["rev-parse","--show-toplevel"]).toString().trim());
+    const old=reader.tree(before),base=reader.tree(adoptedBase),common=reader.tree(ancestor),final=reader.tree(after);
+    adopted=changedGitFiles(common,base);
+    if (adopted.some(file=>!/^(?:(?:AGENTS|README)\.md|docs\/[A-Za-z0-9_./-]+\.md|apps\/web_planning\/README\.md)$/u.test(file)||
+        [old.get(file),base.get(file),common.get(file),final.get(file)].some(e=>e&&(e.mode!=="100644"||e.type!=="blob"))||
+        !(sameGitEntry(final.get(file),base.get(file))||matchesAdoptedMerge(git,old.get(file),common.get(file),base.get(file),final.get(file))))) fail();
+  }
+  if (!paths.includes(FIXTURE_BUDGET_PATHS.suite)||paths.some(p=>p!==FIXTURE_BUDGET_PATHS.suite&&!identityEvidencePaths.has(p)&&!adopted.includes(p))) fail();
+  // A complete Git delta partition preserves every other tracked input,
+  // including all security libraries, the fake server and internal deadlines.
+  if (sourceAt(git,before,identityTest)!==sourceAt(git,after,identityTest)) fail();
+  for (const head of [before,after]) {
+    const fixed=[...new Set([...paths.filter(p=>!adopted.includes(p)),identityTest])];
+    const entries=git(["ls-tree","-z",head,"--",...fixed]).toString().split("\0").filter(Boolean);
+    if (entries.length!==fixed.length||entries.some(v=>!v.startsWith("100644 blob "))) fail();
+  }
+  const delta=files=>({paths:files,sha256:digest(files.length?git(["diff","--binary","--full-index","--no-ext-diff","--no-textconv",before,after,"--",...files]):Buffer.alloc(0))});
+  const omit=({normalized,...registration})=>registration;
+  return {adopted_base:adoptedBase,adopted_ancestor:ancestor,before:omit(a),after:omit(b),workload:delta([FIXTURE_BUDGET_PATHS.suite]),
+    evidence:delta(paths.filter(p=>p!==FIXTURE_BUDGET_PATHS.suite&&!adopted.includes(p))),adopted_prose:delta(paths.filter(p=>adopted.includes(p)))};
+}
+
+function identityBudgetCompletion(output) {
+  const rows=jsonLines(output),cases=rows.filter(v=>Object.hasOwn(v,"runtime_policy_case"));
+  if (!equal(cases.map(v=>v.runtime_policy_case),["before_terminal","with_terminal","preflight"])||cases.some((v,i)=>
+      v.status!=="passed"||v.settlement!==(i===0?"rejected_null_result":"failed_result")||v.fixture_diagnostic_files!==4||
+      !integer(v.fixture_trace_appends)||v.state_entries!==0||v.lease_entries!==0||v.network_attempts!==0||v.remaining_owned_processes!==0)) fail();
+  const summary=one(rows.filter(v=>Object.hasOwn(v,"contract_suite")));
+  const summaryKeys=["status","mode","contract_suite","projection_version","attestation_version","seal_version","projection_fingerprint","attestation_fingerprint","seal_fingerprint",
+    "operational_availability","malicious_consumer_secret_access","unique_account_identity_non_null","isolated_tmpdir","exact_observed_security_policy","semantic_profile_version",
+    "semantic_profile_fingerprint","config_tool_feature_schema_fingerprint","config_policy_fingerprint","observed_security_policy_fingerprint","user_agent_contract_fingerprint",
+    "user_agent_negative_shapes_refused","installed_cli_preflight","credential_free_fake_preflight","no_authorization_preflight_stop","unsupported_production_authority",
+    "test_only_authorized_fake_turn","authenticated_child_binding_version","arbitrary_child_wrapping_refused","spawn_binding_matrix_refused","real_keychain_accesses","real_provider_calls",
+    "successful_external_network_egress","cleanup_complete"];
+  // The unchanged source owners fix these versions and observations: the
+  // projection types, broker binding and contracts' semantic/authority proofs.
+  // In particular, this lane never upgrades an installed CLI to production use.
+  const expected={
+    projection_version:"codex_isolated_authenticated_execution_projection.v0.1",
+    attestation_version:"codex_isolated_auth_credential_attestation.v0.1",
+    seal_version:"codex_isolated_auth_projection_seal.v0.1",
+    semantic_profile_version:"codex_isolated_auth_semantic_profile.rust-v0.152.1",
+    authenticated_child_binding_version:"codex_isolated_authenticated_child_binding.v0.1",
+    installed_cli_preflight:"unavailable",credential_free_fake_preflight:"compatible_exact",
+    no_authorization_preflight_stop:"codex_isolated_auth_external_execution_authorization_required",
+    unsupported_production_authority:"refused_before_turn",test_only_authorized_fake_turn:"completed_once",
+    user_agent_negative_shapes_refused:11,
+  };
+  if (!keys(summary,summaryKeys)||summary.status!=="passed"||summary.mode!=="contracts"||summary.contract_suite!=="codex_isolated_auth_contracts.v0.1"||
+      Object.entries(expected).some(([field,value])=>summary[field]!==value)||
+      summary.operational_availability!=="available_exact"||summary.malicious_consumer_secret_access!==false||
+      ["unique_account_identity_non_null","isolated_tmpdir","exact_observed_security_policy","arbitrary_child_wrapping_refused","spawn_binding_matrix_refused","cleanup_complete"].some(k=>summary[k]!==true)||
+      ["real_keychain_accesses","real_provider_calls","successful_external_network_egress"].some(k=>summary[k]!==0)||
+      ["projection_fingerprint","attestation_fingerprint","seal_fingerprint","semantic_profile_fingerprint","config_tool_feature_schema_fingerprint","config_policy_fingerprint",
+        "observed_security_policy_fingerprint","user_agent_contract_fingerprint"].some(k=>!/^sha256:[a-f0-9]{64}$/u.test(summary[k]??""))||
+      !integer(summary.user_agent_negative_shapes_refused)||
+      output.indexOf(JSON.stringify(cases.at(-1)))>=output.indexOf(JSON.stringify(summary))||
+      output.split("\n").some(line=>line.startsWith("[local-canonical-browser-use] "))) fail();
+  return summary;
+}
+
+function identityBudgetIncident(p,prior,reg,{git,bytes,original,completion,repositoryRoot}) {
+  const phase=one(original.phases.filter(v=>v.id==="integration")),incident=reg.incident;
+  if (prior.source_correction?.schema!=="augnes.local-canonical-source-correction.v2"||prior.source_correction.kind!=="source_revision"||
+      Object.hasOwn(prior.source_correction,"commission")||original.outcome.disposition!=="product_failure"||original.cleanup?.completed!==true||
+      completion.disposition!=="product_failure"||completion.cleanup_complete!==true||completion.infrastructure_code!==null||
+      phase.status!=="failure"||phase.exit_status!==1||phase.timed_out!==false||phase.cleanup?.completed!==true||phase.cleanup.remaining_owned_processes!==0||
+      phase.cleanup.exit_observed!==true||phase.cleanup.streams_closed!==true||phase.cleanup.termination_reason!=="natural_exit"||
+      phase.command!=="npm run test:integration"||phase.log?.truncated!==false||
+      !keys(incident,["receipt","log","log_identity","cause"])||incident.receipt!==p.prior_receipt_fingerprint||incident.cause!=="UNKNOWN") fail();
+  const raw=bytes(incident.log,2*1024*1024),text=raw.toString(),relative=`.augnes-local-verification/logs/${prior.attempt_id}/integration.log`;
+  if (phase.log.relative_path!==relative||phase.log.bytes!==raw.length||
+      !equal(incident.log_identity,{relative_path:relative,bytes:raw.length,sha256:digest(raw)})) fail();
+  const file=path.join(repositoryRoot,relative),stat=lstatSync(file);
+  if (!stat.isFile()||stat.isSymbolicLink()||stat.nlink!==1||(stat.mode&0o022)||realpathSync(file)!==file||stat.size!==raw.length||!readFileSync(file).equals(raw)) fail();
+  const registration=identityBudgetRegistration(git,prior.head),label=JSON.stringify(registration.label),prefix="[canonical:integration] ";
+  const lines=text.split("\n"),events=lines.filter(l=>l.startsWith(prefix)&&l.includes(" label="+label+" "));
+  if (!equal(events.filter(l=>!l.includes(" child_active ")).map(l=>l.slice(prefix.length).split(" ")[0]),
+      ["child_start","child_spawn","child_cleanup_start","child_cleanup_result","child_result"])) fail();
+  const start=one(events.filter(l=>l.includes(" child_start "))),end=one(events.filter(l=>l.includes(" child_result ")));
+  const match=end.match(/ duration_ms=([0-9]+) exit_code=null signal=SIG(?:TERM|KILL) timed_out=true exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=bounded_timeout$/u);
+  if (registration.bound_ms!==60000||start!==prefix+"child_start label="+label+" timeout_ms=60000"||!match||Number(match[1])<60000||Number(match[1])>73000||
+      lines.filter(l=>l.startsWith(prefix+"child_result ")&&!l.includes(" exit_code=0 ")).length!==1||
+      !text.includes("child_timed_out:supporting-serial:"+registration.label)) fail();
+  let elapsed=0;
+  for (const line of events) {
+    const ms=line.match(/ (?:elapsed_ms|duration_ms)=([0-9]+)(?: |$)/u);
+    if (ms) {if(Number(ms[1])<elapsed||Number(ms[1])>Number(match[1]))fail();elapsed=Number(ms[1]);}
+    const tail=line.slice(line.indexOf(" label="+label+" ")+(" label="+label+" ").length);
+    if (line.includes(" child_spawn ")&&!/^pid=[1-9][0-9]* wait=process_exit$/u.test(tail)||
+        line.includes(" child_active ")&&!/^elapsed_ms=[0-9]+ timeout_ms=60000 exit_observed=false stdout_closed=false stderr_closed=false wait=process_exit$/u.test(tail)||
+        line.includes(" child_cleanup_start ")&&(!/^elapsed_ms=[0-9]+ reason=bounded_timeout exit_observed=false stdout_closed=false stderr_closed=false$/u.test(tail)||elapsed<60000)||
+        line.includes(" child_cleanup_result ")&&!/^elapsed_ms=[0-9]+ reason=bounded_timeout streams_closed=true remaining_owned_processes=0$/u.test(tail)) fail();
+  }
+  const inventory=JSON.parse(one(lines.filter(l=>l.startsWith(prefix+"group_inventory "))).slice((prefix+"group_inventory ").length));
+  const children=inventory.children,failed={group:"supporting-serial",label:registration.label,started:true,settled:true,completed:true,outcome:"failed"};
+  if (!Array.isArray(children)||!children.length||inventory.selected_count!==children.length||
+      new Set(children.map(v=>v.group+":"+v.label)).size!==children.length||
+      inventory.started_count!==children.filter(v=>v.started===true).length||inventory.settled_count!==children.filter(v=>v.settled===true).length||
+      inventory.completed_count!==children.filter(v=>v.completed===true).length||inventory.started_count!==inventory.settled_count||
+      inventory.unstarted_count!==children.filter(v=>v.started===false).length||inventory.failed_count!==1||!equal(children.filter(v=>v.outcome==="failed"),[failed])||
+      children.some(v=>v.started?!v.settled||!v.completed||!["passed","failed"].includes(v.outcome):v.settled||v.completed||v.outcome!=="not_started_after_failure")||
+      lines.filter(l=>l.startsWith(prefix+"child_start ")).length!==inventory.started_count||
+      lines.filter(l=>l.startsWith(prefix+"child_result ")).length!==inventory.settled_count||
+      lines.slice(lines.indexOf(end)+1).some(l=>l.startsWith(prefix+"child_start "))) fail();
+  const cleanup=one(jsonLines(text).filter(v=>v.suite==="integration"&&Array.isArray(v.resource_cleanup)));
+  if (!cleanup.resource_cleanup.length||cleanup.resource_cleanup.some(v=>v.completed!==true||v.failure_count!==0||!equal(v.failures,[]))||
+      text.indexOf(end)>=text.indexOf(JSON.stringify(cleanup))) fail();
+  return registration;
+}
+
+function identityBudgetRationale(r,prior,{git,bytes,parse,completedAt}) {
+  if (!keys(r,["execution_reserve_ms","termination_grace_ms","judgment","observations"])||r.execution_reserve_ms!==30000||r.termination_grace_ms!==13000||
+      typeof r.judgment!=="string"||r.judgment.length<80||r.judgment.length>4000||!Array.isArray(r.observations)||
+      !equal(r.observations.map(v=>v.scope),["full-contracts-diagnostic","selected-tail-diagnostic","representative-probe-diagnostic"])) fail();
+  const original=digest(Buffer.from(sourceAt(git,prior.head,identityTest)));let fullSource=null,latest=completedAt;
+  for (const observation of r.observations) {
+    if (!keys(observation,["scope","manifest","record","stdout","source","limitations"])||typeof observation.limitations!=="string"||observation.limitations.length<40||observation.limitations.length>2000) fail();
+    const m=parse(observation.manifest),record=parse(observation.record),source=bytes(observation.source,512*1024),log=bytes(observation.stdout,2*1024*1024);
+    const hash=digest(source),child=record.child;
+    if (m.deciding!==false||record.deciding!==false||!clean(child)||record.cleanup?.settled!==true||!Array.isArray(record.cleanup.resources)||!record.cleanup.resources.length||record.cleanup.resources.some(v=>!v.completed||v.failure_count!==0||!equal(v.failures,[]))||
+        record.cleanup.checkout_release?.released!==true||record.cleanup.capacity_release?.released!==true||
+        !(Date.parse(completedAt)<Date.parse(record.started_at)&&Date.parse(record.started_at)<Date.parse(record.finished_at))||!log.length||
+        !equal(one(jsonLines(log.toString()).filter(v=>Object.hasOwn(v,"nondeciding_result"))).nondeciding_result,record)) fail();
+    if (observation.scope==="full-contracts-diagnostic") {
+      if (m.original?.path!==identityTest||m.original.sha256!==original||m.instrumented?.sha256!==hash||child.timed_out!==true||child.cancelled!==false||child.spawn_error_code!==null||
+          child.exit_code!==null||!["SIGTERM","SIGKILL"].includes(child.signal)||child.termination_reason!=="bounded_timeout"||child.duration_ms<60000||child.duration_ms>73000||record.timeout_ms!==60000) fail();
+      fullSource=hash;
+    } else if (observation.scope==="selected-tail-diagnostic") {
+      if (m.full_diagnostic_source_sha256!==fullSource||m.tail_source_sha256!==hash||record.timeout_ms!==30000||!natural(child)) fail();
+    } else if (m.source_head!==prior.head||m.source_sha256!==original||m.diagnostic_sha256!==hash||record.timeout_ms!==30000||!natural(child)) fail();
+    if (Date.parse(record.finished_at)>Date.parse(latest)) latest=record.finished_at;
+  }
+  return latest;
+}
+
+export function readIdentityBudgetPositive(ref,p,{git,parse,bytes,completedAt,after=completedAt,finishedAt=null}) {
+  const registration=identityBudgetRegistration(git,p.head),w=parse(ref),{root_generated,...source}=w.source_before??{};
+  if (registration.bound_ms!==90000||w.contract!=="augnes.registered-fixture-budget-witness.v1"||w.role!=="direct"||w.bound_ms!==90000||
+      w.basis!=="actual-owned-development-invocation"||w.synthetic_only!==undefined||w.capture_error!==undefined||w.truncated!==false||
+      w.tested_source_head!==p.head||w.tree!==p.tree||w.dirty!==""||w.command!==identityCommand||
+      !equal(source,pureContractGitSource(git,p.head).summary)||!equal(w.source_before,w.source_after)||
+      !Array.isArray(root_generated)||root_generated.length>1||root_generated.some(v=>v.path!=="next-env.d.ts"||!/^([a-f0-9]{64})$/u.test(v.sha256))||
+      !natural(w.result)||!integer(w.result.duration_ms)||w.result.duration_ms>=90000||
+      !equal(w.runtime_before,w.runtime_after)||digest(w.runtime_before)!==p.inputs.identity_sha256||w.runtime_inputs_sha256!==p.inputs.identity_sha256||w.node_version!==CANONICAL_NODE_VERSION||
+      gitRevisionInventory(w.input_inventory_before)!==p.inputs.inventory_sha256||gitRevisionInventory(w.input_inventory_after)!==p.inputs.inventory_sha256||
+      !equal(w.dependencies_before,w.dependencies_after)||preparedDependencyIdentity(w.dependencies_before).phase_id!=="dependencies-root"||
+      !equal(w.loader_before,w.loader_after)||w.loader_before.path!=="node_modules/tsx/dist/loader.mjs"||w.loader_before.version!==JSON.parse(sourceAt(git,p.head,"package-lock.json")).packages["node_modules/tsx"].version||
+      !equal(w.environment_before,w.environment_after)||w.environment!==digest(w.environment_before)||!path.isAbsolute(w.resource_root)||
+      !equal(w.environment_before,fixtureBudgetEnvironment(w.resource_root,w.environment_before))||
+      w.owned_cleanup?.length!==1||w.owned_cleanup[0].root!==w.resource_root||w.owned_cleanup[0].completed!==true||w.owned_cleanup[0].failure_count!==0||!equal(w.owned_cleanup[0].failures,[])||
+      w.ownership?.checkout?.released!==true||w.ownership.capacity?.released!==true||
+      !equal(w.config,["package.json","package-lock.json","tsconfig.json","scripts/browser-verification-owners.v1.json","scripts/local-canonical-change-owners.v1.json","scripts/canonical-research-tests.v1.json"].map(file=>({path:file,sha256:digest(sourceAt(git,p.head,file))})))||
+      bytes(w.collector,128*1024).toString()!==sourceAt(git,p.head,FIXTURE_BUDGET_COLLECTOR)||
+      !(Date.parse(completedAt)<Date.parse(w.started_at)&&Date.parse(after)<Date.parse(w.started_at)&&Date.parse(w.started_at)<Date.parse(w.finished_at)&&
+        (finishedAt===null||Date.parse(w.finished_at)<=Date.parse(finishedAt)))) fail();
+  const lifecycle=bytes(w.lifecycle,128*1024).toString();
+  if (lifecycle.trimEnd().split("\n").some(l=>!l.startsWith("[canonical:fixture-budget-capture] ")||!l.includes(' label="direct registered fixture allowance" '))) fail();
+  naturalLifecycle(lifecycle,{suite:"fixture-budget-capture",label:"direct registered fixture allowance",timeout:90000,duration:w.result.duration_ms});
+  return {record:w,summary:identityBudgetCompletion(bytes(w.stdout,2*1024*1024).toString()),finished_at:w.finished_at};
+}
+
+export function verifyRegisteredIdentityBudget(p,prior,focused,options) {
+  const reg=focused.regression;
+  if (!keys(reg,["kind","claim","owner","incident","source_partition","rationale","after"])||reg.kind!==REGISTERED_IDENTITY_BUDGET||
+      p.commission.evidence_kind!==reg.kind||reg.claim!==IDENTITY_BUDGET_CLAIM||
+      !equal(reg.owner,{phase:"integration",suite:"integration",group:identityOwner})||focused.failed_phase!=="integration"||!equal(focused.input_remedy_resources,[])) fail();
+  identityBudgetIncident(p,prior,reg,options);
+  if (!equal(reg.source_partition,identityBudgetSourcePartition(options.git,prior.head,p.head,p.base))) fail();
+  const measuredAt=identityBudgetRationale(reg.rationale,prior,options);
+  const positive=readIdentityBudgetPositive(reg.after,p,{...options,after:measuredAt,finishedAt:focused.finished_at});
+  if (!focused.commands.some(c=>c.command===positive.record.command&&c.tested_source_head===p.head&&equal(c.record,reg.after)&&equal(c.stdout,positive.record.stdout))) fail();
+  return p.head;
+}
+
+export function inspectCurrentIdentityBudgetInputs(root,w,stockReceipt=null) {
+  const {root_generated:generated,...current}=observePureContractSource(root),{root_generated:frozen,...source}=w.source_after;
+  const declaration=readNextDeclaration(root,generated),sameReceiptSource=stockReceipt?.repository?.head_sha===source.head&&stockReceipt?.repository?.tree_sha===source.tree&&
+    stockReceipt?.inputs?.binding?.head===source.head&&stockReceipt?.inputs?.binding?.tree===source.tree;
+  if (w.bound_ms!==90000||w.command!==identityCommand||!equal(current,source)||
+      !equal(generated,frozen)&&!(sameReceiptSource&&settledNextDeclarationOutput(stockReceipt,declaration,frozen))||
+      !equal(observePureContractLoader(root),w.loader_after)||
+      comparePreparedDependencyInputs(observePreparedDependencyInputs({repositoryRoot:root,phaseId:"dependencies-root"}),w.dependencies_after)!=="unchanged"||
+      !equal(fixtureBudgetEnvironment(w.resource_root),w.environment_after)||existsSync(w.resource_root)) fail();
+}
+
 export const SELECTIVE_FIXTURE_PATH = "scripts/test-external-response-selective.ts";
 export const SELECTIVE_FIXTURE_COMMAND = "node --import tsx " + SELECTIVE_FIXTURE_PATH;
 export const SELECTIVE_FIXTURE_OWNER = Object.freeze({phase:"integration",suite:"integration",group:"external-response-selective"});

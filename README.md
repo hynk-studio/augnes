@@ -186,6 +186,13 @@ Supported operation and detailed managed-run/platform qualifications are in
 
 ## Quickstart
 
+**Experimental llama.cpp host connection:** prepare a private MCP configuration
+for an existing local Companion or a permitted hosted Web file task using the
+[llama.cpp connection guide](docs/LLAMA_CPP_CONNECTIONS.md). Setup does not
+install a model, log in, start work or establish real-model compatibility. The
+hosted route runs on the participant's own executor; it does not require control
+of the project owner's Mac.
+
 For explicit local verification of a selected workflow-cost 1.0.0 JSON report
 against an independently selected numeric basis, use the documented
 [fixed workflow-cost operator handler](docs/WORKFLOW_COST_FIXED_VERIFICATION_V1.md).

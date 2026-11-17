@@ -9,6 +9,7 @@ import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { REGISTERED_FIXTURE_BUDGET, verifyRegisteredFixtureBudget, FIXTURE_BUDGET_CLAIM,
   isMaintenanceFixtureBudget, MAINTENANCE_FIXTURE_CASE, MAINTENANCE_FIXTURE_GRANT,
   REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM, verifyRegisteredIntegrationBudget,
+  REGISTERED_IDENTITY_BUDGET, IDENTITY_BUDGET_CLAIM, verifyRegisteredIdentityBudget,
   SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM, verifySelectiveFixtureWorkload } from "./local-canonical-fixture-budget-witness.mjs";
 import { GENERATED_STOCK_REPAIR, GENERATED_STOCK_CLAIM, GENERATED_STOCK_GRANT,
   verifyGeneratedStockRepair } from "./local-canonical-stock-lifecycle-witness.mjs";
@@ -19,6 +20,9 @@ import { INTEGRATION_BASE_CONTRACT, validAdmittedIntegrationBase, usesDeclaredIn
 import { MATERIAL_COMMON_DRIVER, verifyMaterialCommonDriver } from "./local-canonical-common-driver.mjs";
 import { GIT_CONFIG_STOCK_VERIFIER_REPAIR, MATERIAL_COMMON_STOCK_VERIFIER, verifyMaterialStockVerifier } from "./local-canonical-stock-verifier-witness.mjs";
 import { verifiedStockPredecessor } from "./local-canonical-material-stock-predecessor.mjs";
+import { REGISTERED_FIXTURE_VALIDITY_WINDOW, FIXTURE_VALIDITY_WINDOW_CLAIM,
+  verifyRegisteredFixtureValidityWindow } from "./local-canonical-fixture-validity-witness.mjs";
+import { isProspectiveRequalification, validProspectiveRequalificationOwner } from "./local-canonical-prospective-requalification.mjs";
 export { MATERIAL_COMMON_DRIVER } from "./local-canonical-common-driver.mjs";
 
 export const isGitObservationRevision = p =>
@@ -351,8 +355,21 @@ export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expecte
 
 // A later audit does not turn this complete successful invocation into a failed
 // phase. Only the inventory-bound second ordinal can retain it as a positive tip.
-export function verifyGitRevisionSuccess(r, stock, inputs, phases) {
+export function verifyGitRevisionSuccess(r, stock, inputs, phases, reviewedIntegration = null) {
   const i = r.inputs, previous = r.attempt?.source_correction;
+  // Only the explicitly selected integration reader may retain a successful
+  // declared-range predecessor whose observed main differs. This is original
+  // stock applicability, not applicability of the new integration target.
+  if (reviewedIntegration !== null) {
+    const p = reviewedIntegration;
+    if (p?.schema !== "augnes.local-canonical-source-correction.v2" || p.kind !== "accepted_main_integration" ||
+        p.integration_case !== "reviewed" || p.integration?.delivery_revision !== "accounted-verifier-chain-v1" ||
+        !(isMaterialSourceRevision(previous) || isProspectiveRequalification(previous) && validProspectiveRequalificationOwner(previous)) ||
+        p.prior_family_id !== r.attempt.family_id || p.prior_number !== r.attempt.number ||
+        p.prior_attempt_id !== r.run.id || p.prior_receipt_fingerprint !== r.integrity.content_fingerprint ||
+        p.branch !== r.repository.branch || p.base !== p.accepted_main || p.pull_request !== previous.pull_request)
+      fail("revision_positive_integration_context_invalid");
+  }
   const { contract, path_kind, binding, resources } = i;
   const environments = binding.phase_environment_fingerprints;
   const browser = resources.find(v => v.id === "browser-executable");
@@ -388,9 +405,13 @@ export function verifyGitRevisionSuccess(r, stock, inputs, phases) {
       i.prepared_dependencies.some(v=>v.before?.contract !== PREPARED_DEPENDENCY_CONTRACT || v.before.phase_id !== v.phase_id ||
         !preparedDependencyIdentity(v.before) || v.unchanged !== true || v.error !== null || comparePreparedDependencyInputs(v.before,v.after) !== "unchanged"))
     fail("revision_positive_predecessor_invalid");
+  const differentMain = reviewedIntegration !== null && usesDeclaredIntegrationBase(r) &&
+    r.integration_base.observation !== null && r.integration_base.base_matches_current_main === false &&
+    stock.dimensions?.current_merge_applicability === "different_current_main";
   if (stock.status !== "valid" || stock.valid_deciding_evidence !== true || stock.content_fingerprint !== r.integrity.content_fingerprint ||
       !equal(stock.issues,[]) || !equal(stock.dimensions,{historical_integrity:"intact",execution:"complete_pass",
-        evidence_validity:"valid_in_recorded_context",safety:"preserved_within_observed_scope",current_merge_applicability:"matches_observed_context"}))
+        evidence_validity:"valid_in_recorded_context",safety:"preserved_within_observed_scope",
+        current_merge_applicability:differentMain ? "different_current_main" : "matches_observed_context"}))
     fail("revision_positive_stock_invalid");
 }
 
@@ -521,6 +542,14 @@ export function verifyCanonicalTsRepair(p, prior, focused, {git, parse, bytes, c
 // a stable test driver and explicit script arguments for the implicated code.
 export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt, retainedBefore, postPass = false, acquisition = false, original, stock, completion, repositoryRoot }) {
   const regression = focused.regression;
+  // This selected evidence is a controlled fixture correction, not a natural
+  // product RED. It cannot borrow an older attribution or untyped reader.
+  if (p.commission.evidence_kind === REGISTERED_FIXTURE_VALIDITY_WINDOW || regression?.kind === REGISTERED_FIXTURE_VALIDITY_WINDOW) {
+    if (!isMaterialSourceRevision(p) || p.commission.evidence_kind !== REGISTERED_FIXTURE_VALIDITY_WINDOW ||
+        regression?.kind !== REGISTERED_FIXTURE_VALIDITY_WINDOW || regression.attribution !== undefined ||
+        postPass || acquisition || retainedBefore) fail("revision_git_regression_invalid");
+    return verifyRegisteredFixtureValidityWindow(p, prior, focused, { git, parse, bytes, completedAt, original, completion, repositoryRoot });
+  }
   if (regression?.attribution === "candidate-driver-prior-implicated-source") {
     if (!(isGitObservationSuccessor(p) || isMaterialSourceRevision(p))) fail("revision_git_regression_invalid");
     return verifyCanonicalTsRepair(p,prior,focused,{git,parse,bytes,completedAt,repositoryRoot});
@@ -544,6 +573,7 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
     if (regression.kind===REGISTERED_FIXTURE_BUDGET) return verifyRegisteredFixtureBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
     if (regression.kind===SELECTIVE_FIXTURE_WORKLOAD) return verifySelectiveFixtureWorkload(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
     if (regression.kind===REGISTERED_INTEGRATION_BUDGET) return verifyRegisteredIntegrationBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
+    if (regression.kind===REGISTERED_IDENTITY_BUDGET) return verifyRegisteredIdentityBudget(p,prior,focused,{git,parse,bytes,completedAt,original,completion,repositoryRoot});
     if (regression.kind===PREPARED_ELIGIBILITY_REPAIR)
       return verifyPreparedEligibilityRepair(p, prior, focused, { git, parse, bytes, completedAt, original, stock, completion });
     if (regression.kind===GENERATED_STOCK_REPAIR)
@@ -645,10 +675,14 @@ function visibleDelegationParagraphs(body) {
 }
 
 export function delegatesMaterialSourceCommission(body,p) {
+  if (p.commission.evidence_kind === REGISTERED_FIXTURE_VALIDITY_WINDOW)
+    return equal(visibleDelegationParagraphs(body), fixtureValidityWindowDelegation(p).split("\n\n"));
   if (p.commission.evidence_kind === SELECTIVE_FIXTURE_WORKLOAD) return !!readSelectiveFixtureWorkloadDelegation(body,p);
   if(p.commission.evidence_kind===GIT_CONFIG_STOCK_VERIFIER_REPAIR)
     return equal(visibleDelegationParagraphs(body),stockVerifierDelegation(p).split("\n\n"));
   if (isMaintenanceFixtureBudget(p)) return equal(visibleDelegationParagraphs(body), maintenanceFixtureDelegation(p).split("\n\n"));
+  if (p.commission.evidence_kind === REGISTERED_IDENTITY_BUDGET)
+    return equal(visibleDelegationParagraphs(body), identityBudgetDelegation(p).split("\n\n"));
   if (p.commission.evidence_kind === VERIFIER_LIFECYCLE_REPAIR) return !!readVerifierLifecycleDelegation(body,p);
   if (p.commission.evidence_kind === PREPARED_ELIGIBILITY_REPAIR) return !!readPreparedEligibilityDelegation(body,p);
   if (p.commission.evidence_kind === REGISTERED_INTEGRATION_BUDGET)
@@ -781,6 +815,25 @@ function typedMaterialAuthorityBindings(p, kind, claim) {
 }
 
 export const integrationBudgetAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_INTEGRATION_BUDGET, INTEGRATION_BUDGET_CLAIM);
+export const IDENTITY_BUDGET_GRANT = "Authorize one NEW prospective v7 reviewed_revision commission for the registered Identity contracts allowance.";
+export const identityBudgetAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_IDENTITY_BUDGET, IDENTITY_BUDGET_CLAIM) +
+  "\nRegistered owner: integration / supporting-serial / codex-isolated-auth-projection; command: node --import tsx scripts/test-codex-isolated-auth-projection.ts --contracts." +
+  "\nProspective watchdog: 60000 to 90000 ms; integration phase: 4200000 ms unchanged; complete workload, executable checks, single-use ownership and cleanup unchanged.";
+export const identityBudgetDelegation = p => [
+  "Authorize one registered Identity contracts allowance preparation and conditional qualification assignment on " + p.branch + " in Draft PR #" + p.pull_request + ". Select " + REGISTERED_IDENTITY_BUDGET + " within the existing inventory-bound material-source-correction-v1 owners.",
+  "Predecessor: " + p.prior_family_id + " / " + p.prior_attempt_id + " / " + p.prior_receipt_fingerprint + ".",
+  MATERIAL_HISTORY_BOUNDARY,
+  "Preserve the complete uninstrumented contracts workload and every security, substitution, single-use ownership, refusal, state and cleanup assertion. Permit only its finite prospective 60000 to 90000 ms fixture watchdog adjustment; preserve the integration phase 4200000 ms bound and every other registration. The allowance is an operating-envelope judgment, not a product latency requirement, proven historical cause or guaranteed PASS. After separate independent acceptance of the complete final published source, evidence readers and refusal controls, original evidence, natural registered-owner completion and real non-reserving preparation commitment, authorize faithful exact-target acceptance and a separate authenticated prospective commission through the maintainer identity. Exactly one admitted deciding invocation total; reservation or interruption consumes it. No ordinal two, recovery or unchanged-target retry. Preserve all earlier consumed invocations and false stock. Complete the planner-selected qualification, separate fresh-process stock, independent result audit and owned cleanup."
+].join("\n\n");
+export const FIXTURE_VALIDITY_WINDOW_GRANT = "Authorize one NEW prospective v7 reviewed_revision commission for the registered fixture validity-window correction.";
+export const fixtureValidityWindowAuthorityBindings = p =>
+  typedMaterialAuthorityBindings(p, REGISTERED_FIXTURE_VALIDITY_WINDOW, FIXTURE_VALIDITY_WINDOW_CLAIM);
+export const fixtureValidityWindowDelegation = p => [
+  "Authorize one registered fixture validity-window correction and conditional qualification assignment on " + p.branch + " in Draft PR #" + p.pull_request + ". Select " + REGISTERED_FIXTURE_VALIDITY_WINDOW + " within the existing inventory-bound material-source-correction-v1 owners. Include only the narrow reusable evidence-contract repair needed to admit this fixture correction truthfully, preserving authenticated authority, exact source/preparation/input binding, physical lineage, single-use accounting and refusal controls. Fixture-only positive recovery decisions use a one-second interior margin within the unchanged production validity window. The historical failure cause remains UNKNOWN; no production defect or historical clock repair is claimed.",
+  "Predecessor: " + p.prior_family_id + " / " + p.prior_attempt_id + " / " + p.prior_receipt_fingerprint + ".",
+  MATERIAL_HISTORY_BOUNDARY,
+  "After separate independent acceptance of the implemented evidence contract, actual fixture correction and refusal controls, final published source, real non-reserving exact-target preparation commitment and complete input/runtime inventory, authorize the implementation operator to record that decision faithfully and publish a distinct authenticated exact-target commission through the existing maintainer identity. Identify the actual reviewer separately from the operator recording the decision. This delegation is not a deciding execution grant for the current or an unspecified future head. The new commission permits exactly one complete planner-selected reference-Mac qualification invocation including its selected Full and Browser phases; reservation or interruption consumes it. No ordinal two, recovery or unchanged-target retry under this commission. This delegation does not authorize replacement commissions merely because a run fails. Separate fresh-process stock, owned cleanup and independent read-only result audit remain required.",
+].join("\n\n");
 export const selectiveFixtureWorkloadAuthorityBindings = p => typedMaterialAuthorityBindings(p, SELECTIVE_FIXTURE_WORKLOAD, SELECTIVE_FIXTURE_WORKLOAD_CLAIM);
 export const maintenanceFixtureAuthorityBindings = p => typedMaterialAuthorityBindings(p, REGISTERED_FIXTURE_BUDGET, FIXTURE_BUDGET_CLAIM) +
   "\nAllowance case: " + MAINTENANCE_FIXTURE_CASE + "\nRegistered aggregate: 60000 to 90000 ms; inner setup: 10000 ms unchanged.";
@@ -818,6 +871,12 @@ function typedMaterialAuthorityScope(p, review, grant, bindings, opening) {
 
 export const integrationBudgetAuthorityScope = (p, review, grant) =>
   typedMaterialAuthorityScope(p, review, grant, integrationBudgetAuthorityBindings(p), INTEGRATION_BUDGET_GRANT);
+export const identityBudgetAuthorityScope = (p, review, grant) =>
+  p.commission.evidence_kind === REGISTERED_IDENTITY_BUDGET &&
+  typedMaterialAuthorityScope(p, review, grant, identityBudgetAuthorityBindings(p), IDENTITY_BUDGET_GRANT);
+export const fixtureValidityWindowAuthorityScope = (p, review, grant) =>
+  p.commission.evidence_kind === REGISTERED_FIXTURE_VALIDITY_WINDOW &&
+  typedMaterialAuthorityScope(p, review, grant, fixtureValidityWindowAuthorityBindings(p), FIXTURE_VALIDITY_WINDOW_GRANT);
 export const selectiveFixtureWorkloadAuthorityScope = (p, review, grant) =>
   typedMaterialAuthorityScope(p, review, grant, selectiveFixtureWorkloadAuthorityBindings(p), SELECTIVE_FIXTURE_WORKLOAD_GRANT);
 export const maintenanceFixtureAuthorityScope = (p, review, grant) =>

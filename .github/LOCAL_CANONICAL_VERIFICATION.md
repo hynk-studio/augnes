@@ -961,14 +961,21 @@ Independent review and behavior-based adversarial controls remain required;
 changed hashes or the candidate's ability to admit itself are insufficient.
 
 Phase retries, partial-run stitching and favorable-sample selection remain
-forbidden. Two-lane integration concurrency is unchanged. Bounds limit hangs and
+forbidden. Ordinary integration children retain a maximum concurrency of two.
+The Web planning D1 child has exclusive admission within that invocation: it
+starts before other ready children and runs alone through result/cleanup
+acceptance. This addresses repeated aggregate watchdog failures under the
+concurrent arrangement; it does not diagnose their historical cause. Other
+groups retain serial order, all selected-child accounting and failure admission
+rules. No child/phase bound or assertion is relaxed. Bounds limit hangs and
 settlement within supported CPU/memory/disk conditions; a timeout is not
 automatically a performance regression or an infrastructure diagnosis. Historical
 settled-expired-successor runs retain their 30,000 ms bound. Its separately
 authorized prospective aggregate change to 45,000 ms remains adopted; its
 historical authorization is preserved at the pinned Git revision in
-[Retired qualification routes](#retired-qualification-routes). No other
-child/phase bound changes.
+[Retired qualification routes](#retired-qualification-routes). The Identity
+contracts allowance below is a separately bound prospective fixture judgment.
+No other child/phase bound changes.
 
 ### Prospective behavior-preserving improvement (source-correction v2)
 
@@ -1311,6 +1318,49 @@ file exemption, mutable merge replay, external verifier overlay or prerequisite
 main merge is used. Preparation and stock read existing objects and never create
 Git objects or reserve accounting.
 
+New reviewed deliveries may explicitly select
+`integration.delivery_revision:"accounted-verifier-chain-v1"`. Absence retains
+the historical strict union and single compatibility-correction meaning above;
+unknown selectors and mixed or downgraded markers refuse. This selection also
+admits the latest completely settled successful prospective-requalification v7
+predecessor, through its actual registered-owner proof and authority readers.
+Only the existing material basis or the closed prospective basis qualifies:
+original 60/90-second registration, proof, incident, immutable authority bodies
+and chronology, Full/Browser natural completion, dependency/input identities,
+valid stock, cleanup, one-shot consumption and latest physical lineage are
+revalidated. A success label or current PR projection is not historical proof.
+In this explicitly selected delivery only, successful predecessor stock may
+retain `different_current_main` when its original admitted declared-base v2
+observation records that difference. The exact predecessor and receipt remain
+bound, all other success predicates still apply, and the stock is not rewritten
+or projected onto the new target. Absent selection, legacy integration and
+post-pass readers retain their original strict stock-applicability requirement.
+
+The selected delivery derives every differing overlap and every deviation from
+the non-overlap union from the actual merge-base, predecessor, accepted-main
+and integration trees. `adjustments` binds each non-overlap path's expected and
+result entry, including deletion or mode/blob changes, and
+`adjustment_delta_sha256` binds the complete selected delta. It also records
+`correction_chain`, one through sixteen nonempty linear commits from that real
+ordered-parent merge to the exact final head. Each step binds its commit,
+single parent, parent/result trees, complete delta, paths and before/result
+entries; aggregate correction paths/delta remain bound. Omitted, reordered,
+substituted or unaccounted paths, bytes, modes, entries or commits refuse. The
+read-only capture and reader create no Git objects and do not replay a merge.
+
+Resolutions, non-overlap adjustments and chain steps are restricted to the
+canonical verifier/policy source families, regular file entries or explicitly
+accounted deletions; unrelated product changes are not admitted as integration
+adjustments. Independent review still judges the complete delta and affected
+consumers. This is neither a four-file exception nor a claim of production
+failure or repair. The selected review uses `revision_predecessor` stock and
+original authority references plus actual `preparation`, and explicitly accepts
+complete non-overlap accounting, the correction chain and successful-predecessor
+evidence in addition to the existing judgments. Historical material reviews and
+their `material_predecessor` field keep their interpretation. A superseded
+prospective receipt has its own validated historical-prefix stock classification;
+it is not relabeled material evidence or made current deciding evidence.
+
 That review file is evidence, not authority. Acceptance must begin with
 `Accept this reviewed integration candidate and its complete source delivery.`
 and the distinct later commission with
@@ -1354,18 +1404,21 @@ records and separate stock reader. It represents a materially revised source
 or execution-input target after the latest settled failed predecessor, including
 a predecessor whose earlier grant is terminal. It does not renew that grant,
 rewrite its record or change the interpretation of any legacy route.
+The separately selected prospective-requalification case below instead records
+an explicit new verification decision with an unchanged product workload; it is
+not a material-source repair or an exception inferred from an ordinary approval.
 
 The proof binds the accepted source/review, a separate prospective commission,
 the actual source delta, immutable runtime inputs, retained original receipt,
 attempt, completion and separate stock, and applicable focused evidence.
 Implementation-owner final-source checks remain distinct from the receiving
 reviewer's independent audit. An older predecessor, wrong authority/source/input,
-unsettled cleanup or unchanged candidate refuses before consumption. Accepted
-focused evidence may be reused with its original source/input attribution; it
-never supplies unexecuted phase coverage.
+unsettled cleanup or an unchanged candidate under a source-repair route refuses
+before consumption. Accepted focused evidence may be reused with its original
+source/input attribution; it never supplies unexecuted phase coverage.
 
-One commission permits at most two deciding invocations across its entire
-exclusive successor chain: the initial complete invocation and at most one
+The default v7 commission permits at most two deciding invocations across its
+entire exclusive successor chain: the initial complete invocation and at most one
 complete invocation after a demonstrated directly implicated defect or input
 problem has been materially corrected and supported by focused checks. Source,
 proof, branch, checkout or family changes cannot reset this ceiling. No unchanged
@@ -1378,10 +1431,11 @@ the precise blocker.
 A genuinely new authenticated v7 commission may follow a spent v7 commission at
 its latest settled tip. A settled v10 ordinal-two Full with a naturally failed
 phase can also supply that tip. Its original commission, grants, false stock,
-receipts and exclusive edges remain spent and reconstructible. This boundary
-requires a material change to implicated source and the full protected input
-inventory, including shared Git configuration. Run the same behavioral script
-and arguments on the settled predecessor and on the candidate. Bind both Git
+receipts and exclusive edges remain spent and reconstructible. For the
+source-repair forms, this boundary requires a material change to implicated
+source and the full protected input inventory, including shared Git
+configuration. Run the same behavioral script and arguments on the settled
+predecessor and on the candidate. Bind both Git
 blobs, runtime identities, exit results and output originals. The predecessor
 must fail and the candidate must pass naturally with clean settlement. The test
 driver may stay unchanged when it exercises the corrected source. A successful
@@ -1398,6 +1452,157 @@ permission. If ordinal one fails, retain that initial acceptance and grant for
 accounting. A new commit-anchored contract review on the same PR binds the
 second candidate and its preparation commitment. The same readers check its
 material repair, current inventory, predecessor and exclusive reservation.
+
+#### Explicit prospective requalification after a settled watchdog failure
+
+`commission.source_revision = prospective-requalification-v1` is a distinct,
+closed basis within the existing inventory-bound v7 `reviewed_revision` proof.
+It is not `material-source-correction-v1`, a new material `evidence_kind`, or a
+revival of retired condition-requalification v5. Its purpose is to admit an
+explicitly reviewed new exact-target verification decision when a supported
+settled watchdog result leaves the historical cause UNKNOWN and supplies no
+justified product correction. A later passing diagnostic neither identifies
+that cause nor retroactively makes the failed run successful.
+
+The immediate predecessor must be the latest physically completed, fully spent
+supported commission. Retain its original attempt, receipt, completion, false
+stock and full physical successor chain, with every prior issued maximum and
+consumed reservation. The selected incident must bind the complete original
+phase and authority output to a closed registered owner. Historical proofs with
+no `commission.registered_owner` continue to select
+`node --import tsx scripts/test-operational-continuation-admission.ts` and its
+unchanged 60,000 ms watchdog. The only explicit selector is
+`commission.registered_owner = model-host-succession-benchmark`, selecting
+`node --import tsx scripts/test-model-host-succession-benchmark.ts` and its
+unchanged 90,000 ms watchdog. Each descriptor fixes the unit phase, canonical
+label, command and bound; the reader cross-checks the immutable registrations at
+both source endpoints and the complete physical incident. Callers cannot supply
+commands, labels, phases or deadlines, or use a selector to reinterpret the
+other owner's history. The incident requires one bounded child timeout, its
+settled termination, the natural outer unit-phase failure and complete owned
+cleanup. The evidenced benchmark window accepts only that child's matching
+runner lifecycle lines before its timeout result, retaining all original bytes
+and refusing product/assertion/input/safety payload instead of filtering it.
+The historical raw disposition is preserved. Earlier passing phases retain
+their actual evidence; the failed
+phase remains failed and every unexecuted phase remains NOT_RUN. Another child,
+an observed assertion failure, a safety or input fault, log/receipt mismatch,
+unsettled resources, missing originals or an ambiguous physical tip cannot be
+reclassified as this incident. A known unresolved material defect is not made
+acceptable by labeling its cause unknown.
+
+The accepted target binds the complete source delta and exact protected input
+inventory. Product sources, substantive assertions, existing registered product
+workload, child and parent bounds, phase order and complete planner-selected
+Full/Browser plan stay unchanged. Only the reviewed admission support, its
+focused contract controls and corresponding policy may change for this basis.
+An additive pure reader control may not replace, select away or reroute the
+original product workload; the rest of the original suite stays unchanged. The
+initial implementation changes admission support and therefore has its own exact
+head/tree; it is not an unchanged historical source. This is not a requirement
+to manufacture cosmetic commits. A genuinely later separately authorized
+prospective assignment may retain the product and existing support source if
+all incident, evidence, current-input, physical-lineage and one-use authority
+gates still hold. No fabricated natural RED, unrelated product edit, cosmetic
+repair claim, old phase coverage or increased watchdog allowance can substitute
+for this contract.
+
+The focused proof selects `focused.prospective`, not `focused.regression`. Its
+closed form binds the claim and owner, original incident receipt/log identity
+with `cause: UNKNOWN`, and a Git-derived source-equivalence original. Retained
+diagnostic originals have exactly the ordered roles `runner`, `observer`,
+`result` and `stdout`, with their hashes and explicit limited scope. They are
+retained and inspected, not interpreted as a repaired historical failure,
+reliable timing margin or deciding coverage. Source equivalence checks the
+unchanged owner, original suite remainder, planner functions and complete
+16-phase inventory, but does not invent historical runtime observations.
+Separate acceptance reviews the actual retained diagnostic contents and their
+limitations; a declared successful sample alone supplies no authority.
+
+Historical and current execution windows remain separate. This basis validates
+the historical failure against its original hash-bound runtime, without copying
+that observation into the new current inputs. Across the two completed windows,
+only the Node device field and the header metadata-inventory digest may differ;
+all other runtime fields, including content, path and permission identities,
+must remain equal. This compatibility comparison changes neither stored full
+observations nor their digests and never applies within a new invocation.
+
+The closed `focused.prospective.current` artifact binds
+`augnes.prospective-current-baseline.v1`, its observation time, current runtime
+and inventory digests, and the exact five-field Companion state (status,
+checkout relation, installed-service identity, preservation validity and state
+binding). It must retain the historical installed-service identity. Its bytes
+are sealed with the other material and included in the preparation commitment.
+Preparation and reservation compare fresh, coherent current observations to
+this declared current baseline with the existing same-binding check. A restart
+or input change after preparation still refuses; historical preservation and
+all other revision routes keep their existing checks. A fresh accepted window
+is not evidence that the historical timeout was repaired.
+
+Use the existing non-reserving preparation, authenticated review/grant transport,
+exclusive successor reservation, append-only ledger, receipt and fresh-process
+stock owners. A genuinely new operative delegation must identify this basis and
+follow the completed predecessor. Source and focused control checks establish
+that the support is reviewable; they do not require a prior Full PASS or grant
+execution authority. Actual exact-target preparation then observes the current
+source, runtime, complete inputs and installed Companion without reserving;
+existing ownership and capacity checks remain final-admission prerequisites.
+Separate acceptance reviews the published target, complete delta, retained
+incident, original diagnostics and preparation commitment. A
+distinct subsequent authenticated commission binds that same basis, delegation,
+acceptance, predecessor, source and preparation. Analysis-only delegation, old
+source acceptance, an earlier spent grant, edited authority, wrong chronology,
+wrong target or stale preparation refuses. Separate model review is named as
+such; recording it does not turn it into human or external independent validation.
+
+`node scripts/prepare-local-canonical-prospective-requalification.mjs <material.json>`
+is the thin read-only caller for this distinct basis. It uses
+`prepareProspectiveRequalification` in the existing shared preparation owner,
+not the material-repair entry point. It requires the actual admitted checkout
+and reference-host environment, authentic Draft publication and delegation,
+physical predecessor and current input/Companion observations; its material
+contains no execution authorization. It creates no lease, successor reservation
+or consumed invocation. The exact delegation, acceptance bindings and grant
+wording belong to
+[`local-canonical-prospective-requalification.mjs`](../scripts/local-canonical-prospective-requalification.mjs).
+The benchmark selector also binds its descriptor-derived owner, phase, command,
+label and bound in the exact delegation/acceptance/commission text. Historical
+absent-selector authority text, source-equivalence form and refusal behavior
+remain unchanged. A broad implementation assignment is not substituted for the
+supported typed conditional delegation, acceptance or execution commission.
+Publishing these instructions, support code, a preparation or synthetic focused
+controls does not grant a deciding invocation.
+
+The new commission has ordinal one, maximum one and recovery zero. Reservation
+consumes it, including interruption before attempt append; a conclusive refusal
+before reservation consumes nothing. No ordinal two, unchanged admitted retry,
+automatic replacement commission, recovery or grant carry-over follows from a
+failed or interrupted result. Task, branch, checkout, proof or family renaming
+cannot reset this assignment's accounting or select an older predecessor. A
+later genuinely new owner decision would require its own applicable complete
+authority; this contract neither pre-authorizes it nor imposes a lifetime global
+quota in place of the task owner's finite decisions.
+
+The discriminator and all incident, source, input, preparation and authority
+bindings must survive physical reconstruction. The current lossy private review
+export explicitly refuses this route with
+`review_export_prospective_requalification_requires_original`; review requires
+the complete original receipt, proof and referenced artifacts. It must not strip
+the new basis into a seemingly compatible derivative. Missing, mixed, downgraded
+or unsupported forms refuse instead of falling back to material repair or a
+generic/legacy route. Asynchronous authority or input observation does not permit
+changed proof, source, inventory or physical tip to reach reservation. Existing
+retired-marker refusals remain intact throughout the chain. An exported summary
+never creates current qualification or independent attestation.
+
+A future PASS qualifies only its exact new accepted target and completed plan.
+It preserves the historical failure, false stock, UNKNOWN cause and cumulative
+cost. The new receipt, separate fresh stock, independent result review and owned
+cleanup remain required. It does not establish actual-model, UI or hosted
+participant acceptance, install or adopt Companion, or authorize Ready, merge or
+deployment. Removing this support removes prospective admission only: keep
+historical originals, consumed edges, grant identities and the admitted reader
+revision for read-only reconstruction.
 
 #### Prospective acquisition correction after a spent basic-v7 observation race
 
@@ -2122,6 +2327,132 @@ claim. The distinct grant begins
 It permits one invocation and retains the same reservation, settlement,
 authentication, freshness, history, separate fresh-process stock and independent
 result audit requirements. Reservation or interruption consumes that invocation.
+
+##### Prospective Identity contracts allowance
+
+`registered-identity-contract-budget-v1` is a closed evidence kind in the
+existing one-use, inventory-bound material-source lineage. It covers only
+`integration / supporting-serial / codex-isolated-auth-projection`, invoking
+`node --import tsx scripts/test-codex-isolated-auth-projection.ts --contracts`.
+Its only workload change is the aggregate fixture watchdog from 60,000 to
+90,000 ms. This is a finite operating-envelope judgment, not a product latency
+requirement, measured 90-second requirement, historical cause or guaranteed PASS.
+The integration phase remains 4,200,000 ms. All registrations, command arguments,
+cases, state transitions, assertions, full executable-byte validations,
+single-use owners, substitution refusals, internal limits and cleanup remain
+unchanged. The existing Web-exclusive scheduling correction remains in place.
+
+The latest predecessor must be a fully settled ordinary-v2 `source_revision`
+product failure with no material commission, no newer attempt or successor,
+intact original receipt and false stock. Its untruncated physical integration
+log must show only this registered child failing its old watchdog, a natural
+failing parent, truthful selected/started/settled/completed/unstarted inventory
+and complete owned cleanup. Only this Identity predecessor may retain an
+incomplete valid ordered prefix of integration Browser observations when that
+failed phase stopped before those consumers; its original false-stock issue
+must remain exactly accounted. This accepts no missing final-target coverage.
+Its raw disposition, unresolved historical cause
+and all earlier invocation consumption are preserved. This route's immediate
+root is that latest predecessor; it does not reset the earlier physical lineage
+or reuse its conditional recovery or the Web correction proof.
+
+The rationale retains the bounded whole-contract observation, selected fresh
+tail and representative original-probe cost observation as non-deciding evidence.
+Observer clocks are not the parent watchdog clock. Tail/representative PASS
+does not establish whole-contract PASS, historical cause or a natural RED/GREEN.
+Repeated executable hashing and process observation are security work, not an
+unconditional sleep or permission to cache by pathname or remove checks.
+The proposed execution reserve is 30,000 ms; the existing 8,000 ms TERM and
+5,000 ms KILL settlement allowances remain unchanged. No unrelated maintenance,
+external-response or project-experience budget commission can admit this owner.
+
+The final development capture runs the original complete, uninstrumented
+registered command once under the proposed allowance. Use the existing explicit
+collector's `direct codex-isolated-auth-projection` selection in a new output
+directory. It owns checkout/capacity and isolated resources, records exact clean
+Git/source, runtime, dependencies, loader, input inventory and environment before
+and after, and requires natural result/stream/process/resource settlement.
+The reader verifies all three runtime-policy records and the final complete
+contracts summary, including zero real credential/provider/egress effects.
+Tail selectors, overlays, missing completion, timeout, cancellation, substituted
+inputs or incomplete cleanup refuse. The complete workload/security closure and
+parent executor are byte-fixed. Only the one timeout AST node and explicitly
+reviewed evidence owners may change; any carried main prose must match the
+explicit adopted base or its read-only conflict-free blob merge.
+
+New support and successful development capture do not commission deciding
+execution. Non-reserving preparation binds the exact published final target,
+current safe inputs and immutable latest predecessor before independent review.
+The distinct visible task delegation, exact-source acceptance and later
+prospective grant retain the existing authenticated author/permission, ordering,
+freshness and inventory requirements. The grant begins
+`Authorize one NEW prospective v7 reviewed_revision commission for the registered Identity contracts allowance.`
+It authorizes exactly one admitted planner-selected invocation; reservation or
+interruption consumes it. There is no ordinal two, recovery, unchanged-target
+retry or partial-phase stitching. Separate fresh-process stock, independent
+result review and owned cleanup remain required. Preparing this route neither
+publishes authority nor replenishes any spent grant.
+
+##### Controlled fixture validity-window correction
+
+`registered-fixture-validity-window-v1` is a closed fixture-evidence case within
+the existing inventory-bound `material-source-correction-v1` owners. It covers
+the registered Companion ownership-retirement unit fixture: shorten each
+positive prepared decision once by 1,000 ms inside the unchanged 300,000 ms
+production validity window, preserve all other decision bindings and exact replay,
+and retain the unchanged 60,000 ms child bound. The finite source recipe preserves
+every existing scenario, assertion, effect and cleanup, and adds untouched-default
+initial admission plus excessive-future, binding, source and service-identity
+refusals. It changes no production guard, workload limit, scheduler or retry rule.
+
+The typed evidence separates original retained development records from current
+preparation. Four controlled observations at the real supervisor decision guard
+show prior minus-one-millisecond refusal, prior expiry refusal, corrected
+minus-one-millisecond acceptance and corrected beyond-margin refusal. Their
+`synthetic_clock_control: true` and `admissible_regression_witness: false` labels
+remain unchanged. They establish a finite mechanism, not a natural product RED,
+historical clock diagnosis or a general clock-robustness guarantee. A complete
+uninjected corrected fixture must naturally pass all nine scenarios and three
+adverse cleanup controls under its original bound, with settled child, streams,
+private resources and ownership. Do not rerun an unchanged historical case merely
+to seek a RED or manufacture missing observations.
+
+The original collector, raw result and log remain individually hash-bound under
+their original schema and transitively bound by the focused/preparation review
+commitment. Independent acceptance must review the exact collector and observer
+sources for the limited intervention and uninjected complete-fixture launch;
+the reader's command/shape checks are not automatic semantic verification of
+arbitrary capture programs. The retained collector observes four source files and
+host versions; it does not observe complete historical physical source,
+environment, runtime executable, loader or dependency identities. A separately
+identified Git-derived comparison binds the eight consumed source files,
+unchanged root/Apps/Web package declarations and locks, owner registration and
+all scheduler code except the additive pure reader control. This is source
+equivalence, not retrospective physical-input evidence. Its explicit limitations
+are mandatory; missing historical observations remain UNKNOWN. Changed consumed
+source or relevant pinned inputs cannot reuse that retained PASS through this
+case. Actual final-head reader/refusal commands and complete current preparation
+remain required through the existing focused and inventory owners.
+
+The original latest physical predecessor, receipt, false stock, consumed
+commissions and historical cause remain unchanged. This type admits no older
+predecessor or direct ordinary-source successor. Its complete retained physical
+unit log must bind the registered child's unchanged 60,000 ms start to a natural,
+settled exit 1 with `companion_service_recovery_decision_stale` inside that child
+span, and no other failing child. An excerpt, timeout or unrelated unit failure
+cannot supply this incident; the error still does not establish its clock cause.
+A validated declared-range v2
+integration-base receipt permits current-main movement without changing the
+exact published candidate or source-ancestry requirements. Missing or altered
+lineage, v1 applicability, wrong target or conflicting source still refuses.
+Separate exact-source/evidence/preparation acceptance and a distinct authenticated
+prospective commission are mandatory. The actual reviewer is identified
+separately from the operator recording that decision. Exactly one complete
+planner-selected reference-Mac invocation is allowed; reservation or interruption
+consumes it. There is no ordinal two, recovery or unchanged-target retry, and no
+replacement commission is implied by failure. Separate fresh-process stock,
+independent read-only result audit and owned cleanup remain required. The source
+repair and controlled development evidence are not qualification PASS.
 
 ##### Generated declaration stock lifecycle correction
 

@@ -151,6 +151,19 @@ const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-
 const suites = {
   unit: [
     {
+      id: "prospective-requalification-evidence", label: "explicit prospective requalification evidence and authority refusals",
+      requirements: ["filesystem", "immutable-fixture-input"],
+      ...rootNode("scripts/test-local-canonical-prospective-requalification.mjs"), timeoutMs: 30_000, requireNaturalExit: true,
+    },
+    {
+      id: "fixture-validity-window-evidence", label: "controlled validity-window evidence and retained-source refusals",
+      requirements: ["filesystem", "immutable-fixture-input"],
+      ...rootNode("scripts/test-local-canonical-fixture-validity.mjs"), timeoutMs: 30_000, requireNaturalExit: true,
+    },
+    { id:"fixture-git-capture",label:"bounded complete fixture binary-diff capture and refusal controls",
+      requirements:["filesystem","process-owning"],...rootNode("scripts/test-local-canonical-fixture-git-capture.mjs"),
+      timeoutMs:30000,requireNaturalExit:true },
+    {
       id: "local-canonical-initial-preparation",
       label: "ordinary initial preparation controls with immutable failure history",
       ...rootNode("scripts/test-local-canonical-initial-preparation.mjs"),
@@ -526,6 +539,18 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "llama.cpp private connection preparation",
+      ...rootNode("scripts/test-prepare-llama-connection.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      label: "llama.cpp Companion text projection and stdio compatibility",
+      ...rootNode("scripts/test-llama-companion-stdio.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "codex-user-hook-migration",
       label: "Codex explicit-reuse hook migration and uninstall contract",
       ...rootNode("scripts/test-codex-augnes-user-hook-migration.mjs"),
@@ -585,6 +610,7 @@ const suites = {
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "backup-restore"],
       label: "durable web planning production handlers and local D1 integrity",
+      exclusive: true,
       ...rootNode("scripts/test-web-planning.mjs"),
       timeoutMs: 120_000,
       requireNaturalExit: true,
@@ -757,11 +783,11 @@ const suites = {
         "scripts/test-codex-isolated-auth-projection.ts",
         "--contracts",
       ),
-      // The structural contract lane owns the production-shaped fake App Server,
-      // account/tool-policy reobservation, provenance, and execution gate. Three
-      // exact Node 24 canonical-runner measurements were 35.987s-36.255s. Bound
-      // at 60s for shared-host variance without a retry path.
-      timeoutMs: 60_000,
+      // Preserve the complete fake App Server, provenance, policy and execution
+      // gate workload, including repeated full-byte and process identity checks.
+      // This finite prospective allowance has its own evidence/admission owner;
+      // it establishes neither historical timeout cause nor guaranteed headroom.
+      timeoutMs: 90_000,
     },
     {
       id: "codex-isolated-auth-rollback-lifecycle",
@@ -2042,6 +2068,7 @@ try {
       env: childEnvironment,
       timeoutMs,
       requireNaturalExit: step.requireNaturalExit === true,
+      exclusive: step.exclusive === true,
       resourceRoot,
       resourceOwner,
     };

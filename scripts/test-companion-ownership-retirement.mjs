@@ -15,6 +15,18 @@ import { runCompanionFixtureScenario } from "./companion-service-fixture-observa
 const hash = value => createHash("sha256").update(value).digest("hex");
 const json = (file, value) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(value) + "\n", { mode: 0o600 }); };
 const read = file => JSON.parse(fs.readFileSync(file, "utf8"));
+// Positive scenarios use an interior point of the accepted decision window.
+// The preparer's maximum-TTL edge correctly refuses even a small backwards
+// wall-clock adjustment. Shorten once, keep every other binding, and reuse this
+// exact decision for replay. 299 seconds still exceeds the 60-second watchdog.
+// This is fixture headroom, not a measured historical clock adjustment.
+function positiveFixtureDecision(decision) {
+    return { ...decision, expires_at: new Date(Date.parse(decision.expires_at) - 1_000).toISOString() };
+}
+async function prepareFixtureRecovery(options) {
+    const preview = await core.prepareCompanionOwnershipRecovery(options);
+    return { ...preview, decision: positiveFixtureDecision(preview.decision) };
+}
 const birth = pid => { const p = spawnSync("/bin/ps", ["-o", "lstart=", "-o", "command=", "-p", String(pid)], { encoding: "utf8", timeout: 1500 }); return p.status === 0 ? hash(`${process.platform}:${pid}:${p.stdout.trim()}`) : null; };
 const sources = ["scripts/augnes-companion-service.mjs", "plugins/augnes-operator/mcp/companion-service-core.mjs", "plugins/augnes-operator/mcp/checkout-identity.mjs", "plugins/augnes-operator/mcp/checkout-identity-darwin.py", "plugins/augnes-operator/mcp/node-runtime-policy.mjs"];
 // Real private loopback listeners enforce the generation's child credential.
@@ -186,7 +198,7 @@ await run("lost-state-retirement-and-replay", async (f) => {
     // Executing recovery source and unchanged target source are independently bound.
     assert.notEqual(f.options.repositoryRoot, process.cwd());
     assert.notEqual(inspect.installed_source, inspect.recovery_source);
-    const preview = await core.prepareCompanionOwnershipRecovery(f.options);
+    const preview = await prepareFixtureRecovery(f.options);
     const result = await core.applyCompanionOwnershipRecovery({ ...f.options, decision: preview.decision });
     assert.equal(result.result, "settled");
     assert.equal(result.remaining_owned_processes, 0);
@@ -264,13 +276,13 @@ await run("lost-state-later-attempt-exit-diagnostic", async (f) => {
     assert.equal(diagnostic.failure_origin, "managed_child_exit_observed");
     assert.equal(diagnostic.child_exit_status, 0);
     assert.equal(birth(f.supervisor.pid), f.supervisor.identity);
-    const preview = await core.prepareCompanionOwnershipRecovery(f.options);
+    const preview = await prepareFixtureRecovery(f.options);
     assert.equal((await core.applyCompanionOwnershipRecovery({ ...f.options, decision: preview.decision })).result, "settled");
     assert.deepEqual(read(f.layout.ownership_recovery_path).evidence.manager.supervisor_failure_provenance, diagnostic);
     assert.equal(f.effects(), 1);
 }, { laterAttemptExit: true });
 await run("settled-history-after-device-renumbering", async (f) => {
-    const preview = await core.prepareCompanionOwnershipRecovery(f.options);
+    const preview = await prepareFixtureRecovery(f.options);
     await core.applyCompanionOwnershipRecovery({ ...f.options, decision: preview.decision });
     const recordBytes = fs.readFileSync(f.layout.ownership_recovery_path);
     const configBytes = fs.readFileSync(f.layout.configuration_path);
@@ -335,8 +347,27 @@ await run("settled-history-after-device-renumbering", async (f) => {
     assert.equal(f.effects(), 1);
 });
 await run("stale-decision-and-maintenance-refusal", async (f) => {
-    const preview = await core.prepareCompanionOwnershipRecovery(f.options);
+    const original = await core.prepareCompanionOwnershipRecovery(f.options);
+    const preview = { ...original, decision: positiveFixtureDecision(original.decision) };
+    assert.equal(Date.parse(original.decision.expires_at) - Date.parse(preview.decision.expires_at), 1_000);
+    assert.deepEqual({ ...preview.decision, expires_at: original.decision.expires_at }, original.decision);
+    // The untouched prepare result still passes real initial admission. Stop
+    // deliberately before recording or effect, rather than freezing its clock.
+    const admitted = new Error("fixture_original_decision_admitted");
+    await assert.rejects(core.applyCompanionOwnershipRecovery({ ...f.options, decision: original.decision,
+        testOwnershipRecoveryStageHook: stage => { assert.equal(stage, "before_effect"); throw admitted; } }), error => error === admitted);
     await assert.rejects(core.applyCompanionOwnershipRecovery({ ...f.options, decision: { ...preview.decision, expires_at: new Date(0).toISOString() } }), /decision_stale/);
+    for (const change of [
+        { expires_at: new Date(Date.parse(original.decision.expires_at) + 300_000).toISOString() },
+        { expected_binding: "0".repeat(64) },
+        { recovery_source: "0".repeat(64) },
+        { service_identity: "0".repeat(64) },
+    ]) {
+        await assert.rejects(core.applyCompanionOwnershipRecovery({ ...f.options, decision: { ...preview.decision, ...change } }), /decision_stale/);
+        assert.equal(f.effects(), 0);
+        assert(!fs.existsSync(f.layout.ownership_recovery_path));
+        assert(!fs.existsSync(f.layout.lifecycle_lock_path));
+    }
     await assert.rejects(core.applyCompanionOwnershipRecovery({ ...f.options, decision: preview.decision, testOwnershipRecoveryStageHook: () => json(f.layout.maintenance_lease_path, { foreign: true }) }), /lifecycle_conflict/);
     assert.equal(f.effects(), 0);
     assert(!fs.existsSync(f.layout.ownership_recovery_path));
@@ -347,13 +378,13 @@ await run("foreign-runtime-and-configuration-refusal", async (f) => {
     json(f.layout.runtime_lock_path, { ...runtime, generation_id: "foreign" });
     await assert.rejects(core.prepareCompanionOwnershipRecovery(f.options));
     json(f.layout.runtime_lock_path, runtime);
-    const preview = await core.prepareCompanionOwnershipRecovery(f.options);
+    const preview = await prepareFixtureRecovery(f.options);
     await assert.rejects(core.applyCompanionOwnershipRecovery({ ...f.options, decision: preview.decision, testOwnershipRecoveryStageHook: () => json(f.layout.configuration_path, { ...f.configuration, installed_at: new Date(0).toISOString() }) }));
     assert.equal(f.effects(), 0);
     json(f.layout.configuration_path, f.configuration);
 });
 await run("unknown-bootout-reconciled-before-resume", async (f) => {
-    const preview = await core.prepareCompanionOwnershipRecovery(f.options);
+    const preview = await prepareFixtureRecovery(f.options);
     await assert.rejects(core.applyCompanionOwnershipRecovery({ ...f.options, decision: preview.decision, testOwnershipRecoveryStageHook: stage => { if (stage === "after_bootout")
             throw Error("acknowledgement_lost"); } }), /acknowledgement_lost/);
     // Wait for actual manager settlement, not a guessed fixed delay.
@@ -361,7 +392,7 @@ await run("unknown-bootout-reconciled-before-resume", async (f) => {
         await once(f.manager, "exit");
     assert.equal((await core.inspectCompanionOwnershipRecovery(f.options)).result, "incomplete");
     await assert.rejects(core.startCompanionService(f.options), /recovery_incomplete/);
-    const resumed = await core.prepareCompanionOwnershipRecovery(f.options);
+    const resumed = await prepareFixtureRecovery(f.options);
     assert.equal((await core.applyCompanionOwnershipRecovery({ ...f.options, decision: resumed.decision })).result, "settled");
     assert.equal(f.effects(), 1);
 });
@@ -385,7 +416,7 @@ await run("unavailable-and-reused-process-witness-refusal", async (f) => {
                 // A changed identity after preparation cannot retire a PID-reused process.
                 patch.mock.restore();
                 syncBuiltinESMExports();
-                const prepared = await core.prepareCompanionOwnershipRecovery(f.options);
+                const prepared = await prepareFixtureRecovery(f.options);
                 const conflict = mock.method(childProcess, "spawnSync", (command, args, options) => {
                     const value = original(command, args, options);
                     return command === "/bin/ps" && args[1] === "lstart=" && args.at(-1) === String(f.supervisor.pid) ? { ...value, stdout: value.stdout + " changed identity" } : value;
@@ -409,18 +440,18 @@ await run("unavailable-and-reused-process-witness-refusal", async (f) => {
     }
 });
 await run("interrupted-runtime-retirement", async (f) => {
-    const preview = await core.prepareCompanionOwnershipRecovery(f.options);
+    const preview = await prepareFixtureRecovery(f.options);
     await assert.rejects(core.applyCompanionOwnershipRecovery({ ...f.options, decision: preview.decision, testOwnershipRecoveryStageHook: stage => { if (stage === "after_supervisor")
             throw Error("runtime_acknowledgement_lost"); } }), /runtime_acknowledgement_lost/);
     const inspection = await core.inspectCompanionOwnershipRecovery(f.options);
     assert.equal(inspection.result, "incomplete");
     assert.equal(inspection.remaining_owned_processes, 2);
-    const next = await core.prepareCompanionOwnershipRecovery(f.options);
+    const next = await prepareFixtureRecovery(f.options);
     assert.equal((await core.applyCompanionOwnershipRecovery({ ...f.options, decision: next.decision })).result, "settled");
     assert.equal(f.effects(), 1);
 });
 await run("changed-generation-at-effect-boundary", async (f) => {
-    const preview = await core.prepareCompanionOwnershipRecovery(f.options), original = read(f.layout.runtime_manifest_path);
+    const preview = await prepareFixtureRecovery(f.options), original = read(f.layout.runtime_manifest_path);
     await assert.rejects(core.applyCompanionOwnershipRecovery({ ...f.options, decision: preview.decision, testOwnershipRecoveryStageHook: () => json(f.layout.runtime_manifest_path, { ...original, generation_id: "foreign-generation" }) }));
     assert.equal(f.effects(), 0);
     assert(!fs.existsSync(f.layout.ownership_recovery_path));

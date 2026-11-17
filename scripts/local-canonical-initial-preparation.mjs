@@ -47,7 +47,7 @@ const checked = new WeakMap();
 export function ordinaryInitialProofShape(p) {
   const c = p?.commission;
   return isOrdinaryInitialPreparationRevision(p) && c.ordinal === 1 && c.maximum_invocations === 1 &&
-    ["route", "input_revision", "input_acquisition", "source_revision", "evidence_kind", "allowance_case", "inherited_serial", "forward_decision", "initial_authorization", "initial_accepted"]
+    ["route", "input_revision", "input_acquisition", "source_revision", "registered_owner", "evidence_kind", "allowance_case", "inherited_serial", "forward_decision", "initial_authorization", "initial_accepted"]
       .every(k => !Object.hasOwn(c, k)) &&
     p.prior_number === 1 && c.root_number === 1 && c.root_family_id === p.prior_family_id &&
     c.root_attempt_id === p.prior_attempt_id && c.root_receipt_fingerprint === p.prior_receipt_fingerprint &&

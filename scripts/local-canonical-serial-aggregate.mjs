@@ -9,7 +9,7 @@ import { settledIsolatedResources } from "./local-canonical-browser-revision.mjs
 export const SERIAL_AGGREGATE_ROUTE = "serial-aggregate-budget-v1";
 export const isSerialAggregateRevision = p => p?.schema === "augnes.local-canonical-source-correction.v7" &&
   p.kind === "reviewed_revision" && p.commission?.route === SERIAL_AGGREGATE_ROUTE;
-// A material-source successor carries the original serial obligation, without
+// A separately authorized successor carries the original serial obligation, without
 // acquiring another invocation of that spent serial commission.
 export function validSerialInheritance(value) {
   return value && Object.keys(value).sort().join(",") === "envelope_sha256,origin_attempt_id,origin_family_id,origin_number,origin_receipt_fingerprint,route" &&
@@ -20,7 +20,7 @@ export function validSerialInheritance(value) {
 }
 export const hasSerialAccounting = p => isSerialAggregateRevision(p) ||
   p?.schema === "augnes.local-canonical-source-correction.v7" && p.kind === "reviewed_revision" &&
-  p.commission?.source_revision === "material-source-correction-v1" && validSerialInheritance(p.commission.inherited_serial);
+  ["material-source-correction-v1", "prospective-requalification-v1"].includes(p.commission?.source_revision) && validSerialInheritance(p.commission.inherited_serial);
 export const serialInheritanceFrom = (previous, next) => isSerialAggregateRevision(previous) ? {
   route:SERIAL_AGGREGATE_ROUTE,envelope_sha256:previous.commission.envelope_sha256,
   origin_family_id:next.prior_family_id,origin_number:next.prior_number,

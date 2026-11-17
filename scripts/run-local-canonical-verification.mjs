@@ -29,6 +29,7 @@ import { isImprovement, hasImprovementMarker, authorizeImprovement, observeImpro
 import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-evidence-retention.mjs";
 import { isGitObservationRevision, isInventoryBoundRevision, isMaterialSourceRevision, gitRevisionInventory,
   GIT_CURRENT_STOCK_COMPARISON, gitRevisionStockComparison } from "./local-canonical-git-observation.mjs";
+import { isProspectiveRequalification } from "./local-canonical-prospective-requalification.mjs";
 import { isBrowserRevision, browserBindingMatches } from "./local-canonical-browser-revision.mjs";
 import { browserInstallationRoot } from "./local-canonical-inputs.mjs";
 import { BROWSER_IDENTITY_PREFIX, validPhaseBrowserUse, browserConsumersForPhase, MAX_BROWSER_USE_RECORDS, parseBrowserUseLine } from "./local-canonical-browser-identity.mjs";
@@ -121,6 +122,8 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/project-experience-connection.mjs",
   "scripts/prepare-local-canonical-serial-aggregate.mjs",
   "scripts/prepare-local-canonical-material-source.mjs",
+  "scripts/prepare-local-canonical-prospective-requalification.mjs",
+  "scripts/local-canonical-prospective-requalification.mjs",
   "scripts/local-canonical-typecheck-witness.mjs",
   "scripts/local-canonical-pure-contract-witness.mjs",
   "scripts/local-canonical-fixture-budget-witness.mjs",
@@ -1588,7 +1591,8 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   };
   let improvementCurrentIssue = null, maintenanceCurrentIssues = [], integrationCurrentIssues = [], currentAttemptRecordsValid = null;
   let historicalMaterialIntegrationPrefix = false;
-  const gitCurrentStockContract = receipt.receipt_version === 4 && isMaterialSourceRevision(receipt.attempt?.source_correction)
+  let historicalProspectiveIntegrationPrefix = false;
+  const gitCurrentStockContract = receipt.receipt_version === 4 && (isMaterialSourceRevision(receipt.attempt?.source_correction) || isProspectiveRequalification(receipt.attempt?.source_correction))
     ? GIT_CURRENT_STOCK_COMPARISON : null;
   let gitCurrentStockComparison = null;
   if (receipt.receipt_version === 4 && isReviewedIntegration(receipt.attempt?.source_correction)) {
@@ -1602,7 +1606,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
     }));
   } else if (receipt.receipt_version === 4) currentAttemptRecordsValid = await inspectAttemptRecords({
     anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, revisionInputs: runtimeInputs,
-    onHistoricalPrefix:()=>{historicalMaterialIntegrationPrefix=true;},
+    onHistoricalPrefix:kind=>{if(kind==="successful_prospective_integration")historicalProspectiveIntegrationPrefix=true;else historicalMaterialIntegrationPrefix=true;},
     gitCurrentStockContract,
     observeRevision: reviewed ? async () => {
       const proof = receipt.attempt.source_correction;
@@ -1628,6 +1632,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
     currentInputStateValid,
     currentAttemptRecordsValid,
     historicalMaterialIntegrationPrefix,
+    historicalProspectiveIntegrationPrefix,
     improvementCurrentIssue,
     maintenanceCurrentIssues,
     integrationCurrentIssues,
