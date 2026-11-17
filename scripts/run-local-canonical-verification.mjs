@@ -2,6 +2,7 @@
 import { isOrdinaryInitialPreparationRevision } from "./local-canonical-initial-preparation.mjs";
 import { isMaintenance, hasMaintenanceMarker, authorizeMaintenance, observeMaintenanceAuthority, inspectMaintenanceInputs } from "./local-canonical-maintenance.mjs";
 import {isSelectedMaintenanceIncident} from "./local-canonical-maintenance-reader-incident.mjs";
+import {isReproducedRootLayout} from "./local-canonical-failed-integration-fixture.mjs";
 import { isSerialAggregateRevision } from "./local-canonical-serial-aggregate.mjs";
 import { PROJECT_EXPERIENCE_ENVELOPE_MS, PROJECT_EXPERIENCE_SERIAL, PROJECT_EXPERIENCE_COMMITMENT, runProjectExperienceParent } from "./project-experience-serial-budget.mjs";
 import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
@@ -30,7 +31,7 @@ import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-e
 import { isGitObservationRevision, isInventoryBoundRevision, isMaterialSourceRevision, gitRevisionInventory,
   GIT_CURRENT_STOCK_COMPARISON, gitRevisionStockComparison } from "./local-canonical-git-observation.mjs";
 import { isProspectiveRequalification } from "./local-canonical-prospective-requalification.mjs";
-import { isBrowserRevision, browserBindingMatches } from "./local-canonical-browser-revision.mjs";
+import { isBrowserRevision, browserBindingMatches, verifyBrowserRevisionPreservation } from "./local-canonical-browser-revision.mjs";
 import { browserInstallationRoot } from "./local-canonical-inputs.mjs";
 import { BROWSER_IDENTITY_PREFIX, validPhaseBrowserUse, browserConsumersForPhase, MAX_BROWSER_USE_RECORDS, parseBrowserUseLine } from "./local-canonical-browser-identity.mjs";
 import { fileURLToPath } from "node:url";
@@ -158,6 +159,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-improvement.mjs",
   "scripts/local-canonical-maintenance.mjs",
   "scripts/local-canonical-failed-integration-fixture.mjs",
+  "scripts/local-canonical-maintenance-reader-incident.mjs",
   "scripts/local-canonical-closeout-budgets.mjs",
   "scripts/local-canonical-evidence-retention.mjs",
   "scripts/local-canonical-review-export.mjs",
@@ -1502,6 +1504,7 @@ export async function inspectMaintenanceStock({anchorRoot,repositoryRoot,receipt
         const live=await observeCurrentInputs?.();
         if(!live||live.inventory!==material.fixture.preparation.inventory_sha256||gitRevisionInventory(live.inputInventory)!==live.inventory)
           maintenanceCurrentIssues.push("receipt_maintenance_current_inputs_invalid");
+        if(isReproducedRootLayout(proof))verifyBrowserRevisionPreservation(material.receipt.cleanup.companion_service.after,live?.service,{requireSameBinding:true});
       }catch{maintenanceCurrentIssues.push("receipt_maintenance_current_inputs_invalid");}
       return {authorization:null,live:null};
     }});

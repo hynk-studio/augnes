@@ -1565,6 +1565,37 @@ This introducing support keeps the product candidate's planner-selected Full,
 all required Browser coverage, separate fresh-process stock and independent
 result review. No separate support-Full-then-product-Full sequence is imposed.
 
+#### One prospective maintenance after a reproduced root installation
+
+The v2 maintenance selector `reviewed-integration-reproduced-root-layout-v1`
+applies to the settled receipt and diagnostic settlement identified in its
+reader. The original root installer exited successfully. The prerequisite
+check then found a different permission layout. The retained non-reserving
+installation with workload umask `0022` reproduced the prepared root.
+
+Use the existing maintenance proof, evidence, preparation and authority
+formats. Its `incident` contains artifact references `diagnosis` (original
+diagnostic settlement JSON bytes) and `preparation` (the existing selected
+maintenance preparation fields with schema
+`augnes.local-canonical-reproduced-root-preparation.v1`). The empty
+`repairs` array represents this observed environment correction. The reader
+binds the original physical attempt, completion, receipt and false stock,
+the introducing verifier-only delta, original checkout and runtime, and
+the final source and all three prepared dependency trees.
+
+During historical replay, evaluate the retained Companion sample against
+the recorded execution. At preparation and immediately before the exclusive
+reservation, check the current Companion binding and the actual process
+umask. Scope restrictive permissions to evidence files and directories.
+The registered dependency phases retain their normal prerequisite checks.
+
+The final target needs its own authenticated acceptance and later prospective
+maintenance commission. One admission consumes it. Setup and source review
+grant zero invocations. The product and introducing support share one Full
+with all seven Browser phases, separate fresh stock, result review and cleanup.
+Failure or interruption ends this assignment with recovery and unchanged
+retry both zero. [Maintainer disposition](https://github.com/hynk-studio/augnes/issues/1430#issuecomment-6963328460).
+
 ### Reviewed source and execution-input revision (source-correction v7)
 
 `reviewed_revision` uses the existing `--source-correction-proof`, authenticated

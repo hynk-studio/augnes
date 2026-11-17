@@ -17,6 +17,8 @@ import { seedFailedIntegrationFixtureSources, createFailedIntegrationMaintenance
 import { completeSyntheticReceipt, write } from "./fixtures/local-canonical-improvement.mjs";
 import { digest, observePreparedDependencyInputs, freezeInputContract } from "./local-canonical-inputs.mjs";
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
+import { REPRODUCED_ROOT_CASE, followsReproducedRootLayout, assertReproducedRootMask } from "./local-canonical-failed-integration-fixture.mjs";
+import { verifyBrowserRevisionPreservation, verifyRecordedBrowserPreservation } from "./local-canonical-browser-revision.mjs";
 
 // This owner uses isolated synthetic authority and accounting only. It never
 // obtains real GitHub authority or opens the operator's physical ledger.
@@ -85,6 +87,39 @@ function rebindSyntheticRecords(proof,records) {
   records.grant.body=MAINTENANCE_GRANT+"\n"+canonicalSerialize(grant);
   proof.authorization.acceptance_review_sha256=grant.acceptance_sha256;
   proof.authorization.grant_comment_sha256=digest(maintenanceAuthorityObservation(records.grant,"prospective_grant"));
+}
+
+function reproducedRootControls() {
+  const fingerprint = "f405168218fb9c29f15fc0cc6bf10710dfb793458b4a63dfb6faa786dc64dddb";
+  const proof = {schema:"augnes.local-canonical-source-correction.v2",kind:"prospective_maintenance",
+    incident_case:REPRODUCED_ROOT_CASE,pull_request:1662,prior_receipt_fingerprint:fingerprint};
+  const prior = {source_correction:{pull_request:1662,integration:{predecessor_basis:"settled-ordinary-watchdog-integration-v1"}}};
+  const completion = {receipt_fingerprint:fingerprint,disposition:"safety_violation"};
+  assert(followsReproducedRootLayout(proof,prior,completion));
+  assert(!followsReproducedRootLayout({...proof,incident_case:undefined},prior,completion));
+  assert(!followsReproducedRootLayout({...proof,pull_request:1},prior,completion));
+  assert(!followsReproducedRootLayout(proof,prior,{...completion,receipt_fingerprint:digest("another failure")}));
+  assert(!followsReproducedRootLayout(proof,prior,{...completion,disposition:"product_failure"}));
+  const saved = process.umask();
+  try {
+    process.umask(0o022);
+    assertReproducedRootMask();
+    process.umask(0o077);
+    assert.throws(assertReproducedRootMask,/root_install_umask/);
+  } finally {
+    process.umask(saved);
+  }
+  const binding = digest("synthetic binding");
+  const state = {status:"live",checkout_relation:"exact",preservation_valid:true,service_identity:"sha256:"+binding,preservation_binding:binding};
+  const run = {started_at:"2025-01-01T00:00:00.000Z",finished_at:"2025-01-01T00:01:10.000Z"};
+  const sample = {contract:"augnes.companion-preservation-observation.v2",samples:1,coherent:true,live_identity_valid:true,
+    before_binding:binding,after_binding:binding,repository_observation_before:"observed",repository_observation_after:"observed",
+    repository_binding_before:binding,repository_binding_after:binding,started_at:"2025-01-01T00:00:59.000Z",finished_at:"2025-01-01T00:01:00.000Z"};
+  const receipt = {run,cleanup:{companion_service:{after:state,observations:{after:sample}}}};
+  verifyRecordedBrowserPreservation(state,receipt);
+  assert.throws(()=>verifyBrowserRevisionPreservation(state,{state,diagnostics:sample},{requireSameBinding:true}),/preservation_unsafe/);
+  assert.throws(()=>verifyRecordedBrowserPreservation({...state,preservation_binding:digest("other")},receipt),/preservation_unsafe/);
+  assert.throws(()=>verifyRecordedBrowserPreservation(state,{...receipt,run:{...run,finished_at:"2025-01-01T00:03:00.000Z"}}),/preservation_unsafe/);
 }
 function authorityTimestampControls() {
   const evidence=material(),base=structuredClone({proof:c.proof,records:c.records});
@@ -440,6 +475,7 @@ async function reviewedIntegrationControls() {
   note("reviewed overlapping integration plus declared verifier correction: exact read-only preparation, authenticated one-shot admission, exclusive cold lineage and full synthetic receipt; omissions, drift, unsafe inputs, replay and passive authority refuse");
 }
 try {
+  reproducedRootControls();
   c=await createMaintenanceFixture(resource.root,env,prepareTrees);
   authorityTimestampControls();
   await successfulMaintenanceIntegrationControls();

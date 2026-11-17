@@ -6,7 +6,7 @@ import {CANONICAL_NODE_VERSION} from "./local-canonical-environment.mjs";
 import {artifactReader,readImprovementOwnerRegistration} from "./local-canonical-improvement.mjs";
 import {gitRevisionInventory} from "./local-canonical-git-observation.mjs";
 import {CANONICAL_AMBIENT_ENVIRONMENT_ALLOWLIST,CANONICAL_OPTIONAL_AMBIENT_ENVIRONMENT_ALLOWLIST} from "./canonical-test-environment.mjs";
-import {isFailedIntegrationFixture,validateSettledFixtureFailure,readFixturePreparation,validateFixtureNaturalResult,validateFixtureCleanup} from "./local-canonical-failed-integration-fixture.mjs";
+import {isFailedIntegrationFixture,isIntegrationMaintenance,validateSettledFixtureFailure,readFixturePreparation,validateFixtureNaturalResult,validateFixtureCleanup} from "./local-canonical-failed-integration-fixture.mjs";
 import {registeredFixtureBudget,maintenanceFixtureBudgetRegistration,maintenanceCompletion,validateMaintenanceWatchdogLog,
   readMaintenanceFixtureBudgetPositive,validateFixtureNaturalLifecycle} from "./local-canonical-fixture-budget-witness.mjs";
 import {maintenanceReaderRemedyPaths,maintenanceReaderRemedySource,validateMaintenanceReaderRemedyPlacement,
@@ -17,7 +17,7 @@ export const FAILED_MAINTENANCE_READER_CASE="failed-maintenance-reader-immutable
 export const isFailedMaintenanceReader=p=>p?.schema==="augnes.local-canonical-source-correction.v2"&&p.kind==="prospective_maintenance"&&p.incident_case===FAILED_MAINTENANCE_READER_CASE;
 export const MAINTENANCE_AGGREGATE_ALLOWANCE_CASE="failed-maintenance-reader-aggregate-allowance-v1";
 export const isMaintenanceAggregateAllowance=p=>p?.schema==="augnes.local-canonical-source-correction.v2"&&p.kind==="prospective_maintenance"&&p.incident_case===MAINTENANCE_AGGREGATE_ALLOWANCE_CASE;
-export const isSelectedMaintenanceIncident=p=>isFailedIntegrationFixture(p)||isFailedMaintenanceReader(p)||isMaintenanceAggregateAllowance(p);
+export const isSelectedMaintenanceIncident=p=>isIntegrationMaintenance(p)||isFailedMaintenanceReader(p)||isMaintenanceAggregateAllowance(p);
 const fail=code=>{throw Object.assign(new Error("maintenance_reader_"+code),{code:"maintenance_reader_"+code});};
 const requireThat=(ok,code)=>{if(!ok)fail(code);};
 const equal=(a,b)=>a!==undefined&&b!==undefined&&digest(a)===digest(b);
