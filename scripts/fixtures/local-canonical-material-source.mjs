@@ -1,14 +1,16 @@
+import { NO_REMEDY_REQUALIFICATION, NO_REMEDY_DECISION, NO_REMEDY_GRANT, NO_REMEDY_HISTORY, NO_REMEDY_LIMIT, noRemedyDelegation, verifyNoRemedySourceDelta } from "../local-canonical-no-remedy.mjs";
 // Disposable synthetic authority. Real readers, physical ledger, behavioral
 // subprocesses and fresh stock; these records never authorize host qualification.
 import assert from 'node:assert/strict';
-import {readFileSync,existsSync,rmSync,readdirSync,writeFileSync,chmodSync} from 'node:fs';
+import {readFileSync,existsSync,rmSync,readdirSync,writeFileSync,chmodSync,cpSync,mkdirSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
 import {syncBuiltinESMExports} from 'node:module';
 import path from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 import {fixtureNow} from './local-canonical-authority-clock.mjs';
 import {digest} from '../local-canonical-inputs.mjs';
 import {CANONICAL_NODE_VERSION} from '../local-canonical-environment.mjs';
-import {beginAttempt,finishAttempt,readSourceCorrectionProof,inspectGitRevisionPreparation,inspectAttemptRecords,reconstructAttemptTip,reviewedRevisionAuthorityObservation,
+import {prepareNoRemedyRequalification,beginAttempt,finishAttempt,readSourceCorrectionProof,inspectGitRevisionPreparation,inspectAttemptRecords,reconstructAttemptTip,reviewedRevisionAuthorityObservation,
  prepareAcceptedMainIntegrationCandidate,integrationMaterial,integrationTarget,authorizeIntegration,INTEGRATION_ACCEPT,INTEGRATION_GRANT,
  observeMaterialIntegrationPredecessorAuthority,observeReviewedIntegrationPredecessorAuthority,
  observeReviewedIntegrationSource,REVIEWED_INTEGRATION_DELIVERY,readReviewedIntegration} from '../local-canonical-attempts.mjs';
@@ -18,10 +20,11 @@ import {REVIEWED_REVISION_PHASES} from '../local-canonical-attempts.mjs';
 import {executeFixture,dependencyRecords} from './local-canonical-browser-successor.mjs';
 import {createPrivateReviewExport,inspectPrivateReviewExport} from '../local-canonical-review-export.mjs';
 import {browserConsumersForPhase,validPhaseBrowserUse} from '../local-canonical-browser-identity.mjs';
+import {verifyOrdinaryInitialFailure} from '../local-canonical-browser-revision.mjs';
 import {runMaterialStockPredecessorControls} from './local-canonical-material-stock-predecessor.mjs';
 import {finalizeReceipt,inspectReceiptForDecision,canonicalSerialize} from '../local-canonical-receipt.mjs';
 import {inspectIntegrationStock} from '../run-local-canonical-verification.mjs';
-import {checkoutVerificationFingerprint} from '../local-canonical-checkout-ownership.mjs';
+import {checkoutVerificationFingerprint,acquireCheckoutVerificationOwnership,releaseCheckoutVerificationOwnership} from '../local-canonical-checkout-ownership.mjs';
 import {seedFailedIntegrationFixtureSources} from './local-canonical-failed-integration-maintenance.mjs';
 import {isProspectiveRequalification} from '../local-canonical-prospective-requalification.mjs';
 const clone=structuredClone,now=()=>new Date(fixtureNow()).toISOString();
@@ -105,7 +108,7 @@ async function materialIntegrationControls(c,h,mode,callback,seedSources,prepare
  const ref=(name,value)=>{h.write(path.join(folder,name),typeof value==='object'&&!Buffer.isBuffer(value)?canonicalSerialize(value):value);return{artifact:name,sha256:digest(readFileSync(path.join(folder,name)))}};
  const delta=(before,after,files=[])=>digest(c.git(['diff','--binary','--no-ext-diff','--no-textconv','--no-renames',before,after,'--',...files]));
  const beforeTip=reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch});
- assert.deepEqual(beforeTip.revision_grants,accounted?[11,32,62,82]:[11,32,62,72]);assert.equal(beforeTip.reviewed_revision_consumed,1);
+ assert.deepEqual(beforeTip.revision_grants,accounted?[11,32,62,82]:c.noRemedy?[11,32,62,65,72]:[11,32,62,72]);assert.equal(beforeTip.reviewed_revision_consumed,1);
  if(accounted)assert(isProspectiveRequalification(a.source_correction));
  else assert.equal(a.source_correction.commission.source_revision,MATERIAL_SOURCE_CORRECTION);
  assert.deepEqual(a.budget,{initial:1,recovery:0});assert.equal(a.source_correction.commission.maximum_invocations,1);
@@ -512,7 +515,7 @@ export async function prepareMaterialSourcePredecessor(c,h,initial,firstAttempt,
  assert.equal(tip.reviewed_revision_consumed,2);assert.deepEqual(tip.revision_grants,[11,32]);
 }
 
-export async function runMaterialSourceControls(c,h,group) {
+export async function runMaterialSourceControls(c,h,group,{noRemedyPredecessor=false,ordinaryDetour=false}={}) {
  const ref=(name,value)=>h.artifact(c,name,value),read=r=>h.read(path.join(c.artifacts,r.artifact));
  const inspect=(p,live=c.live)=>{const material=clone(p);delete material.authorization;delete material.accepted.review;delete material.local_relative_path;
   const file=path.join(c.artifacts,'material.json');h.write(file,material);
@@ -581,12 +584,37 @@ export async function runMaterialSourceControls(c,h,group) {
   c.authority={...c.authority,review,grant,linked:{['repos/hynk-studio/augnes/issues/comments/'+id]:delegation}};delete c.authority.contractReview;
   bind();assert.equal(inspect(p).target,prepared.target);await h.auth(c,h.proof(c));
  }
+ if(ordinaryDetour){
+  const noRemedy=c.noRemedy.proof;
+  await correct('journal',70);
+  const final=h.proof(c),cap=await h.auth(c,final),exe=c.gitDeclaration.resources.find(v=>v.id==='browser-executable');
+  const browser={contract:'augnes.local-canonical-browser-use.v2',executable_name:'Fixture',location_fingerprint:exe.location_fingerprint,
+   before:exe.before,after:exe.before,actual_version:'Chrome/1',runtime_versions:{http:'Chrome/1',cdp:'Chrome/1'},disposition:'unchanged',unchanged:true};
+  // The demonstrated journal repair does not make a different, unimplemented
+  // behavioral case pass. Preserve that natural failure as the latest tip.
+  c.behaviorArgs=['unresolved'];c.failurePhase='authority';
+  const completed=await execute(final,cap,browser);
+  delete c.failurePhase;assert.equal(completed.stock.valid_deciding_evidence,false);assert.equal(completed.child.result.exit_code,1);
+  assert.equal(tip().no_remedy_requalification_consumed,1);assert.deepEqual(tip().revision_grants,[65,72]);
+  assert.throws(()=>h.begin(c,noRemedy,null),/attempt_requalification_consumed/);
+  c.prior=completed.receipt;c.materialStock=completed.stock;
+  await assert.rejects(runNoRemedyControls(c,h,'source',{delegation:163,review:164,grant:165}),/attempt_requalification_consumed/);
+  console.log(JSON.stringify({ordinary_no_remedy_material_detour:{material_grant_consumed:72,new_delegation:163,repeat_refused:true},synthetic_only:true}));return;
+ }
  if(group==='material-source') {
   c.behaviorPath=driver;c.behaviorArgs=['primary'];
   c.materialPreserved=preserve();
   assert.equal(tip().reviewed_revision_consumed,2);assert.deepEqual(tip().revision_grants,[11,32]);
   await correct('primary',60);unchanged();
   console.log(JSON.stringify({material_source_controls:['spent acquisition predecessor remains immutable','real natural before failure and corrected after pass through production readers','non-reserving preparation binds complete inventory and a distinct one-slot grant'],synthetic_only:true}));return;
+ }
+ if(group.startsWith('material-no-remedy-')) {
+  const stage=group.slice('material-no-remedy-'.length);
+  if(stage==='source')await runMaterialSourceControls(c,h,'material-successor',{noRemedyPredecessor:true});
+  await runNoRemedyControls(c,h,stage);unchanged();
+  await runOrdinaryNoRemedyControls(c,h,stage);
+  if(stage==='successor') {c.materialPreserved=preserve();await correct('journal',70);unchanged();}
+  return;
  }
  const p=c.proof,focused=read(p.focused);let n=0;
  if(group==='material-controls') {
@@ -661,6 +689,7 @@ export async function runMaterialSourceControls(c,h,group) {
   bind();unchanged();console.log(JSON.stringify({material_refusals:['ordinal two, provenance removal, alternate route and reset','stale or changed originals and incomplete live inventory','wrong runtime, source, driver, reduced witnesses and cleanup','success, observer and safety predecessors','absent, edited, spoofed and wrong-scope authority'],synthetic_only:true}));return;
  }
  if(group==='material-successor'){
+ if(c.noRemedy)return; // This same failure and correction already ran in the explicit no-remedy scenario.
  const parsed=h.proof(c),cap=await h.auth(c,parsed);
  // Its focused primary correction passes, but a distinct in-scope journal
  // condition fails naturally. It needs its own complete correction and grant.
@@ -677,9 +706,9 @@ export async function runMaterialSourceControls(c,h,group) {
  assert(failed.stock.issues.includes('receipt_browser_identity_invalid:integration'));
  assert.throws(()=>h.begin(c,parsed,cap),/attempt_latest_tip_required/);unchanged();
  c.prior=failed.receipt;c.materialStock=failed.stock;c.materialPreserved=preserve();
- await correct('journal',70);unchanged();
- console.log(JSON.stringify({material_second_preparation:{new_grant:72,spent_grant:62,distinct_material_correction:true,unchanged_retry:false,
-  failed_integration_browser_prefix:0,declared_base_retained:true,different_tracking_main:true,fresh_stock_false:true},synthetic_only:true}));return;
+ console.log(JSON.stringify({material_failed_predecessor:{spent_grant:62,failed_integration_browser_prefix:0,declared_base_retained:true,different_tracking_main:true,fresh_stock_false:true},synthetic_only:true}));
+ if(!noRemedyPredecessor){await correct('journal',70);unchanged();}
+ return;
  }
  if(group==='material-integration-preparation'||group==='material-integration-reservation'){
  await materialIntegrationControls(c,h,group==='material-integration-preparation'?'prepare':'admit');unchanged();return;
@@ -690,20 +719,25 @@ export async function runMaterialSourceControls(c,h,group) {
  runMaterialStockPredecessorControls(c,c.materialFinalReceipt);unchanged();return;
  }
  if(group==='material-final'){
- assert.deepEqual(tip().revision_grants,[11,32,62]);
+ assert.deepEqual(tip().revision_grants,c.noRemedy?[11,32,62,65]:[11,32,62]);
+ if(c.noRemedy)assert.equal(tip().no_remedy_requalification_consumed,1);
  const exe=c.gitDeclaration.resources.find(v=>v.id==='browser-executable');
  const browser={contract:'augnes.local-canonical-browser-use.v2',executable_name:'Fixture',location_fingerprint:exe.location_fingerprint,
   before:exe.before,after:exe.before,actual_version:'Chrome/1',runtime_versions:{http:'Chrome/1',cdp:'Chrome/1'},disposition:'unchanged',unchanged:true};
  const complete=await execute(final,finalCap,browser);
  assert.equal(complete.stock.valid_deciding_evidence,true);assert.equal(tip().reviewed_revision_consumed,1);
- assert.deepEqual(tip().revision_grants,[11,32,62,72]);unchanged();
+ assert.deepEqual(tip().revision_grants,c.noRemedy?[11,32,62,65,72]:[11,32,62,72]);unchanged();
+ if(c.noRemedy){
+  assert.equal(tip().no_remedy_requalification_consumed,1);
+  assert.throws(()=>h.begin(c,c.noRemedy.proof,null),/attempt_requalification_consumed/);
+ }
  const exported=createPrivateReviewExport(complete.receipt);assert(inspectPrivateReviewExport(exported).structurally_valid);
  assert.equal(exported.attempt.source_correction.commission.source_revision,MATERIAL_SOURCE_CORRECTION);
  assert.throws(()=>h.begin(c,final,finalCap),/attempt_latest_tip_required/);
  c.materialFinalReceipt=complete.receipt;
  let consumed=0,r=complete.receipt.attempt;while(r){if(r.source_correction?.kind==='reviewed_revision')consumed++;const prior=r.source_correction;r=prior?h.read(path.join(c.anchor,'.augnes-local-verification/families',prior.prior_family_id,'attempt-'+prior.prior_number+'.json')):null;}
- assert.equal(consumed,6);
- console.log(JSON.stringify({material_successor:{distinct_grants:[62,72],historical_grants:[11,32],historical_consumed:4,total_reviewed_consumed:consumed,commission_allowance:1,first_stock:false,second_stock:true,unchanged_retry:false},synthetic_only:true}));return;
+ assert.equal(consumed,c.noRemedy?7:6);
+ console.log(JSON.stringify({material_successor:{distinct_grants:c.noRemedy?[62,65,72]:[62,72],historical_grants:[11,32],historical_consumed:c.noRemedy?5:4,total_reviewed_consumed:consumed,commission_allowance:1,first_stock:false,second_stock:true,unchanged_retry:false},synthetic_only:true}));return;
  }
  // A genuinely separate process reobserves stock, then tries the late exact
  // reservation while holding its own checkout lease. The parent's lease is
@@ -718,4 +752,277 @@ export async function runMaterialSourceControls(c,h,group) {
   assert.throws(()=>h.begin(c,final,finalCap));assert(existsSync(edge));
  }finally{h.write(attemptFile,attemptBytes);}
  console.log(JSON.stringify({material_reservation:{fresh_late_contender_refused:true,interruption_consumes:true,unchanged_retry:false},synthetic_only:true}));
+}
+
+
+// A separate disposable checkout starts its own genuine ordinary ledger. No
+// reviewed receipt is stripped or relabelled to manufacture this predecessor.
+// Retain the context between the existing three bounded fixture groups.
+async function runOrdinaryNoRemedyControls(parent,h,stage) {
+ const root=path.join(parent.root,'ordinary-no-remedy'),context=path.join(root,'context.json');
+ let c;
+ if(stage==='source'){
+  mkdirSync(root,{mode:0o700});
+  const checkout=path.join(root,'checkout'),anchor=path.join(root,'anchor');
+  cpSync(parent.checkout,checkout,{recursive:true,filter:file=>path.basename(file)!=='.augnes-local-verification'});
+  mkdirSync(anchor,{mode:0o700});
+  c={root,checkout,anchor,branch:parent.branch,base:parent.base,head:parent.head,tree:parent.tree,
+   inputs:clone(parent.inputs),authority:clone(parent.authority),live:clone(parent.live),gitDeclaration:clone(parent.gitDeclaration),
+   behaviorPath:driver,behaviorArgs:['journal'],failurePhase:'authority',ordinaryNoRemedy:true};
+  c.artifacts=path.join(checkout,'.augnes-local-verification/ordinary-initial');c.file=path.join(c.artifacts,'not-a-reviewed-proof.json');
+ }else c=h.read(context);
+ c.env=parent.env;
+ c.git=args=>execFileSync('git',args,{cwd:c.checkout,env:c.env,timeout:5000,maxBuffer:1024*1024,stdio:['ignore','pipe','pipe']});
+ c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});
+ c.live.service.diagnostics.finished_at=now();
+ const refresh=()=>{c.live.service.diagnostics.finished_at=now();};
+ let pending=0;
+ const tracked=operation=>async(...args)=>{pending++;const value=await operation(...args);pending--;return value;};
+ const local={...h,releaseOwner:()=>releaseCheckoutVerificationOwnership(c.owner,c.checkout),
+  acquireOwner:()=>c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout}),
+  behavior:tracked(h.behavior),fresh:tracked(h.fresh),run:tracked(async options=>{const result=await h.run(options);
+   assert(result.exit_observed&&result.streams_closed&&result.cleanup_completed&&result.remaining_owned_processes===0);return result;})};
+ try{
+  if(stage==='source'){
+   const attemptsURL=new URL('../local-canonical-attempts.mjs',import.meta.url).href;
+   const receiptURL=new URL('../local-canonical-receipt.mjs',import.meta.url).href;
+   const inputsURL=new URL('../local-canonical-inputs.mjs',import.meta.url).href;
+   const stockScript=`import assert from 'node:assert/strict';import{readFileSync,writeFileSync}from'node:fs';import path from'node:path';
+import{inspectAttemptRecords}from ${JSON.stringify(attemptsURL)};import{inspectReceiptForDecision}from ${JSON.stringify(receiptURL)};import{digest}from ${JSON.stringify(inputsURL)};
+const c=JSON.parse(readFileSync(process.argv[1]));const r=JSON.parse(readFileSync(path.join(c.checkout,'.augnes-local-verification/receipts',c.stockContext.expectedRunId+'.json')));
+assert.equal(r.attempt.source_correction,null);const records=await inspectAttemptRecords({anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt:r});assert.equal(records,true);
+const node=r.inputs.resources.find(v=>v.id==='node-executable');assert.equal(digest(node.before),digest(c.inputs.node.observation));
+const result=inspectReceiptForDecision(r,{...c.stockContext,currentAttemptRecordsValid:records,currentInputStateValid:true});assert.equal(result.valid_deciding_evidence,false);
+writeFileSync(c.stockOutput,JSON.stringify(result));`;
+   const original=await executeFixture(c,{...local,
+    prepareInput(input){input.binding.runtime_inputs=null;input.resources=input.resources.filter(v=>v.id!=='node-headers');},
+    begin(subject,_proof,_authority,extra){return beginAttempt({anchorRoot:subject.anchor,repositoryRoot:subject.checkout,checkoutOwner:subject.owner,
+     branch:subject.branch,head:subject.head,tree:subject.tree,runId:'ordinary-initial-failure',...extra});},
+    decorateReceipt(r){delete r.inputs.prepared_dependencies;r.evidence.mode='changed';Object.assign(r.integration_base,{contract:'augnes.local-canonical-integration-base.v2',base_matches_current_main:false});
+     r.integration_base.observation.sha=c.git(['rev-parse','refs/remotes/origin/main']).toString().trim();},
+    async fresh(packet){const result=await local.run({command:process.execPath,args:['--input-type=module','-e',stockScript,packet],cwd:c.checkout,env:c.env,
+     suite:'reviewed-revision',label:'ordinary initial fresh stock',timeoutMs:15000,stdout:process.stdout,stderr:process.stderr});
+     assert(result.exit_observed&&result.streams_closed&&result.cleanup_completed&&result.remaining_owned_processes===0);assert.equal(result.exit_code,0);}
+   },null,null,null,dependencyRecords(c));
+   delete c.failurePhase;
+   assert.equal(original.child.result.exit_code,1);assert.equal(original.receipt.attempt.source_correction,null);
+   assert.deepEqual(original.receipt.phases.map(v=>v.status),[...Array(6).fill('pass'),'failure',...Array(9).fill('not_run')]);
+   assert.equal(original.receipt.phases[6].id,'authority');assert.equal(original.stock.issues.length,14,JSON.stringify(original.stock));
+   assert.equal(original.receipt.attempt.recovery,null);assert.deepEqual(original.receipt.attempt.budget,{initial:1,recovery:1});
+   assert.equal(original.receipt.inputs.binding.runtime_inputs,null);
+   assert(!original.receipt.inputs.resources.some(v=>v.id==='node-headers'));
+   verifyOrdinaryInitialFailure(original.receipt,original.stock,c.inputs,REVIEWED_REVISION_PHASES);
+   const full=clone(original.receipt);full.evidence.mode='full';const fullReceipt=finalizeReceipt(full);
+   verifyOrdinaryInitialFailure(fullReceipt,{...original.stock,content_fingerprint:fullReceipt.integrity.content_fingerprint},c.inputs,REVIEWED_REVISION_PHASES);
+   const omitted=clone(original.receipt);delete omitted.inputs.binding.runtime_inputs;
+   const {contract,path_kind,binding,resources}=omitted.inputs;
+   omitted.inputs.fingerprint=omitted.attempt.contract_fingerprint=digest({contract,path_kind,binding,resources});
+   const omittedReceipt=finalizeReceipt(omitted);
+   verifyOrdinaryInitialFailure(omittedReceipt,{...original.stock,content_fingerprint:omittedReceipt.integrity.content_fingerprint},c.inputs,REVIEWED_REVISION_PHASES);
+   c.prior=original.receipt;c.materialStock=original.stock;c.live.inventory=gitRevisionInventory(c.gitDeclaration);
+   c.ordinaryOriginals=[path.join(c.anchor,'.augnes-local-verification/families',original.receipt.attempt.family_id,'attempt-1.json'),
+    path.join(c.anchor,'.augnes-local-verification/families',original.receipt.attempt.family_id,'completion-1.json'),
+    path.join(c.checkout,'.augnes-local-verification/receipts',original.receipt.run.id+'.json'),path.join(c.artifacts,'fresh-stock.json')]
+    .map(file=>[file,digest(readFileSync(file))]);
+  }
+  refresh();await runNoRemedyControls(c,local,stage);
+  if(stage==='successor'){
+   refresh();await runMaterialSourceControls(c,local,'material-final',{ordinaryDetour:true});
+  }
+  for(const [file,hash]of c.ordinaryOriginals)assert.equal(digest(readFileSync(file)),hash);
+  const {env,owner,git,...state}=c;h.write(context,state);
+  console.log(JSON.stringify({ordinary_no_remedy_stage:stage,genuine_initial_ledger:true,historical_originals_unchanged:true,synthetic_only:true}));
+ }finally{if(pending===0)releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
+}
+
+// The same real preparation, authority, reservation and fresh-process stock
+// owners operate on a disposable unchanged-source candidate. Synthetic review
+// decisions test attribution and binding; they do not diagnose a host failure.
+async function runNoRemedyControls(c,h,stage,ids={delegation:63,review:64,grant:65}) {
+ if(stage==='source'){
+ const oldAuthority=clone(c.authority), priorHead=c.head, priorTree=c.tree;
+ const prior=c.prior, completed=h.read(path.join(c.anchor,'.augnes-local-verification/families',prior.attempt.family_id,'completion-1.json'));
+ c.acceptedHead=c.head;c.acceptedTree=c.tree;c.grantId=ids.grant;
+ h.prepare(c);const p=c.proof,ref=(name,value)=>h.artifact(c,name,value),read=r=>h.read(path.join(c.artifacts,r.artifact));
+ const inherited=prior.attempt.source_correction?.commission??{};
+ Object.assign(p.commission,{requalification:NO_REMEDY_REQUALIFICATION,maximum_invocations:1,
+  ...(inherited.input_acquisition?{input_acquisition:inherited.input_acquisition}:{}),
+  ...(inherited.inherited_serial?{inherited_serial:clone(inherited.inherited_serial)}:{})});
+ p.inputs.inventory_sha256=prior.attempt.source_correction?.inputs.inventory_sha256??c.live.inventory;
+ if(prior.attempt.source_correction===null)p.inputs.predecessor_sha256=digest(prior.inputs.resources.filter(v=>['node-executable','node-headers'].includes(v.id)));
+ p.originals.stock=ref('prior-stock.log',JSON.stringify(c.materialStock));
+ // A naturally completed synthetic diagnostic is kept distinct from the
+ // previous full phase projection; its result never repairs that false stock.
+ await delay(2);const started_at=now();c.behaviorArgs=['primary'];
+ const observed=await h.behavior(c);assert.equal(observed.result.exit_code,0);
+ const source_files=[driver,product].map(file=>{const bytes=c.git(['show',p.head+':'+file]);return{path:file,sha256:digest(bytes),byte_size:bytes.length};});
+ const stdout=ref('diagnostic-stdout.log',observed.output),stderr=ref('diagnostic-stderr.log','');
+ const original=ref('diagnostic-original.json',{...observed,output:undefined});
+ const observation=ref('diagnostic-observation.json',{contract:'augnes.local-canonical-nondeciding-diagnosis.v1',author:'synthetic operator',
+  head:priorHead,tree:priorTree,command:observed.command,started_at,finished_at:observed.finished_at,result:observed.result,
+  runtime_inputs_sha256:null,inventory_sha256:null,
+  observed_inputs:ref('diagnostic-inputs.json',{scope:'node-and-headers',runtime_before:{contract:'augnes.local-canonical-runtime-inputs.v1',node:c.inputs.node,headers:c.inputs.headers},runtime_after:{contract:'augnes.local-canonical-runtime-inputs.v1',node:c.inputs.node,headers:c.inputs.headers},record:original}),
+  source_files:source_files.map(({path,sha256})=>({path,sha256})),instrumentation:null,
+  stdout,stderr,originals:[original,p.inputs.current]});
+ const assessment=ref('diagnostic-assessment.json',{contract:'augnes.local-canonical-no-remedy-assessment.v1',author:'separate synthetic reviewer',
+  decision:NO_REMEDY_DECISION,observation_sha256:observation.sha256,finished_at:now(),historical_cause:'UNKNOWN',qualification:false,
+  record:ref('diagnostic-review.log',NO_REMEDY_DECISION+'\nSynthetic source-bound assessment; not human authority or actual qualification.\n')});
+ const diagnosis=ref('no-remedy.json',{contract:NO_REMEDY_REQUALIFICATION,
+  predecessor:{family_id:p.prior_family_id,attempt_id:p.prior_attempt_id,receipt_fingerprint:p.prior_receipt_fingerprint,head:priorHead,tree:priorTree},observation,assessment});
+ p.source=ref('source.json',{...read(p.source),reviewed_at:now()});
+ const command=ref('diagnostic-command.json',{...observed,output:undefined});
+ const focused={schema:'augnes.local-canonical-reviewed-revision-focused.v1',basis:'implementation_owner_not_independent_review',
+  predecessor_receipt_fingerprint:p.prior_receipt_fingerprint,runtime_inputs_sha256:p.inputs.identity_sha256,finished_at:now(),
+  failed_phase:prior.phases.find(v=>v.status==='failure')?.id??null,diagnosis:'The retained separate diagnostic assessment justifies no remedy; the historical failure cause remains UNKNOWN.',
+  remedy:'none',implicated_paths:[],input_remedy_resources:[],source_files,no_remedy:diagnosis,
+  commands:[{command:observed.command,tested_source_head:p.head,result:observed.result,record:command,stdout}]};
+ p.focused=ref('focused.json',focused);
+ await delay(2);const delegation={...oldAuthority.grant,id:ids.delegation,created_at:now(),body:noRemedyDelegation(p)};delegation.updated_at=delegation.created_at;
+ p.commission.delegation={id:ids.delegation,sha256:digest(reviewedRevisionAuthorityObservation(delegation,'task_delegation'))};
+ const material=()=>{const q=clone(p);delete q.authorization;delete q.accepted.review;delete q.local_relative_path;return q;};
+ const file=path.join(c.artifacts,'preparation.json'),published={...oldAuthority.pr,head:{...oldAuthority.pr.head,sha:p.head}};
+ if(prior.attempt.source_correction===null){
+  published.base={...published.base,sha:c.git(['rev-parse','refs/remotes/origin/main']).toString().trim()};
+  assert.notEqual(published.base.sha,p.base);
+ }
+ const live=()=>{const value=clone(c.live);value.service.diagnostics.finished_at=now();return value;};
+ const args={file,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live};
+ const transport={pullRequest:async()=>published,grant:async()=>delegation,permission:async()=>({permission:'admin',user:{login:delegation.user.login}})};
+ const prepare=async q=>{h.write(file,q??material());return prepareNoRemedyRequalification(args,{transport});};
+ const edge=path.join(c.anchor,'.augnes-local-verification/families',p.prior_family_id,'correction-successor.json');
+ const preserved=['attempt-1.json','completion-1.json'].map(name=>[path.join(path.dirname(edge),name),digest(readFileSync(path.join(path.dirname(edge),name)))]);
+ const prepared=await prepare();assert.equal(prepared.authorized,false);assert.equal(prepared.reserved,false);assert.equal(prepared.consumed,prior.attempt.source_correction===null?0:1);assert(!existsSync(edge));
+ if(prior.attempt.source_correction===null){assert.equal(prepared.original_consumed,1);assert.equal(prepared.recovery_consumed,0);}
+ await delay(2);const review={...oldAuthority.review,id:ids.review,commit_id:p.head,submitted_at:now(),body:[decision,
+  'COMPLETE: exact source, policy, diagnosis, controls and actual preparation accepted.',NO_REMEDY_REQUALIFICATION,NO_REMEDY_HISTORY,
+  p.base,p.head,p.tree,p.focused.sha256,p.prior_receipt_fingerprint,prepared.target].join('\n')};
+ p.accepted.review={id:ids.review,sha256:digest(reviewedRevisionAuthorityObservation(review,'accepted_revision'))};
+ await delay(2);const grant={...oldAuthority.grant,id:ids.grant,created_at:now(),body:[NO_REMEDY_GRANT,NO_REMEDY_REQUALIFICATION,NO_REMEDY_HISTORY,NO_REMEDY_LIMIT,
+  p.schema,p.branch,p.base,p.head,p.tree,p.focused.sha256,p.prior_receipt_fingerprint,prepared.target,
+  'https://github.com/hynk-studio/augnes/pull/999#issuecomment-'+ids.delegation,'https://github.com/hynk-studio/augnes/pull/999#pullrequestreview-'+ids.review].join('\n')};grant.updated_at=grant.created_at;
+ p.authorization={grant_comment_id:ids.grant,grant_sha256:digest(reviewedRevisionAuthorityObservation(grant,'execution_commission'))};
+ c.authority={...oldAuthority,pr:published,review,grant,linked:{['repos/hynk-studio/augnes/issues/comments/'+ids.delegation]:delegation}};
+ const bind=()=>h.write(c.file,p);bind();const parsed=h.proof(c),cap=await h.auth(c,parsed);
+ c.noRemedy={prepared,preserved,proof:clone(parsed)};
+ console.log(JSON.stringify({no_remedy_preparation:{unchanged_source:true,target:prepared.target,consumed:prepared.consumed,authorized:false,reserved:false},synthetic_only:true}));return;
+ }
+ const p=c.proof,ref=(name,value)=>h.artifact(c,name,value),read=r=>h.read(path.join(c.artifacts,r.artifact));
+ const focused=read(p.focused),diagnosis=focused.no_remedy,prior=c.prior;
+ const completed=read(p.originals.completion),prepared=c.noRemedy.prepared;
+ const material=()=>{const q=clone(p);delete q.authorization;delete q.accepted.review;delete q.local_relative_path;return q;};
+ const file=path.join(c.artifacts,'preparation.json'),published=c.authority.pr;
+ const live=()=>{const value=clone(c.live);value.service.diagnostics.finished_at=now();return value;};
+ const delegation=c.authority.linked['repos/hynk-studio/augnes/issues/comments/63'];
+ const args={file,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live};
+ const transport={pullRequest:async()=>published,grant:async()=>delegation,permission:async()=>({permission:'admin',user:{login:delegation.user.login}})};
+ const prepare=async q=>{h.write(file,q??material());return prepareNoRemedyRequalification(args,{transport});};
+ const edge=path.join(c.anchor,'.augnes-local-verification/families',p.prior_family_id,'correction-successor.json'),preserved=c.noRemedy.preserved;
+ const bind=()=>h.write(c.file,p),parsed=h.proof(c),cap=await h.auth(c,parsed);
+ if(stage==='controls'){
+ let refused=0;
+ if(c.ordinaryNoRemedy){
+  // These are independently sealed malformed ordinary variants for the pure
+  // reader, never substitutions for the retained physical original.
+  for(const mutate of [r=>r.attempt.number=2,r=>r.attempt.recovery={},r=>r.attempt.source_correction={schema:'augnes.local-canonical-source-correction.v2',kind:'source_revision'},
+   r=>r.attempt.prior_attempt_id='unrelated',r=>r.attempt.budget.initial=2,r=>r.repository.head_sha=c.base,
+   r=>r.evidence.selected_plan='quick-feedback',r=>r.cleanup.completed=false,r=>r.outcome.safety='blocked',
+   r=>r.inputs.resources.find(v=>v.id==='node-executable').before.sha256=digest('changed node')]){
+   const changed=clone(prior);mutate(changed);const sealed=finalizeReceipt(changed);
+   assert.throws(()=>verifyOrdinaryInitialFailure(sealed,{...c.materialStock,content_fingerprint:sealed.integrity.content_fingerprint},c.inputs,REVIEWED_REVISION_PHASES));refused++;
+  }
+  for(const mutate of [s=>s.content_fingerprint=digest('different stock'),s=>s.valid_deciding_evidence=true,s=>s.issues.push('unaccounted')]){
+   const changed=clone(c.materialStock);mutate(changed);assert.throws(()=>verifyOrdinaryInitialFailure(prior,changed,c.inputs,REVIEWED_REVISION_PHASES));refused++;
+  }
+  // No original, no terminal completion, or changed retained receipt can
+  // establish a consumed/settled predecessor. Every failed preparation is
+  // non-reserving, and these disposable originals are restored byte for byte.
+  for(const file of c.ordinaryOriginals.slice(0,3).map(([file])=>file)){
+   const bytes=readFileSync(file);
+   try{rmSync(file);await assert.rejects(prepare());refused++;}finally{h.write(file,bytes);}
+  }
+  const wrongBase=material();wrongBase.base=wrongBase.accepted.base=published.base.sha;
+  await assert.rejects(prepare(wrongBase));refused++;
+ }
+ // Exercise the same source-delta reader used by real preparation. The only
+ // new registration entries are additive; an existing group or executor
+ // identity cannot change under this no-remedy action.
+ for(const name of c.ordinaryNoRemedy?[]:['scripts/run-canonical-test-suite.mjs','scripts/test-local-canonical-review-corrections.mjs',
+  'scripts/fixtures/local-canonical-reviewed-revision.mjs','scripts/test-local-canonical-verification-contract.mjs',
+  'scripts/run-local-canonical-verification.mjs']){
+  const candidate=readFileSync(new URL('../../'+name,import.meta.url),'utf8');
+  let before=candidate;
+  for(const group of ['source','controls','successor'])before=before.replaceAll(new RegExp(', ?"material-no-remedy-'+group+'"','gu'),'');
+  before=before.replace('  "scripts/local-canonical-no-remedy.mjs",\n','');
+  const delta={predecessor_to_final:{paths:[name]}},readSource=after=>([,target])=>Buffer.from(target.startsWith('prior:')?before:after);
+  assert.doesNotThrow(()=>verifyNoRemedySourceDelta({head:'candidate'},{head:'prior'},delta,readSource(candidate)));
+  const changed=candidate.replace(name==='scripts/run-local-canonical-verification.mjs'?'"scripts/local-canonical-git-observation.mjs"':'"material-source"','"changed-existing-owner"');
+  assert.notEqual(changed,candidate);assert.throws(()=>verifyNoRemedySourceDelta({head:'candidate'},{head:'prior'},delta,readSource(changed)),/requalification_(workload|executor)_changed/);refused++;
+ }
+ for(const change of [q=>delete q.commission.requalification,q=>q.commission.requalification='unknown',q=>q.commission.source_revision=MATERIAL_SOURCE_CORRECTION,
+  q=>q.commission.evidence_kind='invented',q=>q.commission.ordinal=2,q=>q.commission.maximum_invocations=2,q=>q.prior_attempt_id='older-tip',
+  q=>q.head=c.base,q=>q.inputs.inventory_sha256=digest('other complete inputs'),q=>q.inputs.identity_sha256=digest('other runtime')]){
+  const q=material();change(q);await assert.rejects(prepare(q));refused++;
+ }
+ for(const [part,change]of c.ordinaryNoRemedy?[]:[['evidence',v=>v.predecessor.receipt_fingerprint=digest('different receipt')],
+  ['observation',v=>v.head=c.base],['observation',v=>v.inventory_sha256=digest('stale inputs')],
+  ['observation',v=>v.result.cleanup_completed=false],['observation',v=>v.result.streams_closed=false],
+  ['observation',v=>v.result.timed_out=true],['observation',v=>v.source_files[0].sha256=digest('other source')],
+  ['assessment',v=>v.author='synthetic operator'],['assessment',v=>v.qualification=true],
+  ['assessment',v=>v.historical_cause='infrastructure'],['assessment',v=>v.decision='PASS']]){
+  const e=read(diagnosis),f=clone(focused);
+  if(part==='evidence')change(e);else{const v=read(e[part]);change(v);e[part]=ref('bad-'+part+'-'+refused+'.json',v);}
+  f.no_remedy=ref('bad-diagnosis-'+refused+'.json',e);
+  const q=material();q.focused=ref('bad-focus-'+refused+'.json',f);await assert.rejects(prepare(q));refused++;
+ }
+ h.write(file,material());
+ const before=clone(delegation);
+ for(const change of [d=>d.body='diagnostic received; not accepted',d=>d.user={...d.user,type:'Bot'},
+  d=>d.created_at=d.updated_at=completed.finished_at,d=>d.updated_at=new Date(Date.parse(d.created_at)+1).toISOString()]){
+  change(delegation);const q=material();q.commission.delegation.sha256=digest(reviewedRevisionAuthorityObservation(delegation,'task_delegation'));
+  await assert.rejects(prepare(q));Object.assign(delegation,clone(before));refused++;
+ }
+ assert.equal((await prepare()).target,prepared.target);
+ for(const [role,change]of [['review',v=>v.body=v.body.replace('COMPLETE:','INCOMPLETE:')],['grant',v=>v.body=v.body.replace(NO_REMEDY_GRANT,'Approval')],
+  ['grant',v=>v.created_at=v.updated_at=c.authority.review.submitted_at],['grant',v=>v.updated_at=new Date(Date.parse(v.created_at)+1).toISOString()]]){
+  const saved=clone(c.authority[role]),r=c.authority[role];change(r);
+  const hash=digest(reviewedRevisionAuthorityObservation(r,role==='review'?'accepted_revision':'execution_commission'));
+  if(role==='review')p.accepted.review.sha256=hash;else p.authorization.grant_sha256=hash;
+  bind();await assert.rejects(h.auth(c,h.proof(c)));c.authority[role]=saved;
+  p.accepted.review.sha256=digest(reviewedRevisionAuthorityObservation(c.authority.review,'accepted_revision'));
+  p.authorization.grant_sha256=digest(reviewedRevisionAuthorityObservation(c.authority.grant,'execution_commission'));refused++;
+ }
+ const authority=clone(p.authorization);p.authorization.grant_comment_id=prior.attempt.source_correction?.authorization.grant_comment_id??p.commission.delegation.id;
+ bind();if(c.ordinaryNoRemedy)await assert.rejects(async()=>h.auth(c,h.proof(c)));else assert.throws(()=>h.proof(c),/revision_commission_lineage_invalid/);
+ p.authorization=authority;bind();refused++;
+ assert.throws(()=>h.begin(c,parsed,{observations:{}}),/revision_authenticated_authority_required/);refused++;
+ assert.throws(()=>h.begin(c,parsed,cap,{revisionLive:{...live(),inventory:digest('changed live')}}));refused++;
+ assert(!existsSync(edge));for(const [f,hash]of preserved)assert.equal(digest(readFileSync(f)),hash);
+ c.noRemedy.refused=refused;console.log(JSON.stringify({no_remedy_refusals:refused,synthetic_only:true}));return;
+ }
+ // A failed deciding fixture remains failed. Its fresh stock is read by the
+ // existing separate process; the one allowance is consumed regardless.
+ c.behaviorArgs=['journal'];c.failurePhase='integration';c.live=live();
+ const contender=c.ordinaryNoRemedy?await h.auth(c,parsed):cap;
+ const result=await executeFixture(c,{...h,decorateReceipt(r){
+  Object.assign(r.integration_base,{contract:'augnes.local-canonical-integration-base.v2',base_matches_current_main:false});
+  r.integration_base.observation.sha=c.git(['rev-parse','refs/remotes/origin/main']).toString().trim();
+  r.phases.find(p=>p.id==='integration').browser_use=[];
+ },begin:(subject,proof,authority,extra)=>{
+  const owned=h.begin(subject,proof,authority,{...extra,runId:'no-remedy-once'});
+  assert.throws(()=>h.begin(subject,proof,contender,{...extra,runId:'no-remedy-duplicate'}));return owned;
+ }},parsed,cap,null,dependencyRecords(c));delete c.failurePhase;
+ assert.equal(result.stock.valid_deciding_evidence,false);assert.equal(result.child.result.exit_code,1);
+ const tip=reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch});
+ assert.equal(tip.no_remedy_requalification_consumed,1);assert.equal(tip.reviewed_revision_consumed,1);
+ assert.deepEqual(tip.revision_grants,c.ordinaryNoRemedy?[65]:[11,32,62,65]);
+ assert.throws(()=>h.begin(c,parsed,cap),/attempt_requalification_consumed/);
+ const record=path.join(c.anchor,'.augnes-local-verification/families',result.receipt.attempt.family_id,'attempt-1.json'),saved=readFileSync(record);
+ try{const stripped=JSON.parse(saved);delete stripped.source_correction.commission.requalification;h.write(record,stripped);
+  assert.throws(()=>reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}));}finally{h.write(record,saved);}
+ try{rmSync(record);assert.throws(()=>h.begin(c,parsed,cap));assert(existsSync(edge));}finally{h.write(record,saved);}
+ for(const [f,hash]of preserved)assert.equal(digest(readFileSync(f)),hash);
+ c.prior=result.receipt;c.materialStock=result.stock;
+ console.log(JSON.stringify({no_remedy_requalification:{unchanged_source:true,actual_preparation:true,authorized:false,reserved:false,
+  focused_refusals:c.noRemedy.refused,distinct_synthetic_grant:65,consumed_once:true,fresh_stock:false,unknown_preserved:true,
+  duplicate_partial_downgrade_refused:true,historical_records_unchanged:true},synthetic_only:true,deciding:false}));
 }

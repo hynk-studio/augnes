@@ -1,6 +1,6 @@
 import { digest, classifyInputChange, nonFaultInputChange, inputEventIdentity, validBrowserTarget } from "./local-canonical-inputs.mjs";
 import { browserConsumersForPhase, validBrowserUse, validPhaseBrowserUse, parseBrowserUseLine, BROWSER_IDENTITY_PREFIX } from "./local-canonical-browser-identity.mjs";
-import { usesDeclaredIntegrationBase } from "./local-canonical-integration-base.mjs";
+import { INTEGRATION_BASE_CONTRACT, validAdmittedIntegrationBase, usesDeclaredIntegrationBase } from "./local-canonical-integration-base.mjs";
 import { verifiedStockPredecessor } from "./local-canonical-material-stock-predecessor.mjs";
 
 export const BROWSER_REVISION_SCHEMA = "augnes.local-canonical-source-correction.v8";
@@ -10,6 +10,7 @@ export const isBrowserRevision = p => (p?.schema === BROWSER_REVISION_SCHEMA && 
 const same = (a, b) => a !== undefined && b !== undefined && digest(a) === digest(b);
 const sha = value => /^[0-9a-f]{64}$/u.test(value ?? "");
 const fail = code => Object.assign(new Error(code), { code });
+const ordinaryInitialFailure = Symbol("ordinary-initial-failure");
 
 // The independent contract review and later grant name one opaque commitment
 // to the actual evidence, without publishing installation paths or originals.
@@ -197,9 +198,38 @@ export function verifyReviewedBrowserFailure(r, stock, inputs, phaseIds) {
   verifySettledPhaseFailure(r, stock, inputs, phaseIds, expected, true);
 }
 
+// An ordinary initial attempt has no correction or recovery proof to project
+// into a reviewed predecessor. Validate its original identity before sharing
+// the settled failure/stock reader. The admission owner separately compares
+// these bytes and the terminal completion to the physical append-only ledger.
+export function verifyOrdinaryInitialFailure(r, stock, inputs, phaseIds) {
+  const a = r?.attempt, i = r?.inputs;
+  const { integrity, ...unsigned } = r ?? {};
+  const { contract, path_kind, binding, resources } = i ?? {};
+  if (r?.receipt_version !== 4 || digest(unsigned) !== integrity?.content_fingerprint ||
+      stock?.content_fingerprint !== integrity?.content_fingerprint ||
+      a?.contract !== "augnes.local-canonical-attempt-family.v1" || a.number !== 1 ||
+      a.source_correction !== null || a.recovery !== null || a.prior_attempt_id !== null || a.prior_receipt_fingerprint !== null ||
+      !same(a.budget, { initial: 1, recovery: 1 }) ||
+      a.head !== r.repository?.head_sha || a.tree !== r.repository?.tree_sha || a.branch !== r.repository?.branch ||
+      r.repository?.repository_id !== "hynk-studio/augnes" || r.repository?.origin !== "https://github.com/hynk-studio/augnes.git" ||
+      !Array.isArray(resources) || resources.some(v => !v || typeof v.id !== "string") ||
+      new Set(resources.map(v => v.id)).size !== resources.length || resources.filter(v => v.id === "node-executable").length !== 1 ||
+      digest({ contract, path_kind, binding, resources }) !== i.fingerprint || !inputs?.node?.observation ||
+      !validAdmittedIntegrationBase(r.integration_base, r.repository) ||
+      r.integration_base.contract === INTEGRATION_BASE_CONTRACT && !usesDeclaredIntegrationBase(r) ||
+      !(Date.parse(r.run?.finished_at) > Date.parse(r.run?.started_at)))
+    throw fail("revision_ordinary_initial_failure_invalid");
+  const declared = usesDeclaredIntegrationBase(r);
+  const incompleteIntegration = declared && r.phases?.find(p => p.status === "failure")?.id === "integration";
+  verifySettledPhaseFailure(r, stock, inputs, phaseIds, resources.find(v => v.id === "browser-executable"),
+    incompleteIntegration, 1, false, ordinaryInitialFailure, declared);
+}
+
 // Both reviewed continuations require the physical ordinal-one Full to have
 // stopped at a natural child failure with settled resources and accounted stock.
 export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBrowser, allowIncompleteBrowser = false, expectedOrdinal = 1, generatedStockSerial = false, ordinaryFixture = false, declaredMaterial = false, stockPredecessor = null, historicalStockKind = null) {
+  const ordinaryInitial = ordinaryFixture === ordinaryInitialFailure;
   const failed = r.phases?.findIndex(p => p.status === "failure") ?? -1;
   const stockVerifier = verifiedStockPredecessor(stockPredecessor,r,stock);
   if(stockPredecessor && (!stockVerifier||!declaredMaterial||generatedStockSerial||ordinaryFixture))throw fail("revision_browser_failure_invalid");
@@ -224,7 +254,7 @@ export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBr
   const runtimeMatches=ordinaryFixture&&oldRuntime==null ? oldNode?.before?.present===true&&
     oldNode.location_fingerprint===inputs?.node?.location_fingerprint&&oldNode.before.sha256===inputs.node.observation.sha256&&
     same(oldNode.before.metadata,inputs.node.observation.metadata) : same(inputs,oldRuntime);
-  if ((ordinaryFixture ? ordinary?.schema !== "augnes.local-canonical-source-correction.v2" || ordinary.kind !== "source_revision" || Object.hasOwn(ordinary,"commission") :
+  if ((ordinaryInitial ? ordinary !== null : ordinaryFixture ? ordinary?.schema !== "augnes.local-canonical-source-correction.v2" || ordinary.kind !== "source_revision" || Object.hasOwn(ordinary,"commission") :
       ordinary?.commission?.ordinal !== expectedOrdinal) ||
       r.run?.id !== r.attempt.attempt_id || r.attempt.contract_fingerprint !== r.inputs?.fingerprint ||
       !(r.evidence?.mode === "full" || ordinaryFixture && r.evidence?.mode === "changed") || r.evidence.selected_plan !== "full-canonical" || r.evidence.deciding !== false ||

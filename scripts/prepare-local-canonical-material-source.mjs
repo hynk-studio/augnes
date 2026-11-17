@@ -3,7 +3,7 @@ import { isOrdinaryInitialPreparationRevision } from "./local-canonical-initial-
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFileSync, realpathSync } from "node:fs";
-import { prepareMaterialSourceRevision } from "./local-canonical-attempts.mjs";
+import { prepareMaterialSourceRevision, prepareNoRemedyRequalification } from "./local-canonical-attempts.mjs";
 import { admitVerificationContext, verificationAnchorRoot } from "./local-canonical-verification-context.mjs";
 import { collectHostEnvironment, assertDecidingEnvironment, evaluateNodePolicy, FULL_MINIMUM_DISK_BYTES } from "./local-canonical-environment.mjs";
 import { observeRevisionInputs, observeGitRevisionTarget } from "./run-local-canonical-verification.mjs";
@@ -20,6 +20,7 @@ const host=collectHostEnvironment(repositoryRoot);
 assertDecidingEnvironment({host:host.public,nodePolicy:evaluateNodePolicy(),diskMinimumBytes:FULL_MINIMUM_DISK_BYTES});
 if (!host.browserExecutablePath) throw new Error("revision_preparation_browser_unavailable");
 const runtimeInputs=observeRevisionInputs(p,host),live=()=>observeGitRevisionTarget(context,host.browserExecutablePath,runtimeInputs,{settlement:isOrdinaryInitialPreparationRevision(p)});
-const result=await prepareMaterialSourceRevision({file,repositoryRoot,predecessorRoot:repositoryRoot,
+const prepare=Object.hasOwn(p.commission??{},"requalification") ? prepareNoRemedyRequalification : prepareMaterialSourceRevision;
+const result=await prepare({file,repositoryRoot,predecessorRoot:repositoryRoot,
   anchorRoot:verificationAnchorRoot(context),runtimeInputs,live});
 console.log(JSON.stringify({...result,context,host:host.public,deciding:false,independent_attestation:false}));
