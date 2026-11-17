@@ -1557,6 +1557,10 @@ export function integrationMaterial(repositoryRoot,p,anchorRoot=repositoryRoot) 
 }
 
 const integrationObservation=(r,role)=>({id:r.id,author:r.user?.login,author_id:r.user?.id,body_sha256:digest(r.body),timestamp:role==="prospective_grant"?r.created_at:r.submitted_at,role,commit_id:role==="prospective_grant"?null:r.commit_id});
+// A prospective window may end in the future. Authenticated observation times
+// still use externalUtc, whose past-only check is correct for those records.
+const integrationWindowUtc=value=>typeof value==="string"&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u.test(value)&&
+  Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===(value.length===20?value.slice(0,-1)+".000Z":value);
 export function validateIntegrationAuthorityRecords(p,e,records,{current=true,executionAt=null}={}) {
   integrationKeys(records,"acceptance grant acceptance_permission grant_permission pull_request");
   integrationRequire(p.authorization!==null,"authenticated_authority_required");
@@ -1568,7 +1572,7 @@ export function validateIntegrationAuthorityRecords(p,e,records,{current=true,ex
     (ordinaryWatchdog?" starts_at expires_at":""));
   if(ordinaryWatchdog){
     integrationRequire(Array.isArray(e.ordinaryPredecessor?.accounting.grants)&&!e.ordinaryPredecessor.accounting.grants.includes(g.id),"grant_reused");
-    integrationRequire(externalUtc(gv.starts_at)&&externalUtc(gv.expires_at)&&Date.parse(g.created_at)<=Date.parse(gv.starts_at)&&
+    integrationRequire(integrationWindowUtc(gv.starts_at)&&integrationWindowUtc(gv.expires_at)&&Date.parse(g.created_at)<=Date.parse(gv.starts_at)&&
       strictlyAfter(gv.expires_at,gv.starts_at),"grant_window_invalid");
     const observed=executionAt??(current?new Date().toISOString():null);
     integrationRequire(externalUtc(observed)&&Date.parse(observed)>=Date.parse(gv.starts_at)&&Date.parse(observed)<Date.parse(gv.expires_at),"grant_window_invalid");
