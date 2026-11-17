@@ -1,7 +1,15 @@
-/** Keep a protected navigation target attached to its verified source project.
+/** Keep a project-level navigation target attached to its resolved source project.
  * An existing explicit target remains explicit; this is navigation, not auth. */
 export function projectClientHref(href: string, projectId: string | null | undefined): string {
-  if (!projectId || !/^\/workbench\/(?:semantic-review|results|inspector)(?:[/?#]|$)/u.test(href)) return href;
+  if (!projectId) return href;
+  if (/^\/(?:[?#]|$)/u.test(href)) {
+    const url = new URL(href, "http://project-client.invalid");
+    // Settings belongs to the workspace default, not the viewed-project route.
+    if (url.hash === "#project-settings") return href;
+    url.pathname = `/projects/${encodeURIComponent(projectId)}`;
+    return `${url.pathname}${url.search}${url.hash}`;
+  }
+  if (!/^\/workbench\/(?:semantic-review|results|inspector)(?:[/?#]|$)/u.test(href)) return href;
   const url = new URL(href, "http://project-client.invalid");
   if (!url.searchParams.has("project_id")) url.searchParams.set("project_id", projectId);
   return `${url.pathname}${url.search}${url.hash}`;
