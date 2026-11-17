@@ -1,4 +1,5 @@
 import { ORDINARY_INITIAL_PREPARATION, isOrdinaryInitialPreparationRevision, ordinaryInitialProofShape, readOrdinaryInitialPreparationEvidence, verifyOrdinaryInitialCurrent } from "./local-canonical-initial-preparation.mjs";
+import { isNoRemedyRequalification, delegatesNoRemedyRequalification, noRemedyAuthorityScope, readNoRemedyDiagnosis } from "./local-canonical-no-remedy.mjs";
 import { isMaintenance, hasMaintenanceMarker, validateMaintenanceProof, readMaintenanceEvidence, inspectMaintenanceInputs, assertMaintenanceAuthorization, validateMaintenanceAuthorityRecords, validMaintenanceAttempt, maintenanceTarget, externalUtc, strictlyAfter } from "./local-canonical-maintenance.mjs";
 import { isFailedIntegrationFixture } from "./local-canonical-failed-integration-fixture.mjs";
 import {isFailedMaintenanceReader,isMaintenanceAggregateAllowance,isSelectedMaintenanceIncident} from "./local-canonical-maintenance-reader-incident.mjs";
@@ -18,7 +19,7 @@ import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 
 
 import { BROWSER_RUNTIME_INPUTS, validCanonicalRuntimeInputs } from "./local-canonical-inputs.mjs";
-import { isBrowserRevision, isBrowserSuccessor, browserPredecessorEvidence, browserReviewTarget, verifyBrowserRemedy, verifyBrowserRevisionPreservation, verifyReviewedBrowserFailure, verifySettledPhaseFailure } from "./local-canonical-browser-revision.mjs";
+import { isBrowserRevision, isBrowserSuccessor, browserPredecessorEvidence, browserReviewTarget, verifyBrowserRemedy, verifyBrowserRevisionPreservation, verifyReviewedBrowserFailure, verifySettledPhaseFailure, verifyOrdinaryInitialFailure } from "./local-canonical-browser-revision.mjs";
 import { GIT_ACQUISITION_REPAIR, isGitAcquisitionRevision, gitAcquisitionIncident, isGitObservationRevision, isGitObservationSuccessor, isInventoryBoundRevision, usesGitInventory, gitObservationIncident, gitReviewTarget, permitsFinalDependencySuccessor, delegatesGitRevisionGrant, delegatesProspectiveCommission, verifyGitRevisionFailure, verifyGitRevisionSuccess, readPostPassDecision, permitsPostPassReview, verifyGitSourceRepair } from "./local-canonical-git-observation.mjs";
 import { createGitHubObserverAuthorizationTransport } from "./github-main-branch-transport.mjs";
 import {MATERIAL_SOURCE_CORRECTION, MATERIAL_HISTORY_BOUNDARY, isMaterialSourceRevision, delegatesMaterialSourceCommission,
@@ -92,7 +93,7 @@ const revisionCapabilities = new WeakMap();
 const usesRevisionInventory = p => usesGitInventory(p) || isSerialAggregateRevision(p);
 // These are separate evidence bases. Sharing one-use accounting must never
 // turn a prospective timing decision into a demonstrated material repair.
-const isSingleInvocationRevision = p => isMaterialSourceRevision(p) || isProspectiveRequalification(p);
+const isSingleInvocationRevision = p => isMaterialSourceRevision(p) || isProspectiveRequalification(p) || isNoRemedyRequalification(p);
 
 // One call owns its validation and continuation. Nothing validated is exported
 // as a reusable token or cached across calls. The transitive material/lineage
@@ -339,6 +340,7 @@ function prepareAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, hea
   if (sourceCorrection) {
     const tip = reconstructAttemptTip({ anchorRoot, repositoryRoot, branch });
     const proof = sourceCorrection;
+    if (isNoRemedyRequalification(proof) && tip.no_remedy_requalification_consumed) throw fail("attempt_requalification_consumed");
     const revision = isReviewedRevision(sourceCorrection);
     if (tip.family_id !== proof.prior_family_id || tip.number !== proof.prior_number || tip.attempt_id !== proof.prior_attempt_id ||
           (revision ? !revisionFollows(proof, tip.reviewed_revision_consumed ?? 0, tip.revision_commission, tip.revision_grants ?? [],
@@ -717,10 +719,11 @@ export function reconstructAttemptTip(context) {
 
 function readAttemptLineage({ anchorRoot, repositoryRoot = null, branch }, throughAttempt = null) {
   let familyId = candidateFamilyId(branch), revisionCount = 0, revisionCommission = null, revisionMaximum = 0;
-  let materialIntegrationEdge = false, selectedMaintenanceEdge = false, integrationHistory = false;
+  let materialIntegrationEdge = false, selectedMaintenanceEdge = false, integrationHistory = false, noRemedyConsumed = 0;
   const seen = new Set(), revisionGrants = [], historicalGrants = [];
   const accounting=()=>({...((revisionCount)?{reviewed_revision_consumed:revisionCount,revision_commission:revisionCommission,revision_grants:[...revisionGrants]}:{}),
-    ...(integrationHistory?{historical_grants:structuredClone(historicalGrants)}:{})});
+    ...(integrationHistory?{historical_grants:structuredClone(historicalGrants)}:{}),
+    ...(noRemedyConsumed?{no_remedy_requalification_consumed:noRemedyConsumed}:{})});
   // Bound reads by the physical inventory, with cycle detection. This is not a
   // hidden total allowance across separately authorized exact-target grants.
   const familyCount = readdirSync(path.join(anchorRoot,".augnes-local-verification/families")).filter(name=>/^[a-f0-9]{64}$/u.test(name)).length;
@@ -745,6 +748,7 @@ function readAttemptLineage({ anchorRoot, repositoryRoot = null, branch }, throu
     if (revisionCount && !revision && !(materialIntegrationEdge && isReviewedIntegration(attempt.source_correction)) &&
         !(selectedMaintenanceEdge && isSelectedMaintenanceIncident(attempt.source_correction))) throw fail("attempt_revision_commission_terminal");
     if (revision) {
+      if (isNoRemedyRequalification(attempt.source_correction) && noRemedyConsumed++) throw fail("attempt_requalification_consumed");
       if (!validReviewedRevisionAttempt(attempt) || !revisionFollows(attempt.source_correction, revisionCount, revisionCommission, revisionGrants, revisionMaximum)) throw fail("attempt_revision_commission_invalid");
       if (attempt.source_correction.commission.ordinal === 1 || usesFreshRevisionGrant(attempt.source_correction))
         revisionGrants.push(attempt.source_correction.authorization.grant_comment_id);
@@ -779,6 +783,7 @@ function readAttemptLineage({ anchorRoot, repositoryRoot = null, branch }, throu
     const next = read(path.join(anchorRoot, ".augnes-local-verification", "families", edge.family_id, "attempt-1.json"));
     if (hasRetiredQualificationMarker(next)) throw fail("qualification_route_retired");
     const proof = next.source_correction;
+    if (isNoRemedyRequalification(proof) && noRemedyConsumed) throw fail("attempt_requalification_consumed");
     materialIntegrationEdge=followsSuccessfulReviewedIntegration(attempt,completion,proof);
     selectedMaintenanceEdge=followsSelectedMaintenance(attempt,completion,proof);
     if(materialIntegrationEdge && revisionGrants.includes(proof.authorization?.grant_comment_id))throw fail("integration_grant_reused");
@@ -1614,6 +1619,11 @@ const usesFreshRevisionGrant = p => isBrowserSuccessor(p) || isGitObservationSuc
 function validGitRevisionEdge(previous, next) {
   if (isOrdinaryInitialPreparationRevision(previous)) return false;
   if (isOrdinaryInitialPreparationRevision(next)) return previous === null && ordinaryInitialProofShape(next);
+  // This edge has no earlier reviewed commission. Its actual ordinary receipt,
+  // consumed initial attempt and settled physical originals are checked below.
+  if (isNoRemedyRequalification(next) && previous === null) return next.commission.ordinal === 1 &&
+    next.commission.maximum_invocations === 1 && !Object.hasOwn(next.commission,"input_acquisition") &&
+    !Object.hasOwn(next.commission,"inherited_serial");
   if (isReviewedIntegration(next) && integrationRevisionBasis(previous,next))
     return previous.commission.ordinal === 1 && previous.commission.maximum_invocations === 1;
   if (ordinaryBudgetSuccessor(next)) return previous?.schema === "augnes.local-canonical-source-correction.v2" &&
@@ -1621,6 +1631,7 @@ function validGitRevisionEdge(previous, next) {
     isMaterialSourceRevision(next) && next.commission.ordinal === 1 && next.commission.maximum_invocations === 1 &&
     !Object.hasOwn(next.commission,"inherited_serial") && !Object.hasOwn(next.commission,"input_acquisition");
   if (isSingleInvocationRevision(next)) return (usesGitInventory(previous) || isSerialAggregateRevision(previous)) &&
+    (!isNoRemedyRequalification(next) || isMaterialSourceRevision(previous) || isSerialAggregateRevision(previous)) &&
     previous.commission.ordinal === previous.commission.maximum_invocations &&
     next.commission.ordinal === 1 && next.commission.maximum_invocations === 1 &&
     previous.commission.input_acquisition === next.commission.input_acquisition &&
@@ -1660,7 +1671,9 @@ function revisionCommissionIdentity(proof) {
     ...(isSerialAggregateRevision(proof) ? { route:proof.commission.route, envelope_sha256:proof.commission.envelope_sha256, incident:proof.incident, inputs:proof.inputs, source:proof.source, focused:proof.focused } : {}),
     ...(isGitInputRevision(proof) ? {input_revision: proof.commission.input_revision} : {}),
     ...(isGitAcquisitionRevision(proof) ? {input_acquisition: proof.commission.input_acquisition} : {}),
-    ...(isSingleInvocationRevision(proof) ? {source_revision: proof.commission.source_revision,
+    ...(isNoRemedyRequalification(proof) ? {requalification:proof.commission.requalification,
+      ...(proof.commission.inherited_serial ? {inherited_serial:proof.commission.inherited_serial} : {})} : {}),
+    ...(isMaterialSourceRevision(proof) || isProspectiveRequalification(proof) ? {source_revision: proof.commission.source_revision,
       ...(isProspectiveRequalification(proof) && Object.hasOwn(proof.commission,"registered_owner") ? {registered_owner:proof.commission.registered_owner} : {}),
       ...(proof.commission.evidence_kind ? {evidence_kind:proof.commission.evidence_kind} : {}),
       ...(proof.commission.allowance_case ? {allowance_case:proof.commission.allowance_case} : {}),
@@ -1675,6 +1688,8 @@ function revisionFollows(proof, count, commission, grants, previousMaximum) {
   if (isOrdinaryInitialPreparationRevision(proof)) return count === 0 && !commission && proof.commission.ordinal === 1 && !grants.includes(proof.authorization.grant_comment_id);
   if (isSerialAggregateRevision(proof)) return count === 0 && proof.commission.ordinal === 1 && !grants.includes(proof.authorization.grant_comment_id);
   if (ordinaryBudgetSuccessor(proof)) return count === 0 && !commission &&
+    proof.commission.ordinal === 1 && !grants.includes(proof.authorization.grant_comment_id);
+  if (isNoRemedyRequalification(proof) && count === 0) return !commission &&
     proof.commission.ordinal === 1 && !grants.includes(proof.authorization.grant_comment_id);
   if (isSingleInvocationRevision(proof)) return count > 0 && count === previousMaximum &&
     proof.commission.ordinal === 1 && revisionCommissionIdentity(proof) !== commission &&
@@ -1700,13 +1715,15 @@ function revisionMaterialShape(p, preparing = false) {
     revisionId(p.pull_request) && sha(p.prior_family_id) && [1, 2].includes(p.prior_number) && typeof p.prior_attempt_id === "string" &&
     sha(p.prior_receipt_fingerprint) && revisionKeys(c, ["root_family_id", "root_number", "root_attempt_id", "root_receipt_fingerprint", "ordinal", "maximum_invocations", ...(isSerialAggregateRevision(p) ? ["route", "envelope_sha256"] : []),
       ...(successor || gitSuccessor ? ["initial_authorization"] : []), ...(gitSuccessor ? ["initial_accepted", "delegation"] : isInventoryBoundRevision(p) ? ["delegation", ...(c.forward_decision ? ["forward_decision"] : []), ...(c.input_acquisition !== undefined ? ["input_acquisition"] : []), ...(c.source_revision !== undefined ? ["source_revision"] : [])] : []),
-      ...(Object.hasOwn(c, "preparation_revision") ? ["preparation_revision"] : []), ...(Object.hasOwn(c, "input_revision") ? ["input_revision"] : []), ...(Object.hasOwn(c,"registered_owner") ? ["registered_owner"] : []), ...(Object.hasOwn(c,"inherited_serial") ? ["inherited_serial"] : []), ...(Object.hasOwn(c,"evidence_kind") ? ["evidence_kind"] : []), ...(Object.hasOwn(c,"allowance_case") ? ["allowance_case"] : [])]) &&
+      ...(Object.hasOwn(c,"requalification") ? ["requalification"] : []), ...(Object.hasOwn(c, "preparation_revision") ? ["preparation_revision"] : []), ...(Object.hasOwn(c, "input_revision") ? ["input_revision"] : []), ...(Object.hasOwn(c,"registered_owner") ? ["registered_owner"] : []), ...(Object.hasOwn(c,"inherited_serial") ? ["inherited_serial"] : []), ...(Object.hasOwn(c,"evidence_kind") ? ["evidence_kind"] : []), ...(Object.hasOwn(c,"allowance_case") ? ["allowance_case"] : [])]) &&
     (!Object.hasOwn(c,"preparation_revision") || isOrdinaryInitialPreparationRevision(p) && ordinaryInitialProofShape(p)) &&
     (!Object.hasOwn(c,"registered_owner") || isProspectiveRequalification(p) && validProspectiveRequalificationOwner(p)) &&
     (!Object.hasOwn(c,"allowance_case") || isMaterialSourceRevision(p) && isMaintenanceFixtureBudget(p)) &&
     (!Object.hasOwn(c,"evidence_kind") || isMaterialSourceRevision(p) && materialEvidenceClaim(c.evidence_kind) !== null) &&
     (!Object.hasOwn(c,"inherited_serial") || isSingleInvocationRevision(p) && validSerialInheritance(c.inherited_serial)) &&
     (!Object.hasOwn(c, "input_revision") || isGitInputRevision(p)) &&
+    (!Object.hasOwn(c,"requalification") || isNoRemedyRequalification(p) &&
+      !["source_revision","evidence_kind","allowance_case","route","forward_decision","input_revision"].some(key=>Object.hasOwn(c,key)) && !p.settlement) &&
     (!isSerialAggregateRevision(p) || c.route === SERIAL_AGGREGATE_ROUTE && c.envelope_sha256 === PROJECT_EXPERIENCE_COMMITMENT && revisionRef(p.incident) && !p.settlement && p.accepted.head === p.head && p.accepted.tree === p.tree && p.accepted.base === p.base && sha(p.inputs?.inventory_sha256)) &&
     (c.input_acquisition === undefined || isGitAcquisitionRevision(p) && c.input_acquisition === GIT_ACQUISITION_REPAIR && !c.forward_decision) &&
     (c.source_revision === undefined || (isMaterialSourceRevision(p) && c.source_revision === MATERIAL_SOURCE_CORRECTION ||
@@ -1864,7 +1881,7 @@ function validateReviewedRevisionAuthorityEvidence(p, review, grant, permissions
   const ordinaryInitial = isOrdinaryInitialPreparationRevision(p);
   const requalification = isProspectiveRequalification(p);
   const typedMaterial = ordinaryInitial || fixtureValidityWindow || selectiveWorkload || stockVerifier || maintenanceFixture || identityBudget || measuredIntegration || generatedStock || preparedEligibility || verifierLifecycle;
-  const prospectiveScope = ordinaryInitial ? ordinaryInitialAuthorityScope(p,review,grant) : requalification ? prospectiveRequalificationAuthorityScope(p,review,grant,gitReviewTarget(p)) : fixtureValidityWindow ? fixtureValidityWindowAuthorityScope(p,review,grant) : identityBudget ? identityBudgetAuthorityScope(p,review,grant) : selectiveWorkload ? selectiveFixtureWorkloadAuthorityScope(p,review,grant) : stockVerifier ? stockVerifierAuthorityScope(p,review,grant) : maintenanceFixture ? maintenanceFixtureAuthorityScope(p,review,grant) : verifierLifecycle ? verifierLifecycleAuthorityScope(p,review,grant) : preparedEligibility ? preparedEligibilityAuthorityScope(p,review,grant) : measuredIntegration ? integrationBudgetAuthorityScope(p,review,grant) :
+  const prospectiveScope = isNoRemedyRequalification(p) ? noRemedyAuthorityScope(p,review,grant,gitReviewTarget(p)) : ordinaryInitial ? ordinaryInitialAuthorityScope(p,review,grant) : requalification ? prospectiveRequalificationAuthorityScope(p,review,grant,gitReviewTarget(p)) : fixtureValidityWindow ? fixtureValidityWindowAuthorityScope(p,review,grant) : identityBudget ? identityBudgetAuthorityScope(p,review,grant) : selectiveWorkload ? selectiveFixtureWorkloadAuthorityScope(p,review,grant) : stockVerifier ? stockVerifierAuthorityScope(p,review,grant) : maintenanceFixture ? maintenanceFixtureAuthorityScope(p,review,grant) : verifierLifecycle ? verifierLifecycleAuthorityScope(p,review,grant) : preparedEligibility ? preparedEligibilityAuthorityScope(p,review,grant) : measuredIntegration ? integrationBudgetAuthorityScope(p,review,grant) :
     generatedStock ? generatedStockAuthorityScope(p,review,grant) :
     [p.branch, String(p.accepted.review.id), p.commission.root_receipt_fingerprint].every(s => grant.body.includes(s)) &&
     /NEW.*commission/iu.test(grantText) && /v7 reviewed_revision/iu.test(grantText) && /old commission remains spent/iu.test(grantText) &&
@@ -1934,19 +1951,20 @@ function validateReviewedRevisionAuthorityEvidence(p, review, grant, permissions
       (permitsFinalDependencySuccessor(forward.body,p,revisionCommissionIdentity(p)) ||
         readPostPassDecision(forward.body,p,revisionCommissionIdentity(p)) && permitsPostPassReview(currentReview.body,p,revisionCommissionIdentity(p)))) && prospectiveScope && firstLine(review.body) === decision && firstLine(currentReview.body) === decision &&
       [p.base, p.head, p.tree, target, p.prior_receipt_fingerprint].every(s => currentReview.body.includes(s)) &&
-      firstLine(grant.body) === (ordinaryInitial ? ORDINARY_INITIAL_PREPARATION_GRANT : requalification ? PROSPECTIVE_REQUALIFICATION_GRANT : fixtureValidityWindow ? FIXTURE_VALIDITY_WINDOW_GRANT : identityBudget ? IDENTITY_BUDGET_GRANT : stockVerifier ? STOCK_VERIFIER_GRANT : maintenanceFixture ? MAINTENANCE_FIXTURE_GRANT : verifierLifecycle ? VERIFIER_LIFECYCLE_GRANT : preparedEligibility ? PREPARED_ELIGIBILITY_GRANT : measuredIntegration ? INTEGRATION_BUDGET_GRANT : generatedStock ? GENERATED_STOCK_GRANT : isMaterialSourceRevision(p) ?
+      firstLine(grant.body) === (isNoRemedyRequalification(p) ? "Authorize one NEW prospective v7 reviewed_revision commission for accepted no-remedy requalification." : ordinaryInitial ? ORDINARY_INITIAL_PREPARATION_GRANT : requalification ? PROSPECTIVE_REQUALIFICATION_GRANT : fixtureValidityWindow ? FIXTURE_VALIDITY_WINDOW_GRANT : identityBudget ? IDENTITY_BUDGET_GRANT : stockVerifier ? STOCK_VERIFIER_GRANT : maintenanceFixture ? MAINTENANCE_FIXTURE_GRANT : verifierLifecycle ? VERIFIER_LIFECYCLE_GRANT : preparedEligibility ? PREPARED_ELIGIBILITY_GRANT : measuredIntegration ? INTEGRATION_BUDGET_GRANT : generatedStock ? GENERATED_STOCK_GRANT : isMaterialSourceRevision(p) ?
         "Authorize one NEW prospective v7 reviewed_revision commission for a material source correction." : isGitAcquisitionRevision(p) ?
         "Authorize a NEW prospective v7 reviewed_revision commission for a Git acquisition correction." :
         "Authorize a NEW prospective v7 reviewed_revision commission.") &&
       (!isGitAcquisitionRevision(p) || isSingleInvocationRevision(p) || [grant.body,review.body].every(body => body.includes(
         "Historical window remains UNKNOWN; old false stock and both spent ordinals remain unchanged."))) &&
+      (!isNoRemedyRequalification(p) || [grant.body,review.body].every(body=>inheritedSerialAuthorityScope(p,body))) &&
       (!isMaterialSourceRevision(p) || [grant.body,review.body].every(body=>body.includes(MATERIAL_HISTORY_BOUNDARY) && inheritedSerialAuthorityScope(p,body) &&
         (!p.commission.evidence_kind || body.includes(p.commission.evidence_kind) && body.includes(materialEvidenceClaim(p.commission.evidence_kind)))) &&
         /No ordinal two, recovery or unchanged-target retry under this commission\./u.test(grantText)) &&
       [p.accepted.head, p.accepted.tree, p.accepted.base, p.schema].every(s => grant.body.includes(s)) &&
-      (!first || grant.body.includes(target)) && (typedMaterial || requalification || /zero unchanged-target retry/iu.test(grantText)) &&
+      (!first || grant.body.includes(target)) && (isNoRemedyRequalification(p) || typedMaterial || requalification || /zero unchanged-target retry/iu.test(grantText)) &&
       grant.created_at === grant.updated_at && delegation.created_at === delegation.updated_at &&
-      (ordinaryInitial ? delegatesOrdinaryInitialPreparation(delegation.body,p) : requalification ? delegatesProspectiveRequalification(delegation.body,p) &&
+      (isNoRemedyRequalification(p) ? delegatesNoRemedyRequalification(delegation.body,p) : ordinaryInitial ? delegatesOrdinaryInitialPreparation(delegation.body,p) : requalification ? delegatesProspectiveRequalification(delegation.body,p) &&
         [grant.body,review.body].every(body=>inheritedSerialAuthorityScope(p,body)) :
         isMaterialSourceRevision(p) ? delegatesMaterialSourceCommission(delegation.body,p) : delegatesProspectiveCommission(delegation.body, p.branch, p.pull_request)) &&
       [recordUrl("issuecomment", p.commission.delegation.id), recordUrl("pullrequestreview", p.accepted.review.id)].every(url => recordUrls.includes(url)) &&
@@ -1986,11 +2004,13 @@ export async function authorizeReviewedRevision(p, { transport = createGitHubObs
   if (forward) permissions.forward_decision = await transport.permission(forward.user?.login);
   // The selected fixture route reuses the material reader's validated receipt;
   // an evidence-kind string alone cannot relax current-main comparison.
-  const publicationEvidence = fixtureValidityWindowEvidence(p) || isProspectiveRequalification(p) || isOrdinaryInitialPreparationRevision(p)
+  const publicationEvidence = fixtureValidityWindowEvidence(p) || isProspectiveRequalification(p) || isOrdinaryInitialPreparationRevision(p) || isNoRemedyRequalification(p)
     ? readReviewedRevisionEvidence(path.join(repositoryRoot,p.local_relative_path),p,repositoryRoot) : null;
   const observations = validateReviewedRevisionAuthorityRecords(p, review, grant, permissions, await transport.pullRequest(), settlementReview, contractReview, delegation, forward, publicationEvidence?.original);
   if (isSingleInvocationRevision(p) || isOrdinaryInitialPreparationRevision(p)) {
     const evidence = publicationEvidence ?? readReviewedRevisionEvidence(path.join(repositoryRoot,p.local_relative_path),p,repositoryRoot);
+    if (isNoRemedyRequalification(p) && (Date.parse(delegation.created_at) <= Date.parse(evidence.focused.finished_at) ||
+        !inheritedSerialAuthorityScope(p,review.body) || !inheritedSerialAuthorityScope(p,grant.body))) throw fail("requalification_diagnosis_not_accepted");
     if (Date.parse(delegation.created_at) <= Date.parse(evidence.completion.finished_at) ||
         delegation.id === evidence.prior.source_correction?.commission?.delegation?.id ||
         delegation.id === evidence.prior.source_correction?.authorization?.grant_comment_id)
@@ -2174,7 +2194,7 @@ export async function prepareSerialAggregateRevision(args, { transport } = {}) {
   return {...await inspectSerialAggregatePreparation(args),published_head_checked:true};
 }
 function usesOrdinaryDeclaredBase(p,original) {
-  return isOrdinaryInitialPreparationRevision(p) && verifyReceiptIntegrity(original) &&
+  return (isOrdinaryInitialPreparationRevision(p) || isNoRemedyRequalification(p) && original?.attempt?.source_correction === null) && verifyReceiptIntegrity(original) &&
     original.integrity.content_fingerprint === p.prior_receipt_fingerprint && p.base === original.repository.base_sha && usesDeclaredIntegrationBase(original);
 }
 function assertRevisionPublication(p,pr,original=null) {
@@ -2341,13 +2361,15 @@ export const prepareMaterialSourceRevision = (args, options) =>
   prepareSingleInvocationRevision(args, options, p => isMaterialSourceRevision(p) || isOrdinaryInitialPreparationRevision(p));
 export const prepareProspectiveRequalification = (args, options) =>
   prepareSingleInvocationRevision(args, options, isProspectiveRequalification);
+export const prepareNoRemedyRequalification = (args, options) =>
+  prepareSingleInvocationRevision(args, options, isNoRemedyRequalification);
 async function prepareSingleInvocationRevision(args,{transport}={}, accepts) {
   const p=read(args.file);
   if (!accepts(p) || Object.hasOwn(p,"authorization") || !revisionMaterialShape(p,true))
     throw fail("revision_preparation_invalid");
   const api=transport??createGitHubObserverAuthorizationTransport(p.pull_request);
   const published=await api.pullRequest();
-  const publicationEvidence=fixtureValidityWindowEvidence(p)||isProspectiveRequalification(p)||isOrdinaryInitialPreparationRevision(p)?readRevisionMaterials(args.file,p,args.repositoryRoot,false):null;
+  const publicationEvidence=fixtureValidityWindowEvidence(p)||isProspectiveRequalification(p)||isOrdinaryInitialPreparationRevision(p)||isNoRemedyRequalification(p)?readRevisionMaterials(args.file,p,args.repositoryRoot,false):null;
   assertRevisionPublication(p,published,publicationEvidence?.original);
   const evidence=publicationEvidence??readRevisionMaterials(args.file,p,args.repositoryRoot,false);
   const delegation=await api.grant(p.commission.delegation.id), permission=await api.permission(delegation?.user?.login);
@@ -2358,12 +2380,13 @@ async function prepareSingleInvocationRevision(args,{transport}={}, accepts) {
       !["OWNER","MEMBER","COLLABORATOR"].includes(delegation.author_association) ||
       delegation.issue_url!==`https://api.github.com/repos/hynk-studio/augnes/issues/${p.pull_request}` ||
       permission?.user?.login!==delegation.user.login || !["admin","maintain"].includes(permission.permission) ||
-      typeof delegation.body!=="string" || !(isOrdinaryInitialPreparationRevision(p) ? delegatesOrdinaryInitialPreparation(delegation.body,p) : isProspectiveRequalification(p) ? delegatesProspectiveRequalification(delegation.body,p) : delegatesMaterialSourceCommission(delegation.body,p)) ||
+      typeof delegation.body!=="string" || !(isNoRemedyRequalification(p) ? delegatesNoRemedyRequalification(delegation.body,p) : isOrdinaryInitialPreparationRevision(p) ? delegatesOrdinaryInitialPreparation(delegation.body,p) : isProspectiveRequalification(p) ? delegatesProspectiveRequalification(delegation.body,p) : delegatesMaterialSourceCommission(delegation.body,p)) ||
       digest(observation)!==p.commission.delegation.sha256 || delegation.created_at!==delegation.updated_at ||
       !(Date.parse(delegation.created_at)>Date.parse(evidence.completion.finished_at)) ||
       delegation.id===evidence.prior.source_correction?.commission?.delegation?.id ||
       delegation.id===evidence.prior.source_correction?.authorization?.grant_comment_id)
     throw fail("revision_material_fresh_authority_required");
+  if (isNoRemedyRequalification(p) && Date.parse(delegation.created_at) <= Date.parse(evidence.focused.finished_at)) throw fail("requalification_diagnosis_not_accepted");
   if (measuredIntegrationEvidence(p)) await verifyIntegrationBudgetDelegation(p,delegation,evidence,args.repositoryRoot,api);
   if (generatedStockEvidence(p)) await verifyGeneratedStockDelegation(p, delegation, evidence, args.repositoryRoot, api);
   if (preparedEligibilityEvidence(p)) await verifyPreparedEligibilityDelegation(p, delegation, evidence, args.repositoryRoot, api);
@@ -2406,8 +2429,9 @@ function prepareRevisionInspection({ file, repositoryRoot, predecessorRoot, anch
   if (!accepts(p) || Object.hasOwn(p, "authorization") || !revisionMaterialShape(p, true)) throw fail("revision_preparation_invalid");
   const evidence = readRevisionMaterials(file, p, repositoryRoot, false);
   const tip = reconstructAttemptTip({ anchorRoot, repositoryRoot: predecessorRoot, branch: p.branch });
+  if (isNoRemedyRequalification(p) && tip.no_remedy_requalification_consumed) throw fail("attempt_requalification_consumed");
   if (tip.family_id !== p.prior_family_id || tip.number !== p.prior_number || tip.attempt_id !== p.prior_attempt_id ||
-      (tip.reviewed_revision_consumed ?? 0) !== (isOrdinaryInitialPreparationRevision(p) || ordinaryBudgetSuccessor(p) ? 0 : isSingleInvocationRevision(p) ? evidence.prior.source_correction.commission.maximum_invocations : isInventoryBoundRevision(p) && p.commission.ordinal === 1 ? 2 : p.commission.ordinal - 1) ||
+      (tip.reviewed_revision_consumed ?? 0) !== (isOrdinaryInitialPreparationRevision(p) || ordinaryBudgetSuccessor(p) || evidence.ordinaryNoRemedy ? 0 : isSingleInvocationRevision(p) ? evidence.prior.source_correction.commission.maximum_invocations : isInventoryBoundRevision(p) && p.commission.ordinal === 1 ? 2 : p.commission.ordinal - 1) ||
       (usesFreshRevisionGrant(p) && tip.revision_commission !== revisionCommissionIdentity(p)) ||
       !revisionEqual(runtimeInputs, evidence.inputs)) throw fail("revision_preparation_target_changed");
   verifyRevisionOriginals(anchorRoot, predecessorRoot, p, file);
@@ -2437,6 +2461,7 @@ function prepareRevisionInspection({ file, repositoryRoot, predecessorRoot, anch
     head: p.head, tree: p.tree, authorized: false, reserved: false,
     ...(isSerialAggregateRevision(p) ? {route:SERIAL_AGGREGATE_ROUTE,logical_root_family_id:candidateFamilyId(p.branch),consumed:tip.reviewed_revision_consumed ?? 0,issued_limit:1,envelope_sha256:PROJECT_EXPERIENCE_COMMITMENT,incident:evidence.serialIncident} : {}),
     ...(isInventoryBoundRevision(p) ? { root_receipt: p.commission.root_receipt_fingerprint, consumed: tip.reviewed_revision_consumed ?? 0,
+      ...(evidence.ordinaryNoRemedy ? {original_consumed:1,recovery_consumed:0} : {}),
       ...(isOrdinaryInitialPreparationRevision(p) ? {preparation_revision:ORDINARY_INITIAL_PREPARATION,issued_limit:1,original_consumed:evidence.ordinaryInitial.record.history.original_consumed,
         recovery_consumed:evidence.ordinaryInitial.record.history.recovery_consumed,missing:["authenticated_candidate_acceptance","prospective_explicit_execution_grant"]} : {}),
       predecessor_commission: tip.revision_commission, ordinal: p.commission.ordinal } : {}),
@@ -2501,6 +2526,7 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
   const serialIncident = serial ? readSerialAggregateIncident(p,original,prior,completion,{parse,bytes,git:originalGit,phases:REVIEWED_REVISION_PHASES,stock}) : null;
   const browser = isBrowserRevision(p), successor = isBrowserSuccessor(p);
   const gitSuccessor = isGitObservationSuccessor(p);
+  const ordinaryNoRemedy = isNoRemedyRequalification(p) && prior.source_correction === null;
   if (isBrowserRevision(prior.source_correction) !== successor) throw fail("revision_browser_lineage_invalid");
   if (!validGitRevisionEdge(prior.source_correction, p)) throw fail("revision_git_lineage_invalid");
   const gitIncident = isGitObservationRevision(p) && !gitSuccessor ? gitObservationIncident(original, prior, completion, stock, REVIEWED_REVISION_PHASES, p.commission.input_revision ?? null) : null;
@@ -2512,8 +2538,10 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
   let retainedBefore = null;
   const postPass=boundedV7 && p.commission.ordinal===2 && !!p.commission.forward_decision && original.outcome?.disposition==="completed_success";
   if (gitSuccessor || boundedV7) {
-    verifyStoredRevisionProof(repositoryRoot, prior.source_correction);
-    if (postPass) {
+    if (!ordinaryNoRemedy) verifyStoredRevisionProof(repositoryRoot, prior.source_correction);
+    if (ordinaryNoRemedy) {
+      verifyOrdinaryInitialFailure(original,stock,inputs,REVIEWED_REVISION_PHASES);
+    } else if (postPass) {
       verifyGitRevisionSuccess(original,stock,inputs,REVIEWED_REVISION_PHASES);
       if (p.accepted.head!==prior.head || p.accepted.tree!==prior.tree || p.accepted.base!==original.repository.base_sha) throw fail("revision_positive_predecessor_invalid");
     } else if (ordinaryBudgetSuccessor(p)) {
@@ -2596,6 +2624,7 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
   // refuse, not route the same disclosure through a generic repair reader.
   if (Object.hasOwn(focused, "prospective") !== isProspectiveRequalification(p) ||
       isProspectiveRequalification(p) && Object.hasOwn(focused, "regression")) throw fail("revision_prospective_basis_invalid");
+  if (Object.hasOwn(focused, "no_remedy") !== isNoRemedyRequalification(p)) throw fail("requalification_not_no_remedy");
   const git = sourceGit;
   verifyInheritedSerialConnection(p,git);
   const delta = (a, b) => { const d = git(["diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", a, b, "--"]); return { bytes: d.length, sha256: digest(d), paths: git(["diff", "--name-only", a, b, "--"]).toString().trim().split("\n").filter(Boolean).sort() }; };
@@ -2629,7 +2658,7 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
     ? verifyGitInputRemedy(p, original, gitIncident, source, focused, {parse, git}) : null;
   const changedInputs = browserIncident || gitInputRemedy ? true : previousRevision ? !revisionEqual(materialInputs(inputs), materialInputs(original.inputs.binding.runtime_inputs)) :
     inputs.node.location_fingerprint !== legacyNode.location_fingerprint || inputs.node.observation.sha256 !== legacyNode.before.sha256;
-  if (!isProspectiveRequalification(p) && !changedCode.length && !changedInputs) throw fail("revision_material_remedy_required");
+  if (!isProspectiveRequalification(p) && !isNoRemedyRequalification(p) && !changedCode.length && !changedInputs) throw fail("revision_material_remedy_required");
   if (gitSuccessor) verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt: completion.finished_at, repositoryRoot });
   if (gitIncident && !gitInputRemedy) {
     if (!revisionEqual(focused.input_remedy_resources, []) || prior.head === p.head || prior.tree === p.tree ||
@@ -2681,9 +2710,9 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
   if (focused.schema !== "augnes.local-canonical-reviewed-revision-focused.v1" || focused.basis !== "implementation_owner_not_independent_review" ||
       focused.predecessor_receipt_fingerprint !== p.prior_receipt_fingerprint || focused.runtime_inputs_sha256 !== p.inputs.identity_sha256 ||
       !revisionTime(focused.finished_at) || Date.parse(focused.finished_at) <= Date.parse(completion.finished_at) ||
-      typeof focused.remedy !== "string" || focused.remedy.length < 20 || focused.remedy.length > 4000 ||
+      (isNoRemedyRequalification(p) ? focused.remedy !== "none" : typeof focused.remedy !== "string" || focused.remedy.length < 20 || focused.remedy.length > 4000) ||
       !Array.isArray(focused.implicated_paths) || !focused.implicated_paths.every(revisionPath) ||
-      !focused.implicated_paths.every(name => changedCode.includes(name)) || (!isProspectiveRequalification(p) && !focused.implicated_paths.length && !changedInputs) ||
+      !focused.implicated_paths.every(name => changedCode.includes(name)) || (!isProspectiveRequalification(p) && !isNoRemedyRequalification(p) && !focused.implicated_paths.length && !changedInputs) ||
       !Array.isArray(focused.source_files) || !focused.source_files.length || focused.source_files.length > 128 ||
       new Set(focused.source_files.map(f => f.path)).size !== focused.source_files.length ||
       focused.source_files.some(f => {
@@ -2713,11 +2742,11 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
     }
   }
   if ((gitIncident || gitSuccessor || boundedV7 || serial) && !testedFinalSource) throw fail("revision_focused_remedy_invalid");
-  if (boundedV7 && (changedInputs || !revisionEqual(focused.input_remedy_resources, []) ||
+  if (boundedV7 && !isNoRemedyRequalification(p) && (changedInputs || !revisionEqual(focused.input_remedy_resources, []) ||
       !prospective && !focused.implicated_paths.some(name => /^@@ /mu.test(git(["diff", "--no-ext-diff", "--no-textconv", "--ignore-all-space",
         "--ignore-blank-lines", prior.head, p.head, "--", name]).toString()))))
     throw fail("revision_material_remedy_required");
-  if (boundedV7 && !materialSource && !prospective) verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt: completion.finished_at, retainedBefore, postPass, acquisition: !!acquisitionIncident });
+  if (boundedV7 && !materialSource && !prospective && !isNoRemedyRequalification(p)) verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt: completion.finished_at, retainedBefore, postPass, acquisition: !!acquisitionIncident });
   if (successor && (!testedFinalSource || !revisionEqual(focused.input_remedy_resources, []) ||
       !git(["diff", "--ignore-all-space", "--ignore-blank-lines", "--no-ext-diff", "--no-textconv", prior.head, p.head, "--", ...focused.implicated_paths]).length))
     throw fail("revision_focused_remedy_invalid");
@@ -2728,8 +2757,10 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
       !["scripts/project-experience-serial-budget.mjs","scripts/run-canonical-test-suite.mjs","scripts/run-local-canonical-verification.mjs"].every(name => focused.implicated_paths.includes(name)) ||
       focused.serial_envelope_sha256 !== PROJECT_EXPERIENCE_COMMITMENT || focused.failed_phase !== "e2e-project-experience"))
     throw fail("serial_focused_contract_invalid");
+  if (isNoRemedyRequalification(p) && changedInputs) throw fail("requalification_runtime_changed");
+  const noRemedy = isNoRemedyRequalification(p) ? readNoRemedyDiagnosis(p,prior,focused,source,{parse,bytes,git,completion,inputs}) : null;
   const integrationBudget = usesGeneratedStockWitness(p) ? parse(focused.regression.after) : null;
-  return { serialIncident, original, prior, completion, stock, inputs, source, focused, dependencySafety, externalSettlement, browserIncident, postPass, acquisitionIncident, prospective,
+  return { noRemedy, ordinaryNoRemedy, serialIncident, original, prior, completion, stock, inputs, source, focused, dependencySafety, externalSettlement, browserIncident, postPass, acquisitionIncident, prospective,
     stockVerifier:stockVerifierEvidence(p)?parse(focused.regression.after):null,
     integrationBudget, identityBudget: identityBudgetEvidence(p) ? parse(focused.regression.after) : null,
     selectiveWorkload: selectiveFixtureWorkloadEvidence(p) ? parse(focused.regression.after) : null, preparedEligibility: requiresPreparedEligibility(p),

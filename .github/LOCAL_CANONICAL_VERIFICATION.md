@@ -1414,7 +1414,8 @@ attempt, completion and separate stock, and applicable focused evidence.
 Implementation-owner final-source checks remain distinct from the receiving
 reviewer's independent audit. An older predecessor, wrong authority/source/input,
 unsettled cleanup or an unchanged candidate under a source-repair route refuses
-before consumption. Accepted focused evidence may be reused with its original
+before consumption. The separate accepted no-remedy action below is not a
+material correction or renewal. Accepted focused evidence may be reused with its original
 source/input attribution; it never supplies unexecuted phase coverage.
 
 The default v7 commission permits at most two deciding invocations across its
@@ -1768,6 +1769,89 @@ replay uses recorded source/input/authority identities; live published-head
 checks belong to current preparation, admission and applicability. Sanitized
 export retains the variant and incident/proof bindings, but validates structure
 only and always reports `deciding=false` and `independent_attestation=false`.
+
+#### Prospectively commissioned no-remedy requalification
+
+`commission.requalification = "accepted-no-remedy-diagnosis-v1"` selects a
+separate action in the existing inventory-bound v7 owner. It is neither a
+material-source correction nor infrastructure recovery. A passing non-deciding
+diagnostic does not repair a failed qualification or establish its cause. The
+latest physical predecessor must be a consumed ordinary initial attempt or a
+fully spent one-use material or serial commission with an intact, naturally
+failed phase, completed settlement and separate original false stock. An
+ordinary initial predecessor has attempt number one, null source correction,
+null recovery and predecessor fields, and its original initial1/recovery1
+budget. Its original initial consumption remains one and recovery remains zero;
+the unused recovery allowance does not become a no-remedy grant. The reader
+validates that original receipt directly, without projecting it into a source
+correction or inventing a historical runtime binding. All original receipt,
+phase, ordered Browser
+prefix, protected-input, cleanup and inherited serial checks remain mandatory.
+Failures, UNKNOWN causes, NOT_RUN coverage, stock and consumed grants stay intact.
+
+The candidate may be unchanged or carry only the introducing admission policy,
+implementation and focused controls listed by `local-canonical-no-remedy.mjs`.
+The complete predecessor/accepted/base-to-candidate Git deltas remain bound.
+Product sources, fixtures for product behavior, workload semantics, phase
+inventory, assertions, deadlines and planner coverage cannot change under this
+action. The three new admission-control groups may be added to the existing
+reviewed-revision sequence, dispatcher and contract assertion; deleting exactly
+those entries must recover the old bytes. Existing groups/order/bounds remain
+fixed, including callers that select the original material-source subset. The
+new evidence helper is added to the protected executor source inventory with the
+same exact additive comparison. These bounded control and fingerprint additions
+are the only registration/executor-catalogue exceptions. Disposable maintenance
+fixtures remove exactly these later additions before reconstructing their
+historical registration maps; the real current suite is unchanged by that
+projection. Verification-policy
+changes retain their own Full qualification obligations and cannot approve
+themselves by reducing coverage.
+
+The referenced `focused.no_remedy` record binds the exact latest predecessor,
+attributed original diagnostic source, command, natural result, raw streams,
+input observations, any instrumentation and a separate attributed assessment.
+The assessment's decision is
+`ACCEPT_DIAGNOSTIC_RECORD_AND_NO_CHANGE_DISPOSITION`; it preserves historical
+cause UNKNOWN and explicitly supplies no qualification. Source hashes retain
+the original observed scope and must still match the candidate; normalization
+does not invent historical byte-size observations. An originally observed
+Node/header subset remains that subset. Full runtime/inventory identities that
+were not observed are explicitly null; the original result/launch/input files
+remain readable and hash-bound. Observed runtime resources must match current
+preparation. Null historical fields do not relax complete current inventory,
+predecessor input equivalence, live freshness or any deciding-input requirement.
+This is attributed diagnostic rationale reuse, not a transfer of PASS or an
+assertion that unobserved resources were unchanged.
+
+A local report or differently named author is not authenticated acceptance.
+Before non-reserving preparation, a distinct immutable maintainer task delegation
+must explicitly accept the exact referenced assessment and delegate this action,
+binding the latest receipt, exact branch/PR/base/head/tree and focused evidence.
+The existing authenticated GitHub transport and exact `noRemedyDelegation`
+wording apply. The existing preparation CLI dispatches this marker to
+`prepareNoRemedyRequalification` and retains its shared resource owner, live
+observations, exact preparation commitment and no-reservation behavior. It does
+not create authority or replace actual preparation with fixture evidence.
+
+After actual preparation, a separate authenticated exact-head review must state
+`COMPLETE: exact source, policy, diagnosis, controls and actual preparation accepted.`
+A later distinct immutable authenticated commission begins
+`Authorize one NEW prospective v7 reviewed_revision commission for accepted no-remedy requalification.`
+Both bind the diagnostic evidence, original receipt, exact target and preparation
+commitment, and explicitly retain historical UNKNOWN/failure/stock/consumption.
+The grant permits initial1/recovery0 only, with reservation or interruption
+consuming it. Existing author/permission, immutable chronology, source review,
+unique-grant and shared-resource gates remain. This policy and its implementation
+are not a commission, and no spent grant can be reused.
+
+Physical append-only lineage permits at most one such no-remedy action in the
+branch family, including after later material corrections. Marker removal,
+unknown/mixed markers, stale/older tips, competing or partial successors and
+reused grants refuse. There is no ordinal two, automatic renewal or pass-seeking
+loop. Later genuine correction uses its own existing remedy/authority rules;
+it cannot reset the recorded no-remedy count. Any admitted execution still needs
+the complete final-target planner-selected Full, separate fresh-process stock,
+independent result review and complete owned-resource settlement.
 
 #### Reusable prospective material-source correction
 
