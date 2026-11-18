@@ -1,7 +1,7 @@
 // One retained registered-fixture failure, within the existing maintenance
 // lifecycle. This reader grants no reservation, retry, or execution authority.
 import path from "node:path";
-import { digest, validCanonicalRuntimeInputs, preparedDependencyIdentity, PREPARED_DEPENDENCY_CONTRACT } from "./local-canonical-inputs.mjs";
+import { digest, validCanonicalRuntimeInputs, preparedDependencyIdentity, comparePreparedDependencyInputs, PREPARED_DEPENDENCY_CONTRACT } from "./local-canonical-inputs.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { artifactReader } from "./local-canonical-improvement.mjs";
 import { registeredFixtureBudget } from "./local-canonical-fixture-budget-witness.mjs";
@@ -10,6 +10,27 @@ import { gitRevisionInventory } from "./local-canonical-git-observation.mjs";
 export const FAILED_INTEGRATION_FIXTURE_CASE = "failed-reviewed-integration-material-stock-partition-v1";
 export const isFailedIntegrationFixture = p => p?.schema === "augnes.local-canonical-source-correction.v2" &&
   p.kind === "prospective_maintenance" && p.incident_case === FAILED_INTEGRATION_FIXTURE_CASE;
+
+// This disposition is for one settled, diagnosed installation. A matching
+// failure code, permission mask, or successful install alone cannot select it.
+export const REPRODUCED_ROOT_CASE = "reviewed-integration-reproduced-root-layout-v1";
+const rootReceiptFingerprint = "f405168218fb9c29f15fc0cc6bf10710dfb793458b4a63dfb6faa786dc64dddb";
+const diagnosticSettlementSha = "1165bc1bd536d68bc2b8f161337d569eb9afc20bdf6e84e9ca37f10e3d054f03";
+const originalStockDigest = "c2cba45ab51c0a070984949b312d7588088dab9c7488249c50c18fd65bed1f24";
+export const isReproducedRootLayout = p => p?.schema === "augnes.local-canonical-source-correction.v2" &&
+  p.kind === "prospective_maintenance" && p.incident_case === REPRODUCED_ROOT_CASE;
+export const isIntegrationMaintenance = p => isFailedIntegrationFixture(p) || isReproducedRootLayout(p);
+
+export function followsReproducedRootLayout(p, prior, completion) {
+  return isReproducedRootLayout(p) && p.prior_receipt_fingerprint === rootReceiptFingerprint &&
+    completion?.receipt_fingerprint === rootReceiptFingerprint && completion.disposition === "safety_violation" &&
+    prior?.source_correction?.integration?.predecessor_basis === "settled-ordinary-watchdog-integration-v1" &&
+    prior.source_correction.pull_request === p.pull_request;
+}
+
+export function assertReproducedRootMask() {
+  if (process.umask() !== 0o022) fail("root_install_umask");
+}
 
 const fail = code => { throw Object.assign(new Error("maintenance_fixture_" + code), {code:"maintenance_fixture_" + code}); };
 const requireThat = (ok,code) => { if (!ok) fail(code); };
@@ -297,6 +318,38 @@ export function readFailedIntegrationFixtureIncident({p,e,prior,completion,recei
   // partitionSource already validated this immutable registration in this read.
   let latest=partitionPositives(part,receipt,p,runtime,registrations.after,{read,git});
   return readFixturePreparation({p,ref:incident.preparation,read,runtime,dependencies,latest,completion});
+}
+
+export function readReproducedRootIncident({p,e,prior,completion,receipt,stock,read,git,runtime,dependencies}) {
+  requireThat(followsReproducedRootLayout(p,prior,completion) && equal(e.repairs,[]) &&
+    digest(stock) === originalStockDigest && completion.infrastructure_code === null,"root_predecessor_invalid");
+  const incident = read(e.incident);
+  keys(incident,"diagnosis preparation");
+  requireThat(incident.diagnosis?.sha256 === diagnosticSettlementSha,"root_diagnosis_invalid");
+  const diagnosis = read(incident.diagnosis,{canonical:false});
+  const outcome = diagnosis.outcome;
+  const root = receipt.inputs.prepared_dependencies[0];
+  requireThat(outcome.status === "reproduced_preparation" && outcome.installer_umask === "0022" &&
+    comparePreparedDependencyInputs(outcome.before.observation,root.before) === "unchanged" &&
+    comparePreparedDependencyInputs(outcome.after.observation,root.prerequisite) === "unchanged" &&
+    comparePreparedDependencyInputs(outcome.after.observation,dependencies[0]) === "unchanged" &&
+    equal(runtime,receipt.inputs.binding.runtime_inputs),"root_observation_changed");
+  // Match the three physical originals against the byte hashes saved during
+  // diagnosis, in addition to the ledger and normalized receipt checks.
+  const family = "/families/" + prior.family_id + "/";
+  for (const [kind,suffix] of [["attempt",family+"attempt-1.json"],["completion",family+"completion-1.json"],["receipt","/receipts/"+prior.attempt_id+".json"]]) {
+    const rows = outcome.preserved_originals.filter(row => row.path.endsWith(suffix));
+    requireThat(rows.length === 1 && rows[0].sha256 === e.originals[kind].sha256,"root_original_changed");
+  }
+  // Inspect both sides of renames. Only the introducing verifier and policy
+  // can change; all product entries must still be identical to the predecessor.
+  const allowed = new Set([...supportPaths,"scripts/local-canonical-browser-revision.mjs","scripts/local-canonical-maintenance-reader-incident.mjs"]);
+  const changed = pathsChanged(git,prior.head,p.head);
+  requireThat(equal(changed,e.source.changed_paths) && changed.every(name => allowed.has(name)),"root_source_scope_invalid");
+  const prepared = readFixturePreparation({p,ref:incident.preparation,read,runtime,dependencies,
+    latest:Date.parse(diagnosis.finished_at),completion,schema:"augnes.local-canonical-reproduced-root-preparation.v1"});
+  requireThat(prepared.preparation.checkout_fingerprint === receipt.checkout_ownership.checkout_fingerprint,"root_checkout_changed");
+  return prepared;
 }
 
 // Both selected cases use the same raw inventory and admitted Full binding.

@@ -2,6 +2,7 @@
 import { isOrdinaryInitialPreparationRevision } from "./local-canonical-initial-preparation.mjs";
 import { isMaintenance, hasMaintenanceMarker, authorizeMaintenance, observeMaintenanceAuthority, inspectMaintenanceInputs } from "./local-canonical-maintenance.mjs";
 import {isSelectedMaintenanceIncident} from "./local-canonical-maintenance-reader-incident.mjs";
+import {isReproducedRootLayout} from "./local-canonical-failed-integration-fixture.mjs";
 import { isSerialAggregateRevision } from "./local-canonical-serial-aggregate.mjs";
 import { PROJECT_EXPERIENCE_ENVELOPE_MS, PROJECT_EXPERIENCE_SERIAL, PROJECT_EXPERIENCE_COMMITMENT, runProjectExperienceParent } from "./project-experience-serial-budget.mjs";
 import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
@@ -30,7 +31,7 @@ import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-e
 import { isGitObservationRevision, isInventoryBoundRevision, isMaterialSourceRevision, gitRevisionInventory,
   GIT_CURRENT_STOCK_COMPARISON, gitRevisionStockComparison } from "./local-canonical-git-observation.mjs";
 import { isProspectiveRequalification } from "./local-canonical-prospective-requalification.mjs";
-import { isBrowserRevision, browserBindingMatches } from "./local-canonical-browser-revision.mjs";
+import { isBrowserRevision, browserBindingMatches, verifyBrowserRevisionPreservation } from "./local-canonical-browser-revision.mjs";
 import { browserInstallationRoot } from "./local-canonical-inputs.mjs";
 import { BROWSER_IDENTITY_PREFIX, validPhaseBrowserUse, browserConsumersForPhase, MAX_BROWSER_USE_RECORDS, parseBrowserUseLine } from "./local-canonical-browser-identity.mjs";
 import { fileURLToPath } from "node:url";
@@ -124,6 +125,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/prepare-local-canonical-material-source.mjs",
   "scripts/prepare-local-canonical-prospective-requalification.mjs",
   "scripts/local-canonical-prospective-requalification.mjs",
+  "scripts/local-canonical-ordinary-watchdog-integration.mjs",
   "scripts/local-canonical-typecheck-witness.mjs",
   "scripts/local-canonical-pure-contract-witness.mjs",
   "scripts/local-canonical-fixture-budget-witness.mjs",
@@ -157,6 +159,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-improvement.mjs",
   "scripts/local-canonical-maintenance.mjs",
   "scripts/local-canonical-failed-integration-fixture.mjs",
+  "scripts/local-canonical-maintenance-reader-incident.mjs",
   "scripts/local-canonical-closeout-budgets.mjs",
   "scripts/local-canonical-evidence-retention.mjs",
   "scripts/local-canonical-review-export.mjs",
@@ -1477,7 +1480,7 @@ export async function inspectIntegrationStock({anchorRoot,repositoryRoot,receipt
     assertCurrent:()=>{try{assertCurrent?.();}catch{integrationCurrentIssues.push("receipt_integration_current_inputs_invalid");}},
     observeRevision:async()=>{
       const p=receipt.attempt.source_correction,e=integrationMaterial(repositoryRoot,p,anchorRoot);
-      try{await observeIntegrationAuthority(p,e,transport);integrationCurrentIssues.splice(integrationCurrentIssues.indexOf("receipt_integration_current_authorization_unverified"),1);}
+      try{await observeIntegrationAuthority(p,e,transport,{executionAt:receipt.attempt.started_at});integrationCurrentIssues.splice(integrationCurrentIssues.indexOf("receipt_integration_current_authorization_unverified"),1);}
       catch(error){integrationCurrentIssues.push(error?.code==="integration_current_applicability_refused"?"receipt_integration_current_applicability_refused":"receipt_integration_current_authorization_unverified");}
       return {authorization:null,live:null};
     }});
@@ -1501,6 +1504,7 @@ export async function inspectMaintenanceStock({anchorRoot,repositoryRoot,receipt
         const live=await observeCurrentInputs?.();
         if(!live||live.inventory!==material.fixture.preparation.inventory_sha256||gitRevisionInventory(live.inputInventory)!==live.inventory)
           maintenanceCurrentIssues.push("receipt_maintenance_current_inputs_invalid");
+        if(isReproducedRootLayout(proof))verifyBrowserRevisionPreservation(material.receipt.cleanup.companion_service.after,live?.service,{requireSameBinding:true});
       }catch{maintenanceCurrentIssues.push("receipt_maintenance_current_inputs_invalid");}
       return {authorization:null,live:null};
     }});

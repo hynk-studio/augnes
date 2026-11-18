@@ -13,6 +13,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import Database from "better-sqlite3";
 
 import { ProductShell } from "../components/product-shell";
+import { ContinuityPinsProvider } from "../components/continuity-pins/continuity-pins-provider";
+import { PinnedContinuitiesNavigation } from "../components/continuity-pins/continuity-pins-ui";
 import {
   GET as pinsGET,
   POST as pinsPOST,
@@ -581,6 +583,14 @@ async function main(): Promise<void> {
   );
   assert.equal(readProjectContinuityPinProjectionV01(db, scopeB).revision, 0);
   assert.equal(readProjectContinuityPinProjectionV01(db, scopeA).revision, 7);
+  const retainedNavigation = renderToStaticMarkup(createElement(ContinuityPinsProvider, {
+    initialCollection: { ...first.collection, pins: [{ ...first.collection.pins[0]!,
+      destination: "/workbench/semantic-review#delegated-work",
+    }] },
+    children: createElement(PinnedContinuitiesNavigation),
+  }));
+  assert(retainedNavigation.includes(`href="/workbench/semantic-review?project_id=${encodeURIComponent(scopeA.project_id)}#delegated-work"`),
+    "A retained pin navigates to its own project while B is the workspace default");
 
   const selectionB = readActiveProjectSelectionV01(db, workspace.workspace_id)!;
   selectActiveProjectV01(db, {
@@ -905,7 +915,7 @@ function testProductShellPinnedLandmarkV01(): void {
       },
     ),
   );
-  assert.match(withPins, /aria-label="Augnes home"[\s\S]*<strong>Augnes<\/strong>/u);
+  assert.match(withPins, /aria-label="Augnes workspace home"[\s\S]*<strong>Augnes<\/strong>/u);
   assert.doesNotMatch(withPins, /product-brand-mark|<svg/u);
   const primaryNavigationMatches = [
     ...withPins.matchAll(

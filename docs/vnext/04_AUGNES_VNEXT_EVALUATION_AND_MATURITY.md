@@ -1010,6 +1010,26 @@ deterministic adapters establish bounded mechanics; they do not establish live
 provider behavior, measured productivity, installed adoption or parallel deciding
 verification. The PR records the final exact source and planner-selected result.
 
+### Native project navigation evidence (#1608)
+
+The prior production shell sent A's ordinary Continuities navigation to canonical
+home after B became the workspace default. The corrected real Next/Chrome journey
+keeps A's viewed-project entry and authenticated requests, saves eligible A work,
+then reads the same definition and selected sources on fresh entry while B's
+definition, packet and default selection remain independent. Separate saved
+work/result fixtures exercise their actual detail links and exact return targets;
+that read-only journey preserves database bytes. Workspace-home/settings exits
+remain explicit, and existing inactive/archived and Stay/Leave checks retain their
+own assertions. Reuse the existing server-negative and draft evidence rather
+than treating a scoped href as authority or a navigation stub as Browser evidence.
+
+On `9c4929e1`, all 16 Full phases and seven Browser phases passed on the
+registered Mac. The Inspector returned to the viewed project and reloaded with
+identical database snapshots, the expected GET and zero write requests. Golden
+passed. A fresh process validated the original receipt with zero issues. The
+[final qualification](https://github.com/hynk-studio/augnes/pull/1672) covers
+the tested navigation and persistence behavior in one Chrome profile.
+
 ### Native preparation response and departure evidence (#1599)
 
 The source hypothesis was reproduced against the prior production composer with

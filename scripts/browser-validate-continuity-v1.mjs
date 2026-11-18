@@ -1698,7 +1698,7 @@ async function main() {
       unrelated_project_absent: true,
       mutation_controls: 0,
       session_controls: 1,
-      return_href: "/",
+      return_href: `/projects/${encodeURIComponent(manifest.project_id)}`,
     });
     assert.deepEqual(databaseSnapshot(database), beforePersonalPerspectiveReads);
     await cdp.send("Page.reload", { ignoreCache: true });
