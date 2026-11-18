@@ -1085,6 +1085,40 @@ unchanged assertions and deadlines, owned cleanup, separate fresh-process stock
 and independent result review. This disposition authorizes no Ready, auto-merge,
 merge, deployment or installed adoption, and changes no other admission route.
 
+### Combined Native qualification after the Git fixture repair (#1430 / #1608)
+
+The [maintainer disposition](https://github.com/hynk-studio/augnes/issues/1430#issuecomment-6966003194)
+selects existing Draft [#1672](https://github.com/hynk-studio/augnes/pull/1672),
+branch `codex/fix-git-capture-budget-1608`, as the sole delivery for this
+qualification. Its Git fixture repair supplies the budget binding missing from
+the settled Unit failure on [#1662](https://github.com/hynk-studio/augnes/pull/1662).
+Both published inputs must be ancestors of the final head.
+
+| Binding | Git identity or receipt fingerprint |
+| --- | --- |
+| Declared base | `949a3c8ec49b047180c4800a34d4ebbdbd55e89e` |
+| Product and failed Mac target from #1662 | `c419151d764f15ed4d3b83e1e25d0ef30898a232` |
+| Git fixture repair from #1672 | `6585ff4ab565cfc49c278566cde7f7cff0e71091` |
+| Combined tree before this policy addition | `e5436ea96794101aa06f50542ff17198e7e7d5f8` |
+| Settled #1662 R3 receipt | `24d9360ac72066d99daf371b9e9652ce259c2d16fa657e2b8d569187744f7a0d` |
+
+The full delta from the combined tree may contain only this policy addition.
+Apply the operator-verified cross-family procedure above to this pair. At
+preparation and launch, verify the latest settled #1662 tip, its original
+receipt and false stock, absence of a competing successor, and the unused
+ordinary initial family of #1672 on the same registered Mac. Carry all issued
+limits, consumption and cumulative cost forward in the reviewed mapping.
+Commission 6964475232 ended at 1/1.
+
+After independent COMPLETE receiving of the actual preparation and exact
+published target, a maintainer issues a separate immutable commission on
+#1672 binding that acceptance, preparation and mapping. The designated
+executor authenticates those records at use and runs the ordinary initial Full
+once on #1672. Its seven Browser phases, owned cleanup, separate fresh-process
+receipt validation and result review determine final coverage. Reservation or
+interruption consumes the single invocation. Recovery and unchanged retries
+are zero. The two PRs share that one qualification.
+
 ### Prospective behavior-preserving improvement (source-correction v2)
 
 The separately dispatched `behavior_preserving_improvement` case represents a
