@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { canonical, hash } from '../apps/web_planning/src/contract.ts';
+import { browserApplications } from './browser-web-planning-applications.mjs';
 
 // Extends the existing participant journey: this publication and the separately
 // authenticated return/check/use/feedback all refer to the same real D1 request.
-export async function browserPublicRequest({publisher,visitor,local,root,seed,grant,click,set,settled,wait,navigate,barrier,checks}){
+export async function browserPublicRequest({publisher,visitor,newContext,local,root,seed,grant,click,set,settled,wait,navigate,barrier,checks}){
   const origin=local.origin,management=origin+'/publications/'+local.env.PROJECT_ID+'/'+seed.work_id;
   await publisher.send('Network.setCookie',{name:'web_planning_local',value:local.env.LOCAL_SESSION,url:origin,httpOnly:true,sameSite:'Strict'});
   async function enter(){await navigate(publisher,management);await wait(()=>publisher.eval("typeof current!=='undefined'&&!!current&&!busy"),'publication source read');}
@@ -74,8 +75,10 @@ export async function browserPublicRequest({publisher,visitor,local,root,seed,gr
   assert.equal((await local.db.prepare('SELECT count(*) n FROM web_planning_public_request WHERE publication_id=?').bind(unknown.publication_id).first()).n,1);
   checks.push('Unknown publication outcome in Chrome: failed create and absent read retain the operation ID; explicit exact retry commits one row without allocating another ID');
 
+  const checkApplicantAfterAnswer=await browserApplications({publisher,visitor,newContext,local,management,link,grant,click,set,settled,wait,navigate,barrier,checks});
   return async()=>{
     const answered=await publicJson(link);assert.equal(answered.status,'answered');assert.equal(answered.reply.can_submit,false);
+    await checkApplicantAfterAnswer();
     assert.deepEqual(answered.summary,published.summary);assert.deepEqual(answered.source,published.source);
     assert(!JSON.stringify(answered).includes('PRIVATE_'));
     await publisher.eval(`(()=>{const row=[...document.querySelectorAll('#publications section')].find(s=>s.querySelector('a')?.href===${JSON.stringify(link)});row.querySelector('button').click();})()`);await settled(publisher);

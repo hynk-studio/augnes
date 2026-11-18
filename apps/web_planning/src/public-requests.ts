@@ -1,4 +1,4 @@
-import { login, projectEntryEnabled, requireScope, type Access, type Environment } from './access';
+import { applicationMode, login, projectEntryEnabled, requireScope, type Access, type Environment } from './access';
 import { binding, boundedText, canonical, exact, fail, hash, headBinding, reference, sameBinding, UUID, workRef, type Binding, type WorkRef } from './contract';
 import { boundedDatabase, readWork, type Database, type Store } from './store';
 import { detectPrivacyRedactionRuntimeGuardFindingsV01 } from '../../../lib/privacy/redaction-guard';
@@ -82,6 +82,12 @@ function ownerView(s:Access,p:Publication) {
 }
 async function find(s:Access,id:string,publicationId:string) {
   return s.DB.prepare(`SELECT * FROM web_planning_public_request WHERE ${where}`).bind(...scope(s),id,publicationId).first<Publication>();
+}
+export async function ownedPublication(s:Access,workId:string,publicationId:string) {
+  owner(s);await publicRequestsAvailable(s);
+  const row=await find(s,workId,publicationId);
+  if(!row)fail('public_request_unavailable',404);
+  return {row,material:material(row)};
 }
 function locator(s:Access,id:string,input:Record<string,unknown>) {
   requireScope(s,input);
@@ -199,14 +205,20 @@ export async function readPublicRequest(env:Environment,publicId:string) {
   const status=answered?'answered':sameBinding(headBinding(chain.at(-1)),m.expected)?'active':'stale';
   // Recheck the complete disclosure eligibility immediately before returning a
   // public projection, including source head changes while history was read.
-  const current=await DB.prepare(`SELECT p.revoked_at,p.expires,g.revoked_at AS grant_revoked,g.expires AS grant_expires,
+  const intakeTables=applicationMode(env) && await DB.prepare(
+    "SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('web_planning_intake_event','web_planning_request_application')"
+  ).first<{count:number}>();
+  const intakeColumn=intakeTables && intakeTables.count===2
+    ? "(SELECT enabled FROM web_planning_intake_event WHERE publication_id=p.publication_id ORDER BY version DESC LIMIT 1)"
+    : "NULL";
+  const current=await DB.prepare(`SELECT p.revoked_at,p.expires,g.revoked_at AS grant_revoked,g.expires AS grant_expires, ${intakeColumn} AS intake_open,
       EXISTS(SELECT 1 FROM web_planning_erased e WHERE e.workspace_id=p.workspace_id AND e.project_id=p.project_id AND e.work_id=p.work_id) AS erased,
       (SELECT MAX(v.revision) FROM web_planning_revision v WHERE v.workspace_id=p.workspace_id AND v.project_id=p.project_id AND v.work_id=p.work_id) AS revision,
       (SELECT v.fingerprint FROM web_planning_revision v WHERE v.workspace_id=p.workspace_id AND v.project_id=p.project_id AND v.work_id=p.work_id ORDER BY v.revision DESC LIMIT 1) AS head_fingerprint
     FROM web_planning_public_request p JOIN web_planning_participation g ON g.workspace_id=p.workspace_id AND g.project_id=p.project_id AND g.work_id=p.work_id AND g.grant_id=p.grant_id
     JOIN web_planning_workspace w ON w.workspace_id=p.workspace_id AND w.project_id=p.project_id AND w.owner_login_hash=p.issuer_hash
     WHERE p.publication_id=? AND p.material_fingerprint=? AND g.disclosure_fingerprint=? AND w.author_ref=?`)
-    .bind(publicId,p.material_fingerprint,p.grant_fingerprint,m.issuer_ref).first<{revoked_at:string|null;expires:number;grant_revoked:string|null;grant_expires:number;erased:number;revision:number|null;head_fingerprint:string|null}>();
+    .bind(publicId,p.material_fingerprint,p.grant_fingerprint,m.issuer_ref).first<{revoked_at:string|null;expires:number;grant_revoked:string|null;grant_expires:number;intake_open:number|null;erased:number;revision:number|null;head_fingerprint:string|null}>();
   if(!current || current.erased) return tombstone(publicId,'source_unavailable');
   if(current.revoked_at!==null) return tombstone(publicId,'withdrawn');
   if(current.expires<=Date.now()) return tombstone(publicId,'expired');
@@ -217,8 +229,9 @@ export async function readPublicRequest(env:Environment,publicId:string) {
     issuer:{author_ref:m.issuer_ref,authentication:m.authentication,
       boundary:'This request was published by the authenticated project principal. This is attribution, not independently verified real-world or agent identity.'},
     expires:p.expires,observed_at:new Date().toISOString(),
+    ...(status==='active'&&current.intake_open===1?{intake:{schema:'augnes.public-request-intake.v1',url:env.APP_ORIGIN+'/apply/'+publicId}}:{}),
     reply:{url:env.APP_ORIGIN+'/participate/'+p.grant_id,can_submit:status==='active',
-      requirements:'Only the separately authenticated recipient of the existing scoped participation grant may submit. Public reading or possession of this link grants no access or authority.'},
+      requirements:'This link is for its designated authenticated recipient. Each recipient uses their own grant, and the request accepts one answer. Reading the public page grants no private access.'},
     boundary:'Owner-selected authored public summary, not independently verified findings or native accepted state. No spending, execution or new obligation is authorized. Withdrawal stops current service disclosure; it cannot recall copies already obtained.'};
 }
 export type PublicRequestView = Awaited<ReturnType<typeof readPublicRequest>>;

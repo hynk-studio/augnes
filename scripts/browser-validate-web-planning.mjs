@@ -282,10 +282,13 @@ try {
        local=await startLocal({root:path.join(root,'draft-safety-'+(++destination)),port,bindings});await login(c,local.origin);}});
  }
  async function publicationJourney({seed,grant}){
-   return browserPublicRequest({publisher:await page(debug,local.origin,true),visitor:await page(debug,local.origin,true),local,root,seed,grant,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
+   return browserPublicRequest({publisher:await page(debug,local.origin,true),visitor:await page(debug,local.origin,true),newContext:()=>page(debug,local.origin,true),local,root,seed,grant,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
  }
  if(publicOnly){
-   await navigate(a,'about:blank');await closeLocalRuntime();local=await startLocal({root:path.join(root,'public-request-browser'),bindings:{...participantBindings(),PUBLIC_REQUEST_MODE:'selected-public-request-v1'}});
+   await navigate(a,'about:blank');await closeLocalRuntime();local=await startLocal({root:path.join(root,'public-request-browser'),bindings:{
+     ...participantBindings(),PUBLIC_REQUEST_MODE:'selected-public-request-v1',REQUEST_APPLICATION_MODE:'verified-applicant-v1',
+     LOCAL_APPLICANT_SESSION:crypto.randomUUID(),LOCAL_APPLICANT_LOGIN:'applicant@example.test',
+     LOCAL_OTHER_SESSION:crypto.randomUUID(),LOCAL_OTHER_LOGIN:'another-reader@example.test'}});
    const owner=await page(debug,local.origin,true);await owner.send('Network.setCookie',{name:'web_planning_local',value:local.env.LOCAL_SESSION,url:local.origin,httpOnly:true,sameSite:'Strict'});await navigate(owner,local.origin+'/');await wait(()=>owner.eval("typeof api==='function'&&!busy"),'public-request owner');
    await browserParticipation({owner,participant:()=>page(debug,local.origin,true),local,root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks,publication:publicationJourney});
  }else if(cooperationOnly){

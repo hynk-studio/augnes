@@ -6,7 +6,7 @@ export interface Environment {
   DB: Database; APP_ORIGIN: string; OWNER_EMAIL: string; WORKSPACE_ID: string;
   PROJECT_ID: string; PROJECT_NAME?: string; AUTHOR_REF: string; REQUEST_SECRET: string;
   SITES_INGRESS_MODE?: string; RECONSTRUCTION_MODE?: string; PARTICIPATION_MODE?: string;
-  PROJECT_ENTRY_MODE?: string; PROJECT_ADMITTED_EMAILS?: string; PUBLIC_REQUEST_MODE?: string;
+  PROJECT_ENTRY_MODE?: string; PROJECT_ADMITTED_EMAILS?: string; PUBLIC_REQUEST_MODE?: string; REQUEST_APPLICATION_MODE?: string;
 }
 export type Principal = { login: string | null; localFixture?: true; ingress?: "sites" | "cloudflare-access" };
 export type Access = Store & { env: Environment; local: boolean; signout: string; recipientHash?: string;
@@ -29,13 +29,18 @@ export function selectedProject(request:Request):string|null {
     query!==null && header!==null && query!==header || [query,header].some(v=>v!==null&&!UUID.test(v)))fail('scope_denied',403);
   return header??query;
 }
-export async function authorize(request: Request, env: Environment, principal: Principal, participant?:string, projectEntry=false, successor?:string): Promise<Access> {
-  env={...env,DB:boundedDatabase(env.DB)};
+export function applicationMode(env:Environment) {
+  return env.REQUEST_APPLICATION_MODE==='verified-applicant-v1' &&
+    env.PUBLIC_REQUEST_MODE==='selected-public-request-v1' && env.PARTICIPATION_MODE==='verified-recipient-v1';
+}
+
+// This context cannot be passed to a private work, project, or recipient reader.
+export interface ApplicantAccess {
+  DB:Database; env:Environment; login:string; principalHash:string; publicationId:string; local:boolean; signout:string;
+}
+
+function authenticateRequest(request:Request,env:Environment,principal:Principal,entry:boolean) {
   const url=new URL(request.url);
-  const multi=projectEntryEnabled(env);
-  const projectNavigation=url.searchParams.getAll('project').length===1 && [...url.searchParams.keys()].every(k=>k==='project') &&
-    UUID.test(url.searchParams.get('project')??'') && (!request.headers.has('x-web-planning-project') || request.headers.get('x-web-planning-project')===url.searchParams.get('project'));
-  const entry=request.method==='GET' && ((url.pathname==='/' && (!url.search || projectNavigation)) || (multi&&url.pathname==='/projects'&&!url.search) || (multi&&/^\/delegations\/[a-f0-9-]{36}\/[a-f0-9-]{36}$/.test(url.pathname)&&!url.search) || (env.PUBLIC_REQUEST_MODE==='selected-public-request-v1'&&/^\/publications\/[a-f0-9-]{36}\/[a-f0-9-]{36}$/.test(url.pathname)&&!url.search) || (multi&&successor&&url.pathname==='/continue/'+successor&&!url.search) || (participant && /^\/participate\/[a-f0-9-]{36}$/.test(url.pathname)&&!url.search));
   // One fixed classification per refused entry; never serialize a request,
   // identity, environment value, or exception into production logs.
   function refuse(reason:string,code:string,status:number):never {
@@ -53,10 +58,33 @@ export async function authorize(request: Request, env: Environment, principal: P
   // exact entry page gets this exception, never APIs, subresources or frames.
   const navigation=entry && request.headers.get('sec-fetch-mode')==='navigate' && request.headers.get('sec-fetch-dest')==='document';
   if (["cross-site","same-site"].includes(request.headers.get("sec-fetch-site")??"") && !navigation) refuse('fetch_metadata','same_origin_required',403);
-  const selection=selectedProject(request);
   if (!principal.localFixture && (origin.protocol!=="https:" || request.headers.has("x-web-planning-local-owner"))) refuse('untrusted_transport_or_local_identity','access_denied',403);
   if (!login(principal.login)) refuse(principal.ingress==='cloudflare-access'?'access_identity_unavailable':env.SITES_INGRESS_MODE!=='verified-private-sites'?'ingress_disabled':
     request.headers.has('oai-authenticated-user-email')?'identity_invalid':'identity_absent','access_denied',403);
+  return refuse;
+}
+
+export function authorizeApplicant(request:Request,env:Environment,principal:Principal,publicationId:string):ApplicantAccess {
+  if(!applicationMode(env) || !UUID.test(publicationId)) fail('application_unavailable',404);
+  const url=new URL(request.url);
+  const entry=request.method==='GET' && url.pathname==='/apply/'+publicationId && !url.search;
+  authenticateRequest(request,env,principal,entry);
+  const email=login(principal.login);
+  if(!email || email.length>254 || (!principal.localFixture && !principal.ingress) ||
+    url.search || request.headers.has('x-web-planning-project')) fail('access_denied',403);
+  const DB=boundedDatabase(env.DB);
+  return {DB,env:{...env,DB},publicationId,login:email,principalHash:hash(email),local:!!principal.localFixture,
+    signout:principal.ingress==='cloudflare-access'?'/cdn-cgi/access/logout':'/signout-with-chatgpt'};
+}
+export async function authorize(request: Request, env: Environment, principal: Principal, participant?:string, projectEntry=false, successor?:string): Promise<Access> {
+  env={...env,DB:boundedDatabase(env.DB)};
+  const url=new URL(request.url);
+  const multi=projectEntryEnabled(env);
+  const projectNavigation=url.searchParams.getAll('project').length===1 && [...url.searchParams.keys()].every(k=>k==='project') &&
+    UUID.test(url.searchParams.get('project')??'') && (!request.headers.has('x-web-planning-project') || request.headers.get('x-web-planning-project')===url.searchParams.get('project'));
+  const entry=request.method==='GET' && ((url.pathname==='/' && (!url.search || projectNavigation)) || (multi&&url.pathname==='/projects'&&!url.search) || (multi&&/^\/delegations\/[a-f0-9-]{36}\/[a-f0-9-]{36}$/.test(url.pathname)&&!url.search) || (env.PUBLIC_REQUEST_MODE==='selected-public-request-v1'&&/^\/publications\/[a-f0-9-]{36}\/[a-f0-9-]{36}$/.test(url.pathname)&&!url.search) || (multi&&successor&&url.pathname==='/continue/'+successor&&!url.search) || (participant && /^\/participate\/[a-f0-9-]{36}$/.test(url.pathname)&&!url.search));
+  const refuse:(reason:string,code:string,status:number)=>never=authenticateRequest(request,env,principal,Boolean(entry));
+  const selection=selectedProject(request);
   if(participant){if(!principal.localFixture&&!principal.ingress)refuse('ingress_unverified','access_denied',403);if(env.PARTICIPATION_MODE!=='verified-recipient-v1')refuse('participation_disabled','access_denied',403);}
   else if(multi){
     if(!principal.localFixture&&!principal.ingress)refuse('ingress_unverified','access_denied',403);
@@ -126,11 +154,11 @@ export async function authorize(request: Request, env: Environment, principal: P
   return {...common,workspace_id:env.WORKSPACE_ID,project_id:env.PROJECT_ID,author_ref:env.AUTHOR_REF,ownerHash:expected.owner_login_hash,
     projectName:env.PROJECT_NAME,...(participant?{recipientHash:common.principalHash}:{})};
 }
-export function seal(access: Access, material: unknown): string {
+export function seal(access: Pick<Access,"env">, material: unknown): string {
   const text=Buffer.from(canonical(material)).toString("base64url");
   return text+"."+createHmac("sha256",access.env.REQUEST_SECRET).update(text).digest("base64url");
 }
-export function unseal(access: Access, value: unknown): Record<string,any> {
+export function unseal(access: Pick<Access,"env">, value: unknown): Record<string,any> {
   if(typeof value!=="string" || value.length>2500 || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value)) fail("invalid_request_binding",403);
   const [data,sig]=value.split(".");
   const expected=createHmac("sha256",access.env.REQUEST_SECRET).update(data).digest();
@@ -155,32 +183,37 @@ export function readTicket(access: Access, value: unknown, work_id: string, allo
   return t as Ticket;
 }
 const COOKIE="web_planning_csrf";
-function csrfCookieName(access:Access):string {
+type CsrfContext = Access | ApplicantAccess;
+function csrfCookieName(access:CsrfContext):string {
+  if('publicationId' in access)return COOKIE+'_apply_'+access.publicationId;
   if(!projectEntryEnabled(access.env))return COOKIE;
   if(access.projectEntry)return COOKIE+'_account_'+access.principalHash.slice(7);
   return COOKIE+'_project_'+access.project_id+(access.successorId?'_successor_'+access.successorId:'')+(access.recipientHash?'_recipient_'+access.recipientHash.slice(7):'');
 }
-function cookie(access:Access,request:Request):string|null {
+function cookie(access:CsrfContext,request:Request):string|null {
   const name=csrfCookieName(access);
   const values=(request.headers.get("cookie")??"").split(";").map(v=>v.trim()).filter(v=>v.startsWith(name+"="));
   return values.length===1? values[0].slice(name.length+1):null;
 }
-export function csrfToken(access: Access, request: Request): string {
-  const existing=cookie(access,request);
-  try { if(existing) { validateCsrf(access,existing); return existing; } } catch { /* New page explicitly rebinds an expired CSRF token. */ }
-  return seal(access,{kind:"csrf",...identity(access),...(access.recipientHash?{recipient:access.recipientHash}:{}),...(access.successorId?{delegation:access.successorId}:{}),...(access.projectEntry?{account:access.principalHash}:{}),nonce:crypto.randomUUID(),expires:Date.now()+86_400_000});
+function csrfBinding(access:CsrfContext):Record<string,string> {
+  if('publicationId' in access) return {workspace_id:access.env.WORKSPACE_ID,publication_id:access.publicationId,
+    applicant:access.principalHash,operation:'apply'};
+  return {...identity(access),...(access.recipientHash?{recipient:access.recipientHash}:{}),
+    ...(access.successorId?{delegation:access.successorId}:{}),...(access.projectEntry?{account:access.principalHash}:{})};
 }
-function validateCsrf(access:Access,value:unknown) {
-  const t=unseal(access,value);
-  exact(t,"kind,workspace_id,project_id,author_ref,nonce,expires"+(access.recipientHash?",recipient":"")+(access.successorId?",delegation":"")+(access.projectEntry?",account":""));
-  if(access.successorId && t.delegation!==access.successorId)fail("csrf_required",403);
-  if(access.recipientHash && t.recipient!==access.recipientHash)fail("csrf_required",403);
-  if(access.projectEntry && t.account!==access.principalHash)fail('csrf_required',403);
-  if(t.kind!=="csrf" || t.workspace_id!==access.workspace_id || t.project_id!==access.project_id || t.author_ref!==access.author_ref ||
+export function csrfToken(access:CsrfContext,request:Request):string {
+  const existing=cookie(access,request);
+  try { if(existing) { validateCsrf(access,existing); return existing; } } catch { /* The entry page rebinds an expired token. */ }
+  return seal(access,{kind:"csrf",...csrfBinding(access),nonce:crypto.randomUUID(),expires:Date.now()+86_400_000});
+}
+function validateCsrf(access:CsrfContext,value:unknown) {
+  const t=unseal(access,value),bound=csrfBinding(access);
+  exact(t,['kind','nonce','expires',...Object.keys(bound)].join(','));
+  if(t.kind!=="csrf" || Object.entries(bound).some(([key,expected])=>t[key]!==expected) ||
     !UUID.test(t.nonce) || !Number.isSafeInteger(t.expires) || t.expires<Date.now()) fail("csrf_required",403);
 }
-export function csrfCookie(access:Access,token:string) { return `${csrfCookieName(access)}=${token}; Path=/; HttpOnly; SameSite=Strict${access.local?"":"; Secure"}`; }
-export function requireCsrf(access:Access,request:Request) {
+export function csrfCookie(access:CsrfContext,token:string) { return `${csrfCookieName(access)}=${token}; Path=/; HttpOnly; SameSite=Strict${access.local?"":"; Secure"}`; }
+export function requireCsrf(access:CsrfContext,request:Request) {
   if(request.headers.get("origin")!==access.env.APP_ORIGIN || !cookie(access,request) || request.headers.get("x-csrf-token")!==cookie(access,request)) fail("csrf_required",403);
   validateCsrf(access,cookie(access,request));
 }

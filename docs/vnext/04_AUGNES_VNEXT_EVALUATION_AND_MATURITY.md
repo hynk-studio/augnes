@@ -723,6 +723,17 @@ checked use, executor replacement and voluntary repeat participation retain
 separate evidence. This public projection alone does not satisfy #1642's
 producer-to-transport-to-consumer integration or demonstrate economic demand.
 
+For optional participation applications, the [four-role Worker scenario](../../scripts/web-planning-application-checks.mjs)
+follows an owner, original recipient, applicant and unrelated reader through
+individual disclosure, direct file return, checked use and fresh-session
+feedback. The [commit-boundary cases](../../scripts/web-planning-application-races.mjs)
+exercise a changed request, concurrent owner decisions, quota limits and
+decision/grant rollback. Recovery must preserve exported work, isolate the
+selected project and keep historical decisions from renewing access. Browser
+evidence covers the actual application controls and uncertain outcomes in
+separate signed-in sessions. Hosted reachability and independently operated
+participation require observations from their respective environments.
+
 ### Cross-project contribution evidence (#1630)
 
 Require independently owned A/B projects to complete deliberate request sharing,

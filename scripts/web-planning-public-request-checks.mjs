@@ -3,6 +3,9 @@ import { randomUUID, createHash } from 'node:crypto';
 import { canonical, hash, headBinding } from '../apps/web_planning/src/contract.ts';
 import { planningDraft, prepareReturnDraft } from '../apps/augnes_apps/scripts/planning-notes.mjs';
 import { participantBindings, participantClient, participantEmail } from './web-planning-participation-checks.mjs';
+import { retainedApplications } from './web-planning-application-recovery-checks.mjs';
+import { checkApplicantIngress, checkPublicRequestApplications } from './web-planning-application-checks.mjs';
+import { projectSession } from './web-planning-project-checks.mjs';
 
 const mode = 'selected-public-request-v1';
 const route = (work, suffix = '') => '/api/work/' + work.work_id + (suffix ? '/' + suffix : '');
@@ -19,13 +22,13 @@ export async function checkPublicRequests({ start, client, newWork, save, passed
   const bindings = { ...participantBindings(), PUBLIC_REQUEST_MODE: mode };
   const server = await start('public-requests', { bindings });
   let owner = await client(server);
-  const req = async (path, body) => {
-    const r = await owner.request(path, body);
+  const req = async (path, body, issuer = owner) => {
+    const r = await issuer.request(path, body);
     assert.equal(r.status, 200, JSON.stringify(r.data));
     return r.data;
   };
-  async function seed(label) {
-    const initial = await save(owner, await newWork(owner, {
+  async function seed(label, issuer = owner) {
+    const initial = await save(issuer, await newWork(issuer, {
       goal: 'PRIVATE_OWNER_PURPOSE_' + label,
       success_criteria: ['Publish an accurate attendee notice'], non_goals: ['PRIVATE_BUDGET_BOUNDARY'],
     }, [{ source: 'Private planning note', text: 'PRIVATE_INTERNAL_NOTE_' + label, observed_at: null, provenance: 'user_declaration', label: 'Open question' }]));
@@ -35,12 +38,12 @@ export async function checkPublicRequests({ start, client, newWork, save, passed
       kind: 'request', basis: null, expected: headBinding(base), request_key: randomUUID(),
       message: 'PRIVATE_REQUEST_REASON_' + label, next_action: 'PRIVATE_OWNER_NEXT',
       files: [file('notice.md', 'Workshop starts at 18:30. Use the north entrance.\r\n'), file('budget-private.txt', 'PRIVATE_BUDGET_BYTES')],
-    });
+    }, issuer);
     const grant = await req(route(base, 'participation/create'), {
       grant_id: randomUUID(), request: event.item.ref, expected: event.head, recipient: participantEmail,
       brief: 'Clarify arrival time and the step-free entrance.', next_action: 'Return a corrected attendee notice.',
       indices: [0], expires: Date.now() + 2 * 86400000,
-    });
+    }, issuer);
     const input = {
       publication_id: randomUUID(), request: event.item.ref, expected: event.head, grant_id: grant.id,
       summary: {
@@ -237,8 +240,19 @@ export async function checkPublicRequests({ start, client, newWork, save, passed
   // An unanswered request still uses the existing v0.5 exchange export; publication
   // is operational metadata and must not promote its work/export format.
   assert.equal(exported.format, 'web_planning_export.v0.5');
-  const reconstructed = await restorer.request('/api/reconstruct-files', { export: exported, confirm: 'reconstruct-empty-store' });
+  const recovery = await retainedApplications(server.db, restore.db, erased.input.publication_id);
+  assert.deepEqual(await req(route(erased.base, 'export')), exported);
+  const reconstruct = () => restorer.request('/api/reconstruct-files', { export: exported, confirm: 'reconstruct-empty-store' });
+  // A failure after revoking the old publication rolls back both its grant
+  // revocation and pending-application invalidation with the history import.
+  await restore.db.prepare("CREATE TRIGGER fail_application_restore BEFORE INSERT ON web_planning_revision BEGIN SELECT RAISE(ABORT, 'fixture_restore_failure'); END").run();
+  assert.equal((await reconstruct()).status, 503);
+  await recovery.checkRolledBack();
+  await restore.db.prepare('DROP TRIGGER fail_application_restore').run();
+  const reconstructed = await reconstruct();
   assert.equal(reconstructed.status, 200, JSON.stringify(reconstructed.data));
+  assert.deepEqual((await restorer.request(route(erased.base, 'export'))).data, exported);
+  await recovery.checkInvalidated(restore.db);
   const restoredPublic = await restore.mf.dispatchFetch(restore.origin + '/public-requests/' + erased.input.publication_id + '.json');
   assert.equal(restoredPublic.status, 200);
   const restoredView = await restoredPublic.json();
@@ -250,6 +264,7 @@ export async function checkPublicRequests({ start, client, newWork, save, passed
   })).status, 403);
   await req(route(erased.base, 'erase'), { expected: erased.event.head, confirm: 'erase-whole-work' });
   await unavailable(erased.input.publication_id, 'source_unavailable');
+  await recovery.checkInvalidated(server.db);
   assert.equal(server.externalRequests(), 0);
   assert.equal(restore.externalRequests(), 0);
   passed('public requests: source erasure removes public material; supported reconstruction retires retained publication and recipient authority instead of reviving public access');
@@ -257,12 +272,13 @@ export async function checkPublicRequests({ start, client, newWork, save, passed
   // Exercise the compiled direct Worker and the pinned Wrangler/D1 migration
   // path. Anonymous reads must work without ctx.access, while private routes
   // still refuse identity headers/cookies supplied by the caller.
-  const direct = await start('public-requests-direct', { direct: true, bindings });
+  const direct = await start('public-requests-direct', { direct: true, bindings: { ...bindings, REQUEST_APPLICATION_MODE: 'verified-applicant-v1' } });
   const previousOwner = owner;
   try {
     owner = await client(direct, { entryHeaders: { 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document', 'sec-fetch-site': 'none' } });
     const selected = await seed('direct-worker');
     await req(publications(selected.base, 'create'), selected.input);
+    await checkApplicantIngress(direct, selected, req);
     await direct.setOptions({ access: undefined });
     const locator = direct.origin + '/public-requests/' + selected.input.publication_id;
     const json = await direct.mf.dispatchFetch(locator + '.json', { headers: { origin: 'https://outside.example.test', 'sec-fetch-site': 'cross-site' } });
@@ -275,10 +291,26 @@ export async function checkPublicRequests({ start, client, newWork, save, passed
     assert.equal(html.status, 200);
     assert((await html.text()).includes(encode(selected.input.summary.purpose)));
     const spoof = { 'oai-authenticated-user-email': direct.env.OWNER_EMAIL, 'Cf-Access-Authenticated-User-Email': direct.env.OWNER_EMAIL, cookie: 'web_planning_local=' + direct.env.LOCAL_SESSION };
-    for (const privatePath of ['/api/works', publications(selected.base), '/participate/' + selected.grant.id]) {
+    for (const privatePath of ['/api/works', publications(selected.base), '/participate/' + selected.grant.id,
+      '/apply/' + selected.input.publication_id, '/api/applications/' + selected.input.publication_id]) {
       assert.equal((await direct.mf.dispatchFetch(direct.origin + privatePath, { headers: spoof })).status, 403);
     }
     assert.equal(direct.externalRequests(), 0);
   } finally { owner = previousOwner; }
-  passed('public requests: compiled direct Worker and Wrangler-applied D1 migrations publish the selected view; absent platform Access permits anonymous HTML/JSON only, while spoofed identities cannot read private work or submit');
+  passed('public requests: compiled direct Worker and Wrangler-applied migrations accept the simulated Access applicant only on its application path; clearing Access preserves the anonymous projection and refuses private requests');
+
+  const applications = await start('public-request-applications', { bindings: {
+    ...bindings, REQUEST_APPLICATION_MODE: 'verified-applicant-v1',
+    PROJECT_ENTRY_MODE: 'admitted-private-v1', PROJECT_ADMITTED_EMAILS: '[]',
+    LOCAL_APPLICANT_SESSION: randomUUID(), LOCAL_APPLICANT_LOGIN: 'workshop-volunteer@example.test',
+    LOCAL_OTHER_SESSION: randomUUID(), LOCAL_OTHER_LOGIN: 'other-reader@example.test',
+  } });
+  const freshOwner = () => projectSession(applications, 'A', {
+    workspace_id: applications.env.WORKSPACE_ID, project_id: applications.env.PROJECT_ID,
+  });
+  const issuer = await freshOwner();
+  await checkPublicRequestApplications({
+    server: applications, owner: issuer, freshOwner,
+    seed: label => seed(label, issuer), file, passed,
+  });
 }
