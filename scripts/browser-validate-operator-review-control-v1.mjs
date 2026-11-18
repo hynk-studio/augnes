@@ -100,6 +100,7 @@ await runOperatorExecutionBrowserChildV1({
         "Failed to load resource: the server responded with a status of 409 (Conflict)") ||
     allowExpectedInspectorConsoleDelivery(entry) ||
     ([
+      "operator_session_refusal_recovery",
       "project_controls_and_automation",
       "strategic_analysis_and_proposal_review",
       "result_review_and_inspector",
@@ -1273,11 +1274,26 @@ await runOperatorExecutionBrowserChildV1({
       result.guide_brief_post_application_consistent = true;
       completeDetailedField("guide_brief_post_application_consistent");
       const afterApply = databaseFingerprint(fixture.writable_database_path);
+      const guideDocumentsBeforeReload = new Set(
+        lifecycle.guideLifecycleSnapshot().events.map((event) => event.documentId),
+      );
       await lifecycle.cdp().send("Page.reload", { ignoreCache: true });
       await lifecycle.waitForCondition(
-        `document.querySelector('[data-vnext-semantic-review-detail="v0.1"]') !== null`,
-        "applied proposal reload",
+        `document.querySelector('[data-vnext-semantic-review-detail="v0.1"]') !== null &&
+          document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-status="available"][data-ai-workplane-guide-loading="false"]') !== null`,
+        "applied proposal and available GuideBrief after reload",
       );
+      // The next phase leaves this document before restarting the runtime.
+      // Wait for the reloaded consumer's observed adoption before leaving it.
+      await lifecycle.waitForHostCondition(() => {
+        const guide = lifecycle.guideLifecycleSnapshot();
+        return guide.complete && guide.events.some((event) =>
+          event.kind === "consumer" && event.event === "committed" &&
+          !guideDocumentsBeforeReload.has(event.documentId) &&
+          event.current === true && event.same_controller === true &&
+          event.aborted === false && event.context_current === true
+        );
+      }, "reloaded GuideBrief adopted by its current consumer");
       assert.equal(databaseFingerprint(fixture.writable_database_path), afterApply);
       result.semantic_transition_reload_idempotent = true;
       completeDetailedField("semantic_transition_reload_idempotent");

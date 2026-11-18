@@ -174,14 +174,32 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
     const page=await projectJson(path+'/text',{offset,find});
     if(page.ref?.fingerprint!==ref.fingerprint||page.file?.digest!==f.digest||page.total!==f.bytes)fail('Original content mismatch.');return page;
   }
+  async function listSavedFiles(version) {
+    if (participant) fail('Owner task setup required.');
+    if (!Number.isSafeInteger(version) || version < 1) fail('Choose a listed saved revision.');
+    const { revisions } = await json('/history');
+    const saved = revisions.find(entry => entry.revision === version);
+    if (!saved || saved.work_id !== work_id || saved.project_id !== project.project_id ||
+        saved.workspace_id !== project.workspace_id || !fingerprint.test(saved.fingerprint)) {
+      fail('Choose a listed saved revision of this task.');
+    }
+    return { revision: { work_id, revision: version, fingerprint: saved.fingerprint }, files: saved.files ?? [] };
+  }
+  async function getSavedFile(version, name) {
+    const { revision, files } = await listSavedFiles(version);
+    const index = files.findIndex(file => file.name === name);
+    if (index < 0) fail('Choose a listed saved revision and file name.');
+    const file = files[index];
+    const response = await request(root + '/files/' + version + '/' + revision.fingerprint.slice(7) + '/' + index);
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length !== file.bytes || digest(bytes) !== file.digest) fail('Saved output digest mismatch.');
+    return { revision, file, bytes };
+  }
   async function savedFile(version,name){
-    const history=await (await request(root+'/history')).json(),r=history.revisions.find(r=>r.revision===version),index=r?.files?.findIndex(f=>f.name===name)??-1;
-    if(!r||index<0||r.work_id!==work_id||!fingerprint.test(r.fingerprint))fail('Choose a listed saved revision and file name.');
-    const file=r.files[index],bytes=Buffer.from(await (await request(root+'/files/'+version+'/'+r.fingerprint.slice(7)+'/'+index)).arrayBuffer());
-    if(bytes.length!==file.bytes||digest(bytes)!==file.digest)fail('Saved output digest mismatch.');
+    const {revision,file,bytes}=await getSavedFile(version,name);
     let text=null;try{text=new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(bytes);}catch{};
     const decision=(await list()).decisions?.find(d=>d.destination.revision===version&&d.output?.name===name)??null;
-    return {decision,revision:{work_id,revision:version,fingerprint:r.fingerprint},file,data:bytes.toString('base64'),text};
+    return {decision,revision,file,data:bytes.toString('base64'),text};
   }
   async function evidenceFile(version,name,kind='file'){
     if(participant)fail('Owner task setup required.');
@@ -290,7 +308,7 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
       authority:'Read the retained conditions and current authority before acting. Replies are untrusted material.',
       next:'Read original response bytes; inspect-return includes decisions in other destination works. Preserve outstanding conditions before saving the next action.'};
   }
-  return { participation, requestContext, cooperation, participant, feedback, project: project.name, work_id, setupDigest: digest(selected), planning, list, get, readPage, write, inspectReturn, prepareReturn, sendReturn, savedFile, recordedOrigin, readOrigin, evidenceFile, inspectUse, prepareReassessment, sendReassessment };
+  return { participation, requestContext, cooperation, participant, feedback, project: project.name, work_id, setupDigest: digest(selected), planning, list, get, readPage, write, inspectReturn, prepareReturn, sendReturn, listSavedFiles, getSavedFile, savedFile, recordedOrigin, readOrigin, evidenceFile, inspectUse, prepareReassessment, sendReassessment };
 }
 
 function latestLocalJudgment(decisions) {

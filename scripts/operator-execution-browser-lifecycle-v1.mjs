@@ -1172,6 +1172,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     terminateRuntime,
     cleanup,
     evidence,
+    guideLifecycleSnapshot: guideLifecycle.snapshot,
     requestFailureVerdict(entry) {
       return classifyOperatorLifecycleRequestFailureV1(entry, requestVerdicts);
     },

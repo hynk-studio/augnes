@@ -32,23 +32,17 @@ engine, require a model call or change the existing approval boundaries.
 
 ## Try a method without setup
 
-**Software Change Check:** Check an installation, package delivery or version
-change with your coding agent and the project's existing checks.
-[Free Agensi listing](https://www.agensi.io/skills/augnes-software-change-check) ·
-[Source and examples](skills/verify-software-change/SKILL.md) ·
-[Distribution status and result/correction path](docs/SOFTWARE_CHANGE_SKILL_DISTRIBUTION.md).
-This is separate from the workflow-cost calculator below. It requires a
-code-capable agent with authorized access to the subject and its checks;
-the optional input snapshot helper needs Python 3.9+. No Augnes runtime or
-account is required. Delivery through Agensi requires an Agensi connection.
+You can read either worked result without an account, a coding agent, or Python.
 
-**Without installing Augnes does not mean zero prerequisites.** This small,
-optional workflow-cost calculator estimates **expected total work** for repeated
-attempts from supplied success probabilities and attempt, mandatory verification,
-repair and optional inspection costs. You still need to download and verify the
-files and have Python 3.9+ with permission to run them, or separately install
-the Codex Skill on a supported host. The calculator does **not** learn rates,
-guarantee deadlines or replace Augnes's local work-continuity runtime.
+| Your question | Result you can inspect now | Use it on your own work |
+|---|---|---|
+| Did the update reach the intended installation? | In this [reproducible example](skills/verify-software-change/examples/request-and-result.md#installation-says-complete-but-updates-the-wrong-profile), the installer reported success. The requested profile stayed at 0.1 while the default profile changed to 0.2. | Follow [Software Change Check](skills/verify-software-change/SKILL.md) with a coding agent that can access your destination and its existing checks. The optional input snapshot helper needs Python 3.9+. |
+| Would inspecting each attempt reduce the total work? | In the [worked calculation](publications/workflow-cost-v1/README.md#interpret-the-result-and-choose-the-next-action), optional inspection reduces expected work from 36 to 17.25 units. Raising the inspection cost from 1 to 20 changes the estimate to 41. These figures follow from the example inputs. | Use the [standalone Python 3.9+ method](publications/workflow-cost-v1/README.md#download-and-check-before-execution) with your own costs and fixed success probabilities. Mandatory verification counts on both paths. |
+
+Keep the result privately or, if you have a shareable Software Change Check
+correction, [return it to the existing maintainer thread](docs/SOFTWARE_CHANGE_SKILL_DISTRIBUTION.md#return-a-result-or-correction).
+The [free Agensi listing](https://www.agensi.io/skills/augnes-software-change-check)
+offers a separate delivery option through an Agensi connection.
 
 **Public component preview:** [Augnes workflow-cost Skill/plugin 0.1.0](https://github.com/hynk-studio/augnes/releases/tag/augnes-workflow-cost-v0.1.0) is now available as a **Pre-release**. [Download the complete ZIP](https://github.com/hynk-studio/augnes/releases/download/augnes-workflow-cost-v0.1.0/augnes-workflow-cost-0.1.0.zip) · [Verify and load the Skill](docs/PUBLIC_ASSET_SKILL_USAGE.md). This is not a general Augnes application release, a universal plugin-directory listing or a stable cross-host compatibility claim.
 

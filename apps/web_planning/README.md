@@ -10,6 +10,8 @@ An explicitly downloaded complete export can be admitted by the separate native
 requires selected current-revision text and an exact authorized native target;
 Web/native stores and Web reconstruction remain independent.
 
+To take one original file into later work, use [Download a saved file](#download-a-saved-file).
+
 ## Independent private projects (opt-in)
 
 With `PROJECT_ENTRY_MODE=admitted-private-v1` and `PROJECT_ADMITTED_EMAILS` set to
@@ -1546,6 +1548,32 @@ context. File handling does not infer file-to-note dependencies. Ordinary files
 now support the direct branch and selective incorporation path below. The C
 scene-direction flow continues to own reserved notebook inheritance and fictional
 adoption; generic file choices cannot bypass it. File-free behavior is unchanged.
+
+### Download a saved file
+
+For the current revision, reopen the work in its private project, choose **Saved
+context**, then **Download** beside the file. For an earlier revision, the
+[authenticated task client](#connect-a-local-or-hosted-assistant) can list its
+ordinary file selection and write one original to a new path. For example, if
+revision 2 lists `report.pdf`, use:
+
+```sh
+node "$FILE_CLIENT" "$TASK" history
+node "$FILE_CLIENT" "$TASK" list-saved 2
+node "$FILE_CLIENT" "$TASK" get-saved 2 report.pdf ./report-rev2.pdf
+```
+
+The list includes names, roles, byte counts and SHA-256 digests. The download
+checks the bytes against that revision and returns its work ID, revision
+fingerprint and file metadata. The output path must be new. Use
+`history 2` to read the selected notes and conditions for that revision. When
+carrying the file into another project, open that project explicitly and select
+the downloaded file and any source, attribution or use conditions you may carry.
+If the file came from an earlier contribution and your requirements have
+changed, [reopen its use decision](#reconsider-an-existing-returned-file-use-1593)
+to compare the earlier basis with the evidence for your next action.
+For a file shared through a participant request, use the existing scoped
+[`list` and `get` commands](#participant-cli-and-agent-connection).
 
 ### Ordinary file branches and deliberate replacement (#1517)
 
