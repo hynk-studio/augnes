@@ -100,6 +100,7 @@ await runOperatorExecutionBrowserChildV1({
         "Failed to load resource: the server responded with a status of 409 (Conflict)") ||
     allowExpectedInspectorConsoleDelivery(entry) ||
     ([
+      "operator_session_refusal_recovery",
       "project_controls_and_automation",
       "strategic_analysis_and_proposal_review",
       "result_review_and_inspector",
