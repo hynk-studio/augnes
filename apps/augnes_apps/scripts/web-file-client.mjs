@@ -276,11 +276,13 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
     const scopes=[];let cursor;
     do{const page=await participation.list(cursor);scopes.push(...page.grants.filter(g=>g.disclosure.request.fingerprint===request.ref.fingerprint));cursor=page.next;}while(cursor);
     const responses=state.items.filter(i=>i.basis?.fingerprint===request.ref.fingerprint);
+    const answeredGrantId = responses[0]?.contributor?.grant_id;
     const decisions=state.decisions.filter(d=>d.request.fingerprint===request.ref.fingerprint);
     if((await list()).head.fingerprint!==state.head.fingerprint)fail('refresh_required');
     return {current,request_basis:history[request.ref.revision-2],request,responses,decisions,
       last_local_use:decisions.at(-1)??null,
-      scopes:scopes.map(g=>({...g,status:g.revoked_at?'revoked':g.expires<=Date.now()?'expired':responses.length?'answered':
+      latest_local_judgment: latestLocalJudgment(decisions),
+      scopes:scopes.map(g=>({...g,status:g.revoked_at?'revoked':g.expires<=Date.now()?'expired':g.id===answeredGrantId?'answered':
         !isDeepStrictEqual(g.disclosure.expected,state.head)?'stale':'open'})),
       delivery:responses.length?'correlated_response_recorded':'UNKNOWN',
       // No read receipt exists on this transport. A URL/grant is not delivery,
@@ -289,6 +291,18 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
       next:'Read original response bytes; inspect-return includes decisions in other destination works. Preserve outstanding conditions before saving the next action.'};
   }
   return { participation, requestContext, cooperation, participant, feedback, project: project.name, work_id, setupDigest: digest(selected), planning, list, get, readPage, write, inspectReturn, prepareReturn, sendReturn, savedFile, recordedOrigin, readOrigin, evidenceFile, inspectUse, prepareReassessment, sendReassessment };
+}
+
+function latestLocalJudgment(decisions) {
+  let latest = null;
+  for (const use of decisions) {
+    const reassessment = use.current?.judgment;
+    const revision = reassessment?.revision ?? use.destination;
+    if (latest && latest.revision.revision >= revision.revision) continue;
+    const { decision, rationale, limits, next_action } = reassessment ?? use;
+    latest = { use: use.destination, revision, decision, rationale, limits, next_action };
+  }
+  return latest;
 }
 
 // A separately authenticated successor uses only the one-work continuation routes.
