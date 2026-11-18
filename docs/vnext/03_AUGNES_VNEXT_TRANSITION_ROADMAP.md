@@ -117,7 +117,7 @@ installed or published adoption remain distinct.
 | [#1599](https://github.com/hynk-studio/augnes/issues/1599) / [#1601](https://github.com/hynk-studio/augnes/pull/1601) | Native pending-authoring and departure protection merged. | Use that implementation as the baseline; keep subsequent navigation and QA findings with #1608/#1609. |
 | [#1561](https://github.com/hynk-studio/augnes/issues/1561) / [#1562](https://github.com/hynk-studio/augnes/pull/1562) | Bounded Companion result-linked successor preparation merged. | Observe necessary ordinary follow-up under L1; broader usefulness and installed adoption are separate. |
 | [#1559](https://github.com/hynk-studio/augnes/issues/1559) / [#1560](https://github.com/hynk-studio/augnes/pull/1560), [#1613](https://github.com/hynk-studio/augnes/pull/1613) | Direction-history verification work and the later protected Git-input maintenance merged. | Preserve their own evidence and remaining owners; neither merge qualifies another candidate. |
-| [#1608](https://github.com/hynk-studio/augnes/issues/1608) / [Draft #1614](https://github.com/hynk-studio/augnes/pull/1614) | Native navigation candidate remains open; receiving r4 source decision is REVISE and qualification is HOLD. | Complete the existing synthetic-output isolation correction and its applicable review/qualification. |
+| [#1608](https://github.com/hynk-studio/augnes/issues/1608) / [#1614](https://github.com/hynk-studio/augnes/pull/1614) | At this snapshot, r4 required source revision and qualification was on hold. | [#1672](https://github.com/hynk-studio/augnes/pull/1672) subsequently delivered the qualified change and closed #1608 on 2026-11-18. |
 | [#1609](https://github.com/hynk-studio/augnes/issues/1609) / [Draft #1611](https://github.com/hynk-studio/augnes/pull/1611) | r11 records Full 16/16 and Browser 7/7 PASS at `0f818e85`; separate stock is false solely for `receipt_stale_integration_base`. Current applicability remains HOLD. | Resolve current-main applicability under its existing owner. Preserve recorded PASS and consumed 1/1 lineage; this update creates no rerun or successor authority. |
 | [#1610](https://github.com/hynk-studio/augnes/issues/1610) / [Draft #1612](https://github.com/hynk-studio/augnes/pull/1612) | R14 measures the complete synthetic authority fixture and corrects registered generated-declaration eligibility from received `86e0648c`. Accepted product/B1 behavior and the early dependency gate are retained. R13 remains 6 PASS / 1 FAIL / 9 NOT_RUN with false stock/15 and UNKNOWN timeout cause; qualification remains HOLD. | Complete connected production-owner controls, independent exact-source/preparation review, distinct subsequent authority, one prospective deciding invocation and separate fresh stock under [the actual R14 delegation](https://github.com/hynk-studio/augnes/pull/1612#issuecomment-6782612663). Preserve every spent commission and earlier target; this summary supplies no grant. |
 | [#1615](https://github.com/hynk-studio/augnes/issues/1615) / [merged plan #1616](https://github.com/hynk-studio/augnes/pull/1616) | Pi plan merged; source diagnosis identifies the managed-host evidence attribution gap. | The existing bounded provenance assignment owns implementation; no Pi execution or provider spending is dispatched here. |
@@ -304,11 +304,11 @@ workspace default. Viewed inactive/archived projects acquire no mutation or
 selection authority. Credentials, writer checks and memory-only drafts retain
 their existing owners.
 
-This bounded candidate is implemented for review. Real same-profile Browser
-checks cover A navigation, eligible save and fresh source readback while B is
-default, plus exact work/result/detail returns. Its PR/report owns final exact-head
-qualification and independent acceptance; source integration is not installed
-adoption. #1607 retains its separate cleanup and qualification history.
+[#1672](https://github.com/hynk-studio/augnes/pull/1672) delivered this change
+on 2026-11-18. The registered Mac confirmed that A retained its saved definition
+and three selected sources on fresh entry while B remained the workspace default.
+The [merge commit](https://github.com/hynk-studio/augnes/commit/97e584eee9fc696bfc56500699e4d7cef0b70e48)
+contains the qualified tree. #1607 retains its separate cleanup history.
 
 ## Current: first execution-choice and participation loop (#1443)
 

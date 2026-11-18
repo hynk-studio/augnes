@@ -997,127 +997,21 @@ No other child/phase bound changes.
 
 ### One-candidate product replacement disposition (#1430 / #1608)
 
-This disposition permits qualification of the product-only replacement in
-[Draft PR #1662](https://github.com/hynk-studio/augnes/pull/1662), on
-`codex/1608-native-navigation-product-only-20261117`. It applies only to this
-replacement assignment; it is not a new generic succession or PASS/PASS route.
-The source anchors are:
-
-| Role | Exact identity |
-|---|---|
-| Declared base | `3e7ca9036085a69781488d64f156b2cbb623f547` |
-| Reviewed extraction donor | `c718cb6ee7d2b0b914b5d5f73ce3677690fc4b96` |
-| Donor tree | `ce83c271f94c3d9ca97c5119ad741961afe7b799` |
-| Preserved #1614 source | `0b35e30c8eec86cd32c104c1224e54d80b033a47` |
-
-The final published target may differ from the donor only in this policy file.
-Independent source review must verify the donor's complete 25-path product,
-regression and documentation extraction against the preserved source, and every
-remaining tree entry against the declared base. Every final executable and
-test blob must remain identical to the donor. The final base, head, tree and
-branch are bound separately after publication; the donor is not a substitute
-for that exact target. Main movement is reported under the existing declared-
-range applicability rules, not an automatic failure or permission to expand
-this source scope.
-
-For this target only, an independently audited old/new family mapping replaces
-the source-correction-proof and same-branch physical successor-edge requirements
-above. Use the unchanged ordinary initial executor admission, without
-`--source-correction-proof` or a fabricated historical edge. This is an explicit
-policy exception, not support inferred from the v7 reader. The executor and
-fresh stock validate the new family; the separate reviewed mapping establishes
-cross-family history and authority accounting. Neither represents the other.
-
-Retain the complete latest settled #1614 predecessor, original physical lineage,
-attempt, completion, receipt, false stock, diagnostic originals, issued limits
-and consumed grants. Review historical material using its source-bound reader
-where required, without promoting it to current deciding evidence. Preserve all
-failures, UNKNOWN causes, incomplete coverage and original evidence attribution;
-the extraction claims no repair of the historical timeout. Cumulative task cost
-continues across both PRs. Do not edit old ledger records or create a synthetic
-successor, completion or reservation for them.
-
-After independent review of this disposition, perform operator-assembled,
-non-reserving preparation on the authorized Mac through the existing read-only
-environment, input, Git-identity and Companion observation owners. This is not
-a successful v7 preparation or a source-correction admission. Record the clean
-exact published source, complete current input inventory and
-runtime identities, current Companion preservation state, resource ownership,
-and the old/new family mapping with hashes of the retained originals. Confirm
-the physical latest tip and the replacement family's unused initial admission,
-with no existing attempt or reservation, at preparation and again immediately
-before launch. Exclude a competing successor, replacement assignment or active
-owner affecting either candidate or the actual shared resources; unrelated
-work remains independent. Use one designated executor and the existing checkout
-and capacity ownership controls. A conflict, missing original or stale
-preparation holds the affected execution until resolved; renaming a branch or
-assignment does not resolve it.
-
-A separate reviewer must accept the complete final source, policy, historical
-originals, mapping and actual preparation as COMPLETE. Identify the reviewer
-and recording operator honestly. Only then may a distinct authenticated
-commission authorize the exact base/head/tree/branch and preparation commitment,
-binding this disposition, the predecessor and new family, the separate acceptance
-and a finite budget. Keep private incident and cost records in the task record;
-they remain required review material. Source review, this policy, publication
-and preparation each grant no deciding invocation on their own.
-
-Immediately before launch, the designated executor must verify the original,
-unedited maintainer-authenticated commission, current permission, exact target
-and preparation binding, and retain the authenticated records for the separate
-audit. The ordinary executor and stock do not perform this cross-family
-authority check; their successful admission is not a substitute for it.
-
-The commission permits one admitted deciding invocation only. Reservation or
-interruption consumes it. No recovery, second initial invocation, automatic
-renewal or branch-family reset is authorized. A conclusive pre-admission refusal
-supplies no execution coverage and does not automatically authorize redispatch;
-reconcile the actual ledger before another action, especially after uncertain
-delivery. The existing ordinary reader's recovery capability does not expand
-this commission's narrower authority. Preserve both families and their original
-consumption in the separate result audit.
-
-Review this authority-documentation change and run its existing static validator
-before using the disposition; a prior Full PASS or prior merge of this policy
-is not required to perform that review. The resulting product candidate still
-requires its complete exact-target planner-selected Full and Browser coverage,
-unchanged assertions and deadlines, owned cleanup, separate fresh-process stock
-and independent result review. This disposition authorizes no Ready, auto-merge,
-merge, deployment or installed adoption, and changes no other admission route.
+The [#1662 replacement](https://github.com/hynk-studio/augnes/pull/1662)
+carried the Native product changes from [#1614](https://github.com/hynk-studio/augnes/pull/1614).
+The one-candidate exception is closed. The #1614 branch, physical ledgers,
+receipts and spent grants retain their historical attribution. The
+[pinned disposition](https://github.com/hynk-studio/augnes/blob/97e584eee9fc696bfc56500699e4d7cef0b70e48/.github/LOCAL_CANONICAL_VERIFICATION.md#one-candidate-product-replacement-disposition-1430--1608)
+records the source identities, cross-family mapping and authority limits.
 
 ### Combined Native qualification after the Git fixture repair (#1430 / #1608)
 
-The [maintainer disposition](https://github.com/hynk-studio/augnes/issues/1430#issuecomment-6966003194)
-selects existing Draft [#1672](https://github.com/hynk-studio/augnes/pull/1672),
-branch `codex/fix-git-capture-budget-1608`, as the sole delivery for this
-qualification. Its Git fixture repair supplies the budget binding missing from
-the settled Unit failure on [#1662](https://github.com/hynk-studio/augnes/pull/1662).
-Both published inputs must be ancestors of the final head.
-
-| Binding | Git identity or receipt fingerprint |
-| --- | --- |
-| Declared base | `949a3c8ec49b047180c4800a34d4ebbdbd55e89e` |
-| Product and failed Mac target from #1662 | `c419151d764f15ed4d3b83e1e25d0ef30898a232` |
-| Git fixture repair from #1672 | `6585ff4ab565cfc49c278566cde7f7cff0e71091` |
-| Combined tree before this policy addition | `e5436ea96794101aa06f50542ff17198e7e7d5f8` |
-| Settled #1662 R3 receipt | `24d9360ac72066d99daf371b9e9652ce259c2d16fa657e2b8d569187744f7a0d` |
-
-The full delta from the combined tree may contain only this policy addition.
-Apply the operator-verified cross-family procedure above to this pair. At
-preparation and launch, verify the latest settled #1662 tip, its original
-receipt and false stock, absence of a competing successor, and the unused
-ordinary initial family of #1672 on the same registered Mac. Carry all issued
-limits, consumption and cumulative cost forward in the reviewed mapping.
-Commission 6964475232 ended at 1/1.
-
-After independent COMPLETE receiving of the actual preparation and exact
-published target, a maintainer issues a separate immutable commission on
-#1672 binding that acceptance, preparation and mapping. The designated
-executor authenticates those records at use and runs the ordinary initial Full
-once on #1672. Its seven Browser phases, owned cleanup, separate fresh-process
-receipt validation and result review determine final coverage. Reservation or
-interruption consumes the single invocation. Recovery and unchanged retries
-are zero. The two PRs share that one qualification.
+The [one-use cross-family commission](https://github.com/hynk-studio/augnes/pull/1672#issuecomment-6966445866)
+ended at the first #1672 receipt. The corrected head subsequently qualified under
+a [separate same-branch commission](https://github.com/hynk-studio/augnes/pull/1672#issuecomment-6968841557).
+[#1672](https://github.com/hynk-studio/augnes/pull/1672) merged and closed #1608.
+Both commissions are spent. The [original source pair and conditions](https://github.com/hynk-studio/augnes/blob/97e584eee9fc696bfc56500699e4d7cef0b70e48/.github/LOCAL_CANONICAL_VERIFICATION.md#combined-native-qualification-after-the-git-fixture-repair-1430--1608)
+remain available for interpreting the recorded attempts.
 
 ### Prospective behavior-preserving improvement (source-correction v2)
 
@@ -1601,34 +1495,12 @@ result review. No separate support-Full-then-product-Full sequence is imposed.
 
 #### One prospective maintenance after a reproduced root installation
 
-The v2 maintenance selector `reviewed-integration-reproduced-root-layout-v1`
-applies to the settled receipt and diagnostic settlement identified in its
-reader. The original root installer exited successfully. The prerequisite
-check then found a different permission layout. The retained non-reserving
-installation with workload umask `0022` reproduced the prepared root.
-
-Use the existing maintenance proof, evidence, preparation and authority
-formats. Its `incident` contains artifact references `diagnosis` (original
-diagnostic settlement JSON bytes) and `preparation` (the existing selected
-maintenance preparation fields with schema
-`augnes.local-canonical-reproduced-root-preparation.v1`). The empty
-`repairs` array represents this observed environment correction. The reader
-binds the original physical attempt, completion, receipt and false stock,
-the introducing verifier-only delta, original checkout and runtime, and
-the final source and all three prepared dependency trees.
-
-During historical replay, evaluate the retained Companion sample against
-the recorded execution. At preparation and immediately before the exclusive
-reservation, check the current Companion binding and the actual process
-umask. Scope restrictive permissions to evidence files and directories.
-The registered dependency phases retain their normal prerequisite checks.
-
-The final target needs its own authenticated acceptance and later prospective
-maintenance commission. One admission consumes it. Setup and source review
-grant zero invocations. The product and introducing support share one Full
-with all seven Browser phases, separate fresh stock, result review and cleanup.
-Failure or interruption ends this assignment with recovery and unchanged
-retry both zero. [Maintainer disposition](https://github.com/hynk-studio/augnes/issues/1430#issuecomment-6963328460).
+The [#1662 root-layout commission](https://github.com/hynk-studio/augnes/pull/1662#issuecomment-6964475232)
+was consumed on `c419151d`. The registered root dependency phase passed and the
+run ended at Unit. Historical replay uses the `reviewed-integration-reproduced-root-layout-v1`
+selector, the original `diagnosis` and `preparation` artifacts, and the recorded
+Companion observation. The [pinned maintenance procedure](https://github.com/hynk-studio/augnes/blob/97e584eee9fc696bfc56500699e4d7cef0b70e48/.github/LOCAL_CANONICAL_VERIFICATION.md#one-prospective-maintenance-after-a-reproduced-root-installation)
+records the preparation schema, dependency identities and admission conditions.
 
 ### Reviewed source and execution-input revision (source-correction v7)
 
