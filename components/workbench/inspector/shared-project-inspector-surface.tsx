@@ -28,7 +28,7 @@ export function SharedProjectInspectorSurface({
   accessBoundary?: ReactNode;
 }) {
   return (
-    <ProductShell primaryZone="ai-workplane">
+    <ProductShell primaryZone="ai-workplane" projectId={inspector.project_id}>
       <main
         className={styles.page}
         data-shared-project-inspector="v0.1"

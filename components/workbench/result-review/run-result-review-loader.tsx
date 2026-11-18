@@ -204,7 +204,7 @@ function ScopedRunResultReviewLoader({
     );
   }
   return (
-    <ProductShell primaryZone="ai-workplane">
+    <ProductShell primaryZone="ai-workplane" projectId={projectId}>
       <main className={styles.page} data-run-result-review="locked">
       <AIWorkplaneShell
         guide={guideState.projection}
