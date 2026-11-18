@@ -18,14 +18,14 @@ a later consequence of public-asset distribution or a replica of the local UI.
 The following outcomes advance the existing W2 direction without adding a new
 roadmap, organization engine or research phase. Source baseline is
 `5e2bc6c57dddd9b070c9ca371ec362e37339d2d9`; issue and PR evidence owns subsequent
-progress. Registration and implementation activity are not completed capability.
+progress. The table records the source disposition of each delivery.
 
 | Delivery | Concrete outcome | Dependency and completion boundary |
 |---|---|---|
-| First implementation: [#1627](https://github.com/hynk-studio/augnes/issues/1627) | Admitted independent principals create/select private projects and continue their own purpose, source-grounded authored judgments, unfinished work and next action through ordinary browser and agent paths. | Enforce server-owned namespace selection and project-scoped recovery; preserve existing private deployments and history. Fresh-session continuation is required, not a new dashboard or another work ID in the installation owner's project. |
+| Private project entry: [#1627](https://github.com/hynk-studio/augnes/issues/1627) / merged [#1631](https://github.com/hynk-studio/augnes/pull/1631) | Admitted independent principals create/select private projects and continue their own purpose, source-grounded authored judgments, unfinished work and next action through ordinary browser and agent paths. | Enforce server-owned namespace selection and project-scoped recovery; preserve existing private deployments and history. Fresh-session continuation is required, not a new dashboard or another work ID in the installation owner's project. |
 | Integrated cooperation: [#1630](https://github.com/hynk-studio/augnes/issues/1630) / merged [#1640](https://github.com/hynk-studio/augnes/pull/1640) | Connect independently owned projects through permitted request, return, checked use/non-use and deliberately shared feedback; the contributor retains its own later work. | Reuses #1627 and #1589/#1591. Source integration, controlled evidence, deployment and hosted adoption remain distinct. |
-| Completed succession: [#1628](https://github.com/hynk-studio/augnes/issues/1628) | A separately authorized successor resumes relevant purpose, judgments, methods, unfinished work and obligations within a scoped delegation. | Consume the project/identity boundary, not a universal hierarchy. Preserve historical authorship, scope/lifetime, revoked-access refusal and reconciliation of uncertain effects. |
-| Commissioned bounded derivation: [#1629](https://github.com/hynk-studio/augnes/issues/1629) | Selected permitted methods and conditions enter a separately operated undertaking, serve a different task/consumer and remain usable after executor replacement. | Build when its actual ownership/material dependencies are available; not a prerequisite for the first W2 delivery. Lineage does not automatically transfer credentials, budgets, customer material or live authority. |
+| Scoped succession: [#1628](https://github.com/hynk-studio/augnes/issues/1628) / merged [#1639](https://github.com/hynk-studio/augnes/pull/1639) | A separately authorized successor resumes relevant purpose, judgments, methods, unfinished work and obligations within a scoped delegation. | Historical authorship, grant lifetime, revocation and unresolved effects stay scoped to the delegated work. |
+| Bounded method derivation: [#1629](https://github.com/hynk-studio/augnes/issues/1629) / merged [#1652](https://github.com/hynk-studio/augnes/pull/1652) | A second project keeps a permitted method and its conditions and applies it to a different task or consumer after executor replacement. | The receiving project owns its work. Provenance confers no credentials, budget or current access to the source project. |
 
 The merged #1627 implementation provides admitted private project creation/selection,
 stable project attribution and fresh-session continuation using ordinary Web
@@ -34,8 +34,8 @@ reconstruction to the selected project. Browser and client entry share enforcing
 owners. This entry was merged in [#1631](https://github.com/hynk-studio/augnes/pull/1631)
 after final-target Mac qualification and receiving review. Deployment and hosted
 independent-user adoption remain separate. See the [Web entry guide](../../apps/web_planning/README.md#independent-private-projects-opt-in)
-for the implemented boundary; #1628 and #1630 are integrated below, while #1629
-retains its separate follow-through.
+for the implemented boundary. The following sections describe scoped succession,
+cooperation and method reuse.
 
 The completed #1628 implementation merged in [#1639](https://github.com/hynk-studio/augnes/pull/1639)
 as `60c8f238c3bec248a806c5dfa50388dd004c3bc9`, preserving the qualified tree
@@ -73,7 +73,7 @@ actual method application and fresh-executor adaptation; hosted adoption remains
 unobserved. No registry, schema, live grant or same-project branch meaning changes.
 See [ordinary method reuse](../../apps/web_planning/README.md#use-a-permitted-method-for-a-different-task-1629).
 
-The bounded #1642 client integration connects a current project need and selected
+The bounded #1642 client integration, merged in [#1649](https://github.com/hynk-studio/augnes/pull/1649), connects a current project need and selected
 request material to the existing authenticated HTTP pull route, correlated
 participant return, explicit checked use or non-use and recoverable next action.
 The existing enforcing writers own scope, expiry, currentness, one-answer and
@@ -83,7 +83,7 @@ decisions and outstanding next action without a private chat. Partial advice and
 unaccepted conditional offers remain distinct from successful resource acquisition
 or new authority. Controlled HTTP/D1 and fresh-process checks establish mechanism
 behavior only; final-target qualification has its own outcome. Public disclosure
-remains with #1641/#1644, and common fixture maintenance is integrated through
+was integrated separately in [#1644](https://github.com/hynk-studio/augnes/pull/1644), and common fixture maintenance is integrated through
 merged #1648. Their separate work is not a prerequisite for this available private
 transport. See the [client guide](../../apps/web_planning/README.md#need-driven-request-through-the-authenticated-http-client-1642).
 
@@ -96,10 +96,11 @@ Keep each implementation bounded and use the existing verification policy;
 this commission neither rewrites historical failures nor renews spent grants.
 
 [#1447](https://github.com/hynk-studio/augnes/issues/1447) retains public entry
-and operational activation ownership. Prepare the human/agent entry and a
-bounded hosted pilot alongside implementation, using the established deployment
-path and only opted-in material. Code readiness, exact-source qualification,
-deployment and actual independent adoption remain separate. The implementation
+and operational activation ownership. Its bounded hosted pilot completed a return,
+checked use and a fresh-session follow-up with two accounts controlled by one
+operator. Public mode was off. The saved-work selector correction merged in
+[#1656](https://github.com/hynk-studio/augnes/pull/1656). Independent use and
+broader discovery remain open under #1447. The implementation
 commission does not itself authorize production/audience changes, invitations,
 paid provider use, deployment or repository merge. Existing Web authored state
 does not become native Core accepted state or synchronized execution authority.
