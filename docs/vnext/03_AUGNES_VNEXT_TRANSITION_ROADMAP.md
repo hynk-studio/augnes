@@ -2426,6 +2426,23 @@ consolidated result. Comparative
 usefulness is NOT_EVALUATED; product integration is NOT_ESTABLISHED. No second
 arm, new Core/learning engine, #1527 launch or #1523 ownership change is implied.
 
+### Completed comparison — Missing measurements and successor use (#1668)
+
+In the [three-stage synthetic comparison](https://github.com/hynk-studio/augnes/issues/1668#issuecomment-6959802157),
+workers in both arms identified the limits of the historical success reports
+and measured distinct requests that reached the recipient. Each arm scored
+all six group decisions. On the changed final task, both successors joined
+requests to package arrivals through a book-specific index and correctly kept
+the 19/20 route and recommended changing the 18/20 route.
+
+The worker given its predecessors’ executable examples reported adapting their
+matching method. The ordinary-handoff successor reported solving the task from
+its current instructions and observations alone. Both used one batch opening.
+Two of the six workers submitted after a session interruption and continuation.
+Keep ordinary notes and code for this case. The incremental value and total
+cost of the examples remain unestablished. Transfer beyond a supplied catalogue
+of observation points remains an open research question.
+
 ### Bounded P3/P4/P5 implementation — Different-goal experience use (#1427)
 
 Under [#1426](https://github.com/hynk-studio/augnes/issues/1426), the
