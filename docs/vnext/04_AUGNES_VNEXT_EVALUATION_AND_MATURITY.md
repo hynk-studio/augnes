@@ -1023,9 +1023,12 @@ remain explicit, and existing inactive/archived and Stay/Leave checks retain the
 own assertions. Reuse the existing server-negative and draft evidence rather
 than treating a scoped href as authority or a navigation stub as Browser evidence.
 
-These are disposable functional observations, not installed adoption, independent
-review or measured usefulness. Preserve development failures and the final
-candidate's planner/qualification disposition with their original source binding.
+On `9c4929e1`, all 16 Full phases and seven Browser phases passed on the
+registered Mac. The Inspector returned to the viewed project and reloaded with
+identical database snapshots, the expected GET and zero write requests. Golden
+passed. A fresh process validated the original receipt with zero issues. The
+[final qualification](https://github.com/hynk-studio/augnes/pull/1672) covers
+the tested navigation and persistence behavior in one Chrome profile.
 
 ### Native preparation response and departure evidence (#1599)
 
