@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { projectClientHref } from "@/lib/vnext/project-client-href";
 
 import {
   continuityPinTargetIdentityV01,
@@ -156,7 +157,7 @@ function PinnedList({ variant }: { variant: "desktop" | "mobile" }) {
               />
               <div>
                 {pin.destination ? (
-                  <a href={pin.destination}>{pin.label}</a>
+                  <a href={projectClientHref(pin.destination, pin.target.project_id)}>{pin.label}</a>
                 ) : (
                   <strong aria-disabled="true">{pin.label}</strong>
                 )}
@@ -216,7 +217,7 @@ function PinnedList({ variant }: { variant: "desktop" | "mobile" }) {
             {pin.resolution_status !== "resolved" ? (
               <div className="continuity-pin-recovery">
                 {pin.exact_detail_destination ? (
-                  <a href={pin.exact_detail_destination}>View exact details</a>
+                  <a href={projectClientHref(pin.exact_detail_destination, pin.target.project_id)}>View exact details</a>
                 ) : null}
                 <button
                   type="button"

@@ -112,7 +112,26 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
 // save/reopen; all prior actions remain. #1316 prospectively adds B, separately
 // tested by the private verdict regressions; strip only its exact call sites.
 {
-  const source = readFileSync(new URL('./browser-validate-project-experience-v1.mjs', import.meta.url), 'utf8');
+  const currentSource = readFileSync(new URL('./browser-validate-project-experience-v1.mjs', import.meta.url), 'utf8');
+  // #1608 adds two real navigation journeys and replaces the misleading
+  // named-project settings control with an explicit workspace-default exit.
+  // Bind those exact additions, then retain every earlier phase/action digest.
+  const navigationAdaptations = [
+    ['      await checkIndependentProjectNavigation(accessDatabasePath, manifest, projectAlphaId);\n', ''],
+    ['    await checkProjectDetailNavigation(fixture, projectBetaId);\n', ''],
+    ['    assert.equal(await evaluateString(\'document.querySelector("[data-workspace-project-management]").textContent.trim()\'), "Manage workspace default");\n    await clickSelector(\'[data-workspace-project-management]\');\n', '    await clickSelector(\'a[data-project-context-label="Current project"]\');\n'],
+    ['"AI Workplane explicit workspace settings return"', '"AI Workplane project settings return"'],
+  ];
+  const assertNavigationSites = text => {
+    for (const [current] of navigationAdaptations)
+      assert.equal(text.split(current).length, 2, 'exact project navigation call site');
+  };
+  assertNavigationSites(currentSource);
+  for (const [current] of navigationAdaptations) {
+    assert.throws(() => assertNavigationSites(currentSource.replace(current, '')));
+    assert.throws(() => assertNavigationSites(currentSource + current));
+  }
+  const source = navigationAdaptations.reduce((text, [current, prior]) => text.replace(current, prior), currentSource);
   const file = ts.createSourceFile('owner.mjs', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
   const tokens = text => {
     const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.Standard, text);
@@ -120,6 +139,32 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
     return values;
   };
   const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+  const navigationFunctions = {
+    checkProjectDetailNavigation: '8d3e3269f37a337434d6d038f1af90d4c0e119eeea42331de43ffba1daec763c',
+    registerNavigationProject: 'abca9f8cde04b46488e3ca61e27084db058ef15f152223a1a6c3290c047fe3bc',
+    checkIndependentProjectNavigation: 'a5beeca942f667acced1b42c924c977b6872978a796ed2c53ccdac860d398ff1',
+    validateProductShell: 'a50233a24608e12ee0d816f1ba4433b053f4c9162f33237f2c943df99699a359',
+  };
+  const assertNavigationFunctions = text => {
+    const parsed = ts.createSourceFile('navigation.mjs', text, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    const found = [];
+    for (const node of parsed.statements) {
+      if (!ts.isFunctionDeclaration(node) || !Object.hasOwn(navigationFunctions, node.name?.text)) continue;
+      assert.equal(hash(tokens(node.getText(parsed))), navigationFunctions[node.name.text], node.name.text);
+      found.push(node.name.text);
+    }
+    assert.deepEqual(found.sort(), Object.keys(navigationFunctions).sort());
+  };
+  assertNavigationFunctions(currentSource);
+  for (const assertion of [
+    'assert.equal(observed.label, "Viewed project");',
+    'assert.deepEqual(betaAfter.current_packet, beta.current_packet);',
+    'assert(ownRequests.every(entry => entry.project === projectA), JSON.stringify(ownRequests));',
+  ]) {
+    assert.equal(currentSource.split(assertion).length, 2);
+    assert.throws(() => assertNavigationFunctions(currentSource.replace(assertion, '')),
+      'Removing visible identity, independent B state or actual A request checks refuses');
+  }
   // #1599 adds controlled genuine-response/departure checks. Project only
   // these five exact additions/replacements back to the unchanged prior actions.
   // The original phase/function digests, negative verdicts and deadlines below

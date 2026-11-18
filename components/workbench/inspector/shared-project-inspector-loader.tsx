@@ -289,8 +289,9 @@ function ContextualInspectorState({
   children?: React.ReactNode;
 }) {
   const scopedHref = useProjectClientHref();
+  const projectId = useProjectClientScope();
   return (
-    <ProductShell primaryZone="ai-workplane">
+    <ProductShell primaryZone="ai-workplane" projectId={projectId}>
       <main
         className={styles.statePage}
         data-shared-project-inspector={state}

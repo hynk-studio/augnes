@@ -59,9 +59,22 @@ function probeFlags(flags) {
 }
 
 export function verifyBrowserRevisionPreservation(previous, live, { requireSameBinding = false } = {}) {
+  verifyPreservationAt(previous, live, requireSameBinding, Date.now());
+}
+
+// Only for a retained receipt. Fresh admission always uses the live clock.
+export function verifyRecordedBrowserPreservation(previous, receipt) {
+  const service = receipt.cleanup?.companion_service;
+  const sample = service?.observations?.after;
+  const start = Date.parse(receipt.run?.started_at), end = Date.parse(receipt.run?.finished_at);
+  if (!(start <= Date.parse(sample?.started_at) && Date.parse(sample?.started_at) <= Date.parse(sample?.finished_at) &&
+      end <= Date.now())) throw fail("revision_recorded_preservation_time_invalid");
+  verifyPreservationAt(previous, {state:service?.after, diagnostics:sample}, true, end);
+}
+
+function verifyPreservationAt(previous, live, requireSameBinding, evaluated) {
   const state = live?.state;
   const observation = live?.diagnostics;
-  const evaluated = Date.now();
   const finished = Date.parse(observation?.finished_at);
   const age = evaluated - finished;
   const checks = {

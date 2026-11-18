@@ -6,7 +6,7 @@ import { digest, validCanonicalRuntimeInputs, preparedDependencyIdentity, observ
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { artifactReader, parseImprovementJSON, ordinaryV2SourceModule, isImprovement, improvementAuthorityObservation } from "./local-canonical-improvement.mjs";
 import { createGitHubObserverAuthorizationTransport } from "./github-main-branch-transport.mjs";
-import { isFailedIntegrationFixture, readFailedIntegrationFixtureIncident } from "./local-canonical-failed-integration-fixture.mjs";
+import { isFailedIntegrationFixture, isIntegrationMaintenance, isReproducedRootLayout, readFailedIntegrationFixtureIncident, readReproducedRootIncident } from "./local-canonical-failed-integration-fixture.mjs";
 import {isFailedMaintenanceReader,isMaintenanceAggregateAllowance,isSelectedMaintenanceIncident,readFailedMaintenanceReaderIncident,readMaintenanceAggregateAllowanceIncident} from "./local-canonical-maintenance-reader-incident.mjs";
 
 export const MAINTENANCE_KIND = "prospective_maintenance";
@@ -62,7 +62,8 @@ export function readMaintenanceEvidence(file,p,root,{remember,authorizationRequi
   keys(e.originals,"attempt completion receipt stock");
   const prior=read(e.originals.attempt,{canonical:false}), completion=read(e.originals.completion,{canonical:false}), receipt=read(e.originals.receipt,{canonical:false,maximum:512*1024}), stock=read(e.originals.stock,{canonical:false,maximum:512*1024});
   const original={...receipt};delete original.integrity;
-  requireThat((isImprovement(prior.source_correction)||isMaintenance(prior.source_correction)||isFailedIntegrationFixture(p)&&prior.source_correction?.kind==="accepted_main_integration"&&prior.source_correction.integration_case==="reviewed")&&prior.family_id===p.prior_family_id&&prior.number===p.prior_number&&prior.attempt_id===p.prior_attempt_id&&
+  requireThat(!isReproducedRootLayout(prior.source_correction),"reproduced_root_terminal");
+  requireThat((isImprovement(prior.source_correction)||isMaintenance(prior.source_correction)||isIntegrationMaintenance(p)&&prior.source_correction?.kind==="accepted_main_integration"&&prior.source_correction.integration_case==="reviewed")&&prior.family_id===p.prior_family_id&&prior.number===p.prior_number&&prior.attempt_id===p.prior_attempt_id&&
     prior.budget?.initial===1&&prior.budget?.recovery===0&&prior.branch===p.branch&&prior.head!==p.head&&prior.tree!==p.tree&&
     completion.attempt_id===prior.attempt_id&&completion.receipt_fingerprint===p.prior_receipt_fingerprint&&completion.cleanup_complete===true&&utc(completion.finished_at)&&
     ["product_failure","input_invalidation","safety_violation"].includes(completion.disposition)&&receipt.outcome?.disposition===completion.disposition&&receipt.cleanup?.completed===true&&
@@ -94,7 +95,7 @@ export function readMaintenanceEvidence(file,p,root,{remember,authorizationRequi
     requireThat(source.sha256===digest(bytes)&&source.bytes===bytes.length,"dependency_source_unbound");
   }
   const incidentOptions={p,e,prior,completion,receipt,stock,read,git,root,runtime,dependencies,remember};
-  const fixture=isFailedIntegrationFixture(p)?readFailedIntegrationFixtureIncident(incidentOptions):isFailedMaintenanceReader(p)?readFailedMaintenanceReaderIncident(incidentOptions):isMaintenanceAggregateAllowance(p)?readMaintenanceAggregateAllowanceIncident(incidentOptions):null;
+  const fixture=isReproducedRootLayout(p)?readReproducedRootIncident(incidentOptions):isFailedIntegrationFixture(p)?readFailedIntegrationFixtureIncident(incidentOptions):isFailedMaintenanceReader(p)?readFailedMaintenanceReaderIncident(incidentOptions):isMaintenanceAggregateAllowance(p)?readMaintenanceAggregateAllowanceIncident(incidentOptions):null;
   const faults=maintenanceFaults(receipt), addressed=[];
   requireThat(faults.length>0&&Array.isArray(e.repairs)&&(fixture?e.repairs.length===0:e.repairs.length>0&&e.repairs.length<=16),"repairs_missing");
   let last="", latest=fixture?.latest??Date.parse(completion.finished_at);
@@ -124,7 +125,7 @@ export function readMaintenanceEvidence(file,p,root,{remember,authorizationRequi
   }
   if(!fixture)requireThat(equal([...new Set(addressed)].sort(),faults),"incomplete_repair");
   const history=read(e.history);keys(history,"parent_evidence_sha256 observations adverse known_index cumulative_cost historical_causes");
-  requireThat(history.parent_evidence_sha256===(isFailedIntegrationFixture(p)?prior.source_correction.review:prior.source_correction.evidence??prior.source_correction.campaign).sha256&&history.historical_causes==="retained_without_reclassification"&&text(history.cumulative_cost)&&
+  requireThat(history.parent_evidence_sha256===(isIntegrationMaintenance(p)?prior.source_correction.review:prior.source_correction.evidence??prior.source_correction.campaign).sha256&&history.historical_causes==="retained_without_reclassification"&&text(history.cumulative_cost)&&
     Array.isArray(history.observations)&&history.observations.length>0&&history.observations.length<=200&&unique(history.adverse),"history_invalid");
   const ids=[];for(const item of history.observations){keys(item,"id original adverse limitations");requireThat(text(item.id)&&typeof item.adverse==="boolean"&&text(item.limitations),"history_invalid");ids.push(item.id);read(item.original,{json:false,maximum:2*1024*1024});}
   requireThat(unique(ids)&&equal(history.adverse,history.observations.filter(x=>x.adverse).map(x=>x.id))&&equal(read(history.known_index),history.observations),"adverse_evidence_omitted");
