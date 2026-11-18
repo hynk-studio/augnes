@@ -714,6 +714,19 @@ if(process.argv[2]==="--cold"){
     if(lifecycle.pendingChildren===0)settleCanonicalTestResourceUse(owner,{exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0});
     assert(cleanupCanonicalTestResources([owner])[0].completed);
   }
+}else if(process.argv[2]==="--run-ordinary-watchdog-integration-fixtures"){
+  const {runOrdinaryWatchdogIntegrationControls}=await import("./local-canonical-ordinary-watchdog-integration.mjs");
+  const owner=createCanonicalTestResourceRoot("ag-resource-test-"),lifecycle={pendingChildren:0};beginCanonicalTestResourceUse(owner);
+  const run=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);let c;
+  try{
+    c=setup(owner.root);
+    await runOrdinaryWatchdogIntegrationControls(c,{prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,run});
+  }finally{
+    if(lifecycle.pendingChildren===0&&c?.owner)releaseCheckoutVerificationOwnership(c.owner,c.checkout);
+    settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,
+      cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});
+    assert(cleanupCanonicalTestResources([owner])[0].completed);
+  }
 }else if(process.argv[2]==="--run-ordinary-initial-fixtures"){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-"),lifecycle={pendingChildren:0};beginCanonicalTestResourceUse(owner);
   try{console.log(JSON.stringify({ordinary_initial_controls:await ordinaryInitialControls(owner.root,lifecycle),synthetic_only:true,deciding:false}));}

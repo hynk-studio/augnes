@@ -42,7 +42,7 @@ export function RunResultReviewSurface({
   );
   if (guideConsistency.blocks_actions) {
     return (
-      <ProductShell primaryZone="ai-workplane">
+      <ProductShell primaryZone="ai-workplane" projectId={result.project_id}>
         <main
           className={styles.page}
           data-run-result-review="v0.1"
@@ -71,7 +71,7 @@ export function RunResultReviewSurface({
               <p className={styles.copy}>{guideConsistency.message}</p>
               <a
                 className={styles.button}
-                href="/"
+                href={projectClientHref("/", result.project_id)}
                 data-ai-workplane-primary-action="open-blank-state"
                 data-augnes-primary-action="open-blank-state"
                 data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
@@ -85,7 +85,7 @@ export function RunResultReviewSurface({
     );
   }
   return (
-    <ProductShell primaryZone="ai-workplane">
+    <ProductShell primaryZone="ai-workplane" projectId={result.project_id}>
       <main
         className={styles.page}
         data-run-result-review="v0.1"

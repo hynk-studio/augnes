@@ -290,8 +290,17 @@ they are not native review replies, automatic commitments or new authority.
 
 `request-context VERSION` recovers the full current authored work, original
 request basis, request/response manifests and locators, recipient scopes and
-their observed status, all decisions saved in this original work and its last
-local use decision. Original response bytes remain available through `get`/`read`.
+all use decisions saved for that request in this work. A recorded response
+updates the request's delivery status. Only the grant identified on a return
+can show `answered`. Other grants based on an earlier head show `stale`;
+revocation and expiry take precedence.
+
+For a fresh session, `latest_local_judgment` gives the most recently saved use
+or reassessment for this request, with its rationale, limits and next action.
+Its `use` points to the original decision and `revision` to the judgment being
+shown. It is `null` before a local judgment exists. `last_local_use` still
+selects the last original use decision. Original response bytes remain
+available through `get`/`read`.
 Use `inspect-return` and its continuation cursor for decisions in other
 destination works; the local decision list is not a global use inventory.
 Inspect actual bytes and conditions before `prepare-use`/`commit-use` or an

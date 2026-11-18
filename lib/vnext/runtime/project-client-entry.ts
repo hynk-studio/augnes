@@ -10,7 +10,12 @@ export function resolveProjectClientEntryProjectV01(
   projectId: string | undefined,
   dependencies: { open_database?: () => Database.Database } = {},
 ): string | null {
-  if (projectId !== undefined) return projectId;
+  if (projectId !== undefined) {
+    if (typeof projectId !== "string" || projectId.trim().length === 0) {
+      throw new Error("project_client_scope_invalid");
+    }
+    return projectId;
+  }
   const db = (dependencies.open_database ?? openDatabase)();
   try {
     const workspace = readDefaultWorkspaceIdentityV01(db);

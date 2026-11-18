@@ -104,6 +104,7 @@ const replaceNode=(source,tree,n,replacement)=>source.slice(0,n.getStart(tree))+
 
 export function registeredFixtureBudget(git,head,group) {
   if (group === maintenanceOwner) return maintenanceFixtureBudgetRegistration(git,head);
+  if(!Object.hasOwn(owners,group))fail();
   return readReviewedFixtureRegistration(git,head,group,300000);
 }
 
@@ -114,7 +115,6 @@ export function inspectReviewedFixtureRegistration(git,head,group) {
 }
 
 function readReviewedFixtureRegistration(git,head,group,maxOuterMs) {
-  if(!Object.hasOwn(owners,group))fail();
   const source=Object.fromEntries(Object.entries(FIXTURE_BUDGET_PATHS).map(([role,file])=>[role,sourceAt(git,head,file)]));
   const trees=Object.fromEntries(Object.entries(source).map(([role,text])=>[role,ast(text)]));
   const constantsNode=variable(trees.budgets,"AUXILIARY_EXECUTION_BUDGETS");

@@ -5,6 +5,7 @@ import {execFileSync} from "node:child_process";
 import {createHash} from "node:crypto";
 import ts from "typescript";
 import {createCanonicalTestResourceRoot,cleanupCanonicalTestResources,buildCanonicalChildEnvironment} from "./canonical-test-environment.mjs";
+import { AUXILIARY_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
 
 // Execute the actual fixture helper initializer, avoiding the fixture module's
 // CLI dispatcher. These controls are not historical reproduction or authority.
@@ -13,7 +14,12 @@ const tree=ts.createSourceFile("fixture.mjs",source,ts.ScriptTarget.Latest,true,
 assert.equal(tree.parseDiagnostics.length,0);
 const declarations=tree.statements.filter(ts.isVariableStatement).flatMap(s=>[...s.declarationList.declarations]).filter(d=>d.name.getText(tree)==="gitFor");
 assert.equal(declarations.length,1);assert(ts.isArrowFunction(declarations[0].initializer));
-const factory=exec=>Function("execFileSync","return ("+declarations[0].initializer.getText(tree)+");")(exec);
+const createGitFor = Function(
+  "execFileSync", "AUXILIARY_EXECUTION_BUDGETS",
+  "return (" + declarations[0].initializer.getText(tree) + ");",
+);
+const factory = exec => createGitFor(exec, AUXILIARY_EXECUTION_BUDGETS);
+const gitTimeoutMs = AUXILIARY_EXECUTION_BUDGETS.verificationOperationMs;
 const small=1024*1024,large=16*small,a="a".repeat(40),b="b".repeat(40);
 const forms=[
  ["diff","--binary","--full-index","--no-ext-diff","--no-textconv"],
@@ -36,7 +42,7 @@ for(const prefix of forms){spy([...prefix,a,b,"--"]);spy([...prefix,a,b,"--","sc
 for(const args of refusedForms)spy(args);
 for(let i=0;i<calls.length;i++){
  const v=calls[i];assert.equal(v.command,"git");assert.equal(v.options.maxBuffer,i<forms.length*2?large:small);
- assert.equal(v.options.timeout,5000);assert.equal(v.options.cwd,repo);assert.equal(v.options.env,c.env);
+ assert.equal(v.options.timeout,gitTimeoutMs);assert.equal(v.options.cwd,repo);assert.equal(v.options.env,c.env);
  assert.deepEqual(v.options.stdio,["ignore","pipe","pipe"]);assert.equal(v.options.encoding,undefined);
 }
 const primary=Object.assign(new Error("controlled signal/error"),{signal:"SIGTERM",code:"ENOBUFS"});
@@ -56,6 +62,6 @@ const refuses=operation=>{let returned=false;assert.throws(()=>{operation();retu
  writeFileSync(path.join(repo,"oversize.bin"),bytes(14*small));const oversized=commit();
  refuses(()=>git([...forms[1],within,oversized,"--"]));
  assert.throws(()=>git([...forms[2],"f".repeat(40),within,"--"]),e=>Number.isInteger(e.status)&&e.status!==0);
- observations={synthetic_only:true,real_git:true,complete_raw_buffer_comparisons:hashes,finite_diff_cap:large,other_git_cap:small,timeout_ms:5000,overflow_refused:true,non_binary_overflow_refused:true,nonzero_and_signal_errors_preserved:true,argument_boundary_refusals:refusedForms.length};
+ observations={synthetic_only:true,real_git:true,complete_raw_buffer_comparisons:hashes,finite_diff_cap:large,other_git_cap:small,timeout_ms:gitTimeoutMs,overflow_refused:true,non_binary_overflow_refused:true,nonzero_and_signal_errors_preserved:true,argument_boundary_refusals:refusedForms.length};
 }finally{cleanup=cleanupCanonicalTestResources([owner]);assert(cleanup.every(v=>v.completed));}
 console.log(JSON.stringify({fixture_git_capture_controls:observations,cleanup}));

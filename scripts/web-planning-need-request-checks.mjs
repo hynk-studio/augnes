@@ -88,6 +88,10 @@ export async function checkNeedDrivenRequest({start,root,passed}){
     assert.equal(beforeReturn.delivery,'UNKNOWN');assert.equal(beforeReturn.scopes[0].status,'open');
     assert.deepEqual(beforeReturn.request_basis,base);assert.equal(beforeReturn.current.sources.length,3);
     passed('need/request: real project purpose and source material, exact request and recipient scope, lost acknowledgements reconciled by fresh CLI processes without repeated writes; delivery remains UNKNOWN');
+    const otherGrant = await ok(owner, prefix + '/participation/create', {
+      ...scope, recipient: 'second-recipient@example.test', grant_id: randomUUID(),
+      request, expected: grant.disclosure.expected
+    });
 
     // Explicit controlled operator relay of the locator. No invitation or
     // message to a real recipient and no borrowed owner authentication.
@@ -126,7 +130,8 @@ export async function checkNeedDrivenRequest({start,root,passed}){
       participant_feedback:{explanation:'The additional hosted run is not authorized or accepted.',next_action:'No new commitment or work is requested.'}}));
     await cli('A',setup,['prepare-use',declineObservation,decline,'current',pendingDecline]);await cli('A',setup,['commit-use',pendingDecline]);
     const fresh=await cli('A',setup,['request-context',String(request.revision)]);
-    assert.equal(fresh.delivery,'correlated_response_recorded');assert.equal(fresh.scopes[0].status,'answered');
+    assert.equal(fresh.delivery,'correlated_response_recorded');
+    assert.equal(fresh.scopes.find(item => item.id === grant.id).status, 'answered');
     assert.deepEqual(fresh.decisions.map(d=>d.decision),['adapted','declined']);
     assert.match(fresh.last_local_use.next_action,/Continue local checks/);
     assert.equal(fresh.responses[0].next_action,returned.item.next_action);
@@ -148,7 +153,8 @@ export async function checkNeedDrivenRequest({start,root,passed}){
 
     await ok(owner,prefix+'/participation/revoke',{grant_id:grant.id});
     assert.match(await cli('B',participantSetup,['list'],false),/participation_unavailable/);
-    assert.equal((await cli('A',setup,['request-context',String(request.revision)])).scopes[0].status,'revoked');
+    const revoked = await cli('A',setup,['request-context',String(request.revision)]);
+    assert.equal(revoked.scopes.find(item => item.id === grant.id).status, 'revoked');
     // Absent creation is not carte blanche: source movement blocks replay and
     // preserves the exact private scope for deliberate recovery.
     const second=await cli('A',setup,['request','Check only the remaining local obligation.',source]);
@@ -177,5 +183,41 @@ export async function checkNeedDrivenRequest({start,root,passed}){
     assert.equal(JSON.parse(await readFile(path.join(recovered,'scope.json'))).body.request.fingerprint,second.item.ref.fingerprint);
     assert.deepEqual(await readdir(setup+'.pending'),[]);
     passed('authority/currentness: recipient cannot create scopes; revocation ends disclosure while preserving owner history; uncertain absent creation with a moved source cannot retry and its exact scope remains recoverable');
+
+    // Reconsider the earlier adaptation after the later decline was recorded.
+    const use = fresh.decisions[0].destination;
+    const observed = await ok(owner, prefix + '/inspect-use', {
+      use, evidence: { ref: returned.item.ref, kind: 'return', index: 1 }
+    });
+    const intent = {
+      selection: observed.selection, decision: 'deferred', rationale: 'The hosted prerequisite is still open.',
+      limits: 'No hosted execution is authorized.', reported_check: 'Read the saved conditional offer.',
+      context: 'The recipient scope has since ended.', next_action: 'Recheck the local prerequisite before using the checklist.',
+      name: null, text: null
+    };
+    const review = await ok(owner, prefix + '/reassessment-preview', { intent });
+    const { saved: reassessed } = await ok(owner, prefix + '/reassessment-save', { ticket: review.ticket, intent });
+    const resumed = await cli('A', setup, ['request-context', String(request.revision)]);
+    assert.equal(fresh.scopes.find(item => item.id === otherGrant.id).status, 'stale');
+    assert.equal(beforeReturn.latest_local_judgment, null);
+    assert.deepEqual(fresh.latest_local_judgment.revision, fresh.last_local_use.destination);
+    assert.deepEqual(resumed.last_local_use, fresh.last_local_use);
+    assert.deepEqual(resumed.latest_local_judgment, {
+      use, revision: { work_id: reassessed.work_id, revision: reassessed.revision, fingerprint: reassessed.fingerprint },
+      decision: intent.decision, rationale: intent.rationale, limits: intent.limits, next_action: intent.next_action
+    });
+
+    // An owner can record a return without using a recipient grant.
+    const secondVersion = String(second.item.ref.revision);
+    const unusedGrant = await ok(owner, prefix + '/participation/create', {
+      ...scope, grant_id: randomUUID(), request: second.item.ref, expected: headBinding(reassessed)
+    });
+    await cli('A', setup, ['return', secondVersion, 'Owner recorded the local check.', 'Review locally.', advice]);
+    const unrelated = await cli('A', setup, ['request-context', secondVersion]);
+    assert.equal(unrelated.delivery, 'correlated_response_recorded');
+    assert.equal(unrelated.responses[0].contributor, undefined);
+    assert.equal(unrelated.scopes.find(item => item.id === unusedGrant.id).status, 'stale');
+    assert.equal(unrelated.latest_local_judgment, null);
+    passed('request re-entry: one response is attributed only to its grant; the latest local reassessment guides a fresh process while the original decisions and other requests stay distinct');
   }finally{await closeTrackedServer(gateway);}
 }
