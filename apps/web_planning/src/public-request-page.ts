@@ -1,4 +1,4 @@
-import type { Access } from './access';
+import { applicationMode, type Access } from './access';
 import type { PublicRequestView } from './public-requests';
 import { escape } from './page';
 
@@ -30,6 +30,8 @@ function publicPage(value:PublicRequestView):string {
   <h2>Where to return it</h2><p>${escape(details.reply.requirements)}</p>
   <p>${details.reply.can_submit?'The designated participant may currently submit under the existing grant.':'New submission is not currently available; this is a historical request.'}</p>
   <p><a href="${escape(details.reply.url)}">Open the authenticated response route</a></p>
+  ${details.intake ? `<h2>Apply to participate</h2><p>Sign in to check availability, send a private offer to the owner, or revisit your application. The owner chooses who may receive files. The request accepts one answer across all recipients.</p>
+  <p><a href="${escape(details.intake.url)}">Apply or check my application</a></p>` : ''}
   <aside>${escape(details.boundary)}</aside>`:
   '<p>The publication has ended or its source or response authority is unavailable. No selected material is served here. Contact the project through an independently known route; possession of this URL grants no access.</p>'}
   </main><footer><a href="/public-requests/${escape(value.id)}.json">Read the same public record as JSON</a>
@@ -46,10 +48,11 @@ export function publicationPage(s:Access,csrf:string,workId:string):string {
   <meta name="csrf-token" content="${escape(csrf)}"><meta name="workspace" content="${s.workspace_id}"><meta name="project" content="${s.project_id}">
   <meta name="publication-work" content="${workId}"><title>Publish a selected request · Augnes</title><link rel="stylesheet" href="/style.css"><script src="/publications.js" defer></script>
   <meta name="public-response-enabled" content="${s.env.PARTICIPATION_MODE==='verified-recipient-v1'?'true':'false'}">
+  <meta name="applications-enabled" content="${applicationMode(s.env)?'true':'false'}">
   </head><body><header><a href="/?project=${s.project_id}">Private project</a><a href="${escape(s.signout)}">Sign out</a></header>
   <main id="publication-view"><h1>Make a project's request understandable outside it.</h1>
   <p>This deliberately publishes only the text you write below and the exact request reference. Project history, files and recipient identity are not automatically copied.
-  Anyone with the public URL can read that selected material. Only the already designated participant can submit through the linked response route.</p>
+  Anyone with the public URL can read that selected material. Each recipient needs their own grant to contribute.</p>
   <p id="status" role="status" aria-live="polite"></p><button id="refresh">Read current requests and publications</button>
   <section id="source-context" aria-label="Private source selection"></section>
   <form id="publication-form"><fieldset id="publication-fields"><legend>Select and review the public material</legend>
@@ -65,5 +68,21 @@ export function publicationPage(s:Access,csrf:string,workId:string):string {
   </fieldset><button id="publication-submit" type="submit">Publish this selected request</button></form>
   <button id="publication-resolve" hidden>Check the pending publication</button>
   <h2>Existing publications</h2><div id="publications"></div><button id="publications-more" hidden>More publications</button>
+  </main></body></html>`;
+}
+
+export function applicationPage(publicationId:string,csrf:string,signout:string,principalHash:string):string {
+  const root='/api/applications/'+escape(publicationId);
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="csrf-token" content="${escape(csrf)}"><meta name="publication" content="${escape(publicationId)}"><meta name="applicant" content="${escape(principalHash)}">
+  <title>My participation application · Augnes</title><link rel="stylesheet" href="${root}/style.css"><script src="${root}/client.js" defer></script></head>
+  <body><header><a href="/public-requests/${escape(publicationId)}">Public request</a><a href="${escape(signout)}">Sign out</a></header>
+  <main><h1>My participation application</h1><p id="status" role="status" aria-live="polite">Checking your application…</p>
+  <form id="offer-form" hidden><fieldset id="offer-fields"><label for="offer">What can you contribute?</label>
+  <textarea id="offer" required maxlength="500" rows="4"></textarea>
+  <p>The owner can read your offer and verified login. Approval gives you access to the selected files under the owner's terms. The request accepts one answer, with no reservation or payment commitment.</p>
+  <button id="apply" type="submit">Send my application</button></fieldset></form>
+  <p id="grant" hidden><a id="grant-link">Open my recipient grant</a></p>
+  <button id="refresh" type="button">Check my application</button><p>Bookmark this page and return with the same login to check the owner's decision.</p>
   </main></body></html>`;
 }

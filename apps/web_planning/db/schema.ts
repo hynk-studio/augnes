@@ -94,6 +94,49 @@ export const publicRequest=sqliteTable('web_planning_public_request',{
   check('web_planning_public_request_material',sql`json_valid(${t.material})`),
 ]);
 
+// Publication intake has its own operational history. The publication's frozen
+// material and the portable work envelope do not include these records.
+export const intakeEvent=sqliteTable('web_planning_intake_event',{
+  publication_id:text('publication_id').notNull().references(()=>publicRequest.publication_id),
+  version:integer('version').notNull(),
+  operation_id:text('operation_id').notNull(),
+  enabled:integer('enabled').notNull(),
+},t=>[
+  primaryKey({columns:[t.publication_id,t.version]}),
+  unique('web_planning_intake_operation').on(t.publication_id,t.operation_id),
+  check('web_planning_intake_version',sql`typeof(${t.version}) = 'integer' AND ${t.version} BETWEEN 1 AND 9007199254740991`),
+  check('web_planning_intake_enabled',sql`${t.enabled} IN (0, 1)`),
+]);
+
+export const requestApplication=sqliteTable('web_planning_request_application',{
+  publication_id:text('publication_id').notNull().references(()=>publicRequest.publication_id),
+  application_id:text('application_id').notNull(),
+  applicant_login:text('applicant_login').notNull(),
+  applicant_hash:text('applicant_hash').notNull(),
+  material_fingerprint:text('material_fingerprint').notNull(),
+  offer:text('offer').notNull(),
+  body_fingerprint:text('body_fingerprint').notNull(),
+  created_at:text('created_at').notNull(),
+  expires:integer('expires').notNull(),
+  decision:text('decision'),
+  decision_operation_id:text('decision_operation_id'),
+  decision_fingerprint:text('decision_fingerprint'),
+  grant_id:text('grant_id'),
+  invalidated_at:text('invalidated_at'),
+},t=>[
+  primaryKey({columns:[t.publication_id,t.application_id]}),
+  unique('web_planning_request_application_principal').on(t.publication_id,t.applicant_hash),
+  unique('web_planning_request_application_operation').on(t.publication_id,t.decision_operation_id),
+  unique('web_planning_request_application_grant').on(t.grant_id),
+  index('web_planning_request_application_pending').on(t.applicant_hash,t.expires)
+    .where(sql`${t.decision} IS NULL AND ${t.invalidated_at} IS NULL`),
+  check('web_planning_request_application_offer',sql`length(${t.offer}) BETWEEN 1 AND 500`),
+  check('web_planning_request_application_decision',sql`
+    (${t.decision} IS NULL AND ${t.decision_operation_id} IS NULL AND ${t.decision_fingerprint} IS NULL AND ${t.grant_id} IS NULL)
+    OR (${t.decision} IS NOT NULL AND ${t.invalidated_at} IS NULL AND ${t.decision_operation_id} IS NOT NULL AND ${t.decision_fingerprint} IS NOT NULL
+      AND ((${t.decision} = 'approved' AND ${t.grant_id} IS NOT NULL) OR (${t.decision} = 'declined' AND ${t.grant_id} IS NULL)))`),
+]);
+
 // Quotas are also enforced by the migration's transaction-local INSERT trigger.
 export const file=sqliteTable('web_planning_file',{
   workspace_id:text('workspace_id').notNull(),project_id:text('project_id').notNull(),

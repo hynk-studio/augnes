@@ -1,0 +1,140 @@
+'use strict';
+const $ = id => document.getElementById(id);
+const meta = name => document.querySelector('meta[name="' + name + '"]').content;
+const publication = meta('publication');
+const endpoint = '/api/applications/' + publication;
+const locatorKey = 'augnes-application:' + meta('applicant') + ':' + publication;
+let busy = false, denied = false, locatorBlocked = false, current = null, pending = null;
+
+function message(text) { $('status').textContent = text; }
+function controls() {
+  const canApply = current?.available && !current.application && !denied && !locatorBlocked;
+  $('offer-form').hidden = !canApply;
+  $('offer-fields').disabled = !canApply || busy;
+  $('refresh').disabled = busy || denied;
+  $('apply').textContent = pending ? 'Retry my exact application' : 'Send my application';
+}
+function hideGrant() {
+  $('grant').hidden = true;
+  $('grant-link').removeAttribute('href');
+}
+function forgetLocator() {
+  sessionStorage.removeItem(locatorKey);
+  pending = null;
+}
+function show(result) {
+  if (denied) return;
+  hideGrant();
+  current = result;
+  const application = result.application;
+  if (application) {
+    $('offer').value = '';
+    const differentOperation = pending && pending.operation_id !== application.id;
+    // The server permits one application per login and publication. A different
+    // identifier is the other tab's committed offer, not this operation's ACK.
+    if (pending) forgetLocator();
+    const expiry = new Date(application.expires).toLocaleString();
+    const labels = {
+      pending: 'Your offer is with the owner. This application expires ' + expiry + '.',
+      approved: application.grant_url ? 'The owner approved your application. Your recipient grant is available.' : 'The owner approved your application. The associated grant is currently unavailable.',
+      declined: 'The owner declined your application.',
+      expired: 'Your application expired.',
+      unavailable: 'Your application is no longer available for a decision.'
+    };
+    const state = labels[application.status] ?? 'The application has been recorded. Check again for its current status.';
+    message((differentOperation ? 'Another submission from this login was recorded. ' : '') + state);
+    if (application.status === 'approved' && application.grant_url) {
+      const url = new URL(application.grant_url, location.origin);
+      if (url.origin === location.origin && /^\/participate\/[0-9a-f-]{36}$/.test(url.pathname)) {
+        $('grant-link').href = url.href;
+        $('grant').hidden = false;
+      }
+    }
+  } else if (locatorBlocked) {
+    message('Your browser could not read the pending operation. Check here for a committed application before sending another offer.');
+  } else if (pending) {
+    message('No committed application was visible at this check. You can check again or retry the same offer with its original operation.');
+  } else {
+    message(result.available ? 'Applications are open. Send the owner a brief offer.' : 'This request is closed to new applications.');
+  }
+  controls();
+}
+async function request(body) {
+  const writing = body !== undefined;
+  const response = await fetch(endpoint + (writing ? '/apply' : ''), {
+    method: writing ? 'POST' : 'GET', credentials: 'same-origin', redirect: 'manual', cache: 'no-store', signal: AbortSignal.timeout(15000),
+    ...(writing ? { headers: { 'content-type': 'application/json', 'x-csrf-token': meta('csrf-token') }, body: JSON.stringify(body) } : {})
+  });
+  if (response.status === 401 || response.status === 403 || response.type === 'opaqueredirect' || response.headers.get('x-web-planning-response') !== '1') {
+    denied = true;
+    $('offer').value = '';
+    throw Error('Reopen this page with the same login to check your application.');
+  }
+  const result = await response.json();
+  if (!response.ok) {
+    const detail = result.error === 'application_unavailable' || result.error === 'application_conflict'
+      ? 'The application or request changed. Check your application for its current status.'
+      : 'The application service could not complete this request.';
+    throw Object.assign(Error(detail), { httpStatus: response.status });
+  }
+  return result;
+}
+async function run(action) {
+  if (busy || denied) return;
+  busy = true;
+  controls();
+  try {
+    await action();
+  } catch (error) {
+    current = null;
+    hideGrant();
+    message(denied || !pending ? error.message : 'The application outcome is unconfirmed. Check your application before retrying.');
+  } finally {
+    busy = false;
+    controls();
+  }
+}
+async function offerDigest(fingerprint, offer) {
+  const bytes = new TextEncoder().encode(JSON.stringify([fingerprint, offer]));
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+  return Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('');
+}
+$('offer-form').onsubmit = event => {
+  event.preventDefault();
+  if (!current?.available || current.application || locatorBlocked) return;
+  run(async () => {
+    const offer = $('offer').value.trim();
+    if (!offer) { message('Describe what you can contribute.'); return; }
+    const fingerprint = current.publication_fingerprint;
+    const digest = await offerDigest(fingerprint, offer);
+    if (pending && pending.digest !== digest) {
+      message('A previous submission is still unconfirmed. Check its status or re-enter the same offer to retry.');
+      return;
+    }
+    const operation = pending ?? { operation_id: crypto.randomUUID(), digest };
+    sessionStorage.setItem(locatorKey, JSON.stringify(operation));
+    pending = operation;
+    try {
+      show(await request({ operation_id: operation.operation_id, publication_fingerprint: fingerprint, offer }));
+    } catch (error) {
+      if (error.httpStatus >= 400 && error.httpStatus < 500) forgetLocator();
+      throw error;
+    }
+  });
+};
+$('refresh').onclick = () => run(async () => show(await request()));
+try {
+  const raw = sessionStorage.getItem(locatorKey);
+  if (raw !== null) {
+    const item = JSON.parse(raw);
+    if (!item || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(item.operation_id) || !/^[a-f0-9]{64}$/.test(item.digest))
+      throw Error('invalid_locator');
+    pending = item;
+  }
+} catch { locatorBlocked = true; }
+window.addEventListener('pagehide', () => {
+  denied = true; current = null;
+  $('offer').value = ''; hideGrant(); message(''); controls();
+});
+window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
+run(async () => show(await request()));

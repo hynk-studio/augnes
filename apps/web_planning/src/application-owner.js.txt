@@ -1,0 +1,184 @@
+// The publication page supplies its authenticated API client and source selection.
+function manageApplications(row, publication) {
+  const base = root + '/' + publication.id + '/applications';
+  const locator = 'augnes-owner-application:' + scope.workspace_id + ':' + scope.project_id + ':' + publication.id + ':';
+  const panel = document.createElement('section');
+  panel.className = 'note-text';
+  panel.setAttribute('aria-label', 'Participation applications for ' + publication.summary.title);
+  const reviewButton = button(row, 'Review participation applications', 'review-applications', () => load());
+  row.append(panel);
+  let listing, pageCursor = '', retryAllowed = new Set();
+
+  function button(parent, label, action, execute) {
+    const control = document.createElement('button');
+    control.type = 'button';
+    control.textContent = label;
+    control.dataset.action = action;
+    control.onclick = () => run(execute);
+    parent.append(control);
+    return control;
+  }
+  function field(parent, labelText, name, type) {
+    const label = document.createElement('label');
+    label.textContent = labelText;
+    const input = document.createElement(type === 'textarea' ? 'textarea' : 'input');
+    if (type !== 'textarea') input.type = type;
+    input.name = name;
+    label.append(input);
+    parent.append(label);
+    return input;
+  }
+  function remember(key, operation) {
+    sessionStorage.setItem(locator + key, JSON.stringify(operation));
+  }
+  function retained(key) {
+    const value = sessionStorage.getItem(locator + key);
+    if (value === null) return null;
+    const item = JSON.parse(value);
+    if (!item || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(item.operation_id)) throw Error('The pending operation locator is invalid.');
+    return item;
+  }
+  async function load(cursor = '') {
+    listing = await api(base + (cursor ? '?cursor=' + encodeURIComponent(cursor) : ''));
+    pageCursor = cursor;
+    render();
+  }
+  async function showCommitted(cursor, confirmation) {
+    // A new read can fail after an acknowledged decision. Remove stale actions
+    // immediately; the publication's review button remains available to read.
+    panel.replaceChildren();
+    try { await load(cursor); }
+    catch (error) {
+      if (lost) throw error;
+      status(confirmation + ' Refresh participation applications to read the latest list.');
+      return;
+    }
+    status(confirmation);
+  }
+  async function toggle(operation) {
+    remember('intake', operation);
+    try {
+      await api(base + '/intake', operation);
+      sessionStorage.removeItem(locator + 'intake');
+    } catch (error) {
+      if (error.httpStatus >= 400 && error.httpStatus < 500) sessionStorage.removeItem(locator + 'intake');
+      else if (!lost) {
+        panel.replaceChildren();
+        button(panel, 'Check current intake', 'check-intake', () => load());
+        throw Error('The intake update is unconfirmed. Check its current state before another change.');
+      }
+      throw error;
+    }
+    await showCommitted('', operation.enabled ? 'Applications are open.' : 'Applications are closed. Existing recipient grants keep their own terms.');
+  }
+  async function resolve(application, pending) {
+    const result = await api(base + '/resolve', { application_id: application.id, operation_id: pending.operation_id });
+    if (result.outcome === 'decided' && result.application?.decision_operation_id === pending.operation_id) {
+      sessionStorage.removeItem(locator + application.id);
+      await showCommitted(pageCursor, 'The earlier decision was saved. Current grant availability is checked separately.');
+    } else {
+      retryAllowed.add(application.id);
+      await load(pageCursor);
+      status('That operation was not visible at this check. Review the current application before explicitly retrying the same decision.');
+    }
+  }
+  async function decide(application, input) {
+    const key = application.id, pending = retained(key);
+    const bytes = new TextEncoder().encode(JSON.stringify(input));
+    const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+    const digest = Array.from(hash, byte => byte.toString(16).padStart(2, '0')).join('');
+    if (pending && (!retryAllowed.has(key) || digest !== pending.digest))
+      throw Error('Check the unconfirmed decision and use its original terms for an exact retry.');
+    const operation = pending ?? { operation_id: crypto.randomUUID(), digest };
+    remember(key, operation);
+    retryAllowed.delete(key);
+    try {
+      await api(base + '/decide', { application_id: key, operation_id: operation.operation_id, ...input });
+      sessionStorage.removeItem(locator + key);
+    } catch (error) {
+      if (error.httpStatus >= 400 && error.httpStatus < 500) sessionStorage.removeItem(locator + key);
+      if (!lost) render();
+      if (!lost && (!error.httpStatus || error.httpStatus >= 500)) throw Error('The decision is unconfirmed. Check the earlier decision before sending another.');
+      throw error;
+    }
+    await showCommitted(pageCursor, input.decision === 'approve' ? 'Approved. The applicant can check their own grant.' : 'Application declined.');
+  }
+  function applicationRow(application) {
+    const section = document.createElement('section');
+    section.dataset.applicationId = application.id;
+    const heading = document.createElement('h3');
+    heading.textContent = application.applicant;
+    section.append(heading);
+    paragraph(section, application.offer);
+    paragraph(section, 'Status: ' + application.status + ' · Application expiry: ' + new Date(application.expires).toLocaleString());
+    panel.append(section);
+    let pending = retained(application.id);
+    if (pending && application.decision_operation_id === pending.operation_id) {
+      sessionStorage.removeItem(locator + application.id);
+      pending = null;
+    }
+    if (pending) {
+      button(section, 'Check earlier decision', 'check-decision', () => resolve(application, pending));
+      if (!retryAllowed.has(application.id)) return;
+    }
+    if (application.status !== 'pending') return;
+    button(section, 'Decline this application', 'decline', () => decide(application, { decision: 'decline' }));
+    const request = requests.find(item => item.kind === 'request' && item.ref.work_id === publication.work_id &&
+      item.ref.revision === publication.request.revision && item.ref.fingerprint === publication.request.fingerprint);
+    if (!listing.intake.enabled || !request || publication.revoked_at || publication.expires <= Date.now() ||
+        current?.revision !== publication.expected.revision || current.fingerprint !== publication.expected.fingerprint) return;
+    const form = document.createElement('form');
+    const fields = document.createElement('fieldset');
+    const legend = document.createElement('legend');
+    legend.textContent = 'Select the disclosure for ' + application.applicant;
+    fields.append(legend);
+    const selected = request.files.map((file, index) => {
+      const input = field(fields, file.name + ' · ' + file.bytes + ' bytes · ' + file.digest, 'file', 'checkbox');
+      input.value = String(index);
+      return input;
+    });
+    const brief = field(fields, 'Private brief for this applicant', 'brief', 'textarea');
+    brief.maxLength = 500; brief.required = true;
+    const terms = field(fields, 'Return conditions', 'next_action', 'textarea');
+    terms.maxLength = 500; terms.required = true;
+    const expiry = field(fields, 'Recipient grant expires', 'expires', 'datetime-local');
+    expiry.required = true;
+    paragraph(fields, 'Approval issues this applicant a separate recipient grant. The request still accepts one answer across recipients. Approval reserves no work or payment.');
+    const approve = document.createElement('button');
+    approve.type = 'submit'; approve.textContent = 'Approve and issue this grant'; approve.dataset.action = 'approve';
+    fields.append(approve); form.append(fields); section.append(form);
+    form.onsubmit = event => {
+      event.preventDefault();
+      const indices = selected.filter(input => input.checked).map(input => Number(input.value));
+      const expires = new Date(expiry.value).getTime();
+      if (!indices.length) { status('Select at least one file for this applicant.'); return; }
+      if (!brief.value.trim() || !Number.isSafeInteger(expires) || expires <= Date.now()) {
+        status('Enter a brief and a future expiry for this grant.'); return;
+      }
+      run(() => decide(application, { decision: 'approve', brief: brief.value.trim(), next_action: terms.value.trim(), indices, expires }));
+    };
+  }
+  function render() {
+    panel.replaceChildren();
+    reviewButton.textContent = 'Refresh participation applications';
+    paragraph(panel, listing.intake.enabled ? 'Application intake is open.' : 'Application intake is closed.');
+    let operation = retained('intake');
+    if (operation && (listing.intake.operation_id === operation.operation_id || listing.intake.version > operation.expected_version)) {
+      sessionStorage.removeItem(locator + 'intake');
+      operation = null;
+    }
+    if (operation) {
+      button(panel, 'Retry the same intake change', 'toggle-intake', () => toggle(operation));
+    } else {
+      const enabling = !listing.intake.enabled;
+      const toggleButton = button(panel, enabling ? 'Open applications' : 'Close applications', 'toggle-intake', () =>
+        toggle({ operation_id: crypto.randomUUID(), expected_version: listing.intake.version, enabled: enabling }));
+      toggleButton.disabled = enabling && (!!publication.revoked_at || publication.expires <= Date.now() ||
+        current?.revision !== publication.expected.revision || current.fingerprint !== publication.expected.fingerprint);
+    }
+    if (!listing.applications.length) paragraph(panel, 'No applications on this page.');
+    for (const application of listing.applications) applicationRow(application);
+    if (listing.next) button(panel, 'Next applications', 'next-applications', () => load(listing.next));
+    if (pageCursor) button(panel, 'First applications', 'first-applications', () => load());
+  }
+}

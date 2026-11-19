@@ -3728,6 +3728,12 @@ Production migration, public ingress/admission, selected real data, outreach,
 provider expenditure and repository merge retain their separate authority.
 No independent demand or successful resource acquisition is claimed.
 
+The [application intake candidate](../../apps/web_planning/README.md#apply-to-participate-in-a-public-request)
+adds a separate entry for an eligible reader who wants to participate in an
+existing selected request. Owners can continue using the designated invitation
+directly. The candidate connects a deliberate approval to the ordinary recipient
+journey, with its own source verification and subsequent hosted activation decision.
+
 ### Completed bounded P2/P5 implementation — Request-scoped Web participation (#1589)
 
 The [request-scoped flow](../../apps/web_planning/README.md#request-scoped-participants-and-shared-feedback-1589)

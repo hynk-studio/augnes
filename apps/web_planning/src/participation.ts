@@ -49,29 +49,38 @@ export async function listGrants(s:Access,id:string,cursor='') {
   const {results}=await s.DB.prepare('SELECT * FROM web_planning_participation WHERE workspace_id=? AND project_id=? AND work_id=? AND grant_id>? ORDER BY grant_id LIMIT 11').bind(...scope(s),id,cursor).all<Grant>();
   return {grants:results.slice(0,10).map(g=>ownerView(s,g)),next:results.length>10?results[9].grant_id:null};
 }
-export async function createGrant(s:Access,id:string,input:Record<string,unknown>) {
-  await participationAvailable(s);
-  exact(input,'workspace_id,project_id,grant_id,request,expected,recipient,brief,next_action,indices,expires');
-  const ref=workRef(input.request),expected=binding(input.expected),recipient=login(input.recipient);
-  if(!UUID.test(String(input.grant_id))||ref.work_id!==id||!recipient||hash(recipient)===s.ownerHash)fail('invalid_participant');
-  if(!Number.isSafeInteger(input.expires)||Number(input.expires)<=Date.now()||Number(input.expires)>Date.now()+90*86400000)fail('invalid_participation_expiry');
-  const chain=await readWork(s,id),r=chain[ref.revision-1];
+export async function prepareGrantDisclosure(s:Access,ref:WorkRef,expected:Binding,input:Record<string,any>) {
+  const chain=await readWork(s,ref.work_id),r=chain[ref.revision-1];
   if(!r||r.exchange?.kind!=='request'||canonical(reference(r))!==canonical(ref))fail('exchange_request_unavailable',409);
   if(!Array.isArray(input.indices)||!input.indices.length||input.indices.length>8||new Set(input.indices).size!==input.indices.length)fail('invalid_disclosure');
   const files=input.indices.map(index=>{
     if(!Number.isSafeInteger(index)||index<0||!r.exchange!.artifacts[index])fail('invalid_disclosure');
     return {index,original:r.exchange!.artifacts[index]};
   });
-  const d:Disclosure={request:ref,expected,brief:boundedText(input.brief,true),next_action:boundedText(input.next_action),files};
-  const encoded=canonical(d),fingerprint=hash(encoded),recipientHash=hash(recipient);
+  const disclosure:Disclosure={request:ref,expected,brief:boundedText(input.brief,true),next_action:boundedText(input.next_action),files};
+  const encoded=canonical(disclosure);
+  return {chain,revision:r,disclosure,encoded,fingerprint:hash(encoded)};
+}
+export async function verifyGrantSelection(s:Access,prepared:Awaited<ReturnType<typeof prepareGrantDisclosure>>) {
+  const {chain,revision,disclosure}=prepared;
+  if(!sameBinding(headBinding(chain.at(-1)),disclosure.expected))fail('refresh_required',409);
+  if(chain.some(v=>v.exchange?.basis?.fingerprint===disclosure.request.fingerprint))fail('exchange_already_answered',409);
+  for(const f of disclosure.files)await downloadFile(s,revision,f.index,true);
+}
+export async function createGrant(s:Access,id:string,input:Record<string,unknown>) {
+  await participationAvailable(s);
+  exact(input,'workspace_id,project_id,grant_id,request,expected,recipient,brief,next_action,indices,expires');
+  const ref=workRef(input.request),expected=binding(input.expected),recipient=login(input.recipient);
+  if(!UUID.test(String(input.grant_id))||ref.work_id!==id||!recipient||hash(recipient)===s.ownerHash)fail('invalid_participant');
+  if(!Number.isSafeInteger(input.expires)||Number(input.expires)<=Date.now()||Number(input.expires)>Date.now()+90*86400000)fail('invalid_participation_expiry');
+  const prepared=await prepareGrantDisclosure(s,ref,expected,input);
+  const {encoded,fingerprint}=prepared,recipientHash=hash(recipient);
   const prior=await s.DB.prepare(`SELECT * FROM web_planning_participation WHERE ${where}`).bind(...scope(s),String(input.grant_id)).first<Grant>();
   if(prior){
     if(prior.disclosure!==encoded||prior.recipient_hash!==recipientHash||prior.expires!==input.expires)fail('altered_replay',409);
     return ownerView(s,prior);
   }
-  if(!sameBinding(headBinding(chain.at(-1)),expected))fail('refresh_required',409);
-  if(chain.some(v=>v.exchange?.basis?.fingerprint===ref.fingerprint))fail('exchange_already_answered',409);
-  for(const f of files)await downloadFile(s,r,f.index,true);
+  await verifyGrantSelection(s,prepared);
   // Freeze precisely this observed work head. Creation never retargets a request.
   await s.DB.prepare(`INSERT INTO web_planning_participation
     (workspace_id,project_id,grant_id,work_id,recipient_login,recipient_hash,disclosure,disclosure_fingerprint,expires)

@@ -4273,6 +4273,29 @@ new work-revision format or native synchronization is introduced. The
 [Web public-request guide](../../apps/web_planning/README.md#selected-public-project-requests-1641)
 owns bounded APIs, activation, source retention and rollback.
 
+#### Applications to an existing public request
+
+An owner may open intake for a selected publication backed by an existing
+recipient grant. The optional intake descriptor points to a verified applicant
+entry. Application identity binds only an offer, its exact publication material
+and its own status. It confers no project membership or source disclosure.
+Each applicant has one durable record per publication. The owner controls
+intake with versioned operations and reviews offers within that publication.
+
+Approval freezes an individually selected disclosure in a new ordinary
+recipient grant. The decision and grant commit together while the publication,
+original grant, owner mapping, request, expected head, application expiry and
+answer state still permit it. The first committed answer consumes the one
+response opportunity shared by all grants for the request. The owner can
+pause intake while independently issued grants continue under their own
+expiry and revocation. Exact operation reconciliation never renews authority.
+
+Application and decision records belong to operational storage. Revision
+exports carry the authored work and file history. Reconstruction invalidates
+the selected project's actionable applications and revokes its grants while
+retaining decision history. The [participation application guide](../../apps/web_planning/README.md#apply-to-participate-in-a-public-request)
+defines the bounded cohort, reader and owner actions, and activation controls.
+
 #### Independent private Web projects (#1627)
 
 An explicitly enabled admitted-principal entry separates the installation's

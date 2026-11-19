@@ -838,7 +838,7 @@ designated recipient. Reading the public request or possessing its URL grants
 no submission, other-work access, external contact, spending, execution or
 commitment authority. The existing request-bound return, origin checks,
 use/adapt/defer/decline and deliberately shared participant feedback are unchanged.
-An unknown visitor cannot request admission through this slice. The public
+The owner can separately open [participation applications](#apply-to-participate-in-a-public-request) for this publication. The public
 project label and evidence are authored claims; issuer attribution is not
 independent verification of a human, agent, need or finding.
 
@@ -902,6 +902,75 @@ Record actual results and
 blocked checks on the candidate; source, controlled fixtures, hosted publication,
 invited response, independent participation and economic demand are different
 observations. This does not implement #1642's need-driven external transport.
+
+## Apply to participate in a public request
+
+A project owner can invite offers for one already-published request. In **Manage
+public requests**, review that publication's participation applications and open
+intake. Eligible readers then see a sign-in link on the public page. The matching
+JSON includes an optional `intake` descriptor with schema
+`augnes.public-request-intake.v1` and the same URL. The frozen summary,
+fingerprint and original recipient link keep their original meanings.
+
+A reader opens `/apply/<publication-id>`, signs in with their own supported
+identity, and submits a short offer. Bookmark that URL to check the decision
+from another session with the same identity. An applicant can read their own
+status. Private files and return access require a separate grant. The project
+owner and original designated recipient already have their respective routes.
+
+The owner can decline an offer or select individual source files, write a
+private brief and return conditions, and set a finite grant expiry. Approval
+issues a new ordinary grant for that applicant. It neither reserves the work
+nor promises payment. The request accepts one answer across its recipients.
+The recipient can use the existing file return or separately authorized
+saved-project return, check previously submitted work, and read the feedback
+the owner deliberately shares. A fresh session or status check cannot extend
+a grant. After expiry, revocation or erasure, the historical decision can
+remain visible while the grant link and private material are unavailable.
+
+For a small owner-reviewed cohort, each publication accepts 25 applications
+over its lifetime, with one offer per verified principal. The owner reads ten
+per page. An offer is limited to 500 Unicode code points and expires after
+seven days or at publication expiry, whichever comes first. One principal can
+have five undecided, unexpired offers on live requests in the workspace.
+Pausing intake keeps its undecided offers in that limit so reopening cannot
+overfill it. Closing intake stops new applications and approvals. The owner can
+still decline, and previously issued grants retain their own terms. A decision
+on a changed or answered request cannot silently move to a new revision.
+
+**Authenticated API**
+
+- `GET /api/applications/<publication-id>` returns availability and the caller's
+  application, including a usable grant URL after approval. `POST .../apply`
+  takes `operation_id`, the observed `publication_fingerprint` and `offer`.
+  The entry page issues an application CSRF token bound to the principal,
+  workspace, publication and apply operation.
+- `GET /api/work/<work-id>/public-requests/<publication-id>/applications`
+  lists the owner queue, current intake version and next cursor. Owner writes
+  use the ordinary project scope and owner CSRF. `POST .../intake` takes
+  `enabled`, `expected_version` and `operation_id`.
+- `POST .../decide` takes `application_id`, `operation_id` and `decision`.
+  Approval (`approve`) also takes `indices`, `brief`, `next_action` and
+  `expires` (Unix milliseconds, within the ordinary 90-day grant limit).
+  Decline (`decline`) needs no disclosure. `POST .../resolve` takes the two
+  IDs and reads the outcome of that exact decision.
+
+After a lost acknowledgement, read the applicant status or use the owner
+decision resolver. An absent operation is still unknown at that observation.
+An explicit retry uses the original ID and exact input. Duplicate requests
+cannot create a second grant. The database commits an approval and its grant
+together.
+
+Operational activation requires the optional `0010_request_applications.sql`
+migration, the two existing publication and recipient modes, and
+`REQUEST_APPLICATION_MODE=verified-applicant-v1`. Configure ingress so
+eligible applicants can authenticate to the private application routes without
+joining the project. Only the two existing public projection GET routes should
+be anonymous. Turning off the application mode removes application entry and
+review. Ordinary recipient grants still have their own controls. Applications
+and permissions stay out of work exports. Keep public and participation access
+disabled during a whole-database restoration until retained grants, approvals
+and intake settings have been reconciled.
 
 ## Request-scoped participants and shared feedback (#1589)
 
@@ -1909,9 +1978,9 @@ server/index.js
 server/wrangler.json
 server/.vite/manifest.json
 .openai/hosting.json
-.openai/drizzle/*.sql                 # shipped 0000 through 0009
+.openai/drizzle/*.sql                 # shipped 0000 through 0010
 .openai/drizzle/meta/_journal.json
-.openai/drizzle/meta/*_snapshot.json   # matching snapshots 0000 through 0009
+.openai/drizzle/meta/*_snapshot.json   # matching snapshots 0000 through 0010
 ```
 
 The deployment entry is `src/worker.ts`, an ESM Worker `fetch(request, env)`.
@@ -1970,7 +2039,7 @@ npm run web:build:cloudflare
 
 The existing esbuild owner emits `apps/web_planning/dist-cloudflare/worker.js`,
 `wrangler.json`, and every shipped `drizzle/*.sql` file under `migrations/`
-(currently 0000 through 0009). The artifact's complete migration inventory is not
+(currently 0000 through 0010). The artifact's complete migration inventory is not
 an instruction to replay applied migrations or activate optional features.
 It rejects local environment files, native/test imports and bound production
 configuration. The artifact has no development identity, real account/database
@@ -2007,7 +2076,8 @@ from those retained records; do not create resources or repeat initial setup.
    Current ordinary readers accept schema 4, 5 or 6 and require file-part storage
    and the positive revision constraint. Admitted project entry requires schema
    5 or 6; scoped succession requires 6. Public requests additionally require
-   0009's table and explicit activation. Readers must also support every retained
+   0009's table and explicit activation. Application intake requires 0010 and
+   its own activation settings. Readers must also support every retained
    envelope/file/story format and complete history within current budgets:
    contribution records require v0.11 support even though the schema remains 6.
    Accepting a marker alone does not prove compatibility. Retain the preceding
@@ -2033,7 +2103,7 @@ from those retained records; do not create resources or repeat initial setup.
    ledger/table definitions with the exact artifact's SQL. Schema 3 needs 0004
    before the current reader can serve it; project entry and succession need the
    later path through 0007 and 0008. Review only genuinely pending files in order,
-   including optional 0009 when present in the approved migration directory. Do not
+   including 0009 and 0010 when present in the approved migration directory. Do not
    replay initialization, rewrite ledger rows, reset markers or mix direct
    Wrangler and Sites Drizzle histories. A retained observation is historical;
    unavailable live access leaves the current pending set unconfirmed.
@@ -2056,14 +2126,14 @@ from those retained records; do not create resources or repeat initial setup.
    resolved migration directory/ledger has exactly the reviewed pending set.
    The variable denotes the retained private configuration, never the generated
    placeholder. For a coherent schema-3 ledger through 0003, the current
-   artifact's pending set is 0004 through 0009: 0004 advances to schema 4;
+   artifact's pending set runs from 0004 through 0010. Migration 0004 advances to schema 4;
    0005 adds the return-destination index; 0006 adds participant grants; 0007
    preserves the legacy mapping while advancing to schema 5; 0008 adds succession
-   and advances to schema 6; 0009 adds optional publication metadata without
-   changing that marker. Later coherent ledgers need only their missing suffix.
+   and advances to schema 6. Migrations 0009 and 0010 add publication and
+   private application records at the same marker. Later coherent ledgers need only their missing suffix.
    The CLI applies all pending files in its resolved directory, including 0009
-   even if public mode is off; the approved inventory must say whether it is
-   included. Each migration settles through that owner; the multi-file upgrade
+   and 0010 even when public exposure and applications are disabled. Use the
+   approved migration inventory. Each migration settles through that owner; the multi-file upgrade
    and deployment are not one atomic operation. While writers remain quiesced,
    read back the ledger, sole marker, table/index/foreign-key definitions and
    preserved data, then activate the exact approved artifact. Retain private
@@ -2089,19 +2159,22 @@ from those retained records; do not create resources or repeat initial setup.
    must understand those records too. If database recovery is required, preserve
    the failed state and all later work before any separately approved replacement,
    use the existing provider recovery owner/checkpoint, and pair the recovered
-   database with compatible code. Keep restored operational grants/publications
-   disabled until their authority is reconciled. Verify the complete baseline
+   database with compatible code. Keep intake, participation and publication
+   disabled until the restored application decisions, grant bindings, revocations
+   and current source state have been reconciled. Verify the complete baseline
    before traffic resumes. Old-code deployment does not restore data; never
    truncate history, drop newer mappings or reset the marker for compatibility.
 
 Complete work exports preserve authored history and file bodies; they are not a
-whole-database backup of every project mapping, operational grant/publication,
-migration ledger and erased-ID guard. The existing `handler.ts` / `store.ts`
+whole-database backup of every project mapping, operational grant, publication,
+application, intake setting, migration ledger and erased-ID guard. The existing `handler.ts` / `store.ts`
 reconstruction owner requires `RECONSTRUCTION_MODE=quiesced-empty-store`, matching
 scope, the independently retained mapping/author identity and an empty selected
 workspace/project (including no erased IDs/files). Other projects may remain
 populated. It imports one work or the supported story pair atomically and revokes
-that project's retained grants/publications. It cannot append successive independent
+that project's retained grants and publications. Migration 0010 marks pending
+applications for those publications inactive in the same transaction. Approved
+and declined decisions retain their history. It cannot append successive independent
 exports into that now-populated project or recover its deletion/operational ledger.
 Use it only for a separately approved replacement recovery within that scope;
 do not clear the existing target, provision a replacement or enable reconstruction
@@ -2119,10 +2192,10 @@ source or schema marker alone does not establish today's pending set.
 | Observed existing state | Transition to the current artifact and chosen features |
 | --- | --- |
 | Schema 1 or 2 with a coherent established ledger | Review the missing historical suffix through 0003, then the current path below. Do not replay applied initialization or expose the new worker before its schema prerequisites hold. |
-| Schema 3, positive revision constraint, coherent ledger through 0003 | Review pending `0004_complete_exchange_files.sql`, `0005_return_destination.sql`, `0006_request_participation.sql`, `0007_independent_projects.sql`, `0008_work_continuation.sql`, then `0009_public_requests.sql` when included. The stages are schema 4, 5, then 6; 0005/0006/0009 add indexes/tables without changing their stage's marker. |
-| Schema 4, file-part storage and a coherent ledger | Ordinary current owner-only code is compatible. Select only missing files from 0005 onward; admitted projects additionally need 0007, succession needs 0008, and public requests need 0009 plus the explicit modes/ingress. |
-| Schema 5 with a coherent ledger through 0007 | Ordinary/admitted-project entry is compatible. Review pending 0008 for schema-6 succession, and 0009 if included. Preserve legacy and independent mappings. |
-| Schema 6 with a coherent ledger through 0008 or 0009 | Preserve existing history. Only missing 0009 is pending for the full current directory; an existing 0009 needs no replay. Envelope compatibility and explicit feature/ingress configuration still apply. |
+| Schema 3, positive revision constraint, coherent ledger through 0003 | Review pending `0004_complete_exchange_files.sql`, `0005_return_destination.sql`, `0006_request_participation.sql`, `0007_independent_projects.sql`, `0008_work_continuation.sql`, then `0009_public_requests.sql` and `0010_request_applications.sql` when included. The stages are schema 4, 5, then 6. Migrations 0005, 0006, 0009 and 0010 keep the existing marker. |
+| Schema 4, file-part storage and a coherent ledger | Ordinary current owner-only code is compatible. Select only missing files from 0005 onward; admitted projects additionally need 0007, succession needs 0008, public requests need 0009, and private applications need 0010 plus the applicable modes and authenticated ingress. |
+| Schema 5 with a coherent ledger through 0007 | Ordinary/admitted-project entry is compatible. Review pending 0008 for schema-6 succession and the included suffix through 0009 or 0010. Preserve legacy and independent mappings. |
+| Schema 6 with a coherent ledger through 0008, 0009 or 0010 | Preserve existing history. The full directory adds the missing suffix through 0010. An already applied migration needs no replay. Envelope compatibility and explicit feature/ingress configuration still apply. |
 | Unsupported/marker-only schema, inconsistent or mixed ledgers, missing/duplicate markers, leftover migration tables or unknown state | Preserve evidence and diagnose. No initialization replay, ledger repair, inferred upgrade or code-only downgrade. |
 
 ### Bounded observations and retained evidence
@@ -2132,7 +2205,7 @@ reads and explicit SQL `SELECT` through the established query owner. First inspe
 `sqlite_master` for table/index/trigger definitions and ledger presence, then read
 `web_planning_schema` and the existing ledger in order. Compare the actual
 `web_planning_revision` SQL with shipped 0003 and the later file/mapping/grant/
-publication tables and indexes with 0004–0009 as applicable, not only the marker.
+publication/application tables, indexes and invalidation triggers with 0004–0010 as applicable.
 For the direct owner the ledger is `d1_migrations`; `__drizzle_migrations` belongs to Sites.
 Unexpected coexistence or a missing established ledger stops the transition for
 diagnosis. Preserve scope/mapping comparisons and recovery material privately.
@@ -2307,7 +2380,8 @@ also exercised directly in D1. The original two migrations remain unchanged.
 #1351 used schema 1 with only a JSON-envelope extension; #1372's file implementation
 added 0002/schema 2, and #1397 added 0003/schema 3. The complete-originals
 Worker requires at least 0004/schema 4; project entry requires 0007/schema 5,
-and scoped work succession requires 0008/schema 6.
+and scoped work succession requires 0008/schema 6. Optional publication (0009)
+and participation application (0010) each add operational state at schema 6.
 The 0004 migration copies the old file headers and
 BLOBs, retains every revision, and adds scoped parts with cascading erasure.
 Apply it only through the established migration owner in a separately approved

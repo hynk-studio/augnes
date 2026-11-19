@@ -6,8 +6,11 @@ import { activeContinuation, continuationContext, continuationView, createContin
 import { continuationPage } from './continuation-page';
 import continuationClient from './continuation-client.js.txt?raw';
 import { createPublicRequest, listPublicRequests, readPublicRequest, resolvePublicRequest, revokePublicRequest } from './public-requests';
-import { publicationPage, publicRequestResponse } from './public-request-page';
+import { applicationPage, publicationPage, publicRequestResponse } from './public-request-page';
 import publicationClient from './publication-client.js.txt?raw';
+import applicantClient from './application-client.js.txt?raw';
+import applicationOwnerClient from './application-owner.js.txt?raw';
+import { applicationStatus, configureIntake, decideApplication, listApplications, resolveApplicationDecision, submitApplication } from './request-applications';
 import { PARTICIPATION_EXPORT } from "./participation-contract";
 import { activeGrant, knownRecipient, createGrant, listGrants, participantContext, participantFeedbackView, participantFile, participantView, participantWrite, revokeGrant } from "./participation";
 import { participantPage, participantRecoveryPage } from "./participation-page";
@@ -31,7 +34,7 @@ import { hasSceneFile } from "./file-relations";
 import { DIRECTION_EXPORT, directionExport, validateDirectionExport } from "./direction-recovery";
 import { prepareSceneContext, prepareSceneDraft, previewSceneReview, saveSceneReview } from "./scenes";
 import { type FileBody, FILE_EXPORT_REQUEST_BYTES, LARGE_EXPORT_REQUEST_BYTES, LARGE_PAIR_REQUEST_BYTES, EXCHANGE_REQUEST_BYTES, historyFiles, selectedFiles, validateFileExport } from "./files";
-import { authorize, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, projectEntryEnabled, selectedProject, type Environment, type Principal } from "./access";
+import { authorize, authorizeApplicant, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, projectEntryEnabled, selectedProject, type Environment, type Principal } from "./access";
 import { binding, canonical, exact, exportWork, fail, hash, makeRevision, normalizePayload, reference, Refusal, REQUEST_BYTES, requestFingerprint, sameBinding, UUID, validateExport, validateRetainedIncorporations, type Revision } from "./contract";
 import { inspectDraftCapacity } from "./capacity";
 import { append, completeExport, downloadFile, eraseWork, headBinding, headsCurrent, listWork, readNoteHistory, readWork, reconstruct, reconstructWorks, requestRevision } from "./store";
@@ -45,6 +48,7 @@ import client from "./client.js.txt?raw";
 import historyClient from "./history-client.js.txt?raw";
 import searchClient from "./search-client.js.txt?raw";
 import { readableExport } from "./readable-export";
+const publicationsScript=publicationClient+'\n'+applicationOwnerClient;
 const headers={"Cache-Control":"no-store, private","Vary":"Cookie, oai-authenticated-user-email","X-Web-Planning-Response":"1","X-Content-Type-Options":"nosniff",
   "Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","X-Robots-Tag":"noindex, nofollow",
   "Content-Security-Policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"};
@@ -97,6 +101,25 @@ export async function handle(request:Request,env:Environment,principal:Principal
       } catch(e) {
         return publicRequestResponse({error:e instanceof Refusal?e.code:'storage_unavailable'},true,e instanceof Refusal?e.status:503);
       }
+    }
+    const applicant=path.match(/^\/(apply|api\/applications)\/([a-f0-9-]{36})(\/[a-z.]+)?$/);
+    if(applicant&&UUID.test(applicant[2])){
+      const access=authorizeApplicant(request,env,principal,applicant[2]),suffix=applicant[3]??'';
+      if(applicant[1]==='apply' && !suffix && request.method==='GET'){
+        await applicationStatus(access);
+        const csrf=csrfToken(access,request);
+        return html(applicationPage(access.publicationId,csrf,access.signout,access.principalHash),{'Set-Cookie':csrfCookie(access,csrf)});
+      }
+      if(applicant[1]==='api/applications'){
+        if(request.method==='GET' && !suffix)return json(await applicationStatus(access));
+        if(request.method==='GET' && suffix==='/client.js')return new Response(applicantClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
+        if(request.method==='GET' && suffix==='/style.css')return new Response(style,{headers:{...headers,'Content-Type':'text/css; charset=utf-8'}});
+        if(request.method==='POST' && suffix==='/apply'){
+          requireCsrf(access,request);
+          return json(await submitApplication(access,await body(request,8_192)));
+        }
+      }
+      fail('not_found',404);
     }
     const successor=path.match(/^\/(continue|api\/continuation)\/([a-f0-9-]{36})(.*)$/);
     if(successor&&UUID.test(successor[2])){
@@ -205,8 +228,22 @@ export async function handle(request:Request,env:Environment,principal:Principal
         requireCsrf(access,request);return json(await createProject(access,await body(request)));
       }
       if(path==='/continuation.js'&&request.method==='GET'&&!url.search)return new Response(continuationClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
-      if(path==='/publications.js'&&request.method==='GET'&&!url.search)return new Response(publicationClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
+      if(path==='/publications.js'&&request.method==='GET'&&!url.search)return new Response(publicationsScript,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
       if(path==='/projects.js'&&request.method==='GET'&&!url.search)return new Response(projectsClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
+    }
+    const applications=path.match(/^\/api\/work\/([a-f0-9-]{36})\/public-requests\/([a-f0-9-]{36})\/applications(?:\/(intake|decide|resolve))?$/);
+    if(applications && UUID.test(applications[1]) && UUID.test(applications[2])){
+      const [,workId,pub,operation]=applications;
+      if(request.method==='GET' && !operation){
+        if([...url.searchParams.keys()].some(k=>k!=='cursor') || url.searchParams.getAll('cursor').length>1)fail('invalid_cursor');
+        return json(await listApplications(access,workId,pub,url.searchParams.get('cursor')??''));
+      }
+      if(request.method!=='POST' || !operation || url.search)fail('method_not_allowed',405);
+      requireCsrf(access,request);
+      const input=await body(request,16_384);
+      if(!input || typeof input!=='object' || Array.isArray(input))fail('invalid_body');
+      const write=operation==='intake'?configureIntake:operation==='decide'?decideApplication:resolveApplicationDecision;
+      return json(await write(access,workId,pub,input));
     }
     const manage=path.match(/^\/delegations\/([a-f0-9-]{36})\/([a-f0-9-]{36})$/);
     if(manage&&request.method==='GET'&&!url.search&&UUID.test(manage[1])&&UUID.test(manage[2])){
@@ -220,7 +257,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
     }
     if(request.method==="GET") {
       if(path==="/favicon.ico" && !url.search)return new Response(null,{status:204,headers});
-      if(path==='/publications.js'&&!url.search)return new Response(publicationClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
+      if(path==='/publications.js'&&!url.search)return new Response(publicationsScript,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
       if(path==="/" && (!url.search || selectedProject(request))) {
         const csrf=csrfToken(access,request);
         return html(page(csrf,access),{"Set-Cookie":csrfCookie(access,csrf)});

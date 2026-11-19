@@ -146,7 +146,14 @@ export async function browserParticipation({owner,participant,local,root,click,s
   await checkPublishedReturn?.();
   await owner.eval("[...document.querySelectorAll('#exchange-list summary')].find(e=>e.textContent==='Participant access for this request').click()");await settled(owner);
   await owner.eval("[...document.querySelectorAll('#exchange-list button')].find(b=>b.textContent==='Refresh access records').click()");await settled(owner);
-  await owner.eval("[...document.querySelectorAll('#exchange-list button')].find(b=>b.textContent==='End access').click()");await settled(owner);
+  // Application approval can add another grant to this same request.
+  await owner.eval(`(()=>{
+    const anchor=[...document.querySelectorAll('#exchange-list a')].find(a=>a.href===${JSON.stringify(link)});
+    const row=anchor?.closest('article');
+    const button=row&&[...row.querySelectorAll('button')].find(b=>b.textContent==='End access');
+    if(!button)throw new Error('End access is unavailable for the original participant grant');
+    button.click();
+  })()`);await settled(owner);
   await click(fresh,'refresh');await settled(fresh);assert.equal(await fresh.eval('accessLost'),true);assert.equal(await fresh.eval("$('files').children.length+$('feedback').children.length"),0);
   assert.match(await cli('revoked-read',['list'],1),/participation_unavailable/);
   // A real committed answer loses its acknowledgement, then access ends before
