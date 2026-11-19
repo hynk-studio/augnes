@@ -2440,8 +2440,60 @@ matching method. The ordinary-handoff successor reported solving the task from
 its current instructions and observations alone. Both used one batch opening.
 Two of the six workers submitted after a session interruption and continuation.
 Keep ordinary notes and code for this case. The incremental value and total
-cost of the examples remain unestablished. Transfer beyond a supplied catalogue
-of observation points remains an open research question.
+cost of the examples remain unestablished. The synthetic tasks supplied the
+available observation points.
+
+### Completed comparison — Reusing a Git integration check on two Web PRs (#1671)
+
+A worker investigating #1660 left a memo and a Git program. Three later model
+workers received the same two Web integration questions and commit IDs. The
+task left the paths and commands to them. The worker with source alone, the
+worker with the memo, and the worker with the memo and program each got both
+decisions, path counts and path sets right (6/6).
+[Study results](https://github.com/hynk-studio/augnes/issues/1671#issuecomment-6965377752)
+
+At the studied revisions, #1649 was already in #1669's history even though only
+15 of its 37 changed entries matched. Combining #1667 and #1669 required edits
+from both sides in the Web file client, Web guide and request scenario checks.
+The eventual #1667 merge preserved all three predicted file versions.
+[Merged source](https://github.com/hynk-studio/augnes/commit/0bd3dedd79409ad6e0ebc497607b8075412b4287)
+
+Use an ordinary memo by default. When the same source-integration question
+recurs, a maintainer can reuse the original program on the relevant commits.
+It made nine of its recipient's 14 Git calls, and the donor made 16 calls to
+investigate and prepare the handoff. Each condition had one worker. The study
+measured Git activity and left total cost open.
+[Original memo, program and replay instructions](https://github.com/hynk-studio/augnes/issues/1671#issuecomment-6965364382)
+
+### Completed comparison — Checking field readings against collection records (#1677)
+
+Four tickets carried the same successful receipt and the same SQLite delivery.
+A donor built a check that compared delivered readings with a separately held
+collection snapshot. A successor used the original program for all eight
+collection queries and wrote new SQL to map stable site codes and select the
+latest edition per visit. All three successors accepted a compacted delivery,
+detected a reversed trend and a misplaced visit, and deferred the ticket whose
+collection record was unavailable. Every worker had directions to the collection
+terminal. The comparison left total cost open.
+[Field study results](https://github.com/hynk-studio/augnes/issues/1677#issuecomment-7001169502) ·
+[Original inputs, queries and replay](https://github.com/hynk-studio/augnes/issues/1677#issuecomment-7001159945)
+
+### Completed comparison — Finding the source of a sound-archive decision (#1678)
+
+In each of two staged sound archives, one model worker received directions to
+the source records and one received only the delivery brief. The two workers
+without directions found which wall held the recorder, traced the recording
+to the setup and compared its waveform with both stereo channels. Each of the
+four workers justified all four initial decisions, including holds where a
+copied excerpt, a shared opening sound or an earlier setup left the channel
+order unresolved across the two archives.
+
+When two recordings per archive were replaced, each worker changed one decision
+and kept the other. All eight required corrected WAV submissions preserved the
+source samples in exchanged channel order. Ordinary archive access sufficed on
+these materials. The study leaves the value of source directions in larger
+collections and their total cost open.
+[Study, original returns and replay](https://github.com/hynk-studio/augnes/issues/1678)
 
 ### Bounded P3/P4/P5 implementation — Different-goal experience use (#1427)
 
