@@ -42,6 +42,8 @@ export async function assertPiRpcScriptedTransportV01(root: string) {
     assertGone(leader);
     assertGone(-leader);
   }
+  const { assertPiGroupSettlement } = await import("./fixtures/pi-rpc-group-settlement.mjs");
+  await assertPiGroupSettlement();
 }
 
 export async function assertPiRpcLifecycleV01(input: {

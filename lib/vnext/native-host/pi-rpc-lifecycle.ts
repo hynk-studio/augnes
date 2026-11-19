@@ -47,10 +47,12 @@ function idleSession(value: unknown, pending: number, expectedSession?: string):
   return state.sessionId;
 }
 
-function signalGroup(pid: number, signal: NodeJS.Signals | 0): boolean {
-  try { process.kill(-pid, signal); return true; }
+function signalGroup(pid: number, signal: NodeJS.Signals | 0): "present" | "absent" | "unconfirmed" {
+  try { process.kill(-pid, signal); return "present"; }
   catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ESRCH") return false;
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ESRCH") return "absent";
+    if (signal === 0 && code === "EPERM") return "unconfirmed";
     throw new NativeHostReconciliationRequiredErrorV01("pi_rpc_group_identity_unconfirmed");
   }
 }
@@ -70,9 +72,13 @@ export async function runPiRpcQueueLifecycleV01(input: {
     env: { NODE_ENV: "production", HOME: input.directory, TMPDIR: input.directory, PATH: input.directory,
       PI_CODING_AGENT_DIR: input.directory + "/agent", PI_OFFLINE: "1" },
   });
+  let childClosed = false;
   const closed = new Promise<boolean>(resolve => {
     child.once("error", () => resolve(false));
-    child.once("close", (code, signal) => resolve(code === 0 && signal === null));
+    child.once("close", (code, signal) => {
+      childClosed = true;
+      resolve(code === 0 && signal === null);
+    });
   });
   // Broken pipes are observed by the write callback or stdout EOF.
   child.stdin.on("error", () => {});
@@ -115,9 +121,10 @@ export async function runPiRpcQueueLifecycleV01(input: {
   function armStop() { stopTimer ??= setTimeout(forceStop, graceMs); }
   input.signal.addEventListener("abort", armStop, { once: true });
   if (input.signal.aborted) armStop();
+  let session: string;
+  let queued = false;
   try {
-    const session = idleSession(await call("get_state"), 0);
-    let queued = false;
+    session = idleSession(await call("get_state"), 0);
     if (!input.signal.aborted) {
       const acceptance = object(await call("follow_up", MARKER));
       if (acceptance.disposition !== "queued") throw new PiRpcProtocolError("pi_rpc_queue_not_confirmed");
@@ -135,26 +142,34 @@ export async function runPiRpcQueueLifecycleV01(input: {
     idleSession(await call("get_state"), 0, session);
     child.stdin.end();
     armStop();
-    if (!(await records.next()).done || !await closed || forced || (child.pid && signalGroup(child.pid, 0))) {
+    if (!(await records.next()).done || !await Promise.race([closed, interrupted.promise])) {
       throw new PiRpcProtocolError("pi_rpc_shutdown_incomplete");
     }
-    return { session, queued };
   } finally {
     clearTimeout(stopTimer);
     input.signal.removeEventListener("abort", armStop);
-    // A leader's exit does not prove that all group members released their
-    // resources. Also reap children whose inherited stdio closed before exit.
-    if (child.pid && signalGroup(child.pid, 0)) forceStop();
-    if (groupError) throw groupError;
-    if (child.pid) {
-      const deadline = performance.now() + graceMs;
-      while (signalGroup(child.pid, 0)) {
-        if (performance.now() >= deadline) throw new NativeHostReconciliationRequiredErrorV01("pi_rpc_group_unsettled");
-        await delay(10);
-      }
+    try {
+      if (!forced && child.pid && signalGroup(child.pid, 0) === "present") forceStop();
+    } finally {
+      child.stdin.destroy();
+      child.stdout.destroy();
     }
-    child.stdin.destroy();
-    child.stdout.destroy();
-    await closed;
+    if (groupError) throw groupError;
+    // Darwin can deny a group probe between SIGKILL and reaping the leader.
+    // Observe child close first, then require ESRCH for the entire group.
+    const deadline = performance.now() + graceMs;
+    for (;;) {
+      const group = childClosed && child.pid ? signalGroup(child.pid, 0) : undefined;
+      if (childClosed && (!child.pid || group === "absent")) break;
+      const remaining = deadline - performance.now();
+      if (remaining <= 0) {
+        throw new NativeHostReconciliationRequiredErrorV01(
+          group === "unconfirmed" ? "pi_rpc_group_identity_unconfirmed" : "pi_rpc_group_unsettled",
+        );
+      }
+      await delay(Math.min(10, remaining));
+    }
   }
+  if (forced) throw new PiRpcProtocolError("pi_rpc_shutdown_incomplete");
+  return { session, queued };
 }
