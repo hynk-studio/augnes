@@ -1,3 +1,4 @@
+import { assertReceiptProvenance } from "./native-host-receipt-provenance-checks";
 import { captureProjectWorkInput, captureProjectWorkFile, projectWorkSeedBytes } from "./project-work-comparison-capture.mjs";
 import { assertOptionalExpectationDeparture } from "./work-expectation-departure-checks";
 import { assertFreshProjectWorkSemanticStateReadsV01 } from "./project-work-semantic-state-read-checks";
@@ -159,6 +160,7 @@ async function main(): Promise<void> {
   const initializationStarted = performance.now();
   const cumulativeNetwork = process.argv.some(a => a.startsWith("--cumulative-")) ? installZeroNetworkGuard({ allowLoopback: true }) : null;
   try {
+    if (process.argv.includes("--host-receipt-provenance-only")) { await assertNativeHostReceiptProvenanceV01(); return; }
     if (process.argv.includes("--semantic-state-read-only")) { await assertExecutedReviewedFollowUpV01(true); return; }
     if (process.argv.includes("--cumulative-budgets-only")) {
       const { cumulativeReadBudgets } = await import("./test-cumulative-work-history");
@@ -245,6 +247,7 @@ async function main(): Promise<void> {
     await assertWebMcpCurrentReadV01();
     await assertRetainedSourceRecallV01();
     await assertSeparateNativeHostStartV01();
+    await assertNativeHostReceiptProvenanceV01();
     await assertRevisedNativeHostStartV01();
     await assertNewWorkAdmissionV01();
     console.log(JSON.stringify({ initialization_ms: performance.now() - initializationStarted, scoped_cases: 0 }));
@@ -921,6 +924,8 @@ async function assertResultAdmissionV01(control?: {
         }
       } else if (expectedCompleted) {
         assert.equal(diagnostic, undefined);
+        assert.equal(result.receipt.capability_coverage.find(entry => entry.capability === "codex_thread_turn_lifecycle")?.coverage_level, "observed");
+        assert.equal(result.receipt.checks.find(check => check.check_id === "calibration_b_comparison")?.basis, "attested");
         assert.equal(result.host_result!.checks.find(check => check.check_id === "calibration_b_comparison")?.status, "passed");
         assert(result.receipt.attestations.some(item => item.summary.includes("reference=12")));
         assert(!result.receipt.observations.some(item => /reference=12|comparison attested/u.test(item.summary)), "Model text stays attested");
@@ -4726,6 +4731,19 @@ function assertMutationRefusalsAndRollbackV01(): void {
     );
   } finally {
     recoveryHistory.db.close();
+  }
+}
+
+async function assertNativeHostReceiptProvenanceV01(): Promise<void> {
+  const fixture = createFixtureV01("receipt-provenance");
+  try {
+    defineInitialProjectWorkV01(fixture.db, {
+      config: fixture.config, credential: authenticatedSessionV01(fixture, "receipt"),
+      request: requestV01(fixture), clock: fixedClock(T2),
+    });
+    await assertReceiptProvenance(fixture.db.serialize(), fixture.config, ROOT);
+  } finally {
+    fixture.db.close();
   }
 }
 

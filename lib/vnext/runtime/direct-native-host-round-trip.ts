@@ -42,6 +42,7 @@ import {
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
+  normalizeProtocolTextV01,
   parseStrictIsoTimestampV01,
 } from "@/lib/vnext/protocol-primitives";
 import { buildRunReceiptV01, validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
@@ -57,6 +58,7 @@ import {
   NativeHostContractErrorV01,
   NativeHostReconciliationRequiredErrorV01,
   assertNativeHostResultV01,
+  isObservedNativeHostTransportCoverageV01,
 } from "@/lib/vnext/native-host/native-host-contract";
 import {
   NativeHostResultNormalizationErrorV01,
@@ -111,6 +113,8 @@ import {
 } from "@/lib/vnext/native-host/project-root-identity";
 import {
   deriveNativeHostDeliveryAuthorityV01,
+  nativeHostDeliveryScopeV01,
+  type NativeHostDeliveryScopeV01,
 } from "@/lib/vnext/native-host/native-host-delivery-authority";
 import {
   NATIVE_HOST_APPROVAL_VERSION_V01,
@@ -563,6 +567,7 @@ export async function prepareNativeHostRunClaimInsideTransactionV01(
   admission: PersistedHostPacketAdmissionV01;
 }> {
   if (!db.inTransaction) refuse("direct_host_transaction_required", 500);
+  nativeHostDeliveryScopeV01(input.adapter);
   if (input.mode === "policy_triggered") {
     if (!input.automation_context || input.repository_delegation_context) {
       refuse("direct_host_automation_context_required");
@@ -690,6 +695,7 @@ export async function runDirectNativeHostRoundTripV01(
   const now = dependencies.now ?? (() => new Date().toISOString());
   const adapter =
     dependencies.adapter ?? createDeterministicCodexAdapterV01({ now });
+  const deliveryScope = nativeHostDeliveryScopeV01(adapter);
   const timeoutMs = dependencies.timeout_ms ?? DEFAULT_TIMEOUT_MS;
   const stopSettleTimeoutMs =
     dependencies.stop_settle_timeout_ms ?? DEFAULT_STOP_SETTLE_TIMEOUT_MS;
@@ -1068,23 +1074,28 @@ export async function runDirectNativeHostRoundTripV01(
   }
   let hostResult: NativeHostResultV01;
   let adapterInvocationStarted = false;
+  let resultFromAdapter = false;
   try {
-    hostResult = assertNativeHostResultV01(
-      request,
-      await invokeAdapterBounded(adapter, request, {
-        timeout_ms: timeoutMs,
-        stop_settle_timeout_ms: stopSettleTimeoutMs,
-        schedule_timeout: dependencies.schedule_timeout,
-        cancellation_signal: dependencies.cancellation_signal,
-        lifecycle_sink: dependencies.lifecycle_sink,
-        resume_binding: dependencies.resume_binding,
-        now,
-        on_invocation_started: () => {
-          adapterInvocationStarted = true;
-          dependencies.on_adapter_invocation_started?.(request);
-        },
-      }),
-    );
+    const terminal = await invokeAdapterBounded(adapter, request, {
+      timeout_ms: timeoutMs,
+      stop_settle_timeout_ms: stopSettleTimeoutMs,
+      schedule_timeout: dependencies.schedule_timeout,
+      cancellation_signal: dependencies.cancellation_signal,
+      lifecycle_sink: dependencies.lifecycle_sink,
+      resume_binding: dependencies.resume_binding,
+      now,
+      on_invocation_started: () => {
+        adapterInvocationStarted = true;
+        dependencies.on_adapter_invocation_started?.(request);
+      },
+    });
+    if ("result" in terminal) {
+      const result = assertNativeHostResultV01(request, terminal.result);
+      hostResult = { ...result, host_refs: result.host_refs.filter(isReportedExternalRef) };
+      resultFromAdapter = true;
+    } else {
+      hostResult = assertNativeHostResultV01(request, buildBoundaryTerminalResult({ request, adapter, now, ...terminal }));
+    }
   } catch (error) {
     if (
       error instanceof NativeHostInvocationUnsettledErrorV01 ||
@@ -1121,27 +1132,36 @@ export async function runDirectNativeHostRoundTripV01(
     const normalized = await scopedBinding.normalizeResult({ request, adapter, result: hostResult, now });
     hostResult = normalized.result;
     snapshotValidation = normalized.snapshot_validation;
+    if (!snapshotValidation.valid) resultFromAdapter = false;
   }
+  const requiredCheckIds = requiredCheckIdsForAdapterV01(adapter, deliveryScope, admitted.packet.constraints.required_checks);
   let synthesizedSkippedCheckIds = new Set<string>();
   try {
+    if (hostResult.adapter_version !== adapter.adapter_version || hostResult.capability_version !== adapter.capability_version) {
+      throw new NativeHostResultNormalizationErrorV01("native_host_result_adapter_binding_mismatch");
+    }
     hostResult = materializeValidatedPacketDeliveryCheckV01({
       adapter,
       result: hostResult,
       adapter_invocation_started: adapterInvocationStarted,
     });
+    // A pre-connection terminal response can have no host ID. Once a transfer
+    // or task result exists, closing the run requires an attributable source.
+    if (resultFromAdapter && deliveryScope === "native_host_managed" && hostResult.host_refs.length === 0 &&
+        (hostResult.outcome === "completed" || hostResult.checks.length > 0 || hostResult.commands.length > 0 ||
+          hostResult.artifacts.length > 0 || hostResult.changed_files.length > 0)) {
+      throw new NativeHostResultNormalizationErrorV01("native_host_task_report_source_missing");
+    }
     const normalized = normalizeNativeHostResultResidueV01({
       result: hostResult,
-      required_check_ids: requiredCheckIdsForResultV01(
-        hostResult,
-        admitted.packet.constraints.required_checks,
-        adapter,
-      ),
+      required_check_ids: requiredCheckIds,
     });
     hostResult = normalized.result;
     synthesizedSkippedCheckIds = new Set(
       normalized.synthesized_skipped_check_ids,
     );
   } catch (error) {
+    resultFromAdapter = false;
     const rejectedResult = hostResult;
     hostResult = assertNativeHostResultV01(
       request,
@@ -1164,11 +1184,7 @@ export async function runDirectNativeHostRoundTripV01(
     });
     const normalized = normalizeNativeHostResultResidueV01({
       result: hostResult,
-      required_check_ids: requiredCheckIdsForResultV01(
-        hostResult,
-        admitted.packet.constraints.required_checks,
-        adapter,
-      ),
+      required_check_ids: requiredCheckIds,
     });
     hostResult = normalized.result;
     synthesizedSkippedCheckIds = new Set(
@@ -1195,6 +1211,8 @@ export async function runDirectNativeHostRoundTripV01(
     }
     receipt = buildDirectHostRunReceipt({
       snapshot_validation: snapshotValidation,
+      result_from_adapter: resultFromAdapter,
+      required_check_ids: requiredCheckIds,
       request,
       result: hostResult,
       admission: admitted,
@@ -2398,6 +2416,8 @@ export function materializeValidatedPacketDeliveryCheckV01(input: {
 }
 
 function buildDirectHostRunReceipt(input: {
+  result_from_adapter: boolean;
+  required_check_ids: string[];
   snapshot_validation?: NativeHostInputSnapshotValidationV01;
   request: NativeHostRequestV01;
   result: NativeHostResultV01;
@@ -2413,9 +2433,8 @@ function buildDirectHostRunReceipt(input: {
     result,
     adapter_invocation_started: input.adapter_invocation_started,
   });
-  const liveAppServerResult =
-    result.adapter_extension.adapter_kind === "codex_app_server";
-  const residueBasis = liveAppServerResult ? "attested" : "observed";
+  const managedReport = input.result_from_adapter && deliveryAuthority.delivery_scope === "native_host_managed";
+  const residueBasis = managedReport ? "attested" : "observed";
   const reporterRef = localRef(
     "native_host_orchestrator",
     DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
@@ -2432,25 +2451,45 @@ function buildDirectHostRunReceipt(input: {
   );
   const adapterRef = localRef(
     "native_host_adapter_version",
-    result.adapter_version,
+    input.adapter.adapter_version,
     result.finished_at,
     null,
     DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
   );
   const capabilityRef = localRef(
     "native_host_capability_version",
-    result.capability_version,
+    input.adapter.capability_version,
     result.finished_at,
     null,
     DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
   );
-  const deliveryCheckSourceRefs = [reporterRef];
   const hostRef = result.host_refs[0] ?? null;
+  // The received report and the observed connection have distinct provenance.
+  const reportSource = managedReport
+    ? localRef("native_host_result_report", request.request_id, result.finished_at, null,
+        DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01, "host_attestation")
+    : reporterRef;
+  const artifacts = managedReport ? result.artifacts.map(artifact => ({
+    ...artifact, artifact_ref: hostReportedRef(artifact.artifact_ref),
+  })) : result.artifacts;
+  const modelRefs = managedReport ? result.model_invocation_receipt_refs.map(hostReportedRef) : result.model_invocation_receipt_refs;
+  const deliveryCheckObserved = (id: string) =>
+    deliveryAuthority.validated_packet_delivery_observed &&
+    (id === "validated_packet_delivery" ||
+      (deliveryAuthority.delivery_scope === "local_in_process" && id === "deterministic_packet_delivery"));
+  const checks: RunReceiptV01["checks"] = result.checks.map(check => {
+    const observed = deliveryCheckObserved(check.check_id);
+    return { ...check, basis: observed ? "observed" : residueBasis, source_refs: [observed ? reporterRef : reportSource] };
+  });
+  const skippedChecks: RunReceiptV01["skipped_checks"] = result.skipped_checks.map(check => {
+    const synthesized = input.synthesized_skipped_check_ids.has(check.check_id);
+    return { ...check, basis: synthesized ? "observed" : residueBasis, source_refs: [synthesized ? reporterRef : reportSource] };
+  });
   const artifactRefs = result.changed_files.map((changed) =>
     repositoryArtifactRef(
       changed.repository_relative_path,
       result.finished_at,
-      liveAppServerResult ? "host_attestation" : "direct_local_observation",
+      managedReport ? "host_attestation" : "direct_local_observation",
     ),
   );
   const hostApprovals = hostApprovalResidueForReceiptV01({
@@ -2475,24 +2514,17 @@ function buildDirectHostRunReceipt(input: {
     ...request.packet_lineage.packet_source_refs,
     ...request.packet_lineage.selected_context_refs,
     ...result.host_refs,
-    ...result.model_invocation_receipt_refs,
+    ...modelRefs,
     ...hostApprovals.flatMap((approval) => approval.source_refs),
   ]);
-  const requiredCheckIds = requiredCheckIdsForResultV01(
-    result,
-    admission.packet.constraints.required_checks,
-    input.adapter,
-  );
-  const verification = verificationForResult(
-    result,
-    requiredCheckIds,
-    liveAppServerResult,
-    input.synthesized_skipped_check_ids,
-    reporterRef,
-  );
+  const verification = verificationForResult(result, input.required_check_ids, checks, skippedChecks);
   const mainObservationId = `observation:host-boundary:${request.request_id}`;
   const packetObservationId = `observation:packet-binding:${request.request_id}`;
   const mainAttestationId = `attestation:host-result:${request.request_id}`;
+  const actionInput = { result, run_ref: runRef, adapter_ref: adapterRef, reporter_ref: reporterRef };
+  const actionObservations = input.result_from_adapter
+    ? projectDirectNativeHostActionObservationsV01({ ...actionInput, adapter: input.adapter })
+    : localActionObservations(actionInput);
   const observations: RunReceiptObservationV01[] = [
     ...(input.snapshot_validation ? [{
       observation_id: `observation:input-snapshot:${request.request_id}`,
@@ -2507,28 +2539,23 @@ function buildDirectHostRunReceipt(input: {
     }] : []),
     {
       observation_id: mainObservationId,
-      observation_kind: "structured_host_result_received",
-      summary:
-        "The local orchestration boundary received one bounded versioned structured host result.",
+      observation_kind: input.result_from_adapter ? "structured_host_result_received" : "local_terminal_result_constructed",
+      summary: input.result_from_adapter
+        ? "The local orchestration boundary received one bounded versioned structured host result."
+        : "The local orchestration boundary constructed the terminal result.",
       event_at: result.finished_at,
       observed_at: result.finished_at,
       observer_ref: reporterRef,
       trust_class: "direct_local_observation",
       source_refs: [runRef, admission.packet_ref, adapterRef],
-      related_command_ids: liveAppServerResult
+      related_command_ids: managedReport
         ? []
         : result.commands.map((command) => command.command_id),
-      related_check_ids: liveAppServerResult
-        ? []
-        : [
-            ...result.checks.map((check) => check.check_id),
-            ...result.skipped_checks
-              .filter((check) =>
-                input.synthesized_skipped_check_ids.has(check.check_id),
-              )
-              .map((check) => check.check_id),
-          ],
-      related_artifact_refs: liveAppServerResult ? [] : artifactRefs,
+      related_check_ids: [
+        ...(!managedReport ? checks.map(check => check.check_id) : []),
+        ...skippedChecks.filter(check => input.synthesized_skipped_check_ids.has(check.check_id)).map(check => check.check_id),
+      ],
+      related_artifact_refs: managedReport ? [] : artifactRefs,
     },
     {
       observation_id: packetObservationId,
@@ -2550,17 +2577,11 @@ function buildDirectHostRunReceipt(input: {
         ...request.packet_lineage.selected_context_refs,
       ]),
       related_command_ids: [],
-      related_check_ids: result.checks
-        .filter((check) =>
-          ["deterministic_packet_delivery", "validated_packet_delivery"].includes(
-            check.check_id,
-          ),
-        )
-        .map((check) => check.check_id),
+      related_check_ids: result.checks.filter(check => deliveryCheckObserved(check.check_id)).map(check => check.check_id),
       related_artifact_refs: [],
     },
-    ...(!liveAppServerResult
-      ? result.artifacts.map(
+    ...(!managedReport
+      ? artifacts.map(
           (artifact): RunReceiptObservationV01 => ({
             observation_id: stableResidueIdV01(
               "observation:artifact",
@@ -2579,32 +2600,27 @@ function buildDirectHostRunReceipt(input: {
           }),
         )
       : []),
-    ...projectDirectNativeHostActionObservationsV01({
-      result,
-      run_ref: runRef,
-      adapter_ref: adapterRef,
-      reporter_ref: reporterRef,
-    }),
+    ...actionObservations,
   ];
   const attestations: RunReceiptAttestationV01[] = [
-    ...(liveAppServerResult && hostRef
+    ...(managedReport
       ? [
           {
             attestation_id: mainAttestationId,
             attestation_kind: "bounded_native_host_result",
             summary: result.summary,
             reported_at: result.finished_at,
-            reporter_ref: hostRef,
+            reporter_ref: reportSource,
             trust_class: "host_attestation" as const,
-            source_refs: result.host_refs,
+            source_refs: uniqueRefs([reportSource, adapterRef, ...result.host_refs]),
             subject_refs: uniqueRefs([
               admission.packet_ref,
               runRef,
               ...artifactRefs,
-              ...result.artifacts.map((artifact) => artifact.artifact_ref),
+              ...artifacts.map((artifact) => artifact.artifact_ref),
             ]),
           },
-          ...result.artifacts.map(
+          ...artifacts.map(
             (artifact): RunReceiptAttestationV01 => ({
               attestation_id: stableResidueIdV01(
                 "attestation:artifact",
@@ -2613,9 +2629,9 @@ function buildDirectHostRunReceipt(input: {
               attestation_kind: "native_host_artifact_report",
               summary: artifact.summary,
               reported_at: result.finished_at,
-              reporter_ref: hostRef,
+              reporter_ref: reportSource,
               trust_class: "host_attestation",
-              source_refs: uniqueRefs([hostRef, artifact.artifact_ref]),
+              source_refs: uniqueRefs([reportSource, artifact.artifact_ref]),
               subject_refs: [artifact.artifact_ref],
             }),
           ),
@@ -2628,9 +2644,9 @@ function buildDirectHostRunReceipt(input: {
               attestation_kind: "native_host_action_report",
               summary: action,
               reported_at: result.finished_at,
-              reporter_ref: hostRef,
+              reporter_ref: reportSource,
               trust_class: "host_attestation",
-              source_refs: [hostRef],
+              source_refs: [reportSource],
               subject_refs: [runRef],
             }),
           ),
@@ -2645,9 +2661,9 @@ function buildDirectHostRunReceipt(input: {
         attestation_kind: "proposed_next_step",
         summary: nextStep,
         reported_at: result.finished_at,
-        reporter_ref: liveAppServerResult && hostRef ? hostRef : reporterRef,
+        reporter_ref: reportSource,
         trust_class: "derived_interpretation",
-        source_refs: liveAppServerResult && hostRef ? [hostRef] : [reporterRef],
+        source_refs: [reportSource],
         subject_refs: [runRef],
       }),
     ),
@@ -2663,21 +2679,14 @@ function buildDirectHostRunReceipt(input: {
     finished_at: result.finished_at,
     execution: {
       status: receiptExecutionStatus(result.outcome),
-      basis: liveAppServerResult && hostRef ? "mixed" : "observed",
+      basis: managedReport ? "mixed" : "observed",
       source_refs:
-        liveAppServerResult && hostRef ? [reporterRef, hostRef] : [reporterRef],
+        managedReport ? [reporterRef, reportSource] : [reporterRef],
     },
     verification,
     reporter_ref: reporterRef,
     observer_refs: [reporterRef],
-    verifier_refs:
-      !liveAppServerResult ||
-      input.synthesized_skipped_check_ids.size > 0 ||
-      result.checks.some(
-        (check) => check.check_id === "validated_packet_delivery",
-      )
-        ? [reporterRef]
-        : [],
+    verifier_refs: verification.basis === "observed" || verification.basis === "mixed" ? [reporterRef] : [],
     host_ref: hostRef,
     worker_ref: null,
     model_invocations: [],
@@ -2701,52 +2710,23 @@ function buildDirectHostRunReceipt(input: {
       before_hash: changed.before_hash,
       after_hash: changed.after_hash,
       basis: residueBasis,
-      related_observation_ids: liveAppServerResult ? [] : [mainObservationId],
-      related_attestation_ids:
-        liveAppServerResult && hostRef ? [mainAttestationId] : [],
-      source_refs:
-        liveAppServerResult && hostRef ? [hostRef] : [reporterRef],
+      related_observation_ids: managedReport ? [] : [mainObservationId],
+      related_attestation_ids: managedReport ? [mainAttestationId] : [],
+      source_refs: [reportSource],
     })),
     commands: result.commands.map((command) => ({
       ...command,
       basis: residueBasis,
-      source_refs:
-        liveAppServerResult && hostRef ? [hostRef] : [reporterRef],
+      source_refs: [reportSource],
       raw_output_included: false as const,
     })),
-    checks: result.checks.map((check) => ({
-      ...check,
-      basis:
-        !liveAppServerResult ||
-        check.check_id === "validated_packet_delivery" ||
-        check.check_id === "deterministic_packet_delivery"
-          ? ("observed" as const)
-          : residueBasis,
-      source_refs:
-        check.check_id === "validated_packet_delivery" ||
-        check.check_id === "deterministic_packet_delivery"
-          ? deliveryCheckSourceRefs
-          : liveAppServerResult && hostRef
-            ? [hostRef]
-            : [reporterRef],
-    })),
-    skipped_checks: result.skipped_checks.map((check) => ({
-      ...check,
-      basis: input.synthesized_skipped_check_ids.has(check.check_id)
-        ? ("observed" as const)
-        : residueBasis,
-      source_refs:
-        input.synthesized_skipped_check_ids.has(check.check_id) ||
-        !liveAppServerResult ||
-        !hostRef
-          ? [reporterRef]
-          : [hostRef],
-    })),
+    checks,
+    skipped_checks: skippedChecks,
     host_approvals: hostApprovals,
     external_refs: uniqueRefs([
-      ...result.host_refs,
-      ...result.artifacts.map((artifact) => artifact.artifact_ref),
-      ...result.model_invocation_receipt_refs,
+      // The result reader resolves these version types from the selected adapter.
+      ...[...result.host_refs, ...artifacts.map(artifact => artifact.artifact_ref), ...modelRefs]
+        .filter(isReportedExternalRef),
       ...admissionLineageRefsV01(admission),
       admission.root_scope.repository_ref,
       admission.root_scope.selected_worktree_ref,
@@ -2781,13 +2761,12 @@ function buildDirectHostRunReceipt(input: {
               source_refs: result.host_refs,
             },
           ]),
-      ...result.checks
+      ...checks
         .filter((check) => check.required && check.status === "failed")
         .map((check) => ({
           code: `required_check_failed:${check.check_id}`,
           summary: check.summary,
-          source_refs:
-            liveAppServerResult && hostRef ? [hostRef] : [reporterRef],
+          source_refs: check.source_refs,
         })),
     ],
     warnings: result.uncertainty.map((summary, index) => ({
@@ -2801,13 +2780,13 @@ function buildDirectHostRunReceipt(input: {
         summary,
         source_refs: result.host_refs,
       })),
-      ...(result.model_invocation_receipt_refs.length
+      ...(modelRefs.length
         ? [
             {
               code: "native_host_model_invocation_receipt_unresolved",
               summary:
                 "The native host referenced model-invocation residue that is not resolved as an Augnes-owned R4 receipt.",
-              source_refs: result.model_invocation_receipt_refs,
+              source_refs: modelRefs,
             },
           ]
         : []),
@@ -2865,24 +2844,20 @@ function buildDirectHostRunReceipt(input: {
       },
       source_refs: [],
     },
-    capability_coverage: result.capability_coverage.map((coverage) => ({
-      capability: coverage.capability,
-      coverage_level:
-        coverage.coverage === "host_attested"
-          ? "advisory"
-          : coverage.coverage === "unsupported"
-            ? "outside_coverage"
-            : coverage.coverage,
-      source_ref: coverage.source_ref,
-      notes: [
-        ...coverage.notes,
-        `Native-host coverage class: ${coverage.coverage}.`,
-      ],
-    })),
+    capability_coverage: result.capability_coverage.map(coverage => {
+      const hostClaim = managedReport && !isObservedNativeHostTransportCoverageV01(request.request_id, coverage);
+      return {
+        capability: coverage.capability,
+        coverage_level: coverage.coverage === "unsupported" ? "outside_coverage"
+          : hostClaim || coverage.coverage === "host_attested" ? "advisory" : coverage.coverage,
+        source_ref: hostClaim ? reportSource : coverage.source_ref,
+        notes: [...coverage.notes, `Native-host coverage class: ${coverage.coverage}.`],
+      };
+    }),
     source_refs: sourceRefs,
     artifact_refs: uniqueRefs([
       ...artifactRefs,
-      ...result.artifacts.map((artifact) => artifact.artifact_ref),
+      ...artifacts.map((artifact) => artifact.artifact_ref),
     ]),
     compatibility: {
       source_contracts: [
@@ -2898,7 +2873,7 @@ function buildDirectHostRunReceipt(input: {
           : []),
         ...(hostApprovals.length ? ["native_host_approval.v0.1"] : []),
       ],
-      unmapped_fields: result.model_invocation_receipt_refs.length
+      unmapped_fields: modelRefs.length
         ? [
             {
               source_field: "model_invocation_receipt_refs",
@@ -2931,15 +2906,33 @@ function buildDirectHostRunReceipt(input: {
   return receipt;
 }
 
-export function projectDirectNativeHostActionObservationsV01(input: {
+function isReportedExternalRef(ref: ExternalRefV01): boolean {
+  const type = normalizeProtocolTextV01(ref.ref_type);
+  return type !== "native_host_adapter_version" && type !== "native_host_capability_version";
+}
+
+function hostReportedRef(ref: ExternalRefV01): ExternalRefV01 {
+  return ref.trust_class === "direct_local_observation" || ref.trust_class === "verified_external_observation"
+    ? { ...ref, trust_class: "host_attestation" } : ref;
+}
+
+interface ActionObservationInput {
   result: NativeHostResultV01;
   run_ref: ExternalRefV01;
   adapter_ref: ExternalRefV01;
   reporter_ref: ExternalRefV01;
+}
+
+export function projectDirectNativeHostActionObservationsV01(input: ActionObservationInput & {
+  adapter?: NativeHostAdapterV01;
 }): RunReceiptObservationV01[] {
-  if (input.result.adapter_extension.adapter_kind === "codex_app_server") {
-    return [];
-  }
+  const { adapter, result } = input;
+  if (!adapter || adapter.adapter_version !== result.adapter_version || adapter.capability_version !== result.capability_version ||
+      nativeHostDeliveryScopeV01(adapter) !== "local_in_process") return [];
+  return localActionObservations(input);
+}
+
+function localActionObservations(input: ActionObservationInput): RunReceiptObservationV01[] {
   return input.result.observed_actions.map(
     (action): RunReceiptObservationV01 => ({
       observation_id: stableResidueIdV01("observation:action", action),
@@ -2970,7 +2963,7 @@ async function invokeAdapterBounded(
     now: () => string;
     on_invocation_started?: () => void;
   },
-): Promise<NativeHostResultV01> {
+): Promise<{ result: NativeHostResultV01 } | { outcome: "cancelled" | "timed_out" | "failed"; reason: string }> {
   const controller = new AbortController();
   let cancelTimeout: (() => void) | null = null;
   let cancelListener: (() => void) | null = null;
@@ -2985,13 +2978,7 @@ async function invokeAdapterBounded(
     });
     input.on_invocation_started?.();
   } catch {
-    return buildBoundaryTerminalResult({
-      request,
-      adapter,
-      outcome: "failed",
-      reason: "native_host_adapter_failed",
-      now: input.now,
-    });
+    return { outcome: "failed", reason: "native_host_adapter_failed" };
   }
   const observedResultOutcome: {
     value:
@@ -3085,17 +3072,9 @@ async function invokeAdapterBounded(
           "native_host_settlement_unconfirmed",
         );
       }
-      return first.result.status === "fulfilled"
-        ? first.result.result
-        : first.result.error instanceof NativeHostReconciliationRequiredErrorV01
-          ? Promise.reject(first.result.error)
-          : buildBoundaryTerminalResult({
-              request,
-              adapter,
-              outcome: "failed",
-              reason: "native_host_adapter_failed",
-              now: input.now,
-            });
+      if (first.result.status === "fulfilled") return { result: first.result.result };
+      if (first.result.error instanceof NativeHostReconciliationRequiredErrorV01) throw first.result.error;
+      return { outcome: "failed", reason: "native_host_adapter_failed" };
     }
     const stopConfirmed = await confirmInvocationStopSettledV01({
       stop_outcome: stopOutcome ?? Promise.resolve(false),
@@ -3113,7 +3092,7 @@ async function invokeAdapterBounded(
       stoppedResult?.status === "fulfilled" &&
       stoppedResult.result.outcome === "completed"
     ) {
-      return stoppedResult.result;
+      return { result: stoppedResult.result };
     }
     if (
       stoppedResult?.status === "rejected" &&
@@ -3121,13 +3100,7 @@ async function invokeAdapterBounded(
     ) {
       throw stoppedResult.error;
     }
-    return buildBoundaryTerminalResult({
-      request,
-      adapter,
-      outcome: first.outcome,
-      reason: first.reason,
-      now: input.now,
-    });
+    return { outcome: first.outcome, reason: first.reason };
   } finally {
     cancelTimeout?.();
     if (input.cancellation_signal && cancelListener) {
@@ -3532,16 +3505,13 @@ function protocolExternalRefMetadataV01(value: unknown): ExternalRefV01 | null {
   return value as ExternalRefV01;
 }
 
-function requiredCheckIdsForResultV01(
-  result: NativeHostResultV01,
-  packetRequiredCheckIds: string[],
+function requiredCheckIdsForAdapterV01(
   adapter: NativeHostAdapterV01,
+  deliveryScope: NativeHostDeliveryScopeV01,
+  packetRequiredCheckIds: string[],
 ): string[] {
-  const deliveryCheckId =
-    result.adapter_extension.adapter_kind === "codex_app_server" ||
-    result.adapter_extension.bounded_metadata.packet_delivery_initiated === true
-      ? "validated_packet_delivery"
-      : "deterministic_packet_delivery";
+  const deliveryCheckId = deliveryScope === "native_host_managed"
+    ? "validated_packet_delivery" : adapter.required_local_delivery_check ?? "deterministic_packet_delivery";
   // This fixed profile owns its obligations before candidate data is read.
   // Missing checks are synthesized as skipped by the existing normalizer.
   const fixed = adapter.adapter_version === WORKFLOW_COST_ADAPTER && adapter.capability_version === WORKFLOW_COST_PROFILE
@@ -3552,26 +3522,12 @@ function requiredCheckIdsForResultV01(
 function verificationForResult(
   result: NativeHostResultV01,
   requiredCheckIds: string[],
-  liveAppServerResult: boolean,
-  synthesizedSkippedCheckIds: ReadonlySet<string>,
-  reporterRef: ExternalRefV01,
+  checks: RunReceiptV01["checks"],
+  skippedChecks: RunReceiptV01["skipped_checks"],
 ): RunReceiptV01["verification"] {
-  const hostRef = result.host_refs[0] ?? null;
-  const hasHostResidue =
-    liveAppServerResult &&
-    Boolean(hostRef) &&
-    (result.checks.some(
-      (check) => check.check_id !== "validated_packet_delivery",
-    ) ||
-      result.skipped_checks.some(
-        (check) => !synthesizedSkippedCheckIds.has(check.check_id),
-      ));
-  const hasObservedResidue =
-    !liveAppServerResult ||
-    synthesizedSkippedCheckIds.size > 0 ||
-    result.checks.some(
-      (check) => check.check_id === "validated_packet_delivery",
-    );
+  const evidence = [...checks, ...skippedChecks];
+  const hasHostResidue = evidence.some(check => check.basis === "attested");
+  const hasObservedResidue = evidence.some(check => check.basis === "observed");
   const basis =
     hasHostResidue && hasObservedResidue
       ? ("mixed" as const)
@@ -3580,10 +3536,7 @@ function verificationForResult(
         : hasObservedResidue
           ? ("observed" as const)
           : ("unknown" as const);
-  const sourceRefs = uniqueRefs([
-    ...(hasObservedResidue ? [reporterRef] : []),
-    ...(hasHostResidue ? [hostRef] : []),
-  ]);
+  const sourceRefs = uniqueRefs(evidence.flatMap(check => check.source_refs));
   const required = new Set(requiredCheckIds);
   const requiredChecks = result.checks.filter((check) =>
     required.has(check.check_id),

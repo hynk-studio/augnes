@@ -174,6 +174,7 @@ export function createLocalProjectVerificationAdapterV01(
     capability_version: LOCAL_PROJECT_VERIFICATION_CAPABILITY_VERSION_V01,
     execution_profile: "deterministic_zero_model",
     provider_egress: "forbidden",
+    required_local_delivery_check: "validated_packet_delivery",
     invoke(request, control) {
       const result = verifyProjectRootV01(request, control, now, filesystem);
       const settled = result.then(

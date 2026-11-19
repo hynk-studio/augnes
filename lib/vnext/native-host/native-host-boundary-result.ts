@@ -6,6 +6,7 @@ import {
   type NativeHostResultV01,
   type NativeHostTerminalOutcomeV01,
 } from "@/types/vnext/native-host-adapter";
+import { nativeHostPacketTransferReportedV01 } from "./native-host-delivery-authority";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 
 // These are the existing round-trip receipt identities, not a new contract.
@@ -42,6 +43,9 @@ export function buildNativeHostBoundaryTerminalResultV01(input: {
     null,
     DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01,
   );
+  const packetTransferReported = input.prior_result
+    ? nativeHostPacketTransferReportedV01(input.adapter, input.prior_result)
+    : false;
   return {
     result_version: NATIVE_HOST_RESULT_VERSION_V01,
     request_id: input.request.request_id,
@@ -78,13 +82,12 @@ export function buildNativeHostBoundaryTerminalResultV01(input: {
         notes: ["The orchestration boundary observed the terminal control outcome."],
       },
       ...(input.adapter.provider_egress === "native_host_managed" &&
-      input.prior_result?.adapter_extension.bounded_metadata
-        .packet_delivery_initiated === true
+      packetTransferReported
         ? [
             {
               capability: "native_host_internal_model_activity",
               coverage: "unsupported" as const,
-              source_ref: input.prior_result.host_refs[0] ?? hostRef,
+              source_ref: input.prior_result?.host_refs[0] ?? hostRef,
               notes: [
                 "Native-host-internal model activity remains outside Augnes-owned R4 Model Gateway coverage.",
               ],
@@ -99,9 +102,7 @@ export function buildNativeHostBoundaryTerminalResultV01(input: {
         live_host_invoked:
           input.prior_result?.adapter_extension.bounded_metadata
             .live_host_invoked === true,
-        packet_delivery_initiated:
-          input.prior_result?.adapter_extension.bounded_metadata
-            .packet_delivery_initiated === true,
+        packet_delivery_initiated: packetTransferReported,
         raw_provider_payload_included: false,
       },
     },

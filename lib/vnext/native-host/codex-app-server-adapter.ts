@@ -65,6 +65,7 @@ import {
   assertNativeHostResultV01,
   withNativeHostResultFieldV01,
   type NativeHostResultFieldV01,
+  observedNativeHostTransportCoverageV01,
 } from "@/lib/vnext/native-host/native-host-contract";
 import {
   listOwnedDescendantProcessIdsV01,
@@ -3504,22 +3505,20 @@ class CodexAppServerInvocationV01 {
       gaps: payload.gaps,
       proposed_next_steps: payload.proposed_next_steps,
       capability_coverage: [
-        {
+        observedNativeHostTransportCoverageV01(this.request.request_id, {
           capability: this.candidateCanary ? "candidate_canary_prompt_delivery" : "validated_packet_delivery",
-          coverage: "observed",
           source_ref: this.request.task_context_packet_ref,
           notes: [
             this.candidateCanary ? "Augnes delivered the fixed canary prompt; no task packet was sent." : "Augnes rendered and delivered the exact admitted packet to the configured native host.",
           ],
-        },
-        {
+        }),
+        observedNativeHostTransportCoverageV01(this.request.request_id, {
           capability: "codex_thread_turn_lifecycle",
-          coverage: "observed",
           source_ref: this.turnRef,
           notes: [
             "Stable App Server thread and turn identifiers were observed.",
           ],
-        },
+        }),
         {
           capability: "repository_actions_and_checks",
           coverage: "host_attested",
@@ -3667,12 +3666,11 @@ class CodexAppServerInvocationV01 {
       gaps: ["No successful structured Codex result was admitted."],
       proposed_next_steps: ["Review the public status before retrying."],
       capability_coverage: [
-        {
+        observedNativeHostTransportCoverageV01(this.request.request_id, {
           capability: "codex_app_server_lifecycle",
-          coverage: "observed",
           source_ref: this.connectionRef,
           notes: [`Public-safe terminal reason: ${reason}.`],
-        },
+        }),
       ],
       adapter_extension: {
         extension_version: "codex_app_server_result_extension.v0.1",

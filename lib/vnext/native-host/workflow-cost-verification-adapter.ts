@@ -102,6 +102,7 @@ export function createWorkflowCostVerificationAdapter(assertAdmission: () => Pro
   now = () => new Date().toISOString()): NativeHostAdapterV01 {
   return { adapter_version: WORKFLOW_COST_ADAPTER, capability_version: WORKFLOW_COST_PROFILE,
     execution_profile: "deterministic_zero_model", provider_egress: "forbidden",
+    required_local_delivery_check: "validated_packet_delivery",
     invoke(request, control) {
       const stop = new AbortController();
       const started = now(), monotonic = performance.now();

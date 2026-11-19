@@ -76,6 +76,24 @@ function resultFieldV01(value: string): NativeHostResultFieldV01 {
   return NATIVE_HOST_RESULT_FIELD_CATEGORIES_V01.find(field => field === value) ?? "unknown";
 }
 
+type NativeHostCoverageEntry = NativeHostResultV01["capability_coverage"][number];
+const transportObservations = new WeakMap<NativeHostCoverageEntry, string>();
+
+/** Only a transport that observed the event calls this at its local producer.
+ * A returned JSON entry, even with identical fields, has no such observation. */
+export function observedNativeHostTransportCoverageV01(
+  requestId: string,
+  entry: Omit<NativeHostCoverageEntry, "coverage">,
+): NativeHostCoverageEntry {
+  const observation = Object.freeze({ ...entry, coverage: "observed" as const });
+  transportObservations.set(observation, requestId);
+  return observation;
+}
+
+export function isObservedNativeHostTransportCoverageV01(requestId: string, entry: NativeHostCoverageEntry): boolean {
+  return transportObservations.get(entry) === requestId;
+}
+
 export class NativeHostContractErrorV01 extends Error {
   constructor(readonly code: string, readonly result_field: NativeHostResultFieldV01 = "unknown") {
     super(code);

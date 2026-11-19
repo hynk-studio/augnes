@@ -1031,11 +1031,10 @@ must be reported separately.
 The [execution composition](../../lib/vnext/native-host/native-host-execution-composition.ts)
 has an injected-adapter seam but a Codex-specific scoped path. The
 [receipt builder](../../lib/vnext/runtime/direct-native-host-round-trip.ts)
-also uses the result's `codex_app_server` label to distinguish host-attested
-actions, checks and artifacts from direct observations. Review those assumptions
-before introducing another managed host: trusted execution/observation coverage,
-not a result-supplied host name, must determine evidence meaning. Preserve actual
-orchestrator observations separately from host-reported task performance.
+uses the selected adapter's execution and egress contract to attribute managed
+task reports. The orchestration boundary records packet delivery, receipt of
+the result and locally synthesized missing checks under its own provenance.
+A second managed host still needs separate worker and reference-host qualification.
 
 | Bounded development increment | Deliverable and completion | Dependency |
 |---|---|---|
