@@ -72,9 +72,10 @@ an Agensi-specific implementation fork.
 
 ### Summary
 
-Check whether an installation, package delivery or version change works in its
-actual destination. Reuse the project's checks and return reproducible evidence,
-failure details and the next action. No Augnes installation required.
+Did an update reach the wrong profile? Check where an installation,
+package delivery or version change took effect. Use the project's existing
+checks to report what ran, how to reproduce the result and what to do next.
+No Augnes installation required.
 
 ### Description
 
@@ -129,9 +130,12 @@ do not generate a successful outcome that did not happen.
 
 ## Return a result or correction
 
-Use the existing [#1447](https://github.com/hynk-studio/augnes/issues/1447) for a
-Software Change Check result, blocked check, counterexample or proposed
-correction. Identify the Skill and version/source used, then include:
+You can keep your result private. If you choose to share it in
+[#1447](https://github.com/hynk-studio/augnes/issues/1447), one sentence on how
+you found Software Change Check and what the result helped you decide is enough.
+
+For a reproducible report, blocked check, counterexample or proposed correction
+in the same thread, identify the Skill and version or source you used, then include:
 
 - The software change, relevant environment and smallest shareable reproduction.
 - The commands actually run, expected and observed results, and checks not run
