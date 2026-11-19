@@ -2466,7 +2466,7 @@ function buildDirectHostRunReceipt(input: {
   const hostRef = result.host_refs[0] ?? null;
   // The received report and the observed connection have distinct provenance.
   const reportSource = managedReport
-    ? localRef("native_host_result_report", request.request_id, result.finished_at, null,
+    ? localRef("native_host_result_attestation", request.request_id, result.finished_at, null,
         DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01, "host_attestation")
     : reporterRef;
   const artifacts = managedReport ? result.artifacts.map(artifact => ({
