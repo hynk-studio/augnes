@@ -2473,11 +2473,27 @@ collection snapshot. A successor used the original program for all eight
 collection queries and wrote new SQL to map stable site codes and select the
 latest edition per visit. All three successors accepted a compacted delivery,
 detected a reversed trend and a misplaced visit, and deferred the ticket whose
-collection record was unavailable. The terminal was documented and available
-to everyone. Discovery of an unadvertised source and any total cost advantage
-remain open.
+collection record was unavailable. Every worker had directions to the collection
+terminal. The comparison left total cost open.
 [Field study results](https://github.com/hynk-studio/augnes/issues/1677#issuecomment-7001169502) ·
 [Original inputs, queries and replay](https://github.com/hynk-studio/augnes/issues/1677#issuecomment-7001159945)
+
+### Completed comparison — Finding the source of a sound-archive decision (#1678)
+
+In each of two staged sound archives, one model worker received directions to
+the source records and one received only the delivery brief. The two workers
+without directions found which wall held the recorder, traced the recording
+to the setup and compared its waveform with both stereo channels. Each of the
+four workers justified all four initial decisions, including holds where a
+copied excerpt, a shared opening sound or an earlier setup left the channel
+order unresolved across the two archives.
+
+When two recordings per archive were replaced, each worker changed one decision
+and kept the other. All eight required corrected WAV submissions preserved the
+source samples in exchanged channel order. Ordinary archive access sufficed on
+these materials. The study leaves the value of source directions in larger
+collections and their total cost open.
+[Study, original returns and replay](https://github.com/hynk-studio/augnes/issues/1678)
 
 ### Bounded P3/P4/P5 implementation — Different-goal experience use (#1427)
 
