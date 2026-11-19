@@ -64,6 +64,7 @@ async function main(semanticOnly = false) {
   let holdA = false, reachedHold = false;
   let failNextSessionRequest = false, failedSessionRequests = 0;
   const held: { release?: () => void } = {};
+  let restoredReview: { status?: number; release: ReturnType<typeof Promise.withResolvers<void>> } | undefined;
   const transitionHeld: { project?: string; action?: string; reached: boolean; release?: () => void } = { reached: false };
   const releaseTransitionResponse = () => {
     const release = transitionHeld.release; assert.ok(release);
@@ -107,6 +108,10 @@ async function main(semanticOnly = false) {
                 : endpoint === "/api/vnext/projects" ? projectRoute : null;
       assert.ok(route, `unexpected_fixture_route:${endpoint}`);
       const response = await route(request), text = await response.text();
+      if (restoredReview && project === b.project_id && method === "GET" && endpoint === "/api/vnext/operator/semantic-review") {
+        restoredReview.status = response.status;
+        await restoredReview.release.promise;
+      }
       if (endpoint === "/api/vnext/operator/semantic-transition") {
         if (action === "apply" && response.status === 201) appliedTransitions.set(project!, JSON.parse(text));
         // Hold the actual response, including its Set-Cookie headers, after the
@@ -361,10 +366,32 @@ async function main(semanticOnly = false) {
       await until(() => tabB.eval("!!document.querySelector('#vnext-operator-bootstrap-token')"), "new_work_revoked");
       assert.equal(await tabB.eval("!!document.querySelector('#new-work-goal')"), false);
       assert.equal(current(b)!.task.goal, "B competing preparation");
+      // A matching login restores the draft before its current work binding has been read back.
+      const releaseRead = Promise.withResolvers<void>();
+      restoredReview = { release: releaseRead };
       await authenticate(tabB, b);
       await until(() => tabB.eval("!!document.querySelector('[data-new-work-preview]')"), "new_work_restored");
       assert.equal(await tabB.eval("document.querySelector('#new-work-goal').value"), "B different new work");
-      await checkPreparationSaveResponse(browser(tabB, b), 'different'); await goalIs(tabB, "B different new work");
+      await until(async () => restoredReview?.status === 200, "genuine restored project review");
+      assert.equal(await tabB.eval("document.querySelector('[data-new-work-action=save]').disabled"), true);
+      const beforeSave = responseLog.length;
+      const saveResponses = () => responseLog.slice(beforeSave)
+        .filter(row => row.project === b.project_id && row.action === "prepare_new_project_work").map(row => row.status);
+      await checkPreparationSaveResponse({
+        ...browser(tabB, b),
+        waitForCondition: (expression: string, label: string) => until(async () => {
+          const satisfied = await tabB.eval(expression);
+          // Let the real read return when the driver encounters a pending condition.
+          if (!satisfied && restoredReview) {
+            console.log(JSON.stringify({ restored_save_readiness: { review_status: restoredReview.status, waiting_for: label, save_responses: saveResponses() } }));
+            releaseRead.resolve();
+            restoredReview = undefined;
+          }
+          return satisfied;
+        }, label),
+      }, 'different');
+      await goalIs(tabB, "B different new work");
+      assert.deepEqual(saveResponses(), [201], "One genuine save commits the restored preview");
       assert.notEqual(current(b)!.packet_id, priorB);
       assert.equal((db.prepare("SELECT COUNT(*) AS n FROM vnext_core_records WHERE record_id=?").get(priorB) as { n: number }).n, 1, "The original B work remains in history");
       // Revocation hides the retained A draft; only matching renewed authority
@@ -438,6 +465,7 @@ async function main(semanticOnly = false) {
     for (const tab of tabs) { try { console.error(await tab.eval("document.body.innerText.slice(-5000)")); } catch {} }
     throw error;
   } finally {
+    restoredReview?.release.resolve();
     held.release?.(); transitionHeld.release?.(); for (const tab of tabs) tab.close();
     if (chrome) await terminateOwnedProcessTree(chrome); browserUse?.finish();
     await closeTrackedServer(server); db.close(); guard.restore();

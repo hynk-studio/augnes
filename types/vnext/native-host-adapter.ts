@@ -407,6 +407,8 @@ export interface NativeHostAdapterV01 {
   readonly capability_version: string;
   readonly execution_profile: NativeHostExecutionProfileV01;
   readonly provider_egress: NativeHostProviderEgressV01;
+  /** In-process adapters default to the original deterministic delivery check. */
+  readonly required_local_delivery_check?: "deterministic_packet_delivery" | "validated_packet_delivery";
   /**
    * Private capability declaration only. CDX2B4A reads this flag but never
    * invokes resume. Adapters that omit it are deliberately unsupported.

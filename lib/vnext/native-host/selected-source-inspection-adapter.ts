@@ -19,6 +19,7 @@ export interface InspectionResult {
 export function createSelectedSourceInspectionAdapter(now = () => new Date().toISOString(), assertAdmission: () => void = () => {}): NativeHostAdapterV01 {
   return { adapter_version: SELECTED_SOURCE_ADAPTER, capability_version: SELECTED_SOURCE_INSPECTION,
     execution_profile: "deterministic_zero_model", provider_egress: "forbidden",
+    required_local_delivery_check: "validated_packet_delivery",
     invoke(request, control) {
       const result = inspect(request, control, now, assertAdmission);
       const settled = result.then(() => undefined, () => undefined);

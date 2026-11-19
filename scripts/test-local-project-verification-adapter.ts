@@ -3157,6 +3157,7 @@ function assertNegativeResidueV01(
 function actionReceiptObservationsV01(result: NativeHostResultV01) {
   const sourceFingerprint = `sha256:${"c".repeat(64)}`;
   return projectDirectNativeHostActionObservationsV01({
+    adapter: createLocalProjectVerificationAdapterV01(),
     result,
     run_ref: refV01("automation_run", result.run_id, sourceFingerprint),
     adapter_ref: refV01(
