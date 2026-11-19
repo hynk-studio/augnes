@@ -2440,8 +2440,31 @@ matching method. The ordinary-handoff successor reported solving the task from
 its current instructions and observations alone. Both used one batch opening.
 Two of the six workers submitted after a session interruption and continuation.
 Keep ordinary notes and code for this case. The incremental value and total
-cost of the examples remain unestablished. Transfer beyond a supplied catalogue
-of observation points remains an open research question.
+cost of the examples remain unestablished. The synthetic tasks supplied the
+available observation points.
+
+### Completed comparison — Reusing a Git integration check on two Web PRs (#1671)
+
+A worker investigating #1660 left a memo and a Git program. Three later model
+workers received the same two Web integration questions and commit IDs. The
+task left the paths and commands to them. The worker with source alone, the
+worker with the memo, and the worker with the memo and program each got both
+decisions, path counts and path sets right (6/6).
+[Study results](https://github.com/hynk-studio/augnes/issues/1671#issuecomment-6965377752)
+
+At the studied revisions, #1649 was already in #1669's history even though only
+15 of its 37 changed entries matched. Combining #1667 and #1669 required edits
+from both sides in the Web file client, Web guide and request scenario checks.
+The eventual #1667 merge preserved all three predicted file versions.
+[Merged source](https://github.com/hynk-studio/augnes/commit/0bd3dedd79409ad6e0ebc497607b8075412b4287)
+
+Use an ordinary memo by default. When the same source-integration question
+recurs, a maintainer can reuse the original program on the relevant commits.
+It made nine of its recipient's 14 Git calls, and the donor made 16 calls to
+investigate and prepare the handoff. The study measured Git activity for one
+worker per condition. Total cost and the ability to discover a missing
+observation outside the shared Git history remain open.
+[Original memo, program and replay instructions](https://github.com/hynk-studio/augnes/issues/1671#issuecomment-6965364382)
 
 ### Bounded P3/P4/P5 implementation — Different-goal experience use (#1427)
 
