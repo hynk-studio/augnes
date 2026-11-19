@@ -1058,6 +1058,19 @@ To exercise the release through project start and stored result readback, run
 The focused check without the executable exercises scripted protocol failures
 and refusal of an unpinned executable.
 
+The offline workspace check exercises a real edit and test with the pinned
+Linux x64 release. Run
+`node --import tsx scripts/test-pi-offline-workspace.ts --pi-executable /absolute/path/to/pi`
+on a glibc system with the Debian-style x86_64 library layout, Bash, util-linux
+and Bubblewrap with unprivileged user namespaces enabled. The controller
+creates a disposable answer file, a read-only acceptance check and a loopback
+listener. Pi runs fixed Bash RPC commands in separate PID and network namespaces.
+The same check must fail before the edit and pass afterward. The controller
+then checks the exact answer bytes, the original check and an outside canary.
+A setup refusal ends the exercise. This profile measures offline worker mechanics.
+Running selected project material still requires an admitted editing profile and
+resource grant.
+
 Codex chooses current files, functions and focused tests from the source. Keep
 each increment reversible and reviewable in Draft PRs; existing satisfied behavior
 does not need replacement code. Current MCP, project-navigation and reconciliation

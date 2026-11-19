@@ -17,7 +17,7 @@ const PINS: Readonly<Record<string, { size: number; sha256: string }>> = {
 };
 let occupied = false;
 
-async function prepareExecutable(source: string, destination: string, signal: AbortSignal): Promise<boolean> {
+export async function preparePinnedPiExecutableV01(source: string, destination: string, signal: AbortSignal): Promise<boolean> {
   const pin = PINS[process.platform + "-" + process.arch];
   if (!pin || !path.isAbsolute(source)) return false;
   const file = await open(source, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
@@ -84,7 +84,7 @@ export function createPiRpcLifecycleAdapterV01(input: { executable: string; now?
           directory = await mkdtemp(path.join(tmpdir(), "augnes-pi-rpc-"));
           const binary = path.join(directory, "pi");
           let verified = false;
-          try { verified = await prepareExecutable(executable, binary, signal); }
+          try { verified = await preparePinnedPiExecutableV01(executable, binary, signal); }
           catch { /* Missing, unreadable and cancelled preparation never launch a worker. */ }
           if (signal.aborted) return stopped();
           if (!verified) return terminal("unavailable", "pi_rpc_pinned_executable_unavailable");
