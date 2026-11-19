@@ -177,9 +177,8 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
     ["      selected_note_save_correction_reopened_readback: true, note_only_work_definition_unchanged: true,\n      pending_departure_revision_readback: true,\n", "      selected_note_save_correction_reopened_readback: true, work_definition_unchanged: true,\n"],
   ];
   const nativeSource = readFileSync(new URL('./native-work-preparation-browser-checks.mjs', import.meta.url), 'utf8');
-  // #1623 adds the reviewed optional-draft Stay check. All prior helper actions,
-  // assertions and deadlines are unchanged; retain the strict whole-file pin.
-  assert.equal(hash(tokens(nativeSource)), '7b07db99ca3e8b94c57166b1a3654048846f6e42a8909a40d0da43fbe6b417cf', 'exact Native preparation regression owner');
+  // Pin the complete helper, including the enabled Save action and its genuine response gate.
+  assert.equal(hash(tokens(nativeSource)), '4d82dfc8ddc171c6bf005c7d96e5a33cb9f4f41debb01243984e1b067a37d2ab', 'exact Native preparation regression owner');
   const assertNativeSites = text => { for (const [addition] of nativePreparationAdditions)
     assert.equal(text.split(addition).length, 2, 'exact required Native preparation call site'); };
   assertNativeSites(source);

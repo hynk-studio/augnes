@@ -172,7 +172,9 @@ export async function checkPreparationSaveResponse(browser, kind) {
   const { evaluate, waitForCondition } = browser;
   const ui = nativePreparationBrowser(browser);
   await ui.hold(kind === "result" ? "prepare_result_work" : "prepare_new_project_work");
-  await ui.click(kind === "result" ? '[data-result-work-action="save"]' : '[data-new-work-action="save"]');
+  const saveButton = kind === "result" ? '[data-result-work-action="save"]' : '[data-new-work-action="save"]';
+  // A restored preview can appear before the current project read enables Save.
+  await ui.click(`${saveButton}:enabled`);
   await ui.held();
   assert.equal(await evaluate("[...document.querySelectorAll('#work-revision input, #work-revision textarea, #work-revision select')].every(e=>e.matches(':disabled'))"), true);
   const preview = kind === "result" ? '[data-result-work-preview]' : '[data-new-work-preview]';
