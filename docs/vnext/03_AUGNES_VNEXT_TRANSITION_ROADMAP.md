@@ -1043,6 +1043,21 @@ A second managed host still needs separate worker and reference-host qualificati
 | C — Bounded Pi worker | A pinned subprocess/RPC candidate performs one permitted edit-and-test task and returns actual artifacts, checks, failures and unresolved effects through the existing contract. SDK inside the worker remains an option if source inspection justifies it. | B plus actual containment and resource admission; A is not a mandatory gate. |
 | D — Intervention and succession | Exercise supported steering/follow-up and a fresh Codex-to-Pi successor using checked work, current material and remaining obligations. Reuse existing composition where sufficient. | The affected control path must exist; a Pi case depends on C. |
 
+The first C increment exercises Pi's control channel. A trusted caller can pass
+`createPiRpcLifecycleAdapterV01({ executable })` through the existing
+`adapter_factory`. It checks the copied Linux x64 or macOS arm64 executable
+against the [Pi 1.5.2 release](https://github.com/earendil-works/pi/releases/tag/v1.5.2)
+and opens a fresh, offline RPC process in a private temporary directory. It
+queues a fixed marker, recovers it before aborting, checks the same session is
+idle with an empty queue, and verifies process-group exit. The project result
+records the blocked task and its skipped delivery check. The next increment
+needs whole-process containment and a resource grant for actual edits and tests.
+
+To exercise the release through project start and stored result readback, run
+`npm run test:project-work-initialization -- --pi-rpc-lifecycle-only --pi-executable /path/to/extracted/pi`.
+The focused check without the executable exercises scripted protocol failures
+and refusal of an unpinned executable.
+
 Codex chooses current files, functions and focused tests from the source. Keep
 each increment reversible and reviewable in Draft PRs; existing satisfied behavior
 does not need replacement code. Current MCP, project-navigation and reconciliation

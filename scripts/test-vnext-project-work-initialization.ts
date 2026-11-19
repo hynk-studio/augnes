@@ -160,6 +160,12 @@ async function main(): Promise<void> {
   const initializationStarted = performance.now();
   const cumulativeNetwork = process.argv.some(a => a.startsWith("--cumulative-")) ? installZeroNetworkGuard({ allowLoopback: true }) : null;
   try {
+    if (process.argv.includes("--pi-rpc-lifecycle-only")) {
+      const index = process.argv.indexOf("--pi-executable");
+      if (index >= 0 && !process.argv[index + 1]) throw new Error("Expected the path to the extracted Pi executable");
+      await assertPiRpcProjectLifecycleV01(index < 0 ? undefined : path.resolve(process.argv[index + 1]!));
+      return;
+    }
     if (process.argv.includes("--host-receipt-provenance-only")) { await assertNativeHostReceiptProvenanceV01(); return; }
     if (process.argv.includes("--semantic-state-read-only")) { await assertExecutedReviewedFollowUpV01(true); return; }
     if (process.argv.includes("--cumulative-budgets-only")) {
@@ -248,6 +254,7 @@ async function main(): Promise<void> {
     await assertRetainedSourceRecallV01();
     await assertSeparateNativeHostStartV01();
     await assertNativeHostReceiptProvenanceV01();
+    await assertPiRpcProjectLifecycleV01();
     await assertRevisedNativeHostStartV01();
     await assertNewWorkAdmissionV01();
     console.log(JSON.stringify({ initialization_ms: performance.now() - initializationStarted, scoped_cases: 0 }));
@@ -4731,6 +4738,25 @@ function assertMutationRefusalsAndRollbackV01(): void {
     );
   } finally {
     recoveryHistory.db.close();
+  }
+}
+
+async function assertPiRpcProjectLifecycleV01(pinnedExecutable?: string): Promise<void> {
+  const { assertPiRpcLifecycleV01, assertPiRpcScriptedTransportV01 } = await import("./pi-rpc-lifecycle-checks");
+  const transportDir = mkdtempSync(path.join(ROOT, "pi-transport-"));
+  await assertPiRpcScriptedTransportV01(transportDir);
+  const scenarios = pinnedExecutable ? ["unpinned", "probe", "cancel"] as const : ["unpinned"] as const;
+  for (const scenario of scenarios) {
+    const fixture = createFixtureV01("pi-rpc-" + scenario, false, true, true);
+    try {
+      const work = defineInitialProjectWorkV01(fixture.db, {
+        config: fixture.config, credential: authenticatedSessionV01(fixture, "pi"),
+        request: requestV01(fixture), clock: fixedClock(T2),
+      });
+      await assertPiRpcLifecycleV01({ root: fixture.root, config: fixture.config,
+        credential: credentialFromCookieV01(work.session_admission.cookie_value),
+        readCredential: credentialFromCookieV01, pinnedExecutable, scenario });
+    } finally { fixture.db.close(); }
   }
 }
 
