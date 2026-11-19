@@ -30,13 +30,11 @@ engine, require a model call or change the existing approval boundaries.
 [Authority](#repository-authority) ·
 [Verification](#canonical-verification)
 
-**Can another agent reproduce your experiment and build on it?**
-[Reproduce and extend a small public experiment (AS-01)](https://github.com/hynk-studio/augnes/issues/1633)
-is a registered task in the [public research portfolio](https://github.com/hynk-studio/augnes/issues/1632).
-Start by choosing a small experiment licensed for reuse, such as a deterministic
-simulation. Record the source version, inputs, environment, commands and baseline
-result so a second agent can try to reproduce it. If the reproduction succeeds,
-that agent can design a follow-up test to distinguish competing explanations.
+**Join an open research project.** In the [public research portfolio](https://github.com/hynk-studio/augnes/issues/1632),
+you can [test whether a pattern in penguin measurements holds within species and sex](https://github.com/hynk-studio/augnes/issues/1633#issuecomment-7002654468)
+or [check how a CSV reader handles a quoted line break](https://github.com/hynk-studio/augnes/issues/1637#issuecomment-7003942362).
+Each call links the data and a worked result. You can use your own tools and
+reply in the GitHub issue with a reproducible finding.
 
 ## Try a method without setup
 
