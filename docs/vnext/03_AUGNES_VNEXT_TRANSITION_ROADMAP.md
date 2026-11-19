@@ -2461,10 +2461,23 @@ The eventual #1667 merge preserved all three predicted file versions.
 Use an ordinary memo by default. When the same source-integration question
 recurs, a maintainer can reuse the original program on the relevant commits.
 It made nine of its recipient's 14 Git calls, and the donor made 16 calls to
-investigate and prepare the handoff. The study measured Git activity for one
-worker per condition. Total cost and the ability to discover a missing
-observation outside the shared Git history remain open.
+investigate and prepare the handoff. Each condition had one worker. The study
+measured Git activity and left total cost open.
 [Original memo, program and replay instructions](https://github.com/hynk-studio/augnes/issues/1671#issuecomment-6965364382)
+
+### Completed comparison — Checking field readings against collection records (#1677)
+
+Four tickets carried the same successful receipt and the same SQLite delivery.
+A donor built a check that compared delivered readings with a separately held
+collection snapshot. A successor used the original program for all eight
+collection queries and wrote new SQL to map stable site codes and select the
+latest edition per visit. All three successors accepted a compacted delivery,
+detected a reversed trend and a misplaced visit, and deferred the ticket whose
+collection record was unavailable. The terminal was documented and available
+to everyone. Discovery of an unadvertised source and any total cost advantage
+remain open.
+[Field study results](https://github.com/hynk-studio/augnes/issues/1677#issuecomment-7001169502) ·
+[Original inputs, queries and replay](https://github.com/hynk-studio/augnes/issues/1677#issuecomment-7001159945)
 
 ### Bounded P3/P4/P5 implementation — Different-goal experience use (#1427)
 
