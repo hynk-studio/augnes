@@ -7,8 +7,8 @@ import { NativeHostReconciliationRequiredErrorV01 } from "./native-host-contract
 // project path, model input, or extensible command channel.
 const MARKER = "Augnes offline queue check";
 const MAX_OUTPUT_BYTES = 128 * 1024;
-const FLAGS = ["--mode", "rpc", "--offline", "--no-session", "--no-tools", "--no-extensions",
-  "--no-skills", "--no-prompt-templates", "--no-themes", "--no-context-files"];
+export const PI_OFFLINE_RPC_FLAGS_V01 = Object.freeze(["--mode", "rpc", "--offline", "--no-session", "--no-tools", "--no-extensions",
+  "--no-skills", "--no-prompt-templates", "--no-themes", "--no-context-files"]);
 
 /** Only local protocol reason codes may be returned to the project. */
 export class PiRpcProtocolError extends Error {}
@@ -18,7 +18,7 @@ function object(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-async function* readRecords(stream: Readable) {
+export async function* readPiRpcRecordsV01(stream: Readable) {
   let total = 0;
   let pending = Buffer.alloc(0);
   for await (const chunk of stream) {
@@ -67,7 +67,7 @@ export async function runPiRpcQueueLifecycleV01(input: {
   onQueued?: (session: string) => Promise<void>;
 }): Promise<{ session: string; queued: boolean }> {
   input.signal.throwIfAborted();
-  const child = spawn(input.executable, FLAGS, {
+  const child = spawn(input.executable, PI_OFFLINE_RPC_FLAGS_V01, {
     cwd: input.directory, detached: true, stdio: ["pipe", "pipe", "ignore"],
     env: { NODE_ENV: "production", HOME: input.directory, TMPDIR: input.directory, PATH: input.directory,
       PI_CODING_AGENT_DIR: input.directory + "/agent", PI_OFFLINE: "1" },
@@ -82,7 +82,7 @@ export async function runPiRpcQueueLifecycleV01(input: {
   });
   // Broken pipes are observed by the write callback or stdout EOF.
   child.stdin.on("error", () => {});
-  const records = readRecords(child.stdout);
+  const records = readPiRpcRecordsV01(child.stdout);
   let sequence = 0;
   async function call(command: string, message?: string) {
     const id = String(++sequence);
