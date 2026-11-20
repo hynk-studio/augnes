@@ -6,6 +6,7 @@ import { CODEX_APP_SERVER_ADAPTER_VERSION_V01 } from "@/lib/vnext/native-host/co
 
 export type NativeHostDeliveryScopeV01 =
   | "local_in_process"
+  | "local_offline_worker"
   | "native_host_managed";
 
 export interface NativeHostDeliveryAuthorityV01 {
@@ -29,6 +30,9 @@ export function nativeHostDeliveryScopeV01(
 ): NativeHostDeliveryScopeV01 {
   if (adapter.execution_profile === "deterministic_zero_model" && adapter.provider_egress === "forbidden") {
     return "local_in_process";
+  }
+  if (adapter.execution_profile === "offline_file_patch" && adapter.provider_egress === "forbidden") {
+    return "local_offline_worker";
   }
   if (adapter.execution_profile === "native_host_managed_model" && adapter.provider_egress === "native_host_managed") {
     return "native_host_managed";
@@ -69,8 +73,16 @@ export function deriveNativeHostDeliveryAuthorityV01(input: {
     );
   }
 
-  const privacyOrExternalEgressOccurred =
-    deliveryScope === "native_host_managed" && managedBoundaryTransferReported;
+  // The offline worker receives only the selected bytes in a private mount.
+  // An exact packet is never delivered to Pi, and it has no provider transport.
+  const offlineFileDelivery = deliveryScope === "local_offline_worker" &&
+    input.result.adapter_extension.bounded_metadata.selected_file_delivery_started === true;
+  if (deliveryScope === "local_offline_worker" && (managedBoundaryTransferReported ||
+      (offlineFileDelivery && !input.adapter_invocation_started))) {
+    throw new NativeHostDeliveryAuthorityErrorV01("native_host_offline_transfer_conflict");
+  }
+  const privacyOrExternalEgressOccurred = offlineFileDelivery ||
+    (deliveryScope === "native_host_managed" && managedBoundaryTransferReported);
   const providerOrModelEgressOccurred =
     input.adapter.provider_egress === "native_host_managed" &&
     managedBoundaryTransferReported;
@@ -84,6 +96,6 @@ export function deriveNativeHostDeliveryAuthorityV01(input: {
     delivery_scope: deliveryScope,
     validated_packet_delivery_observed: deliveryScope === "local_in_process"
       ? input.adapter_invocation_started
-      : privacyOrExternalEgressOccurred,
+      : deliveryScope === "native_host_managed" && privacyOrExternalEgressOccurred,
   };
 }

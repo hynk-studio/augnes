@@ -23,6 +23,7 @@ import {
   updateAutonomyRunStepLedgerFields,
 } from "@/lib/autonomy/runner-ledger";
 import {
+  AUTONOMY_RUNNER_TERMINAL_STATUSES,
   buildDefaultRunnerAuthorityBoundary,
   buildDefaultRunnerBudgetSnapshot,
   buildDefaultRunnerSourceRefs,
@@ -91,7 +92,7 @@ import {
   buildNativeHostBoundaryTerminalResultV01 as buildBoundaryTerminalResult,
   type NativeHostInputSnapshotValidationV01,
 } from "@/lib/vnext/native-host/native-host-boundary-result";
-import { bindNativeHostRoundTripExecutionV01 } from "@/lib/vnext/native-host/native-host-execution-composition";
+import { bindNativeHostRoundTripExecutionV01, readOfflineFilePatchEvidenceV01 } from "@/lib/vnext/native-host/native-host-execution-composition";
 import {
   buildTaskStartGuideBriefCodexProjectionV02,
   unavailableGuideBriefCodexProjectionV02,
@@ -121,6 +122,7 @@ import {
   NATIVE_HOST_REQUEST_VERSION_V01,
   NATIVE_HOST_RESULT_RETURN_VERSION_V01,
   NATIVE_HOST_RESULT_VERSION_V01,
+  PI_FILE_PATCH_CHECKS,
   type NativeHostAdapterV01,
   type NativeHostAutomationContextV01,
   type NativeHostInvocationV01,
@@ -696,6 +698,12 @@ export async function runDirectNativeHostRoundTripV01(
   const adapter =
     dependencies.adapter ?? createDeterministicCodexAdapterV01({ now });
   const deliveryScope = nativeHostDeliveryScopeV01(adapter);
+  if (deliveryScope === "local_offline_worker" && (
+    input.mode !== "interactive" || !input.operator_mutation || dependencies.resume_existing_run ||
+    dependencies.resume_binding || dependencies.scoped_task || dependencies.lifecycle_mode === "managed_live"
+  )) {
+    refuse("pi_patch_operator_approval_required", 403);
+  }
   const timeoutMs = dependencies.timeout_ms ?? DEFAULT_TIMEOUT_MS;
   const stopSettleTimeoutMs =
     dependencies.stop_settle_timeout_ms ?? DEFAULT_STOP_SETTLE_TIMEOUT_MS;
@@ -1001,6 +1009,15 @@ export async function runDirectNativeHostRoundTripV01(
       if (preAdmitted || preAdmittedResume) {
         refuse("direct_host_pre_admitted_run_claim_missing", 409);
       }
+      if (deliveryScope === "local_offline_worker") {
+        // Reserve the worker in the same write transaction as the run. A busy
+        // worker leaves the other approval and its session credential reusable.
+        const terminal = AUTONOMY_RUNNER_TERMINAL_STATUSES;
+        const active = db.prepare(`SELECT 1 FROM autonomy_runs
+          WHERE json_extract(metadata_json, '$.adapter_execution_profile') = 'offline_file_patch'
+          AND status NOT IN (${terminal.map(() => "?").join(", ")}) LIMIT 1`).get(...terminal);
+        if (active) refuse("pi_patch_worker_busy", 409);
+      }
       const finiteReviews = db.prepare("SELECT status FROM autonomy_runs WHERE scope=? AND json_extract(metadata_json,'$.stateless_review.version')='stateless_source_review.v0.1' LIMIT 4097").all(input.config.project_id) as Array<{ status: AutonomyRunnerStatus }>;
       if (finiteReviews.length > 4096 || finiteReviews.some(r => !isTerminalRunnerStatus(r.status))) refuse("direct_host_run_conflict", 409);
       if (statelessTerminalEntries(admitted.packet).length) refuse("direct_host_stateless_terminal_lineage_unsupported");
@@ -1140,6 +1157,10 @@ export async function runDirectNativeHostRoundTripV01(
     if (hostResult.adapter_version !== adapter.adapter_version || hostResult.capability_version !== adapter.capability_version) {
       throw new NativeHostResultNormalizationErrorV01("native_host_result_adapter_binding_mismatch");
     }
+    if (deliveryScope === "local_offline_worker" && hostResult.outcome === "completed" &&
+        !hostResult.checks.some(check => readOfflineFilePatchEvidenceV01(request.request_id, check))) {
+      throw new NativeHostResultNormalizationErrorV01("native_host_checked_patch_missing");
+    }
     hostResult = materializeValidatedPacketDeliveryCheckV01({
       adapter,
       result: hostResult,
@@ -1147,7 +1168,7 @@ export async function runDirectNativeHostRoundTripV01(
     });
     // A pre-connection terminal response can have no host ID. Once a transfer
     // or task result exists, closing the run requires an attributable source.
-    if (resultFromAdapter && deliveryScope === "native_host_managed" && hostResult.host_refs.length === 0 &&
+    if (resultFromAdapter && deliveryScope !== "local_in_process" && hostResult.host_refs.length === 0 &&
         (hostResult.outcome === "completed" || hostResult.checks.length > 0 || hostResult.commands.length > 0 ||
           hostResult.artifacts.length > 0 || hostResult.changed_files.length > 0)) {
       throw new NativeHostResultNormalizationErrorV01("native_host_task_report_source_missing");
@@ -1734,6 +1755,7 @@ function buildNativeHostRequest(input: {
   guide_brief: NativeHostRequestV01["guide_brief"];
 }): NativeHostRequestV01 {
   const packet = input.admission.packet;
+  const offline = input.adapter.execution_profile === "offline_file_patch";
   return {
     request_version: NATIVE_HOST_REQUEST_VERSION_V01,
     request_id: input.request_id,
@@ -1826,7 +1848,9 @@ function buildNativeHostRequest(input: {
             "local_git_inspection_branch_and_commit",
             "bounded_correction_attempt",
           ]
-        : input.adapter.execution_profile === "native_host_managed_model"
+        : offline
+          ? ["prepare_one_approved_offline_file_patch"]
+          : input.adapter.execution_profile === "native_host_managed_model"
           ? [
             "project_scoped_command_with_approval",
             "project_scoped_file_change_with_approval",
@@ -1859,28 +1883,29 @@ function buildNativeHostRequest(input: {
       ? { repository_resume_context: input.repository_resume_context }
       : {}),
     policy: {
-      filesystem: "selected_project_root_only",
+      filesystem: offline ? "selected_file_copy_only" : "selected_project_root_only",
       network:
         input.adapter.provider_egress === "native_host_managed"
           ? "exact_grant_only"
           : "forbidden",
-      commands: input.adapter.execution_profile === "native_host_managed_model"
+      commands: offline ? "approved_offline_file_patch"
+        : input.adapter.execution_profile === "native_host_managed_model"
         ? "approval_required"
         : "forbidden_in_deterministic_adapter",
-      model: input.adapter.execution_profile === "native_host_managed_model"
+      model: offline ? "forbidden" : input.adapter.execution_profile === "native_host_managed_model"
         ? "native_host_managed"
         : "forbidden_in_deterministic_adapter",
-      host_egress: input.adapter.provider_egress === "native_host_managed"
+      host_egress: offline ? "approved_file_to_local_worker" : input.adapter.provider_egress === "native_host_managed"
         ? input.mode === "interactive"
           ? "explicit_interactive_start"
           : input.mode === "repository_attachment"
             ? "explicit_interactive_start"
             : "bounded_capability_grant"
         : "forbidden",
-      max_changed_files: MAX_CHANGED_FILES,
-      max_artifacts: MAX_ARTIFACTS,
-      max_commands: input.automation_context?.bounded_cycle?.grant.budget.max_commands ?? MAX_COMMANDS,
-      max_checks: MAX_CHECKS,
+      max_changed_files: offline ? 0 : MAX_CHANGED_FILES,
+      max_artifacts: offline ? 1 : MAX_ARTIFACTS,
+      max_commands: offline ? 2 : input.automation_context?.bounded_cycle?.grant.budget.max_commands ?? MAX_COMMANDS,
+      max_checks: offline ? PI_FILE_PATCH_CHECKS.length : MAX_CHECKS,
       timeout_ms: input.timeout_ms,
       stop_settle_timeout_ms: input.stop_settle_timeout_ms,
       stop_conditions: [
@@ -1939,7 +1964,8 @@ function createRunLedgerRecord(
     authority_boundary: {
       ...buildDefaultRunnerAuthorityBoundary({
         notes: [
-          managedLive
+          input.adapter.execution_profile === "offline_file_patch" ? "Only the approved file copy and fixed offline edit and check are admitted."
+          : managedLive
             ? "One explicitly started local native host may receive the admitted packet; approvals remain separately bounded."
             : "The deterministic host adapter receives one validated packet and cannot call a provider, GitHub, or external network.",
           "The resulting receipt is operational history, not approval, proof, accepted Evidence, semantic state, or work closure.",
@@ -1951,11 +1977,12 @@ function createRunLedgerRecord(
     budget_snapshot: buildDefaultRunnerBudgetSnapshot({
       budget_id: `native-host-budget:${input.run_id}`,
       max_iterations: 1,
-      max_tool_calls: 0,
+      max_tool_calls: input.adapter.execution_profile === "offline_file_patch" ? 2 : 0,
       max_codex_tasks:
         input.adapter.execution_profile === "native_host_managed_model" ? 1 : 0,
       notes: [
-        managedLive
+        input.adapter.execution_profile === "offline_file_patch" ? "One isolated worker, two fixed commands and zero provider calls."
+        : managedLive
           ? "One local Codex App Server thread and turn are allowed; no automatic retry or GitHub action is granted."
           : "One deterministic in-process host task is allowed; provider calls and external actions remain zero.",
       ],
@@ -2433,7 +2460,8 @@ function buildDirectHostRunReceipt(input: {
     result,
     adapter_invocation_started: input.adapter_invocation_started,
   });
-  const managedReport = input.result_from_adapter && deliveryAuthority.delivery_scope === "native_host_managed";
+  const offline = deliveryAuthority.delivery_scope === "local_offline_worker";
+  const managedReport = input.result_from_adapter && deliveryAuthority.delivery_scope !== "local_in_process";
   const residueBasis = managedReport ? "attested" : "observed";
   const reporterRef = localRef(
     "native_host_orchestrator",
@@ -2478,7 +2506,7 @@ function buildDirectHostRunReceipt(input: {
     (id === "validated_packet_delivery" ||
       (deliveryAuthority.delivery_scope === "local_in_process" && id === "deterministic_packet_delivery"));
   const checks: RunReceiptV01["checks"] = result.checks.map(check => {
-    const observed = deliveryCheckObserved(check.check_id);
+    const observed = deliveryCheckObserved(check.check_id) || (offline && managedReport && Boolean(readOfflineFilePatchEvidenceV01(request.request_id, check)));
     return { ...check, basis: observed ? "observed" : residueBasis, source_refs: [observed ? reporterRef : reportSource] };
   });
   const skippedChecks: RunReceiptV01["skipped_checks"] = result.skipped_checks.map(check => {
@@ -2525,7 +2553,24 @@ function buildDirectHostRunReceipt(input: {
   const actionObservations = input.result_from_adapter
     ? projectDirectNativeHostActionObservationsV01({ ...actionInput, adapter: input.adapter })
     : localActionObservations(actionInput);
+  const checkedPatches: RunReceiptObservationV01[] = [];
+  if (offline && managedReport) {
+    for (const check of result.checks) {
+      const patch = readOfflineFilePatchEvidenceV01(request.request_id, check);
+      if (!patch) continue;
+      const summary = canonicalizeProtocolValueV01(patch);
+      const ref = localRef("checked_file_patch", createProtocolSha256V01(summary), result.finished_at,
+        request.packet.integrity.fingerprint, input.adapter.adapter_version);
+      checkedPatches.push({
+        observation_id: `observation:checked-file-patch:${request.request_id}`, observation_kind: "checked_file_patch",
+        summary, event_at: result.finished_at, observed_at: result.finished_at, observer_ref: reporterRef,
+        trust_class: "direct_local_observation", source_refs: [runRef, admission.packet_ref, admission.root_scope.root_scope_ref],
+        related_command_ids: [], related_check_ids: [check.check_id], related_artifact_refs: [ref],
+      });
+    }
+  }
   const observations: RunReceiptObservationV01[] = [
+    ...checkedPatches,
     ...(input.snapshot_validation ? [{
       observation_id: `observation:input-snapshot:${request.request_id}`,
       observation_kind: "source_bound_input_snapshot",
@@ -2805,7 +2850,7 @@ function buildDirectHostRunReceipt(input: {
         deliveryAuthority.privacy_or_external_egress_occurred
           ? "unknown"
           : "not_needed",
-      retention_class: deliveryAuthority.privacy_or_external_egress_occurred
+      retention_class: offline ? "bounded_structured_receipt_only" : deliveryAuthority.privacy_or_external_egress_occurred
         ? "native_host_managed_or_unknown"
         : deliveryAuthority.delivery_scope === "local_in_process"
           ? "bounded_structured_local_receipt_only"
@@ -2816,7 +2861,10 @@ function buildDirectHostRunReceipt(input: {
       secret_material_persisted: false,
       source_refs: [reporterRef],
       notes: [
-        deliveryAuthority.packet_presented_to_adapter
+        offline ? (deliveryAuthority.privacy_or_external_egress_occurred
+          ? "The selected file was offered to an isolated local worker. The full packet, model providers and network were outside its scope."
+          : "The selected file did not enter the offline worker.")
+          : deliveryAuthority.packet_presented_to_adapter
           ? deliveryAuthority.delivery_scope === "local_in_process"
             ? "The exact admitted packet was presented to the in-process adapter; no external privacy boundary was crossed."
             : deliveryAuthority.privacy_or_external_egress_occurred
@@ -2858,6 +2906,7 @@ function buildDirectHostRunReceipt(input: {
     artifact_refs: uniqueRefs([
       ...artifactRefs,
       ...artifacts.map((artifact) => artifact.artifact_ref),
+      ...checkedPatches.flatMap(observation => observation.related_artifact_refs),
     ]),
     compatibility: {
       source_contracts: [
@@ -3090,7 +3139,8 @@ async function invokeAdapterBounded(
     const stoppedResult = observedResultOutcome.value;
     if (
       stoppedResult?.status === "fulfilled" &&
-      stoppedResult.result.outcome === "completed"
+      (stoppedResult.result.outcome === "completed" ||
+        (adapter.execution_profile === "offline_file_patch" && stoppedResult.result.outcome === first.outcome))
     ) {
       return { result: stoppedResult.result };
     }
@@ -3510,6 +3560,7 @@ function requiredCheckIdsForAdapterV01(
   deliveryScope: NativeHostDeliveryScopeV01,
   packetRequiredCheckIds: string[],
 ): string[] {
+  if (deliveryScope === "local_offline_worker") return [...new Set([...PI_FILE_PATCH_CHECKS, ...packetRequiredCheckIds])].sort();
   const deliveryCheckId = deliveryScope === "native_host_managed"
     ? "validated_packet_delivery" : adapter.required_local_delivery_check ?? "deterministic_packet_delivery";
   // This fixed profile owns its obligations before candidate data is read.

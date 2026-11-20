@@ -11,6 +11,7 @@ export const NATIVE_HOST_RESULT_RETURN_VERSION_V01 =
   "native_host_result_return.v0.1" as const;
 export const NATIVE_HOST_APPROVAL_VERSION_V01 =
   "native_host_approval.v0.1" as const;
+export const PI_FILE_PATCH_CHECKS = ["pi_staged_file_check", "pi_output_bytes"] as const;
 
 export type NativeHostRunModeV01 =
   | "interactive"
@@ -50,7 +51,8 @@ export type NativeHostApprovalDecisionKindV01 =
   | "cancel_run";
 export type NativeHostExecutionProfileV01 =
   | "deterministic_zero_model"
-  | "native_host_managed_model";
+  | "native_host_managed_model"
+  | "offline_file_patch";
 export type NativeHostProviderEgressV01 = "forbidden" | "native_host_managed";
 
 export interface NativeHostPosixPhysicalRootIdentityV01 {
@@ -174,16 +176,19 @@ export interface NativeHostRequestV01 {
   repository_delegation_context?: NativeHostRepositoryDelegationContextV01 | null;
   repository_resume_context?: NativeHostRepositoryResumeContextV01 | null;
   policy: {
-    filesystem: "selected_project_root_only";
+    filesystem: "selected_project_root_only" | "selected_file_copy_only";
     network: "forbidden" | "exact_grant_only";
     commands:
       | "forbidden_in_deterministic_adapter"
-      | "approval_required";
+      | "approval_required"
+      | "approved_offline_file_patch";
     model:
       | "forbidden_in_deterministic_adapter"
+      | "forbidden"
       | "native_host_managed";
     host_egress:
       | "forbidden"
+      | "approved_file_to_local_worker"
       | "explicit_interactive_start"
       | "bounded_capability_grant";
     max_changed_files: number;

@@ -468,7 +468,7 @@ function normalizeProtocolFieldNameV01(value: string): string {
     .toLowerCase();
 }
 
-function containsSecretShapedValueV01(value: string): boolean {
+export function containsSecretShapedValueV01(value: string): boolean {
   return (
     /(?:OPENAI_API_KEY|GITHUB_TOKEN|ANTHROPIC_API_KEY|AWS_SECRET_ACCESS_KEY)\s*=/i.test(
       value,

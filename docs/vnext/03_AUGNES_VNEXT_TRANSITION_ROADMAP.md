@@ -1050,8 +1050,8 @@ against the [Pi 1.5.2 release](https://github.com/earendil-works/pi/releases/tag
 and opens a fresh, offline RPC process in a private temporary directory. It
 queues a fixed marker, recovers it before aborting, checks the same session is
 idle with an empty queue, and verifies process-group exit. The project result
-records the blocked task and its skipped delivery check. The next increment
-needs whole-process containment and a resource grant for actual edits and tests.
+records the blocked task and its skipped delivery check. The following profiles
+exercise containment and the operator grant for a selected edit.
 
 To exercise the release through project start and stored result readback, run
 `npm run test:project-work-initialization -- --pi-rpc-lifecycle-only --pi-executable /path/to/extracted/pi`.
@@ -1067,9 +1067,26 @@ creates a disposable answer file, a read-only acceptance check and a loopback
 listener. Pi runs fixed Bash RPC commands in separate PID and network namespaces.
 The same check must fail before the edit and pass afterward. The controller
 then checks the exact answer bytes, the original check and an outside canary.
-A setup refusal ends the exercise. This profile measures offline worker mechanics.
-Running selected project material still requires an admitted editing profile and
-resource grant.
+A setup refusal ends the exercise. This fixture measures offline worker mechanics.
+
+The first project editing profile prepares a missing final newline for one
+operator-selected UTF-8 `.txt` or `.md` file (up to 64 KiB). On a supported
+Linux x64 runtime, point `AUGNES_PI_OFFLINE_EXECUTABLE` at an absolute path to
+the pinned Pi executable. In an authenticated local operator session, POST
+`{"action":"preview","path":"notes.txt"}` to `/api/vnext/operator/pi-file-patch`.
+Review the project, work goal, operation, path and input hash. To authorize
+that exact selection, POST `{"action":"prepare","path":"notes.txt","binding":"<binding>"}`
+to the same endpoint. The worker edits an isolated copy and runs one fixed
+check. The receipt records Pi's check and Augnes's separate byte comparison.
+The source file stays in place. A fresh session can retrieve the patch by
+sending `GET /api/vnext/operator/run-results?receipt_ref=<receipt_id>` and
+reading the `checked_file_patch` artifact on a completed result. Its summary
+contains the relative path, byte offset, hex append data and both SHA-256 hashes.
+
+To exercise approval, execution and fresh readback together on Linux, run
+`npm run test:project-work-initialization -- --pi-project-file-only --pi-executable /absolute/path/to/pi`.
+Without an executable, the focused command exercises selection and admission
+refusals without starting Pi.
 
 Codex chooses current files, functions and focused tests from the source. Keep
 each increment reversible and reviewable in Draft PRs; existing satisfied behavior

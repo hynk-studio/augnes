@@ -160,6 +160,14 @@ async function main(): Promise<void> {
   const initializationStarted = performance.now();
   const cumulativeNetwork = process.argv.some(a => a.startsWith("--cumulative-")) ? installZeroNetworkGuard({ allowLoopback: true }) : null;
   try {
+    if (process.argv.includes("--pi-project-file-only")) {
+      const index = process.argv.indexOf("--pi-executable");
+      const executable = index < 0 ? undefined : process.argv[index + 1];
+      if (index >= 0 && (!executable || !path.isAbsolute(executable))) throw new Error("--pi-executable requires an absolute path");
+      if (executable && (process.platform !== "linux" || process.arch !== "x64")) throw new Error("The approved Pi executable requires Linux x64");
+      await assertPiProjectFileRouteV01(executable);
+      return;
+    }
     if (process.argv.includes("--pi-rpc-lifecycle-only")) {
       const index = process.argv.indexOf("--pi-executable");
       if (index >= 0 && !process.argv[index + 1]) throw new Error("Expected the path to the extracted Pi executable");
@@ -255,6 +263,7 @@ async function main(): Promise<void> {
     await assertSeparateNativeHostStartV01();
     await assertNativeHostReceiptProvenanceV01();
     await assertPiRpcProjectLifecycleV01();
+    await assertPiProjectFileRouteV01();
     await assertRevisedNativeHostStartV01();
     await assertNewWorkAdmissionV01();
     console.log(JSON.stringify({ initialization_ms: performance.now() - initializationStarted, scoped_cases: 0 }));
@@ -4767,6 +4776,18 @@ function assertMutationRefusalsAndRollbackV01(): void {
   } finally {
     recoveryHistory.db.close();
   }
+}
+
+async function assertPiProjectFileRouteV01(executable?: string): Promise<void> {
+  const { assertPiProjectFileChecks } = await import("./pi-project-file-checks");
+  const fixture = createFixtureV01("pi-project-file", false, true, true);
+  try {
+    await assertPiProjectFileChecks(fixture, requestV01(fixture, {
+      goal: "Prepare a final newline patch for notes.txt",
+      success_criteria: ["Recover the checked patch while the project file keeps its original bytes"],
+      non_goals: ["Do not apply the patch"],
+    }), executable);
+  } finally { fixture.db.close(); }
 }
 
 async function assertPiRpcProjectLifecycleV01(pinnedExecutable?: string): Promise<void> {

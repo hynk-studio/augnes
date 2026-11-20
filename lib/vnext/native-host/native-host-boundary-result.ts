@@ -103,6 +103,9 @@ export function buildNativeHostBoundaryTerminalResultV01(input: {
           input.prior_result?.adapter_extension.bounded_metadata
             .live_host_invoked === true,
         packet_delivery_initiated: packetTransferReported,
+        ...(input.adapter.execution_profile === "offline_file_patch" ? {
+          selected_file_delivery_started: input.prior_result?.adapter_extension.bounded_metadata.selected_file_delivery_started === true,
+        } : {}),
         raw_provider_payload_included: false,
       },
     },
