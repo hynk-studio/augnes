@@ -3,7 +3,7 @@
 import { useWorkDraftState, type WorkComposerDraft } from "./work-composer-draft";
 import { trackWorkPreparation } from "./work-preparation-departure";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 
 import type {
   ProjectWorkDefinitionV01,
@@ -80,9 +80,9 @@ export function FirstWorkComposer({
     sameDefinitionV01(definition, initialDefinition) && sourceSelection === null;
   const prefix = mode === "new_task" ? "new-work" : mode === "revision" ? "work-revision" : "first-work";
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (mode === "initial" && window.location.hash !== "#first-work") return;
-    window.requestAnimationFrame(() => goalRef.current?.focus());
+    goalRef.current?.focus();
   }, [mode]);
 
   return (
