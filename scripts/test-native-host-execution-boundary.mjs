@@ -5,6 +5,7 @@ import { Writable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { canonicalChildAcceptanceFailure, runCanonicalChild } from "./canonical-child-runner.mjs";
 import { buildCanonicalChildEnvironment, cleanupCanonicalTestResources, createCanonicalTestResourceRoot } from "./canonical-test-environment.mjs";
+import { assertScriptedCodexParity } from "./fixtures/native-host-execution-parity.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const owners = [], results = [];
@@ -38,8 +39,16 @@ try {
     assert.equal(summary.status, "pass");
     results.push(summary);
   }
-  assert.deepEqual(results[1].behavior, results[2].behavior,
-    "default composition must preserve the explicitly supplied real scripted adapter's request/lifecycle/result/receipt behavior");
+  const defaultBehavior = results[1].behavior;
+  assertScriptedCodexParity(defaultBehavior, results[2].behavior);
+
+  // Exercise the alternating callback order even on a run where both children
+  // observed the same schedule. Keep their original traces in the report.
+  const opposite = { turn_started: "terminal_observed", terminal_observed: "turn_started" };
+  const alternate = defaultBehavior.lifecycle.map(event => opposite[event] ?? event);
+  assertScriptedCodexParity(defaultBehavior, { ...defaultBehavior, lifecycle: alternate });
+  const missingTerminal = { ...defaultBehavior, lifecycle: defaultBehavior.lifecycle.filter(event => event !== "terminal_observed") };
+  assert.throws(() => assertScriptedCodexParity(missingTerminal, missingTerminal), assert.AssertionError);
   console.log(JSON.stringify({ test: "native_host_execution_boundary", status: "pass", results }));
 } finally {
   const cleanup = cleanupCanonicalTestResources(owners);
