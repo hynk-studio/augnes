@@ -28,6 +28,14 @@ export const INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01 =
 export const INITIAL_PROJECT_WORK_REQUEST_NAMESPACE_V01 =
   "augnes.vnext.initial-work-request.v0.1" as const;
 
+export function workDefinitionNonGoalGaps(nonGoals: readonly string[], definition: ExternalRefV01): TaskContextPacketV01["gaps"] {
+  if (nonGoals.length) return [];
+  return [{
+    code: "missing_non_goals", summary: "No out-of-scope items were declared.", severity: "low",
+    missing_fields: ["task.non_goals"], source_refs: [definition.source_ref!], external_refs: [definition],
+  }];
+}
+
 // The accepted definition domain is capped at 12,000 canonical UTF-8 bytes.
 // Canonical JSON escaping and the three additional goal projections are
 // included conservatively so every accepted definition can compile.
@@ -253,19 +261,7 @@ export function buildInitialProjectWorkTaskContextPacketV01(input: {
     excluded_context: [],
     tensions: [],
     risks: [],
-    gaps:
-      definition.non_goals.length === 0
-        ? [
-            {
-              code: "missing_non_goals",
-              summary: "No out-of-scope items were declared.",
-              severity: "low",
-              missing_fields: ["task.non_goals"],
-              source_refs: [lineage.definition_ref.source_ref!],
-              external_refs: [lineage.definition_ref],
-            },
-          ]
-        : [],
+    gaps: workDefinitionNonGoalGaps(definition.non_goals, lineage.definition_ref),
     constraints: {
       required_checks: [],
       forbidden_actions: [],

@@ -3,9 +3,11 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { isUtf8 } from "node:buffer";
+import type Database from "better-sqlite3";
 import { canonicalizeProtocolValueV01 as canonical, containsSecretShapedValueV01, createProtocolSha256V01 as hash } from "@/lib/vnext/protocol-primitives";
 import { canonicalizeRepositoryRelativePathV01 } from "@/lib/vnext/repository-relative-path";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import { AUTHORED_SUCCESSOR_CONTEXT_V01 } from "@/types/vnext/project-work-initialization";
 import { NATIVE_HOST_RESULT_VERSION_V01, PI_FILE_PATCH_CHECKS, type NativeHostAdapterV01, type NativeHostObservedCheckV01,
   type NativeHostResultV01, type NativeHostRootScopeV01 } from "@/types/vnext/native-host-adapter";
 import { readBoundedLocalSourceBytes } from "./bounded-source-read";
@@ -13,6 +15,7 @@ import { NativeHostReconciliationRequiredErrorV01 } from "./native-host-contract
 import { preparePinnedPiExecutableV01 } from "./pi-rpc-lifecycle-adapter";
 import { PI_PATCH_CHECK, PI_PATCH_CHECK_SOURCE, PI_PATCH_EDIT, runPiFilePatchWorker } from "./pi-file-patch-worker";
 import { inspectNativeHostPhysicalRootIdentitySynchronouslyV01 } from "./project-root-identity";
+import { readPiPatchPredecessor, type PiPatchLineage } from "../runtime/pi-file-patch-predecessor";
 
 const PROFILE = "pi_offline_final_newline.v1";
 export const PI_FILE_PATCH_LIMIT = 64 * 1024;
@@ -23,11 +26,17 @@ export class PiFilePatchError extends Error {
 
 function digest(bytes: Buffer) { return "sha256:" + createHash("sha256").update(bytes).digest("hex"); }
 
+type PiPatchSource = { selectedPath: string } | { predecessorDatabase: Database.Database };
+type PiPatchPredecessor = NonNullable<ReturnType<typeof readPiPatchPredecessor>>["predecessor"];
+
 export function readPiPatchSelection(packet: TaskContextPacketV01, root: NativeHostRootScopeV01, selected: unknown, workBinding: string) {
   if (typeof selected !== "string" || selected.length > 240 || containsSecretShapedValueV01(selected) ||
       !/^[\p{L}\p{N}][\p{L}\p{N} _.-]*(?:\/[\p{L}\p{N}][\p{L}\p{N} _.-]*)*\.(?:txt|md)$/u.test(selected) ||
       canonicalizeRepositoryRelativePathV01(selected) !== selected) throw new PiFilePatchError("pi_patch_text_path_required", 400);
-  if (packet.constraints.data_classification === "secret" || packet.constraints.forbidden_actions.length || packet.capability_grant) {
+  // A same-task revision keeps prior mandatory constraints and can also add
+  // new stop conditions to the current authored task.
+  const successorStops = packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_CONTEXT_V01) && packet.task.non_goals.length > 0;
+  if (packet.constraints.data_classification === "secret" || packet.constraints.forbidden_actions.length || successorStops || packet.capability_grant) {
     throw new PiFilePatchError("pi_patch_work_scope_unsupported", 403);
   }
   function assertRegisteredRoot() {
@@ -51,12 +60,25 @@ export function readPiPatchSelection(packet: TaskContextPacketV01, root: NativeH
   return { bytes, selection, binding };
 }
 
+export function readPiPatchSource(packet: TaskContextPacketV01, root: NativeHostRootScopeV01,
+  source: PiPatchSource, workBinding: string, lineage: PiPatchLineage):
+  ReturnType<typeof readPiPatchSelection> & { predecessor?: PiPatchPredecessor } {
+  if ("selectedPath" in source) return readPiPatchSelection(packet, root, source.selectedPath, workBinding);
+  const prior = readPiPatchPredecessor(source.predecessorDatabase, packet, lineage);
+  if (!prior) throw new PiFilePatchError("pi_patch_predecessor_ineligible");
+  const material = readPiPatchSelection(packet, root, prior.path, workBinding);
+  if (material.selection.before_sha256 !== prior.after_hash) throw new PiFilePatchError("pi_patch_predecessor_bytes_changed");
+  const binding = hash(canonical({ selection_binding: material.binding, predecessor: prior.predecessor }));
+  return { ...material, binding, predecessor: prior.predecessor };
+}
+
 interface PiFilePatch {
   path: string;
   offset: number;
   append_hex: "0a";
   before_sha256: string;
   after_sha256: string;
+  predecessor?: PiPatchPredecessor;
 }
 
 // Only the controller's settled, independent, byte-for-byte read mints a
@@ -67,10 +89,10 @@ export function readVerifiedPiFilePatch(requestId: string, check: NativeHostObse
   return witness?.requestId === requestId ? witness.patch : null;
 }
 
-export function createPiFilePatchAdapter(input: {
-  executable: string; selectedPath: string; approvedBinding: string; assertCurrent: () => string; now?: () => string;
+export function createPiFilePatchAdapter(input: PiPatchSource & {
+  executable: string; approvedBinding: string; assertCurrent: () => string; now?: () => string;
 }): NativeHostAdapterV01 {
-  const { executable, selectedPath, approvedBinding, assertCurrent, now = () => new Date().toISOString() } = input;
+  const { executable, approvedBinding, assertCurrent, now = () => new Date().toISOString() } = input;
   // The ordinary run identity includes this binding, so another file or input
   // revision cannot replay an earlier edit as the newly requested one.
   const capability = PROFILE + "." + approvedBinding;
@@ -100,7 +122,7 @@ export function createPiFilePatchAdapter(input: {
       function boundInput() {
         signal.throwIfAborted();
         const workBinding = assertCurrent();
-        const material = readPiPatchSelection(request.packet, request.root_scope, selectedPath, workBinding);
+        const material = readPiPatchSource(request.packet, request.root_scope, input, workBinding, request.packet_lineage);
         if (material.binding !== approvedBinding) throw new PiFilePatchError("pi_patch_selection_changed");
         return material;
       }
@@ -150,8 +172,9 @@ export function createPiFilePatchAdapter(input: {
           boundInput();
           const check: NativeHostObservedCheckV01 = Object.freeze({ check_id: "pi_output_bytes", required: true,
             status: "passed", summary: "After Pi exited, Augnes matched every output byte to the approved source plus one LF." });
-          checked.set(check, { requestId: request.request_id, patch: Object.freeze({ path: selectedPath, offset: initial.bytes.length,
-            append_hex: "0a", before_sha256: initial.selection.before_sha256, after_sha256: digest(output) }) });
+          checked.set(check, { requestId: request.request_id, patch: Object.freeze({ path: initial.selection.path, offset: initial.bytes.length,
+            append_hex: "0a", before_sha256: initial.selection.before_sha256, after_sha256: digest(output),
+            ...(initial.predecessor && { predecessor: Object.freeze({ ...initial.predecessor }) }) }) });
           checks.push(check);
           return terminal("completed", null);
         } catch (error) {

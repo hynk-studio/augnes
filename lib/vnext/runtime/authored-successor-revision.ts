@@ -18,7 +18,7 @@ import { AUTHORED_SUCCESSOR_REVISION_V01, type RevisePreExecutionProjectWorkRequ
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import { readAuthoredSuccessorPredecessorIdsV01, inspectAuthoredSuccessorPacketV01, readOrdinarySuccessorRootBindingV01, type AuthoredSuccessorPacketLineageV01 } from "./authored-successor-task";
-import { normalizeInitialProjectWorkDefinitionV01 } from "./initial-project-work-context";
+import { normalizeInitialProjectWorkDefinitionV01, workDefinitionNonGoalGaps } from "./initial-project-work-context";
 import { readVNextLocalOperatorSessionHistoryV01, type VNextLocalOperatorPilotConfigV01 } from "./local-operator-session";
 import { readCurrentProjectWorkPacketLineageV01 } from "./operator-pilot-project-continuity";
 import { ProjectWorkRevisionErrorV01, parseProjectWorkRevisionRequestV01 } from "./project-work-revision";
@@ -112,7 +112,8 @@ export function buildOrdinarySuccessorRevisionV01(prior: TaskContextPacketV01, a
       ...readSelectedWorkSources(prior).filter(e => !selected.some(s => s.entry_id === e.entry_id)).map(e => ({ entry_id: e.entry_id, source_ref: e.source_ref, external_ref: e.external_ref,
         why_excluded: "Not selected in this revision; no refutation, deletion or change to the recorded observation is implied.", currentness: e.currentness })),
     ],
-    tensions: prior.tensions, risks: prior.risks, gaps: prior.gaps,
+    tensions: prior.tensions, risks: prior.risks,
+    gaps: [...prior.gaps.filter(gap => gap.code !== "missing_non_goals"), ...workDefinitionNonGoalGaps(definition.non_goals, definitionRef)],
     constraints: outlookItems.length ? { ...prior.constraints, context_budget: { ...prior.constraints.context_budget,
       max_projection_items: Math.max(prior.constraints.context_budget.max_projection_items ?? 64, 1 + outlookItems.length) } } : prior.constraints,
     capability_grant: null, return_contract: prior.return_contract,

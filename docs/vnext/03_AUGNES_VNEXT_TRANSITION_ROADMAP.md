@@ -1088,6 +1088,26 @@ To exercise approval, execution and fresh readback together on Linux, run
 Without an executable, the focused command exercises selection and admission
 refusals without starting Pi.
 
+An ordinary same-project successor can also prepare a patch from a completed
+Codex result. When preparing the next work from that result, retain the offered
+result note. This profile supports a receipt reporting one added or modified
+text file with an after-hash and a required, skipped `final_newline` check.
+The check belongs to the run. The operator chooses to address it on that file.
+In the successor's authenticated session, POST
+`{"action":"preview","source":"predecessor"}` to the Pi endpoint. Augnes resolves
+the file from the immediate prior receipt and compares its reported SHA-256
+with the current bytes. Review the returned receipt, check, work goal, path
+and digest. POST `{"action":"prepare","source":"predecessor","binding":"<binding>"}`
+to authorize that selection. The returned `checked_file_patch` includes the
+predecessor receipt ID, fingerprint and check ID. The prepared patch still
+requires a separate decision to apply it. Other outstanding work stays open.
+
+The credential-free succession fixture uses the Codex App Server adapter with
+a scripted producer that writes and rereads a disposable file. On Linux x64,
+`npm run test:project-work-initialization -- --pi-successor-only --pi-executable /absolute/path/to/pi`
+exercises the fresh Pi worker and stored patch readback. Omit the executable
+to exercise the succession and refusal checks without launching Pi.
+
 Codex chooses current files, functions and focused tests from the source. Keep
 each increment reversible and reviewable in Draft PRs; existing satisfied behavior
 does not need replacement code. Current MCP, project-navigation and reconciliation

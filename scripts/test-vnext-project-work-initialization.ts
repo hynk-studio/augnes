@@ -160,12 +160,13 @@ async function main(): Promise<void> {
   const initializationStarted = performance.now();
   const cumulativeNetwork = process.argv.some(a => a.startsWith("--cumulative-")) ? installZeroNetworkGuard({ allowLoopback: true }) : null;
   try {
-    if (process.argv.includes("--pi-project-file-only")) {
+    if (process.argv.includes("--pi-project-file-only") || process.argv.includes("--pi-successor-only")) {
       const index = process.argv.indexOf("--pi-executable");
       const executable = index < 0 ? undefined : process.argv[index + 1];
       if (index >= 0 && (!executable || !path.isAbsolute(executable))) throw new Error("--pi-executable requires an absolute path");
       if (executable && (process.platform !== "linux" || process.arch !== "x64")) throw new Error("The approved Pi executable requires Linux x64");
-      await assertPiProjectFileRouteV01(executable);
+      if (process.argv.includes("--pi-successor-only")) await assertPiSuccessorRouteV01(true, executable);
+      else await assertPiProjectFileRouteV01(executable);
       return;
     }
     if (process.argv.includes("--pi-rpc-lifecycle-only")) {
@@ -264,6 +265,7 @@ async function main(): Promise<void> {
     await assertNativeHostReceiptProvenanceV01();
     await assertPiRpcProjectLifecycleV01();
     await assertPiProjectFileRouteV01();
+    await assertPiSuccessorRouteV01(false);
     await assertRevisedNativeHostStartV01();
     await assertNewWorkAdmissionV01();
     console.log(JSON.stringify({ initialization_ms: performance.now() - initializationStarted, scoped_cases: 0 }));
@@ -4776,6 +4778,23 @@ function assertMutationRefusalsAndRollbackV01(): void {
   } finally {
     recoveryHistory.db.close();
   }
+}
+
+async function assertPiSuccessorRouteV01(focused: boolean, executable?: string): Promise<void> {
+  const { assertPiSuccessorChecks } = await import("./pi-successor-checks");
+  const cases = focused ? ["other_check", "omitted_report", "available"] as const : ["available"] as const;
+  for (const scenario of cases) {
+    const fixture = createFixtureV01("pi-successor-" + scenario, false, true, true);
+    try {
+      await assertPiSuccessorChecks(fixture, requestV01(fixture, {
+        goal: "Write and check one disposable text note for a later worker.",
+        success_criteria: ["Identify the written content and record its remaining check."],
+        non_goals: [],
+      }), scenario, executable);
+    } finally { fixture.db.close(); }
+  }
+  console.log(JSON.stringify({ test: "pi-checked-work-successor", predecessor: "scripted_codex_app_server",
+    cases, real_pi: Boolean(executable), fresh_pi_receipt_read: Boolean(executable) }));
 }
 
 async function assertPiProjectFileRouteV01(executable?: string): Promise<void> {
