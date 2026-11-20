@@ -1,6 +1,7 @@
 import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type { TaskContextPacketSelectedEntryV01, TaskContextPacketV01 } from "./task-context-packet";
 import type { ProjectWorkRevisionEligibilityV01 } from "./project-work-revision";
+import type { RunReceiptExecutionStatusV01, RunReceiptVerificationStatusV01 } from "./run-receipt";
 
 // Shared leaf identity: safe for both task normalization and runtime owners.
 export const AUTHORED_SUCCESSOR_TASK_V01 = "augnes.authored-successor-task.v0.1" as const;
@@ -74,6 +75,16 @@ export interface ProjectWorkInitializationV01 {
   selected_source_context?: TaskContextPacketSelectedEntryV01[];
   /** Reconstructed task boundary, including after ordinary revisions of the new task. */
   previous_preparation?: { goal: string; packet_fingerprint: string; marked_complete: false };
+  /** Historical basis of the original result-linked preparation, even after same-task edits. */
+  prepared_from_result?: {
+    goal: string;
+    receipt_id: string;
+    recorded_at: string;
+    execution_status: RunReceiptExecutionStatusV01;
+    verification_status: RunReceiptVerificationStatusV01;
+    prepared_at: string;
+    omitted_sources: { source_binding: string; source: string; reason: string }[];
+  };
   current_packet: null | {
     packet_id: string;
     packet_fingerprint: string;

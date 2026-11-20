@@ -435,6 +435,22 @@ automatically retry. This path has no exact-replay contract. Stale bindings refu
 concurrent saves can have uncertain delivery and require the same readback.
 Existing unexecuted-new-work remains separate.
 
+To review a practical effect observed after delivery, keep the original result and
+its first-attempt forecast. Carry forward the dated source note that stated the
+expected effect, baseline, conditions and observation window. Add the later
+observation with its source, subject, version, environment, measurement window
+and the time it became available. Record your interpretation in a separate
+attributed note and choose what to carry into the next task.
+
+For example, if a latency target was below 100 ms from a 120 ms baseline, a
+later 92 ms sample under matching conditions supports a limited improvement
+claim. A 145 ms sample under a different workload calls for a matched
+comparison. A missing export leaves the effect unknown. A single comparison
+leaves causation open. After saving, open **Current selected source notes** in
+the authenticated Native work review to read the notes, see why particular
+sources were left out, and follow the original result link to its checks and
+forecast.
+
 For **experience use across goals**, first classify the permitted material against
 the new task: unchanged support/callables, conditions to recheck, and goal-specific
 or irrelevant advice to omit. Keep original observations separate from an attributed

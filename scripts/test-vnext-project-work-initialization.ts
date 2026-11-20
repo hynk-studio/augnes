@@ -321,7 +321,9 @@ async function assertUnexecutedSuccessorRevisionV01(): Promise<void> {
       await cumulativeRevisionHistory({ ROOT, revisionRequestV01, credentialFromCookieV01, insertManagedRunV01 }, { fixture, saved }); return;
     }
     fixture.db.close(); fixture.db = new Database(fixture.config.database_path);
-    const current = readProjectWorkInitializationV01(fixture.db, fixture);
+    const readForReview = () => readProjectWorkInitializationV01(fixture.db, fixture, { include_result_basis: true });
+    const current = readForReview();
+    assert.equal(current.prepared_from_result?.receipt_id, first.receipt.receipt_id);
     const taskOrigin = () => readProjectWorkInitializationSnapshotV01(fixture.db, fixture).task_origin_fingerprint;
     assert.equal(taskOrigin(), saved.packet.integrity.fingerprint);
     assert.notEqual(taskOrigin(), initial.packet.integrity.fingerprint, "Original authored successor is a genuine task boundary");
@@ -439,6 +441,8 @@ async function assertUnexecutedSuccessorRevisionV01(): Promise<void> {
     assert.equal(b2.status, "inserted"); assert.equal(b2.revision_eligibility.revision_count, 2);
     assert.equal(taskOrigin(), saved.packet.integrity.fingerprint, "Source revision retains successor origin");
     assert.deepEqual(b2.packet.task, b1.packet.task);
+    assert.deepEqual(readForReview().prepared_from_result, current.prepared_from_result,
+      "Same-task edits preserve the original result and omissions");
     for (const table of unaffected) assert.deepEqual(fixture.db.prepare(table.query).all(), table.rows, "Revisions create no execution/grant or unrelated state change");
     const sessionsAfter = fixture.db.prepare("SELECT * FROM vnext_local_operator_sessions ORDER BY session_id").all() as Record<string, unknown>[];
     assert.deepEqual(sessionsAfter.map(row => row.session_id), sessionsBefore.map(row => row.session_id));
@@ -551,7 +555,12 @@ async function assertUnexecutedSuccessorRevisionV01(): Promise<void> {
         omitted_sources: laterComparison.unselected_previous.map(e => ({ source_binding: e.source_ref!, reason: "Not needed for the next bounded review" })) } });
     const c = await defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config,
       credential: credentialFromCookieV01(executed.session_admission!.cookie_value), request: laterPreview.request, clock: fixedClock("2026-08-01T00:00:40.000Z") });
-    assert.equal(readProjectWorkInitializationV01(fixture.db, fixture).current_packet?.packet_id, c.packet.packet_id);
+    const nextWork = readForReview();
+    assert.equal(nextWork.current_packet?.packet_id, c.packet.packet_id);
+    assert.equal(nextWork.prepared_from_result?.receipt_id, executed.receipt.receipt_id,
+      "A genuinely new successor links to its own predecessor's result");
+    assert.deepEqual(nextWork.prepared_from_result?.omitted_sources.map(note => note.source).sort(),
+      laterComparison.unselected_previous.map(note => selectedWorkSourceInput(note).source).sort());
     assert.equal(taskOrigin(), c.packet.integrity.fingerprint);
     assert.notEqual(taskOrigin(), saved.packet.integrity.fingerprint, "A further authored successor does not inherit its predecessor's task origin");
     assert.equal(validateRecoveryCanonicalDatabaseV01(fixture.db).status, "valid");
@@ -756,7 +765,26 @@ async function assertOutcomeReuseV01(): Promise<void> {
       const fresh = new Database(fixture.config.database_path, { readonly: true });
       try {
         fresh.pragma("query_only = ON");
-        assert.deepEqual(readProjectWorkInitializationV01(fresh, fixture).selected_source_context, comparison.entries);
+        assert.equal(readProjectWorkInitializationV01(fresh, fixture).prepared_from_result, undefined,
+          "The ordinary project projection must not disclose historical source names or omission reasons");
+        if (disposition === "revise") {
+          const { readBlankStateSourceV01 } = await import("../lib/vnext/blank-state/blank-state-source");
+          const projectPage = await readBlankStateSourceV01(fresh, { route_mode: "viewed_project", requested_project_id: fixture.project_id });
+          assert.equal(projectPage.work_initialization?.current_packet?.packet_id, saved.packet.packet_id);
+          assert(!JSON.stringify(projectPage).includes("Outside the next calibration task."));
+        }
+        const reopened = readProjectWorkInitializationV01(fresh, fixture, { include_result_basis: true });
+        assert.deepEqual(reopened.selected_source_context, comparison.entries);
+        assert.deepEqual(reopened.prepared_from_result, {
+          goal: revised.packet.task.goal,
+          receipt_id: first.receipt.receipt_id,
+          recorded_at: first.receipt.recorded_at,
+          execution_status: first.receipt.execution.status,
+          verification_status: first.receipt.verification.status,
+          prepared_at: saved.packet.generated_at,
+          omitted_sources: [{ source_binding: comparison.unselected_previous[0]!.source_ref,
+            source: originals[1]!.source, reason: "Outside the next calibration task." }],
+        }, "Fresh work must identify the checked predecessor and explain the original source omissions");
         const dependencies = { now: () => "2026-08-01T00:00:21.000Z", read_operator_config: () => fixture.config, managed_start_available: () => false };
         const resume = await readCodexCurrentContinuityV01(fresh, { viewed_project_id: fixture.project_id }, dependencies);
         assert.equal(resume.snapshot.status, "exact");
@@ -5387,6 +5415,23 @@ async function assertReviewedOutcomeReuseV01(overBudget = false): Promise<void> 
       assert.equal(readReviewedOutcomeReuseV01(imported, { ...fixture, packet: initial.packet, receipt: first.receipt,
         assessment: readProjectRunResultDetailV01(fixture.db, { ...fixture, receipt_id: first.receipt.receipt_id }).criterion_assessment }).status, "local_chronology_unavailable");
     } finally { imported.close(); }
+    const omissionClock = fixedClock("2026-08-01T00:00:43.000Z");
+    const omitBoth = compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: later.binding, notes: [], clock: omissionClock });
+    const parts = omitBoth.unselected_previous.map(entry => ({
+      source_binding: entry.source_ref!,
+      reason: entry.compatibility_source_ref!.ref_type === "reviewed_outcome_expectation"
+        ? "The forecast covered the earlier attempt." : "The outcome described the earlier workload.",
+    })).reverse();
+    const successorOwner = credentialFromCookieV01(executed.session_admission!.cookie_value);
+    const next = previewResultWorkV01(fixture.db, { config: fixture.config, session_id: successorOwner.session_id,
+      binding: later.binding, definition, clock: omissionClock, selected_sources: {
+        selected_source_context: [], expected_source_comparison: omitBoth.fingerprint, omitted_sources: parts } });
+    await defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential: successorOwner, request: next.request, clock: omissionClock });
+    const omissions = readProjectWorkInitializationV01(fixture.db, fixture, { include_result_basis: true }).prepared_from_result!.omitted_sources;
+    assert.deepEqual(omissions.map(({ source, reason }) => [source, reason]).sort(), [
+      [`Historical forecast (${r2.record_id})`, "The forecast covered the earlier attempt."],
+      [`Reviewed outcome report (${r2.record_id})`, "The outcome described the earlier workload."],
+    ], "Two parts of the same historical record retain their individual omission reasons");
     console.log(JSON.stringify({ reviewed_outcome_reuse: "pass", producer: "genuine_deterministic_A_and_authenticated_R1_R2", explicit_selection: true,
       fresh_native_sources: 2, actual_consumer: "exact_B2", no_retyping: "two_literal_notes_from_one_selection", stale_race: "refused", historical_R2_after_R3: "preserved", model_calls: 0 }));
   } finally { fixture.db.close(); }

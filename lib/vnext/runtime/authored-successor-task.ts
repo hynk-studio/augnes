@@ -9,11 +9,11 @@ import { PROSPECTIVE_INPUT, SELECTED_SOURCE_INSPECTION } from "../prospective-ag
 import { SELECTED_SOURCE_RESULT } from "../native-host/selected-source-inspection-adapter";
 import { isOrdinarySuccessorRevisionV01, inspectOrdinarySuccessorRevisionV01, ordinarySuccessorRevisionMaterialV01, ordinarySuccessorRevisionIdempotencyKeyV01 } from "./authored-successor-revision";
 import { RETRY_INSPECTION_OUTLOOK_V02, retryInspectionOutlookVersion, retryInspectionProjectionItemsV01, retryInspectionResultContextV01, type RetryInspectionOutlookVersion } from "../retry-inspection-outlook";
-import { AUTHORED_SUCCESSOR_TASK_V01, AUTHORED_SUCCESSOR_REVALIDATION_V01, AUTHORED_SUCCESSOR_CONTEXT_V01, DURABLE_AUTHORED_WORK_V01 } from "@/types/vnext/project-work-initialization";
+import { AUTHORED_SUCCESSOR_TASK_V01, AUTHORED_SUCCESSOR_REVALIDATION_V01, AUTHORED_SUCCESSOR_CONTEXT_V01, DURABLE_AUTHORED_WORK_V01, type ProjectWorkInitializationV01 } from "@/types/vnext/project-work-initialization";
 import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, normalizeNativeSelectedWorkSources, SelectedWorkSourceError } from "@/lib/intake/selected-work-source-comparison";
 import { REVIEWED_OUTCOME_SOURCE_V01, type SelectedWorkSourceSelection, type ReviewedOutcomeSourceRefV01 } from "@/types/vnext/project-work-revision";
 import { assertReviewedOutcomeSelectionV01, readReviewedOutcomeReuseV01 } from "@/lib/vnext/persistence/reviewed-outcome-source";
-import { reviewedOutcomeSourceRef, readSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
+import { reviewedOutcomeSourceRef, readSelectedWorkSources, selectedWorkSourceInput } from "@/lib/intake/selected-work-source-comparison";
 import { VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 } from "./persisted-semantic-context-compiler";
 import type Database from "better-sqlite3";
 import { VNEXT_OPERATOR_PILOT_LATER_PACKET_TTL_MS_V01 } from "./operator-pilot-semantic-transition";
@@ -183,6 +183,7 @@ interface SourceMaterial {
 }
 export interface AuthoredSuccessorPacketLineageV01 {
   lineage_kind: "authored_successor_task";
+  prepared_from_result?: ProjectWorkInitializationV01["prepared_from_result"];
   packet: TaskContextPacketV01;
   prior_packet: { packet_id: string; packet_fingerprint: string };
   inherited_context_current: boolean;
@@ -235,16 +236,26 @@ function source(db: Database.Database, config: VNextLocalOperatorPilotConfigV01,
     check(equal(priorDefinition.materials, request.definition.materials) &&
       equal(priorDefinition.approved_instruction_hashes, request.definition.approved_instruction_hashes), "reviewed_inputs_changed");
   }
+  let omittedSources: NonNullable<ProjectWorkInitializationV01["prepared_from_result"]>["omitted_sources"] = [];
   if (request.selected_sources) {
     const selection = request.selected_sources;
     const comparison = compareSelectedWorkSources(r.packet, selection.selected_source_context);
     check(comparison.fingerprint === selection.expected_source_comparison, "source_comparison_changed");
     check(equal([...selection.omitted_sources.map(row => row.source_binding)].sort(),
       comparison.unselected_previous.map(row => row.source_ref!).sort()), "source_omissions_invalid");
+    omittedSources = selection.omitted_sources.map(row => {
+      const note = comparison.unselected_previous.find(entry => entry.source_ref === row.source_binding)!;
+      const name = selectedWorkSourceInput(note).source;
+      switch (note.compatibility_source_ref?.ref_type) {
+        case "reviewed_outcome_expectation": return { ...row, source: `Historical forecast (${name})` };
+        case "reviewed_outcome_report": return { ...row, source: `Reviewed outcome report (${name})` };
+        default: return { ...row, source: name };
+      }
+    });
     assertReviewedOutcomeSelectionV01(db, { ...config, packet: r.packet, receipt: r.receipt, assessment: r.criterion_assessment,
       entries: comparison.entries, ...review });
   }
-  return { ...r, packet: r.packet, run: r.run };
+  return { ...r, packet: r.packet, run: r.run, omittedSources };
 }
 function assertNewLifetime(request: DefineAuthoredSuccessorTaskRequestV01, at: string, sessionExpiresAt?: string): void {
   if (!request.revalidation) return;
@@ -477,6 +488,15 @@ export function inspectAuthoredSuccessorPacketV01(db: Database.Database, input: 
   const inheritedContextCurrent = lineage.lineage_kind === "authored_successor_task"
     ? lineage.inherited_context_current : lineage.projection_current;
   return { ...expected, lineage_kind: "authored_successor_task", prior_packet: { packet_id: prior.packet.packet_id, packet_fingerprint: prior.packet.integrity.fingerprint },
+    ...(material.request.selected_sources ? { prepared_from_result: {
+      goal: prior.packet.task.goal,
+      receipt_id: prior.receipt.receipt_id,
+      recorded_at: prior.receipt.recorded_at,
+      execution_status: prior.receipt.execution.status,
+      verification_status: prior.receipt.verification.status,
+      prepared_at: packet.generated_at,
+      omitted_sources: prior.omittedSources,
+    } } : {}),
     inherited_context_current: inheritedContextCurrent,
     projection_current: inheritedContextCurrent && !hasAuthoredSuccessorOfPacketV01(db, input.config, packet.packet_id), source_transition_receipt: null };
 }

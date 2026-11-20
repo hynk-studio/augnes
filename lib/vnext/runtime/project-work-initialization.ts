@@ -80,6 +80,8 @@ export class ProjectWorkInitializationErrorV01 extends Error {
 
 export interface ProjectWorkInitializationDependenciesV01 {
   root_available?: (root: string) => boolean;
+  /** Only the authenticated work review requests historical source names and omission reasons. */
+  include_result_basis?: boolean;
 }
 
 export function readProjectWorkInitializationV01(
@@ -374,6 +376,7 @@ function readProjectWorkInitializationStrictV01(
       return [];
     }
     return [{ packet, lineage_kind: lineage.lineage_kind,
+      prepared_from_result: lineage.lineage_kind === "authored_successor_task" ? lineage.prepared_from_result : undefined,
       projection_current: lineage.projection_current, prior_packet: lineage.prior_packet }];
   });
   // A sparse predecessor may still select only current state. Work succession
@@ -468,6 +471,7 @@ function readProjectWorkInitializationStrictV01(
       state,
       reason,
       current_work: structuredClone(current.packet.task),
+      ...(dependencies.include_result_basis && taskOrigin?.prepared_from_result ? { prepared_from_result: taskOrigin.prepared_from_result } : {}),
       ...(previous ? { previous_preparation: {
         goal: previous.packet.task.goal, packet_fingerprint: previous.packet.integrity.fingerprint, marked_complete: false as const,
       } } : {}),
