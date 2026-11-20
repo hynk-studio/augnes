@@ -199,7 +199,7 @@ export function createVNextOperatorSemanticReviewHandlersV01(
           config,
           clock: options.clock,
         }),
-        work_initialization: readProjectWorkInitializationV01(db, config),
+        work_initialization: readProjectWorkInitializationV01(db, config, { include_result_basis: true }),
         inspector_href: createSharedInspectorHrefV01({
           target_kind: "project_coordination",
         }),

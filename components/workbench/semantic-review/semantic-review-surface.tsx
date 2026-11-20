@@ -23,6 +23,7 @@ import {
 import { useProjectGuideBriefV02 } from "@/components/guide/use-project-guide-brief-v0-2";
 import { ProductShell } from "@/components/product-shell";
 import { projectClientHref } from "@/lib/vnext/project-client-href";
+import { createRunResultReviewHrefV01 } from "@/lib/vnext/ai-workplane-review-href";
 import { DelegatedWorkPanel } from "@/components/delegated-work/delegated-work-panel";
 import { useDelegatedCodexWorkV01 } from "@/components/delegated-work/use-delegated-codex-work-v0-1";
 import { projectExperienceTestObserverV1 } from "@/components/delegated-work/project-experience-test-observer";
@@ -1066,6 +1067,8 @@ function ScopedSemanticReviewSurface({
                   definition={firstWorkInitialization.current_work}
                   selectedSources={firstWorkInitialization.selected_source_context}
                   previousPreparation={firstWorkInitialization.previous_preparation}
+                  projectId={firstWorkInitialization.project_id}
+                  resultBasis={firstWorkInitialization.prepared_from_result}
                   onPrepareNew={() => { if (currentRevisionEditorBinding) { setNewTaskMode(true); setRevisionEditorBinding(currentRevisionEditorBinding); setPrivateError(null); setDecisionStatus(null); } }}
                   snapshotExport={<HostedSnapshotExport initialization={firstWorkInitialization}
                     disabled={loadingPrivateView || !privateReadGuard.current.matchesProject(firstWorkInitialization)} />}
@@ -1267,6 +1270,7 @@ function workRevisionEditorBindingKeyV01(
 
 function CurrentWorkDefinitionPanel({
   previousPreparation, onPrepareNew,
+  projectId, resultBasis,
   definition,
   selectedSources,
   snapshotExport,
@@ -1277,6 +1281,8 @@ function CurrentWorkDefinitionPanel({
   onRevise,
 }: {
   previousPreparation: ProjectWorkInitializationV01["previous_preparation"];
+  projectId: string;
+  resultBasis: ProjectWorkInitializationV01["prepared_from_result"];
   onPrepareNew: () => void;
   definition: ProjectWorkDefinitionV01;
   selectedSources: ProjectWorkInitializationV01["selected_source_context"];
@@ -1328,6 +1334,30 @@ function CurrentWorkDefinitionPanel({
       </div>
       <details className={styles.disclosure} data-current-work-sources="read-only">
         <summary>Current selected source notes ({selectedSources?.length ?? 0})</summary>
+        {resultBasis && (
+          <div className={styles.materialCard} data-current-work-result-basis>
+            <strong>Result used to prepare this work</strong>
+            <p>
+              <a href={projectClientHref(createRunResultReviewHrefV01(resultBasis.receipt_id), projectId)}>
+                {resultBasis.goal}
+              </a>
+            </p>
+            <p>
+              Receipt execution {resultBasis.execution_status} · Receipt verification {resultBasis.verification_status.replaceAll("_", " ")}
+              {" · Recorded "}<time dateTime={resultBasis.recorded_at}>{resultBasis.recorded_at}</time>
+            </p>
+            {resultBasis.omitted_sources.length > 0 && (
+              <>
+                <p>Sources left out when this work was prepared on <time dateTime={resultBasis.prepared_at}>{resultBasis.prepared_at}</time></p>
+                <ul>
+                  {resultBasis.omitted_sources.map(note => (
+                    <li key={note.source_binding}><strong>{note.source}</strong> — {note.reason}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
         <p className={styles.muted}>
           Saved selected excerpts for this work. Selection does not verify or
           accept their claims or authorize execution. Original source availability
