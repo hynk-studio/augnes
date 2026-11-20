@@ -343,6 +343,7 @@ export function resolveCompanionServiceLayout({
     lifecycle_lock_path: path.join(serviceDirectory, "lifecycle.lock"),
     manager_state_path: path.join(serviceDirectory, "manager-state.json"),
     ownership_recovery_path: path.join(serviceDirectory, "ownership-recovery.json"),
+    stale_manager_recovery_path: path.join(serviceDirectory, "stale-manager-recovery.json"),
     manager_lock_path: path.join(serviceDirectory, "manager.lock"),
     maintenance_lease_path: path.join(serviceDirectory, "maintenance.json"),
     stale_decommission_path: path.join(
@@ -1861,6 +1862,7 @@ function readOwnershipRecovery(layout) {
 function assertNoPendingOwnershipRecovery(layout) {
   const record = readOwnershipRecovery(layout);
   if (record?.status === "retiring") throw recoveryRefused("incomplete");
+  if (readStaleManagerRecovery(layout)?.status === "retiring") throw recoveryRefused("stale_manager_incomplete");
 }
 
 function recoveryBase(options) {
@@ -2100,6 +2102,251 @@ export async function applyCompanionOwnershipRecovery({ decision, ...options } =
     record = { ...record, status: "settled", decision_binding: sha256(JSON.stringify(decision)) };
     atomicWriteJson(layout.ownership_recovery_path, record);
     return { ...await inspectCompanionOwnershipRecovery(options), authority: lifecycleAuthority(true) };
+  } catch (error) {
+    failure = error;
+    throw error;
+  } finally {
+    try { releaseLifecycleLock(layout, lock); }
+    catch (error) { throw serviceCleanupFailure(failure, [error]); }
+  }
+}
+
+// An offline retirement, not a broader interpretation of process ownership.
+// Never signal a reused PID, recover a live runtime or replace historical recovery.
+const STALE_MANAGER_RECOVERY_CONTRACT = "augnes-companion-stale-manager-recovery.v0.1";
+const STALE_MANAGER_RUNTIME_KEYS = ["runtime_manifest_path", "runtime_lock_path", "runtime_token_path",
+  "runtime_access_path", "runtime_bridge_environment_path"];
+const staleManagerEqual = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+
+function staleManagerTargets(evidence, at) {
+  return {
+    desired: evidence.desired.desired_state === "stopped" ? evidence.desired : { ...evidence.desired, desired_state: "stopped", updated_at: at },
+    manager: { ...evidence.manager, status: "installed_stopped", reason: "companion_service_explicitly_stopped",
+      supervisor_pid: null, supervisor_process_identity: null, runtime_ownership: null, restart_after: null, updated_at: at },
+  };
+}
+
+function readStaleManagerRecovery(layout) {
+  // Ordinary inspection/install reaches this guard before a new production
+  // checkout's intermediate config directories exist. Only explicit absence
+  // skips the bounded present-record reader; unavailable/invalid stays refused.
+  if (readRegularJson(layout.stale_manager_recovery_path).state === "missing") return null;
+  const snapshot = recoveryMaterial(layout, "stale_manager_recovery_path");
+  if (snapshot.material.state === "missing") return null;
+  let record;
+  try { record = JSON.parse(snapshot.contents); } catch { throw recoveryRefused("stale_manager_record_invalid"); }
+  if (record?.contract !== STALE_MANAGER_RECOVERY_CONTRACT || record.service_identity !== layout.service_identity ||
+      !["retiring", "settled"].includes(record.status) || !isObject(record.evidence) ||
+      !isObject(record.evidence.desired) || !isObject(record.evidence.manager) || !isIsoTimestamp(record.created_at) ||
+      !staleManagerEqual(record.target, staleManagerTargets(record.evidence, record.created_at)) ||
+      record.operation_binding !== sha256(JSON.stringify([record.evidence, record.target, record.created_at])) ||
+      !Array.isArray(record.lifecycle_owners) || record.lifecycle_owners.length === 0 ||
+      record.lifecycle_owners.some(owner => !validLifecycleLock(owner, { service_identity: layout.service_identity,
+        repository_fingerprint: layout.repository.repository_fingerprint }))) throw recoveryRefused("stale_manager_record_invalid");
+  if (record.evidence.repository_binding !== checkoutObservationBinding(layout.repository) &&
+      !settledRecoveryMatchesRenumberedCheckout(record, layout)) throw recoveryRefused("stale_manager_record_invalid");
+  return record;
+}
+
+function staleManagerBase(options, record, ownedLock) {
+  const base = recoveryBase(options), { layout } = base;
+  const historical = readOwnershipRecovery(layout);
+  if (historical?.status === "retiring") throw recoveryRefused("incomplete");
+  if (!staleManagerEqual(readStaleManagerRecovery(layout), record)) throw recoveryRefused("record_changed");
+  const lock = readRegularJson(layout.lifecycle_lock_path);
+  let resumableLock = null;
+  if (lock.state !== "missing") {
+    if (lock.state !== "valid") throw recoveryRefused("lifecycle_conflict");
+    if (!ownedLock || !staleManagerEqual(lock.value, ownedLock)) {
+      // A crashed invocation may leave its own lock. The journal and confirmed
+      // process absence are both required; PID reuse/unavailability still refuse.
+      if (!record?.lifecycle_owners.some(owner => staleManagerEqual(owner, lock.value)) ||
+          readProcessBirthIdentity(lock.value.owner_pid).state !== "missing") throw recoveryRefused("lifecycle_conflict");
+      resumableLock = lock.value;
+    }
+  } else if (ownedLock) throw recoveryRefused("lifecycle_changed");
+  return { ...base, resumableLock };
+}
+
+function staleManagerProcessWitnesses(manager) {
+  const references = new Map();
+  const retain = (pid, identity) => {
+    if (!Number.isInteger(pid) || pid <= 0 || !/^[a-f0-9]{64}$/u.test(identity ?? "") ||
+        (references.has(pid) && references.get(pid) !== identity)) throw recoveryRefused("process_record_invalid");
+    references.set(pid, identity);
+  };
+  retain(manager.manager_pid, manager.manager_process_identity);
+  retain(manager.supervisor_pid, manager.supervisor_process_identity);
+  for (const group of manager.runtime_ownership.process_groups)
+    for (const member of group.members) retain(member.pid, member.identity);
+  return [...references].map(([pid, recorded_identity]) => {
+    const current = readProcessBirthIdentity(pid);
+    if (current.state === "unavailable") throw recoveryRefused("process_witness_unavailable");
+    if (current.state === "present" && current.identity === recorded_identity) throw recoveryRefused("process_still_live");
+    return { pid, recorded_identity, current };
+  });
+}
+
+function staleManagerSnapshot(options, record = null, ownedLock = null) {
+  const capture = () => {
+    const base = staleManagerBase(options, record, ownedLock), { layout, configuration } = base;
+    const material = Object.fromEntries(["configuration_path", "launch_agent_path", "ownership_recovery_path",
+      "desired_state_path", "manager_state_path", "manager_lock_path", ...STALE_MANAGER_RUNTIME_KEYS]
+      .map(key => [key, recoveryMaterial(layout, key).material]));
+    if (STALE_MANAGER_RUNTIME_KEYS.some(key => material[key].state !== "missing")) throw recoveryRefused("runtime_material_present");
+    const manager = readRegularJson(layout.manager_state_path).value;
+    const managerLock = readRegularJson(layout.manager_lock_path).value;
+    const original = record?.evidence.manager ?? manager;
+    const originalLock = record?.evidence.manager_lock ?? managerLock;
+    if (!structurallyExactManagerState(original, configuration) || original.status !== "live" ||
+        original.reason !== "companion_service_live" || !validManagerRuntimeOwnership(original.runtime_ownership) ||
+        !validManagerLock(originalLock, configuration) || originalLock.owner_pid !== original.manager_pid ||
+        originalLock.owner_process_identity !== original.manager_process_identity || !isIsoTimestamp(originalLock.acquired_at) ||
+        Date.parse(originalLock.acquired_at) > Date.parse(original.updated_at)) throw recoveryRefused("stale_manager_not_established");
+    const job = recoveryJob(layout, configuration, options.launchctl ?? defaultLaunchctl);
+    if (job?.pid) throw recoveryRefused("loaded_manager_present");
+    const processes = staleManagerProcessWitnesses(original);
+    // A missing recorded root is not proof that all descendants have exited.
+    // Refuse even foreign members of a retained runtime group; never signal it.
+    const processGroups = [...new Set([original.supervisor_pid,
+      ...original.runtime_ownership.process_groups.map(group => group.process_group)])]
+      .map(process_group => ({ process_group, members: captureProcessGroupMembers(process_group) }));
+    if (processGroups.some(group => group.members.length)) throw recoveryRefused("process_group_present");
+    if (record) {
+      const evidence = record.evidence;
+      if (base.repository_binding !== evidence.repository_binding || base.recovery_source !== evidence.recovery_source ||
+          configuration.service_source_fingerprint !== evidence.installed_source) throw recoveryRefused("source_changed");
+      for (const key of ["configuration_path", "launch_agent_path", "ownership_recovery_path"])
+        if (!staleManagerEqual(material[key], evidence.material[key])) throw recoveryRefused("material_changed");
+      for (const [key, target] of [["desired_state_path", record.target.desired], ["manager_state_path", record.target.manager]]) {
+        const originalValue = key === "desired_state_path" ? evidence.desired : evidence.manager;
+        const value = readRegularJson(layout[key]).value;
+        if (!staleManagerEqual(value, target) &&
+            !(staleManagerEqual(value, originalValue) && staleManagerEqual(material[key], evidence.material[key])))
+          throw recoveryRefused("material_changed");
+      }
+      if (material.manager_lock_path.state !== "missing" && !staleManagerEqual(material.manager_lock_path, evidence.material.manager_lock_path))
+        throw recoveryRefused("manager_lock_changed");
+      if (job && !staleManagerEqual(job, evidence.job)) throw recoveryRefused("loaded_job_changed");
+    }
+    const evidence = record?.evidence ?? { repository_binding: base.repository_binding, recovery_source: base.recovery_source,
+      installed_source: configuration.service_source_fingerprint, material, manager, manager_lock: managerLock, desired: base.desired, job, processes, processGroups };
+    const state = { material, desired: base.desired, manager, job, processes, processGroups };
+    return { ...base, evidence, state, record, binding: sha256(JSON.stringify(record ? [record, state] : evidence)) };
+  };
+  const before = capture(), after = capture();
+  if (before.binding !== after.binding) throw recoveryRefused("observation_changed");
+  return after;
+}
+
+function staleManagerSettled(value) {
+  return value.record && !value.state.job && value.state.material.manager_lock_path.state === "missing" &&
+    staleManagerEqual(value.state.desired, value.record.target.desired) && staleManagerEqual(value.state.manager, value.record.target.manager);
+}
+
+export async function inspectCompanionStaleManagerRecovery(options = {}) {
+  const layout = resolveCompanionServiceLayout(options), record = readStaleManagerRecovery(layout);
+  const value = staleManagerSnapshot(options, record);
+  return { command: "stale-manager-recovery-inspect", result: record ? (record.status === "settled" && staleManagerSettled(value) ? "settled" : "incomplete") : "retirement_available",
+    recorded_status: record?.status ?? null, operation_binding: record?.operation_binding ?? null, binding: value.binding,
+    service_identity: layout.service_identity, installed_source: value.evidence.installed_source, recovery_source: value.evidence.recovery_source,
+    processes: value.state.processes, remaining_owned_processes: 0, authority: lifecycleAuthority(false) };
+}
+
+export async function prepareCompanionStaleManagerRecovery(options = {}) {
+  const layout = resolveCompanionServiceLayout(options), record = readStaleManagerRecovery(layout);
+  const value = staleManagerSnapshot(options, record);
+  if (record?.status === "settled") throw recoveryRefused("already_settled");
+  return { command: "stale-manager-recovery-prepare", result: "decision_required", installed_source: value.evidence.installed_source,
+    effect: "Unload only the exact no-PID job; persist stopped intent and explicit stopped manager state; retire only the exact stale manager lock. Preserve reused processes, installed sources, data and the historical recovery record. No start, signals or source adoption.",
+    decision: { contract: STALE_MANAGER_RECOVERY_CONTRACT, service_identity: layout.service_identity, expected_binding: value.binding,
+      recovery_source: value.evidence.recovery_source, expires_at: new Date(Date.now() + RECOVERY_TTL_MS).toISOString() }, authority: lifecycleAuthority(false) };
+}
+
+export async function applyCompanionStaleManagerRecovery({ decision, ...options } = {}) {
+  const layout = resolveCompanionServiceLayout(options);
+  let record = readStaleManagerRecovery(layout);
+  const before = staleManagerSnapshot(options, record);
+  if (record?.status === "settled" && record.decision_binding === sha256(JSON.stringify(decision)))
+    return await inspectCompanionStaleManagerRecovery(options);
+  if (record?.status === "settled") throw recoveryRefused("already_settled");
+  const { configuration } = before;
+  const lock = await acquireLifecycleLock(layout, configuration, options.waitMs ?? 0, before.resumableLock);
+  let failure = null;
+  try {
+    const current = staleManagerSnapshot(options, record, lock);
+    const keys = ["contract", "service_identity", "expected_binding", "recovery_source", "expires_at"];
+    const assertDecision = () => {
+      const expiry = Date.parse(decision?.expires_at);
+      if (!isObject(decision) || Object.keys(decision).length !== keys.length || !keys.every(key => Object.hasOwn(decision, key)) ||
+          decision.contract !== STALE_MANAGER_RECOVERY_CONTRACT || decision.service_identity !== layout.service_identity ||
+          decision.expected_binding !== current.binding || decision.recovery_source !== current.evidence.recovery_source ||
+          !Number.isFinite(expiry) || expiry <= Date.now() || expiry > Date.now() + RECOVERY_TTL_MS) throw recoveryRefused("decision_stale");
+    };
+    const hook = stage => {
+      if (options.testStaleManagerRecoveryStageHook === undefined) return;
+      if (!layout.test || typeof options.testStaleManagerRecoveryStageHook !== "function") throw recoveryRefused("test_override_refused");
+      options.testStaleManagerRecoveryStageHook(stage);
+    };
+    assertDecision();
+    hook("before_effect");
+    if (staleManagerSnapshot(options, record, lock).binding !== current.binding) throw recoveryRefused("decision_stale");
+    assertDecision();
+    if (!record) {
+      const created_at = new Date().toISOString(), target = staleManagerTargets(current.evidence, created_at);
+      record = { contract: STALE_MANAGER_RECOVERY_CONTRACT, service_identity: layout.service_identity, status: "retiring",
+        created_at, evidence: current.evidence, target, operation_binding: sha256(JSON.stringify([current.evidence, target, created_at])),
+        decision_binding: sha256(JSON.stringify(decision)), lifecycle_owners: [lock] };
+      createExclusiveJson(layout.stale_manager_recovery_path, record);
+    } else {
+      const next = { ...record, lifecycle_owners: [...record.lifecycle_owners, lock] };
+      atomicWriteJson(layout.stale_manager_recovery_path, next, 0o600, () => {
+        if (!staleManagerEqual(readStaleManagerRecovery(layout), record)) throw recoveryRefused("record_changed");
+        if (staleManagerSnapshot(options, record, lock).binding !== current.binding) throw recoveryRefused("decision_stale");
+        assertDecision();
+      });
+      record = next;
+    }
+    hook("after_record");
+    const done = {};
+    const guard = () => {
+      assertDecision();
+      const value = staleManagerSnapshot(options, record, lock);
+      if (!staleManagerEqual(value.state.processes, current.state.processes) ||
+          (done.job && value.state.job) || (done.desired && !staleManagerEqual(value.state.desired, record.target.desired)) ||
+          (done.manager && !staleManagerEqual(value.state.manager, record.target.manager)) ||
+          (done.lock && value.state.material.manager_lock_path.state !== "missing")) throw recoveryRefused("observation_changed");
+      return value;
+    };
+    const launchctl = options.launchctl ?? defaultLaunchctl;
+    if (guard().state.job) {
+      launchctl(["bootout", `gui/${currentUid()}/${layout.service_label}`]);
+      hook("after_bootout");
+    }
+    done.job = true;
+    guard(); // Confirm explicit OS absence; never infer settlement from exit status.
+    if (!staleManagerEqual(readExactDesiredState(layout, configuration), record.target.desired))
+      atomicWriteJson(layout.desired_state_path, record.target.desired, 0o600, guard);
+    done.desired = true;
+    hook("after_desired");
+    guard();
+    if (!staleManagerEqual(readRegularJson(layout.manager_state_path).value, record.target.manager))
+      atomicWriteJson(layout.manager_state_path, record.target.manager, 0o600, guard);
+    done.manager = true;
+    hook("after_manager");
+    const finalLock = guard().state.material.manager_lock_path;
+    if (finalLock.state !== "missing")
+      unlinkBoundedOwnedFile(layout.manager_lock_path, finalLock.parent, staleDecommissionAnchorForFile(layout, layout.manager_lock_path),
+        finalLock.sha256, layout, "stale_manager_recovery");
+    done.lock = true;
+    hook("after_lock");
+    if (!staleManagerSettled(guard())) throw recoveryRefused("settlement_unproven");
+    const settled = { ...record, status: "settled", decision_binding: sha256(JSON.stringify(decision)) };
+    atomicWriteJson(layout.stale_manager_recovery_path, settled, 0o600, guard);
+    record = settled;
+    guard();
+    return { command: "stale-manager-recovery-apply", result: "settled", operation_binding: record.operation_binding,
+      remaining_owned_processes: 0, authority: lifecycleAuthority(true) };
   } catch (error) {
     failure = error;
     throw error;
@@ -5324,7 +5571,7 @@ function removeExactResidualRuntimeState({ layout, configuration, manifest }) {
   removeDirectoryIfEmpty(layout.runtime_directory);
 }
 
-async function acquireLifecycleLock(layout, configuration, waitMs) {
+async function acquireLifecycleLock(layout, configuration, waitMs, expectedStaleLock = undefined) {
   const ownerIdentity = readProcessBirthIdentity(process.pid);
   if (ownerIdentity.state !== "present") {
     throw new PublicCompanionServiceError(
@@ -5353,6 +5600,10 @@ async function acquireLifecycleLock(layout, configuration, waitMs) {
         "companion_service_lifecycle_lock_ambiguous",
       );
     }
+    // The offline recovery caller can narrow stale takeover to its journaled
+    // predecessor only. Other lifecycle callers retain their existing policy.
+    if (expectedStaleLock !== undefined && !staleManagerEqual(existing.value, expectedStaleLock))
+      throw new PublicCompanionServiceError("companion_service_lifecycle_busy");
     if (processConfirmedAbsent(existing.value.owner_pid, existing.value.owner_process_identity)) {
       removeOwnedRegularJson(layout.lifecycle_lock_path, existing.value);
       continue;

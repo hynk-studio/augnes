@@ -12,6 +12,9 @@ import {
   inspectCompanionOwnershipRecovery,
   prepareCompanionOwnershipRecovery,
   applyCompanionOwnershipRecovery,
+  inspectCompanionStaleManagerRecovery,
+  prepareCompanionStaleManagerRecovery,
+  applyCompanionStaleManagerRecovery,
   inspectCompanionService,
   lifecycleAuthority,
   publicCompanionServiceProjection,
@@ -59,19 +62,23 @@ export async function runCompanionServiceCli(argv = process.argv.slice(2)) {
       }
       case "ownership-recovery-inspect":
       case "ownership-recovery-prepare":
-      case "ownership-recovery-apply": {
+      case "ownership-recovery-apply":
+      case "stale-manager-recovery-inspect":
+      case "stale-manager-recovery-prepare":
+      case "stale-manager-recovery-apply": {
         // Recovery alone can target an unchanged installation from separately
         // reviewed source. Ordinary lifecycle commands retain their own root.
-        const applying = command === "ownership-recovery-apply";
+        const applying = command.endsWith("-apply");
         if (rest.length !== (applying ? 3 : 2) || rest[0] !== "--repository-root" || !path.isAbsolute(rest[1]) ||
             (applying && !path.isAbsolute(rest[2])))
           throw new PublicCompanionServiceError("companion_service_arguments_refused");
         const options = { ...serviceOptions(), repositoryRoot: rest[1] };
+        const staleManager = command.startsWith("stale-manager-");
         result = applying
-          ? await applyCompanionOwnershipRecovery({ ...options, decision: readIdentityDecision(rest[2]) })
-          : command === "ownership-recovery-prepare"
-            ? await prepareCompanionOwnershipRecovery(options)
-            : await inspectCompanionOwnershipRecovery(options);
+          ? await (staleManager ? applyCompanionStaleManagerRecovery : applyCompanionOwnershipRecovery)({ ...options, decision: readIdentityDecision(rest[2]) })
+          : command.endsWith("-prepare")
+            ? await (staleManager ? prepareCompanionStaleManagerRecovery : prepareCompanionOwnershipRecovery)(options)
+            : await (staleManager ? inspectCompanionStaleManagerRecovery : inspectCompanionOwnershipRecovery)(options);
         break;
       }
       case "start":
