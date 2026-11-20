@@ -2933,6 +2933,13 @@ GitHub merge event 조회
 - provider report와 직접 관찰을 같은 trust level로 두지 않는다.
 - receipt 기록은 semantic state commit이 아니다.
 
+The offline Pi file-patch profile records delivery of only the approved bytes
+to the isolated local worker. Pi reports the staged-file check. After the
+worker exits, Augnes compares its output with the approved input plus one LF
+and records a `checked_file_patch` observation. The patch can be recovered
+from the originating work's result. The project file itself stays read-only
+and the profile makes zero model calls.
+
 #### Operational residue to semantic assessment boundary
 
 R6는 다음의 semantic meaning boundary를 반드시 보존한다.

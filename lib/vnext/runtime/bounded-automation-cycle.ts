@@ -96,7 +96,7 @@ import type {
   VNextAutomationWorkSourceV01,
 } from "@/types/vnext/automation-work-item";
 import type { AutonomyRunSummary } from "@/types/autonomy-runner-execution";
-import type { NativeHostAutomationContextV01 } from "@/types/vnext/native-host-adapter";
+import type { NativeHostAutomationContextV01, NativeHostExecutionProfileV01 } from "@/types/vnext/native-host-adapter";
 
 export const BOUNDED_AUTOMATION_CYCLE_SERVICE_VERSION_V01 =
   "bounded_automation_cycle_service.v0.1" as const;
@@ -106,7 +106,7 @@ export type BoundedAutomationHostContractV01 = {
   adapter_version: string;
   capability_version: string;
   timeout_ms: number;
-  execution_profile: "deterministic_zero_model" | "native_host_managed_model";
+  execution_profile: NativeHostExecutionProfileV01;
   provider_egress: "forbidden" | "native_host_managed";
 };
 type HostContractV01 = BoundedAutomationHostContractV01;

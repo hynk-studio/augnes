@@ -38,16 +38,16 @@ export async function* readPiRpcRecordsV01(stream: Readable) {
   if (pending.length) throw new PiRpcProtocolError("pi_rpc_record_incomplete");
 }
 
-function idleSession(value: unknown, pending: number, expectedSession?: string): string {
+export function readIdlePiSessionV01(value: unknown, pending: number, expectedSession?: string, messageCount = 0): string {
   const state = object(value);
   if (typeof state.sessionId !== "string" || !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(state.sessionId) ||
       (expectedSession !== undefined && state.sessionId !== expectedSession) ||
-      state.pendingMessageCount !== pending || state.messageCount !== 0 ||
+      state.pendingMessageCount !== pending || state.messageCount !== messageCount ||
       state.isStreaming !== false || state.isCompacting !== false) throw new PiRpcProtocolError("pi_rpc_session_state_invalid");
   return state.sessionId;
 }
 
-function signalGroup(pid: number, signal: NodeJS.Signals | 0): "present" | "absent" | "unconfirmed" {
+export function signalPiGroupV01(pid: number, signal: NodeJS.Signals | 0): "present" | "absent" | "unconfirmed" {
   try { process.kill(-pid, signal); return "present"; }
   catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
@@ -113,7 +113,7 @@ export async function runPiRpcQueueLifecycleV01(input: {
     if (forced) return;
     forced = true;
     interrupted.resolve();
-    try { if (child.pid) signalGroup(child.pid, "SIGKILL"); }
+    try { if (child.pid) signalPiGroupV01(child.pid, "SIGKILL"); }
     catch (error) { groupError = error; }
     child.stdin.destroy();
     child.stdout.destroy();
@@ -124,12 +124,12 @@ export async function runPiRpcQueueLifecycleV01(input: {
   let session: string;
   let queued = false;
   try {
-    session = idleSession(await call("get_state"), 0);
+    session = readIdlePiSessionV01(await call("get_state"), 0);
     if (!input.signal.aborted) {
       const acceptance = object(await call("follow_up", MARKER));
       if (acceptance.disposition !== "queued") throw new PiRpcProtocolError("pi_rpc_queue_not_confirmed");
       queued = true;
-      idleSession(await call("get_state"), 1, session);
+      readIdlePiSessionV01(await call("get_state"), 1, session);
       if (input.onQueued) await Promise.race([input.onQueued(session), Promise.race([closed, interrupted.promise]).then(() => {
         throw new PiRpcProtocolError("pi_rpc_closed_during_checkpoint");
       })]);
@@ -139,7 +139,7 @@ export async function runPiRpcQueueLifecycleV01(input: {
         !Array.isArray(recovered.followUp) || recovered.followUp.length !== Number(queued) ||
         (queued && recovered.followUp[0] !== MARKER)) throw new PiRpcProtocolError("pi_rpc_queue_recovery_failed");
     await call("abort");
-    idleSession(await call("get_state"), 0, session);
+    readIdlePiSessionV01(await call("get_state"), 0, session);
     child.stdin.end();
     armStop();
     if (!(await records.next()).done || !await Promise.race([closed, interrupted.promise])) {
@@ -149,7 +149,7 @@ export async function runPiRpcQueueLifecycleV01(input: {
     clearTimeout(stopTimer);
     input.signal.removeEventListener("abort", armStop);
     try {
-      if (!forced && child.pid && signalGroup(child.pid, 0) === "present") forceStop();
+      if (!forced && child.pid && signalPiGroupV01(child.pid, 0) === "present") forceStop();
     } finally {
       child.stdin.destroy();
       child.stdout.destroy();
@@ -159,7 +159,7 @@ export async function runPiRpcQueueLifecycleV01(input: {
     // Observe child close first, then require ESRCH for the entire group.
     const deadline = performance.now() + graceMs;
     for (;;) {
-      const group = childClosed && child.pid ? signalGroup(child.pid, 0) : undefined;
+      const group = childClosed && child.pid ? signalPiGroupV01(child.pid, 0) : undefined;
       if (childClosed && (!child.pid || group === "absent")) break;
       const remaining = deadline - performance.now();
       if (remaining <= 0) {

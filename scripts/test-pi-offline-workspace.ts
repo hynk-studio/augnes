@@ -8,7 +8,8 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
 import { preparePinnedPiExecutableV01 } from "../lib/vnext/native-host/pi-rpc-lifecycle-adapter";
-import { PI_OFFLINE_RPC_FLAGS_V01, readPiRpcRecordsV01 } from "../lib/vnext/native-host/pi-rpc-lifecycle";
+import { piOfflineSandboxArgs } from "../lib/vnext/native-host/pi-offline-sandbox";
+import { readPiRpcRecordsV01 } from "../lib/vnext/native-host/pi-rpc-lifecycle";
 import { registerOwnedChild, terminateOwnedProcessTree } from "./test-harness-process-lifecycle.mjs";
 
 const BEFORE = "41\n";
@@ -19,34 +20,9 @@ const CONNECT = 'exec 3<>"/dev/tcp/127.0.0.1/$PROBE_PORT"';
 const DEADLINE_MS = 20_000;
 class UnsettledPiWorkspace extends AggregateError {}
 
-// The child receives one writable host file, one read-only check, its runtime
-// files and private scratch. Every source path except the OS runtime is ours.
-function launchArgs(root: string, port: number): string[] {
-  const systemFiles = ["/lib64/ld-linux-x86-64.so.2", "/bin/bash", "/usr/bin/readlink",
-    ...["libc.so.6", "libdl.so.2", "libm.so.6", "libpthread.so.0", "libtinfo.so.6"]
-      .map(name => "/lib/x86_64-linux-gnu/" + name)];
-  return [
-    "--core=0:0", "--fsize=1048576:1048576", "--nofile=128:128", "--cpu=10:10", "--",
-    "/usr/bin/unshare", "--user", "--map-root-user", "--net", "--",
-    "/usr/bin/bwrap", "--unshare-user", "--disable-userns", "--unshare-pid", "--unshare-ipc",
-    "--unshare-uts", "--new-session", "--die-with-parent", "--cap-drop", "ALL", "--clearenv",
-    "--dir", "/workspace", "--proc", "/proc", "--dev", "/dev",
-    "--size", "16777216", "--tmpfs", "/dev/shm", "--size", "33554432", "--tmpfs", "/tmp",
-    "--dir", "/tmp/home", "--setenv", "HOME", "/tmp/home", "--setenv", "TMPDIR", "/tmp",
-    "--setenv", "PI_CODING_AGENT_DIR", "/tmp/home/agent", "--setenv", "PI_OFFLINE", "1",
-    "--setenv", "NODE_ENV", "production", "--setenv", "PATH", "/bin",
-    "--setenv", "PROBE_PORT", String(port), "--setenv", "OUTSIDE_FILE", path.join(root, "outside.txt"),
-    ...systemFiles.flatMap(file => ["--ro-bind", file, file]),
-    "--ro-bind", path.join(root, "pi"), "/bin/pi",
-    "--ro-bind", path.join(root, "check.sh"), "/fixture/check.sh",
-    "--bind", path.join(root, "answer.txt"), "/workspace/answer.txt",
-    "--remount-ro", "/", "--chdir", "/workspace", "--", "/bin/pi", ...PI_OFFLINE_RPC_FLAGS_V01,
-  ];
-}
-
 async function exercisePi(root: string, port: number, signal: AbortSignal) {
   signal.throwIfAborted();
-  const child = spawn("/usr/bin/prlimit", launchArgs(root, port), {
+  const child = spawn("/usr/bin/prlimit", piOfflineSandboxArgs(root, port), {
     cwd: root, env: { NODE_ENV: "test", AUGNES_HOST_SENTINEL: "visible only before isolation" }, detached: true,
     stdio: ["pipe", "pipe", "pipe"],
   });

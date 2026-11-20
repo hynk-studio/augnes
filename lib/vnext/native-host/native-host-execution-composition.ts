@@ -1,5 +1,5 @@
 import type { CodexFeasibilityWindowV01, CodexScopedTaskV01 } from "./codex-scoped-task";
-import type { NativeHostAdapterV01, NativeHostRequestV01, NativeHostRunModeV01 } from "@/types/vnext/native-host-adapter";
+import type { NativeHostAdapterV01, NativeHostObservedCheckV01, NativeHostRequestV01, NativeHostRunModeV01 } from "@/types/vnext/native-host-adapter";
 import type { DirectNativeHostRoundTripDependenciesV01, NativeHostTimeoutSchedulerV01 } from "@/lib/vnext/runtime/direct-native-host-round-trip";
 
 /** Compatibility input owned by this static host composition, never an HTTP,
@@ -78,4 +78,11 @@ export function bindNativeHostRoundTripExecutionV01(scope?: CodexScopedTaskV01):
   if (!scope) return null;
   const { createCodexNativeHostRoundTripBindingV01 } = require("./codex-native-host-round-trip-binding") as typeof import("./codex-native-host-round-trip-binding");
   return createCodexNativeHostRoundTripBindingV01(scope);
+}
+
+/** Resolve the private byte witness only for a selected offline result. Other
+ * round trips need neither the Pi controller nor its subprocess machinery. */
+export function readOfflineFilePatchEvidenceV01(requestId: string, check: NativeHostObservedCheckV01) {
+  const controller = require("./pi-file-patch-adapter") as typeof import("./pi-file-patch-adapter");
+  return controller.readVerifiedPiFilePatch(requestId, check);
 }
