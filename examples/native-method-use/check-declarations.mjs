@@ -1,6 +1,14 @@
 // A small task-owned check, not npm semver or an installation/runtime test.
 import { createHash } from 'node:crypto';
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
+
+function matchesPlatform(declared, target) {
+  if (declared.length === 1 && declared[0] === 'any') {
+    return typeof target === 'string' && target.trim().length > 0;
+  }
+  return declared.includes(target);
+}
+
 export function checkDeclarations(raw, target, method) {
   const identity = { input_sha256: sha256(raw), target };
   const unknown = reason => ({ ...identity, outcome: 'not_applicable', reason, runtime_compatibility: 'NOT_TESTED' });
@@ -15,7 +23,11 @@ export function checkDeclarations(raw, target, method) {
   if (![...floor, ...current, ceiling].every(Number.isSafeInteger) || floor[0] >= ceiling) return unknown('invalid_version_bounds');
   let comparison = 0;
   for (let i = 0; i < 3 && comparison === 0; i++) comparison = Math.sign(current[i] - floor[i]);
-  const checks = { node: comparison >= 0 && current[0] < ceiling, os: pkg.os.includes(target.os), cpu: pkg.cpu.includes(target.cpu) };
+  const checks = {
+    node: comparison >= 0 && current[0] < ceiling,
+    os: matchesPlatform(pkg.os, target.os),
+    cpu: matchesPlatform(pkg.cpu, target.cpu),
+  };
   return { ...identity, package: pkg.name, version: pkg.version, checks,
     outcome: Object.values(checks).every(Boolean) ? 'declared_fit' : 'declared_mismatch', runtime_compatibility: 'NOT_TESTED' };
 }

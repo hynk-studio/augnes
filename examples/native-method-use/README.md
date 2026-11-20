@@ -68,8 +68,10 @@ participant is involved.
 | Currentness, authentication and recovery validation | Private external HTTP route, snapshot/preview/save and external-store validator | Stage traces, `current-correction-read.json`, `boundaries.json`: actual refusals and valid retained store, without restoring withdrawn sharing. |
 | Finite lifecycle and burden | Existing canonical child/resource owners | `stage-results.json`, `*-settlement.json`, `report.json`: actual duration, calls/bytes in traces, natural exit and no owned processes; human preparation/model usage unmeasured. |
 
-The checker supports only `>=major.minor.patch <major` and positive literal
-`os`/`cpu` arrays. It is not a general semver implementation. A hash, successful
+The checker supports only `>=major.minor.patch <major` and positive
+`os`/`cpu` arrays. On either axis, `["any"]` matches any named target.
+In a mixed list such as `["any", "darwin"]`, entries match literally.
+It is not a general semver implementation. A hash, successful
 schema check or matching declaration proves neither installation nor ABI,
 dependency or live-runtime compatibility. A's Node 22 target is supplied data;
 the script's host Node version is separately recorded by verification.
