@@ -4,6 +4,23 @@ import { existsSync, mkdirSync, readFileSync, cpSync, writeFileSync } from 'node
 import path from 'node:path';
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from './canonical-child-runner.mjs';
 import { createCanonicalTestResourceRoot, beginCanonicalTestResourceUse, settleCanonicalTestResourceUse, cleanupCanonicalTestResources } from './canonical-test-environment.mjs';
+import { checkDeclarations } from '../examples/native-method-use/check-declarations.mjs';
+
+function testPlatformDeclarations() {
+  const target = { node: '22.23.4', os: 'linux', cpu: 'arm64' };
+  const method = { version: 'package-declarations.v1', purpose: 'declared-platform-fit' };
+  const outcome = (os: string[], cpu: string[], selected = target) => {
+    const manifest = JSON.stringify({ name: 'case-widget', version: '1.0.0', engines: { node: '>=20.0.0 <25' }, os, cpu });
+    return checkDeclarations(manifest, selected, method).outcome;
+  };
+  assert.equal(outcome(['any'], ['arm64']), 'declared_fit');
+  assert.equal(outcome(['linux'], ['any']), 'declared_fit');
+  assert.equal(outcome(['any', 'darwin'], ['any']), 'declared_mismatch');
+  assert.equal(outcome(['any'], ['any', 'x64']), 'declared_mismatch');
+  assert.equal(outcome(['any', 'linux'], ['arm64']), 'declared_fit');
+  assert.equal(outcome(['any'], ['arm64'], { ...target, os: '' }), 'declared_mismatch');
+}
+
 const destination = process.argv[2], timeoutMs = 60_000, started = performance.now();
 assert(!destination || (path.isAbsolute(destination) && !existsSync(destination)));
 const owner = createCanonicalTestResourceRoot('ag-suite-', { shortSocketPaths: true });
@@ -13,6 +30,7 @@ async function main() {
   beginCanonicalTestResourceUse(owner); let settled = true;
   const stages: any[] = [];
   try {
+    testPlatformDeclarations();
     for (const role of ['producer', 'consumer-current', 'label', 'consumer-label', 'unsuitable', 'consumer-unsuitable', 'boundary']) {
       settled = false;
       const result = await runCanonicalChild({ suite: 'native-method-use', label: role, command: process.execPath,
