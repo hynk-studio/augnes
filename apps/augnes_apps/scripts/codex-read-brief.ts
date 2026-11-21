@@ -183,7 +183,7 @@ export function printGuideBriefSummary(brief: GuideBrief) {
   printList("Inferred with caveats", brief.inferred.map((item) => `${item.statement} Caveat: ${item.caveats.join("; ") || "bounded derived interpretation"}`));
   printList("Suggested", brief.suggested.map((item) => `${item.label}: ${item.reason}`));
   printList("Needs user judgment", brief.needs_user_judgment.map((item) => `${item.question} ${item.why_it_matters}`));
-  printList("Constraints", brief.projections.codex.constraints);
+  printList("Forbidden actions", brief.projections.codex.constraints);
   printList("Required checks", brief.projections.codex.required_checks);
   printList("Authority boundary", [
     "GuideBrief is a View, not project truth or proof.",

@@ -1108,6 +1108,17 @@ assert.equal(next.next_action.owner, "pc2_timeline");
 assert.equal(next.next_action.is_action, false);
 assert.match(next.sections.next_meaningful_action ?? "", /existing|review|project-update/i);
 
+const projectGuide = guide();
+const recorded = projectGuide.observed[0];
+projectGuide.observed.unshift({ item_id: "observed:unrelated", statement: "Unrelated project note.", source_refs: ["other"] });
+projectGuide.source_refs.push({ ref_id: "other", kind: "route", label: "Other", href: "/" });
+const nextProject = buildGuideBriefConversationPlanV01(planInput({
+  question: "What should I do next?", guide: projectGuide, timeline: null, selected_work_scope: null,
+}));
+assert.equal(nextProject.sections.observed_or_exact_basis, recorded.statement);
+assert.equal(nextProject.sections.bounded_interpretation, projectGuide.primary_guidance.reason);
+assert.deepEqual(nextProject.internal_source_refs.map((ref) => ref.record_id), recorded.source_refs);
+
 const capability = buildGuideBriefConversationPlanV01(planInput({
   question: "Can you apply this?",
 }));

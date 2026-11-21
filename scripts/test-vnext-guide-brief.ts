@@ -292,6 +292,40 @@ async function main() {
   );
 
   const resultGuide = states[6][0];
+  const savedBasis = resultGuide.observed[0];
+  assert.deepEqual(resultGuide.inferred[0].supporting_observation_ids, [savedBasis.item_id]);
+  assert.deepEqual(resultGuide.primary_guidance.source_refs, savedBasis.source_refs);
+  assert.equal(resultGuide.source_refs.find((ref) => ref.ref_id === savedBasis.source_refs[0])?.kind, "result");
+  assert.equal(resultGuide.inferred[0].confidence, "medium");
+  assert.equal(states[3][0].inferred[0].confidence, "low");
+  assert.equal(states[4][0].inferred[0].confidence, "low");
+
+  // The selected fourth input is outside the ordinary three-entry attention summary.
+  const attention = [40, 30, 20, 1].map((priority) => ({
+    attention_id: `attention:${priority}`, summary: `Pending choice ${priority}`,
+    reason: "Needs a decision", workbench_entry: null,
+    action_href: `/workbench/semantic-review#choice-${priority}`, action_label: "Review", priority,
+  })) as ProjectHomeProjectionV01["attention"]["items"];
+  const selected = build(source(projection({ attention })));
+  const selectedRef = selected.source_refs.find((ref) => ref.ref_id === selected.primary_guidance.source_refs[0]);
+  assert.equal(selectedRef?.href, attention[3].action_href);
+  assert.match(selected.observed[0].statement, /Pending choice 1$/u);
+  assert.deepEqual(selected.observed[0].source_refs, [selectedRef!.ref_id]);
+  assert.deepEqual(selected.inferred[0].supporting_observation_ids, [selected.observed[0].item_id]);
+  assert.deepEqual(selected.suggested[0].source_refs, selected.primary_guidance.source_refs);
+  assert.deepEqual(selected.needs_user_judgment[0].source_refs, selected.primary_guidance.source_refs);
+  assert.equal(build(source(projection({ attention, attentionTotalCount: 6 }))).inferred[0].confidence, "low");
+
+  const restrictions = ["Publish without permission.", "Do not disclose private files."];
+  const restrictedProject = resultProjection();
+  restrictedProject.coordination.task_frame.forbidden_actions = restrictions;
+  const restricted = build(source(restrictedProject)).projections;
+  assert.deepEqual(restricted.ai_workplane.important_constraints, restrictions);
+  assert.deepEqual(restricted.chatgpt.constraints, restrictions);
+  assert.deepEqual(restricted.codex.constraints, restrictions);
+  for (const view of [restricted.ai_workplane, restricted.chatgpt, restricted.codex]) {
+    assert.equal(view.constraint_kind, "forbidden_actions");
+  }
   assert.equal(JSON.stringify(resultGuide).includes("/Users/private"), false);
   assert.equal(JSON.stringify(resultGuide).includes("secret-value"), false);
   assert.equal(resultGuide.coordinate.verification?.passed, 2);
@@ -384,6 +418,7 @@ async function main() {
   assert.equal(taskStart.status, "available");
   assert.equal(taskStart.project_name, "Current project");
   assert.equal(taskStart.current_goal, exactPacket.task.goal);
+  assert.equal(taskStart.constraint_kind, "forbidden_actions");
   assert.deepEqual(taskStart.constraints, exactPacket.constraints.forbidden_actions);
   assert.deepEqual(taskStart.required_checks, exactPacket.constraints.required_checks);
   assert.equal(taskStart.packet_binding?.packet_fingerprint, exactPacket.integrity.fingerprint);
@@ -532,7 +567,8 @@ async function main() {
   assert.equal(closedFailure, 1);
 
   console.log(JSON.stringify({
-    assertions: 130,
+    selected_source_grounding: true,
+    forbidden_action_polarity: true,
     guide_version: resultGuide.guide_version,
     tested_focuses: states.map(([, focus]) => focus),
     cross_surface_consistency: true,

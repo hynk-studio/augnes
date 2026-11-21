@@ -11,6 +11,7 @@ const PENDING_GUIDE: GuideBriefAIWorkplaneProjectionV02 = {
   project_name: null,
   current_coordinate: "Loading current project guidance",
   current_goal: null,
+  constraint_kind: "forbidden_actions",
   important_constraints: [],
   work_or_result_status: "Current project state is being read.",
   material_blocker_or_judgment: null,
@@ -74,7 +75,7 @@ export function ProjectGuideBriefRail({
         ) : null}
         {visibleGuide.important_constraints[0] ? (
           <p data-guide-brief-core-constraint="true">
-            <span>Important constraint</span>
+            <span>Forbidden action</span>
             {visibleGuide.important_constraints[0]}
           </p>
         ) : null}

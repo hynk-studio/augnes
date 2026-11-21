@@ -1315,6 +1315,7 @@ function buildGuideBriefStructuredContent({
   guideBriefSummary: ReturnType<typeof buildGuideBriefSummary>;
   compact: boolean | undefined;
 }): Record<string, unknown> {
+  const forbiddenActions = guideBrief.projections.chatgpt.constraints ?? guideBrief.projections.codex.constraints;
   const projectedGuide = compact
     ? {
         runtime: guideBrief.runtime,
@@ -1325,6 +1326,7 @@ function buildGuideBriefStructuredContent({
         source_status: guideBrief.source_status,
         gaps: guideBrief.gaps,
         coordinate: guideBrief.coordinate,
+        ...(forbiddenActions && { forbidden_actions: forbiddenActions }),
         observed: guideBrief.observed.slice(0, 3),
         inferred: guideBrief.inferred.slice(0, 2),
         suggested: guideBrief.suggested.slice(0, 1),

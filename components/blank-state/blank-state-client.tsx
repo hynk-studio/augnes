@@ -196,6 +196,7 @@ export function BlankStateClient({
   const [guideOpen, setGuideOpen] = useState(false);
   const guideDialogRef = useRef<HTMLDialogElement>(null);
   const guideLauncherRef = useRef<HTMLButtonElement>(null);
+  const guideOpenerRef = useRef<HTMLButtonElement | null>(null);
   const projectSettingsRef = useRef<HTMLDetailsElement>(null);
   const projectIdentityRef = useRef<HTMLElement>(null);
   const pickerAttemptRef = useRef(0);
@@ -961,25 +962,28 @@ export function BlankStateClient({
     (continuityMode === "all" || item.requires_human_attention) &&
     continuityItemMatchesV01(item, normalizedContinuityFilter);
   const highlightedVisible = itemMatchesCurrentFilters(view.highlighted_item);
+  const supportingRecord = guide.source_refs.find((ref) =>
+    guide.primary_guidance.source_refs.includes(ref.ref_id) &&
+    (ref.kind === "result" || ref.kind === "attention" || ref.kind === "change") && ref.href,
+  );
   const visibleContinuityItems = view.continuity_items.filter((item) =>
     itemMatchesCurrentFilters(item)
   );
   const firstWorkSetup = view.focus === "first_work_not_defined";
 
-  function closeGuide() {
-    const dialog = guideDialogRef.current;
-    setGuideOpen(false);
-    if (dialog?.open) dialog.close();
-    window.requestAnimationFrame(() => guideLauncherRef.current?.focus());
+  function openGuide(opener: HTMLButtonElement) {
+    guideOpenerRef.current = opener;
+    setGuideOpen(true);
   }
 
-  const guideSupportText =
-    presentationMode === "active_continuities"
-      ? "Get context on the current project and what comes next."
-      : presentationMode === "local_project_onboarding" ||
-          presentationMode === "project_choice"
-        ? "Learn how to begin with a local project."
-        : "Get context on this project and the next available step.";
+  function closeGuide() {
+    setGuideOpen(false);
+    if (guideDialogRef.current?.open) guideDialogRef.current.close();
+  }
+
+  const guideSupportText = presentationMode === "local_project_onboarding" || presentationMode === "project_choice"
+    ? "Learn how to begin with a local project."
+    : "Get context on this project and the next available step.";
   const guideRailTarget =
     hydrated && typeof document !== "undefined"
       ? document.getElementById("continuities-guide-rail-support")
@@ -990,9 +994,7 @@ export function BlankStateClient({
       data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.guideBrief}
       data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
     >
-      <p className="blank-state-region-label">Contextual support</p>
-      <h2>Ask GuideBrief</h2>
-      <p>{guideSupportText}</p>
+      {!activeContinuities && <p>{guideSupportText}</p>}
       <button
         ref={guideLauncherRef}
         type="button"
@@ -1001,7 +1003,7 @@ export function BlankStateClient({
         aria-expanded={guideOpen}
         data-continuities-guidebrief-launcher="true"
         aria-label="Open GuideBrief"
-        onClick={() => setGuideOpen(true)}
+        onClick={(event) => openGuide(event.currentTarget)}
       >
         <span className="continuities-action-label-full">
           Open GuideBrief
@@ -1073,7 +1075,10 @@ export function BlankStateClient({
                     >
                       <summary>Why this is next</summary>
                       <div>
-                        <p>{view.why_this_is_next.observed[0]}</p>
+                        <p><strong>Recorded status</strong> · {view.why_this_is_next.observed[0]}</p>
+                        {supportingRecord?.href ? (
+                          <p>Source · <a href={scopedHref(supportingRecord.href)}>{supportingRecord.label}</a></p>
+                        ) : null}
                         {view.why_this_is_next.inferred[0] ? (
                           <p>
                             {view.why_this_is_next.inferred[0].statement}{" "}
@@ -1088,14 +1093,19 @@ export function BlankStateClient({
                             {view.why_this_is_next.needs_user_judgment[0]}
                           </p>
                         ) : null}
-                        <p>
-                          This guidance is read-only and does not make the
-                          decision for you.
-                        </p>
+                        <button
+                          type="button"
+                          aria-haspopup="dialog"
+                          aria-controls="continuities-guide-dialog"
+                          aria-expanded={guideOpen}
+                          onClick={(event) => openGuide(event.currentTarget)}
+                        >
+                          Ask about this work
+                        </button>
                       </div>
                     </details>
                   ) : null}
-                  {!activeContinuities && view.primary_action && !recovery ? (
+                  {view.primary_action && !recovery && (!activeContinuities || highlightedVisible) ? (
                     <div className="continuities-focused-actions">
                       <PrimaryAction
                         action={view.primary_action}
@@ -1215,13 +1225,6 @@ export function BlankStateClient({
                   item={view.highlighted_item}
                   highlighted
                   source={source}
-                  primaryAction={view.primary_action}
-                  primaryEntry={primaryEntry}
-                  busy={busy}
-                  onChoose={() => void choose()}
-                  onOpen={(entry) => void open(entry)}
-                  onLocate={(entry) => void locate(entry)}
-                  onActivate={(projectId) => void activate(projectId)}
                 />
               ) : null}
               {visibleContinuityItems.length ? (
@@ -1232,13 +1235,6 @@ export function BlankStateClient({
                         item={item}
                         highlighted={false}
                         source={source}
-                        primaryAction={null}
-                        primaryEntry={null}
-                        busy={busy}
-                        onChoose={() => void choose()}
-                        onOpen={(entry) => void open(entry)}
-                        onLocate={(entry) => void locate(entry)}
-                        onActivate={(projectId) => void activate(projectId)}
                       />
                     </li>
                   ))}
@@ -1311,9 +1307,10 @@ export function BlankStateClient({
           }}
           onClose={() => {
             setGuideOpen(false);
-            window.requestAnimationFrame(() =>
-              guideLauncherRef.current?.focus()
-            );
+            window.requestAnimationFrame(() => {
+              const opener = guideOpenerRef.current;
+              (opener?.isConnected ? opener : guideLauncherRef.current)?.focus();
+            });
           }}
         >
           <div className="continuities-guide-dialog-heading">
@@ -1515,24 +1512,10 @@ function ContinuityItem({
   item,
   highlighted,
   source,
-  primaryAction,
-  primaryEntry,
-  busy,
-  onChoose,
-  onOpen,
-  onLocate,
-  onActivate,
 }: {
   item: BlankStateContinuityItemV01;
   highlighted: boolean;
   source: BlankStateSourceV01;
-  primaryAction: BlankStatePrimaryActionV01 | null;
-  primaryEntry: RecentProjectEntryV01 | null;
-  busy: boolean;
-  onChoose: () => void;
-  onOpen: (entry: ProjectManagementEntryV02) => void;
-  onLocate: (entry: ProjectManagementEntryV02) => void;
-  onActivate: (projectId: string) => void;
 }) {
   const scopedHref = useProjectClientHref();
   const delegatedStage = item.source_family === "delegated_work"
@@ -1613,20 +1596,7 @@ function ContinuityItem({
               {formatTimestamp(item.last_meaningful_change.occurred_at)}
             </time>
           ) : null}
-          {highlighted && primaryAction ? (
-            <div className="blank-state-continuity-actions">
-              <PrimaryAction
-                action={primaryAction}
-                item={item}
-                busy={busy}
-                recentEntry={primaryEntry}
-                onChoose={onChoose}
-                onOpen={onOpen}
-                onLocate={onLocate}
-                onActivate={onActivate}
-              />
-            </div>
-          ) : secondaryAction ? (
+          {(!highlighted || !item.next_action) && secondaryAction ? (
             <a
               className="blank-state-secondary-link"
               href={scopedHref(secondaryAction.href)}
@@ -1816,13 +1786,7 @@ function PrimaryAction({
         data-augnes-primary-action={action.kind}
         data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
       >
-        <span className="continuities-action-label-full">{action.label}</span>
-        <span
-          className="continuities-action-label-compact"
-          aria-hidden="true"
-        >
-          Open
-        </span>
+        {action.label}
       </a>
     );
   }

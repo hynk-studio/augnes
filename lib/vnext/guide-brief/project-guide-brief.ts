@@ -4,6 +4,7 @@ import { retryInspectionGuidanceV01 } from "../retry-inspection-outlook";
 
 import {
   buildBlankStateContinuityV01,
+  continuityItemIdV01,
   type BlankStateContinuityCompositionV01,
 } from "@/lib/vnext/blank-state/blank-state-continuity";
 import {
@@ -59,16 +60,17 @@ export function buildProjectGuideBriefV02(
       entry.project.project_id === source.active_project_id,
   )?.active_selection_revision ?? null;
 
-  const refs = buildSourceRefsV02(source, decision, projectName);
-  const observed = buildObservedV02(source, decision, refs);
-  const inferred = buildInferredV02(source, decision, observed);
-  const judgments = buildJudgmentsV02(decision, refs);
-  const suggested = buildSuggestedV02(decision, refs);
+  const basis = selectedWorkSourceV02(source, decision);
+  const refs = buildSourceRefsV02(source, decision, projectName, basis);
+  const observed = buildObservedV02(source, decision, refs, basis);
+  const inferred = buildInferredV02(decision, sourceStatus, basis, observed[0]);
+  const primarySourceRefs = [basis.ref_id];
+  const judgments = buildJudgmentsV02(decision, primarySourceRefs);
+  const suggested = buildSuggestedV02(decision, primarySourceRefs);
   const result = projection?.run_results.latest_result ?? null;
   const goal = boundedTextV02(projection?.coordination.task_frame.goal ?? null);
   const currentWork = projection?.run_results.current_run ?? null;
   const blocker = boundedTextV02(decision.material_note);
-  const primarySourceRefs = refs.slice(0, 4).map((ref) => ref.ref_id);
   const primaryGuidance: ProjectGuideBriefV02["primary_guidance"] = {
     label: decision.guide_action.label,
     reason: boundedTextV02(decision.action_reason) ?? "Continue from the current project state.",
@@ -128,6 +130,7 @@ export function buildProjectGuideBriefV02(
     project_name: projectName,
     current_coordinate: decision.heading,
     current_goal: goal,
+    constraint_kind: "forbidden_actions" as const,
     important_constraints: boundedListV02(
       projection?.coordination.task_frame.forbidden_actions ?? [],
       3,
@@ -195,6 +198,7 @@ export function buildProjectGuideBriefV02(
         summary: decision.situation,
         goal,
         status: coordinate.work_status,
+        constraint_kind: "forbidden_actions",
         constraints: boundedListV02(projection?.coordination.task_frame.forbidden_actions ?? [], 8),
         required_checks: boundedListV02(projection?.coordination.task_frame.required_checks ?? [], 8),
         non_goals: boundedListV02(projection?.coordination.task_frame.non_goals ?? [], 8),
@@ -236,6 +240,7 @@ export function bindGuideBriefCodexProjectionToPacketV02(
     workspace_id: packet.workspace_id,
     project_id: packet.project_id,
     current_goal: boundedTextV02(packet.task.goal) ?? projection.current_goal,
+    constraint_kind: "forbidden_actions",
     constraints: boundedListV02(packet.constraints.forbidden_actions, 8),
     required_checks: boundedListV02(packet.constraints.required_checks, 8),
     non_goals: boundedListV02(packet.task.non_goals, 8),
@@ -373,13 +378,68 @@ export function unavailableGuideBriefCodexProjectionV02(
   );
 }
 
+function selectedWorkSourceV02(
+  source: BlankStateSourceV01,
+  decision: BlankStateContinuityCompositionV01,
+): GuideBriefSourceRefV02 {
+  const item = decision.highlighted_item;
+  const project = source.projection;
+  if (!project) {
+    return { ref_id: "route:blank-state", kind: "route", label: "Local project selection", href: "/" };
+  }
+  const ref = (kind: GuideBriefSourceRefV02["kind"], key: string, label: string, href: string | null): GuideBriefSourceRefV02 =>
+    ({ ref_id: stableRefV02(kind, key), kind, label, href });
+  switch (item.source_family) {
+    case "delegated_work": {
+      const work = source.delegated_work;
+      if (work?.stage === "result_ready" && work.result) {
+        return ref("result", work.result.receipt_ref, "Saved delegated result", work.result.review_href);
+      }
+      if (work?.run_ref) return ref("run", work.run_ref, "Selected delegated work", actionHrefV02(decision.guide_action));
+      break;
+    }
+    case "current_run": {
+      const run = project.run_results.current_run;
+      if (run) return ref("run", run.run_ref, "Current work", WORKPLANE_HREF);
+      break;
+    }
+    case "saved_result": {
+      const result = project.run_results.latest_result;
+      if (result) return ref("result", result.receipt_ref, "Latest saved result", result.review_href);
+      break;
+    }
+    case "project_attention": {
+      const attention = project.attention.items.find((entry) =>
+        continuityItemIdV01("project_attention", entry.attention_id) === item.item_id);
+      if (attention) return ref("attention", attention.attention_id, "Selected attention item", attention.workbench_entry?.href ?? attention.action_href);
+      break;
+    }
+    case "recent_change": {
+      const change = project.recent_activity.items.slice(0, 3).find((entry) =>
+        continuityItemIdV01("recent_change", `${entry.occurred_at}:${entry.summary}`) === item.item_id);
+      if (change) return ref("change", `${change.occurred_at}:${change.summary}`, "Selected recent change", change.workbench_entry?.href ?? null);
+      break;
+    }
+    case "work_initialization": {
+      const direction = source.project_direction?.effective;
+      if (direction && decision.guide_action.kind === "link" && decision.guide_action.entry_state === "direction_reconsideration_required") {
+        return { ref_id: direction.ref, kind: "project_state", label: "Effective working direction", href: decision.guide_action.href };
+      }
+      break;
+    }
+  }
+  return { ref_id: item.item_id, kind: "project_state", label: "Selected project work status",
+    href: `/projects/${encodeURIComponent(project.project_id)}` };
+}
+
 function buildSourceRefsV02(
   source: BlankStateSourceV01,
   decision: BlankStateContinuityCompositionV01,
   projectName: string | null,
+  basis: GuideBriefSourceRefV02,
 ): GuideBriefSourceRefV02[] {
   const projection = source.projection;
-  const values: GuideBriefSourceRefV02[] = [];
+  const values: GuideBriefSourceRefV02[] = [basis];
   const add = (value: GuideBriefSourceRefV02) => {
     if (!values.some((item) => item.ref_id === value.ref_id)) values.push(value);
   };
@@ -420,6 +480,7 @@ function buildObservedV02(
   source: BlankStateSourceV01,
   decision: BlankStateContinuityCompositionV01,
   refs: GuideBriefSourceRefV02[],
+  basis: GuideBriefSourceRefV02,
 ): GuideBriefObservedItemV02[] {
   const projection = source.projection;
   const result: GuideBriefObservedItemV02[] = [];
@@ -427,6 +488,9 @@ function buildObservedV02(
     result.push({ item_id: stableItemIdV02("observed", statement, sourceRefs), statement: boundedTextV02(statement)!, source_refs: dedupeV02(sourceRefs) });
   };
   const projectRef = refs.find((ref) => ref.kind === "project")?.ref_id ?? "route:blank-state";
+  const selected = decision.highlighted_item;
+  const unavailable = source.project_resolution === "unavailable" || source.project_resolution === "not_found";
+  push(unavailable ? "The requested project could not be read." : `${selected.meaningful_state} · ${selected.work_name}`, [basis.ref_id]);
   if (!projection) {
     push(
       source.recent_projects.length === 0
@@ -452,7 +516,7 @@ function buildObservedV02(
     push(`The current goal is: ${publicGuideBriefTextV02(projection.coordination.task_frame.goal)}`, [taskRef]);
   }
   if (projection.run_results.current_run) {
-    const runRef = refs.find((ref) => ref.kind === "run")?.ref_id ?? projectRef;
+    const runRef = stableRefV02("run", projection.run_results.current_run.run_ref);
     push(
       projection.run_results.current_run.reconciliation_required
         ? "The current work requires reconciliation before a result can be trusted."
@@ -462,63 +526,62 @@ function buildObservedV02(
   }
   const savedResult = projection.run_results.latest_result;
   if (savedResult) {
-    const resultRef = refs.find((ref) => ref.kind === "result")?.ref_id ?? projectRef;
+    const resultRef = stableRefV02("result", savedResult.receipt_ref);
     push(`A saved result is available: ${publicGuideBriefTextV02(savedResult.summary)}`, [resultRef]);
     push(`Verification reports ${savedResult.check_counts.passed} passed, ${savedResult.check_counts.failed} failed, and ${savedResult.check_counts.skipped} skipped checks.`, [resultRef]);
   }
   if (decision.known_attention_count > 0) {
-    const attentionRef = refs.find((ref) => ref.kind === "attention")?.ref_id ?? projectRef;
-    push(
-      `A consequential intervention is pending: ${decision.highlighted_item.work_name}`,
-      [attentionRef],
-    );
+    push(`${decision.known_attention_count} known ${pluralV02(decision.known_attention_count, "work item requires", "work items require")} attention.`, [projectRef]);
   }
-  if (result.length === 0) push(decision.situation, [projectRef]);
   return result.slice(0, GUIDE_BRIEF_LIMITS_V02.observed);
 }
 
 function buildInferredV02(
-  source: BlankStateSourceV01,
   decision: BlankStateContinuityCompositionV01,
-  observed: GuideBriefObservedItemV02[],
+  sourceStatus: ProjectGuideBriefSourceStatusV02,
+  basis: GuideBriefSourceRefV02,
+  observation: GuideBriefObservedItemV02,
 ): GuideBriefInferredItemV02[] {
-  const support = observed.map((item) => item.item_id).slice(0, 3);
-  if (support.length === 0) return [];
-  const caveats = source.project_resolution === "resolved"
-    ? ["This interpretation is derived from bounded current read models and is not project truth."]
-    : ["Current project sources are incomplete or unavailable."];
+  const support = [observation.item_id];
+  const directRecord = ["run", "result", "attention", "change"].includes(basis.kind);
+  const boundedSupport = directRecord && decision.attention_count_status === "complete" &&
+    decision.highlighted_item.attention_category !== "reconciliation" &&
+    (sourceStatus === "live_current_project" || sourceStatus === "viewed_project");
+  let caveat = "This recommendation relies on limited project context.";
+  if (boundedSupport) caveat = "This recommendation uses the current state of the selected record.";
+  else if (decision.highlighted_item.attention_category === "reconciliation") caveat = "The run outcome still needs reconciliation.";
+  else if (decision.attention_count_status !== "complete") caveat = "Other work may need attention outside this view.";
   const item: GuideBriefInferredItemV02 = {
     item_id: stableItemIdV02("inferred", decision.action_reason, support),
     statement: decision.action_reason,
     supporting_observation_ids: support,
-    confidence: source.project_resolution === "resolved" ? "high" : "low",
-    caveats,
+    confidence: boundedSupport ? "medium" : "low",
+    caveats: [caveat],
   };
   return [item].slice(0, GUIDE_BRIEF_LIMITS_V02.inferred);
 }
 
 function buildSuggestedV02(
   decision: BlankStateContinuityCompositionV01,
-  refs: GuideBriefSourceRefV02[],
+  sourceRefs: string[],
 ): GuideBriefSuggestedItemV02[] {
   return [{
-    item_id: stableItemIdV02("suggested", decision.guide_action.label, refs.map((ref) => ref.ref_id).slice(0, 4)),
+    item_id: stableItemIdV02("suggested", decision.guide_action.label, sourceRefs),
     label: decision.guide_action.label,
     reason: decision.action_reason,
     href: actionHrefV02(decision.guide_action),
     action_ref: actionRefV02(decision.guide_action),
     blockers: decision.user_judgment?.blocked ?? [],
-    source_refs: refs.map((ref) => ref.ref_id).slice(0, 4),
+    source_refs: sourceRefs,
     executes: false,
   }];
 }
 
 function buildJudgmentsV02(
   decision: BlankStateContinuityCompositionV01,
-  refs: GuideBriefSourceRefV02[],
+  sourceRefs: string[],
 ): GuideBriefUserJudgmentItemV02[] {
   if (!decision.user_judgment) return [];
-  const sourceRefs = refs.map((ref) => ref.ref_id).slice(0, 4);
   return [{
     item_id: stableItemIdV02("judgment", decision.user_judgment.question, sourceRefs),
     question: boundedTextV02(decision.user_judgment.question)!,
@@ -602,6 +665,7 @@ function buildCodexProjectionV02(input: {
     project_name: input.project_name,
     current_goal: input.goal,
     current_coordinate: input.coordinate,
+    constraint_kind: "forbidden_actions",
     constraints: boundedListV02(frame?.forbidden_actions ?? [], 8),
     required_checks: boundedListV02(frame?.required_checks ?? [], 8),
     non_goals: boundedListV02(frame?.non_goals ?? [], 8),
