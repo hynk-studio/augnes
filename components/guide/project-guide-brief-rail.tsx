@@ -74,10 +74,10 @@ export function ProjectGuideBriefRail({
           </p>
         ) : null}
         {visibleGuide.important_constraints[0] ? (
-          <p data-guide-brief-core-constraint="true">
-            <span>Forbidden action</span>
-            {visibleGuide.important_constraints[0]}
-          </p>
+          <dl>
+            <dt>Forbidden action</dt>
+            <dd data-guide-brief-core-constraint="true">{visibleGuide.important_constraints[0]}</dd>
+          </dl>
         ) : null}
         {visibleGuide.unresolved_user_judgments[0] ||
         visibleGuide.material_blocker_or_judgment ? (

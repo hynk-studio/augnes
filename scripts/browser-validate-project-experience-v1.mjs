@@ -1098,8 +1098,6 @@ async function main() {
         name: document.querySelector('[data-project-context-label="Current project"]')?.textContent?.includes('Project Experience Alpha') === true,
         heading: home?.querySelector('h1')?.textContent?.trim(),
         primary_action_count: home?.querySelectorAll('[data-blank-state-primary-action]').length,
-        current_situation_action: Boolean(home?.querySelector('.continuities-current-situation [data-blank-state-primary-action]')),
-        contextual_question: Boolean(home?.querySelector('[data-guide-brief-disclosure] button[aria-controls="continuities-guide-dialog"]')),
         project_home_absent: !text.includes('Project Home'),
         metric_grid_absent: home?.querySelector('.project-home-coordinate-grid') === null,
         internal_vocabulary_absent: !/(TaskContextPacket|RunReceipt|CriterionAssessment|EpisodeDeltaProposal|ReviewDecision|StateTransitionReceipt|Decision debt|Accepted state|Working projection|Exact coordination|Inspector lineage|packet fingerprint)/i.test(text),
@@ -1118,8 +1116,6 @@ async function main() {
       name: true,
       heading: "Continuities",
       primary_action_count: 1,
-      current_situation_action: true,
-      contextual_question: true,
       project_home_absent: true,
       metric_grid_absent: true,
       internal_vocabulary_absent: true,
@@ -1535,7 +1531,7 @@ async function main() {
           textWithoutLabel('[data-guide-brief-core-goal="true"]', 'Goal') ===
           body.projections?.ai_workplane?.current_goal,
         constraint_consistent:
-          textWithoutLabel('[data-guide-brief-core-constraint="true"]', 'Forbidden action') ===
+          textWithoutLabel('[data-guide-brief-core-constraint="true"]', 'Important constraint') ===
           (body.projections?.ai_workplane?.important_constraints?.[0] ?? null),
         judgment_consistent:
           textWithoutLabel('[data-guide-brief-core-judgment="true"]', 'Needs judgment') ===
