@@ -39,6 +39,11 @@ export async function checkReturnReassessment({start,client,newWork,save,passed}
   const finish=async p=>{const r=await commit(p);assert.equal(r.status,200,JSON.stringify(r.data));return r.data.saved;};
   const before=await inspect(a);assert.deepEqual(before.original_use.destination,reference(a));assert.deepEqual(before.origin.basis.ref,reference(src));
   assert.equal(before.current.status,'selected');assert.equal(before.evidence.file.digest,evidence.files[0].digest);
+  assert.deepEqual(before.evidence_comparison, {
+    basis: 'original_return', decision: reference(a), source: { ref: a.return_use.returned, kind: 'return', index: a.return_use.index },
+    file: a.return_use.original.file, same_occurrence: false, same_bytes: false,
+  });
+  assert.equal((await inspect(a, null)).evidence_comparison, null);
   const exact=await req(before.evidence.file.download+'/text',{offset:0,find:'independent login'});assert.match(exact.text,/independent login/);
   assert.equal((await req(route(a,'history'))).revisions.length,2,'all inspections stay read-only');
   assert.equal((await c.request(route(a,'inspect-use'),{use:reference(b),evidence:pick})).status,422);
@@ -70,6 +75,14 @@ export async function checkReturnReassessment({start,client,newWork,save,passed}
   assert.equal((await commit(stale)).data.error,'evidence_conditions_changed');assert.equal((await resolve(stale)).outcome,'not_saved');
   const same=await inspect(b);assert.equal(same.evidence.file.digest,evidence.files[0].digest);assert.equal(same.evidence.selection.source_head.fingerprint,advanced.fingerprint);
   assert.equal(same.current.judgment.decision,'retained');
+  const savedBasis = { basis: 'latest_reassessment', decision: reference(bAfter), source: pick, file: evidence.files[0] };
+  assert.deepEqual(same.evidence_comparison, { ...savedBasis, same_occurrence: true, same_bytes: true });
+  // The file retained its bytes through a new revision. Its occurrence changed.
+  const newer = await inspect(b, { ...pick, ref: reference(advanced) });
+  assert.deepEqual(newer.evidence_comparison, { ...savedBasis, same_occurrence: false, same_bytes: true });
+  // Choosing the initial return again differs from the evidence for the saved review.
+  const originalAgain = await inspect(b, { ref: b.return_use.returned, kind: 'return', index: b.return_use.index });
+  assert.deepEqual(originalAgain.evidence_comparison, { ...savedBasis, same_occurrence: false, same_bytes: false });
   const contextOnly=await preview(b,judgment('updated',{context:'HOLD remains; the later title did not change selected evidence.'}));
   const contextSaved=await finish(contextOnly);assert.deepEqual(contextSaved.files,b.files);
   const noChange=await c.request(route(b,'reassessment-preview'),{intent:{selection:(await inspect(b)).selection,...judgment('updated',{context:contextSaved.return_reassessment.context})}});
@@ -95,6 +108,7 @@ export async function checkReturnReassessment({start,client,newWork,save,passed}
   await req(route(evidence,'erase'),{expected:headBinding(advanced),confirm:'erase-whole-work'});
   const srcHead=(await req(route(src))).saved;await req(route(src,'erase'),{expected:headBinding(srcHead),confirm:'erase-whole-work'});
   const unavailable=await inspect(a);assert.equal(unavailable.origin.status,'unavailable');assert.equal(unavailable.evidence.status,'unavailable');assert.equal(unavailable.current.status,'ended');
+  assert.equal(unavailable.evidence_comparison, null);
   const missingForB=await inspect(b);assert.equal(missingForB.origin.status,'unavailable');assert.equal(missingForB.current.status,'selected');assert.deepEqual(missingForB.current.output,b.return_use.output);
   const available=await create('Independent saved operational condition',[{name:'condition.txt',role:'source',data:Buffer.from('Production activation remains unobserved.').toString('base64')}]);
   const independent=await preview(b,judgment('retained',{context:'Retain HOLD with an unavailable original and explicitly selected available condition.'}),{ref:reference(available),kind:'file',index:0});

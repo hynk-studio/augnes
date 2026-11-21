@@ -701,7 +701,11 @@ Open the consuming work and choose **Reconsider current use** beside its saved
 use. The original use, exact request basis/return, historical output and current
 consumer context remain visible together. **List evidence work**, select a saved
 revision/file (or a returned file), then **Read selected basis together**. Read or
-download its exact bytes. A newer timestamp, filename or similarity does not
+download its exact bytes. On a subsequent reassessment, the browser and file
+client distinguish the original return from the evidence used in the latest
+saved reassessment of that use. The comparison identifies the decision and
+source occurrence. Equal bytes may come from a different revision or file.
+A newer timestamp, filename or similarity does not
 establish correction, supersession or applicability. Missing origins are labelled
 unavailable; the consumer's own history and output remain readable. Unavailable
 selected evidence cannot supply a new save observation.

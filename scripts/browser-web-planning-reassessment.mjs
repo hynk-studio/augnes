@@ -56,12 +56,21 @@ export async function browserConsumerReassessment({c,fresh,origin,env,root,click
   const savedA=await c.eval('saved');assert.equal(savedA.return_reassessment.decision,'updated');assert.equal(savedA.files[1].digest,p.payload.return_reassessment.output.digest);
   assert.deepEqual(savedA.files[0],seed.a.files[0]);assert.deepEqual(savedA.sources,seed.a.sources);
   assert.equal(await c.eval('reassessmentRows.length'),0);
+  await button(c,'Reconsider current use');
+  await click(c,'reassessment-list');await settled(c);await set(c,'reassessment-work',seed.e.work_id);
+  await click(c,'reassessment-files');await settled(c);await set(c,'reassessment-evidence',pick);
+  await click(c,'reassessment-inspect');await settled(c);
+  const compared = await c.eval("$('reassessment-selected').innerText");
+  assert(compared.includes('Selected bytes differ from the original return.'));
+  assert(compared.includes('Selected bytes match the evidence used for the latest reassessment (consumer revision '+savedA.revision+')'));
+  await click(c,'reassessment-close');
   const folder=path.join(root,'consumer-client');await mkdir(folder,{recursive:true,mode:0o700});
   const aSetup=path.join(folder,'a.json'),bSetup=path.join(folder,'b.json'),eSetup=path.join(folder,'e.json');
   async function cli(label,args){let stdout='',stderr='';const r=await runCanonicalChild({suite:'web-planning-browser',label:'consumer-'+label,command:process.execPath,args:['apps/augnes_apps/scripts/file-exchange.mjs',...args],cwd:process.cwd(),env,timeoutMs:15000,stdout:{write:b=>stdout+=b},stderr:{write:b=>stderr+=b}});assert.equal(canonicalChildAcceptanceFailure(r,{requireNaturalExit:true}),null,stderr);return JSON.parse(stdout);}
   await cli('select-a',['select',material.aGoal,aSetup]);await cli('select-b',['select',material.bGoal,bSetup]);await cli('select-e',['select',material.evidenceGoal,eSetup]);
   const obs=path.join(folder,'b-observed.json'),choice=path.join(folder,'b-choice.json'),pending=path.join(folder,'b-pending.json');
   const bView=await cli('read-b-basis',[bSetup,'inspect-use',String(seed.b.revision),eSetup,String(seed.e.revision),'README.md','file',obs]);assert.equal(bView.original_use.destination.fingerprint,seed.b.fingerprint);
+  assert.equal(bView.evidence_comparison.basis,'original_return');assert.equal(bView.evidence_comparison.same_bytes,false);
   assert.equal((await cli('read-b-output',[bSetup,'read-saved',String(seed.b.revision),'choice.md'])).text,material.bOld);
   assert.equal((await cli('read-b-evidence',[eSetup,'read-saved',String(seed.e.revision),'README.md'])).text,material.new);
   let oldText='',offset=0;
