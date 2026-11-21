@@ -1077,7 +1077,15 @@ export function BlankStateClient({
                       <div>
                         <p><strong>Recorded status</strong> · {view.why_this_is_next.observed[0]}</p>
                         {supportingRecord?.href ? (
-                          <p>Source · <a href={scopedHref(supportingRecord.href)}>{supportingRecord.label}</a></p>
+                          <p>
+                            Source ·{" "}
+                            <a
+                              className="blank-state-exact-detail-link"
+                              href={scopedHref(supportingRecord.href)}
+                            >
+                              {supportingRecord.label}
+                            </a>
+                          </p>
                         ) : null}
                         {view.why_this_is_next.inferred[0] ? (
                           <p>
@@ -1095,6 +1103,7 @@ export function BlankStateClient({
                         ) : null}
                         <button
                           type="button"
+                          className="blank-state-secondary-button"
                           aria-haspopup="dialog"
                           aria-controls="continuities-guide-dialog"
                           aria-expanded={guideOpen}
