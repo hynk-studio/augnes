@@ -1111,7 +1111,8 @@ export async function runDirectNativeHostRoundTripV01(
       hostResult = { ...result, host_refs: result.host_refs.filter(isReportedExternalRef) };
       resultFromAdapter = true;
     } else {
-      hostResult = assertNativeHostResultV01(request, buildBoundaryTerminalResult({ request, adapter, now, ...terminal }));
+      const boundary = assertNativeHostResultV01(request, buildBoundaryTerminalResult({ request, adapter, now, ...terminal }));
+      hostResult = withSettledCancellationObservations(request, adapter, boundary, terminal.stopped_result);
     }
   } catch (error) {
     if (
@@ -2999,6 +3000,25 @@ function localActionObservations(input: ActionObservationInput): RunReceiptObser
   );
 }
 
+function withSettledCancellationObservations(request: NativeHostRequestV01, adapter: NativeHostAdapterV01,
+  boundary: NativeHostResultV01, stopped?: NativeHostResultV01): NativeHostResultV01 {
+  if (boundary.outcome !== "cancelled" || stopped?.outcome !== "cancelled" ||
+      stopped.adapter_version !== adapter.adapter_version || stopped.capability_version !== adapter.capability_version ||
+      !Array.isArray(stopped.capability_coverage) || stopped.capability_coverage.length > 64) return boundary;
+  const observations = stopped.capability_coverage.filter(entry =>
+    isObservedNativeHostTransportCoverageV01(request.request_id, entry, "retain_on_settled_cancellation"));
+  if (!observations.length) return boundary;
+  try {
+    assertNativeHostResultV01(request, stopped);
+    const result = { ...boundary, capability_coverage: [...boundary.capability_coverage, ...observations] };
+    const normalized = normalizeNativeHostResultResidueV01({ result, required_check_ids: [] });
+    return assertNativeHostResultV01(request, normalized.result);
+  } catch {
+    // A malformed report or conflicting witness cannot replace a confirmed cancellation.
+    return boundary;
+  }
+}
+
 async function invokeAdapterBounded(
   adapter: NativeHostAdapterV01,
   request: NativeHostRequestV01,
@@ -3012,7 +3032,7 @@ async function invokeAdapterBounded(
     now: () => string;
     on_invocation_started?: () => void;
   },
-): Promise<{ result: NativeHostResultV01 } | { outcome: "cancelled" | "timed_out" | "failed"; reason: string }> {
+): Promise<{ result: NativeHostResultV01 } | { outcome: "cancelled" | "timed_out" | "failed"; reason: string; stopped_result?: NativeHostResultV01 }> {
   const controller = new AbortController();
   let cancelTimeout: (() => void) | null = null;
   let cancelListener: (() => void) | null = null;
@@ -3150,7 +3170,8 @@ async function invokeAdapterBounded(
     ) {
       throw stoppedResult.error;
     }
-    return { outcome: first.outcome, reason: first.reason };
+    return { outcome: first.outcome, reason: first.reason,
+      stopped_result: first.outcome === "cancelled" && stoppedResult?.status === "fulfilled" ? stoppedResult.result : undefined };
   } finally {
     cancelTimeout?.();
     if (input.cancellation_signal && cancelListener) {

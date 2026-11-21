@@ -1108,6 +1108,26 @@ a scripted producer that writes and rereads a disposable file. On Linux x64,
 exercises the fresh Pi worker and stored patch readback. Omit the executable
 to exercise the succession and refusal checks without launching Pi.
 
+The intervention fixture exercises steering and follow-up during a running
+Pi 1.5.2 file inspection. It uses the real RPC process, agent loop and read
+tool with a deterministic local response provider inside the Linux sandbox.
+A follow-up asking for a summary is queued before a steering request to
+reread the file. The controller changes the fixture bytes after the first
+read. Pi reads the changed bytes before finishing the check, then summarizes
+that result once. Without intervention the check uses the first read.
+
+Cancelling through the operator run service after the reread recovers the
+pending follow-up before abort. After service shutdown, a fresh authenticated
+operator session can read which file checks ran and whether the follow-up was
+processed or recovered. The bounded transport observations are recorded in
+the existing receipt. The synthetic task keeps the project packet undispatched,
+so the project outcome is blocked on ordinary completion and cancelled on stop.
+The follow-up runs in a later turn of the same Pi session.
+
+Run `npm run test:project-work-initialization -- --pi-intervention-only --pi-executable /absolute/path/to/pi`
+on the supported Linux x64 sandbox. Without the executable the command tests
+the cancellation receipt and its attribution controls.
+
 Codex chooses current files, functions and focused tests from the source. Keep
 each increment reversible and reviewable in Draft PRs; existing satisfied behavior
 does not need replacement code. Current MCP, project-navigation and reconciliation
