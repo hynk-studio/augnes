@@ -1126,7 +1126,7 @@ function itemV01(input: {
     unsupported_reason?: string;
   };
 }): BlankStateContinuityItemV01 {
-  const itemId = stableItemIdV01(input.family, input.stable_basis);
+  const itemId = continuityItemIdV01(input.family, input.stable_basis);
   return {
     item_id: itemId,
     source_family: input.family,
@@ -1430,7 +1430,7 @@ function timestampValueV01(value: string | null): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function stableItemIdV01(family: string, basis: string): string {
+export function continuityItemIdV01(family: BlankStateContinuityItemV01["source_family"], basis: string): string {
   return `continuity:${family}:${createHash("sha256")
     .update(basis)
     .digest("hex")

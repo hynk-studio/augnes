@@ -1083,7 +1083,10 @@ export const GuideBriefResultSchema = z
     needs_user_judgment: z.array(z.object({ item_id: z.string(), question: z.string(), why_it_matters: z.string(), blocked: z.array(z.string()), source_refs: z.array(z.string()), resolved: z.literal(false) })),
     primary_guidance: z.object({ label: z.string(), reason: z.string(), href: z.string().nullable(), action_ref: z.string().nullable(), requires_user_judgment: z.boolean(), source_refs: z.array(z.string()), executes: z.literal(false) }).passthrough(),
     source_refs: z.array(z.object({ ref_id: z.string(), kind: z.string(), label: z.string(), href: z.string().nullable() })),
-    projections: z.object({ chatgpt: z.record(z.unknown()), codex: z.record(z.unknown()) }).passthrough(),
+    projections: z.object({
+      chatgpt: z.object({ constraints: z.array(z.string()).optional() }).passthrough(),
+      codex: z.object({ constraints: z.array(z.string()).optional() }).passthrough(),
+    }).passthrough(),
     authority: GuideBriefAuthorityBoundarySchema,
     safety: z.object({
       contains_private_absolute_paths: z.literal(false),

@@ -143,6 +143,7 @@ export interface GuideBriefAIWorkplaneProjectionV02 {
   project_name: string | null;
   current_coordinate: string;
   current_goal: string | null;
+  constraint_kind?: "forbidden_actions";
   important_constraints: string[];
   work_or_result_status: string;
   material_blocker_or_judgment: string | null;
@@ -160,6 +161,7 @@ export interface GuideBriefChatGPTProjectionV02 {
   summary: string;
   goal: string | null;
   status: string;
+  constraint_kind?: "forbidden_actions";
   constraints: string[];
   required_checks: string[];
   non_goals: string[];
@@ -184,6 +186,7 @@ export interface GuideBriefCodexProjectionV02 {
   project_name: string | null;
   current_goal: string | null;
   current_coordinate: string;
+  constraint_kind?: "forbidden_actions";
   constraints: string[];
   required_checks: string[];
   non_goals: string[];

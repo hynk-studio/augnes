@@ -2,8 +2,12 @@
 
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, renameSync, rmSync } from "node:fs";
+import { createRequire, registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 import Database from "better-sqlite3";
 
@@ -276,6 +280,50 @@ function view(sourceValue: BlankStateSourceV01) {
     generated_at: "2026-07-23T00:00:00.000Z",
   });
   return buildBlankStateViewV01(guide);
+}
+
+async function assertGuideBriefMarkup(source: BlankStateSourceV01) {
+  // Node renders the production components without Next's CSS-module loader.
+  const styles = registerHooks({
+    load(url, context, next) {
+      if (url.endsWith(".module.css")) {
+        return { format: "commonjs", source: "module.exports = {};", shortCircuit: true };
+      }
+      return next(url, context);
+    },
+  });
+  const [{ BlankStateSurface }, { ProjectGuideBriefRail }] = await Promise.all([
+    import("../components/blank-state/blank-state-surface"),
+    import("../components/guide/project-guide-brief-rail"),
+  ]).finally(() => styles.deregister());
+  const { parse }: { parse(html: string): ParentNode } =
+    createRequire(import.meta.url)("next/dist/compiled/node-html-parser");
+  const guide = buildProjectGuideBriefV02({ source, generated_at: "2026-07-23T01:00:06.000Z" });
+  const navigate = () => assert.fail("Rendering the home dispatched navigation");
+  const router = {
+    back: navigate, forward: navigate, push: navigate, replace: navigate,
+    refresh: navigate, prefetch: navigate, bfcacheId: "guide-test",
+  };
+  const home = parse(renderToStaticMarkup(createElement(
+    AppRouterContext.Provider, { value: router },
+    createElement(BlankStateSurface, { source, guide }),
+  )));
+  const situation = home.querySelector(".continuities-current-situation");
+  assert.equal(home.querySelectorAll("[data-blank-state-primary-action]").length, 1);
+  assert.ok(situation);
+  assert.ok(situation.querySelector("[data-blank-state-primary-action]"));
+  const opener = situation.querySelector('[data-guide-brief-disclosure] button[aria-haspopup="dialog"][aria-controls]');
+  assert.ok(opener);
+  assert.equal(opener.getAttribute("aria-controls"), home.querySelector("dialog")?.getAttribute("id"));
+
+  for (const rule of ["Publish externally without approval.", "Do not disclose <private> files."]) {
+    const rail = parse(renderToStaticMarkup(createElement(ProjectGuideBriefRail, {
+      guide: { ...guide.projections.ai_workplane, important_constraints: [rule] },
+    })));
+    const value = rail.querySelector("dl > dt + dd[data-guide-brief-core-constraint]");
+    assert.equal(value?.textContent, rule);
+    assert.equal(value?.previousElementSibling?.textContent, "Forbidden action");
+  }
 }
 
 async function main() {
@@ -1152,6 +1200,7 @@ async function main() {
   const canonical = await loadBlankStateSourceV01({ route_mode: "canonical" }, { open_database: openDatabase });
   assert.equal(canonical.projection?.project_id, projectA.project.project_id);
   assert.equal(canonical.route_mode, "canonical");
+  await assertGuideBriefMarkup(canonical);
 
   const management = await loadBlankStateSourceV01({ route_mode: "project_management" }, { open_database: openDatabase });
   assert.equal(management.projection?.project_id, projectA.project.project_id);
@@ -1169,7 +1218,8 @@ async function main() {
   assert.equal(missing.projection?.project_summary.root_availability, "missing");
 
   console.log(JSON.stringify({
-    assertion_sites: 102,
+    assertion_sites: 159,
+    rendered_guide_brief: true,
     blank_state_focuses: [
       "no_projects",
       "project_choice",

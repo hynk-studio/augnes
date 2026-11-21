@@ -792,6 +792,11 @@ async function main() {
     false,
     "augnes_get_guide_brief should preserve route boundary OpenAI/provider denial"
   );
+  assert.deepEqual(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBrief.forbidden_actions,
+    ["Do not approve automatically"],
+    "Compact GuideBrief labels the original forbidden actions for an older v0.2 producer",
+  );
   assert.match(
     bridgeSnapshot.profiles.augnes_get_guide_brief.text,
     /Suggestions are not instructions/i,

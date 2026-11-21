@@ -61,7 +61,7 @@ async function main() {
     "Inferred with caveats",
     "Suggested",
     "Needs user judgment",
-    "Constraints",
+    "Forbidden actions",
     "Required checks",
     "Authority boundary",
     "Source status",

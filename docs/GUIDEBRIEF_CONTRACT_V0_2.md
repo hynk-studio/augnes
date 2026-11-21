@@ -53,6 +53,17 @@ provider output or hidden reasoning.
 - Blank State, AI Workplane, ChatGPT and Codex projections;
 - an explicit all-false authority boundary and public-safety statement.
 
+The recommendation cites the observation of the selected work, including when
+the selected attention item falls outside the ordinary three-entry summary.
+The compact read keeps that observation. The confidence field describes support
+for the recommendation. A direct work record with complete attention coverage
+supports `medium`. Indirect, incomplete or reconciliation context uses `low`.
+
+New projections mark the existing bounded constraint lists with
+`constraint_kind: "forbidden_actions"`. Compact MCP exposes the same bounded
+list as `forbidden_actions`. The Browser and CLI label the entries as prohibited
+and preserve their polarity, including entries already phrased in the negative.
+
 Observed statements are backed by current read-model refs. Inferences cite
 observations and include confidence and caveats. Suggestions execute nothing.
 User judgments remain unresolved and state why they matter and what they block.

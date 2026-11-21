@@ -1115,6 +1115,9 @@ function nextActionAnswerV01(
       "The selected-work timeline needed for this question is missing.",
     );
   }
+  if (!input.timeline && input.guide.source_status === "unavailable") {
+    return unavailableAnswerV01("The current project recommendation is unavailable.", "The current project could not be read.");
+  }
   const timeline = input.timeline ?? null;
   const label =
     timeline?.current_position.next_meaningful_step ??
@@ -1125,15 +1128,19 @@ function nextActionAnswerV01(
   const destination =
     timeline?.current_position.destination ??
     input.guide.primary_guidance.href;
+  const cited = input.guide.primary_guidance.source_refs;
+  const observation = input.guide.observed.find((item) =>
+    item.source_refs.some((id) => cited.includes(id)));
   return {
     availability:
       input.guide.source_status === "partial" ? "partial" : "available",
     direct_answer:
       `The next meaningful step is: ${label} This is a recommendation and does not perform the action.`,
     sections: {
-      observed_or_exact_basis: reason,
-      bounded_interpretation:
-        "This answer compresses the existing next-step projection; it does not select or own the action.",
+      observed_or_exact_basis: timeline ? reason : observation?.statement ?? null,
+      bounded_interpretation: timeline
+        ? "This answer compresses the existing next-step projection; it does not select or own the action."
+        : reason,
       uncertainty_conflict_or_limitation:
         input.guide.coordinate.material_blocker_or_uncertainty,
       human_attention_meaning: attentionMeaningV01(input.guide),
@@ -1142,7 +1149,7 @@ function nextActionAnswerV01(
     },
     internal_source_refs: timeline
       ? timeline.items.flatMap(timelineRefsV01)
-      : guideRefsV01(input.guide),
+      : input.guide.source_refs.filter((ref) => cited.includes(ref.ref_id)).map((ref) => guideRefV01(ref, "guide_brief")),
     source_completeness: {
       status: input.guide.source_status === "partial" ? "partial" : "complete",
       summary: timeline

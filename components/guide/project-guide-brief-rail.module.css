@@ -11,15 +11,15 @@
 }
 
 .rail > * { min-width: 0; }
-.rail p { margin: 0; overflow-wrap: anywhere; }
+.rail p, .rail dl, .rail dd { margin: 0; overflow-wrap: anywhere; }
 .rail a { color: var(--accent-strong); font-weight: 750; }
 .voice { display: grid; align-content: start; gap: var(--space-1); }
 .voice > strong { font-size: 1rem; line-height: 1.35; }
 .voice > p:last-child { color: var(--muted); font-size: .84rem; line-height: 1.45; }
 .label { color: var(--accent-strong); font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .context { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2) var(--space-3); }
-.context p { color: var(--foreground); font-size: .84rem; line-height: 1.45; }
-.context p > span { display: block; margin-bottom: 2px; color: var(--muted); font-size: .69rem; font-weight: 800; letter-spacing: .045em; text-transform: uppercase; }
+.context p, .context dl { color: var(--foreground); font-size: .84rem; line-height: 1.45; }
+.context p > span, .context dt { display: block; margin-bottom: 2px; color: var(--muted); font-size: .69rem; font-weight: 800; letter-spacing: .045em; text-transform: uppercase; }
 .context a { width: fit-content; font-size: .8rem; }
 .note { padding-left: var(--space-2); border-left: 2px solid var(--risk); color: #704b19 !important; }
 .focus { font-weight: 700; }
