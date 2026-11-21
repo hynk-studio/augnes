@@ -2,7 +2,7 @@
 import { EXTERNAL_TOOL, externalToolDescription, callExternal } from './external-response.mjs';
 
 import { createHash } from "node:crypto";
-import { lstatSync, readFileSync, readdirSync } from "node:fs";
+import { lstatSync, readFileSync, readdirSync, realpathSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { callReview } from "./review-connection.mjs";
@@ -165,10 +165,16 @@ function readManifestCandidateV01(manifestPath) {
   const ui = children.get("ui");
   const bridge = children.get("bridge");
   if (!validChildV01(ui, manifest.ui_port) || !validChildV01(bridge, manifest.bridge_port)) return null;
+  let runtimeDirectory;
+  try { runtimeDirectory = realpathSync(path.dirname(manifestPath)); }
+  catch { return null; }
 
   return {
     manifest,
     companion: {
+      // Local connection setup uses this lookup location; never expose it in
+      // ordinary tool results or treat it as authentication.
+      runtime_state_directory: runtimeDirectory,
       ui_url: manifest.effective_url,
       proxy_token: access.proxy_token,
       instance_id: manifest.instance_id,

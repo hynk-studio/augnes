@@ -73,21 +73,54 @@ the existing private Companion readers. It is not registered on the public App
 or the default local Operator, and an old public `work_id` never follows native
 task preparation.
 
-The local operator configures `AUGNES_CONNECTED_PROJECT_ROOT` once with the
-intended registered physical repository root and `AUGNES_CONNECTED_PROJECT_KEY`
-with that project's exact opaque `repository_resolution.project_key` from a
-normal local Resume. Both are required at launch. They are configuration, not
-model arguments or credentials; the user need not discover database paths,
-packet IDs or access tokens. A later different project requires a separately
-reviewed connection binding, even if it uses the same folder. There is no
-automatic project switching or mapping from a public App ID.
+With the intended Companion available and the project already registered, the
+local operator prepares the connection once:
+
+```bash
+node plugins/augnes-operator/mcp/connected-project-reader.mjs --prepare /absolute/path/to/project
+```
+
+This read-only command prints a local stdio MCP configuration. Save its command,
+arguments and environment in the approved connection host. It derives the
+project key and Companion lookup binding from verified discovery and an
+authenticated repository read, then rechecks the generation. It does not write
+files, register projects, install a transport or transmit anything to a remote
+destination. No opaque identifier or credential needs to be relayed by the user.
+
+The generated environment retains `AUGNES_CONNECTED_PROJECT_ROOT`,
+`AUGNES_CONNECTED_PROJECT_KEY`, `AUGNES_RUNTIME_STATE_DIR` and
+`AUGNES_CONNECTED_COMPANION_REPOSITORY`. The runtime directory and source-checkout
+fingerprint select the intended Companion; they are lookup keys, not physical
+service enrollment or authentication. The project key already binds canonical
+workspace and project identity. Every read still requires the existing live
+generation, authenticated route and exact project/snapshot checks. Ambient
+discovery hints cannot override the prepared target. A restart may supply a new
+verified generation at that target; a generation change during a read withholds
+the response without retrying it.
+
+In a fresh host session, reuse this saved connection and call
+`augnes_read_connected_project_work` without arguments to recover the current
+saved definition and selected notes. If its Companion is absent, another healthy
+runtime is never selected. The refusal explains that no work was changed by this
+read and directs the user to the connected Companion's existing local entry.
+A read does not establish whether an earlier save or run completed. Unsaved
+drafts, universal autosave, crash recovery and cross-device synchronization are
+outside this reader's persistence guarantee. Connecting a different target or
+project requires explicit connection preparation again.
+
+Existing two-value configurations remain compatible with singleton discovery;
+they do not acquire the prepared connection's target-bound fresh-session
+guarantee. This increment supports only the separate read-only adapter. It does
+not activate a second production service, enroll full Operator/write/delegation/
+lifecycle clients for multi-service use, or claim general multi-Companion support.
+The existing single-production-service limit remains in force.
 
 The supported private transport candidate is OpenAI's
 [Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels),
 whose documented stdio mode can launch this entry point with Node 24. The
 operator must authorize the exact destination ChatGPT workspace/connection and
 the transmission of this project's **current definition and whole selected
-notes**, then configure that command and the two environment values in the
+notes**, then configure the generated command, arguments and environment in the
 approved local transport. Pipe access belongs to that operator-controlled
 parent. This adapter creates no HTTP listener, tunnel, credential, service or
 account association and does not authenticate an arbitrary remote client itself.

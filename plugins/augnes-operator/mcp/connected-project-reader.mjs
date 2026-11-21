@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   selectCompanionForReadonlyRouteV01,
   readRepositoryContinuityV01,
@@ -21,7 +21,8 @@ const AUTHORITY = Object.freeze({
 // A distinct opt-in stdio entry point, never an HTTP proxy or an Operator
 // tools/list filter. Only the three existing read functions are imported.
 // The parent owns pipe access and authenticated transport/destination approval.
-export function createConnectedProjectReaderV01({ repositoryRoot, projectKey }, {
+export function createConnectedProjectReaderV01({ repositoryRoot, projectKey, companionTarget = null }, {
+  environment = process.env,
   discover = selectCompanionForReadonlyRouteV01,
   readContinuity = readRepositoryContinuityV01,
   readSources = readRepositoryWorkSourcesV01,
@@ -30,10 +31,20 @@ export function createConnectedProjectReaderV01({ repositoryRoot, projectKey }, 
       typeof projectKey !== "string" || !FINGERPRINT.test(projectKey)) {
     throw new Error("connected_project_configuration_required");
   }
+  const target = copyTarget(companionTarget);
+  const connectionEnvironment = targetEnvironment(environment, target);
+
+  async function select() {
+    const selected = await discover(connectionEnvironment);
+    if (selected.status === "resolved" && target && !matchesTarget(selected.companion, target)) {
+      return { status: "connected_companion_mismatch", companion: null };
+    }
+    return selected;
+  }
 
   async function read() {
     try {
-      const selected = await discover();
+      const selected = await select();
       if (selected.status !== "resolved") return result("unavailable", selected.status);
       const companion = selected.companion;
       const resumed = await readContinuity(companion, repositoryRoot);
@@ -64,6 +75,15 @@ export function createConnectedProjectReaderV01({ repositoryRoot, projectKey }, 
       if (sources.status !== "available") return result(sources.status, sources.reason);
       if (sources.snapshot_binding !== continuity.snapshot.binding) {
         return result("refresh_required", "snapshot_changed");
+      }
+      if (target) {
+        // A response can arrive after a restart or target replacement. Do not
+        // deliver old-generation material or redispatch it to another runtime.
+        const current = await select();
+        if (current.status !== "resolved") return result("unavailable", current.status);
+        if (current.companion.binding !== companion.binding) {
+          return result("refresh_required", "companion_identity_changed");
+        }
       }
       const work = continuity.current_work;
       return result("available", "current_native_work", {
@@ -122,9 +142,77 @@ export function createConnectedProjectReaderV01({ repositoryRoot, projectKey }, 
   };
 }
 
+function copyTarget(target) {
+  if (target === null) return null; // Retained legacy singleton configuration.
+  if (!target || Object.keys(target).sort().join(",") !== "repositoryFingerprint,runtimeStateDirectory" ||
+      typeof target.runtimeStateDirectory !== "string" || !path.isAbsolute(target.runtimeStateDirectory) ||
+      !/^[a-f0-9]{64}$/u.test(target.repositoryFingerprint ?? "")) {
+    throw new Error("connected_companion_configuration_required");
+  }
+  return Object.freeze({ runtimeStateDirectory: path.resolve(target.runtimeStateDirectory),
+    repositoryFingerprint: target.repositoryFingerprint });
+}
+
+function targetEnvironment(environment, target) {
+  const selected = { ...environment };
+  if (target) {
+    // An ambient test manifest must not override the saved connection either.
+    delete selected.AUGNES_COMPANION_RUNTIME_MANIFEST;
+    selected.AUGNES_RUNTIME_STATE_DIR = target.runtimeStateDirectory;
+  }
+  return Object.freeze(selected);
+}
+
+function matchesTarget(companion, target) {
+  return companion.runtime_state_directory === target.runtimeStateDirectory &&
+    companion.repository_fingerprint === target.repositoryFingerprint;
+}
+
+// One-time local setup derives opaque identities from authenticated readers.
+// It prints configuration only: no registration, file write or transport setup.
+export async function prepareConnectedProjectConnectionV01(repositoryRoot, {
+  environment = process.env,
+  discover = selectCompanionForReadonlyRouteV01,
+  readContinuity = readRepositoryContinuityV01,
+} = {}) {
+  if (typeof repositoryRoot !== "string" || !path.isAbsolute(repositoryRoot)) {
+    throw new Error("connected_project_configuration_required");
+  }
+  const selected = await discover({ ...environment });
+  if (selected.status !== "resolved") throw new Error("connected_companion_unavailable");
+  const companion = selected.companion;
+  const target = copyTarget({ runtimeStateDirectory: companion.runtime_state_directory,
+    repositoryFingerprint: companion.repository_fingerprint });
+  const resumed = await readContinuity(companion, repositoryRoot);
+  const projectKey = resumed.repository_resolution.project_key;
+  if (resumed.repository_resolution.status !== "resolved_exact" || !FINGERPRINT.test(projectKey ?? "") ||
+      resumed.continuity?.project.project_key !== projectKey) {
+    throw new Error("connected_project_unavailable");
+  }
+  const current = await discover(targetEnvironment(environment, target));
+  if (current.status !== "resolved" || !matchesTarget(current.companion, target) ||
+      current.companion.binding !== companion.binding) throw new Error("connected_companion_changed");
+  return { mcpServers: { "augnes-connected-project": {
+    command: process.execPath,
+    args: [fileURLToPath(import.meta.url)],
+    env: {
+      AUGNES_CONNECTED_PROJECT_ROOT: repositoryRoot,
+      AUGNES_CONNECTED_PROJECT_KEY: projectKey,
+      AUGNES_RUNTIME_STATE_DIR: target.runtimeStateDirectory,
+      AUGNES_CONNECTED_COMPANION_REPOSITORY: target.repositoryFingerprint,
+    },
+  } } };
+}
+
 function result(status, reason, material = {}) {
   const structuredContent = {
     projection_version: "connected_project_work.v0.1", status, reason, ...material,
+    ...(status === "available" ? {} : {
+      message: "The connected project's saved work was not delivered. This read changed no work and does not establish the outcome of an earlier save or run.",
+      next_action: status === "refresh_required"
+        ? "Read the same connection again for its current saved basis. No replacement material was delivered."
+        : "Check the connected Companion through its existing local entry, then read again. To connect different work, prepare a new connection explicitly.",
+    }),
     source_material_authority: "untrusted_selected_context",
     authority: AUTHORITY,
   };
@@ -140,11 +228,21 @@ function failure(id, code, message) { return { jsonrpc: "2.0", id, error: { code
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
-    const handler = createConnectedProjectReaderV01({
-      repositoryRoot: process.env.AUGNES_CONNECTED_PROJECT_ROOT,
-      projectKey: process.env.AUGNES_CONNECTED_PROJECT_KEY,
-    });
-    await runStdioV01(handler);
+    if (process.argv[2] === "--prepare" && process.argv.length === 4) {
+      process.stdout.write(`${JSON.stringify(await prepareConnectedProjectConnectionV01(process.argv[3]), null, 2)}\n`);
+    } else {
+      if (process.argv.length !== 2) throw new Error("connected_project_arguments_invalid");
+      const targetFingerprint = process.env.AUGNES_CONNECTED_COMPANION_REPOSITORY;
+      const handler = createConnectedProjectReaderV01({
+        repositoryRoot: process.env.AUGNES_CONNECTED_PROJECT_ROOT,
+        projectKey: process.env.AUGNES_CONNECTED_PROJECT_KEY,
+        companionTarget: targetFingerprint === undefined ? null : {
+          runtimeStateDirectory: process.env.AUGNES_RUNTIME_STATE_DIR,
+          repositoryFingerprint: targetFingerprint,
+        },
+      });
+      await runStdioV01(handler);
+    }
   } catch {
     process.stderr.write("connected_project_reader_unavailable: check the local project binding configuration.\n");
     process.exitCode = 1;
