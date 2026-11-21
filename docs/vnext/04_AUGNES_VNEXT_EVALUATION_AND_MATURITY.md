@@ -3005,6 +3005,22 @@ and other affected host-native projections about:
 Different wording, density, and interaction grammar are allowed. Materially
 different product meaning is not.
 
+For an affected question, check what earlier grounds support in ordinary work,
+including uninterrupted work on one host. With equivalent grounds, cutoff and
+rules, readers must preserve established facts and their limits. Different
+permitted choices can follow. A view that omits available decisive evidence
+and a view that asserts more than its evidence supports can both mislead.
+Where records conflict, resolve or report the affected uncertainty while
+allowing independently supported work to continue.
+
+For example, an approval that becomes visible later may change today's plan
+without making that approval visible to yesterday's reader. When new evidence
+matches the latest review but differs from the original return, establish
+which comparison the reader is seeing. In neither case do matching bytes or
+a recorded attempt establish an external outcome. Apply checks to the change
+and claim at hand. Evidence of later use and comparisons of practical benefit
+belong to their respective claims.
+
 ### Attention precision
 
 Blank State and any attention queue must prioritize consequential human

@@ -3599,6 +3599,21 @@ contradictions_for(claim)
 perspective_basis_at(project, t)
 ```
 
+For a continuity projection, distinguish the time a decision applied from the
+information available on the reading path at its cutoff. Evidence received
+later can establish a past decision without showing that an earlier reader
+could know it. The supported path, a source actually consulted, and the use
+made of it are distinct claims. Existing work, revision, source, review and
+effect records can supply those relationships.
+
+Resolve the question against the evidence and rules that could apply. When
+consistent interpretations disagree, keep the affected claim conditional.
+When none is consistent, the conflict supplies no factual conclusion or
+action authority on that basis. Independent work with its own adequate basis
+can proceed. An action permitted under uncertainty may still have an unknown
+outcome. A newer source revision or a matching digest alone establishes
+neither a change of meaning nor adoption by the receiving project.
+
 ### 7.3 bitemporal/tri-temporal posture
 
 초기 구현은 모든 aggregate를 완전한 temporal DB로 재작성하지 않아도 된다. 그러나 API와 event envelope는 시간 차원을 잃지 않아야 하며, projection은 과거 snapshot과 lineage를 재구성할 수 있어야 한다.

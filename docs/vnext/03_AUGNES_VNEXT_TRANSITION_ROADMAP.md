@@ -661,6 +661,24 @@ Recurring research/development operators and contributors are initial example
 cases, not an admission list or established product-market fit. Read-only,
 fixed-function and one-time participants remain within the product scope.
 
+### Applying project continuity to existing work
+
+Apply the [project continuity foundation](./01_AUGNES_VNEXT_MASTERPLAN.md#project-continuity-in-ordinary-work)
+through the owners that already serve the question. This maps existing
+implementation and the first bounded application within P3/P4/P5.
+
+| Where work continues | Existing implementation and boundary |
+| --- | --- |
+| Current work and effective direction | The [native direction reader](../../lib/vnext/persistence/project-direction-store.ts) binds pending work to its selected decision. [Codex current work](../../lib/vnext/codex-current-continuity/codex-current-continuity.ts) checks that binding before Start. Web private projects own their separate work and revision histories. |
+| Reconsidering a saved judgment | The [Web reassessment reader](../../apps/web_planning/src/return-reassessment-ops.ts) serves the browser and the [file client](../../apps/augnes_apps/scripts/web-file-client.mjs). The first application is to distinguish newly selected bytes from the evidence used for this consumer's most recent saved judgment, even when the original return differs. |
+| Conditional outlook and observed result | The [native expectation store](../../lib/vnext/persistence/work-expectation-store.ts) binds a pre-outcome expectation to one criterion and attempt. A later result can be compared only within that binding and its cutoff. Broader forecast learning requires later-work evidence. |
+| Action, effects and remaining commitments | The [external response owner](../../lib/vnext/external-response.ts) and [work handoff reader](../../lib/vnext/work-handoff.ts) preserve unresolved effects and obligations within their supported scopes. A returned result, a receiving project's assessed use and an external effect have separate owners. |
+| Changed purposes and reusable methods | [Web cooperation and method derivation](#web-undertaking-implementation-commission--2026-11-11) distinguish a project's own later work from another project's reuse. Broader claims about project amendment or closure depend on the applicable decision and affected commitments. |
+
+A material gap in one of these paths can be addressed by its owner. A
+platform-wide dependency index and cross-device synchronization remain open
+implementation choices.
+
 ### Selective model application across local and web work
 
 The [Anticipate responsibility](./01_AUGNES_VNEXT_MASTERPLAN.md#anticipate) is
