@@ -160,12 +160,13 @@ async function main(): Promise<void> {
   const initializationStarted = performance.now();
   const cumulativeNetwork = process.argv.some(a => a.startsWith("--cumulative-")) ? installZeroNetworkGuard({ allowLoopback: true }) : null;
   try {
-    if (process.argv.includes("--pi-project-file-only") || process.argv.includes("--pi-successor-only")) {
+    if (process.argv.includes("--pi-project-file-only") || process.argv.includes("--pi-successor-only") || process.argv.includes("--pi-intervention-only")) {
       const index = process.argv.indexOf("--pi-executable");
       const executable = index < 0 ? undefined : process.argv[index + 1];
       if (index >= 0 && (!executable || !path.isAbsolute(executable))) throw new Error("--pi-executable requires an absolute path");
       if (executable && (process.platform !== "linux" || process.arch !== "x64")) throw new Error("The approved Pi executable requires Linux x64");
-      if (process.argv.includes("--pi-successor-only")) await assertPiSuccessorRouteV01(true, executable);
+      if (process.argv.includes("--pi-intervention-only")) await assertPiInterventionV01(executable);
+      else if (process.argv.includes("--pi-successor-only")) await assertPiSuccessorRouteV01(true, executable);
       else await assertPiProjectFileRouteV01(executable);
       return;
     }
@@ -264,6 +265,7 @@ async function main(): Promise<void> {
     await assertSeparateNativeHostStartV01();
     await assertNativeHostReceiptProvenanceV01();
     await assertPiRpcProjectLifecycleV01();
+    await assertPiInterventionV01();
     await assertPiProjectFileRouteV01();
     await assertPiSuccessorRouteV01(false);
     await assertRevisedNativeHostStartV01();
@@ -4807,6 +4809,21 @@ async function assertPiProjectFileRouteV01(executable?: string): Promise<void> {
       non_goals: ["Do not apply the patch"],
     }), executable);
   } finally { fixture.db.close(); }
+}
+
+async function assertPiInterventionV01(executable?: string): Promise<void> {
+  const { checkPiIntervention } = await import("./pi-intervention-checks");
+  const scenarios = executable ? ["baseline", "finish", "cancel", "witness_control", "wrong_envelope"] as const :
+    ["witness_control", "wrong_envelope"] as const;
+  for (const scenario of scenarios) {
+    const fixture = createFixtureV01("pi-intervention-" + scenario, false, true, true);
+    try {
+      const work = defineInitialProjectWorkV01(fixture.db, { config: fixture.config,
+        credential: authenticatedSessionV01(fixture, "pi"), request: requestV01(fixture), clock: fixedClock(T2) });
+      await checkPiIntervention({ config: fixture.config, credential: credentialFromCookieV01(work.session_admission.cookie_value),
+        readCredential: credentialFromCookieV01, executable, scenario });
+    } finally { fixture.db.close(); }
+  }
 }
 
 async function assertPiRpcProjectLifecycleV01(pinnedExecutable?: string): Promise<void> {

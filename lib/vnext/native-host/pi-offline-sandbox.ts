@@ -4,6 +4,10 @@ import { PI_OFFLINE_RPC_FLAGS_V01 } from "./pi-rpc-lifecycle";
 // The child receives one writable host file, one read-only check, its runtime
 // files and private scratch. Every source path except the OS runtime is ours.
 export function piOfflineSandboxArgs(root: string, probePort?: number): string[] {
+  return [...piOfflineSandboxPrefix(root, probePort), "--remount-ro", "/", "--chdir", "/workspace", "--", "/bin/pi", ...PI_OFFLINE_RPC_FLAGS_V01];
+}
+
+export function piOfflineSandboxPrefix(root: string, probePort?: number): string[] {
   const systemFiles = ["/lib64/ld-linux-x86-64.so.2", "/bin/bash", "/usr/bin/readlink",
     ...["libc.so.6", "libdl.so.2", "libm.so.6", "libpthread.so.0", "libtinfo.so.6"]
       .map(name => "/lib/x86_64-linux-gnu/" + name)];
@@ -23,6 +27,5 @@ export function piOfflineSandboxArgs(root: string, probePort?: number): string[]
     "--ro-bind", path.join(root, "pi"), "/bin/pi",
     "--ro-bind", path.join(root, "check.sh"), "/fixture/check.sh",
     "--bind", path.join(root, "answer.txt"), "/workspace/answer.txt",
-    "--remount-ro", "/", "--chdir", "/workspace", "--", "/bin/pi", ...PI_OFFLINE_RPC_FLAGS_V01,
   ];
 }
