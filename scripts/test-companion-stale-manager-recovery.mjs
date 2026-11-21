@@ -190,7 +190,7 @@ async function fixture() {
     const launchctl = args => {
       assert.equal(args[1], `gui/${process.getuid()}/${configuration.service_label}`);
       if (args[0] === "print") return loaded ? { status: 0,
-        stdout: `${args[1]} = {\n path = ${layout.launch_agent_path}\n program = ${jobProgram ?? configuration.node_path}\n working directory = ${repositoryRoot}\n${jobPid === null ? "" : ` pid = ${jobPid}\n`} arguments = {\n ${configuration.node_path}\n ${configuration.manager_entry_path}\n run\n --config\n ${layout.configuration_path}\n }\n}\n` } : { status: 113, stdout: "" };
+        stdout: `${args[1]} = {\n active count = ${jobPid === null ? 0 : 1}\n path = ${layout.launch_agent_path}\n program = ${jobProgram ?? configuration.node_path}\n working directory = ${repositoryRoot}\n${jobPid === null ? "" : ` pid = ${jobPid}\n`} arguments = {\n ${configuration.node_path}\n ${configuration.manager_entry_path}\n run\n --config\n ${layout.configuration_path}\n }\n}\n` } : { status: 113, stdout: "" };
       assert.deepEqual(args, ["bootout", `gui/${process.getuid()}/${configuration.service_label}`]);
       assert.equal(jobPid, null, "only the exact definition without an active PID may be booted out");
       bootouts++;
@@ -202,7 +202,8 @@ async function fixture() {
       .map(file => [file, fs.readFileSync(file)]);
     return { root, repositoryRoot, layout, configuration, desired, manager, managerLock, historical, dead, unrelated, liveWitness,
       owned, environment, options: { ...options, launchctl }, idle, cleanup, effects: () => bootouts,
-      setJobPid: value => { jobPid = value; }, setJobProgram: value => { jobProgram = value; } };
+      setJobPid: value => { jobPid = value; }, setJobProgram: value => { jobProgram = value; },
+      reloadJob: () => { loaded = true; } };
   } catch (error) {
     try { await cleanup(); }
     catch (cleanupError) { throw new AggregateError([error, cleanupError], "stale-manager fixture setup and cleanup failed"); }
@@ -366,6 +367,131 @@ run("confirmed-missing-manager", async f => {
   const preview = await core.prepareCompanionStaleManagerRecovery(f.options);
   assert.equal((await apply(f, preview.decision)).result, "settled");
   await assertStopped(f);
+});
+
+function retainStartup(f, fields = {}) {
+  const manager = {
+    ...f.manager, status: "starting", reason: "companion_service_runtime_starting",
+    manager_process_identity: digest("previous startup at " + f.unrelated.pid),
+    runtime_ownership: null, updated_at: "2001-01-01T00:00:00.000Z", ...fields,
+  };
+  json(f.layout.manager_state_path, manager);
+  json(f.layout.manager_lock_path, { ...f.managerLock, owner_pid: manager.manager_pid,
+    owner_process_identity: manager.manager_process_identity, acquired_at: manager.updated_at });
+  json(f.layout.desired_state_path, f.desired);
+  f.reloadJob();
+  return manager;
+}
+
+run("prior-boot-startup-recovery-with-settled-history", async f => {
+  const legacy = await core.prepareCompanionStaleManagerRecovery(f.options);
+  await apply(f, legacy.decision);
+  const liveHistory = fs.readFileSync(f.layout.stale_manager_recovery_path);
+  const manager = retainStartup(f);
+  const observed = core.publicCompanionServiceProjection(await core.inspectCompanionService(f.options));
+  assert.equal(observed.status, "recovery_required");
+  assert.equal(observed.reason, "companion_service_starting_manager_identity_conflict");
+  assert.equal(observed.start_available, false);
+  assert.equal(observed.canonical_resume_available, false);
+  assert.match(observed.next_action, /stale-manager-recovery-inspect/u);
+  await assert.rejects(core.startCompanionService(f.options), { code: observed.reason });
+  assert.equal((await core.inspectCompanionStaleManagerRecovery(f.options)).result, "retirement_available");
+  const preview = await core.prepareCompanionStaleManagerRecovery(f.options);
+  assert.equal(f.effects(), 1, "status, refused Start and preparation have no launch effects");
+  await assert.rejects(apply(f, preview.decision, { testStaleManagerRecoveryStageHook(stage) {
+    if (stage === "after_manager") throw Error("interrupt startup retirement");
+  } }), /interrupt startup retirement/u);
+  assert.equal((await core.inspectCompanionStaleManagerRecovery(f.options)).result, "incomplete");
+  await assert.rejects(core.startCompanionService(f.options), /stale_manager_incomplete/u);
+  await assert.rejects(apply(f, preview.decision), /decision_stale/u);
+  const resumed = await core.prepareCompanionStaleManagerRecovery(f.options);
+  assert.equal((await apply(f, resumed.decision)).result, "settled");
+  await assertStopped(f);
+  const preserved = await installedReader.inspectCompanionPreservation(f.options);
+  assert.equal(preserved.state.preservation_valid, true);
+  assert.equal(preserved.state.status, "installed_stopped");
+  assert.equal(preserved.state.checkout_relation, "exact");
+  assert.equal(preserved.diagnostics.coherent, true);
+  assert.equal((await apply(f, resumed.decision)).result, "settled");
+  assert.equal(f.effects(), 2);
+
+  const archive = path.join(f.layout.service_directory, `starting-manager-recovery-${manager.manager_process_identity}.json`);
+  const firstStartupHistory = fs.readFileSync(archive);
+  assert.equal(JSON.parse(firstStartupHistory).evidence.manager.status, "starting");
+  retainStartup(f, { reason: "companion_service_manager_started", supervisor_pid: null,
+    supervisor_process_identity: null, manager_process_identity: digest("second prior incarnation " + f.unrelated.pid) });
+  await assert.rejects(apply(f, resumed.decision), /decision_stale/u);
+  const next = await core.prepareCompanionStaleManagerRecovery(f.options);
+  assert.equal((await apply(f, next.decision)).result, "settled");
+  await assertStopped(f);
+  assert.equal(f.effects(), 3);
+  assert.deepEqual(fs.readFileSync(archive), firstStartupHistory);
+  assert.deepEqual(fs.readFileSync(f.layout.stale_manager_recovery_path), liveHistory);
+  assert(!fs.existsSync(f.layout.starting_manager_recovery_path));
+});
+
+run("starting-manager-identity-and-recovery-refusals", async f => {
+  const current = retainStartup(f, { manager_process_identity: f.unrelated.identity });
+  f.setJobPid(current.manager_pid);
+  assert.equal((await core.inspectCompanionService(f.options)).status, "starting");
+  await assert.rejects(core.prepareCompanionStaleManagerRecovery(f.options), /loaded_manager_present/u);
+  f.setJobPid(null);
+  await assert.rejects(core.prepareCompanionStaleManagerRecovery(f.options), /process_still_live/u);
+
+  retainStartup(f, { updated_at: new Date().toISOString() });
+  await assert.rejects(core.prepareCompanionStaleManagerRecovery(f.options), /prior_boot_unproven/u);
+  retainStartup(f, { supervisor_pid: f.liveWitness.pid, supervisor_process_identity: f.liveWitness.identity });
+  await assert.rejects(core.prepareCompanionStaleManagerRecovery(f.options), /process_still_live/u);
+  retainStartup(f, { supervisor_process_identity: null });
+  await assert.rejects(core.prepareCompanionStaleManagerRecovery(f.options), /process_record_invalid/u);
+  retainStartup(f);
+  for (const replacement of ["active count = 1", "coalition = {\n active count = 0\n }",
+    "active count = 0\n active count = 1", "active count = 0\n pid = unavailable"]) {
+    const launchctl = args => {
+      assert.equal(args[0], "print");
+      const result = f.options.launchctl(args);
+      return { ...result, stdout: result.stdout.replace("active count = 0", replacement) };
+    };
+    await assert.rejects(core.prepareCompanionStaleManagerRecovery({ ...f.options, launchctl }),
+      /loaded_manager_present_or_unverifiable/u);
+  }
+  const syscall = childProcess.spawnSync;
+  const noBootTime = mock.method(childProcess, "spawnSync", (command, args, options) =>
+    command === "/usr/sbin/sysctl" ? { status: 0, stdout: "unknown" } : syscall(command, args, options));
+  syncBuiltinESMExports();
+  try {
+    await assert.rejects(core.prepareCompanionStaleManagerRecovery(f.options), /prior_boot_unproven/u);
+  } finally { noBootTime.mock.restore(); syncBuiltinESMExports(); }
+  json(f.layout.runtime_token_path, { residual: true });
+  await assert.rejects(core.prepareCompanionStaleManagerRecovery(f.options), /runtime_material_present/u);
+  fs.unlinkSync(f.layout.runtime_token_path);
+  const original = childProcess.spawnSync;
+  const unavailable = mock.method(childProcess, "spawnSync", (command, args, options) =>
+    command === "/bin/ps" && args[1] === "lstart=" && args.at(-1) === String(f.unrelated.pid)
+      ? { status: 1, stdout: "" } : original(command, args, options));
+  syncBuiltinESMExports();
+  try {
+    const observed = await core.inspectCompanionService(f.options);
+    assert.equal(observed.reason, "companion_service_starting_manager_unverifiable");
+    assert.equal(observed.start_available, false);
+    await assert.rejects(core.prepareCompanionStaleManagerRecovery(f.options), /process_witness_unavailable/u);
+  } finally { unavailable.mock.restore(); syncBuiltinESMExports(); }
+
+  const unchanged = fs.readFileSync(f.layout.manager_lock_path);
+  const preview = await core.prepareCompanionStaleManagerRecovery(f.options);
+  const changedBoot = mock.method(childProcess, "spawnSync", (command, args, options) =>
+    command === "/usr/sbin/sysctl" ? { status: 0, stdout: "{ sec = 1104537600, usec = 0 }" } : original(command, args, options));
+  syncBuiltinESMExports();
+  try {
+    await assert.rejects(apply(f, preview.decision), /decision_stale/u);
+  } finally { changedBoot.mock.restore(); syncBuiltinESMExports(); }
+  await assert.rejects(apply(f, preview.decision, { testStaleManagerRecoveryStageHook(stage) {
+    if (stage === "before_effect") f.setJobPid(f.liveWitness.pid);
+  } }), /loaded_manager_present/u);
+  assert.equal(f.effects(), 0);
+  assert.deepEqual(fs.readFileSync(f.layout.manager_lock_path), unchanged);
+  assert.equal(birth(f.unrelated.pid), f.unrelated.identity);
+  assert(!fs.existsSync(f.layout.starting_manager_recovery_path));
 });
 
 for (const role of ["manager", "supervisor", "member"]) run(`live-${role}-refused`, async f => {
