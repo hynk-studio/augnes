@@ -22,7 +22,7 @@ import { parse as parseToml } from "smol-toml";
 import { waitForBoundedFileSignal } from "../bounded-file-signal.mjs";
 
 const root = process.cwd();
-let retryInspectionResult = null;
+let scriptedWorkResult = null;
 const canonicalTestRoot = process.env.AUGNES_CANONICAL_TEMP_ROOT ?? null;
 const rawScenario =
   process.env.FAKE_CODEX_SCENARIO ??
@@ -647,12 +647,30 @@ async function handle(message) {
         // Constructed consumer, no model: actually read the disposable observation
         // only when the delivered recommendation chooses optional inspection.
         const observation = outlook.action === "inspect" ? readFileSync(path.join(root, "inspection-observation.txt"), "utf8").trim() : "No inspection observation collected; outcome remains unknown.";
-        retryInspectionResult = {
+        scriptedWorkResult = {
           result_version: "codex_host_structured_result.v0.1", summary: `Constructed consumer chose ${outlook.action}. ${observation}`,
           changed_files: [], artifacts: [], observed_actions: [`constructed_${outlook.action}`], commands: [],
           checks: [{ check_id: "constructed_inspection", required: false, status: outlook.action === "inspect" ? "passed" : "unknown", summary: observation }],
           skipped_checks: [], uncertainty: ["Constructed consumer; no model or real workflow benefit observed."], gaps: [],
           proposed_next_steps: ["Use the observed applicability limit in the next preparation; do not infer a new success rate."],
+        };
+      }
+      if (scenario === "pi_file_successor") {
+        const file = "codex-notes.txt";
+        const content = "Checked café row for the disposable successor fixture";
+        writeFileSync(path.join(root, file), content, { flag: "wx", mode: 0o600 });
+        const bytes = readFileSync(path.join(root, file));
+        if (!bytes.equals(Buffer.from(content))) throw new Error("pi_predecessor_content_mismatch");
+        scriptedWorkResult = {
+          result_version: "codex_host_structured_result.v0.1",
+          summary: "Wrote and reread the selected note. Further checking remains.",
+          changed_files: [{ repository_relative_path: file, change_kind: "added", before_hash: null,
+            after_hash: "sha256:" + createHash("sha256").update(bytes).digest("hex") }],
+          artifacts: [], observed_actions: [], commands: [],
+          checks: [{ check_id: "written_content", required: true, status: "passed", summary: "Reread the written note." }],
+          skipped_checks: [{ check_id: process.env.FAKE_CODEX_RESULT_CASE === "other_check" ? "line_width" : "final_newline",
+            required: true, reason: "Left this check to the successor." }],
+          uncertainty: [], gaps: [], proposed_next_steps: [],
         };
       }
       if (scopedScenario && (message.params?.permissions !== scopedPermissions || Object.hasOwn(message.params, "sandboxPolicy") ||
@@ -740,7 +758,7 @@ async function handle(message) {
           emitObservedItems(path.join(path.dirname(root), "outside-result.ts"));
           completeSuccess();
         } else if (
-          scenario === "success" || scenario === "project_retry_inspection" || scenario === "scoped_success" || scenario === "scoped_result_effect" || scenario === "candidate_canary_success" || scenario === "candidate_canary_result_mismatch" || scenario === "candidate_canary_descendant_cleanup" ||
+          scenario === "success" || scenario === "project_retry_inspection" || scenario === "pi_file_successor" || scenario === "scoped_success" || scenario === "scoped_result_effect" || scenario === "candidate_canary_success" || scenario === "candidate_canary_result_mismatch" || scenario === "candidate_canary_descendant_cleanup" ||
           isolatedAuthScenario ||
           scenario === "thread_bound_notification_before_response" ||
           scenario === "status_only_notifications"
@@ -1835,7 +1853,7 @@ function completeUnsafeTextStructuredResult(summary) {
 }
 
 function structuredResult() {
-  if (retryInspectionResult) return JSON.stringify(retryInspectionResult);
+  if (scriptedWorkResult) return JSON.stringify(scriptedWorkResult);
   if (scenario === "result_admission" || process.env.FAKE_CODEX_SCOPED_RESULT_KIND === "rejected_result") {
     const variant = process.env.FAKE_CODEX_RESULT_CASE;
     const labels = variant !== "label_free";
