@@ -336,8 +336,10 @@ No source adoption, Start, merge or follow-on qualification is automatic.
 
 `stale-manager-recovery-inspect`, `stale-manager-recovery-prepare` and
 `stale-manager-recovery-apply` extend the existing lifecycle owner for an inert
-installation whose retained live manager record no longer identifies a current
-owner. A reboot and PID reuse can produce this state; that context does not
+installation whose retained manager record no longer identifies a current
+owner. The previously live case below requires recorded runtime ownership.
+The prior-boot startup case has separate evidence requirements below.
+A reboot and PID reuse can produce either state; that context does not
 establish the complete startup failure cause or authorize cleanup.
 
 This entry requires all of the following in two matching, read-only snapshots:
@@ -431,3 +433,34 @@ Keep lifecycle writers quiescent through qualification and fresh receipt
 validation. Recovery does not consume, transfer or create a qualification
 allowance. A later Start or installed source adoption remains a distinct
 decision; recovery source can execute separately without either.
+
+#### A prior-boot manager still reports starting
+
+Ordinary status checks the recorded manager's service and checkout binding,
+process birth identity and the loaded job's PID before reporting startup in
+progress. When a different process occupies the recorded PID, status returns
+`recovery_required` with `companion_service_starting_manager_identity_conflict`.
+Start and Resume are unavailable. Use `stale-manager-recovery-inspect` from
+reviewed source against the installed checkout. The existing prepare and apply
+commands and separate operator decision apply to this case as well.
+
+With no recorded runtime generation, recovery requires the matching manager
+lock and final startup record to predate the current Darwin kernel boot time.
+Both snapshots must show the exact job unloaded, or loaded with zero active
+count and no job PID. All five runtime materials must be absent. Every
+recorded process must be gone or have a distinct birth identity. A retained
+supervisor requires a complete PID and birth pair and an empty process group.
+The manager's PID can belong to an unrelated, running application throughout
+recovery. An unreadable boot time, current-boot record, unfinished ownership
+operation, surviving group, partial witness or changed evidence refuses the
+affected operation.
+
+The current startup retirement has its own pending journal. During apply,
+interruption retains the pending journal and requires fresh preparation for
+the verified remainder. Under the lifecycle lock, one rename seals the record
+at a name bound to the original manager's birth after stopped settlement.
+Later startup incidents receive their own records. The existing live-manager
+and lost-ownership recovery files retain their original paths and bytes.
+Use the installed reader to verify coherent `installed_stopped/exact` and
+valid preservation after settlement. A later service Start uses its normal
+authorization.
