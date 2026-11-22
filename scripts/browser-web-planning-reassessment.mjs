@@ -63,7 +63,22 @@ export async function browserConsumerReassessment({c,fresh,origin,env,root,click
   const compared = await c.eval("$('reassessment-selected').innerText");
   assert(compared.includes('Selected bytes differ from the original return.'));
   assert(compared.includes('Selected bytes match the evidence used for the latest reassessment (consumer revision '+savedA.revision+')'));
-  await click(c,'reassessment-close');
+  const closeDialog = Promise.withResolvers();
+  const observeClose = ({method, params}) => {
+    if (method === 'Page.javascriptDialogOpening') closeDialog.resolve(params);
+  };
+  c.handlers.push(observeClose);
+  try {
+    const close = click(c, 'reassessment-close');
+    // Chrome pauses the click until the native discard confirmation is answered.
+    const dialog = await Promise.race([closeDialog.promise, close]);
+    assert.equal(dialog?.type, 'confirm', 'Close must ask before discarding the unsaved decision');
+    assert.equal(dialog.message, 'Discard the unsaved consumer decision?');
+    await Promise.all([c.send('Page.handleJavaScriptDialog', {accept: true}), close]);
+  } finally {
+    c.handlers.splice(c.handlers.indexOf(observeClose), 1);
+  }
+  assert.equal(await c.eval("$('reassessment-panel').hidden"), true);
   const folder=path.join(root,'consumer-client');await mkdir(folder,{recursive:true,mode:0o700});
   const aSetup=path.join(folder,'a.json'),bSetup=path.join(folder,'b.json'),eSetup=path.join(folder,'e.json');
   async function cli(label,args){let stdout='',stderr='';const r=await runCanonicalChild({suite:'web-planning-browser',label:'consumer-'+label,command:process.execPath,args:['apps/augnes_apps/scripts/file-exchange.mjs',...args],cwd:process.cwd(),env,timeoutMs:15000,stdout:{write:b=>stdout+=b},stderr:{write:b=>stderr+=b}});assert.equal(canonicalChildAcceptanceFailure(r,{requireNaturalExit:true}),null,stderr);return JSON.parse(stdout);}
