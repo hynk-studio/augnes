@@ -185,7 +185,10 @@ export async function exerciseSitesBootstrap({start,artifact,code,runtimeConfig,
   // boundaries otherwise masked by the application's validation/conditional SQL.
   const db=server.db;
   assert.deepEqual((await db.prepare('SELECT version FROM web_planning_schema').all()).results,[{version:6}]);
-  assert.equal((await db.prepare('SELECT count(*) n FROM __drizzle_migrations').first()).n,12);
+  const expectedMigrations=readMigrationFiles({migrationsFolder:options.migrationsFolder})
+    .map(({hash,folderMillis})=>({hash,created_at:folderMillis}));
+  const appliedMigrations=await db.prepare('SELECT hash, created_at FROM __drizzle_migrations ORDER BY created_at').all();
+  assert.deepEqual(appliedMigrations.results,expectedMigrations,'Applied D1 migrations must match the staged Sites journal and SQL');
   await assert.rejects(db.prepare('INSERT INTO web_planning_schema VALUES (6)').run());
   await assert.rejects(db.prepare('INSERT INTO web_planning_schema VALUES (1)').run());
   await assert.rejects(db.prepare('UPDATE web_planning_workspace SET singleton=0').run());
