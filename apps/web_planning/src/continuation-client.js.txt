@@ -1,13 +1,13 @@
 'use strict';
 const $=id=>document.getElementById(id),meta=name=>document.querySelector('meta[name="'+name+'"]').content;
-const scope={workspace_id:meta('workspace'),project_id:meta('project')},id=meta('continuation-id'),manage=meta('continuation-mode')==='manage';
+const scope={workspace_id:meta('workspace'),project_id:meta('project')},id=meta('continuation-id'),mode=meta('continuation-mode'),manage=mode==='manage',readOnly=mode==='read-only';
 const root=manage?'/api/work/'+id+'/continuation':'/api/continuation/'+id;
 const pointer='augnes-continuation-pending:'+scope.project_id+':'+id+':'+manage;
 let current=null,busy=false,lost=false,pending=null,cursor=null,confirmedAbsent=false;
 const status=text=>{$('status').textContent=text;};
 function controls(){
   if(manage){$('grant-fields').disabled=busy||!!pending&&!confirmedAbsent||!current;$('grant-submit').disabled=busy||!!pending&&!confirmedAbsent||!current;$('grant-reconcile').hidden=!pending;}
-  else{$('update-fields').disabled=busy||!!pending&&!confirmedAbsent||!current;$('update-submit').disabled=busy||!!pending&&!confirmedAbsent||!current||current.remaining_updates<=0;$('resolve').hidden=!pending;}
+  else if(!readOnly){$('update-fields').disabled=busy||!!pending&&!confirmedAbsent||!current;$('update-submit').disabled=busy||!!pending&&!confirmedAbsent||!current||current.remaining_updates<=0;$('resolve').hidden=!pending;}
   $('refresh').disabled=busy;$('refresh').textContent=pending?'Read current work (pending save retained)':'Read current work';
 }
 async function api(path,body){
@@ -43,7 +43,11 @@ function show(value){
       const a=document.createElement('a');a.textContent='Revision '+r.revision+': '+f.name+' (untrusted attachment)';a.href=root+'/'+kind+'/'+r.revision+'/'+r.fingerprint.slice(7)+'/'+index;box.append(a,document.createElement('br'));
     }
   }
-  if(!manage)$('limits').textContent='Current obligation: '+value.obligation+' · '+value.remaining_updates+' of '+value.max_updates+' updates remaining · Access ends '+new Date(value.expires).toLocaleString();
+  if(!manage){
+    const purpose=readOnly?'Purpose of sharing: ':'Current obligation: ';
+    const permission=readOnly?'Read only':value.remaining_updates+' of '+value.max_updates+' updates remaining';
+    $('limits').textContent=purpose+value.obligation+' · '+permission+' · Access ends '+new Date(value.expires).toLocaleString();
+  }
   controls();
 }
 async function read(){
@@ -53,7 +57,7 @@ async function read(){
 async function grants(more=false){
   const value=await api(root+(more&&cursor?'?cursor='+cursor:''));cursor=value.next;
   if(!more)$('grants').replaceChildren();
-  for(const g of value.grants){const row=document.createElement('section');paragraph(row,g.recipient+' · '+g.obligation+' · Limit '+g.max_updates+' · '+(g.revoked_at?'Revoked':new Date(g.expires).toLocaleString()));
+  for(const g of value.grants){const row=document.createElement('section');paragraph(row,g.recipient+' · '+g.obligation+' · '+(g.max_updates===0?'Read only':'Update limit '+g.max_updates)+' · '+(g.revoked_at?'Revoked':new Date(g.expires).toLocaleString()));
     const link=document.createElement('a');link.href=g.link;link.textContent=g.link;row.append(link);
     const revoke=document.createElement('button');revoke.textContent='Revoke';revoke.disabled=!!g.revoked_at;revoke.onclick=()=>run(async()=>{await api(root+'/revoke',{grant_id:g.id});await grants();status('Delegation revoked. Existing updates and obligations remain.');});row.append(revoke);$('grants').append(row);}
   $('grants-more').hidden=!cursor;
@@ -63,9 +67,13 @@ function clearPending(){sessionStorage.removeItem(pointer);pending=null;controls
 async function run(fn){if(busy||lost)return;busy=true;controls();try{await fn();}catch(e){status(e.message);}finally{busy=false;if(!lost)controls();}}
 $('refresh').onclick=()=>run(async()=>{await read();if(manage)await grants();status(pending?'Read current work. Reconcile the pending operation before another write.':'Current work read.');});
 if(manage){
+  $('grant-permission').onchange=()=>{
+    const reading=$('grant-permission').value==='read-only';
+    $('update-allowance').hidden=reading;$('max-updates').disabled=reading;
+  };
   $('grant-form').onsubmit=e=>{e.preventDefault();run(async()=>{
     const body={grant_id:pending?.grant_id??crypto.randomUUID(),expected:{revision:current.saved.revision,fingerprint:current.saved.fingerprint},recipient:$('recipient').value,
-      obligation:$('obligation').value,expires:new Date($('expires').value).getTime(),max_updates:Number($('max-updates').value),confirm:'share-this-work-history'};
+      obligation:$('obligation').value,expires:new Date($('expires').value).getTime(),max_updates:$('grant-permission').value==='read-only'?0:Number($('max-updates').value),confirm:'share-this-work-history'};
     // Keep one operation key through reconciliation; retain no recipient or private obligation.
     confirmedAbsent=false;remember({grant_id:body.grant_id});await api(root+'/create',body);clearPending();await grants();status('Delegation created. Share its link deliberately; the link grants nothing without the recipient sign-in.');
   });};
@@ -75,7 +83,7 @@ if(manage){
     else{confirmedAbsent=true;status('No committed delegation was found. Review the current work and prepare the grant again; the same operation key is retained.');}
   });
   $('grants-more').onclick=()=>run(()=>grants(true));
-}else{
+}else if(!readOnly){
   $('update-form').onsubmit=e=>{e.preventDefault();run(async()=>{
     const body={request_key:pending?.request_key??crypto.randomUUID(),expected:{revision:current.saved.revision,fingerprint:current.saved.fingerprint},report:$('report').value,next_action:$('next-action').value};
     // Retain only an operation locator across reload, never private authored text.

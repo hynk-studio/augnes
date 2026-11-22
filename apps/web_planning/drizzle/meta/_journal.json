@@ -85,6 +85,13 @@
       "when": 1795339013491,
       "tag": "0011_received_work",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1795381068719,
+      "tag": "0012_read_only_sharing",
+      "breakpoints": true
     }
   ]
 }

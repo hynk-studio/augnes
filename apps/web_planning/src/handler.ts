@@ -132,7 +132,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
       const context=await continuationContext(access);let result:Response;
       if(url.search)fail('scope_denied',403);
       if(successor[1]==='continue'&&!suffix&&request.method==='GET'){
-        const csrf=csrfToken(access,request);result=html(continuationPage(access,csrf,successor[2]),{'Set-Cookie':csrfCookie(access,csrf)});
+        const csrf=csrfToken(access,request);result=html(continuationPage(access,csrf,successor[2],context.g.max_updates===0?'read-only':'continue'),{'Set-Cookie':csrfCookie(access,csrf)});
       }else if(successor[1]!=='api/continuation')fail('scope_denied',403);
       else if(request.method==='GET'&&!suffix)result=json(continuationView(access,context));
       else if(request.method==='GET'&&suffix==='/setup')result=new Response(JSON.stringify({format:'augnes_web_continuation.v1',origin:env.APP_ORIGIN,
@@ -267,7 +267,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
     const manage=path.match(/^\/delegations\/([a-f0-9-]{36})\/([a-f0-9-]{36})$/);
     if(manage&&request.method==='GET'&&!url.search&&UUID.test(manage[1])&&UUID.test(manage[2])){
       await listContinuations(access,manage[2]);const chain=await readWork(access,manage[2]);if(!chain.length)fail('work_not_found',404);
-      const csrf=csrfToken(access,request);return html(continuationPage(access,csrf,manage[2],true),{'Set-Cookie':csrfCookie(access,csrf)});
+      const csrf=csrfToken(access,request);return html(continuationPage(access,csrf,manage[2],'manage'),{'Set-Cookie':csrfCookie(access,csrf)});
     }
     const publications=path.match(/^\/publications\/([a-f0-9-]{36})\/([a-f0-9-]{36})$/);
     if(publications&&request.method==='GET'&&!url.search&&UUID.test(publications[1])&&UUID.test(publications[2])){

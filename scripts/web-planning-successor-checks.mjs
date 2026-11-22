@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { migrationPrefix } from './web-planning-local-runtime.mjs';
+import { webRoot } from './build-web-planning.mjs';
 import path from 'node:path';
 import { headBinding, canonical, hash } from '../apps/web_planning/src/contract.ts';
 import { authorize } from '../apps/web_planning/src/access.ts';
@@ -24,7 +27,7 @@ export function checkContinuationDirectionBudget(){
 }
 export async function checkWorkContinuation({start,root,passed}) {
   checkContinuationDirectionBudget();
-  const s=await start('work-succession',{bindings:bindings()}),entry=await session(s,'A');
+  const s=await start('work-succession',{bindings:bindings(),migrationsFolder:await migrationPrefix(root,11)}),entry=await session(s,'A');
   const created=await ok(entry,'/api/projects',input('A')),other=await ok(entry,'/api/projects',{...input('A'),name:'Unshared project'});
   const p=created.project,id=p.continuation_work_id,owner=await session(s,'A',p),work='/api/work/'+id,grants=work+'/continuation';
   let head=created.saved;
@@ -59,6 +62,24 @@ export async function checkWorkContinuation({start,root,passed}) {
   assert.equal((await ok(owner,'/api/works')).items[0].latest_continuation.report,report.report);
   passed('successor: a separately signed-in fresh client reads existing purpose, source-grounded work and obligation; saves an attributed next step; reconciles a lost response without duplicate effects or changing historical authorship');
 
+  // Upgrade a populated predecessor store with the pinned D1 migrator.
+  const ended=await ok(owner,grants+'/create',grantInput()),lapsed=await ok(owner,grants+'/create',grantInput());
+  await ok(owner,grants+'/revoke',{grant_id:ended.id});
+  await s.db.prepare('UPDATE web_planning_continuation SET expires=? WHERE grant_id=?').bind(Date.now()-1,lapsed.id).run();
+  const rows=async()=>(await s.db.prepare('SELECT * FROM web_planning_continuation ORDER BY grant_id').all()).results;
+  const grantsBefore=await rows(),historyBefore=await ok(owner,work+'/history');
+  const localRequire=createRequire(path.join(webRoot,'package.json'));
+  const {drizzle}=localRequire('drizzle-orm/d1'),{migrate}=localRequire('drizzle-orm/d1/migrator');
+  await migrate(drizzle(s.db),{migrationsFolder:path.join(webRoot,'drizzle')});
+  assert.deepEqual(await rows(),grantsBefore);assert.deepEqual(await ok(owner,work+'/history'),historyBefore);
+  assert.deepEqual((await s.db.prepare('PRAGMA foreign_key_check').all()).results,[]);
+  const migrated=await ok(fresh,api);
+  assert.equal(migrated.role,'continue-work-v1');assert.equal(migrated.remaining_updates,1);
+  assert.deepEqual(await ok(fresh,api+'/save',report),{outcome:'saved',saved:head});
+  for(const inactive of [ended,lapsed])
+    assert.equal((await fresh.request('/api/continuation/'+inactive.id)).status,403);
+  passed('read-only migration: existing grant rows, expiry, revocation and attributed history survive; a partly used writer retains its allowance and idempotent save');
+
   for(const url of [work,work+'/history',work+'/export',grants, '/api/project','/api/works']){
     assert.equal((await fresh.request(url,undefined,{'x-web-planning-project':p.project_id})).status,403,url);
   }
@@ -82,7 +103,9 @@ export async function checkWorkContinuation({start,root,passed}) {
   const next={...report,expected:headBinding(head),report:'Noise limit is 40 dBA according to the venue response.',next_action:'Check the 18:00 room measurement against 40 dBA.'};
   const race=await Promise.all([1,2].map(()=>fresh.request(api+'/save',{...next,request_key:randomUUID()})));
   assert.deepEqual(race.map(r=>r.status).sort(),[200,409]);head=race.find(r=>r.status===200).data.saved;
-  assert.equal((await ok(fresh,api)).remaining_updates,0);
+  const exhausted=await ok(fresh,api);
+  assert.equal(exhausted.remaining_updates,0);assert.equal(exhausted.role,'continue-work-v1');
+  assert.deepEqual(await ok(fresh,api+'/save',report),{outcome:'saved',saved:resolved.saved},'an exhausted writer can still recover a confirmed update');
   assert.equal((await fresh.request(api+'/save',{...next,request_key:randomUUID(),expected:headBinding(head)})).status,409);
   assert.equal((await ok(await session(s,'B',p,'/continue/'+g.id),api)).remaining_updates,0,'fresh sessions cannot reset the grant budget');
   passed('scope and limits: unshared projects, owner APIs, erasure, edited setup and cross-grant CSRF refuse; concurrent writes consume only the permitted number of updates across fresh sessions');
@@ -147,6 +170,15 @@ export async function checkWorkContinuation({start,root,passed}) {
   assert.equal(response.headers.get('x-content-sha256'),fileHead.files[0].digest);
   assert.equal(response.headers.get('content-length'),String(Buffer.byteLength(originalText)));
   assert.equal((await fileReader.request(fileRoot+'/files/'+fileHead.revision+'/'+head.fingerprint.slice(7)+'/0')).status,409);
+
+  const readGrant=await ok(otherOwner,fileWork+'/continuation/create',{...grantInput(),expected:headBinding(fileHead),max_updates:0});
+  const reader=await session(s,'B',other.project,'/continue/'+readGrant.id);
+  const readDownload=download.replace(fileGrant.id,readGrant.id);
+  const readBytes=await s.mf.dispatchFetch(s.origin+readDownload,{headers:{cookie:reader.cookies}});
+  assert.equal(readBytes.status,200);assert.equal(await readBytes.text(),originalText);
+  assert.equal(readBytes.headers.get('x-content-sha256'),fileHead.files[0].digest);
+  await ok(otherOwner,fileWork+'/continuation/revoke',{grant_id:readGrant.id});
+  assert.equal((await reader.request(readDownload)).status,403);
 
   const updated = Buffer.from('Proposed arrival at 17:30.\n');
   const exchange = await ok(otherOwner, fileWork+'/exchanges/save', {

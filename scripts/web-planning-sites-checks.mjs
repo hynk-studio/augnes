@@ -19,11 +19,12 @@ const sqlParts=text=>text.split('--> statement-breakpoint').map(s=>s.trim());
 async function migrationParity(folder,generated) {
   const journal=await json(path.join(folder,'meta/_journal.json'));
   assert.equal(journal.dialect,'sqlite');
-  assert.deepEqual(journal.entries.map(e=>[e.idx,e.tag,e.breakpoints]),[[0,'0000_web_planning',true],[1,'0001_schema_version',true],[2,'0002_revision_files',true],[3,'0003_cumulative_history',true],[4,'0004_complete_exchange_files',true],[5,'0005_return_destination',true],[6,'0006_request_participation',true],[7,'0007_independent_projects',true],[8,'0008_work_continuation',true],[9,'0009_public_requests',true],[10,'0010_request_applications',true],[11,'0011_received_work',true]]);
+  assert.deepEqual(journal.entries.map(e=>[e.idx,e.tag,e.breakpoints]),[[0,'0000_web_planning',true],[1,'0001_schema_version',true],[2,'0002_revision_files',true],[3,'0003_cumulative_history',true],[4,'0004_complete_exchange_files',true],[5,'0005_return_destination',true],[6,'0006_request_participation',true],[7,'0007_independent_projects',true],[8,'0008_work_continuation',true],[9,'0009_public_requests',true],[10,'0010_request_applications',true],[11,'0011_received_work',true],[12,'0012_read_only_sharing',true]]);
   assert(journal.entries.every((e,i)=>i===0||e.when>journal.entries[i-1].when));
-  const snapshots=await Promise.all(['0000','0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011'].map(n=>json(path.join(folder,`meta/${n}_snapshot.json`))));
+  const snapshots=await Promise.all(['0000','0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011','0012'].map(n=>json(path.join(folder,`meta/${n}_snapshot.json`))));
   assert.deepEqual(shape(snapshots[0]),shape(snapshots[1]),'historical snapshots changed');
-  assert.deepEqual(shape(snapshots[11]),shape(generated.snapshot),'Drizzle schema/snapshot drift');
+  assert.deepEqual(shape(snapshots[12]),shape(generated.snapshot),'Drizzle schema/snapshot drift');
+  assert.equal(snapshots[12].prevId,snapshots[11].id);
   assert.equal(snapshots[11].prevId,snapshots[10].id);
   assert.equal(snapshots[10].prevId,snapshots[9].id);
   assert.equal(snapshots[9].prevId,snapshots[8].id);
@@ -45,16 +46,20 @@ async function migrationParity(folder,generated) {
   const publications=await readFile(path.join(folder,'0009_public_requests.sql'),'utf8');
   const applications=await readFile(path.join(folder,'0010_request_applications.sql'),'utf8');
   const received=await readFile(path.join(folder,'0011_received_work.sql'),'utf8');
+  const sharing=(await readFile(path.join(folder,'0012_read_only_sharing.sql'),'utf8')).replaceAll('__new_web_planning_continuation','web_planning_continuation');
   for(const statement of generated.statements){
     if(statement.startsWith('CREATE INDEX `web_planning_continuation_recipient`')){
       assert.equal(received.trim(),statement.trim(),'Drizzle schema/SQL drift');
+    }
+    if(/^CREATE (TABLE|INDEX) `web_planning_continuation/.test(statement)){
+      assert(sharing.includes(statement.trim()),'Drizzle schema/SQL drift');
       continue;
     }
     if (/^CREATE (?:TABLE|(?:UNIQUE )?INDEX) `web_planning_(?:intake_|request_application)/.test(statement)) {
       assert(applications.includes(statement.trim()),'Drizzle schema/SQL drift');
       continue;
     }
-    const owner=/^CREATE (TABLE|INDEX) `web_planning_public_request/.test(statement)?publications:/^CREATE (TABLE|INDEX) `web_planning_(continuation|schema)/.test(statement)?continuation:/^CREATE (TABLE|(?:UNIQUE )?INDEX) `web_planning_workspace/.test(statement)||statement.startsWith('CREATE UNIQUE INDEX `web_planning_participation_identity`')?projects:/^CREATE (TABLE|INDEX) `web_planning_participation/.test(statement)?participation:statement.startsWith('CREATE INDEX `web_planning_return_destination`')?uses:/^CREATE TABLE `web_planning_revision`/.test(statement)?cumulative:/^CREATE TABLE `web_planning_(file|file_part)`/.test(statement)?files:initial;
+    const owner=/^CREATE (TABLE|INDEX) `web_planning_public_request/.test(statement)?publications:/^CREATE (TABLE|INDEX) `web_planning_schema/.test(statement)?continuation:/^CREATE (TABLE|(?:UNIQUE )?INDEX) `web_planning_workspace/.test(statement)||statement.startsWith('CREATE UNIQUE INDEX `web_planning_participation_identity`')?projects:/^CREATE (TABLE|INDEX) `web_planning_participation/.test(statement)?participation:statement.startsWith('CREATE INDEX `web_planning_return_destination`')?uses:/^CREATE TABLE `web_planning_revision`/.test(statement)?cumulative:/^CREATE TABLE `web_planning_(file|file_part)`/.test(statement)?files:initial;
     assert(owner.includes(statement.trim()),'Drizzle schema/SQL drift');
   }
   assert.match(upgrade,/RAISE\(ABORT, 'file_history_count_exceeded'\)/);
@@ -81,8 +86,8 @@ export async function checkSitesArtifact(artifact,code) {
   const tree=(await readdir(artifact,{recursive:true,withFileTypes:true})).filter(e=>e.isFile())
     .map(e=>path.relative(artifact,path.join(e.parentPath,e.name))).sort();
   assert.deepEqual(tree,[
-    '.openai/drizzle/0000_web_planning.sql','.openai/drizzle/0001_schema_version.sql','.openai/drizzle/0002_revision_files.sql','.openai/drizzle/0003_cumulative_history.sql','.openai/drizzle/0004_complete_exchange_files.sql','.openai/drizzle/0005_return_destination.sql','.openai/drizzle/0006_request_participation.sql','.openai/drizzle/0007_independent_projects.sql','.openai/drizzle/0008_work_continuation.sql','.openai/drizzle/0009_public_requests.sql','.openai/drizzle/0010_request_applications.sql','.openai/drizzle/0011_received_work.sql',
-    '.openai/drizzle/meta/0000_snapshot.json','.openai/drizzle/meta/0001_snapshot.json', '.openai/drizzle/meta/0002_snapshot.json','.openai/drizzle/meta/0003_snapshot.json','.openai/drizzle/meta/0004_snapshot.json','.openai/drizzle/meta/0005_snapshot.json','.openai/drizzle/meta/0006_snapshot.json','.openai/drizzle/meta/0007_snapshot.json','.openai/drizzle/meta/0008_snapshot.json','.openai/drizzle/meta/0009_snapshot.json','.openai/drizzle/meta/0010_snapshot.json','.openai/drizzle/meta/0011_snapshot.json','.openai/drizzle/meta/_journal.json',
+    '.openai/drizzle/0000_web_planning.sql','.openai/drizzle/0001_schema_version.sql','.openai/drizzle/0002_revision_files.sql','.openai/drizzle/0003_cumulative_history.sql','.openai/drizzle/0004_complete_exchange_files.sql','.openai/drizzle/0005_return_destination.sql','.openai/drizzle/0006_request_participation.sql','.openai/drizzle/0007_independent_projects.sql','.openai/drizzle/0008_work_continuation.sql','.openai/drizzle/0009_public_requests.sql','.openai/drizzle/0010_request_applications.sql','.openai/drizzle/0011_received_work.sql','.openai/drizzle/0012_read_only_sharing.sql',
+    '.openai/drizzle/meta/0000_snapshot.json','.openai/drizzle/meta/0001_snapshot.json', '.openai/drizzle/meta/0002_snapshot.json','.openai/drizzle/meta/0003_snapshot.json','.openai/drizzle/meta/0004_snapshot.json','.openai/drizzle/meta/0005_snapshot.json','.openai/drizzle/meta/0006_snapshot.json','.openai/drizzle/meta/0007_snapshot.json','.openai/drizzle/meta/0008_snapshot.json','.openai/drizzle/meta/0009_snapshot.json','.openai/drizzle/meta/0010_snapshot.json','.openai/drizzle/meta/0011_snapshot.json','.openai/drizzle/meta/0012_snapshot.json','.openai/drizzle/meta/_journal.json',
     '.openai/hosting.json','server/.vite/manifest.json','server/index.js','server/wrangler.json',
   ]);
   assert.deepEqual(await json(path.join(artifact,'.openai/hosting.json')),{d1:'DB',r2:null});
