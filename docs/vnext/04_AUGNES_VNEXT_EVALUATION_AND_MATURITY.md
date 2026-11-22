@@ -1240,6 +1240,32 @@ this requires neither new telemetry nor an automated-optimization comparison arm
 Retain/no-change, simplify and stop remain valid under the existing allocation
 and fixed-evaluation rules.
 
+For the related compositional-harness hypothesis, diagnose **decision-relevant
+local-context sufficiency** using the existing
+[summary-versus-approval contrast](#conditional-case-valid-format-misleading-predecessor-material)
+where it answers an unresolved question. Hold the task and summary fixed while
+source applicability differs, and inspect whether the delivered input or its
+permitted lookups preserve the distinction needed for the next judgment. If
+neither distinguishes the cases, record insufficient input for that decision;
+the contrast does not isolate a model-judgment failure. If the current consumer
+already exposes the distinction, examine its actual use before proposing another
+representation.
+Keep checker-only answers out of both inputs and give the strong alternative
+equal access to the relevant sources; apply the existing
+[comparison distinctions](#strong-comparisons-and-independence) when selection
+changes delivered information.
+
+Inspect the actual saved judgment and resulting output/action, including
+justified retention and unnecessary deferral. A source read, shorter input or
+similar call trace alone establishes neither appropriate use nor locally
+in-distribution behavior. Apply [method-improvement evidence](#method-improvement-evidence)
+and [total-burden accounting](#cost-and-user-burden), including input preparation,
+source lookup, checking and human review/repair. Fixture correctness and
+prompt/code optimization remain distinct from model-weight training and
+observed transfer. An equally effective current route or benefit erased by
+added burden supports retain/no-change or simplification; it does not require
+a broader comparison campaign.
+
 Keep functional correctness, semantic appropriateness, experience contribution
 and comparative usefulness separate. If claiming that prior experience causes
 better later work (L2), hold current inputs comparable and distinguish relevant

@@ -1920,6 +1920,35 @@ useful presentation change against the capable direct-reading/adaptive alternati
 consider automated iteration only if residual cost and likely reuse before
 invalidation justify it within the existing assignment.
 
+External evidence in
+[Language Model Harnesses Can Be Compositional Generalizers](https://www.alphaxiv.org/abs/2611.harness-cg.pdf)
+(sections 3–4) motivates a related, unmeasured Augnes hypothesis within this
+same L1 option: can question-specific input construction, with access to
+decision-relevant source distinctions, improve correct continuation or total
+burden over the current strong native/adaptive-memo alternative? Shorter input
+alone is not the target, and the paper establishes neither Augnes benefit nor
+locally in-distribution behavior in its consumers.
+
+For a first discriminating application, use the existing
+[Web reassessment reader](../../apps/web_planning/src/return-reassessment-ops.ts)
+and [file client](../../apps/augnes_apps/scripts/web-file-client.mjs). The reader
+already compares newly selected evidence with the evidence behind the consumer's
+most recent saved judgment. Reuse the existing
+[summary-versus-approval contrast](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#conditional-case-valid-format-misleading-predecessor-material)
+to ask whether a question-specific view supports the appropriate saved judgment
+and next action when source applicability differs. Inspect current inputs and
+available lookups before proposing a change; the existing path may suffice.
+Native applications may reuse supported GuideBrief/TaskContextPacket projections
+where relevant, without introducing a universal packet schema.
+
+Keep deterministic fixture correctness, prompt/code method optimization and
+model-weight SFT distinct; synthetic tool/sub-call success does not establish
+real-work transfer. Retain the current route when it suffices or the candidate
+adds no net value. Select a follow-up on omitted dependencies, method reuse or
+longer/structurally different tasks only when it resolves a concrete remaining
+question. Methods remain revisable within the existing assignment; this
+refinement launches no SFT or runtime work and adds no attempt cap or phase.
+
 Keep stable navigation/method guidance distinct from mutable state, source revisions
 and access/approval conditions. Preserve mandatory packet material and relevant
 condition/correction/counterevidence groups. Disclose coverage and omissions, retaining
