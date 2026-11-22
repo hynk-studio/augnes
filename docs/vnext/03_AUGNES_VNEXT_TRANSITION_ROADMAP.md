@@ -670,14 +670,25 @@ implementation and the first bounded application within P3/P4/P5.
 | Where work continues | Existing implementation and boundary |
 | --- | --- |
 | Current work and effective direction | The [native direction reader](../../lib/vnext/persistence/project-direction-store.ts) binds pending work to its selected decision. [Codex current work](../../lib/vnext/codex-current-continuity/codex-current-continuity.ts) checks that binding before Start. Web private projects own their separate work and revision histories. |
-| Reconsidering a saved judgment | The [Web reassessment reader](../../apps/web_planning/src/return-reassessment-ops.ts) serves the browser and the [file client](../../apps/augnes_apps/scripts/web-file-client.mjs). The first application is to distinguish newly selected bytes from the evidence used for this consumer's most recent saved judgment, even when the original return differs. |
+| Reconsidering a saved judgment | The [Web reassessment reader](../../apps/web_planning/src/return-reassessment-ops.ts) serves the browser and the [file client](../../apps/augnes_apps/scripts/web-file-client.mjs). Current source compares the selected file's occurrence and bytes with the evidence used for this consumer's most recent saved judgment, retaining the original return separately. Unreadable selected evidence yields no comparison. |
 | Conditional outlook and observed result | The [native expectation store](../../lib/vnext/persistence/work-expectation-store.ts) binds a pre-outcome expectation to one criterion and attempt. A later result can be compared only within that binding and its cutoff. Broader forecast learning requires later-work evidence. |
 | Action, effects and remaining commitments | The [external response owner](../../lib/vnext/external-response.ts) and [work handoff reader](../../lib/vnext/work-handoff.ts) preserve unresolved effects and obligations within their supported scopes. A returned result, a receiving project's assessed use and an external effect have separate owners. |
 | Changed purposes and reusable methods | [Web cooperation and method derivation](#web-undertaking-implementation-commission--2026-11-11) distinguish a project's own later work from another project's reuse. Broader claims about project amendment or closure depend on the applicable decision and affected commitments. |
 
-A material gap in one of these paths can be addressed by its owner. A
-platform-wide dependency index and cross-device synchronization remain open
-implementation choices.
+Prioritize an authorized successor's ability to find the undertaking, recover its
+judgment basis and continue remaining work when the original device or Companion
+is unavailable. The first practical route to connect and qualify is
+**local -> Web -> local**, using the existing
+[Web file exchange](../../apps/web_planning/README.md#connect-a-local-or-hosted-assistant)
+and [native selected-source handoff](../WEB_EXPORT_NATIVE_HANDOFF.md), with source
+lineage, current applicability and each surface's work/authority boundaries
+preserved. Product work toward usable continuation can proceed without waiting
+for comparative research to establish a specialized method's advantage.
+Address material gaps through the existing owners and supported transfer paths.
+Device replacement, continuation through a deployed Web service and automatic
+recovery remain distinct outcomes whose end-to-end completion is not established
+by this roadmap priority. A platform-wide dependency index and cross-device
+synchronization remain open implementation choices.
 
 ### Selective model application across local and web work
 
@@ -745,6 +756,11 @@ Define any newly needed Core contract in 02 with a concrete implementation,
 rather than adding a speculative schema here.
 
 Evaluate the incremental contribution under [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#question-specific-model-evidence).
+For claims about changed sources, use the
+[selective-reconsideration contrasts](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#conditional-sufficiency-and-selective-reconsideration),
+including newly relevant unselected evidence. For recombination claims, use the
+[transfer distinctions](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#goal-directed-recombination-and-candidate-paths-p4p5)
+between changed presentation, new inputs and new rule combinations.
 Preserve #1464's completed SIMPLIFY result and ordinary adaptive memo/code default.
 #1538's [accepted bounded simulations and comparison](#economic-undertaking-application--2026-10-25)
 now supply observations within their actual scopes; this guidance does not change

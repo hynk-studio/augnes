@@ -1301,6 +1301,19 @@ unmet. Later material evidence may warrant revisiting the affected judgment or w
 duplicate or irrelevant additions should not by themselves reopen settled work.
 Preserve still-valid results and independent support rather than rerun everything.
 
+For a selective-reconsideration claim, distinguish a changed premise that affects
+the judgment, a change that leaves its applicability intact, and a previously
+unselected or unavailable alternative that becomes relevant to the decision.
+Byte equality or difference alone does not settle applicability or decision
+impact. A prior read set or selected-source list does not establish complete
+coverage of relevant alternatives; disclose actual search/access coverage and
+material unknowns. A dependency trace identifies possible impact without itself
+invalidating a judgment. [When Facts Change](https://arxiv.org/html/2611.19859v1)
+and [COMBS](https://arxiv.org/html/2611.15964v1) motivate these distinctions;
+their results establish neither Augnes benefit nor complete document coverage.
+Choose the contrasts needed for the current claim without requiring exhaustive
+search.
+
 Assess premature stopping, missed warranted reconsideration and unnecessary
 continuation/reopening alongside actual outcomes and the existing
 [total-burden measures](#cost-and-user-burden). An incremental comparison of a
@@ -3371,6 +3384,16 @@ direct execution, retaining a settled judgment after irrelevant change and
 appropriate non-use where applicable. Neither always inspecting more nor always
 preferring the newest information should be the correct policy by construction.
 No full factorial comparison or ablation matrix is mandatory.
+
+When claiming compositional transfer, distinguish surface changes or arrangements
+that compute the same function from new inputs to an exposed rule and held-out
+rule combinations. Record which rules, combinations and solutions were available
+during preparation or practice. Separate evaluator-only answers and labels from
+consumer inputs; ordinary applicability rules and authorized source access remain
+allowed. [Evaluating Compositional Generalization in Transformers](https://arxiv.org/html/2611.13498v2)
+and [GDPevo](https://arxiv.org/html/2608.03764v1) motivate this distinction without
+establishing Augnes transfer. Use the existing retention, harmful transfer and
+justified non-use contrasts where relevant to the claim.
 
 Use [task units and case genealogy](#task-units-and-relevant-task-characteristics)
 and [development-exposure/independence rules](#strong-comparisons-and-independence)
