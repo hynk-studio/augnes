@@ -8,6 +8,19 @@ import { accessSimulation, dispatchNavigation } from './web-planning-local-runti
 import { headBinding, reference } from '../apps/web_planning/src/contract.ts';
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from './canonical-child-runner.mjs';
 
+export async function checkSharedHomeIngress(server,passed) {
+ const publicBindings={...server.env,PROJECT_ENTRY_MODE:'admitted-private-v1',PROJECT_ADMITTED_EMAILS:'[]',PUBLIC_SUCCESSION_MODE:'verified-email-home-v1'};
+ await server.setOptions({bindings:publicBindings,access:{aud:accessSimulation.aud,identity:{email:'fresh-visitor@example.test'}}});
+ const firstVisit=await dispatchNavigation(server,server.origin+'/',{headers:{'sec-fetch-site':'cross-site','sec-fetch-mode':'navigate','sec-fetch-dest':'document'}});
+ assert.equal(firstVisit.status,200);assert.match(await firstVisit.text(),/No work has been shared/);
+ assert.equal((await server.mf.dispatchFetch(server.origin+'/api/projects')).status,403);
+ assert.equal((await server.db.prepare('SELECT count(*) n FROM web_planning_workspace').first()).n,0,'first verified visitor cannot claim an empty workspace');
+ await server.setOptions({access:undefined});
+ assert.equal((await server.mf.dispatchFetch(server.origin+'/api/shared-work',{headers:{'Cf-Access-Authenticated-User-Email':'fresh-visitor@example.test'}})).status,403);
+ await server.setOptions({bindings:server.env,access:accessSimulation});
+ passed('direct Worker: verified first visitor reaches an empty shared-work home, with no private authority or workspace creation');
+}
+
 export async function checkCloudflarePlanning({root,start,client,newWork,save,edit,passed,open}) {
  const artifact=path.join(root,'direct-artifact');await buildCloudflarePlanning(artifact);
  const code=await readFile(path.join(artifact,'worker.js'),'utf8'),runtimeConfig=JSON.parse(await readFile(path.join(artifact,'wrangler.json'),'utf8'));
@@ -20,8 +33,8 @@ export async function checkCloudflarePlanning({root,start,client,newWork,save,ed
  assert.equal(runtimeConfig.preview_urls,false);assert.equal(runtimeConfig.workers_dev,false);assert.equal(runtimeConfig.no_bundle,true);assert.equal(runtimeConfig.main,'worker.js');
  assert.equal(runtimeConfig.d1_databases[0].database_id,'00000000-0000-4000-8000-000000000000');
  assert.deepEqual((await readdir(artifact,{recursive:true,withFileTypes:true})).filter(e=>e.isFile()).map(e=>path.relative(artifact,path.join(e.parentPath,e.name))).sort(),
-   ['migrations/0000_web_planning.sql','migrations/0001_schema_version.sql','migrations/0002_revision_files.sql','migrations/0003_cumulative_history.sql','migrations/0004_complete_exchange_files.sql','migrations/0005_return_destination.sql','migrations/0006_request_participation.sql','migrations/0007_independent_projects.sql','migrations/0008_work_continuation.sql','migrations/0009_public_requests.sql','migrations/0010_request_applications.sql','worker.js','wrangler.json']);
- for(const sql of ['0000_web_planning.sql','0001_schema_version.sql','0002_revision_files.sql','0003_cumulative_history.sql','0004_complete_exchange_files.sql','0005_return_destination.sql','0006_request_participation.sql','0007_independent_projects.sql','0008_work_continuation.sql','0009_public_requests.sql','0010_request_applications.sql'])assert.equal(await readFile(path.join(artifact,'migrations',sql),'utf8'),await readFile(path.join(webRoot,'drizzle',sql),'utf8'));
+   ['migrations/0000_web_planning.sql','migrations/0001_schema_version.sql','migrations/0002_revision_files.sql','migrations/0003_cumulative_history.sql','migrations/0004_complete_exchange_files.sql','migrations/0005_return_destination.sql','migrations/0006_request_participation.sql','migrations/0007_independent_projects.sql','migrations/0008_work_continuation.sql','migrations/0009_public_requests.sql','migrations/0010_request_applications.sql','migrations/0011_received_work.sql','worker.js','wrangler.json']);
+ for(const sql of ['0000_web_planning.sql','0001_schema_version.sql','0002_revision_files.sql','0003_cumulative_history.sql','0004_complete_exchange_files.sql','0005_return_destination.sql','0006_request_participation.sql','0007_independent_projects.sql','0008_work_continuation.sql','0009_public_requests.sql','0010_request_applications.sql','0011_received_work.sql'])assert.equal(await readFile(path.join(artifact,'migrations',sql),'utf8'),await readFile(path.join(webRoot,'drizzle',sql),'utf8'));
  for(const forbidden of ['LOCAL_SESSION','/_local/login','web_planning_local=','synthetic-owner@example.test','web-planning-artifact-secret-sentinel',
    'MF-Original-URL','local_dispatch_only','sitesPrincipal','get("oai-authenticated-user-email")','getUserEmail','better-sqlite3'])assert(!code.includes(forbidden),forbidden);
  const dryRun=await runCanonicalChild({suite:'web-planning',label:'direct-build-dry-run',command:process.execPath,
@@ -33,7 +46,7 @@ export async function checkCloudflarePlanning({root,start,client,newWork,save,ed
  let server=await start('direct',options);
  const count=async s=>(await s.db.prepare('SELECT count(*) n FROM web_planning_workspace').first()).n;
  assert.equal(await count(server),0);
- assert.deepEqual((await server.db.prepare('SELECT name FROM d1_migrations ORDER BY id').all()).results.map(r=>r.name),['0000_web_planning.sql','0001_schema_version.sql','0002_revision_files.sql','0003_cumulative_history.sql','0004_complete_exchange_files.sql','0005_return_destination.sql','0006_request_participation.sql','0007_independent_projects.sql','0008_work_continuation.sql','0009_public_requests.sql','0010_request_applications.sql']);
+ assert.deepEqual((await server.db.prepare('SELECT name FROM d1_migrations ORDER BY id').all()).results.map(r=>r.name),['0000_web_planning.sql','0001_schema_version.sql','0002_revision_files.sql','0003_cumulative_history.sql','0004_complete_exchange_files.sql','0005_return_destination.sql','0006_request_participation.sql','0007_independent_projects.sql','0008_work_continuation.sql','0009_public_requests.sql','0010_request_applications.sql','0011_received_work.sql']);
  assert.equal(await server.db.prepare("SELECT name FROM sqlite_master WHERE name='__drizzle_migrations'").first(),null);
  const spoof={'oai-authenticated-user-email':server.env.OWNER_EMAIL,'Cf-Access-Authenticated-User-Email':server.env.OWNER_EMAIL,'Cf-Access-Jwt-Assertion':'forged','cookie':'web_planning_local=forged'};
  // Reconfigure the same disposable workerd to exercise the official Access
@@ -59,6 +72,7 @@ export async function checkCloudflarePlanning({root,start,client,newWork,save,ed
    assert.equal((await directWorker.fetch(new Request(server.origin+'/'),noDB,ctx)).status,403);
  const identity={access:{aud:accessSimulation.aud,async getIdentity(){return accessSimulation.identity;}}};
  for(const audience of ['',undefined,'not-an-audience','b'.repeat(64)])assert.equal((await directWorker.fetch(new Request(server.origin+'/'),{...noDB,ACCESS_AUDIENCE:audience},identity)).status,403);
+ await checkSharedHomeIngress(server,passed);
  const pages=await Promise.all(Array.from({length:8},()=>dispatchNavigation(server,server.origin+'/',{headers:{'sec-fetch-site':'cross-site','sec-fetch-mode':'navigate','sec-fetch-dest':'document'}})));
  assert(pages.every(r=>r.status===200));assert.equal(await count(server),1);
  assert.match(await pages[0].text(),/href="\/cdn-cgi\/access\/logout"/);

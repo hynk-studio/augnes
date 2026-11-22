@@ -295,7 +295,7 @@ try {
    await navigate(a,'about:blank');await closeLocalRuntime();local=await startLocal({root:path.join(root,'cross-project-browser'),bindings:projectBindings()});
    await browserCrossProjectContributions({owner:await page(debug,local.origin,true),participant:()=>page(debug,local.origin,true),local,root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
  }else if(successionOnly){
-   await navigate(a,'about:blank');await closeLocalRuntime();local=await startLocal({root:path.join(root,'work-succession-browser'),bindings:projectBindings()});
+   await navigate(a,'about:blank');await closeLocalRuntime();local=await startLocal({root:path.join(root,'work-succession-browser'),bindings:{...projectBindings(),PROJECT_ADMITTED_EMAILS:'[]',PUBLIC_SUCCESSION_MODE:'verified-email-home-v1'}});
    await browserWorkSuccession({owner:await page(debug,local.origin,true),successor:()=>page(debug,local.origin,true),local,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
  }else if(draftSafetyOnly){await draftSafetyJourney(a);
  }else if(recoveryOnly){
@@ -437,7 +437,7 @@ try {
  await browserParticipationRecovery({owner:participantOwner,participant:c=>page(debug,local.origin,c?.browserContextId??true),local,root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
  await browserParticipation({owner:participantOwner,participant:()=>page(debug,local.origin,true),local,root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
  for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=null;
- local=await startLocal({root:path.join(root,'work-succession-browser'),bindings:projectBindings()});
+ local=await startLocal({root:path.join(root,'work-succession-browser'),bindings:{...projectBindings(),PROJECT_ADMITTED_EMAILS:'[]',PUBLIC_SUCCESSION_MODE:'verified-email-home-v1'}});
  await browserWorkSuccession({owner:await page(debug,local.origin,true),successor:()=>page(debug,local.origin,true),local,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks});
  for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=null;
  local=await startLocal({root:path.join(root,'cross-project-browser'),bindings:projectBindings()});

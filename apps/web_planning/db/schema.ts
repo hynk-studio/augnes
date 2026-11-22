@@ -77,6 +77,7 @@ export const continuation=sqliteTable('web_planning_continuation',{
 },t=>[
   foreignKey({columns:[t.workspace_id,t.project_id],foreignColumns:[workspace.workspace_id,workspace.project_id]}),
   index('web_planning_continuation_work').on(t.workspace_id,t.project_id,t.work_id,t.grant_id),
+  index('web_planning_continuation_recipient').on(t.workspace_id,t.recipient_hash,t.grant_id),
   check('web_planning_continuation_limit',sql`${t.max_updates} BETWEEN 1 AND 20`),
 ]);
 

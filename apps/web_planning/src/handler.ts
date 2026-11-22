@@ -19,6 +19,7 @@ import participantJournal from "./participation-journal.js.txt?raw";
 import participantClient from "./participation-client.js.txt?raw";
 import projectsClient from './projects-client.js.txt?raw';
 import { projectEntryPage } from './project-entry';
+import { receivedWork, sharedHomePage, sharedSection } from './shared-work';
 import { createProject, listProjects } from './projects';
 import { applyReturn, inspectReturn } from "./return-continuation";
 import { inspectUse, previewReassessment, saveReassessment } from "./return-reassessment-ops";
@@ -34,7 +35,7 @@ import { hasSceneFile } from "./file-relations";
 import { DIRECTION_EXPORT, directionExport, validateDirectionExport } from "./direction-recovery";
 import { prepareSceneContext, prepareSceneDraft, previewSceneReview, saveSceneReview } from "./scenes";
 import { type FileBody, FILE_EXPORT_REQUEST_BYTES, LARGE_EXPORT_REQUEST_BYTES, LARGE_PAIR_REQUEST_BYTES, EXCHANGE_REQUEST_BYTES, historyFiles, selectedFiles, validateFileExport } from "./files";
-import { authorize, authorizeApplicant, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, projectEntryEnabled, selectedProject, type Environment, type Principal } from "./access";
+import { authorize, authorizeApplicant, authorizeSharedHome, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, projectEntryEnabled, selectedProject, sharedHomeEnabled, type Environment, type Principal } from "./access";
 import { binding, canonical, exact, exportWork, fail, hash, makeRevision, normalizePayload, reference, Refusal, REQUEST_BYTES, requestFingerprint, sameBinding, UUID, validateExport, validateRetainedIncorporations, type Revision } from "./contract";
 import { inspectDraftCapacity } from "./capacity";
 import { append, completeExport, downloadFile, eraseWork, headBinding, headsCurrent, listWork, readNoteHistory, readWork, reconstruct, reconstructWorks, requestRevision } from "./store";
@@ -211,6 +212,22 @@ export async function handle(request:Request,env:Environment,principal:Principal
       }
       await activeGrant(access,id); // Readback/authorization loss never becomes an empty result.
       return result;
+    }
+    const publicHome=path==='/'&&!url.search&&!request.headers.has('x-web-planning-project') || path==='/projects';
+    const receivedPage=path==='/shared-work' || path==='/api/shared-work';
+    if(sharedHomeEnabled(env) && (publicHome||receivedPage||path==='/continuation.js'||path==='/style.css')){
+      const home=authorizeSharedHome(request,env,principal);
+      if(request.method!=='GET')fail('method_not_allowed',405);
+      if(url.search && (!receivedPage || url.searchParams.getAll('cursor').length!==1 || [...url.searchParams.keys()].some(key=>key!=='cursor')))fail('invalid_cursor');
+      if(path==='/continuation.js')return new Response(continuationClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
+      if(path==='/style.css')return new Response(style,{headers:{...headers,'Content-Type':'text/css; charset=utf-8'}});
+      const cursor=url.searchParams.get('cursor')??'';
+      const shared=await receivedWork(home,cursor);
+      if(path==='/api/shared-work')return json(shared);
+      const section=sharedSection(shared,!!cursor);
+      if(!publicHome || !home.mayManageProjects)return html(sharedHomePage(section,home.signout));
+      const author=await authorize(request,env,principal,undefined,true),csrf=csrfToken(author,request);
+      return html(projectEntryPage(csrf,author,section),{'Set-Cookie':csrfCookie(author,csrf)});
     }
     const accountEntry=projectEntryEnabled(env)&&(path==='/projects'||path==='/api/projects'||path==='/projects.js'||path==='/continuation.js'||path==='/publications.js'||
       path==='/'&&!url.search&&!request.headers.has('x-web-planning-project')||['/style.css','/client.js','/exchange-text.mjs','/planning-notes.mjs','/favicon.ico'].includes(path));
