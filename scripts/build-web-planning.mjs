@@ -4,8 +4,8 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 export const webRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../apps/web_planning");
-export async function bundleWebPlanning(entry=path.join(webRoot,"src/worker.ts")) {
-  const result=await build({entryPoints:[entry],bundle:true,write:false,format:"esm",platform:"browser",target:"es2022",
+export async function bundleWebPlanning(entry=path.join(webRoot,"src/worker.ts"),conditions) {
+  const result=await build({entryPoints:[entry],bundle:true,write:false,format:"esm",platform:"browser",target:"es2022",conditions,
     external:["node:crypto","node:buffer"],loader:{".txt":"text"},tsconfig:path.join(webRoot,"../../tsconfig.json"),metafile:true});
   return {code:result.outputFiles[0].text,inputs:Object.keys(result.metafile.inputs)};
 }
@@ -28,14 +28,16 @@ export async function buildWebPlanning(out=path.join(webRoot,"dist")) {
     config.d1_databases?.length!==1 || config.d1_databases[0].binding!=='DB')throw new Error('unexpected_worker_build_contract');
   return {artifact:out,entrypoint:'server/index.js',compatibility_date:config.compatibility_date,compatibility_flags:config.compatibility_flags};
 }
-export async function buildCloudflarePlanning(out=path.join(webRoot,'dist-cloudflare')) {
+export async function buildCloudflarePlanning(out=path.join(webRoot,'dist-cloudflare'),{recipient=false}={}) {
   if((await readdir(webRoot)).some(name=>name.startsWith('.dev.vars')||name.startsWith('.env')))
     throw new Error('web_planning_build_refuses_local_environment_files');
   const config=JSON.parse(await readFile(path.join(webRoot,'wrangler.cloudflare.json'),'utf8'));
   if(config.assets||config.access||config.routes||config.vars||config.account_id||config.preview_urls!==false||
     config.d1_databases?.length!==1||config.d1_databases[0].database_id!=='00000000-0000-4000-8000-000000000000')
     throw new Error('direct_build_requires_unbound_production_configuration');
-  const built=await bundleWebPlanning(path.join(webRoot,'src/cloudflare-worker.ts'));
+  if(recipient)config.name='web-augnes-recipient';
+  const entry=recipient?'recipient-worker.ts':'cloudflare-worker.ts';
+  const built=await bundleWebPlanning(path.join(webRoot,'src',entry),recipient?['workerd']:undefined);
   if(built.inputs.some(id=>/\/runtime\/|better-sqlite|local-ingress|test-web-planning/.test(id)))
     throw new Error('nonportable_or_test_dependency_in_artifact');
   await rm(out,{recursive:true,force:true});
@@ -52,6 +54,9 @@ export async function buildCloudflarePlanning(out=path.join(webRoot,'dist-cloudf
   return {artifact:out,entrypoint:'worker.js',compatibility_date:config.compatibility_date,compatibility_flags:config.compatibility_flags};
 }
 if(process.argv[1]===fileURLToPath(import.meta.url)) {
-  if(process.argv.length>3 || (process.argv[2]&&process.argv[2]!=='cloudflare'))throw new Error('Use cloudflare or no argument for Sites');
-  console.log(JSON.stringify(await (process.argv[2]==='cloudflare'?buildCloudflarePlanning():buildWebPlanning())));
+  const target=process.argv[2];
+  if(process.argv.length>3 || (target && !['cloudflare','recipient'].includes(target)))throw new Error('Use cloudflare, recipient or no argument for Sites');
+  const result=target==='recipient'?await buildCloudflarePlanning(path.join(webRoot,'dist-recipient'),{recipient:true}):
+    target==='cloudflare'?await buildCloudflarePlanning():await buildWebPlanning();
+  console.log(JSON.stringify(result));
 }

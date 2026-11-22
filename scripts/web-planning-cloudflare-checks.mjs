@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { checkRecipientSignIn } from './web-planning-recipient-signin-checks.mjs';
 import { checkProductionParticipant } from './web-planning-participation-checks.mjs';
 import { readFile, readdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -125,5 +126,6 @@ export async function checkCloudflarePlanning({root,start,client,newWork,save,ed
  await assert.rejects(server.db.prepare('DELETE FROM web_planning_workspace').run(),/FOREIGN KEY/);assert.equal(await count(server),1);
  passed('direct Worker complete branch/comparison/qualified incorporation, exact replay/unknown resolution, restart/fresh read/export, CSRF/scope/origin, erasure and persistent mapping integrity');
  await checkProductionParticipant({server,owner:c,newWork,save,passed,accessSimulation});
+ await checkRecipientSignIn({server,root,passed});
  await server.close();open.splice(open.indexOf(server),1);
 }

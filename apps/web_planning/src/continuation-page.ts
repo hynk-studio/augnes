@@ -2,7 +2,7 @@ import { sharedHomeEnabled, type Access } from './access';
 import { escape } from './page';
 export function continuationPage(s:Access,csrf:string,id:string,manage=false) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf-token" content="${escape(csrf)}"><meta name="workspace" content="${s.workspace_id}"><meta name="project" content="${s.project_id}"><meta name="continuation-id" content="${id}"><meta name="continuation-mode" content="${manage?'manage':'continue'}"><title>${manage?'Delegate a work update':'Continue shared work'} · Augnes</title><link rel="stylesheet" href="/style.css"><script src="/continuation.js" defer></script></head><body>
-  <header><a href="/projects">Your projects</a><a href="${escape(s.signout)}">Sign out</a></header><main id="continuation-view">
+  <header><a href="/projects">${!manage && sharedHomeEnabled(s.env)?'Shared work':'Your projects'}</a><a href="${escape(s.signout)}">Sign out</a></header><main id="continuation-view">
   <h1>${manage?'Let a successor continue this work.':'Pick up the thread.'}</h1>
   <p id="status" role="status" aria-live="polite"></p><button id="refresh">Read current work</button><p>Open each complete saved record to inspect its purpose and limits, source status, relationships, judgments and next actions. References to other work do not grant access to it.</p><section id="work-context"></section>
   ${manage?`<p>The recipient may read this work's complete history, attached files and reference metadata, and append attributed updates. It cannot change your purpose or selected material, erase work, grant access, or open other work. Other participants' recorded updates are part of this disclosure.</p>

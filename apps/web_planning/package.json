@@ -25,6 +25,8 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",
     "@openai/sites-vite-plugin": "0.2.0",
+    "@workos-inc/node": "12.4.0",
+    "@workos/authkit-session": "0.9.1",
     "drizzle-kit": "0.31.10",
     "drizzle-orm": "0.45.2",
     "miniflare": "4.20260730.0",
