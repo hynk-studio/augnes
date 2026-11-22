@@ -2486,6 +2486,27 @@ bounded source disclosure and zero read-attributable writes remain distinct from
 the usefulness claim. Live installation and independent consumer benefit are not
 established by this development fixture.
 
+For the [temporal replanning hypothesis](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#conditional-follow-up--predictions-after-execution-context-change),
+compare the proposed future-state representation or update method with a strong
+adaptive memo or ordinary dependency/temporal planner, selecting the comparisons
+needed to resolve the claim. Alternatives may reason backwards from later
+requirements and use the same relevant sources, tools, model and comparable
+total resources. Separate
+the benefit of additional input structure from the update calculation and its
+actual use in later work; equivalent computations do not establish a distinct
+mechanism. A fixed comparison matrix or ablation campaign is not required.
+
+Choose cases that discriminate the pending decision: preparation before a useful
+window closes, changed or unknown route availability, an affected later
+requirement, or justified retention when nothing relevant changes. Inspect the
+next action, missed and unnecessary reconsideration, and preservation of valid
+support and commitments. Keep desired futures separate from predictions and
+observed outcomes. Preserve the original prediction and information cutoff when
+comparing it with later observations. A consistent plan or successful rejection
+of its infeasible action does not establish sound planning.
+If ordinary planning is sufficient or added representation costs erase the
+benefit, retain or simplify that method under the existing evaluation rules.
+
 The existing strong-comparison rules apply to any later usefulness claim. The
 baseline may forecast, revise source-linked adaptive notes, access the same code
 and tools, and reuse methods with a comparably strong model and relevant budget.
