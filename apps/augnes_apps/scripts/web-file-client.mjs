@@ -337,6 +337,25 @@ export async function openFileContinuation(setupPath, expectedSetupDigest) {
     if(value.work_id!==setup.work_id||value.project_id!==setup.project_id||value.workspace_id!==setup.workspace_id||value.grant_id!==setup.grant_id)fail('Continuation selection changed.');
     return value;
   }
+  async function readAttachment(ref, kind, index) {
+    const { work_id, revision, fingerprint: revisionFingerprint } = ref ?? {};
+    if (work_id !== setup.work_id || !Number.isSafeInteger(revision) || revision < 1 ||
+        typeof revisionFingerprint !== 'string' || !fingerprint.test(revisionFingerprint) ||
+        !['files', 'exchange-files'].includes(kind) || !Number.isInteger(index) || index < 0 || index > 7) {
+      fail('Choose an attachment from a listed revision of this work.');
+    }
+    const { history } = await read();
+    const saved = history.find(entry => entry.revision === revision && entry.fingerprint === revisionFingerprint);
+    const file = kind === 'files' ? saved?.files?.[index] : saved?.exchange?.artifacts?.[index]?.file;
+    if (!file) fail('Attachment is not present in the selected revision.');
+
+    const response = await request([root, kind, revision, revisionFingerprint.slice(7), index].join('/'));
+    if (response.headers.get('content-length') !== String(file.bytes) ||
+        response.headers.get('x-content-sha256') !== file.digest) fail('Attachment metadata mismatch.');
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length !== file.bytes || digest(bytes) !== file.digest) fail('Attachment content mismatch.');
+    return { ref: { work_id, revision, fingerprint: revisionFingerprint }, kind, index, file, bytes };
+  }
   await read();
-  return {read,save:async input=>(await request(root+'/save',input)).json(),resolve:async request_key=>(await request(root+'/resolve',{request_key})).json()};
+  return {read,readAttachment,save:async input=>(await request(root+'/save',input)).json(),resolve:async request_key=>(await request(root+'/resolve',{request_key})).json()};
 }

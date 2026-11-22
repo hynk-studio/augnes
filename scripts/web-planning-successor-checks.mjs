@@ -5,7 +5,7 @@ import path from 'node:path';
 import { headBinding, canonical, hash } from '../apps/web_planning/src/contract.ts';
 import { authorize } from '../apps/web_planning/src/access.ts';
 import { continuationContext, writeContinuation } from '../apps/web_planning/src/continuation.ts';
-import { openFileContinuation } from '../apps/augnes_apps/scripts/web-file-client.mjs';
+import { digest, openFileContinuation } from '../apps/augnes_apps/scripts/web-file-client.mjs';
 import { planningDraft } from '../apps/augnes_apps/scripts/planning-notes.mjs';
 import { directionExport } from '../apps/web_planning/src/direction-recovery.ts';
 import { CONTINUATION_EXPORT } from '../apps/web_planning/src/continuation-contract.ts';
@@ -146,7 +146,37 @@ export async function checkWorkContinuation({start,root,passed}) {
   assert.equal(response.headers.get('x-content-sha256'),fileHead.files[0].digest);
   assert.equal(response.headers.get('content-length'),String(Buffer.byteLength(originalText)));
   assert.equal((await fileReader.request(fileRoot+'/files/'+fileHead.revision+'/'+head.fingerprint.slice(7)+'/0')).status,409);
-  await ok(otherOwner,fileWork+'/continuation/revoke',{grant_id:fileGrant.id});
+
+  const updated = Buffer.from('Proposed arrival at 17:30.\n');
+  const exchange = await ok(otherOwner, fileWork+'/exchanges/save', {
+    kind:'request', basis:null, expected:headBinding(fileHead), request_key:randomUUID(),
+    message:'Review the proposed change.', next_action:'Check the recorded arrival time.',
+    files:[{name:fileHead.files[0].name, media_type:'text/plain', bytes:updated.length,
+      digest:digest(updated), data:updated.toString('base64')}],
+  });
+  await writeFile(setupPath,JSON.stringify(await ok(fileReader,fileRoot+'/setup')));
+  await agent(s,'B',async()=>{
+    const client = await openFileContinuation(setupPath);
+    const state = await client.read();
+    const original = await client.readAttachment(fileHead,'files',0);
+    const proposal = await client.readAttachment(exchange.item.ref,'exchange-files',0);
+    assert.deepEqual(original.bytes,Buffer.from(originalText));
+    assert.deepEqual(proposal.bytes,updated);
+    assert.equal(proposal.file.name,original.file.name);
+    assert.deepEqual(proposal.ref,exchange.item.ref);
+    await assert.rejects(client.readAttachment({...fileHead,fingerprint:head.fingerprint},'files',0));
+    await assert.rejects(client.readAttachment({...fileHead,work_id:head.work_id},'files',0));
+    await assert.rejects(client.readAttachment(fileHead,'exchange-files',0));
+    const summary = 'Proposal at r'+proposal.ref.revision+': '+proposal.bytes.toString().trim()+
+      ' Recorded source at r'+original.ref.revision+': '+original.bytes.toString().trim();
+    await client.save({request_key:randomUUID(),expected:headBinding(state.saved),report:summary,
+      next_action:'Keep the recorded arrival until the proposal is approved.'});
+    const reopened = await openFileContinuation(setupPath);
+    assert.equal((await reopened.read()).saved.continuation.report,summary);
+    await ok(otherOwner,fileWork+'/continuation/revoke',{grant_id:fileGrant.id});
+    await assert.rejects(client.readAttachment(fileHead,'files',0),/continuation_unavailable|scope_denied|access_denied/);
+  });
   assert.equal((await fileReader.request(download)).status,403);
   passed('successor files: exact UTF-8/CRLF bytes, original filename and digest remain scoped to the granted revision; foreign fingerprints and revoked access refuse');
+  passed('local reader: same-name historical and exchange attachments support a report saved to the original work and read back after reopening');
 }

@@ -372,6 +372,13 @@ approved `AUGNES_WEB_ORIGIN`; do not copy the owner's session. `read()` must pre
 new work. Original expected bindings and request keys are needed to reconcile
 uncertain delivery; reading the fresh history does not create a new attempt grant.
 
+To open an attachment, choose its revision from `(await client.read()).history`.
+Call `client.readAttachment(revision, 'files', index)` for a saved file, or use
+`'exchange-files'` for an entry in that revision's `exchange.artifacts`. The index
+is zero-based within that list. The result contains the exact work/revision
+reference, kind, index, file metadata and verified `bytes` as a Node Buffer.
+Use that reference when reporting which source supported a judgment.
+
 Migration `0008_work_continuation.sql` advances schema 5 to 6 with writers
 quiesced and a full backup. It adds operational grants without modifying existing
 mapping, revision or file bytes. Old owner-only/schema-4 and admitted/schema-5
