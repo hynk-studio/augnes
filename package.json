@@ -172,6 +172,7 @@
     "test:e2e:golden": "node scripts/run-canonical-test-suite.mjs e2e-golden",
     "web:build": "node scripts/build-web-planning.mjs",
     "web:build:cloudflare": "node scripts/build-web-planning.mjs cloudflare",
+    "web:build:recipient": "node scripts/build-web-planning.mjs recipient",
     "web:dev": "node scripts/run-web-planning.mjs dev",
     "web:test:participation": "node scripts/run-web-planning.mjs participation",
     "web:test": "node scripts/run-web-planning.mjs test",

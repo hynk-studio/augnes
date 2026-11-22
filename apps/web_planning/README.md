@@ -29,8 +29,8 @@ screen. Reaching the update limit retains reading through expiry or revocation.
 the deployment workspace, with up to 20 items and an optional `next` cursor.
 Each item has `grant_id`, `work_id`, `goal` and `obligation`. Multiple grants
 on one work retain their respective limits. An erased work disappears.
-Project authors keep their private project chooser and their received work on
-the same home. Other signed-in users see only their received work.
+On the private entry, project authors also see their project chooser. The
+public recipient entry shows only work shared with the verified email.
 
 For local Codex, the same home works in the browser on either device. The
 command-line reader uses the recipient's own Access session and
@@ -41,30 +41,44 @@ reader. Every open and update checks the current grant on the server.
 
 ### Enable a public email entry on Cloudflare
 
-1. Use the existing release procedure for the exact Web Worker and its bound
-   database. Apply its pending migration suffix through `0011_received_work.sql`
-   and deploy code supporting the new entry. Migration 0011 adds a recipient
-   index to existing grants and keeps schema marker 6.
-2. Set `PROJECT_ENTRY_MODE=admitted-private-v1` and
-   `PUBLIC_SUCCESSION_MODE=verified-email-home-v1`. `PROJECT_ADMITTED_EMAILS`
-   continues to identify private project authors. A recipient needs only
-   verified control of the email named in a live grant. Keep the existing
-   owner, workspace, audience, secrets and D1 binding.
-3. On the Access application for this Web host, enable **One-time PIN** as a
-   login method. Add an **Allow** policy with **Include → Login Methods →
-   One-time PIN** for this application. This lets any mailbox owner verify
-   their own address. Keep Access identity enforcement on the home and its
-   private routes. If the policy is shared with other applications, attach
-   the new rule only to this application's audience. Apply broader admission
-   after the updated Worker and database are ready.
-   [Cloudflare Access policies](https://developers.cloudflare.com/cloudflare-one/access-controls/policies/)
-   and [email sign-in](https://developers.cloudflare.com/cloudflare-one/integrations/identity-providers/one-time-pin/).
-4. Check the live entrance in a fresh browser with a real recipient who has
-   no author admission. The recipient uses their own mailbox, observes the
-   empty home, then finds a newly shared work there and saves and reopens an
-   update on the original. After owner revocation, refresh home and revisit
-   the former entry. Local identities and a Worker dry run cover application
-   behavior. Live delivery and effective Access policy require that hosted check.
+The two Workers use separate HTTPS origins and the same D1 workspace. The
+private Worker keeps its existing Cloudflare Access audience and admission
+policy. On the public Worker, even an admitted author's email has recipient
+permissions only. A new visitor chooses **Sign in with email** at the ordinary
+address, completes hosted AuthKit sign-in and returns to their shared-work home.
+An existing grant link returns to that work after sign-in.
+
+For an authorized, isolated hosted trial:
+
+1. Build the public Worker with `npm run web:build:recipient`. The generated
+   `dist-recipient/wrangler.json` names a distinct Worker, has a placeholder D1
+   ID and contains no live routes or secrets. Use the existing migration owner
+   through `0011_received_work.sql`. Point both trial Workers at the same trial
+   D1, owner and workspace/project/author mappings and existing signing secret.
+   Each Worker has its own exact HTTPS `APP_ORIGIN`. Enable
+   `PROJECT_ENTRY_MODE=admitted-private-v1` and
+   `PUBLIC_SUCCESSION_MODE=verified-email-home-v1` on both. Set
+   `PUBLIC_RECIPIENT_ORIGIN` on the private Worker to the public origin to
+   generate share links there. Existing grants remain discoverable by email.
+2. In the trial WorkOS environment, allow public registration and **Magic Auth**
+   email codes with the default mail sender. Use the public-client PKCE flow,
+   enable only the intended sign-in method, and register the exact public URLs
+   `/auth/callback` for redirect and `/` for logout. Bind `WORKOS_CLIENT_ID`,
+   `WORKOS_ISSUER` (the exact HTTPS issuer for the environment's AuthKit user
+   access tokens), and a dedicated random `WORKOS_COOKIE_PASSWORD` of at least
+   32 characters on the public Worker. Leave `WORKOS_API_KEY` unset. Signing
+   keys come from the client's JWKS endpoint on the default WorkOS API.
+   The provider holds the email codes. The browser receives host-only, secure
+   HTTP-only cookies. Configure session expiry in AuthKit.
+   [WorkOS Magic Auth](https://workos.com/docs/authkit/magic-auth) ·
+   [AuthKit session integration](https://github.com/workos/authkit-session).
+3. Check the ordinary address with a recipient outside the operator allowlist,
+   their own mailbox and a fresh browser. Confirm code delivery, an empty first
+   home and re-entry after the provider session expires. Then share a synthetic
+   work, reopen it after a saved update, revoke the grant at the private entry,
+   and check home and the old link again. Local provider fixtures exercise the
+   application paths. Mail delivery, live enrollment and session settings need
+   a separately scoped hosted trial. The CLI currently uses its Access entry.
 
 ## Independent private projects (opt-in)
 

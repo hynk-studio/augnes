@@ -13,8 +13,17 @@ async function available(s:Access) {
   if(!await s.DB.prepare("SELECT 1 FROM web_planning_schema WHERE version=6").first())fail('continuation_migration_required',503);
 }
 function owner(s:Access){if(s.recipientHash||s.projectEntry||s.principalHash!==s.ownerHash)fail('scope_denied',403);}
+function recipientOrigin(env:Access['env']) {
+  if(sharedHomeEnabled(env) && env.PUBLIC_RECIPIENT_ORIGIN){
+    try {
+      const url=new URL(env.PUBLIC_RECIPIENT_ORIGIN);
+      if(url.protocol==='https:' && url.origin===env.PUBLIC_RECIPIENT_ORIGIN)return url.origin;
+    } catch { /* Fall back to the existing private share URL. */ }
+  }
+  return env.APP_ORIGIN;
+}
 function view(s:Access,g:Grant){return {id:g.grant_id,work_id:g.work_id,recipient:g.recipient_login,obligation:g.obligation,
-  expires:g.expires,max_updates:g.max_updates,revoked_at:g.revoked_at,role:'continue-work-v1',link:s.env.APP_ORIGIN+'/continue/'+g.grant_id};}
+  expires:g.expires,max_updates:g.max_updates,revoked_at:g.revoked_at,role:'continue-work-v1',link:recipientOrigin(s.env)+'/continue/'+g.grant_id};}
 export async function listContinuations(s:Access,id:string,cursor='') {
   owner(s);await available(s);if(cursor&&!UUID.test(cursor))fail('invalid_cursor');
   const {results}=await s.DB.prepare(`SELECT * FROM web_planning_continuation WHERE workspace_id=? AND project_id=? AND work_id=? AND grant_id>? ORDER BY grant_id LIMIT 21`)

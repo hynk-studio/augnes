@@ -91,6 +91,11 @@ function checkReplayedOccurrences(saved: Revision,edits: any[]) {
 export async function handle(request:Request,env:Environment,principal:Principal):Promise<Response> {
   try {
     const url=new URL(request.url), path=url.pathname;
+    const successor=path.match(/^\/(continue|api\/continuation)\/([a-f0-9-]{36})(.*)$/);
+    const publicHome=path==='/'&&!url.search&&!request.headers.has('x-web-planning-project') || path==='/projects';
+    const receivedPage=path==='/shared-work' || path==='/api/shared-work';
+    const sharedEntry=sharedHomeEnabled(env) && (publicHome||receivedPage||path==='/continuation.js'||path==='/style.css');
+    if(principal.ingress==='public-recipient' && !(sharedEntry || sharedHomeEnabled(env)&&successor&&UUID.test(successor[2])))fail('not_found',404);
     // Only the deliberately published projection is anonymous. Every private
     // operation still resolves the existing enforcing principal/project owner.
     const published=path.match(/^\/public-requests\/([a-f0-9-]{36})(\.json)?$/);
@@ -122,7 +127,6 @@ export async function handle(request:Request,env:Environment,principal:Principal
       }
       fail('not_found',404);
     }
-    const successor=path.match(/^\/(continue|api\/continuation)\/([a-f0-9-]{36})(.*)$/);
     if(successor&&UUID.test(successor[2])){
       const access=await authorize(request,env,principal,undefined,false,successor[2]),suffix=successor[3];
       const context=await continuationContext(access);let result:Response;
@@ -213,9 +217,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
       await activeGrant(access,id); // Readback/authorization loss never becomes an empty result.
       return result;
     }
-    const publicHome=path==='/'&&!url.search&&!request.headers.has('x-web-planning-project') || path==='/projects';
-    const receivedPage=path==='/shared-work' || path==='/api/shared-work';
-    if(sharedHomeEnabled(env) && (publicHome||receivedPage||path==='/continuation.js'||path==='/style.css')){
+    if(sharedEntry){
       const home=authorizeSharedHome(request,env,principal);
       if(request.method!=='GET')fail('method_not_allowed',405);
       if(url.search && (!receivedPage || url.searchParams.getAll('cursor').length!==1 || [...url.searchParams.keys()].some(key=>key!=='cursor')))fail('invalid_cursor');
