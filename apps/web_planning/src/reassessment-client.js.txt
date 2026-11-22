@@ -82,7 +82,16 @@ $('reassessment-inspect').onclick=()=>run(async()=>{
   if(!view.selection){returnText(box,'Selected evidence unavailable: '+view.evidence.reason+'. No replacement decision can be saved from this observation.');return;}
   const e=view.evidence;returnText(box,'Selected evidence: '+returnRef(e.selection.ref)+' · '+e.file.name+' · '+e.file.digest);
   returnText(box,'Evidence context: '+e.basis.definition.goal+' · '+[...e.basis.definition.success_criteria,...e.basis.definition.non_goals,...e.basis.notes].join(' / '));
-  returnText(box,e.file.digest===view.original_use.original.file.digest?'Selected bytes are unchanged from the old return. Relevance remains your judgment.':'Selected bytes differ. This alone does not establish correction or supersession.');
+  const originalMatch = e.file.digest === view.original_use.original.file.digest;
+  returnText(box, originalMatch ? 'Selected bytes match the original return.' : 'Selected bytes differ from the original return.');
+  const comparison = view.evidence_comparison;
+  if (comparison?.basis === 'latest_reassessment') {
+    const basis = comparison.file.name + ' · ' + returnRef(comparison.source.ref);
+    const match = comparison.same_bytes ? 'match' : 'differ from';
+    returnText(box, 'Selected bytes ' + match + ' the evidence used for the latest reassessment (consumer revision ' + comparison.decision.revision + '): ' + basis + '.');
+    if (comparison.same_bytes && !comparison.same_occurrence) returnText(box, 'The same bytes were selected from a different source occurrence.');
+  }
+  returnText(box, 'Applicability to this work remains your judgment.');
   addTextReader(box,e.file,null);box.append(returnButton('Download selected evidence',()=>downloadExchangeFile(e.file)));
 });
 $('reassessment-fields').addEventListener('input',()=>{reassessmentEdited=true;reassessmentPrepared=null;$('reassessment-save').hidden=true;$('reassessment-preview').textContent='';$('reassessment-output').hidden=$('reassessment-decision').value!=='updated';});

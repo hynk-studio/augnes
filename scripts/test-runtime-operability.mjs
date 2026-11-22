@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { EventEmitter } from "node:events";
+import { EventEmitter, once } from "node:events";
 import { spawn, spawnSync } from "node:child_process";
 import {
   appendFileSync,
@@ -166,6 +166,7 @@ const blockedBridgeFileEnvironment = Object.freeze({
 });
 const ownedProcesses = new Set();
 const auxiliaryProcesses = new Set();
+const tcpSentinelServers = new Set();
 const selectedPorts = [];
 const observedOwnedPids = new Set();
 let pathFixtureSkipReason = null;
@@ -226,6 +227,7 @@ async function runRuntimeOperability() {
     });
     assert(Number.isInteger(unrelatedProcess.pid));
 
+    await testTcpSentinelContention();
     await testReadyDuplicateStatusAndStop();
     await testPoisonedEnvironmentRestart(proxyPort);
     await testParentSignalCleanup();
@@ -527,6 +529,7 @@ async function cleanupRuntimeOperability() {
   const cleanupErrors = [];
   for (const action of [
     () => cleanupOwnedProcesses(ownedProcesses, { termGraceMs: 12_000 }),
+    ...Array.from(tcpSentinelServers, (server) => () => closeServer(server)),
     () => closeServer(unrelatedIdentityServer),
     () => closeServer(proxyServer),
     () => cleanupOwnedProcesses(auxiliaryProcesses),
@@ -755,22 +758,8 @@ async function testReadyDuplicateStatusAndStop() {
   selectedPorts.push({ scenario: scenario.name, ui: ready.ui_port, bridge: ready.bridge_port });
   rememberOwnedPids(ready);
 
-  assert.equal(await canConnect(uiBlocker.port), true, "unrelated UI listener must remain alive");
-  assert.equal(
-    await canConnect(bridgeBlocker.port),
-    true,
-    "unrelated bridge listener must remain alive",
-  );
-  if (uiBlocker.connectionCount) {
-    assert.equal(uiBlocker.connectionCount() > 0, true, "occupied UI listener must remain responsive");
-  }
-  if (bridgeBlocker.connectionCount) {
-    assert.equal(
-      bridgeBlocker.connectionCount() > 0,
-      true,
-      "occupied bridge listener must remain responsive",
-    );
-  }
+  await assertTcpSentinel(uiBlocker, "unrelated UI listener must remain alive");
+  await assertTcpSentinel(bridgeBlocker, "unrelated bridge listener must remain alive");
 
   await assertReadyEndpoints(
     ready,
@@ -844,12 +833,8 @@ async function testReadyDuplicateStatusAndStop() {
   assert.equal(supervisorExit.code, 0, managed.output());
 
   await assertStoppedScenario(scenario, ready, ownedProcessTree);
-  assert.equal(await canConnect(uiBlocker.port), true, "unrelated UI listener must survive stop");
-  assert.equal(
-    await canConnect(bridgeBlocker.port),
-    true,
-    "unrelated bridge listener must survive stop",
-  );
+  await assertTcpSentinel(uiBlocker, "unrelated UI listener must survive stop");
+  await assertTcpSentinel(bridgeBlocker, "unrelated bridge listener must survive stop");
   assert.equal(
     hashFile(databasePath),
     databaseBeforeStop.get(databasePath)?.sha256,
@@ -872,8 +857,8 @@ async function testReadyDuplicateStatusAndStop() {
   await assertStoppedScenario(scenario, restartedReady, restartedTree);
   assert(supervisedReviewHttp.initialPassed && supervisedReviewHttp.recoveryPassed);
 
-  if (uiBlocker.server) await closeServer(uiBlocker.server);
-  if (bridgeBlocker.server) await closeServer(bridgeBlocker.server);
+  await closeServer(uiBlocker.server);
+  await closeServer(bridgeBlocker.server);
   removeScenarioLogs(scenario);
 }
 
@@ -1618,11 +1603,11 @@ async function testPoisonedEnvironmentRestart(proxyPort) {
   await assertStoppedScenario(scenario, ready, processTree);
   assert.equal(proxyRequestCount, 0, "restart must not make provider/proxy requests");
   assert.equal(isProcessAlive(unrelatedProcess.pid), true, "restart/stop must not signal unrelated PID");
-  assert.equal(await canConnect(uiBlocker.port), true, "poisoned UI blocker must survive");
-  assert.equal(await canConnect(bridgeBlocker.port), true, "poisoned bridge blocker must survive");
+  await assertTcpSentinel(uiBlocker, "poisoned UI blocker must survive");
+  await assertTcpSentinel(bridgeBlocker, "poisoned bridge blocker must survive");
   assertDirectoryPublicSafe(scenario.logRoot, "poisoned lifecycle logs");
-  if (uiBlocker.server) await closeServer(uiBlocker.server);
-  if (bridgeBlocker.server) await closeServer(bridgeBlocker.server);
+  await closeServer(uiBlocker.server);
+  await closeServer(bridgeBlocker.server);
   removeScenarioLogs(scenario);
 }
 
@@ -4837,21 +4822,44 @@ function hashFile(filePath) {
 
 async function createTcpSentinel(preferredPort = 0) {
   let connections = 0;
-  const sockets = new Set();
   const server = trackServerConnections(net.createServer((socket) => {
     connections += 1;
-    sockets.add(socket);
-    socket.once("close", () => sockets.delete(socket));
     socket.end();
   }));
-  server.testSockets = sockets;
+  let port;
   try {
-    const port = await listenTcpServer(server, preferredPort);
-    return { server, port, connectionCount: () => connections };
+    port = await listenTcpServer(server, preferredPort);
   } catch (error) {
-    if (error?.code !== "EADDRINUSE" || !(await canConnect(preferredPort))) throw error;
-    return { server: null, port: preferredPort, connectionCount: null };
+    if (error?.code !== "EADDRINUSE" || preferredPort === 0) throw error;
+    // The supervisor will use this occupied port as its configured preference.
+    port = await listenTcpServer(server);
   }
+  tcpSentinelServers.add(server);
+  server.once("close", () => tcpSentinelServers.delete(server));
+  return { server, port, connectionCount: () => connections };
+}
+
+async function assertTcpSentinel({ server, port, connectionCount }, message) {
+  assert.equal(server.address()?.port, port, message);
+  const before = connectionCount();
+  const socket = net.createConnection({ host: "127.0.0.1", port });
+  socket.setTimeout(1_000, () => socket.destroy(new Error(message)));
+  try {
+    const ended = once(socket, "end");
+    socket.resume();
+    await ended;
+    assert.ok(connectionCount() > before, message);
+  } finally {
+    socket.destroy();
+  }
+}
+
+async function testTcpSentinelContention() {
+  const first = await createTcpSentinel();
+  const second = await createTcpSentinel(first.port);
+  await closeServer(first.server);
+  await assertTcpSentinel(second, "the other fixture closing must preserve this listener");
+  await closeServer(second.server);
 }
 
 async function findPreferredPort() {
@@ -4863,13 +4871,9 @@ async function findPreferredPort() {
 
 async function listenTcpServer(server, preferredPort = 0) {
   while (true) {
-    await new Promise((resolve, reject) => {
-      server.once("error", reject);
-      server.listen(
-        { host: "127.0.0.1", port: preferredPort, exclusive: true },
-        resolve,
-      );
-    });
+    const listening = once(server, "listening");
+    server.listen({ host: "127.0.0.1", port: preferredPort, exclusive: true });
+    await listening;
     const address = server.address();
     assert(address && typeof address === "object");
     if (address.port <= 65_535 - 20) return address.port;

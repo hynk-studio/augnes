@@ -35,7 +35,19 @@ export async function inspectUse(s:Store,id:string,input:Record<string,unknown>)
   if(input.evidence!==null){const pick=evidenceSelection(input.evidence);
     try{selected=await evidence(s,pick,chain);}catch(e){unavailable={selection:pick,status:"unavailable",reason:(e as {code?:string}).code??"storage_unavailable"};}}
   if(!await headsCurrent(s,reference(head),selected?.selection.source_head??reference(head)))fail("refresh_required",409);
-  return {original_use:decisionView(use),origin,consumer:snapshot(head),current:currentUse(chain,use),evidence:selected??unavailable,
+  const current = currentUse(chain, use);
+  const priorEvidence = current.judgment?.evidence ?? {
+    ref: use.return_use!.returned, kind: "return" as const, index: use.return_use!.index, file: use.return_use!.original.file,
+  };
+  const source = { ref: priorEvidence.ref, kind: priorEvidence.kind, index: priorEvidence.index };
+  const comparison = selected ? {
+    basis: current.judgment ? "latest_reassessment" : "original_return",
+    decision: current.judgment?.revision ?? current.use,
+    source, file: priorEvidence.file,
+    same_occurrence: equal(source.ref, selected.selection.ref) && source.kind === selected.selection.kind && source.index === selected.selection.index,
+    same_bytes: priorEvidence.file.digest === selected.file.digest && priorEvidence.file.bytes === selected.file.bytes,
+  } : null;
+  return {original_use:decisionView(use),origin,consumer:snapshot(head),current,evidence:selected??unavailable,evidence_comparison:comparison,
     selection:selected?{use:ref,consumer:reference(head),evidence:selected.selection}:null};
 }
 function intent(value:unknown){
