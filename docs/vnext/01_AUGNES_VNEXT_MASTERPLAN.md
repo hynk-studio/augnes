@@ -114,6 +114,23 @@ intervention effect, comparative usefulness and autonomy remain separate claims
 under [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#local-external-response-evidence-1453).
 Public discovery/distribution under #1447 continues independently.
 
+### Project continuity in ordinary work
+
+Project continuity is the ability to use what an undertaking previously
+observed, decided, promised or learned, with its basis and conditions, to
+justify continuing, revising or completing its present work. The same person
+can do this in one uninterrupted session. Recovery after a change of device
+or contributor tests resilience to that particular change.
+
+For a concrete question, consider what the working surface makes available,
+what the evidence supports at the relevant time, who can decide or act, and
+which undertaking owns the work or remaining commitment. A legitimate change
+of purpose can continue the undertaking. Closure followed by an independent
+project can preserve a useful method and its provenance. An earlier judgment
+may still be justified, or new evidence may support a different decision.
+Use existing records and sources that carry these distinctions through
+[Resume, Verify, Anticipate and Decide](#2-product-compass-resume--verify--anticipate--decide).
+
 ### Web-active users and continuing cooperation
 
 Potential users include people, teams, organizations and every kind of agent

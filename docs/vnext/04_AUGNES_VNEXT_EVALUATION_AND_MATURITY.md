@@ -3005,6 +3005,23 @@ and other affected host-native projections about:
 Different wording, density, and interaction grammar are allowed. Materially
 different product meaning is not.
 
+For an affected question, check what earlier grounds support in ordinary work,
+including uninterrupted work on one host. With equivalent grounds, cutoff and
+rules, readers must preserve established facts and their limits. Different
+permitted choices can follow. A view that omits available decisive evidence
+and a view that asserts more than its evidence supports can both mislead.
+Where records conflict, resolve or report the affected uncertainty while
+allowing independently supported work to continue.
+
+For example, an approval that becomes visible later may change today's plan
+without making that approval visible to yesterday's reader. When new evidence
+matches the latest review but differs from the original return, establish
+which comparison the reader is seeing. In neither case do matching bytes or
+a recorded attempt establish an external outcome. Apply checks to the change
+and claim at hand. A [comparison of the summary and its source](#conditional-case-valid-format-misleading-predecessor-material)
+can help investigate actual use. Comparative benefit requires its own outcome
+evidence.
+
 ### Attention precision
 
 Blank State and any attention queue must prioritize consequential human
@@ -3507,6 +3524,18 @@ starts fresh; it is not a clean-handoff control. Keep checker-only answers out o
 both inputs. Preserve predecessor attribution and separate reported prior
 verification from locally observed checks; an inherited claim is not "we verified
 it".
+
+If a non-authoritative summary and a decision record agree, following either
+can produce the same answer. To distinguish these explanations, keep the work,
+role, cutoff and decision rule fixed. Hold the summary constant while varying
+which work a dated approval covers. Then hold the approval constant while
+varying whether the summary calls the change proposed or approved. Consider
+two workshops with the same proposed closing time. An approval for the
+workshop being scheduled supports using that time. If the only visible
+approval covers the other workshop, the change here remains unconfirmed.
+Inspect the saved plan for the time used and any conditions on it. Record
+which source was consulted if the read was observed. A worker can use the
+record to justify keeping the same plan.
 
 Include a legitimate correction or authorized revision under the existing
 justified-change contrast. Observe actual continuation and checked outcome,
