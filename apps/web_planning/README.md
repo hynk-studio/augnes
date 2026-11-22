@@ -12,6 +12,60 @@ Web/native stores and Web reconstruction remain independent.
 
 To take one original file into later work, use [Download a saved file](#download-a-saved-file).
 
+## Start with your own email and resume shared work
+
+On a deployment with the verified-email home enabled, open the ordinary Web
+address and sign in using your own email. Your home initially shows **Shared
+with you** and an empty list. A project owner opens a saved work, chooses
+**Delegate updates to this saved work**, enters your email, obligation, expiry
+and update allowance, and confirms the disclosure. You can sign in for the
+first time after the owner shares. Refreshing home discovers the work by its
+current goal, obligation and stable work ID. Open it to read the saved history
+and attachments and append an attributed update. Reopen it from home to read
+the saved revision. The owner can revoke the grant from the same delegation
+screen. Reaching the update limit retains reading through expiry or revocation.
+
+`GET /api/shared-work` returns this verified recipient's active grants across
+the deployment workspace, with up to 20 items and an optional `next` cursor.
+Each item has `grant_id`, `work_id`, `goal` and `obligation`. Multiple grants
+on one work retain their respective limits. An erased work disappears.
+Project authors keep their private project chooser and their received work on
+the same home. Other signed-in users see only their received work.
+
+For local Codex, the same home works in the browser on either device. The
+command-line reader uses the recipient's own Access session and
+`AUGNES_WEB_ORIGIN`. Run `node apps/augnes_apps/scripts/file-exchange.mjs shared-work`,
+choose a returned grant, then run `node apps/augnes_apps/scripts/file-exchange.mjs shared-setup GRANT_ID received.json`.
+The new local file contains identifiers for the existing scoped continuation
+reader. Every open and update checks the current grant on the server.
+
+### Enable a public email entry on Cloudflare
+
+1. Use the existing release procedure for the exact Web Worker and its bound
+   database. Apply its pending migration suffix through `0011_received_work.sql`
+   and deploy code supporting the new entry. Migration 0011 adds a recipient
+   index to existing grants and keeps schema marker 6.
+2. Set `PROJECT_ENTRY_MODE=admitted-private-v1` and
+   `PUBLIC_SUCCESSION_MODE=verified-email-home-v1`. `PROJECT_ADMITTED_EMAILS`
+   continues to identify private project authors. A recipient needs only
+   verified control of the email named in a live grant. Keep the existing
+   owner, workspace, audience, secrets and D1 binding.
+3. On the Access application for this Web host, enable **One-time PIN** as a
+   login method. Add an **Allow** policy with **Include → Login Methods →
+   One-time PIN** for this application. This lets any mailbox owner verify
+   their own address. Keep Access identity enforcement on the home and its
+   private routes. If the policy is shared with other applications, attach
+   the new rule only to this application's audience. Apply broader admission
+   after the updated Worker and database are ready.
+   [Cloudflare Access policies](https://developers.cloudflare.com/cloudflare-one/access-controls/policies/)
+   and [email sign-in](https://developers.cloudflare.com/cloudflare-one/integrations/identity-providers/one-time-pin/).
+4. Check the live entrance in a fresh browser with a real recipient who has
+   no author admission. The recipient uses their own mailbox, observes the
+   empty home, then finds a newly shared work there and saves and reopens an
+   update on the original. After owner revocation, refresh home and revisit
+   the former entry. Local identities and a Worker dry run cover application
+   behavior. Live delivery and effective Access policy require that hosted check.
+
 ## Independent private projects (opt-in)
 
 With `PROJECT_ENTRY_MODE=admitted-private-v1` and `PROJECT_ADMITTED_EMAILS` set to
@@ -323,7 +377,9 @@ owner is introduced.
 
 In admitted private project mode, open a saved work and choose **Delegate updates
 to this saved work**. The owner deliberately shares that work's complete history,
-attached files and reference metadata with one already admitted sign-in. The
+attached files and reference metadata with a named recipient. Private mode checks
+that the recipient is already admitted. The verified-email home also accepts a
+recipient who can verify their email at the public entrance. The
 `continue-work-v1` role permits reading that work and appending attributed reports
 and next actions. It permits no changes to the owner's purpose or selected
 material, other-work access, erasure, imports, subdelegation or external execution.
@@ -332,7 +388,8 @@ The server enforces both expiry and the cumulative update limit; a fresh session
 or model does not renew either. The owner can revoke the delegation in this page.
 Creating a new grant is an explicit new owner decision, not automatic succession.
 
-The recipient opens the returned `/continue/<grant-id>` link under their own
+The recipient opens the work from the verified-email home or the returned
+`/continue/<grant-id>` link under their own
 admitted sign-in. Read the current purpose, sources, earlier updates and unresolved
 obligations before saving an update. Neither a link nor a downloaded setup is a
 credential. A lost save acknowledgement leaves an operation locator; use **Check
@@ -2203,10 +2260,10 @@ source or schema marker alone does not establish today's pending set.
 | Observed existing state | Transition to the current artifact and chosen features |
 | --- | --- |
 | Schema 1 or 2 with a coherent established ledger | Review the missing historical suffix through 0003, then the current path below. Do not replay applied initialization or expose the new worker before its schema prerequisites hold. |
-| Schema 3, positive revision constraint, coherent ledger through 0003 | Review pending `0004_complete_exchange_files.sql`, `0005_return_destination.sql`, `0006_request_participation.sql`, `0007_independent_projects.sql`, `0008_work_continuation.sql`, then `0009_public_requests.sql` and `0010_request_applications.sql` when included. The stages are schema 4, 5, then 6. Migrations 0005, 0006, 0009 and 0010 keep the existing marker. |
-| Schema 4, file-part storage and a coherent ledger | Ordinary current owner-only code is compatible. Select only missing files from 0005 onward; admitted projects additionally need 0007, succession needs 0008, public requests need 0009, and private applications need 0010 plus the applicable modes and authenticated ingress. |
-| Schema 5 with a coherent ledger through 0007 | Ordinary/admitted-project entry is compatible. Review pending 0008 for schema-6 succession and the included suffix through 0009 or 0010. Preserve legacy and independent mappings. |
-| Schema 6 with a coherent ledger through 0008, 0009 or 0010 | Preserve existing history. The full directory adds the missing suffix through 0010. An already applied migration needs no replay. Envelope compatibility and explicit feature/ingress configuration still apply. |
+| Schema 3, positive revision constraint, coherent ledger through 0003 | Review pending `0004_complete_exchange_files.sql`, `0005_return_destination.sql`, `0006_request_participation.sql`, `0007_independent_projects.sql`, `0008_work_continuation.sql`, then `0009_public_requests.sql`, `0010_request_applications.sql` and `0011_received_work.sql` when included. The stages are schema 4, 5, then 6. Migrations 0005, 0006 and 0009–0011 keep the existing marker. |
+| Schema 4, file-part storage and a coherent ledger | Ordinary current owner-only code is compatible. Select only missing files from 0005 onward; admitted projects additionally need 0007, succession needs 0008, public requests need 0009, private applications need 0010, and the verified-email home needs 0011 plus the applicable modes and authenticated ingress. |
+| Schema 5 with a coherent ledger through 0007 | Ordinary/admitted-project entry is compatible. Review pending 0008 for schema-6 succession and the included suffix through 0011. Preserve legacy and independent mappings. |
+| Schema 6 with a coherent ledger through 0008–0011 | Preserve existing history. The full directory adds the missing suffix through 0011. An already applied migration needs no replay. Envelope compatibility and explicit feature/ingress configuration still apply. |
 | Unsupported/marker-only schema, inconsistent or mixed ledgers, missing/duplicate markers, leftover migration tables or unknown state | Preserve evidence and diagnose. No initialization replay, ledger repair, inferred upgrade or code-only downgrade. |
 
 ### Bounded observations and retained evidence
@@ -2349,6 +2406,7 @@ remain unchanged. The later direct-host #1351 journey was accepted in #1356; thi
 | `RECONSTRUCTION_MODE` | Normally unset. `quiesced-empty-store` admits an explicitly requested reconstruction into the selected empty project scope, only after the old writer is quiesced. Other projects remain independent. |
 | `PROJECT_ENTRY_MODE` | Normally unset (legacy owner-only). `admitted-private-v1` enables private project entry on schema 5 or 6. It does not alter the hosted audience. |
 | `PROJECT_ADMITTED_EMAILS` | JSON array of up to 100 verified-ingress emails allowed to create/select their own projects when entry is enabled. It grants no access to another owner's project. |
+| `PUBLIC_SUCCESSION_MODE` | `verified-email-home-v1` enables the shared-work home for verified emails with project entry and migration 0011. Unset deployments retain the private admitted-recipient route. |
 
 Before real data, independently verify owner-private audience, authenticated
 identity forwarding, missing/duplicate/wrong identity refusal, overwrite of

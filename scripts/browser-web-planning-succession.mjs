@@ -6,6 +6,15 @@ export async function browserWorkSuccession({owner,successor,local,click,set,set
   const origin=local.origin;
   async function signIn(c,value){await c.send('Network.setCookie',{name:'web_planning_local',value,url:origin,httpOnly:true,sameSite:'Strict'});}
   async function continuation(c,url){await navigate(c,url);await wait(()=>c.eval("!!document.getElementById('work-context')&&typeof current!=='undefined'&&!!current&&!busy"),'successor work read');}
+  async function openFromHome(c) {
+    await navigate(c,origin+'/');
+    assert.equal(await c.eval("document.querySelectorAll('#shared-work li a').length"),1);
+    await continuation(c,await c.eval("document.querySelector('#shared-work li a').href"));
+  }
+  const b=await successor();
+  await signIn(b,local.env.LOCAL_PARTICIPANT_SESSION);await navigate(b,origin+'/');
+  assert.match(await b.eval("document.querySelector('#shared-work').textContent"),/No work has been shared/);
+  assert.equal(await b.eval("!!document.getElementById('project-create')"),false);
   await signIn(owner,local.env.LOCAL_SESSION);await navigate(owner,origin+'/projects');
   await wait(()=>owner.eval("!!document.getElementById('project-create')"),'project entry');
   for(const [id,value] of Object.entries({'project-name':'Workshop succession','project-purpose':'Prepare an accurate workshop notice',
@@ -38,7 +47,7 @@ export async function browserWorkSuccession({owner,successor,local,click,set,set
   assert.equal((await local.db.prepare('SELECT count(*) n FROM web_planning_continuation WHERE work_id=?').bind(original.work_id).first()).n,1);
   checks.push('Successor owner form: explicit full-history disclosure, finite grant, committed response loss, reload and read-only reconciliation retain exactly one delegation');
 
-  const b=await successor();await signIn(b,local.env.LOCAL_PARTICIPANT_SESSION);await continuation(b,link);
+  await openFromHome(b);assert.equal(await b.eval('location.href'),link);
   assert.match(await b.eval("$('work-context').textContent"),/Evening noise is unknown/);
   assert.match(await b.eval("$('work-context').textContent"),/Do not send the notice before the noise check/);
   const records=await b.eval("[...document.querySelectorAll('#work-context details pre')].map(e=>JSON.parse(e.textContent))");
@@ -52,7 +61,7 @@ export async function browserWorkSuccession({owner,successor,local,click,set,set
   await click(b,'resolve');await settled(b);assert.equal(await b.eval('pending'),null);
   assert.equal(await b.eval('current.saved.revision'),original.revision+1);assert.equal(await b.eval('current.remaining_updates'),1);
   const fresh=await successor();assert.notEqual(fresh.browserContextId,b.browserContextId);
-  await signIn(fresh,local.env.LOCAL_PARTICIPANT_SESSION);await continuation(fresh,link);
+  await signIn(fresh,local.env.LOCAL_PARTICIPANT_SESSION);await openFromHome(fresh);
   assert.equal(await fresh.eval('current.remaining_updates'),1);assert.match(await fresh.eval("$('work-context').textContent"),/Measure the room at 18:00/);
   await set(fresh,'report','The 18:00 measurement is 38 dBA; the venue email gives a 40 dBA limit.');await set(fresh,'next-action','Owner reviews the measured result before sending the notice.');
   await click(fresh,'update-submit');await settled(fresh);
@@ -65,6 +74,8 @@ export async function browserWorkSuccession({owner,successor,local,click,set,set
   await owner.eval("document.querySelector('#grants button').click()");await settled(owner);
   await click(fresh,'refresh');await settled(fresh);
   assert.equal(await fresh.eval("$('work-context').textContent"),'');assert.equal(await fresh.eval("$('update-submit').disabled"),true);
+  await navigate(fresh,origin+'/projects');
+  assert.match(await fresh.eval("document.querySelector('#shared-work').textContent"),/No work has been shared/);
   assert.equal((await local.db.prepare('SELECT count(*) n FROM web_planning_revision WHERE work_id=?').bind(original.work_id).first()).n,original.revision+2);
   checks.push('Successor revocation: future disclosure ends and private view clears; original authorship, two attributed results and remaining obligations stay in the owner history');
 }

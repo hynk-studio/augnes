@@ -1,0 +1,1 @@
+CREATE INDEX `web_planning_continuation_recipient` ON `web_planning_continuation` (`workspace_id`,`recipient_hash`,`grant_id`);

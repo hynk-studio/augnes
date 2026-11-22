@@ -17,6 +17,11 @@ export async function openFileProject(origin = process.env.AUGNES_WEB_ORIGIN,pro
 export async function openFileProjects(origin=process.env.AUGNES_WEB_ORIGIN){
   const {request}=await openFileConnection(origin,'/projects',{},undefined,true);
   return {list:async cursor=>(await request('/api/projects'+(cursor?'?cursor='+encodeURIComponent(cursor):''))).json(),
+    shared:async cursor=>(await request('/api/shared-work'+(cursor?'?cursor='+encodeURIComponent(cursor):''))).json(),
+    async sharedSetup(grantId){
+      if(!uuid.test(grantId))fail('Choose a listed delegation ID.');
+      return (await request('/api/continuation/'+grantId+'/setup')).json();
+    },
     create:async input=>(await request('/api/projects',input)).json(),
     open:projectId=>openFileProject(origin,projectId)};
 }

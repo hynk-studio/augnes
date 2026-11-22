@@ -1,4 +1,4 @@
-import { login, projectEntryEnabled, type Access } from './access';
+import { login, projectEntryEnabled, requireSharedHomeSchema, sharedHomeEnabled, type Access } from './access';
 import { binding, boundedText, canonical, exact, fail, hash, headBinding, makeRevision, sameBinding, UUID, type Revision } from './contract';
 import { append, readWork } from './store';
 
@@ -25,10 +25,13 @@ export async function createContinuation(s:Access,id:string,input:Record<string,
   owner(s);await available(s);
   exact(input,'workspace_id,project_id,grant_id,expected,recipient,obligation,expires,max_updates,confirm');
   const expected=binding(input.expected),recipient=login(input.recipient),obligation=boundedText(input.obligation,true);
-  if(!UUID.test(String(input.grant_id))||!recipient||hash(recipient)===s.ownerHash)fail('invalid_successor');
+  if(!UUID.test(String(input.grant_id))||!recipient||hash(recipient)===s.ownerHash || sharedHomeEnabled(s.env)&&recipient.length>254)fail('invalid_successor');
   if(input.confirm!=='share-this-work-history')fail('confirmation_required');
   const admitted=JSON.parse(s.env.PROJECT_ADMITTED_EMAILS??'[]') as string[];
-  if(recipient!==login(s.env.OWNER_EMAIL)&&!admitted.some(v=>login(v)===recipient))fail('successor_not_admitted',403);
+  if(recipient!==login(s.env.OWNER_EMAIL)&&!admitted.some(v=>login(v)===recipient)){
+    if(!sharedHomeEnabled(s.env))fail('successor_not_admitted',403);
+    await requireSharedHomeSchema(s.DB);
+  }
   if(!Number.isSafeInteger(input.expires)||!Number.isSafeInteger(input.max_updates)||Number(input.max_updates)<1||Number(input.max_updates)>20)fail('invalid_continuation_limit');
   const fingerprint=hash(canonical({work_id:id,expected,recipient,obligation,expires:input.expires,max_updates:input.max_updates}));
   const read=()=>s.DB.prepare('SELECT * FROM web_planning_continuation WHERE grant_id=? AND workspace_id=? AND project_id=?')
