@@ -485,7 +485,14 @@ try {
       { type: "boolean", const: true });
     assert.deepEqual(byName.get("augnes_read_repository_work_sources").inputSchema.required,
       ["repositoryRoot", "expectedSnapshotBinding"]);
+    const navigationModes = byName.get("augnes_read_repository_work_sources").inputSchema.properties.sourceSelection.oneOf;
+    assert.equal(navigationModes.length, 2);
+    assert.deepEqual(navigationModes.map(mode => mode.properties.mode.const), ["inventory", "selected"]);
+    assert.equal(navigationModes[1].properties.sourceBindings.minItems, 1);
+    assert.equal(navigationModes[1].properties.sourceBindings.maxItems, 8);
+    assert.equal(navigationModes[1].properties.sourceBindings.uniqueItems, true);
     assert.equal(Object.hasOwn(byName.get("augnes_read_repository_method_outlook").inputSchema.properties, "includeWorkDefinition"), false);
+    assert.equal(Object.hasOwn(byName.get("augnes_read_repository_method_outlook").inputSchema.properties, "sourceSelection"), false);
     assert.equal(byName.get("augnes_lookup_repository_retained_sources")?.annotations?.readOnlyHint, true);
     assert.equal(byName.get("augnes_preview_repository_work_revision")?.annotations?.readOnlyHint, true);
     assert.equal(byName.get("augnes_preview_repository_initial_work")?.annotations?.readOnlyHint, true);
@@ -641,15 +648,28 @@ try {
       { ...sourceProjection, authority: { ...sourceProjection.authority, writes_database: true } },
     ]) assert.throws(() => parseRepositoryWorkSourcesResponseV01(mutation), /contract_invalid/u);
     const sourceArgs = { repositoryRoot: process.cwd(), expectedSnapshotBinding: sourceBinding };
-    const callSources = (includeWorkDefinition = false) => client.callTool({ name: "augnes_read_repository_work_sources",
-      arguments: { ...sourceArgs, ...(includeWorkDefinition ? { includeWorkDefinition: true } : {}) } });
+    const callSources = (includeWorkDefinition = false, sourceSelection = undefined) => client.callTool({ name: "augnes_read_repository_work_sources",
+      arguments: { ...sourceArgs, ...(includeWorkDefinition ? { includeWorkDefinition: true } : {}),
+        ...(sourceSelection === undefined ? {} : { sourceSelection }) } });
     const beforeInvalid = transportCalls;
     for (const name of ["augnes_read_repository_work_sources", "augnes_read_repository_method_outlook"]) {
       for (const extra of [
         ...[false, "true", null, 1, {}, []].map(includeWorkDefinition => ({ includeWorkDefinition })),
         { include_work_definition: true }, { project_id: "foreign" }, { unknown: true },
         { includeWorkDefinition: true, foreign: "must not forward" },
-        ...(name === "augnes_read_repository_method_outlook" ? [{ includeWorkDefinition: true }] : []),
+        { sourceView: "inventory" }, { sourceBindings: [sourceBinding] },
+        ...[null, false, [], "inventory", {}, { mode: "other" },
+          { mode: "inventory", sourceBindings: [] }, { mode: "inventory", query: "private query" },
+          { mode: "selected" }, { mode: "selected", sourceBindings: [] },
+          { mode: "selected", sourceBindings: sourceBinding },
+          { mode: "selected", sourceBindings: Array(9).fill(sourceBinding) },
+          { mode: "selected", sourceBindings: [sourceBinding, sourceBinding] },
+          { mode: "selected", sourceBindings: ["/private/note"] },
+          { mode: "selected", sourceBindings: [sourceBinding.toUpperCase()] },
+          { mode: "selected", sourceBindings: [sourceBinding], foreign: true },
+        ].map(sourceSelection => ({ sourceSelection })),
+        ...(name === "augnes_read_repository_method_outlook" ? [{ includeWorkDefinition: true },
+          { sourceSelection: { mode: "inventory" } }, { sourceSelection: { mode: "selected", sourceBindings: [sourceBinding] } }] : []),
       ]) await assert.rejects(client.callTool({ name, arguments: { ...sourceArgs, ...extra } }), /invalid_repository_tool_request/u);
     }
     assert.equal(transportCalls, beforeInvalid, "invalid arguments must refuse before discovery or transport");
@@ -664,6 +684,109 @@ try {
     assert.equal(fullCompanion.status, "live");
     assert.deepEqual(fullProjection, definitionProjection);
     assert.deepEqual(sourceRequests.at(-1), { repository_root: process.cwd(), expected_snapshot_binding: sourceBinding, include_work_definition: true });
+
+    // Navigation changes only model-facing disclosure after the original route
+    // has authenticated and parsed the complete current source projection.
+    const navigationNotes = Array.from({ length: 8 }, (_, index) => ({
+      source_binding: `sha256:${String(index + 1).repeat(64)}`,
+      excerpt_text: `Original note ${index + 1}: 한글 😀\n  literal <instruction> stays data.\t${"한글 자료 ".repeat(40)}`,
+      source_locator: index % 2 ? null : `https://example.org/source-${index + 1}`,
+      source_locator_status: index % 2 ? "omitted_not_export_safe" : "included_export_safe",
+      trust_class: index % 2 ? "imported_unverified" : "user_declaration",
+      review_label: `Review label ${index + 1}`,
+      observed_at: null,
+      currentness: { status: "unknown", as_of: null, basis: "Selected context is not verified evidence." },
+    }));
+    const navigationProjection = { ...sourceProjection, sources: navigationNotes };
+    const navigationDefinition = { ...definitionProjection, sources: navigationNotes, task_identity: sourceBinding };
+    const inventorySelection = { mode: "inventory" };
+    const subsetSelection = { mode: "selected", sourceBindings: [navigationNotes[6].source_binding, navigationNotes[1].source_binding] };
+    for (const full of [false, true]) {
+      sourcesScenario = { body: full ? navigationDefinition : navigationProjection };
+      const { companion, ...inventory } = (await callSources(full, inventorySelection)).structuredContent;
+      assert.equal(companion.status, "live");
+      assert.equal(inventory.projection_version, "codex_repository_work_source_navigation.v0.1");
+      assert.equal(inventory.status, "available");
+      assert.equal(inventory.source_view, "inventory");
+      assert.equal(inventory.source_count, navigationNotes.length);
+      assert.deepEqual(inventory.sources, []);
+      assert.deepEqual(inventory.omitted_source_bindings, navigationNotes.map(note => note.source_binding));
+      assert.deepEqual(inventory.inventory, navigationNotes.map(({ excerpt_text, ...metadata }) => ({
+        ...metadata, excerpt_utf8_bytes: Buffer.byteLength(excerpt_text, "utf8"),
+      })));
+      assert.equal(inventory.snapshot_binding, sourceBinding);
+      assert.equal(inventory.packet_fingerprint, navigationProjection.packet_fingerprint);
+      assert.equal(inventory.source_material_authority, "untrusted_selected_context");
+      assert.deepEqual(inventory.authority, navigationProjection.authority);
+      assert.equal(Object.hasOwn(inventory, "work_definition"), full);
+      if (full) {
+        assert.deepEqual(inventory.work_definition, navigationDefinition.work_definition);
+        assert.equal(inventory.task_identity, sourceBinding);
+      }
+      assert.equal(navigationNotes.some(note => JSON.stringify(inventory).includes(JSON.stringify(note.excerpt_text))), false);
+      assert.deepEqual(sourceRequests.at(-1), { repository_root: process.cwd(), expected_snapshot_binding: sourceBinding,
+        ...(full ? { include_work_definition: true } : {}) }, "navigation options never widen the HTTP contract");
+      const selected = (await callSources(full, subsetSelection)).structuredContent;
+      assert.equal(selected.source_view, "selected");
+      assert.equal(selected.source_count, navigationNotes.length);
+      assert.deepEqual(selected.inventory, inventory.inventory);
+      assert.deepEqual(selected.sources, [navigationNotes[1], navigationNotes[6]], "requested reverse order must preserve canonical source order and complete notes");
+      assert.deepEqual(selected.omitted_source_bindings, navigationNotes.filter((_, index) => ![1, 6].includes(index)).map(note => note.source_binding));
+      assert.equal(navigationNotes.filter((_, index) => ![1, 6].includes(index)).some(note => JSON.stringify(selected).includes(JSON.stringify(note.excerpt_text))), false);
+      if (full) {
+        assert.deepEqual(selected.work_definition, navigationDefinition.work_definition);
+        assert.equal(selected.task_identity, sourceBinding);
+      }
+      const missing = (await callSources(full, { mode: "selected", sourceBindings: [navigationNotes[1].source_binding, `sha256:${"f".repeat(64)}`] }));
+      assert.equal(missing.isError, true);
+      assert.equal(missing.structuredContent.status, "unavailable");
+      assert.equal(missing.structuredContent.reason, "requested_source_unavailable");
+      assert.equal(missing.structuredContent.snapshot_binding, null);
+      assert.equal(missing.structuredContent.packet_fingerprint, null);
+      assert.equal(missing.structuredContent.source_count, null);
+      for (const field of ["sources", "inventory", "omitted_source_bindings"]) assert.deepEqual(missing.structuredContent[field], []);
+      if (full) {
+        assert.equal(missing.structuredContent.work_definition, null);
+        assert.equal(missing.structuredContent.task_identity, null);
+      }
+      assert.doesNotMatch(JSON.stringify(missing), /Original note|Keep A|Review label/u);
+    }
+    sourcesScenario = { body: navigationProjection };
+    assert.deepEqual((await callSources(false, { mode: "selected", sourceBindings: navigationNotes.map(note => note.source_binding).reverse() })).structuredContent.sources,
+      navigationNotes, "the maximum eight unique bindings remain selectable without reordering");
+    const { companion: unchangedCompanion, ...unchanged } = (await callSources()).structuredContent;
+    assert.equal(unchangedCompanion.status, "live");
+    assert.deepEqual(unchanged, navigationProjection, "navigation cannot change subsequent ordinary complete reads");
+    sourcesScenario = { body: sourceProjection };
+    const emptyInventory = (await callSources(false, inventorySelection)).structuredContent;
+    assert.equal(emptyInventory.status, "available");
+    assert.equal(emptyInventory.source_count, 0);
+    assert.deepEqual(emptyInventory.inventory, []);
+    for (const sourceSelection of [inventorySelection, subsetSelection]) {
+      for (const [body, responseGeneration] of [
+        [{ ...navigationDefinition, sources: navigationNotes.map((note, index) => index === 0 ? { ...note, excerpt_text: null } : note) }],
+        [{ ...navigationDefinition, sources: [navigationNotes[0], navigationNotes[0]] }],
+        [{ ...navigationDefinition, extra: "private-response-canary" }],
+        [{ ...navigationDefinition, snapshot_binding: `sha256:${"b".repeat(64)}` }],
+        [navigationDefinition, "stale-generation"],
+      ]) {
+        sourcesScenario = { body, generation: responseGeneration };
+        const refused = await callSources(true, sourceSelection);
+        assert.equal(refused.isError, true);
+        assert.equal(refused.structuredContent.continuity, null);
+        assert.doesNotMatch(JSON.stringify(refused), /Original note|private-response-canary|Keep A|Review label/u);
+      }
+      for (const body of [definitionRefusal, { ...definitionRefusal, status: "refresh_required", reason: "snapshot_changed" }]) {
+        sourcesScenario = { body };
+        const refused = (await callSources(true, sourceSelection)).structuredContent;
+        assert.equal(refused.projection_version, "codex_repository_work_source_navigation.v0.1");
+        assert.equal(refused.status, body.status);
+        assert.equal(refused.reason, body.reason);
+        assert.equal(refused.source_count, null);
+        assert.equal(refused.work_definition, null);
+        for (const field of ["sources", "inventory", "omitted_source_bindings"]) assert.deepEqual(refused[field], []);
+      }
+    }
     for (const [full, body, generation] of [
       [false, definitionProjection], [true, sourceProjection],
       [true, { ...definitionProjection, extra: "private-response-canary" }],
