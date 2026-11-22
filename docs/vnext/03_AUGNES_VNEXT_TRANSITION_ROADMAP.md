@@ -2420,6 +2420,27 @@ A justified follow-up would preserve historical observations,
 use permitted new evidence to revise the affected prediction or applicability,
 and carry that revision into actual later work while retaining unaffected uses.
 Apply the [bounded evidence guidance](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#active-observation-and-productive-action-selection-1464).
+
+[Jensen et al.'s spacetime attractor](https://elifesciences.org/reviewed-preprints/109757v2)
+(Figure 7 and Methods) motivates a related, unmeasured Anticipate hypothesis:
+can later requirements and time-specific transition or resource availability,
+considered together, improve present preparation and replanning? Start with a
+bounded multi-step case in which a later requirement could change today's next
+action. Use existing source-linked outlooks or selected notes to relate candidate
+future states, their prerequisites and the currently adopted direction. Revise
+affected routes while retaining applicable observations, completed work and
+remaining commitments. Distinguish available, unavailable, conditional and
+unknown routes, and absolute deadlines from relative plan steps where that
+distinction changes the choice.
+
+The paper's experiments supply future rewards and use deterministic transitions
+fixed within each trial; goal-conditioned trajectories and fixed-point convergence
+establish neither calibrated forecasts nor real-work success. Current evidence
+and execution authority retain their existing owners. Evaluate the incremental contribution
+against ordinary planning under [bounded outlook evaluation](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#bounded-project-outlook-and-later-use),
+retaining the ordinary method when it suffices. This is a candidate within the
+existing follow-up, not a commitment to a neural planner or new representation.
+
 This conditional question stays under the broader P3/P4/P5 owners. It starts
 no experiment, reopens neither closed #1464 nor #1465's study, and does not
 expand #1468/#1471's retrieval implementation. It requires no new critic, training
