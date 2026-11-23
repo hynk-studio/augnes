@@ -836,6 +836,26 @@ model alternate routes with zero real provider calls; their existence is not
 live alternate-host or automatic fallback evidence. These are current-source
 observations, not new test results or claims about the installed Mac.
 
+Current consumers use those Gateway purposes differently:
+
+| Gateway purpose / consumer | Current source and use |
+|---|---|
+| `observe_delta_compile`, generic `planner_plan`, `temporal_interpretation` | The [legacy Cockpit classification](../../lib/workplane/legacy-cockpit-local-control-classification.ts) retains Observe, Plan Next and the Temporal Preview loader as compatibility paths. Their consumers produce pending local delta proposals, bounded recommendations and read-only interpretation respectively; this does not describe native Workplane replacements. |
+| `planner_plan` in [stateless source review](../../lib/vnext/runtime/stateless-source-review.ts) | This opt-in local product path reuses the Planner Gateway with a distinct source-review prompt and task/selected-source input. Its bounded choose/observe/conclude flow records judgments, observations and a RunReceipt under its existing grant. Generic planner compatibility status does not classify this consumer. |
+| `guidebrief_interpretation` in [GuideBrief](../../lib/vnext/guide-brief/guide-brief-interpretation-service.ts) | An eligible request unresolved by deterministic interpretation can select a token for an existing question or action candidate. Existing owners revalidate and compose the answer or preparation; this is not model-authored project understanding. |
+| `strategic_advantage_transfer` in [local assessment](../../lib/vnext/runtime/operator-pilot-strategic-advantage-transfer.ts) | Optional source-bound enrichment produces a reviewable proposal. The required criterion-assessment path remains independent, as specified in [02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#102-model-gateway). |
+| `governed_actor_lab` and versioned operational-reentry purposes | [Lab](../../lib/vnext/governed-actor-lab-live.ts) and [cohort](../../lib/vnext/operational-reentry-matched-cohort-v0-2.ts) consumers retain their bounded research and compatibility roles. A registered purpose or retained study artifact does not establish an ordinary product capability or renew a study allocation. |
+
+The generic [Planner prompt](../../lib/vnext/model-gateway/openai/planner-codec.ts)
+still refers to demo readiness; stateless source review selects a separate prompt.
+The default [Temporal Preview context](../../lib/temporal-interpretation/context.ts)
+also supplies challenge-demo priorities and screenshot-oriented next steps.
+When one of these consumers is selected for reuse, reconcile those specific
+input and prompt assumptions with its actual task and result consumer. Reuse of
+the common Gateway does not by itself make a legacy default suitable for general
+work. Existing [consumer-first guidance](#selective-model-application-across-local-and-web-work)
+and compatibility/research dispositions continue to apply.
+
 #### Platform responsibilities across local, web and external participants
 
 These logical responsibilities connect the customer-facing direction to current
