@@ -369,12 +369,7 @@ run("confirmed-missing-manager", async f => {
   await assertStopped(f);
 });
 
-function retainStartup(f, fields = {}) {
-  const manager = {
-    ...f.manager, status: "starting", reason: "companion_service_runtime_starting",
-    manager_process_identity: digest("previous startup at " + f.unrelated.pid),
-    runtime_ownership: null, updated_at: "2001-01-01T00:00:00.000Z", ...fields,
-  };
+function retainManager(f, manager) {
   json(f.layout.manager_state_path, manager);
   json(f.layout.manager_lock_path, { ...f.managerLock, owner_pid: manager.manager_pid,
     owner_process_identity: manager.manager_process_identity, acquired_at: manager.updated_at });
@@ -382,6 +377,128 @@ function retainStartup(f, fields = {}) {
   f.reloadJob();
   return manager;
 }
+
+function retainStartup(f, fields = {}) {
+  return retainManager(f, { ...f.manager, status: "starting", reason: "companion_service_runtime_starting",
+    manager_process_identity: digest("previous startup at " + f.unrelated.pid),
+    runtime_ownership: null, updated_at: "2001-01-01T00:00:00.000Z", ...fields });
+}
+
+function retainLaterLive(f, fields = {}) {
+  return retainManager(f, { ...f.manager, manager_process_identity: digest(randomUUID()),
+    runtime_ownership: { ...f.manager.runtime_ownership, generation_id: randomUUID(), instance_id: randomUUID() },
+    ...fields });
+}
+
+run("later-live-recovery-with-reused-historical-group", async f => {
+  const ownershipBytes = fs.readFileSync(f.layout.ownership_recovery_path);
+  const priorRecovery = await import(pathToFileURL(path.join(f.repositoryRoot, sources[1])).href);
+  json(f.layout.manager_state_path, { ...f.manager, supervisor_pid: f.liveWitness.pid,
+    supervisor_process_identity: digest("prior supervisor at " + f.liveWitness.pid) });
+  // Only the earlier group's absence is simulated. After settlement the real
+  // detached witness occupies that numeric PGID for the rest of the scenario.
+  const nativeRun = childProcess.spawnSync;
+  const priorTable = mock.method(childProcess, "spawnSync", (command, args, options) => {
+    const result = nativeRun(command, args, options);
+    if (command !== "/bin/ps" || args[0] !== "-axo" || args[1] !== "pid=,pgid=") return result;
+    return { ...result, stdout: result.stdout.split("\n").filter(line =>
+      Number(line.trim().split(/\s+/u)[1]) !== f.liveWitness.pid).join("\n") };
+  });
+  syncBuiltinESMExports();
+  let first;
+  try {
+    first = await priorRecovery.prepareCompanionStaleManagerRecovery(f.options);
+    assert.equal((await priorRecovery.applyCompanionStaleManagerRecovery({ ...f.options, decision: first.decision })).result, "settled");
+  } finally { priorTable.mock.restore(); syncBuiltinESMExports(); }
+  const legacyBytes = fs.readFileSync(f.layout.stale_manager_recovery_path);
+  assert.equal(JSON.parse(legacyBytes).evidence.manager.supervisor_pid, f.liveWitness.pid);
+  assert.equal(Number(spawnSync("/bin/ps", ["-o", "pgid=", "-p", String(f.liveWitness.pid)],
+    { encoding: "utf8" }).stdout.trim()), f.liveWitness.pid);
+  await assert.rejects(core.inspectCompanionStaleManagerRecovery(f.options), /process_group_present/u);
+
+  const manager = retainLaterLive(f);
+  retainManager(f, { ...manager, supervisor_pid: f.liveWitness.pid,
+    supervisor_process_identity: digest("another supervisor at " + f.liveWitness.pid) });
+  await assert.rejects(core.inspectCompanionStaleManagerRecovery(f.options), /process_group_present/u);
+  retainManager(f, manager);
+  const observed = await core.inspectCompanionStaleManagerRecovery(f.options);
+  assert.equal(observed.result, "retirement_available");
+  assert.equal(observed.recorded_status, null);
+  assert(!observed.processes.some(witness => witness.pid === f.liveWitness.pid));
+  await assert.rejects(apply(f, first.decision), /decision_stale/u);
+  const current = await core.prepareCompanionStaleManagerRecovery(f.options);
+  assert.notEqual(first.decision.recovery_source, current.decision.recovery_source);
+  assert.equal(f.effects(), 1);
+  await assert.rejects(apply(f, current.decision, { testStaleManagerRecoveryStageHook(stage) {
+    if (stage === "after_manager") throw Error("interrupted later live recovery");
+  } }), /interrupted later live recovery/u);
+  assert.equal((await core.inspectCompanionStaleManagerRecovery(f.options)).result, "incomplete");
+  await assert.rejects(core.startCompanionService(f.options), /stale_manager_incomplete/u);
+  await assert.rejects(apply(f, current.decision), /decision_stale/u);
+  const remainder = await core.prepareCompanionStaleManagerRecovery(f.options);
+  assert.equal((await apply(f, remainder.decision)).result, "settled");
+  await assertStopped(f);
+  const preserved = await installedReader.inspectCompanionPreservation(f.options);
+  assert.equal(preserved.state.status, "installed_stopped");
+  assert.equal(preserved.state.checkout_relation, "exact");
+  assert.equal(preserved.state.preservation_valid, true);
+  assert.equal(preserved.diagnostics.coherent, true);
+  const archive = path.join(f.layout.service_directory, `live-manager-recovery-${manager.manager_process_identity}.json`);
+  const archivedBytes = fs.readFileSync(archive);
+  assert.deepEqual(JSON.parse(archivedBytes).evidence.manager, manager);
+  assert.equal((await apply(f, remainder.decision)).result, "settled");
+  assert.equal(f.effects(), 2);
+
+  // A changed generation on the same manager birth cannot open a new case.
+  retainLaterLive(f, { manager_process_identity: manager.manager_process_identity });
+  await assert.rejects(core.prepareCompanionStaleManagerRecovery(f.options), /material_changed/u);
+  retainLaterLive(f);
+  await assert.rejects(apply(f, remainder.decision), /decision_stale/u);
+  const next = await core.prepareCompanionStaleManagerRecovery(f.options);
+  assert.equal((await apply(f, next.decision)).result, "settled");
+  assert.equal(f.effects(), 3);
+  await assertStopped(f);
+  assert.deepEqual(fs.readFileSync(archive), archivedBytes);
+  assert.deepEqual(fs.readFileSync(f.layout.stale_manager_recovery_path), legacyBytes);
+  assert.deepEqual(fs.readFileSync(f.layout.ownership_recovery_path), ownershipBytes);
+});
+
+run("later-live-recovery-refuses-current-group-and-changed-history", async f => {
+  const first = await core.prepareCompanionStaleManagerRecovery(f.options);
+  await apply(f, first.decision);
+  const legacyBytes = fs.readFileSync(f.layout.stale_manager_recovery_path);
+  const manager = retainLaterLive(f, { supervisor_pid: f.liveWitness.pid,
+    supervisor_process_identity: digest("different supervisor at " + f.liveWitness.pid) });
+  const lock = fs.readFileSync(f.layout.manager_lock_path);
+  const inconsistent = JSON.parse(legacyBytes);
+  inconsistent.evidence.manager_lock.owner_process_identity = manager.manager_process_identity;
+  inconsistent.operation_binding = digest(JSON.stringify([inconsistent.evidence, inconsistent.target, inconsistent.created_at]));
+  try {
+    json(f.layout.stale_manager_recovery_path, inconsistent);
+    await assert.rejects(core.prepareCompanionStaleManagerRecovery(f.options), /stale_manager_record_invalid/u);
+  } finally { fs.writeFileSync(f.layout.stale_manager_recovery_path, legacyBytes); }
+  await assert.rejects(core.prepareCompanionStaleManagerRecovery(f.options), /process_group_present/u);
+  retainManager(f, { ...manager, supervisor_pid: f.manager.supervisor_pid,
+    supervisor_process_identity: f.manager.supervisor_process_identity });
+  const launchctl = args => {
+    assert.equal(args[0], "print");
+    const result = f.options.launchctl(args);
+    return { ...result, stdout: result.stdout.replace("active count = 0", "active count = 1") };
+  };
+  await assert.rejects(core.prepareCompanionStaleManagerRecovery({ ...f.options, launchctl }),
+    /loaded_manager_present_or_unverifiable/u);
+  const preview = await core.prepareCompanionStaleManagerRecovery(f.options);
+  try {
+    await assert.rejects(apply(f, preview.decision, { testStaleManagerRecoveryStageHook(stage) {
+      if (stage === "before_effect") json(f.layout.stale_manager_recovery_path,
+        { ...JSON.parse(legacyBytes), decision_binding: digest("changed history") });
+    } }), /decision_stale/u);
+  } finally { fs.writeFileSync(f.layout.stale_manager_recovery_path, legacyBytes); }
+  assert.equal(f.effects(), 1, "refusals produced no further launch effects");
+  assert(!fs.existsSync(f.layout.starting_manager_recovery_path));
+  assert.deepEqual(fs.readFileSync(f.layout.manager_lock_path), lock);
+  assert.equal(birth(f.liveWitness.pid), f.liveWitness.identity);
+});
 
 run("prior-boot-startup-recovery-with-settled-history", async f => {
   const legacy = await core.prepareCompanionStaleManagerRecovery(f.options);

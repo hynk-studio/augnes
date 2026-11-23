@@ -391,11 +391,12 @@ or another incident's settled record is not a grant. After authorization:
   stale-manager-recovery-inspect --repository-root "$INSTALLED_CHECKOUT"
 ```
 
-Apply acquires the existing lifecycle lock and records a distinct operation in
-`stale-manager-recovery.json` before its first effect. It unloads only the exact
-no-PID job, confirms explicit OS absence, persists stopped intent and an explicit
-stopped manager record, then retires only the exact old manager lock through the
-existing hash/parent-bound file owner. The new record retains the original
+Apply acquires the existing lifecycle lock and records the first previously
+live manager's operation in `stale-manager-recovery.json` before its first
+effect. It unloads only the exact no-PID job, confirms explicit OS absence,
+persists stopped intent and an explicit stopped manager record, then retires
+only the exact old manager lock through the existing hash/parent-bound file
+owner. The new record retains the original
 manager/lock witnesses and planned stopped records; `ownership-recovery.json`
 stays byte-for-byte at its original location. Configuration, enrollment, launch
 definition, installed sources, database and project data remain unchanged. No
@@ -434,6 +435,26 @@ validation. Recovery does not consume, transfer or create a qualification
 allowance. A later Start or installed source adoption remains a distinct
 decision; recovery source can execute separately without either.
 
+#### Another previously live manager needs retirement
+
+The same inspect, prepare and apply commands can handle a later incident after
+the first live-manager operation has settled. The current manager and lock must
+agree on a distinct process birth. A new runtime generation on an already
+recorded manager birth cannot open another live-manager operation.
+
+Inspection checks all process and group witnesses in the current incident.
+A number reused only from an earlier settled operation can now belong to an
+unrelated process. Any member in a group claimed by the current incident still
+refuses recovery, including when the same number occurs in both records.
+A loaded job must show zero active count and no PID. Both historical recovery
+files are bound into the new decision and checked before each effect.
+
+Each later live incident requires its own decision. It uses the same pending
+journal as startup retirement, so an interruption remains visible even after
+the manager state has been written as stopped. Settlement seals the journal as
+`live-manager-recovery-<manager-birth>.json`. Repeat inspection and decision
+replay for that birth use its sealed record.
+
 #### A prior-boot manager still reports starting
 
 Ordinary status checks the recorded manager's service and checkout binding,
@@ -455,7 +476,7 @@ recovery. An unreadable boot time, current-boot record, unfinished ownership
 operation, surviving group, partial witness or changed evidence refuses the
 affected operation.
 
-The current startup retirement has its own pending journal. During apply,
+Startup retirement uses the shared per-incident pending journal. During apply,
 interruption retains the pending journal and requires fresh preparation for
 the verified remainder. Under the lifecycle lock, one rename seals the record
 at a name bound to the original manager's birth after stopped settlement.

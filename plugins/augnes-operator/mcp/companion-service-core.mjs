@@ -2146,7 +2146,10 @@ export async function applyCompanionOwnershipRecovery({ decision, ...options } =
 // An offline retirement, not a broader interpretation of process ownership.
 // Never signal a reused PID, recover a live runtime or replace historical recovery.
 const STALE_MANAGER_RECOVERY_CONTRACT = "augnes-companion-stale-manager-recovery.v0.1";
-const STARTING_MANAGER_RECOVERY_CONTRACT = "augnes-companion-starting-manager-recovery.v0.1";
+const ARCHIVED_MANAGER_CONTRACTS = {
+  starting: "augnes-companion-starting-manager-recovery.v0.1",
+  live: "augnes-companion-live-manager-recovery.v0.1",
+};
 const STALE_MANAGER_RUNTIME_KEYS = ["runtime_manifest_path", "runtime_lock_path", "runtime_token_path",
   "runtime_access_path", "runtime_bridge_environment_path"];
 const staleManagerEqual = (left, right) => JSON.stringify(left) === JSON.stringify(right);
@@ -2159,7 +2162,7 @@ function staleManagerTargets(evidence, at) {
   };
 }
 
-function readStaleManagerRecovery(layout, file = layout.stale_manager_recovery_path, startingStatus = null) {
+function readStaleManagerRecovery(layout, file = layout.stale_manager_recovery_path, archiveStatus = null) {
   // Ordinary inspection/install reaches this guard before a new production
   // checkout's intermediate config directories exist. Only explicit absence
   // skips the bounded present-record reader; unavailable/invalid stays refused.
@@ -2168,14 +2171,16 @@ function readStaleManagerRecovery(layout, file = layout.stale_manager_recovery_p
   if (snapshot.material.state === "missing") return null;
   let record;
   try { record = JSON.parse(snapshot.contents); } catch { throw recoveryRefused("stale_manager_record_invalid"); }
-  if (startingStatus) {
-    if (record?.contract !== STARTING_MANAGER_RECOVERY_CONTRACT || Object.hasOwn(record, "status") ||
-        record.evidence?.manager?.status !== "starting" ||
-        (startingStatus === "settled" && completedStartingManagerPath(layout, record.evidence.manager) !== file))
+  let contract = STALE_MANAGER_RECOVERY_CONTRACT;
+  if (archiveStatus) {
+    const manager = record?.evidence?.manager;
+    if (typeof manager?.status !== "string" || !Object.hasOwn(ARCHIVED_MANAGER_CONTRACTS, manager.status) || Object.hasOwn(record, "status"))
       throw recoveryRefused("stale_manager_record_invalid");
-    record.status = startingStatus;
+    const archive = completedManagerPath(layout, manager, manager.status);
+    if (!archive || (archiveStatus === "settled" && file !== archive)) throw recoveryRefused("stale_manager_record_invalid");
+    contract = ARCHIVED_MANAGER_CONTRACTS[manager.status];
+    record.status = archiveStatus;
   }
-  const contract = startingStatus ? STARTING_MANAGER_RECOVERY_CONTRACT : STALE_MANAGER_RECOVERY_CONTRACT;
   if (record?.contract !== contract || record.service_identity !== layout.service_identity ||
       !["retiring", "settled"].includes(record.status) || !isObject(record.evidence) ||
       !isObject(record.evidence.desired) || !isObject(record.evidence.manager) || !isIsoTimestamp(record.created_at) ||
@@ -2189,33 +2194,55 @@ function readStaleManagerRecovery(layout, file = layout.stale_manager_recovery_p
   return record;
 }
 
-function completedStartingManagerPath(layout, manager) {
+function completedManagerPath(layout, manager, kind) {
   // The stored birth fingerprint includes the platform, PID and process birth material.
-  if (!/^[a-f0-9]{64}$/u.test(manager?.manager_process_identity ?? "")) return null;
-  return path.join(layout.service_directory, `starting-manager-recovery-${manager.manager_process_identity}.json`);
+  if (typeof manager?.manager_process_identity !== "string" || !/^[a-f0-9]{64}$/u.test(manager.manager_process_identity)) return null;
+  return path.join(layout.service_directory, `${kind}-manager-recovery-${manager.manager_process_identity}.json`);
 }
 
 function staleManagerJournal(layout) {
-  const liveRecord = readStaleManagerRecovery(layout);
+  const legacy = { file: layout.stale_manager_recovery_path, settledFile: null, record: readStaleManagerRecovery(layout) };
+  // Keep the existing pending filename so both incident kinds exclude each
+  // other and older startup-aware lifecycle readers still stop on an open case.
   const file = layout.starting_manager_recovery_path;
   const pending = readStaleManagerRecovery(layout, file, "retiring");
   const manager = pending?.evidence.manager ?? readRegularJson(layout.manager_state_path).value;
-  const settledFile = completedStartingManagerPath(layout, manager);
+  const candidates = Object.keys(ARCHIVED_MANAGER_CONTRACTS).map(kind => ({
+    file, kind, settledFile: completedManagerPath(layout, manager, kind),
+  }));
+  const legacyManager = legacy.record?.evidence.manager;
+  const sameLegacyBirth = legacyManager && legacyManager.manager_process_identity === manager?.manager_process_identity;
   if (pending) {
-    if (liveRecord?.status === "retiring" || !settledFile || readRegularJson(settledFile).state !== "missing")
+    if (legacy.record?.status === "retiring" || (manager.status === "live" && sameLegacyBirth) ||
+        candidates.some(({ settledFile }) => readRegularJson(settledFile).state !== "missing"))
       throw recoveryRefused("record_changed");
-    return { file, settledFile, record: pending };
+    return { ...candidates.find(candidate => candidate.kind === manager.status), record: pending };
   }
-  if (liveRecord?.status !== "retiring" && settledFile && ["starting", "installed_stopped"].includes(manager.status)) {
-    const record = readStaleManagerRecovery(layout, settledFile, "settled");
-    if (record || manager.status === "starting") return { file, settledFile, record };
+  if (legacy.record?.status === "retiring" || !["starting", "live", "installed_stopped"].includes(manager?.status)) return legacy;
+  const archived = candidates.flatMap(candidate => {
+    const record = candidate.settledFile && readStaleManagerRecovery(layout, candidate.settledFile, "settled");
+    return record ? [{ ...candidate, record }] : [];
+  });
+  if (archived.length > 1 || (archived[0]?.kind === "live" && sameLegacyBirth)) throw recoveryRefused("record_changed");
+  if (manager.status === "live" && sameLegacyBirth) return legacy;
+  if (archived.length) return archived[0];
+  // The first live incident keeps its original file. A new runtime generation
+  // alone cannot open another operation for a manager birth already on record.
+  if (manager.status === "live") {
+    if (!legacy.record) return legacy;
+    const identity = { service_identity: layout.service_identity, repository_fingerprint: layout.repository.repository_fingerprint };
+    const oldLock = legacy.record.evidence.manager_lock;
+    if (legacyManager.status !== "live" || !exactRecordedManagerIdentity(legacyManager, identity) ||
+        !validManagerLock(oldLock, identity) || oldLock.owner_pid !== legacyManager.manager_pid ||
+        oldLock.owner_process_identity !== legacyManager.manager_process_identity) throw recoveryRefused("stale_manager_record_invalid");
   }
-  return { file: layout.stale_manager_recovery_path, settledFile: null, record: liveRecord };
+  const fresh = candidates.find(candidate => candidate.kind === manager.status && candidate.settledFile);
+  return fresh ? { ...fresh, record: null } : legacy;
 }
 
 function storedStaleManagerRecord(journal, record) {
   if (!journal.settledFile) return record;
-  // For startup incidents a single rename from the pending file to the
+  // For per-birth incidents a single rename from the pending file to the
   // birth-bound archive commits settlement. There is no second status write.
   const { status, ...stored } = record;
   return stored;
@@ -2281,9 +2308,9 @@ function priorStartupBoot(manager) {
 function staleManagerSnapshot(options, record = null, ownedLock = null) {
   const capture = () => {
     const base = staleManagerBase(options, record, ownedLock), { layout, configuration } = base;
-    const starting = Boolean(base.journal.settledFile);
+    const starting = base.journal.kind === "starting";
     const protectedKeys = ["configuration_path", "launch_agent_path", "ownership_recovery_path"];
-    if (starting) protectedKeys.push("stale_manager_recovery_path");
+    if (base.journal.settledFile) protectedKeys.push("stale_manager_recovery_path");
     const material = Object.fromEntries([...protectedKeys,
       "desired_state_path", "manager_state_path", "manager_lock_path", ...STALE_MANAGER_RUNTIME_KEYS]
       .map(key => [key, recoveryMaterial(layout, key).material]));
@@ -2308,7 +2335,7 @@ function staleManagerSnapshot(options, record = null, ownedLock = null) {
         !validManagerRuntimeOwnership(original.runtime_ownership)) {
       throw recoveryRefused("stale_manager_not_established");
     }
-    const job = recoveryJob(layout, configuration, options.launchctl ?? defaultLaunchctl, starting);
+    const job = recoveryJob(layout, configuration, options.launchctl ?? defaultLaunchctl, Boolean(base.journal.settledFile));
     if (job?.pid) throw recoveryRefused("loaded_manager_present");
     const processes = staleManagerProcessWitnesses(original);
     // A missing recorded root is not proof that all descendants have exited.
@@ -2404,7 +2431,7 @@ export async function applyCompanionStaleManagerRecovery({ decision, ...options 
     assertDecision();
     if (!record) {
       const created_at = new Date().toISOString(), target = staleManagerTargets(current.evidence, created_at);
-      record = { contract: journal.settledFile ? STARTING_MANAGER_RECOVERY_CONTRACT : STALE_MANAGER_RECOVERY_CONTRACT,
+      record = { contract: journal.settledFile ? ARCHIVED_MANAGER_CONTRACTS[journal.kind] : STALE_MANAGER_RECOVERY_CONTRACT,
         service_identity: layout.service_identity,
         created_at, evidence: current.evidence, target, operation_binding: sha256(JSON.stringify([current.evidence, target, created_at])),
         decision_binding: sha256(JSON.stringify(decision)), lifecycle_owners: [lock], status: "retiring" };
