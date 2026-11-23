@@ -17,13 +17,14 @@ To take one original file into later work, use [Download a saved file](#download
 On a deployment with the verified-email home enabled, open the ordinary Web
 address and sign in using your own email. Your home initially shows **Shared
 with you** and an empty list. A project owner opens a saved work, chooses
-**Delegate updates to this saved work**, enters your email, obligation, expiry
-and update allowance, and confirms the disclosure. You can sign in for the
-first time after the owner shares. Refreshing home discovers the work by its
-current goal, obligation and stable work ID. Open it to read the saved history
-and attachments and append an attributed update. Reopen it from home to read
-the saved revision. The owner can revoke the grant from the same delegation
-screen. Reaching the update limit retains reading through expiry or revocation.
+**Share this saved work**, enters your email, purpose and expiry, and chooses
+**Read only** or **Read and add updates** before confirming the disclosure. You
+can sign in for the first time after the owner shares. Refreshing home discovers
+the work by its current goal, obligation and stable work ID. Open it to read the
+saved history and attachments. With an update allowance you can append an
+attributed update and reopen it from home to read the saved revision. The owner
+can revoke the grant on the same screen. Reading continues after the last
+allowed update until expiry or revocation.
 
 `GET /api/shared-work` returns this verified recipient's active grants across
 the deployment workspace, with up to 20 items and an optional `next` cursor.
@@ -53,8 +54,9 @@ For an authorized, isolated hosted trial:
 1. Build the public Worker with `npm run web:build:recipient`. The generated
    `dist-recipient/wrangler.json` names a distinct Worker, has a placeholder D1
    ID and contains no live routes or secrets. Use the existing migration owner
-   through `0011_received_work.sql`. Point both trial Workers at the same trial
-   D1, owner and workspace/project/author mappings and existing signing secret.
+   through `0012_read_only_sharing.sql` for read-only grants. Point both trial
+   Workers at the same trial D1, owner and workspace/project/author mappings
+   and existing signing secret.
    Each Worker has its own exact HTTPS `APP_ORIGIN`. Enable
    `PROJECT_ENTRY_MODE=admitted-private-v1` and
    `PUBLIC_SUCCESSION_MODE=verified-email-home-v1` on both. Set
@@ -389,15 +391,17 @@ owner is introduced.
 
 ### Scoped work succession (#1628)
 
-In admitted private project mode, open a saved work and choose **Delegate updates
-to this saved work**. The owner deliberately shares that work's complete history,
+In admitted private project mode, open a saved work and choose **Share this saved
+work**. The owner deliberately shares that work's complete history,
 attached files and reference metadata with a named recipient. Private mode checks
 that the recipient is already admitted. The verified-email home also accepts a
-recipient who can verify their email at the public entrance. The
-`continue-work-v1` role permits reading that work and appending attributed reports
-and next actions. It permits no changes to the owner's purpose or selected
-material, other-work access, erasure, imports, subdelegation or external execution.
-Choose the unresolved obligation, an expiry within 90 days and 1–20 saved updates.
+recipient who can verify their email at the public entrance. Choose a purpose or
+unresolved obligation and an expiry within 90 days. **Read only**
+(`read-work-v1`) permits reading the selected history and files from the first
+request. **Read and add updates** (`continue-work-v1`) also permits 1–20 saved
+reports and next actions. Both permissions cover only the selected work.
+The owner retains control of its purpose, material, erasure and delegation.
+Recipients cannot import work or initiate external execution through a grant.
 The server enforces both expiry and the cumulative update limit; a fresh session
 or model does not renew either. The owner can revoke the delegation in this page.
 Creating a new grant is an explicit new owner decision, not automatic succession.
@@ -427,6 +431,10 @@ Owner `POST .../create` takes `grant_id`, exact `expected`, `recipient`, `obliga
 `expires` (Unix milliseconds), `max_updates`, and
 `confirm: "share-this-work-history"`; `POST .../revoke` and the read-only
 `POST .../resolve` take `grant_id`.
+Set `max_updates` to 0 to issue read-only access. A positive allowance keeps its
+original role even after the recipient uses the last update. The read-only
+role returns HTTP 403 (`continuation_read_only`) on a save. Migration 0012
+preserves existing grants, consumed allowances and historical attribution.
 All writes include the selected `workspace_id`/`project_id` and normal CSRF.
 The recipient uses `GET /api/continuation/<grant-id>` for the complete one-work
 context and `GET .../setup` for its setup. `POST .../save` takes `request_key`,
@@ -2274,10 +2282,10 @@ source or schema marker alone does not establish today's pending set.
 | Observed existing state | Transition to the current artifact and chosen features |
 | --- | --- |
 | Schema 1 or 2 with a coherent established ledger | Review the missing historical suffix through 0003, then the current path below. Do not replay applied initialization or expose the new worker before its schema prerequisites hold. |
-| Schema 3, positive revision constraint, coherent ledger through 0003 | Review pending `0004_complete_exchange_files.sql`, `0005_return_destination.sql`, `0006_request_participation.sql`, `0007_independent_projects.sql`, `0008_work_continuation.sql`, then `0009_public_requests.sql`, `0010_request_applications.sql` and `0011_received_work.sql` when included. The stages are schema 4, 5, then 6. Migrations 0005, 0006 and 0009–0011 keep the existing marker. |
-| Schema 4, file-part storage and a coherent ledger | Ordinary current owner-only code is compatible. Select only missing files from 0005 onward; admitted projects additionally need 0007, succession needs 0008, public requests need 0009, private applications need 0010, and the verified-email home needs 0011 plus the applicable modes and authenticated ingress. |
-| Schema 5 with a coherent ledger through 0007 | Ordinary/admitted-project entry is compatible. Review pending 0008 for schema-6 succession and the included suffix through 0011. Preserve legacy and independent mappings. |
-| Schema 6 with a coherent ledger through 0008–0011 | Preserve existing history. The full directory adds the missing suffix through 0011. An already applied migration needs no replay. Envelope compatibility and explicit feature/ingress configuration still apply. |
+| Schema 3, positive revision constraint, coherent ledger through 0003 | Review pending `0004_complete_exchange_files.sql`, `0005_return_destination.sql`, `0006_request_participation.sql`, `0007_independent_projects.sql`, `0008_work_continuation.sql`, then `0009_public_requests.sql`, `0010_request_applications.sql`, `0011_received_work.sql` and `0012_read_only_sharing.sql` when included. The stages are schema 4, 5, then 6. Migrations 0005, 0006 and 0009–0012 keep the existing marker. |
+| Schema 4, file-part storage and a coherent ledger | Ordinary current owner-only code is compatible. Select only missing files from 0005 onward; admitted projects additionally need 0007, succession needs 0008, public requests need 0009, private applications need 0010, the verified-email home needs 0011 plus the applicable modes and authenticated ingress, and issuing read-only grants needs 0012. |
+| Schema 5 with a coherent ledger through 0007 | Ordinary/admitted-project entry is compatible. Review pending 0008 for schema-6 succession and the included suffix through 0012. Preserve legacy and independent mappings. |
+| Schema 6 with a coherent ledger through 0008–0012 | Preserve existing history. The full directory adds the missing suffix through 0012. An already applied migration needs no replay. Envelope compatibility and explicit feature/ingress configuration still apply. |
 | Unsupported/marker-only schema, inconsistent or mixed ledgers, missing/duplicate markers, leftover migration tables or unknown state | Preserve evidence and diagnose. No initialization replay, ledger repair, inferred upgrade or code-only downgrade. |
 
 ### Bounded observations and retained evidence

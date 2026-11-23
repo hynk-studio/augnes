@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import {setTimeout as delay} from "node:timers/promises";
 import {fileURLToPath} from "node:url";
 import {digest} from "../local-canonical-inputs.mjs";
 import {canonicalSerialize,finalizeReceipt,inspectReceiptForDecision} from "../local-canonical-receipt.mjs";
@@ -37,10 +38,11 @@ const reserve=async(c,f,extra={})=>beginAttempt({anchorRoot:c.anchor,repositoryR
   runId:f.runId??"synthetic-maintenance-budget",sourceCorrection:f.proof,contractFingerprint:f.fullInputInventory.fingerprint,revisionInputs:f.inputs,revisionLive:f.live,assertCurrent(){},
   observeRevision:async()=>({authorization:await authorizeMaintenance(f.proof,f.material(),transport(f.records)),live:clone(f.live)}),...extra});
 
-function controlledSequence(f,c,head,tree,refusals,{final=false}={}){
+function controlledSequence(f,c,head,tree,refusals,{completedAt,final=false}){
   const ids=[...['acquisition','material-source','material-successor','material-final'].map(group=>'local-canonical-reviewed-revision-'+group),'local-canonical-maintenance-reader','local-canonical-maintenance-budget'];
-  const source=c.git(['show',head+':'+suite]).toString(),groups=fixtureRegistration(c,head),shared={device:'1',inode:'1',root:path.join(f.folder,final?'synthetic-final-sequence':'synthetic-retained-sequence')},prefix=final?'sequence-positive':'sequence-measured',clock=Date.now();
-  const at=n=>new Date(clock+n).toISOString(),steps=[],results=[],logs={},readerRefusals=Array.from({length:24},(_,i)=>({name:'controlled retained reader refusal '+i,code:'controlled_refusal'}));
+  const source=c.git(['show',head+':'+suite]).toString(),groups=fixtureRegistration(c,head),shared={device:'1',inode:'1',root:path.join(f.folder,final?'synthetic-final-sequence':'synthetic-retained-sequence')},prefix=final?'sequence-positive':'sequence-measured';
+  // Both synthetic observations describe opposite sides of the same settlement.
+  const at=offset=>new Date(completedAt+offset).toISOString(),steps=[],results=[],logs={},readerRefusals=Array.from({length:24},(_,i)=>({name:'controlled retained reader refusal '+i,code:'controlled_refusal'}));
   const reader={synthetic_only:true,qualification:false,reviewed_ancestry:true,prior_stock_issue_count:15,refusals:readerRefusals,one_shot:true,interruption_consumes:true,competing_successors:1,cold_stock:true,originals_unchanged:true};
   const budget={synthetic_only:true,qualification:false,reused_checked_reader_ancestry:true,prior_stock_issue_count:14,refusals:clone(refusals),separate_grant:true,one_shot:true,cold_stock:true,failed_prefix_non_deciding:true,originals_unchanged:true,
     ...(final?{continuation:{synthetic_only:true,qualification:false,prepared:true,separate_grant:true,one_shot:true,typed_history:true,failed_aggregate_prefix:true,retained_failed_reader_prefix:true,no_current_authority_promotion:true,originals_unchanged:true,refusals:clone(maintenanceSequenceRequiredRefusals)}}:{})};
@@ -56,7 +58,7 @@ function controlledSequence(f,c,head,tree,refusals,{final=false}={}){
     steps.push({id,label,command:f.executable,args,timeoutMs:bound,shared:true,...(i<4?{registered_inner_ms:groups.limits[group].inner}:{})});
     results.push({id,source_head:head,command:[f.executable,...args],registered_bound_ms:bound,result:maintenanceReaderFixtureNatural(label,duration),log:{file:path.join(f.folder,file),bytes:Buffer.byteLength(output),sha256:digest(output)}});
   }
-  const started_at=at(final?-30:-500000),record={sample:prefix,mode:'reader',head,started_at,finished_at:at(final?-25:-300000),duration_ms:results.reduce((n,row)=>n+row.result.duration_ms,1),results,error:null,cleanup:maintenanceReaderFixtureCleanup(shared.root),all_owned_roots_absent:true,new_real_deciding_invocations:0,
+  const started_at=at(final?1:-500000),record={sample:prefix,mode:'reader',head,started_at,finished_at:at(final?2:-300000),duration_ms:results.reduce((n,row)=>n+row.result.duration_ms,1),results,error:null,cleanup:maintenanceReaderFixtureCleanup(shared.root),all_owned_roots_absent:true,new_real_deciding_invocations:0,
     ...(final?{source_after:{head,tree,dirty:'',suite_source_sha256:digest(source)},runtime_after:clone(f.inputs),input_inventory_before:clone(f.preparation.input_inventory),input_inventory_after:clone(f.preparation.input_inventory),dependencies_before:clone(f.preparation.dependencies),dependencies_after:clone(f.preparation.dependencies),parent_clock_observations:[{id:ids[0],elapsed_ms:0}]}:{})};
   return {refs:{launch:f.ref(prefix+'.launch.json',{kind:'actual registered focused workload only; no real preparation/admission/qualification',sample:prefix,mode:'reader',head,tree,started_at,shared,runtime_inputs:clone(f.inputs),suite_source_sha256:digest(source),steps}),result:f.ref(prefix+'.result.json',record),logs},record};
 }
@@ -104,7 +106,8 @@ function candidate(c,saved,packet,failure,completion,{sequence=false,refusals=[]
     positives:{maintenance:null,contract:maintenanceReaderFixtureSample(f,{label:"controlled-budget-contract",head,file:contractTest,body:'{"status": "pass"}'})}});
   }
   if(sequence){
-    const measured=controlledSequence(f,c,oldHead,old.tree,refusals),positive=controlledSequence(f,c,head,tree,refusals,{final:true});
+    const completedAt=Date.parse(completion.finished_at);
+    const measured=controlledSequence(f,c,oldHead,old.tree,refusals,{completedAt}),positive=controlledSequence(f,c,head,tree,refusals,{completedAt,final:true});
     f.positive=positive.record;f.positiveRefs=positive.refs;
     Object.assign(f.remedy,{kind:"registered-maintenance-sequence-v1",rationale:{measurement:measured.refs,execution_reserve_ms:30000,rounding_ms:10000,additional_control_allowance_ms:{reader:maintenanceSequenceAllowances.reader-110000,budget:maintenanceSequenceAllowances.budget-120000},judgment:"Controlled retained complete native owner durations plus the existing finite thirty-second reserve and the explicit additional-control allowance; added seed and deeper reader work require final complete positives. No pure tail, speedup, functional RED or historical cause is inferred."},
       positives:{sequence:positive.refs,contract:maintenanceReaderFixtureSample(f,{label:"controlled-sequence-contract",head,file:contractTest,body:'{"status": "pass"}'})}});
@@ -175,6 +178,10 @@ async function runSequenceControls(c,h,b,packet,originalFailure,preserved,legacy
   const originals=[completionFile,receiptFile,path.join(family,'attempt-1.json'),path.join(c.checkout,failed.phases[6].log.relative_path)].map(file=>({file,bytes:fs.readFileSync(file)}));
   const preserveAll=()=>{preserved();for(const row of originals)assert.deepEqual(fs.readFileSync(row.file),row.bytes,'controlled failed B originals stay immutable');};
   const oldPacket={receipt:failed,runtime:b.inputs,records:b.records},saved={fixture:{...b,preparation:clone(b.preparation),fullInputInventory:clone(b.fullInputInventory)}};
+  // The following contract sample starts 11 ms before capture. At settlement +14 ms
+  // its start is already later than the final sequence's finish at +2 ms.
+  const untilContractWindow=Date.parse(completion.finished_at)+14-Date.now();
+  if(untilContractWindow>0)await delay(untilContractWindow);
   const f=candidate(c,saved,oldPacket,failed,completion,{sequence:true,refusals:legacyRefusals}),edge=path.join(f.priorRoot,'correction-successor.json'),noEdge=()=>assert(!fs.existsSync(edge));
   const options=()=>({p:f.proof,e:f.e,prior:failed.attempt,completion,receipt:failed,stock:f.stock,read:artifactReader(f.folder),git:args=>c.git(['--no-replace-objects',...args]),root:c.checkout,runtime:f.inputs,dependencies:f.preparation.dependencies});
   const direct=()=>readMaintenanceAggregateAllowanceIncident(options());assert.equal(direct().preparation_sha256,f.incident.preparation.sha256);noEdge();stage('sequence_evidence_constructed');

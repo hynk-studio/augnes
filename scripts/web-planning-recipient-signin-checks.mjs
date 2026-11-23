@@ -143,4 +143,31 @@ export async function checkRecipientSignIn({server,root,passed}) {
   await publicWorker();assert.deepEqual(await (await get('/api/shared-work',session)).json(),{items:[],next:null});
   assert.equal((await get(api,session)).status,403);
   passed('public recipient: private owner shares an existing work, recipient saves and reopens it, session refresh/expiry and re-entry, logout and revocation');
+
+  await privateWorker();
+  const request={grant_id:randomUUID(),recipient,expected:headBinding(saved.saved),obligation:'Read the confirmed date',
+    expires:Date.now()+3600000,max_updates:0,confirm:'share-this-work-history'};
+  const readGrant=await projectOk(owner,grants+'/create',request),readApi='/api/continuation/'+readGrant.id;
+  assert.equal(readGrant.role,'read-work-v1');
+  assert.deepEqual(await projectOk(owner,grants+'/create',request),readGrant);
+  assert.equal((await owner.request(grants+'/create',{...request,max_updates:1})).status,409);
+  await publicWorker();
+  assert.deepEqual((await (await get('/api/shared-work',session)).json()).items.map(i=>i.grant_id),[readGrant.id]);
+  assert.equal((await get(readApi,publicOwner)).status,403);
+  const readEntry=await get('/continue/'+readGrant.id,session),html=await readEntry.text();
+  assert.equal(readEntry.status,200);assert.match(html,/name="continuation-mode" content="read-only"/);
+  assert.doesNotMatch(html,/id="update-form"/);
+  const readContext=await (await get(readApi,session)).json();
+  assert.equal(readContext.role,'read-work-v1');assert.equal(readContext.remaining_updates,0);
+  assert.deepEqual(readContext.history,[created.saved,saved.saved]);
+  const readCookies=session+'; '+cookiePair(readEntry.headers.get('set-cookie'));
+  const denied=await get(readApi+'/save',readCookies,{method:'POST',headers:{origin:publicOrigin,
+    'x-csrf-token':html.match(/name="csrf-token" content="([^"]+)"/)[1],'x-web-planning-project':project.project_id,
+    'content-type':'application/json'},body:JSON.stringify({...report,expected:headBinding(saved.saved),request_key:randomUUID()})});
+  assert.equal(denied.status,403);assert.equal((await denied.json()).error,'continuation_read_only');
+  assert.deepEqual(await (await get(readApi,session)).json(),readContext);
+  await privateWorker();await projectOk(owner,grants+'/revoke',{grant_id:readGrant.id});
+  await publicWorker();assert.deepEqual(await (await get('/api/shared-work',session)).json(),{items:[],next:null});
+  assert.equal((await get(readApi,session)).status,403);
+  passed('read-only public sharing: scoped discovery, complete history and no edit form; authenticated save refused without changing a revision, unrelated email and revoked grants denied');
 }

@@ -78,4 +78,19 @@ export async function browserWorkSuccession({owner,successor,local,click,set,set
   assert.match(await fresh.eval("document.querySelector('#shared-work').textContent"),/No work has been shared/);
   assert.equal((await local.db.prepare('SELECT count(*) n FROM web_planning_revision WHERE work_id=?').bind(original.work_id).first()).n,original.revision+2);
   checks.push('Successor revocation: future disclosure ends and private view clears; original authorship, two attributed results and remaining obligations stay in the owner history');
+
+  await set(owner,'recipient',local.env.LOCAL_PARTICIPANT_LOGIN);
+  await set(owner,'obligation','Read the recorded venue measurement.');await set(owner,'expires',expires);
+  await set(owner,'grant-permission','read-only');
+  await owner.eval("document.getElementById('grant-permission').dispatchEvent(new Event('change',{bubbles:true}))");
+  assert.equal(await owner.eval("$('update-allowance').hidden && $('max-updates').disabled"),true);
+  if(!await owner.eval("$('disclosure').checked"))await click(owner,'disclosure');
+  await click(owner,'grant-submit');await settled(owner);
+  assert.match(await owner.eval("$('grants').textContent"),/Read only/);
+  await openFromHome(fresh);
+  assert.equal(await fresh.eval('current.role'),'read-work-v1');assert.equal(await fresh.eval('current.remaining_updates'),0);
+  assert.equal(await fresh.eval("!!document.getElementById('update-form')"),false);
+  assert.match(await fresh.eval("$('work-context').textContent"),/38 dBA/);
+  assert.match(await fresh.eval("$('limits').textContent"),/Read only/);
+  checks.push('Read-only browser share: owner selects the permission, recipient discovers the existing history and reads the recorded measurement without an edit form');
 }
