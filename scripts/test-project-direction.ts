@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { testDirectionRevocation } from "./project-direction-revocation-checks";
+import { testDirectionContinuation } from "./project-direction-continuation-checks";
 import { testDirectionHistoryReuse } from "./project-direction-history-checks";
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
 import { authenticateDirectionAgent, discoverAgentProjects } from "../lib/vnext/runtime/project-direction";
@@ -240,9 +241,9 @@ async function main() {
           appendDirectionRecord(full, { ...proposal.record.value, reason: `Retained proposal ${index}` });
         }
       })();
-      const history = readDirectionRecords(full, scope, now());
-      assert.equal(history.length, 512);
       const editTime = new Date(Date.parse(now()) + 1).toISOString();
+      const history = readDirectionRecords(full, scope, editTime);
+      assert.equal(history.length, 512);
       const save = createVNextOperatorContextUseReviewHandlerV01({ environment: { ...environment, AUGNES_DB_PATH: fullPath }, clock: { now: () => editTime } });
       const response = await save(new Request("http://127.0.0.1/api/vnext/operator/project-continuity", {
         method: "POST", headers: { host: "127.0.0.1", origin: "http://127.0.0.1", "content-type": "application/json", cookie },
@@ -254,7 +255,7 @@ async function main() {
       assert.equal(response.status, 409);
       assert.equal((await response.json()).error_code, "project_direction_history_bound");
       assert.equal(readProjectWorkInitializationV01(full, scope).current_packet?.packet_fingerprint, packet.integrity.fingerprint);
-      assert.deepEqual(readDirectionRecords(full, scope, now()), history);
+      assert.deepEqual(readDirectionRecords(full, scope, editTime), history);
     } finally { full.close(); }
     // A selected counterobservation is retained as attributed support, not silently
     // reclassified when preference changes. The production comparison/writer owns it.
@@ -456,4 +457,4 @@ async function main() {
     console.log(JSON.stringify({ project_direction: "pass", scoped_discovery: "complete", fresh_process_discovery: true, missing_discovery_rows: "refused", human_focus_recents_unchanged: true, journeys: ["authenticated_human", "independent_agent_role", "delegated_child"], consumer_path: "ordinary work -> direction -> source inspection preparation -> explicit authorization -> arm -> real files -> receipt -> reentry -> successor", model_calls: 0, usefulness: "not_measured", proposal_preserved: !!proposal.record, cleanup: "owned temporary database and roots removed in finally" }));
   } finally { await host?.live.shutdown(); db.close(); rmSync(root, { recursive: true, force: true }); }
 }
-void main().then(testDirectionRevocation).then(testDirectionHistoryReuse).catch(error => { console.error(error); process.exitCode = 1; });
+void main().then(testDirectionRevocation).then(testDirectionHistoryReuse).then(testDirectionContinuation).catch(error => { console.error(error); process.exitCode = 1; });

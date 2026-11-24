@@ -661,7 +661,7 @@ function ScopedSemanticReviewSurface({
           return;
         }
         if (body.error_code === "project_direction_history_bound") {
-          setPrivateError("Project direction history is full. Saving this edit needs another direction record. Your draft is retained and you can reopen the last saved revision.");
+          setPrivateError("There is no room to record this edit against the selected project direction. Your draft is still open. You can reopen the last saved revision.");
           return;
         }
         const conflictCopy = workRevisionErrorCopyV01(body.error_code);

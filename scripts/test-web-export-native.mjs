@@ -17,6 +17,7 @@ import { handleExternalOperation } from '../lib/vnext/external-response.ts';
 import { scopeKey, validateExternalStore } from '../lib/vnext/persistence/external-response-store.mjs';
 import { EXTERNAL_VERSION, hashBytes, LIMITS } from '../lib/vnext/external-response-rules.mjs';
 import { exerciseSelectedCollections } from './selected-source-collection-checks.mjs';
+import { checkWebSuccessorNativeHandoff } from './web-successor-native-handoff-checks.mjs';
 import { createRecoveryBackup } from './recovery-backup.mjs';
 import { prepareRuntimeDatabase, restoreRuntimeDatabase, inspectRecoveryDatabaseFile } from './runtime-database-bootstrap.mjs';
 
@@ -310,6 +311,9 @@ try {
   assert.equal(recoveredReplay, 'external_replay_conflict', 'a changed native basis cannot rewrite the earlier import');
   const afterFailure = await op(target, 'import_web_export', failureRequest, newBasis); assert.equal(afterFailure.status, 'saved');
   checks.push('supported backup/restore preserves exact material/experience/corpus; fresh consumer after recovery; aggregate refusal rolls back source/experience/corpus and consumes no operation key; explicit retry succeeds after supported recovery');
+  await checkWebSuccessorNativeHandoff({ root: path.join(owner.root, 'successor-web'), code: server.code,
+    db, target: other, channel, op, request });
+  checks.push('local task -> Web recipient home and two attributed updates with identical files -> source-bound decisions on the original native task, fresh SQLite readback, explicit offline copy and revocation');
   assert.equal(server.externalRequests(), 0); assert.equal(guard.attempts.length, 0, JSON.stringify(guard.attempts));
   assert.equal(db.prepare('SELECT COUNT(*) n FROM vnext_external_shares').get().n, 0);
   const usage = db.prepare('SELECT COUNT(*) materials, SUM(length(body)) body_bytes FROM vnext_external_materials').get();

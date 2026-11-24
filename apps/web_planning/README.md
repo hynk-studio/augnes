@@ -469,6 +469,10 @@ identify its actual sign-in and authorization source. This records an attributed
 report, not a model identity, verified result, acceptance or live execution grant.
 
 Complete JSON and readable exports retain these reports and obligations.
+For a returning local task, the owner can read the attributed update from Web
+history and cite its exact revision in the local decision. An ordinary file
+selected for Native import contains only its own bytes. See
+[Continue local work from a successor report](../../docs/WEB_EXPORT_NATIVE_HANDOFF.md#continue-local-work-from-a-successor-report).
 Reconstruction preserves their exact bytes and revokes all current grants only
 in the restored project; portable attribution never recreates live authority.
 After a v0.10 record is written, retain a v0.10-compatible reader/writer for
@@ -669,6 +673,38 @@ can no longer be inspected; B still opens, exports, restores and continues.
 No branch, file exchange, or native import is created by selecting notes. No new storage
 format or migration is needed. Capacity remains 12,000 bytes for normalized
 Web selected notes; relation, file and cumulative history limits are separate.
+
+### Recheck decisions after a source changes
+
+In a work with several decisions, keep a short note for each one you expect
+to revisit. Record the decision, when you checked it, the source work and exact
+note or file you used, and the condition that would make you reconsider.
+Include the cutoff and time zone for a dated approval. Keep a reference to the source work so
+a successor can find a later notice even if the original note is still there.
+
+For example, a team preparing a collection notice might keep these entries.
+
+| Decision in the draft | What to check | How to continue |
+| --- | --- | --- |
+| Offer counter pickup | Dispatch permits collection and either the North or South desk confirms. | If North withdraws, keep pickup on the strength of South's current confirmation and update the cited basis. A new dispatch hold reopens pickup even when both old confirmations are still readable. |
+| Include the route map | The map owner approved it until 10:00 UTC on April 12, with that instant excluded. | At 10:00, hold the map for renewal. The source can still be on the same revision. |
+| Use the approved caption | The caption editor's current wording and approval. | A desk change has no bearing on the caption. Reopen it when its own wording or approval changes. |
+
+Open the named source work with your current access. In the file client,
+`TASK.json context` reads its current save and `TASK.json history VERSION`
+opens the saved notes for a recorded revision. To verify and download an
+ordinary attachment, use `TASK.json get-saved VERSION NAME NEW_PATH`.
+For repeated checks, `tasks [CURSOR]` lists work IDs and revision fingerprints
+for the selected project. Follow any remaining
+pages or open the known work directly. A copy of one confirmation counts as
+that same observation. If a needed source cannot be read, retain its last
+confirmed reference and observation time in the receiving note. Mark the
+affected decision uncertain if the other available sources cannot settle it.
+
+In the receiving work, update the note whose decision or supporting basis
+changed, include the next action, and save. Reopen that work to read the new
+judgment. For a decision about an existing returned file, use
+[Reconsider current use](#reconsider-an-existing-returned-file-use-1593).
 
 ### Read and prepare the same draft from a local client
 

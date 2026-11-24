@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { createHash } from "node:crypto";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash } from "../protocol-primitives";
 import { parseDirectionContent, parseDirectionPrincipal, directionObject, directionRef, directionTime, directionText, directionInteger, directionArray, DIRECTION_VERSION, type DirectionBinding, type DirectionDecision, type DirectionEntry, type DirectionGrant, type DirectionRecord, type DirectionView, type DirectionProposal } from "../project-direction";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
@@ -10,8 +11,8 @@ import type { DirectionRevocation } from "../project-direction";
 
 export type DirectionScope = { workspace_id: string; project_id: string };
 const ORDINARY_HISTORY_LIMIT = 512;
-// At most 512 grants can have been admitted. Each can add one withdrawal after
-// ordinary admission closes; revocations never free an ordinary slot.
+// All grants come from the ordinary budget. Keep one unused row for the
+// first withdrawal of each outstanding grant, including suspended grants.
 const COMPLETE_HISTORY_LIMIT = 2 * ORDINARY_HISTORY_LIMIT;
 const nullableRef = (value: unknown) => value === null ? null : directionRef(value);
 function validateParent(value: unknown) {
@@ -33,10 +34,16 @@ function validateRecord(value: unknown): asserts value is DirectionRecord {
   };
   directionCheck(Object.hasOwn(fields, r.kind), "record_kind_invalid");
   if (r.kind === "decision" && Object.hasOwn(r, "creation")) fields.decision.push("creation");
+  if (r.kind === "decision" && Object.hasOwn(r, "prior_history_ref")) fields.decision.push("prior_history_ref");
   if (r.kind === "binding" && Object.hasOwn(r, "basis")) fields.binding.push("basis");
   directionObject(r, ["version", "kind", "workspace_id", "project_id", "at", ...fields[r.kind]]);
   if (r.kind === "decision") {
-    directionInteger(r.revision, 1, 512); nullableRef(r.previous); if (r.created_by) parseDirectionPrincipal(r.created_by);
+    directionInteger(r.revision, 1, r.prior_history_ref === undefined ? ORDINARY_HISTORY_LIMIT : COMPLETE_HISTORY_LIMIT);
+    if (r.prior_history_ref !== undefined) {
+      directionRef(r.prior_history_ref);
+      directionCheck(r.principal?.kind === "human" && r.authority_ref === null, "continuation_owner_required");
+    }
+    nullableRef(r.previous); if (r.created_by) parseDirectionPrincipal(r.created_by);
     parseDirectionPrincipal(r.principal); nullableRef(r.authority_ref); validateParent(r.parent); parseDirectionContent(r.content);
     directionCheck((r.principal.kind === "agent") === (r.authority_ref !== null), "decision_authority_invalid");
     directionCheck(["active", "paused"].includes(r.status), "status_invalid"); directionText(r.reason); nullableRef(r.proposal_ref);
@@ -92,9 +99,9 @@ function decode(row: Row): DirectionEntry {
 export function readDirectionRecords(db: Database.Database, scope: DirectionScope, at = new Date().toISOString()): DirectionEntry[] {
   if (!hasStore(db)) return [];
   directionTime(at);
-  return readCompleteDirectionRecords(db, scope).filter(entry => entry.value.at <= at);
+  return readCompleteDirectionHistory(db, scope).records.filter(entry => entry.value.at <= at);
 }
-function readCompleteDirectionRecords(db: Database.Database, scope: DirectionScope): DirectionEntry[] {
+function readCompleteDirectionHistory(db: Database.Database, scope: DirectionScope) {
   const observed = db.prepare(`WITH direction_history AS MATERIALIZED (
     SELECT * FROM vnext_project_direction_records WHERE workspace_id=? AND project_id=?
     ORDER BY ordinal LIMIT ${COMPLETE_HISTORY_LIMIT + 1}
@@ -110,9 +117,38 @@ function readCompleteDirectionRecords(db: Database.Database, scope: DirectionSco
   directionCheck(rows.length <= COMPLETE_HISTORY_LIMIT, "history_bound");
   const entries = rows.map(row => ({ ordinal: row.ordinal, entry: decode(row) }));
   const grants = new Map<string, DirectionEntry<DirectionGrant>>(), revoked = new Set<string>();
+  const proposals = new Map<string, DirectionProposal>();
+  const continuedDecisions = new Set<string>();
+  // Fixed-width content references bind bodies, scopes and order. Copying the
+  // streaming hash checks every continuation prefix in one pass.
+  const prefix = rows.length >= ORDINARY_HISTORY_LIMIT ? createHash("sha256").update("augnes.direction-history.v1\0") : null;
+  let lastDecision: DirectionEntry<DirectionDecision> | null = null;
+  let latestAt = "";
   for (const [index, { entry }] of [...entries].sort((a, b) => a.ordinal - b.ordinal).entries()) {
     const r = entry.value;
-    if (index >= ORDINARY_HISTORY_LIMIT) directionCheck(r.kind === "revocation" && !revoked.has(r.grant_ref), "history_bound");
+    if (r.kind === "decision" && r.prior_history_ref !== undefined) {
+      directionCheck(index >= ORDINARY_HISTORY_LIMIT && prefix && r.prior_history_ref === "sha256:" + prefix.copy().digest("hex"), "continuation_prefix_invalid");
+      directionCheck(r.previous === (lastDecision?.ref ?? null) && r.revision === (lastDecision?.value.revision ?? 0) + 1 && r.at > latestAt &&
+        canonical(r.created_by) === canonical(lastDecision?.value.created_by ?? null) &&
+        canonical(r.creation ?? null) === canonical(lastDecision?.value.creation ?? null) &&
+        canonical(r.parent) === canonical(lastDecision?.value.parent ?? null) &&
+        (!lastDecision || canonical(r.principal) === canonical(lastDecision.value.principal)), "continuation_lineage_invalid");
+      if (r.proposal_ref) {
+        const proposal = proposals.get(r.proposal_ref);
+        directionCheck(proposal && proposal.basis_ref === r.previous && canonical(proposal.content) === canonical(r.content), "proposal_changed");
+      }
+      continuedDecisions.add(entry.ref);
+    }
+    if (index >= ORDINARY_HISTORY_LIMIT) {
+      if (r.kind === "revocation") directionCheck(!revoked.has(r.grant_ref), "history_bound");
+      else {
+        directionCheck(r.kind === "decision" && r.prior_history_ref !== undefined || r.kind === "binding" && r.basis === "selected_direction" &&
+          continuedDecisions.has(r.direction_ref) && r.at >= latestAt, "history_bound");
+        directionCheck(index + 1 + grants.size - revoked.size <= COMPLETE_HISTORY_LIMIT, "history_bound");
+      }
+    }
+    if (r.kind === "decision" && (!lastDecision || r.at > lastDecision.value.at)) lastDecision = entry as DirectionEntry<DirectionDecision>;
+    if (r.kind === "proposal") proposals.set(entry.ref, r);
     if (r.kind === "grant") grants.set(entry.ref, entry as DirectionEntry<DirectionGrant>);
     if (r.kind === "revocation") {
       const grant = grants.get(r.grant_ref);
@@ -121,8 +157,11 @@ function readCompleteDirectionRecords(db: Database.Database, scope: DirectionSco
       // retain their original bytes and meaning, but cannot enable overflow.
       revoked.add(r.grant_ref);
     }
+    prefix?.update(entry.ref);
+    if (r.at > latestAt) latestAt = r.at;
   }
-  return entries.map(({ entry }) => entry);
+  return { records: entries.map(({ entry }) => entry), historyRef: prefix ? "sha256:" + prefix.digest("hex") : null,
+    continuationSlots: COMPLETE_HISTORY_LIMIT - rows.length - (grants.size - revoked.size) };
 }
 export function readDirectionRecord(db: Database.Database, scope: DirectionScope, reference: string): DirectionEntry {
   const row = db.prepare("SELECT * FROM vnext_project_direction_records WHERE workspace_id=? AND project_id=? AND ref=?").get(scope.workspace_id, scope.project_id, reference) as Row | undefined;
@@ -133,16 +172,34 @@ export function appendDirectionRecord<T extends DirectionRecord>(db: Database.Da
   directionCheck(db.inTransaction, "transaction_required");
   validateRecord(value);
   const count = db.prepare("SELECT COUNT(*) AS count FROM vnext_project_direction_records WHERE workspace_id=? AND project_id=?").get(value.workspace_id, value.project_id) as { count: number };
-  directionCheck(count.count < ORDINARY_HISTORY_LIMIT, "history_bound");
+  directionCheck(count.count < ORDINARY_HISTORY_LIMIT && !(value.kind === "decision" && value.prior_history_ref !== undefined), "history_bound");
   return insertDirectionRecord(db, value);
+}
+function appendContinuationRecord<T extends DirectionDecision | DirectionBinding>(db: Database.Database, value: T): DirectionEntry<T> {
+  directionCheck(db.inTransaction, "transaction_required");
+  const history = readCompleteDirectionHistory(db, value);
+  directionCheck(history.historyRef !== null && history.continuationSlots > 0, "history_bound");
+  const latestAt = history.records[history.records.length - 1]!.value.at;
+  if (value.kind === "decision") {
+    directionCheck(value.at > latestAt, "decision_time_conflict");
+    value = { ...value, prior_history_ref: history.historyRef };
+  } else {
+    const selectedRef = value.direction_ref;
+    directionCheck(value.at >= latestAt && value.basis === "selected_direction" && history.records.some(entry =>
+      entry.ref === selectedRef && entry.value.kind === "decision" && entry.value.prior_history_ref !== undefined), "binding_conflict");
+  }
+  validateRecord(value);
+  return insertDirectionRecord(db, value);
+}
+export function appendOwnerContinuationDecision(db: Database.Database, value: DirectionDecision) {
+  return appendContinuationRecord(db, value);
 }
 function insertDirectionRecord<T extends DirectionRecord>(db: Database.Database, value: T): DirectionEntry<T> {
   const reference = hash(canonical(value));
   db.prepare("INSERT INTO vnext_project_direction_records(workspace_id,project_id,kind,ref,recorded_at,body_json) VALUES (?,?,?,?,?,?)").run(value.workspace_id,value.project_id,value.kind,reference,value.at,canonical(value));
   return { ref: reference, value };
 }
-/** Only withdrawal can exceed ordinary admission. No grants, renewal or binding
- * callers use this owner. Issuer checks and complete observation precede dedupe. */
+/** Withdrawal has its own reserved capacity. Issuer checks and complete observation precede dedupe. */
 export function revokeDirectionGrant(db: Database.Database, value: DirectionRevocation): DirectionEntry<DirectionRevocation> {
   directionCheck(db.inTransaction, "transaction_required");
   validateRecord(value);
@@ -209,7 +266,7 @@ class DirectionReader {
     let history = this.histories.get(key);
     if (!history) {
       // Validate every original row and overflow relation before any cutoff.
-      history = readCompleteDirectionRecords(this.db, scope);
+      history = readCompleteDirectionHistory(this.db, scope).records;
       this.histories.set(key, history);
       for (const entry of history) {
         this.sources.set(JSON.stringify([key, entry.ref]), entry);
@@ -261,8 +318,10 @@ export function bindPacketDirection(db: Database.Database, packet: TaskContextPa
   if (!direction) return;
   const existing = packetDirectionBinding(db, packet);
   if (existing) { directionCheck(existing.value.direction_ref === direction.ref, "binding_conflict"); return; }
-  appendDirectionRecord(db, { version: DIRECTION_VERSION, kind: "binding", workspace_id: packet.workspace_id, project_id: packet.project_id,
-    at: packet.generated_at, packet_id: packet.packet_id, packet_fingerprint: packet.integrity.fingerprint, direction_ref: direction.ref, basis: "selected_direction" });
+  const binding: DirectionBinding = { version: DIRECTION_VERSION, kind: "binding", workspace_id: packet.workspace_id, project_id: packet.project_id,
+    at: packet.generated_at, packet_id: packet.packet_id, packet_fingerprint: packet.integrity.fingerprint, direction_ref: direction.ref, basis: "selected_direction" };
+  if (direction.value.prior_history_ref !== undefined) appendContinuationRecord(db, binding);
+  else appendDirectionRecord(db, binding);
 }
 /** Resolve the direction the packet actually selected. A sidecar never proves
  * reconsideration. An agenda, when present, must point to this exact projection. */
@@ -341,6 +400,8 @@ function readProjectDirectionInSnapshot(db: Database.Database, reader: Direction
   // No reader or shared cached object escapes. Keep the effective projection
   // independent of the mutable history returned to the caller.
   return { effective: structuredClone(effective), history: structuredClone(history), proposals: structuredClone(proposals), grants: structuredClone(grants), ...state, pending_work: pending,
+    ...(records.length >= ORDINARY_HISTORY_LIMIT && effective?.value.principal.kind !== "agent"
+      ? { continuation_slots: COMPLETE_HISTORY_LIMIT - records.length - grants.filter(grant => !grant.revocation).length } : {}),
     accepted_goal_relationship: "working_direction_only_review_accepted_goals_separately", execution_authority_granted: false };
 }
 
