@@ -37,7 +37,7 @@ function sessionCookie(db: Database.Database, config: VNextLocalOperatorPilotCon
 /** Supported preparation and immutable append builders accelerate only the 509
  * historical decisions. Sessions, grants, children and the operation under test
  * use production authenticated Request/Response handlers. No SQL authority edits. */
-export async function createSaturatedDirectionFixture(root: string, grantCount = 2, decisionCount = 510) {
+export async function createSaturatedDirectionFixture(root: string, grantCount = 2, decisionCount = 510, startTime = Date.now() + 5) {
   const databasePath = path.join(root, "direction.db");
   const db = new Database(databasePath); db.pragma("foreign_keys=ON"); applyCanonicalDatabaseMigrations(db);
   const workspace = getOrCreateDefaultWorkspaceIdentityV01(db);
@@ -46,7 +46,7 @@ export async function createSaturatedDirectionFixture(root: string, grantCount =
     local_root: normalizeLocalProjectRootRefV01(parentRoot, { base_path: root }), display_name: "Saturated issuer" }).project;
   const scope = { workspace_id: workspace.workspace_id, project_id: project.project_id };
   const config = { ...scope, enabled: true as const, operator_id: "operator:local-review", database_path: databasePath };
-  let instant = Date.now() + 5;
+  let instant = startTime;
   const clock = { now: () => new Date(instant).toISOString() };
   const tick = () => { instant += 1; return clock.now(); };
   const environment = { NODE_ENV: "test" as const, AUGNES_DB_PATH: databasePath, AUGNES_LOCAL_REVIEW_PROFILE: "companion_first_work_v1",

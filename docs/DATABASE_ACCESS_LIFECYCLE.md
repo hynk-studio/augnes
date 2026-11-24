@@ -142,18 +142,24 @@ consumes a record without a direction edit. Renewal still needs two ordinary
 slots in one [transaction](../lib/vnext/runtime/project-direction.ts), so one
 remaining slot is insufficient.
 
-The #1448 correction permits only an issuer's first explicit withdrawal of an
-existing grant beyond this limit. At most 512 grants can occupy the original
-budget, each with at most one additional revocation, so the absolute bound is
-1,024 records. Complete reads observe at most 1,025 rows to detect overflow,
-validate every observed row and its immutable reference, and refuse an ordinary
-record or duplicate revocation after the first 512 insertions. Historical views
-then select their original timestamp cutoff. No tail is ignored. Existing
-per-record size/shape limits remain unchanged; no table, format or schema migration
-is introduced. Legitimate earlier duplicate revocations within the first 512
-records retain their bytes and interpretation. A newly authenticated duplicate
-revoke returns the original attributed revocation without appending; a replayed
-session nonce remains refused.
+Beyond 512 records, the issuer retains one withdrawal per outstanding grant
+(#1448), including expired and suspended grants. The complete store holds at
+most 1,024 records. Reads observe up to 1,025 to detect overflow. Historical
+views validate the entire bounded store before selecting a time. Legacy
+duplicate withdrawals within the first 512 retain their original interpretation.
+A fresh duplicate request returns its original withdrawal. A replayed session
+nonce is refused.
+
+**Save next direction** uses the authenticated human owner's
+`continue_decision` operation. It checks the expected decision reference,
+the current principal and any proposal being adopted. Each new decision links
+to the previous decision and records a SHA-256 fingerprint of the complete
+preceding project history in insertion order. A task can explicitly select
+that decision as its basis. A new decision or task binding uses one of the
+remaining records after reserving all outstanding withdrawals. For example,
+512 stored records and one outstanding grant leave 511 records for this work.
+At zero available records, the owner can read the saved project and withdraw
+outstanding grants. New grants and renewals use the ordinary budget.
 
 Use **Revoke role access** and **Refresh direction** to inspect the saved issuer,
 time and reason. Current bearer mutation admission samples trusted time and
@@ -177,6 +183,11 @@ refuses it. An older reader cannot silently authorize through an omitted tail.
 Use the compatible source for an extended store; rollback does not remove records
 to make an older reader accept it.
 
+Readers supporting only #1448 can reopen a legacy withdrawal-only extension.
+When a continued decision is present, those readers refuse the unfamiliar
+record. Use a compatible reader for that project and its restored checkpoints.
+The SQLite schema and all prior record bytes stay intact.
+
 After a refused write, use the ordinary current-work and complete-history readers
 to establish what is still available. A current projection, history read, export
 and recovery checkpoint are distinct results. Do not treat a failed read as empty
@@ -196,12 +207,10 @@ renew execution authority, free history capacity, or authorize replay of an
 unknown external effect. Retain required local file bodies separately with their
 identities. An incomplete backup/restore attempt is not a preserving continuation.
 
-There is currently no supported capacity-releasing continuation for an exhausted
-native project that transparently retains its complete history and authority
-semantics. A genuinely separate project is separately scoped work; copying a
-summary, changing an identity, removing history or resetting a counter is not
-continuation of the original. Retain the original store and verified preservation
-material when another revision cannot fit. Restore is recovery, not expansion.
+The owner continuation uses room already available within the complete direction
+history budget. At that final bound, retain the original store, a verified
+checkpoint and required file bodies. Recovery preserves the same used capacity.
+A separately created project has its own scope and obligations.
 For the separate Web Planning work/history/body limits and supported branching,
 see its [continuation guidance](../apps/web_planning/README.md#after-an-accumulated-history-refusal-1439).
 
