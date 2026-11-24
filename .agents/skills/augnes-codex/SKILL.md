@@ -26,7 +26,14 @@ does not imply continuity or memory reuse.
 
 ## Current continuity and resumption
 
-For explicit resume, continue, recovery, or current-state intent:
+For a named Web project or shared Web work, open the project's authenticated
+Web entry. A recipient can discover the work in **Shared with you** and use
+its granted role. A returning owner can read the exact report in work history.
+See the [Web-to-local handoff](../../../docs/WEB_EXPORT_NATIVE_HANDOFF.md#continue-local-work-from-a-successor-report).
+This Web step works with the local Companion stopped. To update a registered
+local task afterward, resume that task separately.
+
+For a request to resume, recover, or inspect a registered local project:
 
 1. Use the `augnes-live-repository-continuity` owner from the reviewed
    `augnes-operator` plugin when available.

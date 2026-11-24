@@ -21,8 +21,9 @@ The SessionStart reminder preserves the durable distinction:
 
 - ordinary audit, review, investigation, verification, and implementation begin
   from current source without continuity or memory priming;
-- explicit resume, continue, recovery, or current-state intent delegates to the
-  reviewed Companion lifecycle and repository-continuity owner;
+- resuming registered local work delegates to the reviewed Companion lifecycle
+  and repository-continuity owner. Shared Web work uses the recipient's
+  authenticated Web entry and current grant;
 - exact repository identity, unrelated user work, skipped reasons, and
   planner-selected exact-head verification remain visible.
 

@@ -4,6 +4,7 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { canonical, headBinding, reference } from '../apps/web_planning/src/contract.ts';
 import { validateFileExport } from '../apps/web_planning/src/files.ts';
+import { selectWebExport } from '../lib/vnext/web-export-admission.ts';
 import { planningDraft, prepareReturnDraft } from '../apps/augnes_apps/scripts/planning-notes.mjs';
 import { digest, openFileTask } from '../apps/augnes_apps/scripts/web-file-client.mjs';
 import { projectSession as session, projectOk as ok, projectAgentSession as agent, projectBindings, projectInput } from './web-planning-project-checks.mjs';
@@ -105,6 +106,9 @@ export async function checkCrossProjectContributions({start,root,passed}){
     assert.deepEqual(Object.keys(exported).sort(),['compatibility','files','fingerprint','format','revisions','schema']);
     assert(!JSON.stringify(exported).includes(s.env.LOCAL_PARTICIPANT_LOGIN));
   }
+  const correction = continued.files.find(f => f.name === 'correction.md');
+  const selected = selectWebExport(bExport, { export_fingerprint: bExport.fingerprint, ...reference(continued) }, [correction]);
+  assert.deepEqual(selected.files, [{ file: correction, base64: pending.files[0].data, media_type: 'text/markdown' }]);
   await req(route(first.base,'participation/revoke'),{grant_id:first.grant.id});
   for(const suffix of ['', '/feedback'])assert.equal((await fresh.request(prefix+suffix)).status,403);
   for(const suffix of ['/retain','/retain-resolve'])assert.equal((await fresh.request(prefix+suffix,retain)).status,403);
