@@ -52,7 +52,8 @@ export function ProjectDirection({ projectId, initial }: { projectId: string; in
       : value.error === "project_direction_stale_revision" ? "Direction changed while this form was open. Refresh and review the current version."
       : value.error === "project_direction_revocation_committed_readback_unavailable" ? "Revocation was saved, but current direction could not be loaded. Refresh direction to inspect the saved withdrawal."
       : value.error === "project_direction_revocation_time_conflict" ? "The last use of this role has the same or a later recorded time. Refresh direction and revoke again after that time."
-      : value.error === "project_direction_history_bound" ? "Ordinary direction history is full. Existing role access can still be revoked; new decisions and authorizations cannot be added."
+      : value.error === "project_direction_history_bound" ? "Direction history has reached its limit for this action. Refresh direction to see the space for owner decisions. Existing roles can still be revoked."
+      : value.error === "project_direction_decision_time_conflict" ? "Another project record has the same or a later time. Refresh direction and save after that time."
       : "The request was not confirmed. Refresh direction to inspect its outcome. If access expired, reopen protected project review before continuing.");
     return value;
   }
@@ -63,7 +64,7 @@ export function ProjectDirection({ projectId, initial }: { projectId: string; in
     finally { setBusy(false); }
   }
   async function decide(selected = content(), proposalRef: string | null = null) {
-    const result = await request(route, { action: "decide", expected_ref: editor.basis, content: selected,
+    const result = await request(route, { action: state.continuation_slots === undefined ? "decide" : "continue_decision", expected_ref: editor.basis, content: selected,
       reason: reason || (state.effective ? "" : "Initial working direction"), status: "active", proposal_ref: proposalRef });
     setState(result.state); setEditor(editorFor(result.state)); setAgenda(null); setMessage("Direction saved. Pending work must use this revision; earlier work and evidence remain unchanged.");
   }
@@ -83,20 +84,23 @@ export function ProjectDirection({ projectId, initial }: { projectId: string; in
       <summary>{state.effective ? "Review or change direction" : "Add a direction (optional)"}</summary>
       <p>A short outcome or open question is enough. Direction guides task selection; accepted goals and factual support retain their existing review process.</p>
       {state.effective?.value.principal.kind !== "agent" && <form onSubmit={event => { event.preventDefault(); void act(() => decide()); }}>
+        {state.continuation_slots !== undefined && <p>{state.continuation_slots > 0
+          ? `Ordinary direction history is full. ${state.continuation_slots} records are available for owner decisions and work that cites them. Saving a continuation requires a compatible version to reopen this history.`
+          : "Direction history is full. The saved decisions remain available to read, and space is reserved for outstanding role withdrawals."}</p>}
         <label>Desired outcome or open question<textarea aria-label="Desired outcome or open question" maxLength={600} value={purpose} onChange={e => edit("purpose", e.target.value)} required /></label>
         {state.effective && <label>Why change direction?<input aria-label="Why change direction?" value={reason} maxLength={600} onChange={e => edit("reason", e.target.value)} required /></label>}
         <details><summary>Progress criteria and constraints</summary>
           <label>Useful progress (one per line)<textarea aria-label="Useful progress (one per line)" value={criteria} onChange={e => edit("criteria", e.target.value)} /></label>
           <label>Constraints (one per line)<textarea aria-label="Constraints (one per line)" value={constraints} onChange={e => edit("constraints", e.target.value)} /></label>
         </details>
-        <button disabled={busy || !hydrated || conflict} type="submit">Save direction</button>
+        <button disabled={busy || !hydrated || conflict || state.continuation_slots === 0} type="submit">{state.continuation_slots === undefined ? "Save direction" : "Save next direction"}</button>
       </form>}
       {state.proposals.map(proposal => <div key={proposal.ref}>
         <p>{proposal.value.kind === "return" ? "Returned child material" : "Proposed direction"}: {proposal.value.content.purpose}</p>
         <p>Proposed progress criteria: {proposal.value.content.criteria.join("; ") || "None specified"}</p>
         <p>Proposed constraints: {proposal.value.content.constraints.join("; ") || "None specified"}</p>
         <p>{proposal.value.reason} · Proposed by {proposal.value.principal.id}</p>
-        {proposal.value.kind === "proposal" && state.effective?.value.principal.kind === "human" && <button disabled={busy || !hydrated || !reason || conflict || proposal.value.basis_ref !== state.effective.ref} onClick={() => void act(() => decide(proposal.value.content, proposal.ref))}>Use this proposed direction</button>}
+        {proposal.value.kind === "proposal" && state.effective?.value.principal.kind === "human" && <button disabled={busy || !hydrated || !reason || conflict || state.continuation_slots === 0 || proposal.value.basis_ref !== state.effective.ref} onClick={() => void act(() => decide(proposal.value.content, proposal.ref))}>Use this proposed direction</button>}
       </div>)}
       <details><summary>Direction history and delegation</summary>
         <p>Creation attribution: {state.history[0]?.value.created_by?.id ?? "Not recorded for this existing project"}. Direction permission never authorizes execution or increases resources.</p>

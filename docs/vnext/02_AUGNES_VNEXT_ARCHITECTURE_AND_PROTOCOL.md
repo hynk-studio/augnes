@@ -1658,18 +1658,24 @@ confirmation. Outside-policy content stays a proposal. Returned child receipts
 must exist in that child's scope; returned proposals are explicitly not findings.
 Neither becomes a parent decision or accepted fact automatically.
 
-The issuer can revoke access even at ordinary direction-history saturation
-(#1448). The first 512 immutable records retain their shared accounting. Only a
-first explicit issuer revocation of an existing grant can exceed that budget;
-each grant has one such withdrawal, with a finite 1,024-record complete-store bound.
-Every record is observed and validated before a historical timestamp projection;
-ordinary append, grants, renewal and bindings cannot use the exception. Original
-references, hashes, insertion order and attribution remain unchanged. Earlier
-legitimate duplicate revocations within the ordinary bound remain readable; a
-fresh duplicate request returns the original revocation while nonce replay fails.
-The original record format and schema remain in use. A pre-correction complete
-reader refuses an extended store, including authority and recovery admission,
-rather than silently omitting the withdrawal.
+The ordinary project direction budget covers the first 512 immutable records.
+The complete store admits up to 1,024 records and reserves a row for the
+issuer's first withdrawal of each outstanding grant (#1448). Within the
+unreserved space, a human owner may explicitly record the next working decision
+or select a continued decision as a task's basis. Agent permissions and ordinary
+grant issuance or renewal keep their existing limits.
+
+A continued decision retains its project, principal and predecessor. Its
+`prior_history_ref` is the SHA-256 of the UTF-8 domain
+`augnes.direction-history.v1`, one zero byte, and all preceding fixed-width
+`sha256:…` record references in ascending project insertion order. Its time
+must follow every record in that prefix. An adopted proposal must precede it
+in the same project and match both the prior decision and proposed content.
+Readers check the whole stored history, the reserved withdrawal capacity and
+all continuation fingerprints before projecting any time cutoff. A task's
+earlier basis is available for reconsideration until the task explicitly
+selects a new one. Older readers refuse a continued history. The SQLite schema
+and all preexisting record formats and references are preserved.
 
 Bearer mutations observe trusted current time after acquiring their immediate
 transaction and recheck authority there. Earlier prepared/authenticated requests

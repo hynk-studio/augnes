@@ -16,6 +16,8 @@ export type DirectionDecision = {
   content: DirectionContent; status: "active" | "paused"; reason: string; proposal_ref: string | null;
   /** Older draft rows remain readable; missing agent origin is not recovery proof. */
   creation?: DirectionCreation | null;
+  /** Fingerprint of the complete insertion-ordered history before an owner's continuation decision. */
+  prior_history_ref?: string;
 };
 export type DirectionGrant = {
   version: typeof DIRECTION_VERSION; kind: "grant"; workspace_id: string; project_id: string; at: string;
@@ -48,6 +50,8 @@ export type DirectionRevocation = {
 export type DirectionRecord = DirectionDecision | DirectionGrant | DirectionProposal | DirectionBinding | DirectionRevocation;
 export type DirectionEntry<T extends DirectionRecord = DirectionRecord> = { ref: string; value: T };
 export type DirectionView = {
+  /** Shared by further owner decisions and task bindings once ordinary history is full. */
+  continuation_slots?: number;
   effective: DirectionEntry<DirectionDecision> | null;
   history: DirectionEntry<DirectionDecision>[];
   proposals: DirectionEntry<DirectionProposal>[];

@@ -585,6 +585,13 @@ repeats the independent packet/Web/retained-file experiments nor changes those
 limits. #1446 remains independently owned. No installed Companion adoption,
 production migration, provider/paid experiment or external execution is included.
 
+The subsequent Native owner workflow records a new decision on the same project
+after its first 512 direction records. The owner can reopen earlier decisions,
+review pending work against its original sources, and explicitly select the new
+decision for that work. Each outstanding grant keeps room for withdrawal within
+the 1,024-record limit. See the [history and recovery contract](../DATABASE_ACCESS_LIFECYCLE.md#accumulated-native-history-refusal-and-preservation-1439)
+for capacity and version compatibility.
+
 ## Status reconciliation — 2026-10-06
 
 The reviewed integration baseline is main

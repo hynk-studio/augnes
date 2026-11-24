@@ -240,6 +240,15 @@ the actual outcome, reopening protected project review if the session is stale.
 This does not free space for decisions, grants or renewals. See the
 [history and recovery contract](docs/DATABASE_ACCESS_LIFECYCLE.md#accumulated-native-history-refusal-and-preservation-1439).
 
+Once ordinary direction history fills, open **Project direction → Review or
+change direction**. For a human-owned direction, the editor shows how many
+records are available after reserving room for outstanding role withdrawals.
+Use **Save next direction** to record a decision on the same project and keep
+its earlier decisions available. Pending work that cites the earlier direction
+can use **Prepare a source inspection** to select the new decision and its
+supporting files. That step uses one more record. Use a version that supports
+continued decisions to reopen or restore this history.
+
 The source checkout supports patched Node.js `^22.23.4 || ^24.22.1`
 with npm 10 or 11. Node 22 is a source compatibility line; Companion requires
 Node 24.22.1 or later within Node 24. Exact Local Canonical verification uses Node.js 24.22.1 and
