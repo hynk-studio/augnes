@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { digest, observeCanonicalRuntimeInputs, observePreparedDependencyInputs } from "../local-canonical-inputs.mjs";
 import { gitFixtureDeclaration } from "./local-canonical-git-observation.mjs";
+import { fixtureNow, withAdjacentAuthorityClock } from "./local-canonical-authority-clock.mjs";
 import { verifyGitSourceRepair, verifyGitRevisionFailure, MATERIAL_SOURCE_CORRECTION, gitRevisionInventory, gitReviewTarget,
   DIRECT_GIT_INPUT_REVISION, DIRECT_GIT_INPUT_HISTORY_BOUNDARY } from "../local-canonical-git-observation.mjs";
 import { REGISTERED_FIXTURE_BUDGET, FIXTURE_BUDGET_CLAIM, FIXTURE_BUDGET_COLLECTOR, FIXTURE_BUDGET_PATHS,
@@ -515,13 +516,15 @@ export async function selectiveFixtureWorkloadControls(parent,h,sourceRoot) {
     write("scripts/fixtures/experience-use/process-events.mjs",changed);const bad=commit("controlled unsupported computed fixture import");
     assert.throws(()=>selectiveFixtureWorkloadSourcePartition(git,beforeHead,bad,beforeHead));git(["reset","--hard",head]);refusals++;
   }
-  const authority=selectiveHistoricalAuthorityControls();rmSync(root,{recursive:true});
+  const authority = withAdjacentAuthorityClock(selectiveHistoricalAuthorityControls);
+  rmSync(root,{recursive:true});
   return {synthetic_only:true,kind:SELECTIVE_FIXTURE_WORKLOAD,natural_before_and_after_pass:true,refusal_controls:refusals,historical_authority:authority,
     real_selective_workload_executed:false,deciding:false};
 }
 
 function selectiveHistoricalAuthorityControls() {
-  const stamp=offset=>new Date(Date.now()+offset).toISOString(),hash=v=>digest("controlled "+v),commit=value=>value.repeat(40);
+  const stamp = offset => new Date(fixtureNow() + offset).toISOString();
+  const hash=v=>digest("controlled "+v),commit=value=>value.repeat(40);
   const p={schema:"augnes.local-canonical-source-correction.v10",kind:"reviewed_revision",pull_request:999,branch:"codex/controlled-selective",base:commit("a"),head:commit("b"),tree:commit("c"),
     prior_family_id:hash("root"),prior_number:1,prior_attempt_id:"controlled-ordinary",prior_receipt_fingerprint:hash("receipt"),
     commission:{root_family_id:hash("root"),root_number:1,root_attempt_id:"controlled-ordinary",root_receipt_fingerprint:hash("receipt"),ordinal:1,maximum_invocations:1,input_revision:DIRECT_GIT_INPUT_REVISION},
@@ -536,7 +539,8 @@ function selectiveHistoricalAuthorityControls() {
   const user={login:"fixture-maintainer",id:2,type:"User"},permission={user:{login:user.login},permission:"maintain"},permissions={accepted_revision:permission,execution_commission:permission};
   const review={id:10,user,author_association:"COLLABORATOR",state:"COMMENTED",commit_id:p.head,pull_request_url:"https://api.github.com/repos/hynk-studio/augnes/pulls/999",submitted_at:stamp(-5000),
     body:["Source review decision: ACCEPT / RETAIN for prospective qualification.",p.base,p.head,p.tree,p.prior_receipt_fingerprint,gitReviewTarget(p),DIRECT_GIT_INPUT_REVISION,DIRECT_GIT_INPUT_HISTORY_BOUNDARY].join("\n")};
-  const grant={id:20,user,author_association:"COLLABORATOR",issue_url:"https://api.github.com/repos/hynk-studio/augnes/issues/999",created_at:stamp(-4000),updated_at:stamp(-4000),
+  const grantedAt = stamp(-4000);
+  const grant={id:20,user,author_association:"COLLABORATOR",issue_url:"https://api.github.com/repos/hynk-studio/augnes/issues/999",created_at:grantedAt,updated_at:grantedAt,
     body:["Authorize one prospective Mac qualification of this direct Git-input target.",p.schema,p.branch,p.base,p.head,p.tree,p.prior_receipt_fingerprint,gitReviewTarget(p),DIRECT_GIT_INPUT_REVISION,DIRECT_GIT_INPUT_HISTORY_BOUNDARY,
       "https://github.com/hynk-studio/augnes/pull/999#pullrequestreview-10","Exactly one admitted deciding invocation total. Reservation/interruption consumes it. Zero unchanged-target retry; zero extra recovery. Separate fresh-process stock and independent audit."].join("\n")};
   const observations={accepted_revision:reviewedRevisionAuthorityObservation(review,"accepted_revision"),execution_commission:reviewedRevisionAuthorityObservation(grant,"execution_commission")};
@@ -544,6 +548,11 @@ function selectiveHistoricalAuthorityControls() {
   const prior={number:1,recovery:null,budget:{initial:1,recovery:0},branch:p.branch,head:p.head,tree:p.tree,source_correction:p,revision_authority:observations,
     attempt_id:"controlled-selective-review",contract_fingerprint:inputs.fingerprint};
   assert.deepEqual(validateSelectiveFixtureHistoricalAuthority(prior,review,grant,permissions),observations);let refused=0;
+  // Keep the observed update and its digest intact. Only the unedited-grant check should refuse this record.
+  const editedGrant = { ...grant, created_at: new Date(Date.parse(grantedAt) - 1).toISOString() };
+  assert.throws(() => validateSelectiveFixtureHistoricalAuthority(prior, review, editedGrant, permissions),
+    { code: "revision_authority_scope_invalid" });
+  refused++;
   for(const mutate of [v=>v.review.body+="changed",v=>v.review.commit_id=commit("d"),v=>v.review.user={...user,login:"imposter"},v=>v.grant.id++,
     v=>v.grant.created_at=stamp(-6000),v=>v.permissions.execution_commission={user:{login:user.login},permission:"read"},v=>v.prior.source_correction.commission.maximum_invocations=2]) {
     const v=structuredClone({prior,review,grant,permissions});mutate(v);assert.throws(()=>validateSelectiveFixtureHistoricalAuthority(v.prior,v.review,v.grant,v.permissions));refused++;
