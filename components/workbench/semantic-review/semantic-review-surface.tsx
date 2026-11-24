@@ -660,6 +660,10 @@ function ScopedSemanticReviewSurface({
           locked(publicErrorCode(body.error_code));
           return;
         }
+        if (body.error_code === "project_direction_history_bound") {
+          setPrivateError("Project direction history is full. Saving this edit needs another direction record. Your draft is retained and you can reopen the last saved revision.");
+          return;
+        }
         const conflictCopy = workRevisionErrorCopyV01(body.error_code);
         if (workRevisionConflictV01(body.error_code)) {
           await loadPrivateView({ announceLoading: false, preserveFeedback: true });
