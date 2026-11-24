@@ -8,14 +8,16 @@ import { append, putMaterial } from './persistence/external-response-store.mjs';
 import { SELECTED_CORPUS_VERSION, retrieveSelectedSources } from './selected-source-retrieval.mjs';
 
 export const WEB_ADMISSION_VERSION = 'augnes.web-export-admission.v1';
+// Adding a Web reader alone must not expand the Native import contract.
+const nativeFileExports = new Set([3, 4, 5, 7, 8, 9, 10, 11].map(version => `web_planning_export.v0.${version}`));
 export function selectWebExport(value: any, expected: any, selection: unknown) {
-  // Native admission remains bounded to the previously supported Web formats.
   if (value?.format === 'web_planning_export.v0.6') fail('incompatible_format', 422);
   if (Buffer.byteLength(canonical(value)) > FILE_EXPORT_REQUEST_BYTES) fail('web_export_request_bound', 413);
   const first = value?.revisions?.[0];
   const scope = { workspace_id: first?.workspace_id, project_id: first?.project_id, author_ref: first?.author_ref };
   if (Object.values(scope).some(v => typeof v !== 'string' || !UUID.test(v))) fail('web_export_identity_invalid', 422);
   const { chain, bodies } = validateFileExport(scope, value);
+  if (!nativeFileExports.has(value.format)) fail('incompatible_format', 422);
   const current = chain.at(-1)!;
   keys(expected, ['export_fingerprint', 'work_id', 'revision', 'fingerprint']);
   if (expected.export_fingerprint !== value.fingerprint || expected.work_id !== current.work_id ||

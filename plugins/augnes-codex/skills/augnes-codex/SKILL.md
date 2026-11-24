@@ -26,7 +26,15 @@ does not imply continuity or memory reuse.
 
 ## Current continuity and resumption
 
-For explicit resume, continue, recovery, or current-state intent:
+For a named Web project or shared Web work, open the project's authenticated
+Web entry. A recipient can discover the work in **Shared with you** and use
+its granted role. A returning owner can read the exact report in work history.
+This Web step works with the local Companion stopped. To update a registered
+local task afterward, resume that task separately. The Augnes source checkout
+describes the handoff in `docs/WEB_EXPORT_NATIVE_HANDOFF.md`, section
+**Continue local work from a successor report**.
+
+For a request to resume, recover, or inspect a registered local project:
 
 1. Use the `augnes-live-repository-continuity` owner from the reviewed
    `augnes-operator` plugin when available.
@@ -91,10 +99,12 @@ installer-owned files. `/hooks` review and trust remain manual.
 
 ## Setup
 
-First identify the requested outcome. The public workflow-cost calculator needs
-no Augnes installation; its packaged usage is separate from project continuity.
-For Augnes setup, use the current reviewed Operator and Companion owners. Run
-checkout commands from the Augnes application checkout, not the user's project:
+To open shared Web work, sign in through its Web entry and use the current
+grant. This works on a Mac with no local Augnes installation. The public
+workflow-cost calculator also runs without installing Augnes.
+
+For local Operator setup on macOS, use the reviewed Operator and Companion.
+Run the applicable command from the Augnes application checkout:
 
 ```bash
 npm run augnes:plugin:install
@@ -110,9 +120,12 @@ install an Operator, a Companion, or a registered project. Read the source
 checkout's `docs/CODEX_MCP_AUGNES_BRIDGE_USAGE_V0_1.md`, section **Public setup and
 first continuation**, for the supported sequence and remaining gaps.
 
-Service install, start, stop, or uninstall requires the user's exact request.
-Do not start runtime, install a service, or mutate user-level hook state merely
-because the user asked a source question.
+An explicit request to resume or continue a registered local project permits
+one start of an already-installed service when lifecycle status identifies one
+exact, startable match. Verify it is live before Resume. Standalone starts,
+installation, stop and uninstall require their own explicit request. Checking
+service status is read-only. Answer source questions without starting the
+runtime or changing user-level hooks.
 
 ## Boundaries
 

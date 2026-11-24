@@ -469,6 +469,10 @@ identify its actual sign-in and authorization source. This records an attributed
 report, not a model identity, verified result, acceptance or live execution grant.
 
 Complete JSON and readable exports retain these reports and obligations.
+For a returning local task, the owner can read the attributed update from Web
+history and cite its exact revision in the local decision. An ordinary file
+selected for Native import contains only its own bytes. See
+[Continue local work from a successor report](../../docs/WEB_EXPORT_NATIVE_HANDOFF.md#continue-local-work-from-a-successor-report).
 Reconstruction preserves their exact bytes and revokes all current grants only
 in the restored project; portable attribution never recreates live authority.
 After a v0.10 record is written, retain a v0.10-compatible reader/writer for

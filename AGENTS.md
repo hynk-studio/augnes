@@ -91,11 +91,12 @@ compatibility, or runtime behavior.
   explicitly authorized replacement proves parity and rollback.
 - Independent source-first audit, review, verification, investigation, and
   claim checking do not automatically require continuity priming.
-- Explicit resume, continue, recovery, or current-state intent uses the
+- Resuming a registered local repository uses the
   repository-owned [current-continuity contract](docs/CODEX_CURRENT_CONTINUITY_V0_1.md)
-  and [Companion tooling](docs/CODEX_MCP_AUGNES_BRIDGE_USAGE_V0_1.md). Those
-  active owners define the exact lifecycle and tool mechanics; do not duplicate
-  them here.
+  and [Companion tooling](docs/CODEX_MCP_AUGNES_BRIDGE_USAGE_V0_1.md).
+  For a specified Web project or shared Web work, use its authenticated Web
+  entry and the signed-in participant's permitted role. A handoff can use both
+  routes in sequence; an unavailable source stays unavailable on its own route.
 
 ### Joint method improvement
 

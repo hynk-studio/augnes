@@ -166,10 +166,9 @@ assert.match(
   repositoryResumeHookOutput.hookSpecificOutput?.additionalContext,
   /Ordinary source-first work does not require continuity or memory priming/u,
 );
-assert.match(
-  repositoryResumeHookOutput.hookSpecificOutput?.additionalContext,
-  /Explicit resume, continue, recovery, or current-state intent uses the reviewed Augnes Operator Companion lifecycle and repository-continuity owner/u,
-);
+const routing = repositoryResumeHookOutput.hookSpecificOutput.additionalContext;
+assert.match(routing, /registered local project[^\n]*Companion[^\n]*repository-continuity/iu);
+assert.match(routing, /shared Web work[^\n]*authenticated Web entry[^\n]*grant/iu);
 assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /planner-selected exact-head verification/u);
 assert.doesNotMatch(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /codex:read-brief|record-completion-proof/u);
 
