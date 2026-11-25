@@ -119,6 +119,8 @@ export async function assertPiRpcLifecycleV01(input: {
         const result = await workerResult;
         assert.equal(result.outcome, "cancelled");
         assert.equal(result.adapter_extension.bounded_metadata.queue_recovery_observed, true);
+        assert(detail.capability_coverage.some(entry =>
+          entry.capability === adapter.capability_version && entry.coverage_level === "observed"));
       } else {
         assert(receipt.blockers.some(b => b.code === (scenario === "probe"
           ? "pi_rpc_project_task_not_dispatched" : "pi_rpc_pinned_executable_unavailable")));

@@ -77,21 +77,28 @@ function resultFieldV01(value: string): NativeHostResultFieldV01 {
 }
 
 type NativeHostCoverageEntry = NativeHostResultV01["capability_coverage"][number];
-const transportObservations = new WeakMap<NativeHostCoverageEntry, string>();
+type TransportRetention = "retain_on_settled_cancellation";
+const transportObservations = new WeakMap<NativeHostCoverageEntry, { requestId: string; retention?: TransportRetention }>();
 
 /** Only a transport that observed the event calls this at its local producer.
  * A returned JSON entry, even with identical fields, has no such observation. */
 export function observedNativeHostTransportCoverageV01(
   requestId: string,
   entry: Omit<NativeHostCoverageEntry, "coverage">,
+  retention?: TransportRetention,
 ): NativeHostCoverageEntry {
-  const observation = Object.freeze({ ...entry, coverage: "observed" as const });
-  transportObservations.set(observation, requestId);
+  // A retained observation can outlive the producer's summary and session reference.
+  const snapshot = retention ? { ...entry, notes: [...entry.notes],
+    source_ref: entry.source_ref && Object.freeze({ ...entry.source_ref }) } : entry;
+  if (retention) Object.freeze(snapshot.notes);
+  const observation = Object.freeze({ ...snapshot, coverage: "observed" as const });
+  transportObservations.set(observation, { requestId, retention });
   return observation;
 }
 
-export function isObservedNativeHostTransportCoverageV01(requestId: string, entry: NativeHostCoverageEntry): boolean {
-  return transportObservations.get(entry) === requestId;
+export function isObservedNativeHostTransportCoverageV01(requestId: string, entry: NativeHostCoverageEntry, retention?: TransportRetention): boolean {
+  const observation = transportObservations.get(entry);
+  return observation?.requestId === requestId && (retention === undefined || observation.retention === retention);
 }
 
 export class NativeHostContractErrorV01 extends Error {

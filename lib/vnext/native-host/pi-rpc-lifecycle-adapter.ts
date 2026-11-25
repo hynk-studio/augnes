@@ -62,7 +62,7 @@ export function createPiRpcLifecycleAdapterV01(input: { executable: string; now?
           capability_coverage: probe ? [observedNativeHostTransportCoverageV01(request.request_id, {
             capability: CAPABILITY, source_ref: host,
             notes: ["The correlated control exchange ended with an idle, empty session and a settled process group."],
-          })] : [],
+          }, "retain_on_settled_cancellation")] : [],
           adapter_extension: {
             extension_version: "pi_rpc_lifecycle_extension.v0.1", adapter_kind: "pi_rpc",
             bounded_metadata: { packet_delivery_initiated: false, queue_recovery_observed: probe?.queued === true },
