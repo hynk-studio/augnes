@@ -5938,6 +5938,9 @@ async function assertWorkExpectationMechanics(): Promise<void> {
       assert.equal(revised.response.status, 201, JSON.stringify(revised.body));
       const originalHistory = readWorkExpectationPreparation(fixture.db, fixture.config).history;
       assert.equal(originalHistory.length, 2); assert.deepEqual(originalHistory[0], saved.body.record);
+      if (testCase.name === "match") {
+        await assertRecoveryExpectationScopesV01(fixture, originalHistory);
+      }
       assert.equal(readProjectWorkRevisionEligibilityV01(fixture.db, fixture.config).eligible, true, "Optional notes add no task revision or Start gate");
       const beforeExecution = fixture.db.serialize();
       assert.equal((await post({ ...base, recorded_at: T0 }, "2026-08-01T00:00:06.000Z")).response.status, 409);
@@ -6066,6 +6069,127 @@ async function assertWorkExpectationMechanics(): Promise<void> {
       console.log(JSON.stringify({ expectation_disposition: disposition, criterion: comparison.actual_outcome, comparison: comparison.comparison }));
     } finally { fixture.db.close(); }
   }
+}
+
+async function assertRecoveryExpectationScopesV01(
+  fixture: FixtureV01,
+  history: WorkExpectation[],
+): Promise<void> {
+  const databasePath = path.join(ROOT, "expectation-recovery-scopes.db");
+  await fixture.db.backup(databasePath);
+  let historyReads = 0;
+  let canonicalScanStarted = false;
+  let appendAfterScan: (() => void) | undefined;
+  const db = new Database(databasePath, {
+    verbose(sql) {
+      if (typeof sql !== "string") return;
+      if (sql.includes("record_kind = 'work_expectation_record'") &&
+          sql.includes("ORDER BY created_at, record_id")) historyReads++;
+      if (!appendAfterScan) return;
+      if (canonicalScanStarted) {
+        // The next SQL statement begins after the synchronous canonical .all() has returned.
+        const append = appendAfterScan;
+        appendAfterScan = undefined;
+        append();
+      } else if (sql.includes("payload_json, created_at") && sql.includes("ORDER BY record_kind, record_id")) {
+        canonicalScanStarted = true;
+      }
+    },
+  });
+  const readValid = (populatedProjects: number) => {
+    historyReads = 0;
+    const result = validateRecoveryCanonicalDatabaseV01(db);
+    assert.equal(result.status, "valid", result.code);
+    assert.equal(historyReads, populatedProjects, "One full history read per populated project");
+    return result;
+  };
+  try {
+    assert.equal(db.pragma("journal_mode = WAL", { simple: true }), "wal");
+    // The first project has two authored revisions. The second adds one.
+    // Neither has executed work that would trigger a separate result-detail read.
+    readValid(1);
+    const root = path.join(ROOT, "expectation-second-project");
+    mkdirSync(root);
+    const { project } = getOrCreateCanonicalProjectForLocalRootV01(db, {
+      workspace_id: fixture.workspace_id,
+      local_root: normalizeLocalProjectRootRefV01(root, { base_path: ROOT }),
+    });
+    const other: FixtureV01 = {
+      ...fixture, db, root, project_id: project.project_id,
+      config: { ...fixture.config, project_id: project.project_id, database_path: databasePath },
+    };
+    const active = readActiveProjectSelectionV01(db, fixture.workspace_id)!;
+    const selection = selectActiveProjectV01(db, {
+      workspace_id: fixture.workspace_id,
+      project_id: other.project_id,
+      expected_project_id: active.project_id,
+      expected_revision: active.selection_revision,
+      now: T1,
+    });
+    const initial = defineInitialProjectWorkV01(db, {
+      config: other.config,
+      credential: authenticatedSessionV01(other, "second"),
+      request: requestV01(other),
+      clock: fixedClock(T2),
+    });
+    const forecastRequest = {
+      action: "record_work_expectation",
+      expected_active_project_id: other.project_id,
+      expected_active_selection_revision: selection.selection_revision,
+      expected_previous_id: null,
+      expected_packet_id: initial.packet.packet_id,
+      expected_packet_fingerprint: initial.packet.integrity.fingerprint,
+      criterion_id: deriveCriterionIdentityV01(initial.packet.task.success_criteria[0]!),
+      predicted_outcome: "satisfied",
+      reason: "A reviewer can verify the second project.",
+      conditions: "The packet remains available.",
+    };
+    const saved = recordWorkExpectationMaterial(db, {
+      config: other.config,
+      credential: credentialFromCookieV01(initial.session_admission.cookie_value),
+      clock: fixedClock("2026-08-01T00:00:04.000Z"),
+      request: forecastRequest,
+    });
+    const forecast = saved.record;
+    assert(forecast.kind === "expectation");
+
+    const valid = readValid(2);
+    for (const [last, wrongPrior] of [[history[1]!, history[0]!], [forecast, history[1]!]] as const) {
+      // Both referenced rows exist. One skips a revision, the other belongs to the first project.
+      const { record_id: _id, integrity: _integrity, ...body } = last;
+      const recorded_at = "2026-08-01T00:00:06.000Z";
+      const broken = buildWorkExpectationRecord<WorkExpectation>({
+        ...body, revision: last.revision + 1,
+        recorded_at, information_cutoff: recorded_at, previous_ref: expectationRef(wrongPrior),
+      });
+      db.exec("BEGIN");
+      try {
+        insertWorkExpectationRecord(db, broken);
+        assert.throws(() => readWorkExpectationRecords(db, last), /expectation_record_invalid/);
+        assert.equal(validateRecoveryCanonicalDatabaseV01(db).code, "database_canonical_invariant_failed");
+      } finally { db.exec("ROLLBACK"); }
+      assert.deepEqual(readValid(2), valid);
+    }
+    const writer = new Database(databasePath);
+    try {
+      writer.pragma("foreign_keys = ON");
+      appendAfterScan = () => {
+        recordWorkExpectationMaterial(writer, {
+          config: other.config,
+          credential: credentialFromCookieV01(saved.session_admission.cookie_value),
+          clock: fixedClock("2026-08-01T00:00:07.000Z"),
+          request: { ...forecastRequest, expected_previous_id: forecast.record_id },
+        });
+      };
+      assert.deepEqual(readValid(2), valid, "The in-flight read retains its enumerated record count");
+      assert.equal(appendAfterScan, undefined, "The second connection committed during recovery");
+    } finally { writer.close(); }
+    const afterAppend = { ...valid, record_count: valid.record_count + 1 };
+    assert.deepEqual(readValid(2), afterAppend);
+    const reopened = new Database(databasePath, { readonly: true });
+    try { assert.deepEqual(validateRecoveryCanonicalDatabaseV01(reopened), afterAppend); }
+    finally { reopened.close(); }
+  } finally { db.close(); }
 }
 
 async function assertExpectationSchemaCompatibilityV01(): Promise<void> {
