@@ -191,34 +191,42 @@ syntax, unsafe aliases, permission changes and branch drift remain refusals.
 The same retained fixture fails on the prior input owner and passes on its
 correction; these controls do not replace complete deciding qualification.
 
-#### Proposed qualification after a whole-file Git change
+#### Prospective qualification after a whole-file Git change
 
-The current direct Git input route requires protected observations from the
-original run. A separate, explicitly marked route could qualify a future
-candidate after an ordinary isolated Full recorded a single whole-file Git
-invalidation. This proposal grants no execution authority. The supporting
-verifier must qualify through the existing independent process and be adopted
-before a product branch can use the route.
+The direct Git input route requires protected observations from the original
+run. The separate v10 marker `whole-file-git-email-insertion-v1` covers one
+plain user email section added during integration in an ordinary isolated Full
+that recorded whole-file observations. The supporting verifier qualifies
+through its existing independent process and must be adopted on main before a
+product branch can use it.
 
 1. Reconstruct the original branch's physical attempt history. Bind the
    complete receipt, original validation output and latest settled attempt.
    Verify the reviewed edit against the two recorded full-file digests on the
-   registered host. Historical branch scope, extended permissions and writer
-   identity stay unknown wherever the original evidence did not record them.
+   registered host. The stock copy must match the retained validator console
+   byte for byte. Removing the specified insertion from the private postimage
+   must recover the original hash and size. Historical branch scope, extended
+   permissions and writer identity stay unknown wherever the original evidence
+   did not record them.
 2. Verify that integration was cancelled, its child settled, and its Browser
    use records are empty. Retain the resulting Browser-identity issue and
    the complete original issue list. An extra fault, an invalid recorded
    Browser use, or an outstanding reservation prevents this preparation.
 3. Bind the full current inventory, protected Git scope and permissions to
-   the published final source and toolchain. Account for drift since the
-   original edit. Verify the actual preparation and execution environment
-   through fresh receipt validation. Keep configuration values local.
+   the published final source and toolchain. Compare the archived bytes under
+   today's protected branches with the observed current projection. The existing
+   projection accounts only for isolated foreign upstream records. Verify the
+   actual preparation and execution environment through fresh receipt validation.
+   Keep configuration values local.
 4. On the product branch, successful preparation can then go to independent
    source and input review. A separate authenticated one-use grant permits
    reservation of the planner-selected Full. Reservation consumes it, including
    interruption. The original failure and its spent invocation remain in the
    same history. Final acceptance requires a fresh passing receipt, cleanup
    and independent result review.
+
+The [qualification policy](../.github/LOCAL_CANONICAL_VERIFICATION.md#whole-file-git-invalidation-during-integration)
+defines the private materials, operator command and one-use authority.
 
 ## Implementation mapping
 
