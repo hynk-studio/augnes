@@ -660,6 +660,10 @@ function ScopedSemanticReviewSurface({
           locked(publicErrorCode(body.error_code));
           return;
         }
+        if (body.error_code === "project_direction_history_bound") {
+          setPrivateError("There is no room to record this edit against the selected project direction. Your draft is still open. You can reopen the last saved revision.");
+          return;
+        }
         const conflictCopy = workRevisionErrorCopyV01(body.error_code);
         if (workRevisionConflictV01(body.error_code)) {
           await loadPrivateView({ announceLoading: false, preserveFeedback: true });

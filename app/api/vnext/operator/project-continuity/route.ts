@@ -1,4 +1,5 @@
 import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import { ProjectDirectionError } from "@/lib/vnext/persistence/project-direction-store";
 import { readProjectWorkBindingV01 } from "@/lib/vnext/runtime/project-work-binding";
 import { inspectRevisableProjectWorkChainV01 } from "@/lib/vnext/runtime/project-work-revision";
 import { NewProjectWorkPreparationErrorV01 } from "@/lib/vnext/runtime/new-project-work-preparation";
@@ -429,6 +430,7 @@ function errorResponse(error: unknown, includePacketBudgetDiagnostics = false): 
   }
   const known =
     error instanceof VNextLocalOperatorSessionErrorV01 ||
+    (error instanceof ProjectDirectionError && error.code === "project_direction_history_bound") ||
     error instanceof VNextOperatorPilotContinuityErrorV01 ||
     error instanceof VNextOperatorPilotContextUseReviewErrorV01 ||
     error instanceof NewProjectWorkPreparationErrorV01 || error instanceof ProjectWorkRevisionErrorV01 ||

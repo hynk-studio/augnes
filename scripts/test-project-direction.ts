@@ -12,12 +12,13 @@ import { applyCanonicalDatabaseMigrations } from "./canonical-database-migration
 import { getOrCreateDefaultWorkspaceIdentityV01, getOrCreateCanonicalProjectForLocalRootV01, normalizeLocalProjectRootRefV01, rebindCanonicalProjectLocalRootV01 } from "../lib/vnext/persistence/project-identity-registry";
 import { readActiveProjectSelectionV01, selectActiveProjectV01, readProjectOrganizationV01, changeProjectOrganizationV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { issueVNextLocalOperatorBootstrapV01, consumeVNextLocalOperatorBootstrapV01, readVNextLocalOperatorCredentialFromRequestV01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01 } from "../lib/vnext/runtime/local-operator-session";
-import { defineInitialProjectWorkV01 } from "../lib/vnext/runtime/project-work-initialization";
+import { defineInitialProjectWorkV01, readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { revisePreExecutionProjectWorkV01 } from "../lib/vnext/runtime/project-work-revision";
 import { createProjectDirectionHandler } from "../app/api/vnext/operator/project-direction/route";
+import { createVNextOperatorContextUseReviewHandlerV01 } from "../app/api/vnext/operator/project-continuity/route";
 import { createAgentProjectDirectionHandler } from "../app/api/vnext/agent/project-direction/route";
 import { createProspectiveReentryHandler } from "../app/api/vnext/operator/prospective-reentry/route";
-import { assertPacketDirectionCurrent, effectiveDirection, packetDirectionBinding, readPacketDirectionInterpretation, readProjectDirection, validateProjectDirectionHistory } from "../lib/vnext/persistence/project-direction-store";
+import { appendDirectionRecord, assertPacketDirectionCurrent, effectiveDirection, packetDirectionBinding, readDirectionRecords, readPacketDirectionInterpretation, readProjectDirection, validateProjectDirectionHistory } from "../lib/vnext/persistence/project-direction-store";
 import { readVNextCoreRecordV01, listVNextCoreRecordsV01 } from "../lib/vnext/persistence/durable-semantic-store";
 import { mutateProjectControlV01, readProjectAutomationControlV01 } from "../lib/vnext/persistence/project-control-store";
 import { ProspectiveReentryHost } from "../lib/vnext/runtime/prospective-reentry";
@@ -230,6 +231,32 @@ async function main() {
     active = readActiveProjectSelectionV01(db, scope.workspace_id)!;
     const packet = readVNextCoreRecordV01(db, { ...scope, record_kind: "task_context_packet", record_id: prepared.packet_id })!.payload as TaskContextPacketV01;
     assert.equal(packet.capability_grant, null); assertPacketDirectionCurrent(db, packet, now());
+    const fullPath = path.join(root, "full-direction-history.db");
+    await db.backup(fullPath);
+    const full = new Database(fullPath);
+    try {
+      const used = readDirectionRecords(full, scope, now()).length;
+      full.transaction(() => {
+        for (let index = used; index < 512; index++) {
+          appendDirectionRecord(full, { ...proposal.record.value, reason: `Retained proposal ${index}` });
+        }
+      })();
+      const editTime = new Date(Date.parse(now()) + 1).toISOString();
+      const history = readDirectionRecords(full, scope, editTime);
+      assert.equal(history.length, 512);
+      const save = createVNextOperatorContextUseReviewHandlerV01({ environment: { ...environment, AUGNES_DB_PATH: fullPath }, clock: { now: () => editTime } });
+      const response = await save(new Request("http://127.0.0.1/api/vnext/operator/project-continuity", {
+        method: "POST", headers: { host: "127.0.0.1", origin: "http://127.0.0.1", "content-type": "application/json", cookie },
+        body: JSON.stringify({ action: "revise_pre_execution_project_work", ...scope, expected_active_project_id: scope.project_id,
+          expected_active_selection_revision: active.selection_revision, expected_current_packet_id: packet.packet_id,
+          expected_current_packet_fingerprint: packet.integrity.fingerprint, expected_current_lineage_kind: "pre_execution_user_revision",
+          ...initial.definition, goal: "Record the follow-up from the inspected sources" }),
+      }));
+      assert.equal(response.status, 409);
+      assert.equal((await response.json()).error_code, "project_direction_history_bound");
+      assert.equal(readProjectWorkInitializationV01(full, scope).current_packet?.packet_fingerprint, packet.integrity.fingerprint);
+      assert.deepEqual(readDirectionRecords(full, scope, editTime), history);
+    } finally { full.close(); }
     // A selected counterobservation is retained as attributed support, not silently
     // reclassified when preference changes. The production comparison/writer owns it.
     tick();
