@@ -652,6 +652,17 @@ leaves your draft and its base unchanged. If matching text comes from another
 occurrence, **Use this source occurrence** records the version you chose. A
 compatible note used only as a prerequisite keeps its own recorded source.
 
+When inspecting an earlier revision, each note shows whether the latest saved
+revision of that work still selects the exact note. Open **Recorded context
+changed** to see which requirements entered or left that note's context,
+including requirements several links below it, and which recorded origins changed.
+For example, a press timing estimate can keep its wording while a condition
+it relies on starts requiring a calibration check. To check a note copied into
+another work, choose **Inspect recorded source note** in its saved context.
+The comparison uses the two saved selections observed when history was opened.
+It checks recorded links within that work. Verifying an external source or
+deciding whether to use an earlier observation remains a separate step.
+
 Choose **Use unchanged note**, or **Write an adaptation** and enter your
 interpretation. The editor adds the chosen note and any required notes that
 are missing. It keeps the current goal, files and other draft edits. An exact
@@ -710,7 +721,18 @@ judgment. For a decision about an existing returned file, use
 
 Use the existing [authenticated task setup](#connect-a-local-or-hosted-assistant).
 The task CLI's `context`, `history` and `history VERSION` commands read the
-current revision, revision list and exact saved contents. For a draft, use
+current revision, revision list and exact saved contents. From a private project
+task, `check-note-source REVISION NOTE_NUMBER` checks a one-based note in a
+saved revision. For example, `check-note-source 2 1` checks the first note
+saved in revision 2. The equivalent client method is
+`planning.checkNoteSource(2, 1)`. If the note has a recorded origin link, the
+command follows that one link within the same project. Otherwise it uses the
+chosen revision of this work. The result identifies the selected
+note, exact source basis and observed head. It reports matching context,
+changed requirement or origin links, or the absence of that exact note from
+the latest selection. An unavailable source returns a read error.
+
+For a draft, use
 the task client's ordinary capacity, signed ticket, save and resolve methods:
 
 ```js

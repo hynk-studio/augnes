@@ -145,6 +145,7 @@ export async function browserIndependentNotes({a,click,set,settled,saved,wait,ch
  const log='Measure morning throughput on the label press',goal='Write the dispatch card for the bookmobile print crew';
  const timing='On the blue press, 84 route cards took 14 minutes, plus one 6-minute cleanup after the last batch.';
  const condition='Timing applies only to uncoated stock after a passing nozzle check. Otherwise use preprinted blanks; no press time was measured for that case.';
+ const calibration='Use the timing only if the morning calibration is recorded.';
  const interpretation='Plan in whole 84-card batches and clean only once, after the final batch.';
  async function add(text,source){
    await click(a,'add-note');
@@ -156,6 +157,11 @@ export async function browserIndependentNotes({a,click,set,settled,saved,wait,ch
  await add(condition,'Press operator');await add(timing,'Timed bench run');await a.eval("(()=>{const d=$('notes').lastElementChild.querySelector('.dependencies');d.options[0].selected=true;d.dispatchEvent(new Event('change',{bubbles:true}));})()");
  await add('Keep the supplier invoice for a price comparison.','Purchasing');const original=await persist(1);
  await set(a,'non-goals','Do not infer a speed for coated stock.');const selected=await persist(2);
+ await add(calibration,'Calibration log');
+ await a.eval(`(()=>{const rows=[...$('notes').children],rowFor=text=>rows.find(row=>row.querySelector('[data-field=text]').value===text);
+   const menu=rowFor(${JSON.stringify(condition)}).querySelector('.dependencies');
+   [...menu.options].find(option=>option.value===rowFor(${JSON.stringify(calibration)}).id).selected=true;
+   menu.dispatchEvent(new Event('change',{bubbles:true}));})()`);
  await set(a,'goal','Archive the label press measurements');const latest=await persist(3);
  await begin(goal,'Prepare a crew-facing card for 168 route cards due packed at 08:20. Give the latest start, sequence and fallback.');const base=await persist(1);
  await set(a,'non-goals','Keep the existing loading bay reservation.');
@@ -177,9 +183,14 @@ export async function browserIndependentNotes({a,click,set,settled,saved,wait,ch
  assert.equal(retained.relations.origin,null);assert(!retained.sources.some(n=>n.bounded_summary.includes('invoice')));
  assert(retained.relations.materials.every(m=>m.from.work_id===selected.work_id && m.from.fingerprint===selected.fingerprint));
  await click(a,'saved-context');await settled(a);assert.match(await a.eval("$('context-view').textContent"),/Recorded source note is listed/);
- await a.eval("$('context-view').querySelector('[data-note-origin]').click()");await settled(a);
+ const timingRef=selected.sources.find(note=>note.bounded_summary===timing).source_ref;
+ await a.eval(`[...$('context-view').querySelectorAll('[data-note-origin]')].find(button=>JSON.parse(button.dataset.noteOrigin).source_ref===${JSON.stringify(timingRef)}).click()`);await settled(a);
  assert.equal(await a.eval("$('history-revision').value"),'2');
  assert.match(await a.eval("$('history-view').innerText"),/Recorded source note/);
+ await wait(()=>a.eval(card+".innerText").then(text=>text.includes(calibration)),'source note shows the new transitive requirement');
+ const comparison=await a.eval(card+".querySelector('details[open] ul').innerText");
+ assert(comparison.includes(condition)&&comparison.includes('Added to this note’s context')&&comparison.includes(calibration));
+ assert(!comparison.includes('supplier invoice'));
  assert.equal(await a.eval('work'),base.work_id);
  checks.push('two independent works: inspect press log r2 under newer r3, select timing and required stock condition, add attributed interpretation and preserve the unsaved dispatch brief');
  return {original,selected,latest,base,retained};

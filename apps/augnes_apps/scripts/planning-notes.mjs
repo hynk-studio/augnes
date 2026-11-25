@@ -30,6 +30,68 @@ export function sameOccurrence(a,b) {
 }
 export function sameNote(a,b) { return Object.keys(b).every(key=>a[key]===b[key]); }
 
+// The history reader has already validated these revisions. Follow only the
+// required-note edges inside one saved selection. A recorded origin is data
+// to compare, never an instruction to fetch another work.
+function requiredNoteGraph(revision, rootRef) {
+  const graph = new Map();
+  function visit(ref) {
+    if (graph.has(ref)) return;
+    const note = revision.sources.find(entry => entry.source_ref === ref);
+    const relation = revision.relations
+      ? revision.relations.materials.find(material => material.source_ref === ref)
+      : { kind: 'authored', from: null, dependencies: [] };
+    if (!note || !relation) throw Error('historical_note_unavailable');
+    graph.set(ref, { note, relation });
+    for (const dependency of relation.dependencies) visit(dependency);
+  }
+  visit(rootRef);
+  return graph;
+}
+
+export function compareNoteContext(history, occurrence) {
+  const basis = history[occurrence.revision - 1], head = history.at(-1);
+  const ref = occurrence.source_ref;
+  if (!basis || !head || basis.work_id !== occurrence.work_id || basis.revision !== occurrence.revision ||
+      basis.fingerprint !== occurrence.fingerprint || head.work_id !== basis.work_id ||
+      head.workspace_id !== basis.workspace_id || head.project_id !== basis.project_id || head.revision < basis.revision)
+    throw Error('historical_note_unavailable');
+
+  const before = requiredNoteGraph(basis, ref);
+  const result = {
+    basis: { work_id: basis.work_id, revision: basis.revision, fingerprint: basis.fingerprint, source_ref: ref },
+    head: { work_id: head.work_id, revision: head.revision, fingerprint: head.fingerprint },
+    status: 'note_not_selected',
+    notes: { [ref]: noteFields(before.get(ref).note) },
+    changes: [],
+  };
+  if (!head.sources.some(entry => entry.source_ref === ref)) return result;
+
+  const after = requiredNoteGraph(head, ref);
+  // Compare edges as sets, including edges below shared prerequisites. The
+  // same set of reachable notes can have different requirements.
+  for (const parent of new Set([...before.keys(), ...after.keys()])) {
+    const prior = before.get(parent)?.relation, next = after.get(parent)?.relation;
+    const removed = (prior?.dependencies ?? []).filter(child => !next?.dependencies.includes(child));
+    const added = (next?.dependencies ?? []).filter(child => !prior?.dependencies.includes(child));
+    for (const child of removed)
+      result.changes.push({ kind: 'requirement_removed', source_ref: parent, required_ref: child });
+    for (const child of added)
+      result.changes.push({ kind: 'requirement_added', source_ref: parent, required_ref: child });
+    if (prior && next && (prior.kind !== next.kind ||
+        (prior.from !== next.from && !sameOccurrence(prior.from, next.from)))) {
+      result.changes.push({ kind: 'origin_changed', source_ref: parent,
+        before: { kind: prior.kind, from: prior.from }, after: { kind: next.kind, from: next.from } });
+    }
+  }
+  for (const change of result.changes) {
+    for (const id of [change.source_ref, change.required_ref].filter(Boolean))
+      result.notes[id] ??= noteFields((before.get(id) ?? after.get(id)).note);
+  }
+  result.status = result.changes.length ? 'recorded_context_changed' : 'same_recorded_context';
+  return result;
+}
+
 // Preserve the editor's row order, unsaved fields and unrelated
 // file/scene choices. Traverse at most one revision's eight whole notes.
 export function selectHistoricalNote(draft,base,revision,sourceRef,interpretation) {

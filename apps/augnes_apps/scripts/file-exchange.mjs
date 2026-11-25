@@ -214,6 +214,10 @@ async function run() {
     return client.sendReturn(pending,action==='check-use');
   }
   if (action === 'context') return client.planning.current();
+  if (action === 'check-note-source') {
+    if (args.length !== 2) throw Error('Use check-note-source REVISION NOTE_NUMBER.');
+    return client.planning.checkNoteSource(Number(args[0]), Number(args[1]));
+  }
   if (action === 'retained-source' && args.length===0) return client.planning.retainedSource();
   if (action === 'request-context' && args.length===1) return client.requestContext(Number(args[0]));
   if (action === 'history') {
