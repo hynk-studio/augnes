@@ -152,6 +152,16 @@ link, mode, owner/group, device, ACL, flags and attributes remain protected.
 Configurations with includes retain the existing conservative whole-file path;
 this change does not claim a new recursive include-target inventory for it.
 
+Command-scope settings such as `GIT_CONFIG_COUNT` with its numbered keys and
+values make this distinction observable. The whole-file reader records the file
+digest and ordinary file metadata. A later read in an environment that selects
+the branch projection can record its own scope and permission fingerprints.
+Those fingerprints describe that read only. An added `[user]` email setting
+changes the execution input in both environments. The original invalidation
+and any record of a cancelled phase retain their original meaning. A proposed
+qualification that relies on the projection needs the actual qualifying
+environment across preparation, admission, execution and fresh receipt validation.
+
 Finite source inspection found no foreign-upstream consumer on the selected
 real-root path: Git identity/currentness uses exact refs/current branches,
 historical dependency and distributable readers use exact tree/show/archive,
@@ -180,6 +190,35 @@ origin/current/anchor branch changes, authority settings, includes, unsupported
 syntax, unsafe aliases, permission changes and branch drift remain refusals.
 The same retained fixture fails on the prior input owner and passes on its
 correction; these controls do not replace complete deciding qualification.
+
+#### Proposed qualification after a whole-file Git change
+
+The current direct Git input route requires protected observations from the
+original run. A separate, explicitly marked route could qualify a future
+candidate after an ordinary isolated Full recorded a single whole-file Git
+invalidation. This proposal grants no execution authority. The supporting
+verifier must qualify through the existing independent process and be adopted
+before a product branch can use the route.
+
+1. Reconstruct the original branch's physical attempt history. Bind the
+   complete receipt, original validation output and latest settled attempt.
+   Verify the reviewed edit against the two recorded full-file digests on the
+   registered host. Historical branch scope, extended permissions and writer
+   identity stay unknown wherever the original evidence did not record them.
+2. Verify that integration was cancelled, its child settled, and its Browser
+   use records are empty. Retain the resulting Browser-identity issue and
+   the complete original issue list. An extra fault, an invalid recorded
+   Browser use, or an outstanding reservation prevents this preparation.
+3. Bind the full current inventory, protected Git scope and permissions to
+   the published final source and toolchain. Account for drift since the
+   original edit. Verify the actual preparation and execution environment
+   through fresh receipt validation. Keep configuration values local.
+4. On the product branch, successful preparation can then go to independent
+   source and input review. A separate authenticated one-use grant permits
+   reservation of the planner-selected Full. Reservation consumes it, including
+   interruption. The original failure and its spent invocation remain in the
+   same history. Final acceptance requires a fresh passing receipt, cleanup
+   and independent result review.
 
 ## Implementation mapping
 

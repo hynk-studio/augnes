@@ -10,6 +10,7 @@ import { REVIEWED_REVISION_PHASES, reconstructAttemptTip, inspectGitRevisionPrep
 import { GIT_INPUT_REVISION, DIRECT_GIT_INPUT_REVISION, gitInputHistoryBoundary, GIT_INPUT_HISTORY_BOUNDARY, gitObservationIncident, gitRevisionInventory, gitReviewTarget, finalDependencyCommand, finalDependencyProbe, verifyGitRevisionFailure, verifyGitRevisionSuccess, postPassReviewFields } from "../local-canonical-git-observation.mjs";
 
 import { runCanonicalChild } from "../canonical-child-runner.mjs";
+import { validPhaseBrowserUse } from "../local-canonical-browser-identity.mjs";
 import { behavior, dependencyRecords, executeFixture } from "./local-canonical-browser-successor.mjs";
 import { fixtureNow } from "./local-canonical-authority-clock.mjs";
 import { runRevisionLifecycleControls } from "./local-canonical-revision-lifecycle.mjs";
@@ -893,6 +894,28 @@ export async function runGitInputRevisionControls(c,h,sourceSuccessor=false,life
     ]){const bad=structuredClone(original);mutate(bad);for(const e of bad.inputs.events)e.identity=inputEventIdentity(e);assert.throws(()=>readIncident(bad));}
     assert.throws(()=>readIncident(original,{...stock,issues:[...stock.issues,"unexplained_refusal"]}));
     assert.throws(()=>readIncident(original,{...stock,issues:stock.issues.filter(i=>i!=="receipt_current_inputs_unverified")}));
+    // The input here already has a complete protected projection. The direct
+    // reader still refuses the independent Browser issue for a cancelled
+    // integration with no use records. Both objects belong to this fixture.
+    const integrationIndex = phaseIds.indexOf("integration");
+    assert(integrationIndex > 0);
+    const passed = original.phases.find(phase => phase.status === "pass");
+    const cancelled = original.phases.find(phase => phase.status === "failure");
+    const unused = original.phases.find(phase => phase.status === "not_run");
+    const phases = phaseIds.map((id, index) => ({
+      ...(index < integrationIndex ? passed : unused), id, browser_use: []
+    }));
+    phases[integrationIndex] = { ...cancelled, id: "integration", browser_use: [] };
+    assert.equal(validPhaseBrowserUse(phases[integrationIndex], [], null), false);
+    const interrupted = finalizeReceipt({ ...original, phases });
+    const issues = stock.issues.filter(issue => !issue.startsWith("phase_not_passing:"));
+    issues.push(...phases.filter(phase => phase.status !== "pass").map(phase => "phase_not_passing:" + phase.id));
+    issues.push("receipt_browser_identity_invalid:integration");
+    const fingerprint = interrupted.integrity.content_fingerprint;
+    const interruptedStock = { ...stock, content_fingerprint: fingerprint, issues };
+    const interruptedCompletion = { ...completion, receipt_fingerprint: fingerprint };
+    assert.throws(() => gitObservationIncident(interrupted, interrupted.attempt, interruptedCompletion,
+      interruptedStock, phaseIds, marker), { code: "revision_git_stock_invalid" });
   }
   h.prepare(c); const p=c.proof;
   assert.equal(p.head===original.attempt.head,!direct); assert.equal(p.tree===original.attempt.tree,!direct);
