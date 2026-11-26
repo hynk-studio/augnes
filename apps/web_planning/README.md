@@ -12,6 +12,76 @@ Web/native stores and Web reconstruction remain independent.
 
 To take one original file into later work, use [Download a saved file](#download-a-saved-file).
 
+## Start with your own email and resume shared work
+
+On a deployment with the verified-email home enabled, open the ordinary Web
+address and sign in using your own email. Your home initially shows **Shared
+with you** and an empty list. A project owner opens a saved work, chooses
+**Share this saved work**, enters your email, purpose and expiry, and chooses
+**Read only** or **Read and add updates** before confirming the disclosure. You
+can sign in for the first time after the owner shares. Refreshing home discovers
+the work by its current goal, obligation and stable work ID. Open it to read the
+saved history and attachments. With an update allowance you can append an
+attributed update and reopen it from home to read the saved revision. The owner
+can revoke the grant on the same screen. Reading continues after the last
+allowed update until expiry or revocation.
+
+`GET /api/shared-work` returns this verified recipient's active grants across
+the deployment workspace, with up to 20 items and an optional `next` cursor.
+Each item has `grant_id`, `work_id`, `goal` and `obligation`. Multiple grants
+on one work retain their respective limits. An erased work disappears.
+On the private entry, project authors also see their project chooser. The
+public recipient entry shows only work shared with the verified email.
+
+For local Codex, the same home works in the browser on either device. The
+command-line reader uses the recipient's own Access session and
+`AUGNES_WEB_ORIGIN`. Run `node apps/augnes_apps/scripts/file-exchange.mjs shared-work`,
+choose a returned grant, then run `node apps/augnes_apps/scripts/file-exchange.mjs shared-setup GRANT_ID received.json`.
+The new local file contains identifiers for the existing scoped continuation
+reader. Every open and update checks the current grant on the server.
+
+### Enable a public email entry on Cloudflare
+
+The two Workers use separate HTTPS origins and the same D1 workspace. The
+private Worker keeps its existing Cloudflare Access audience and admission
+policy. On the public Worker, even an admitted author's email has recipient
+permissions only. A new visitor chooses **Sign in with email** at the ordinary
+address, completes hosted AuthKit sign-in and returns to their shared-work home.
+An existing grant link returns to that work after sign-in.
+
+For an authorized, isolated hosted trial:
+
+1. Build the public Worker with `npm run web:build:recipient`. The generated
+   `dist-recipient/wrangler.json` names a distinct Worker, has a placeholder D1
+   ID and contains no live routes or secrets. Use the existing migration owner
+   through `0012_read_only_sharing.sql` for read-only grants. Point both trial
+   Workers at the same trial D1, owner and workspace/project/author mappings
+   and existing signing secret.
+   Each Worker has its own exact HTTPS `APP_ORIGIN`. Enable
+   `PROJECT_ENTRY_MODE=admitted-private-v1` and
+   `PUBLIC_SUCCESSION_MODE=verified-email-home-v1` on both. Set
+   `PUBLIC_RECIPIENT_ORIGIN` on the private Worker to the public origin to
+   generate share links there. Existing grants remain discoverable by email.
+2. In the trial WorkOS environment, allow public registration and **Magic Auth**
+   email codes with the default mail sender. Use the public-client PKCE flow,
+   enable only the intended sign-in method, and register the exact public URLs
+   `/auth/callback` for redirect and `/` for logout. Bind `WORKOS_CLIENT_ID`,
+   `WORKOS_ISSUER` (the exact HTTPS issuer for the environment's AuthKit user
+   access tokens), and a dedicated random `WORKOS_COOKIE_PASSWORD` of at least
+   32 characters on the public Worker. Leave `WORKOS_API_KEY` unset. Signing
+   keys come from the client's JWKS endpoint on the default WorkOS API.
+   The provider holds the email codes. The browser receives host-only, secure
+   HTTP-only cookies. Configure session expiry in AuthKit.
+   [WorkOS Magic Auth](https://workos.com/docs/authkit/magic-auth) ·
+   [AuthKit session integration](https://github.com/workos/authkit-session).
+3. Check the ordinary address with a recipient outside the operator allowlist,
+   their own mailbox and a fresh browser. Confirm code delivery, an empty first
+   home and re-entry after the provider session expires. Then share a synthetic
+   work, reopen it after a saved update, revoke the grant at the private entry,
+   and check home and the old link again. Local provider fixtures exercise the
+   application paths. Mail delivery, live enrollment and session settings need
+   a separately scoped hosted trial. The CLI currently uses its Access entry.
+
 ## Independent private projects (opt-in)
 
 With `PROJECT_ENTRY_MODE=admitted-private-v1` and `PROJECT_ADMITTED_EMAILS` set to
@@ -321,18 +391,23 @@ owner is introduced.
 
 ### Scoped work succession (#1628)
 
-In admitted private project mode, open a saved work and choose **Delegate updates
-to this saved work**. The owner deliberately shares that work's complete history,
-attached files and reference metadata with one already admitted sign-in. The
-`continue-work-v1` role permits reading that work and appending attributed reports
-and next actions. It permits no changes to the owner's purpose or selected
-material, other-work access, erasure, imports, subdelegation or external execution.
-Choose the unresolved obligation, an expiry within 90 days and 1–20 saved updates.
+In admitted private project mode, open a saved work and choose **Share this saved
+work**. The owner deliberately shares that work's complete history,
+attached files and reference metadata with a named recipient. Private mode checks
+that the recipient is already admitted. The verified-email home also accepts a
+recipient who can verify their email at the public entrance. Choose a purpose or
+unresolved obligation and an expiry within 90 days. **Read only**
+(`read-work-v1`) permits reading the selected history and files from the first
+request. **Read and add updates** (`continue-work-v1`) also permits 1–20 saved
+reports and next actions. Both permissions cover only the selected work.
+The owner retains control of its purpose, material, erasure and delegation.
+Recipients cannot import work or initiate external execution through a grant.
 The server enforces both expiry and the cumulative update limit; a fresh session
 or model does not renew either. The owner can revoke the delegation in this page.
 Creating a new grant is an explicit new owner decision, not automatic succession.
 
-The recipient opens the returned `/continue/<grant-id>` link under their own
+The recipient opens the work from the verified-email home or the returned
+`/continue/<grant-id>` link under their own
 admitted sign-in. Read the current purpose, sources, earlier updates and unresolved
 obligations before saving an update. Neither a link nor a downloaded setup is a
 credential. A lost save acknowledgement leaves an operation locator; use **Check
@@ -356,6 +431,10 @@ Owner `POST .../create` takes `grant_id`, exact `expected`, `recipient`, `obliga
 `expires` (Unix milliseconds), `max_updates`, and
 `confirm: "share-this-work-history"`; `POST .../revoke` and the read-only
 `POST .../resolve` take `grant_id`.
+Set `max_updates` to 0 to issue read-only access. A positive allowance keeps its
+original role even after the recipient uses the last update. The read-only
+role returns HTTP 403 (`continuation_read_only`) on a save. Migration 0012
+preserves existing grants, consumed allowances and historical attribution.
 All writes include the selected `workspace_id`/`project_id` and normal CSRF.
 The recipient uses `GET /api/continuation/<grant-id>` for the complete one-work
 context and `GET .../setup` for its setup. `POST .../save` takes `request_key`,
@@ -372,6 +451,13 @@ approved `AUGNES_WEB_ORIGIN`; do not copy the owner's session. `read()` must pre
 new work. Original expected bindings and request keys are needed to reconcile
 uncertain delivery; reading the fresh history does not create a new attempt grant.
 
+To open an attachment, choose its revision from `(await client.read()).history`.
+Call `client.readAttachment(revision, 'files', index)` for a saved file, or use
+`'exchange-files'` for an entry in that revision's `exchange.artifacts`. The index
+is zero-based within that list. The result contains the exact work/revision
+reference, kind, index, file metadata and verified `bytes` as a Node Buffer.
+Use that reference when reporting which source supported a judgment.
+
 Migration `0008_work_continuation.sql` advances schema 5 to 6 with writers
 quiesced and a full backup. It adds operational grants without modifying existing
 mapping, revision or file bytes. Old owner-only/schema-4 and admitted/schema-5
@@ -383,6 +469,10 @@ identify its actual sign-in and authorization source. This records an attributed
 report, not a model identity, verified result, acceptance or live execution grant.
 
 Complete JSON and readable exports retain these reports and obligations.
+For a returning local task, the owner can read the attributed update from Web
+history and cite its exact revision in the local decision. An ordinary file
+selected for Native import contains only its own bytes. See
+[Continue local work from a successor report](../../docs/WEB_EXPORT_NATIVE_HANDOFF.md#continue-local-work-from-a-successor-report).
 Reconstruction preserves their exact bytes and revokes all current grants only
 in the restored project; portable attribution never recreates live authority.
 After a v0.10 record is written, retain a v0.10-compatible reader/writer for
@@ -562,6 +652,17 @@ leaves your draft and its base unchanged. If matching text comes from another
 occurrence, **Use this source occurrence** records the version you chose. A
 compatible note used only as a prerequisite keeps its own recorded source.
 
+When inspecting an earlier revision, each note shows whether the latest saved
+revision of that work still selects the exact note. Open **Recorded context
+changed** to see which requirements entered or left that note's context,
+including requirements several links below it, and which recorded origins changed.
+For example, a press timing estimate can keep its wording while a condition
+it relies on starts requiring a calibration check. To check a note copied into
+another work, choose **Inspect recorded source note** in its saved context.
+The comparison uses the two saved selections observed when history was opened.
+It checks recorded links within that work. Verifying an external source or
+deciding whether to use an earlier observation remains a separate step.
+
 Choose **Use unchanged note**, or **Write an adaptation** and enter your
 interpretation. The editor adds the chosen note and any required notes that
 are missing. It keeps the current goal, files and other draft edits. An exact
@@ -584,11 +685,54 @@ No branch, file exchange, or native import is created by selecting notes. No new
 format or migration is needed. Capacity remains 12,000 bytes for normalized
 Web selected notes; relation, file and cumulative history limits are separate.
 
+### Recheck decisions after a source changes
+
+In a work with several decisions, keep a short note for each one you expect
+to revisit. Record the decision, when you checked it, the source work and exact
+note or file you used, and the condition that would make you reconsider.
+Include the cutoff and time zone for a dated approval. Keep a reference to the source work so
+a successor can find a later notice even if the original note is still there.
+
+For example, a team preparing a collection notice might keep these entries.
+
+| Decision in the draft | What to check | How to continue |
+| --- | --- | --- |
+| Offer counter pickup | Dispatch permits collection and either the North or South desk confirms. | If North withdraws, keep pickup on the strength of South's current confirmation and update the cited basis. A new dispatch hold reopens pickup even when both old confirmations are still readable. |
+| Include the route map | The map owner approved it until 10:00 UTC on April 12, with that instant excluded. | At 10:00, hold the map for renewal. The source can still be on the same revision. |
+| Use the approved caption | The caption editor's current wording and approval. | A desk change has no bearing on the caption. Reopen it when its own wording or approval changes. |
+
+Open the named source work with your current access. In the file client,
+`TASK.json context` reads its current save and `TASK.json history VERSION`
+opens the saved notes for a recorded revision. To verify and download an
+ordinary attachment, use `TASK.json get-saved VERSION NAME NEW_PATH`.
+For repeated checks, `tasks [CURSOR]` lists work IDs and revision fingerprints
+for the selected project. Follow any remaining
+pages or open the known work directly. A copy of one confirmation counts as
+that same observation. If a needed source cannot be read, retain its last
+confirmed reference and observation time in the receiving note. Mark the
+affected decision uncertain if the other available sources cannot settle it.
+
+In the receiving work, update the note whose decision or supporting basis
+changed, include the next action, and save. Reopen that work to read the new
+judgment. For a decision about an existing returned file, use
+[Reconsider current use](#reconsider-an-existing-returned-file-use-1593).
+
 ### Read and prepare the same draft from a local client
 
 Use the existing [authenticated task setup](#connect-a-local-or-hosted-assistant).
 The task CLI's `context`, `history` and `history VERSION` commands read the
-current revision, revision list and exact saved contents. For a draft, use
+current revision, revision list and exact saved contents. From a private project
+task, `check-note-source REVISION NOTE_NUMBER` checks a one-based note in a
+saved revision. For example, `check-note-source 2 1` checks the first note
+saved in revision 2. The equivalent client method is
+`planning.checkNoteSource(2, 1)`. If the note has a recorded origin link, the
+command follows that one link within the same project. Otherwise it uses the
+chosen revision of this work. The result identifies the selected
+note, exact source basis and observed head. It reports matching context,
+changed requirement or origin links, or the absence of that exact note from
+the latest selection. An unavailable source returns a read error.
+
+For a draft, use
 the task client's ordinary capacity, signed ticket, save and resolve methods:
 
 ```js
@@ -701,7 +845,11 @@ Open the consuming work and choose **Reconsider current use** beside its saved
 use. The original use, exact request basis/return, historical output and current
 consumer context remain visible together. **List evidence work**, select a saved
 revision/file (or a returned file), then **Read selected basis together**. Read or
-download its exact bytes. A newer timestamp, filename or similarity does not
+download its exact bytes. On a subsequent reassessment, the browser and file
+client distinguish the original return from the evidence used in the latest
+saved reassessment of that use. The comparison identifies the decision and
+source occurrence. Equal bytes may come from a different revision or file.
+A newer timestamp, filename or similarity does not
 establish correction, supersession or applicability. Missing origins are labelled
 unavailable; the consumer's own history and output remain readable. Unavailable
 selected evidence cannot supply a new save observation.
@@ -2192,10 +2340,10 @@ source or schema marker alone does not establish today's pending set.
 | Observed existing state | Transition to the current artifact and chosen features |
 | --- | --- |
 | Schema 1 or 2 with a coherent established ledger | Review the missing historical suffix through 0003, then the current path below. Do not replay applied initialization or expose the new worker before its schema prerequisites hold. |
-| Schema 3, positive revision constraint, coherent ledger through 0003 | Review pending `0004_complete_exchange_files.sql`, `0005_return_destination.sql`, `0006_request_participation.sql`, `0007_independent_projects.sql`, `0008_work_continuation.sql`, then `0009_public_requests.sql` and `0010_request_applications.sql` when included. The stages are schema 4, 5, then 6. Migrations 0005, 0006, 0009 and 0010 keep the existing marker. |
-| Schema 4, file-part storage and a coherent ledger | Ordinary current owner-only code is compatible. Select only missing files from 0005 onward; admitted projects additionally need 0007, succession needs 0008, public requests need 0009, and private applications need 0010 plus the applicable modes and authenticated ingress. |
-| Schema 5 with a coherent ledger through 0007 | Ordinary/admitted-project entry is compatible. Review pending 0008 for schema-6 succession and the included suffix through 0009 or 0010. Preserve legacy and independent mappings. |
-| Schema 6 with a coherent ledger through 0008, 0009 or 0010 | Preserve existing history. The full directory adds the missing suffix through 0010. An already applied migration needs no replay. Envelope compatibility and explicit feature/ingress configuration still apply. |
+| Schema 3, positive revision constraint, coherent ledger through 0003 | Review pending `0004_complete_exchange_files.sql`, `0005_return_destination.sql`, `0006_request_participation.sql`, `0007_independent_projects.sql`, `0008_work_continuation.sql`, then `0009_public_requests.sql`, `0010_request_applications.sql`, `0011_received_work.sql` and `0012_read_only_sharing.sql` when included. The stages are schema 4, 5, then 6. Migrations 0005, 0006 and 0009–0012 keep the existing marker. |
+| Schema 4, file-part storage and a coherent ledger | Ordinary current owner-only code is compatible. Select only missing files from 0005 onward; admitted projects additionally need 0007, succession needs 0008, public requests need 0009, private applications need 0010, the verified-email home needs 0011 plus the applicable modes and authenticated ingress, and issuing read-only grants needs 0012. |
+| Schema 5 with a coherent ledger through 0007 | Ordinary/admitted-project entry is compatible. Review pending 0008 for schema-6 succession and the included suffix through 0012. Preserve legacy and independent mappings. |
+| Schema 6 with a coherent ledger through 0008–0012 | Preserve existing history. The full directory adds the missing suffix through 0012. An already applied migration needs no replay. Envelope compatibility and explicit feature/ingress configuration still apply. |
 | Unsupported/marker-only schema, inconsistent or mixed ledgers, missing/duplicate markers, leftover migration tables or unknown state | Preserve evidence and diagnose. No initialization replay, ledger repair, inferred upgrade or code-only downgrade. |
 
 ### Bounded observations and retained evidence
@@ -2338,6 +2486,7 @@ remain unchanged. The later direct-host #1351 journey was accepted in #1356; thi
 | `RECONSTRUCTION_MODE` | Normally unset. `quiesced-empty-store` admits an explicitly requested reconstruction into the selected empty project scope, only after the old writer is quiesced. Other projects remain independent. |
 | `PROJECT_ENTRY_MODE` | Normally unset (legacy owner-only). `admitted-private-v1` enables private project entry on schema 5 or 6. It does not alter the hosted audience. |
 | `PROJECT_ADMITTED_EMAILS` | JSON array of up to 100 verified-ingress emails allowed to create/select their own projects when entry is enabled. It grants no access to another owner's project. |
+| `PUBLIC_SUCCESSION_MODE` | `verified-email-home-v1` enables the shared-work home for verified emails with project entry and migration 0011. Unset deployments retain the private admitted-recipient route. |
 
 Before real data, independently verify owner-private audience, authenticated
 identity forwarding, missing/duplicate/wrong identity refusal, overwrite of

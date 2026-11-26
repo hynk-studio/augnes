@@ -35,6 +35,40 @@ producer-to-native connection:
 No new table, index, global store, identity registry, Core kind or deletion
 mechanism is introduced. Web runtime code never imports the native adapter.
 
+## Continue local work from a successor report
+
+1. From the original local task, choose the purpose, material and remaining
+   obligation to share. Save them in the intended Web work. Its owner grants
+   the recipient the access needed for this task. The recipient uses their
+   own sign-in and **Shared with you**. A recipient with an available update
+   can record a report and proposed next action on that work.
+2. On return, open the Web work's history with current read access. Choose the
+   **Successor update** at the intended revision. An owner using the file
+   client can read `(await task.planning.history())` and select the entry by
+   `work_id`, `revision` and `fingerprint`. Read its `continuation` for the
+   reporting principal, original obligation, report and proposed next action.
+   The stable project `author_ref` identifies the project author. If a later
+   correction exists, retain both occurrences and cite the one used.
+3. Resume the original registered local task when it is available. With
+   authority to revise that task, preview and save the attributed report as
+   an imported note and the local owner's decision as a separate **Next check**
+   naming who handles the outstanding work. When a correction changes that
+   action, replace the earlier selected next check and retain its sources.
+   Cite the Web workspace, project, work and exact revision and fingerprint.
+   Reopen the local task in a fresh session and check its identity, sources
+   and next action. The local owner can defer, change or decline the proposal.
+   [Prepared-work revision and readback](CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-preview-and-save-of-prepared-work)
+
+Web access is sufficient for the Web steps while the original host is offline.
+If Web access has ended, identify which report is still unverified. For an
+authorized offline handoff, the owner can save an ordinary text file containing
+the chosen report, its attribution and revision citation, obligation and next
+action, then explicitly select that file for the workflow below. A different
+attachment can have identical bytes in two revisions with opposite reports.
+Its recorded Web fingerprint identifies its source, but its contents alone
+cannot tell the reader which report was made. A retained copy conveys historical
+material; new access and the local decision each have their own owner.
+
 ## Operator workflow
 
 Use the repository-pinned Node and installed task-owned dependencies. The native
@@ -127,7 +161,8 @@ the resulting corpus.
 ## Integrity and attribution
 
 Candidate file exports are `web_planning_export.v0.3`, `.v0.4`, `.v0.5`, `.v0.7`,
-`.v0.8` and `.v0.9`, each with schema `1` and its matching `web-planning/N`
+`.v0.8`, `.v0.9`, `.v0.10` (successor updates) and `.v0.11` (contribution
+requests), each with schema `1` and its matching `web-planning/N`
 compatibility value. The shared Web validator also recognizes `.v0.6`, but the
 Native admission owner explicitly excludes that large exchange format. A
 recognized format is only the first admission condition, not proof that any
@@ -140,8 +175,9 @@ revision/request/export fingerprints, file names/roles, membership, sizes,
 digests, canonical base64 and version compatibility. Mixed historical revisions
 retain existing meaning. There is no second interpretation of the export.
 The format/compatibility pair must match the format derived from the complete
-chain, including its retained relations, exchanges, participation, return-use
-or reassessment records. The caller's expected export fingerprint, work ID,
+chain, including its retained relations, exchanges, participation, return-use,
+reassessment, successor updates and contribution requests. The caller's
+expected export fingerprint, work ID,
 latest revision and revision fingerprint must all match. Selection consists of
 exact, unique name/role/byte-count/digest tuples from that latest revision's
 ordinary file selection. Exchange payloads or historical files are not additional

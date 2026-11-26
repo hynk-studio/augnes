@@ -1274,6 +1274,7 @@ function validateDatabaseRelationsV01(
     if (lineages.some(r => r === null)) refuseV01();
   }
   const validatedAutomationScopes = new Set<string>();
+  const validatedExpectations = new Set<ParsedCanonicalRecordV01>();
   for (const record of records) {
     switch (record.record_kind) {
       case "automation_work_item": {
@@ -1362,9 +1363,26 @@ function validateDatabaseRelationsV01(
           transition_receipt_fingerprint: record.fingerprint,
         });
         break;
-      case "work_expectation_record":
-        readWorkExpectationRecords(db, record);
+      case "work_expectation_record": {
+        if (validatedExpectations.has(record)) break;
+        // The owner validates the entire project's history in one read. Bind
+        // each result to its exact canonical envelope before reusing that read.
+        const history = db.transaction(() => readWorkExpectationRecords(db, record))();
+        for (const item of history) {
+          // A live writer can append after the canonical rows were enumerated.
+          // The owner checked that addition; this invocation counts its original rows.
+          if (!byIdentity.has(recordKeyV01("work_expectation_record", item.record_id))) continue;
+          validatedExpectations.add(requireRelatedRecordV01(byIdentity, {
+            kind: "work_expectation_record",
+            id: item.record_id,
+            fingerprint: item.integrity.fingerprint,
+            workspace_id: record.workspace_id,
+            project_id: record.project_id,
+          }));
+        }
+        if (!validatedExpectations.has(record)) refuseV01();
         break;
+      }
       case "context_use_review":
         validateContextUseReviewRelationV01(db, record, byIdentity);
         break;

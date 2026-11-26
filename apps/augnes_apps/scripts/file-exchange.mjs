@@ -101,6 +101,16 @@ async function retireJournal(journal, expectedText){
   // discoverable as a pending journal. Fresh check/retry/recover uses its body.
 }
 async function run() {
+  if(setup==='shared-work'){
+    if(args.length)throw Error('Use shared-work [CURSOR].');
+    return (await openFileProjects()).shared(action);
+  }
+  if(setup==='shared-setup'){
+    if(!action||args.length!==1)throw Error('Use shared-setup GRANT_ID NEW_SETUP.json.');
+    const selected=await (await openFileProjects()).sharedSetup(action);
+    await newJson(args[0],selected);
+    return {work_id:selected.work_id,grant_id:selected.grant_id};
+  }
   if(setup==='projects'){
     if(args.length)throw Error('Use projects [CURSOR].');
     return (await openFileProjects()).list(action);
@@ -204,6 +214,10 @@ async function run() {
     return client.sendReturn(pending,action==='check-use');
   }
   if (action === 'context') return client.planning.current();
+  if (action === 'check-note-source') {
+    if (args.length !== 2) throw Error('Use check-note-source REVISION NOTE_NUMBER.');
+    return client.planning.checkNoteSource(Number(args[0]), Number(args[1]));
+  }
   if (action === 'retained-source' && args.length===0) return client.planning.retainedSource();
   if (action === 'request-context' && args.length===1) return client.requestContext(Number(args[0]));
   if (action === 'history') {

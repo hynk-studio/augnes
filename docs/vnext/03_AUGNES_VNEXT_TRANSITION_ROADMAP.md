@@ -585,6 +585,13 @@ repeats the independent packet/Web/retained-file experiments nor changes those
 limits. #1446 remains independently owned. No installed Companion adoption,
 production migration, provider/paid experiment or external execution is included.
 
+The subsequent Native owner workflow records a new decision on the same project
+after its first 512 direction records. The owner can reopen earlier decisions,
+review pending work against its original sources, and explicitly select the new
+decision for that work. Each outstanding grant keeps room for withdrawal within
+the 1,024-record limit. See the [history and recovery contract](../DATABASE_ACCESS_LIFECYCLE.md#accumulated-native-history-refusal-and-preservation-1439)
+for capacity and version compatibility.
+
 ## Status reconciliation — 2026-10-06
 
 The reviewed integration baseline is main
@@ -661,6 +668,35 @@ Recurring research/development operators and contributors are initial example
 cases, not an admission list or established product-market fit. Read-only,
 fixed-function and one-time participants remain within the product scope.
 
+### Applying project continuity to existing work
+
+Apply the [project continuity foundation](./01_AUGNES_VNEXT_MASTERPLAN.md#project-continuity-in-ordinary-work)
+through the owners that already serve the question. This maps existing
+implementation and the first bounded application within P3/P4/P5.
+
+| Where work continues | Existing implementation and boundary |
+| --- | --- |
+| Current work and effective direction | The [native direction reader](../../lib/vnext/persistence/project-direction-store.ts) binds pending work to its selected decision. [Codex current work](../../lib/vnext/codex-current-continuity/codex-current-continuity.ts) checks that binding before Start. Web private projects own their separate work and revision histories. |
+| Reconsidering a saved judgment | The [Web reassessment reader](../../apps/web_planning/src/return-reassessment-ops.ts) serves the browser and the [file client](../../apps/augnes_apps/scripts/web-file-client.mjs). Current source compares the selected file's occurrence and bytes with the evidence used for this consumer's most recent saved judgment, retaining the original return separately. Unreadable selected evidence yields no comparison. |
+| Conditional outlook and observed result | The [native expectation store](../../lib/vnext/persistence/work-expectation-store.ts) binds a pre-outcome expectation to one criterion and attempt. A later result can be compared only within that binding and its cutoff. Broader forecast learning requires later-work evidence. |
+| Action, effects and remaining commitments | The [external response owner](../../lib/vnext/external-response.ts) and [work handoff reader](../../lib/vnext/work-handoff.ts) preserve unresolved effects and obligations within their supported scopes. A returned result, a receiving project's assessed use and an external effect have separate owners. |
+| Changed purposes and reusable methods | [Web cooperation and method derivation](#web-undertaking-implementation-commission--2026-11-11) distinguish a project's own later work from another project's reuse. Broader claims about project amendment or closure depend on the applicable decision and affected commitments. |
+
+Prioritize an authorized successor's ability to find the undertaking, recover its
+judgment basis and continue remaining work when the original device or Companion
+is unavailable. The first practical route to connect and qualify is
+**local -> Web -> local**, using the existing
+[Web file exchange](../../apps/web_planning/README.md#connect-a-local-or-hosted-assistant)
+and [native selected-source handoff](../WEB_EXPORT_NATIVE_HANDOFF.md), with source
+lineage, current applicability and each surface's work/authority boundaries
+preserved. Product work toward usable continuation can proceed without waiting
+for comparative research to establish a specialized method's advantage.
+Address material gaps through the existing owners and supported transfer paths.
+Device replacement, continuation through a deployed Web service and automatic
+recovery remain distinct outcomes whose end-to-end completion is not established
+by this roadmap priority. A platform-wide dependency index and cross-device
+synchronization remain open implementation choices.
+
 ### Selective model application across local and web work
 
 The [Anticipate responsibility](./01_AUGNES_VNEXT_MASTERPLAN.md#anticipate) is
@@ -727,6 +763,11 @@ Define any newly needed Core contract in 02 with a concrete implementation,
 rather than adding a speculative schema here.
 
 Evaluate the incremental contribution under [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#question-specific-model-evidence).
+For claims about changed sources, use the
+[selective-reconsideration contrasts](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#conditional-sufficiency-and-selective-reconsideration),
+including newly relevant unselected evidence. For recombination claims, use the
+[transfer distinctions](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#goal-directed-recombination-and-candidate-paths-p4p5)
+between changed presentation, new inputs and new rule combinations.
 Preserve #1464's completed SIMPLIFY result and ordinary adaptive memo/code default.
 #1538's [accepted bounded simulations and comparison](#economic-undertaking-application--2026-10-25)
 now supply observations within their actual scopes; this guidance does not change
@@ -1087,6 +1128,26 @@ To exercise approval, execution and fresh readback together on Linux, run
 `npm run test:project-work-initialization -- --pi-project-file-only --pi-executable /absolute/path/to/pi`.
 Without an executable, the focused command exercises selection and admission
 refusals without starting Pi.
+
+An ordinary same-project successor can also prepare a patch from a completed
+Codex result. When preparing the next work from that result, retain the offered
+result note. This profile supports a receipt reporting one added or modified
+text file with an after-hash and a required, skipped `final_newline` check.
+The check belongs to the run. The operator chooses to address it on that file.
+In the successor's authenticated session, POST
+`{"action":"preview","source":"predecessor"}` to the Pi endpoint. Augnes resolves
+the file from the immediate prior receipt and compares its reported SHA-256
+with the current bytes. Review the returned receipt, check, work goal, path
+and digest. POST `{"action":"prepare","source":"predecessor","binding":"<binding>"}`
+to authorize that selection. The returned `checked_file_patch` includes the
+predecessor receipt ID, fingerprint and check ID. The prepared patch still
+requires a separate decision to apply it. Other outstanding work stays open.
+
+The credential-free succession fixture uses the Codex App Server adapter with
+a scripted producer that writes and rereads a disposable file. On Linux x64,
+`npm run test:project-work-initialization -- --pi-successor-only --pi-executable /absolute/path/to/pi`
+exercises the fresh Pi worker and stored patch readback. Omit the executable
+to exercise the succession and refusal checks without launching Pi.
 
 Codex chooses current files, functions and focused tests from the source. Keep
 each increment reversible and reviewable in Draft PRs; existing satisfied behavior
@@ -1882,6 +1943,35 @@ useful presentation change against the capable direct-reading/adaptive alternati
 consider automated iteration only if residual cost and likely reuse before
 invalidation justify it within the existing assignment.
 
+External evidence in
+[Language Model Harnesses Can Be Compositional Generalizers](https://www.alphaxiv.org/abs/2611.harness-cg.pdf)
+(sections 3–4) motivates a related, unmeasured Augnes hypothesis within this
+same L1 option: can question-specific input construction, with access to
+decision-relevant source distinctions, improve correct continuation or total
+burden over the current strong native/adaptive-memo alternative? Shorter input
+alone is not the target, and the paper establishes neither Augnes benefit nor
+locally in-distribution behavior in its consumers.
+
+For a first discriminating application, use the existing
+[Web reassessment reader](../../apps/web_planning/src/return-reassessment-ops.ts)
+and [file client](../../apps/augnes_apps/scripts/web-file-client.mjs). The reader
+already compares newly selected evidence with the evidence behind the consumer's
+most recent saved judgment. Reuse the existing
+[summary-versus-approval contrast](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#conditional-case-valid-format-misleading-predecessor-material)
+to ask whether a question-specific view supports the appropriate saved judgment
+and next action when source applicability differs. Inspect current inputs and
+available lookups before proposing a change; the existing path may suffice.
+Native applications may reuse supported GuideBrief/TaskContextPacket projections
+where relevant, without introducing a universal packet schema.
+
+Keep deterministic fixture correctness, prompt/code method optimization and
+model-weight SFT distinct; synthetic tool/sub-call success does not establish
+real-work transfer. Retain the current route when it suffices or the candidate
+adds no net value. Select a follow-up on omitted dependencies, method reuse or
+longer/structurally different tasks only when it resolves a concrete remaining
+question. Methods remain revisable within the existing assignment; this
+refinement launches no SFT or runtime work and adds no attempt cap or phase.
+
 Keep stable navigation/method guidance distinct from mutable state, source revisions
 and access/approval conditions. Preserve mandatory packet material and relevant
 condition/correction/counterevidence groups. Disclose coverage and omissions, retaining
@@ -2382,6 +2472,27 @@ A justified follow-up would preserve historical observations,
 use permitted new evidence to revise the affected prediction or applicability,
 and carry that revision into actual later work while retaining unaffected uses.
 Apply the [bounded evidence guidance](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#active-observation-and-productive-action-selection-1464).
+
+[Jensen et al.'s spacetime attractor](https://elifesciences.org/reviewed-preprints/109757v2)
+(Figure 7 and Methods) motivates a related, unmeasured Anticipate hypothesis:
+can later requirements and time-specific transition or resource availability,
+considered together, improve present preparation and replanning? Start with a
+bounded multi-step case in which a later requirement could change today's next
+action. Use existing source-linked outlooks or selected notes to relate candidate
+future states, their prerequisites and the currently adopted direction. Revise
+affected routes while retaining applicable observations, completed work and
+remaining commitments. Distinguish available, unavailable, conditional and
+unknown routes, and absolute deadlines from relative plan steps where that
+distinction changes the choice.
+
+The paper's experiments supply future rewards and use deterministic transitions
+fixed within each trial; goal-conditioned trajectories and fixed-point convergence
+establish neither calibrated forecasts nor real-work success. Current evidence
+and execution authority retain their existing owners. Evaluate the incremental contribution
+against ordinary planning under [bounded outlook evaluation](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#bounded-project-outlook-and-later-use),
+retaining the ordinary method when it suffices. This is a candidate within the
+existing follow-up, not a commitment to a neural planner or new representation.
+
 This conditional question stays under the broader P3/P4/P5 owners. It starts
 no experiment, reopens neither closed #1464 nor #1465's study, and does not
 expand #1468/#1471's retrieval implementation. It requires no new critic, training

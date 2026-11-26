@@ -3180,6 +3180,59 @@ Rollback readers refuse the new marker; preserve its original proof, consumed
 edge and reader revision. No new ledger, dispatcher or verification framework
 is introduced, and no historical result or earlier allowance is reset.
 
+#### Whole-file Git invalidation during integration
+
+Use the v10 marker `whole-file-git-email-insertion-v1` for a settled ordinary
+isolated Full whose sole fault was a whole-file Git input invalidation during
+integration. The original observations must retain full digests and safe
+ordinary file metadata. The integration child must have settled after
+cancellation with an empty Browser-use array. The exact original stock issues
+include that missing Browser identity and the failed current input check. All
+earlier passes, unreached phases, cleanup and consumption keep their original
+meaning. This route has a single ordinal and maximum of one.
+
+Use the published product branch that retains the original attempt and
+contains the already adopted verifier from main. Prepare the ordinary v10
+material with `focused.input_inventory`, `input_remedy_resources: ["git-config"]`
+and empty `implicated_paths`. Set `focused.whole_file_change` to these four
+fields in the private packet.
+
+| Field | Contents |
+| --- | --- |
+| `postimage` | An owner-only artifact reference to the exact bytes matching the historical after digest. Keep this file on the registered host. |
+| `insertion_offset` | Zero-based byte offset of the added plain `[user]` section containing the single email setting. The two historical lengths determine its size. |
+| `insertion_sha256` | SHA-256 of the inserted byte range. The reader reconstructs the before image in memory. |
+| `stock_capture` | The retained `verify-local-receipt.log` at `../evidence/` or in the original invocation's verification log directory. Its bytes must match the packet's `originals.stock`. |
+
+If both capture locations exist, their bytes must agree. Keep the verified
+postimage private before changing branch tracking on the registered repository.
+
+Run `node scripts/prepare-local-canonical-material-source.mjs <material.json>`
+from the registered isolated worktree in the intended qualification environment.
+The command checks the authenticated Draft publication, physical originals and
+latest settled tip, current full inventory, safe extended permissions, protected
+Git scope and Companion state. It returns a review commitment without reserving
+an invocation. The executor and fresh receipt process independently observe
+their actual environments. An inherited Git command override that forces the
+whole-file role prevents prospective qualification in that process.
+
+The private historical postimage is projected using the prospective protected
+branches. Drift can be accounted for by the existing projection for foreign
+upstreams. Changed protected content requires another applicable decision.
+Current scope and extended permission observations apply to the current run.
+
+Use the existing commit-anchored source and input acceptance and subsequent
+authenticated execution comment. Both bind the marker, review target and original
+receipt in visible text and include this history acknowledgement.
+`Original whole-file invalidation, complete false stock and spent invocation stand. Historical branch scope, extended permissions and writer are unknown.`
+The grant begins with
+`Authorize one prospective Mac qualification after this whole-file Git input invalidation.`
+and explicitly covers exactly one admitted deciding invocation total,
+reservation/interruption consumption, zero unchanged-target retry, zero extra
+recovery, separate fresh-process stock and independent result audit.
+After reservation the existing executor runs the complete selected Full. Final
+acceptance requires its passing fresh receipt, cleanup and independent review.
+
 ### Completed source-correction routes v3-v6
 
 The task-specific observer repair, corrected timeout, condition requalification

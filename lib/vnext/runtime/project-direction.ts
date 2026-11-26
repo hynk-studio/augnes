@@ -4,7 +4,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { realpathSync, statSync } from "node:fs";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash } from "../protocol-primitives";
 import { DIRECTION_VERSION, parseDirectionContent, directionObject, directionRef, directionText, directionInteger, directionArray, type DirectionCreation, type DirectionDecision, type DirectionEntry, type DirectionGrant, type DirectionPrincipal, type DirectionParent } from "../project-direction";
-import { appendDirectionRecord, revokeDirectionGrant, directionCheck as check, directionCurrent, effectiveDirection, findDirectionGrant, grantAvailable, readDirectionRecord, readProjectDirection, ProjectDirectionError, type DirectionScope } from "../persistence/project-direction-store";
+import { appendDirectionRecord, appendOwnerContinuationDecision, revokeDirectionGrant, directionCheck as check, directionCurrent, effectiveDirection, findDirectionGrant, grantAvailable, readDirectionRecord, readProjectDirection, ProjectDirectionError, type DirectionScope } from "../persistence/project-direction-store";
 import { getOrCreateCanonicalProjectForLocalRootV01, normalizeLocalProjectRootRefV01, readCanonicalProjectIdentityV01 } from "../persistence/project-identity-registry";
 import { readVNextCoreRecordV01 } from "../persistence/durable-semantic-store";
 import { admitVNextLocalOperatorMutationInsideTransactionV01, type VNextLocalOperatorPilotConfigV01, type VNextLocalOperatorSessionCredentialV01 } from "./local-operator-session";
@@ -17,11 +17,11 @@ export class DirectionRevocationCommittedError extends ProjectDirectionError {
   }
 }
 
-type DecideRequest = { action: "decide"; expected_ref: string | null; content: DirectionDecision["content"]; reason: string; status: "active" | "paused"; proposal_ref: string | null };
+type DecideRequest = { action: "decide" | "continue_decision"; expected_ref: string | null; content: DirectionDecision["content"]; reason: string; status: "active" | "paused"; proposal_ref: string | null };
 function parseDecision(value: unknown): DecideRequest {
   const r = directionObject(value, ["action", "expected_ref", "content", "reason", "status", "proposal_ref"]);
-  check(r.action === "decide" && ["active", "paused"].includes(String(r.status)), "request_invalid");
-  return { action: "decide", expected_ref: r.expected_ref === null ? null : directionRef(r.expected_ref),
+  check((r.action === "decide" || r.action === "continue_decision") && ["active", "paused"].includes(String(r.status)), "request_invalid");
+  return { action: r.action, expected_ref: r.expected_ref === null ? null : directionRef(r.expected_ref),
     content: parseDirectionContent(r.content), reason: directionText(r.reason), status: r.status as "active" | "paused", proposal_ref: r.proposal_ref === null ? null : directionRef(r.proposal_ref) };
 }
 function parseGrant(value: unknown) {
@@ -67,10 +67,15 @@ function saveDecision(db: Database.Database, scope: DirectionScope, request: Dec
     const proposal = readDirectionRecord(db, scope, request.proposal_ref);
     check(proposal.value.kind === "proposal" && proposal.value.basis_ref === request.expected_ref && canonical(proposal.value.content) === canonical(request.content), "proposal_changed");
   }
-  return appendDirectionRecord(db, { ...base(scope, at), kind: "decision", revision: (previous?.value.revision ?? 0) + 1,
+  const value: DirectionDecision = { ...base(scope, at), kind: "decision", revision: (previous?.value.revision ?? 0) + 1,
     previous: previous?.ref ?? null, created_by: previous ? previous.value.created_by : authority ? actor : null, principal, authority_ref: authority?.ref ?? null,
     creation: previous?.value.creation ?? creation,
-    parent, content: request.content, status: request.status, reason: request.reason, proposal_ref: request.proposal_ref } satisfies DirectionDecision);
+    parent, content: request.content, status: request.status, reason: request.reason, proposal_ref: request.proposal_ref };
+  if (request.action === "continue_decision") {
+    check(actor.kind === "human" && authority === null, "continuation_owner_required", 403);
+    return appendOwnerContinuationDecision(db, value);
+  }
+  return appendDirectionRecord(db, value);
 }
 
 /** The ordinary local session authorizes only its project and explicit creation
@@ -88,7 +93,7 @@ export function mutateHumanDirection(db: Database.Database, input: {
     const action = (input.request as { action?: unknown })?.action;
     let credential: string | undefined;
     let record;
-    if (action === "decide") record = saveDecision(db, scope, parseDecision(input.request), actor, at, null);
+    if (action === "decide" || action === "continue_decision") record = saveDecision(db, scope, parseDecision(input.request), actor, at, null);
     else if (action === "authorize_agent") {
       const request = parseGrant(input.request);
       const current = effectiveDirection(db, scope, at);
@@ -140,9 +145,12 @@ export function mutateHumanDirection(db: Database.Database, input: {
       readProjectDirection(db, scope, at);
       record = revokeDirectionGrant(db, { ...base(scope, at), kind: "revocation", grant_ref: grant.ref, principal: actor, reason: request.reason });
     } else check(false, "request_invalid", 400);
+    // Validate the newly linked history and build the response before committing
+    // its decision and session nonce together.
+    const continuedState = action === "continue_decision" ? readProjectDirection(db, scope, at) : null;
     db.exec("COMMIT");
     try {
-      return { record, ...(credential ? { credential } : {}), state: readProjectDirection(db, scope, at), session_admission: admission };
+      return { record, ...(credential ? { credential } : {}), state: continuedState ?? readProjectDirection(db, scope, at), session_admission: admission };
     } catch (error) {
       if (action === "revoke_agent") throw new DirectionRevocationCommittedError(record as DirectionEntry<DirectionRevocation>, admission);
       throw error;

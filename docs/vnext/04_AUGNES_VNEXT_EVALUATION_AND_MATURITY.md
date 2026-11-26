@@ -1240,6 +1240,32 @@ this requires neither new telemetry nor an automated-optimization comparison arm
 Retain/no-change, simplify and stop remain valid under the existing allocation
 and fixed-evaluation rules.
 
+For the related compositional-harness hypothesis, diagnose **decision-relevant
+local-context sufficiency** using the existing
+[summary-versus-approval contrast](#conditional-case-valid-format-misleading-predecessor-material)
+where it answers an unresolved question. Hold the task and summary fixed while
+source applicability differs, and inspect whether the delivered input or its
+permitted lookups preserve the distinction needed for the next judgment. If
+neither distinguishes the cases, record insufficient input for that decision;
+the contrast does not isolate a model-judgment failure. If the current consumer
+already exposes the distinction, examine its actual use before proposing another
+representation.
+Keep checker-only answers out of both inputs and give the strong alternative
+equal access to the relevant sources; apply the existing
+[comparison distinctions](#strong-comparisons-and-independence) when selection
+changes delivered information.
+
+Inspect the actual saved judgment and resulting output/action, including
+justified retention and unnecessary deferral. A source read, shorter input or
+similar call trace alone establishes neither appropriate use nor locally
+in-distribution behavior. Apply [method-improvement evidence](#method-improvement-evidence)
+and [total-burden accounting](#cost-and-user-burden), including input preparation,
+source lookup, checking and human review/repair. Fixture correctness and
+prompt/code optimization remain distinct from model-weight training and
+observed transfer. An equally effective current route or benefit erased by
+added burden supports retain/no-change or simplification; it does not require
+a broader comparison campaign.
+
 Keep functional correctness, semantic appropriateness, experience contribution
 and comparative usefulness separate. If claiming that prior experience causes
 better later work (L2), hold current inputs comparable and distinguish relevant
@@ -1274,6 +1300,19 @@ completion, while missing required acceptance evidence still leaves that accepta
 unmet. Later material evidence may warrant revisiting the affected judgment or work;
 duplicate or irrelevant additions should not by themselves reopen settled work.
 Preserve still-valid results and independent support rather than rerun everything.
+
+For a selective-reconsideration claim, distinguish a changed premise that affects
+the judgment, a change that leaves its applicability intact, and a previously
+unselected or unavailable alternative that becomes relevant to the decision.
+Byte equality or difference alone does not settle applicability or decision
+impact. A prior read set or selected-source list does not establish complete
+coverage of relevant alternatives; disclose actual search/access coverage and
+material unknowns. A dependency trace identifies possible impact without itself
+invalidating a judgment. [When Facts Change](https://arxiv.org/html/2611.19859v1)
+and [COMBS](https://arxiv.org/html/2611.15964v1) motivate these distinctions;
+their results establish neither Augnes benefit nor complete document coverage.
+Choose the contrasts needed for the current claim without requiring exhaustive
+search.
 
 Assess premature stopping, missed warranted reconsideration and unnecessary
 continuation/reopening alongside actual outcomes and the existing
@@ -2447,6 +2486,27 @@ bounded source disclosure and zero read-attributable writes remain distinct from
 the usefulness claim. Live installation and independent consumer benefit are not
 established by this development fixture.
 
+For the [temporal replanning hypothesis](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#conditional-follow-up--predictions-after-execution-context-change),
+compare the proposed future-state representation or update method with a strong
+adaptive memo or ordinary dependency/temporal planner, selecting the comparisons
+needed to resolve the claim. Alternatives may reason backwards from later
+requirements and use the same relevant sources, tools, model and comparable
+total resources. Separate
+the benefit of additional input structure from the update calculation and its
+actual use in later work; equivalent computations do not establish a distinct
+mechanism. A fixed comparison matrix or ablation campaign is not required.
+
+Choose cases that discriminate the pending decision: preparation before a useful
+window closes, changed or unknown route availability, an affected later
+requirement, or justified retention when nothing relevant changes. Inspect the
+next action, missed and unnecessary reconsideration, and preservation of valid
+support and commitments. Keep desired futures separate from predictions and
+observed outcomes. Preserve the original prediction and information cutoff when
+comparing it with later observations. A consistent plan or successful rejection
+of its infeasible action does not establish sound planning.
+If ordinary planning is sufficient or added representation costs erase the
+benefit, retain or simplify that method under the existing evaluation rules.
+
 The existing strong-comparison rules apply to any later usefulness claim. The
 baseline may forecast, revise source-linked adaptive notes, access the same code
 and tools, and reuse methods with a comparably strong model and relevant budget.
@@ -3005,6 +3065,23 @@ and other affected host-native projections about:
 Different wording, density, and interaction grammar are allowed. Materially
 different product meaning is not.
 
+For an affected question, check what earlier grounds support in ordinary work,
+including uninterrupted work on one host. With equivalent grounds, cutoff and
+rules, readers must preserve established facts and their limits. Different
+permitted choices can follow. A view that omits available decisive evidence
+and a view that asserts more than its evidence supports can both mislead.
+Where records conflict, resolve or report the affected uncertainty while
+allowing independently supported work to continue.
+
+For example, an approval that becomes visible later may change today's plan
+without making that approval visible to yesterday's reader. When new evidence
+matches the latest review but differs from the original return, establish
+which comparison the reader is seeing. In neither case do matching bytes or
+a recorded attempt establish an external outcome. Apply checks to the change
+and claim at hand. A [comparison of the summary and its source](#conditional-case-valid-format-misleading-predecessor-material)
+can help investigate actual use. Comparative benefit requires its own outcome
+evidence.
+
 ### Attention precision
 
 Blank State and any attention queue must prioritize consequential human
@@ -3329,6 +3406,16 @@ appropriate non-use where applicable. Neither always inspecting more nor always
 preferring the newest information should be the correct policy by construction.
 No full factorial comparison or ablation matrix is mandatory.
 
+When claiming compositional transfer, distinguish surface changes or arrangements
+that compute the same function from new inputs to an exposed rule and held-out
+rule combinations. Record which rules, combinations and solutions were available
+during preparation or practice. Separate evaluator-only answers and labels from
+consumer inputs; ordinary applicability rules and authorized source access remain
+allowed. [Evaluating Compositional Generalization in Transformers](https://arxiv.org/html/2611.13498v2)
+and [GDPevo](https://arxiv.org/html/2608.03764v1) motivate this distinction without
+establishing Augnes transfer. Use the existing retention, harmful transfer and
+justified non-use contrasts where relevant to the claim.
+
 Use [task units and case genealogy](#task-units-and-relevant-task-characteristics)
 and [development-exposure/independence rules](#strong-comparisons-and-independence)
 for successor claims. Manually supplied optimal paths fall under the existing
@@ -3507,6 +3594,18 @@ starts fresh; it is not a clean-handoff control. Keep checker-only answers out o
 both inputs. Preserve predecessor attribution and separate reported prior
 verification from locally observed checks; an inherited claim is not "we verified
 it".
+
+If a non-authoritative summary and a decision record agree, following either
+can produce the same answer. To distinguish these explanations, keep the work,
+role, cutoff and decision rule fixed. Hold the summary constant while varying
+which work a dated approval covers. Then hold the approval constant while
+varying whether the summary calls the change proposed or approved. Consider
+two workshops with the same proposed closing time. An approval for the
+workshop being scheduled supports using that time. If the only visible
+approval covers the other workshop, the change here remains unconfirmed.
+Inspect the saved plan for the time used and any conditions on it. Record
+which source was consulted if the read was observed. A worker can use the
+record to justify keeping the same plan.
 
 Include a legitimate correction or authorized revision under the existing
 justified-change contrast. Observe actual continuation and checked outcome,

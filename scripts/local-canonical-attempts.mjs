@@ -49,7 +49,8 @@ import { REGISTERED_FIXTURE_VALIDITY_WINDOW, FIXTURE_VALIDITY_WINDOW_CLAIM } fro
 import { isProspectiveRequalification, hasProspectiveRequalificationMarker, PROSPECTIVE_REQUALIFICATION, PROSPECTIVE_REQUALIFICATION_GRANT,
   delegatesProspectiveRequalification, prospectiveRequalificationAuthorityScope, validProspectiveRequalificationOwner,
   verifyProspectiveRequalification, prospectiveHistoricalRuntime } from "./local-canonical-prospective-requalification.mjs";
-import {isDirectGitInputRevision, gitInputHistoryBoundary, isGitInputRevision, verifyGitInputRemedy, verifyGitInputPublication,
+import { WHOLE_FILE_GIT_GRANT, isWholeFileGitRevision } from "./local-canonical-whole-file-git.mjs";
+import {isDirectGitInputRevision, isSingleUseGitInputRevision, gitInputHistoryBoundary, isGitInputRevision, verifyGitInputRemedy, verifyGitInputPublication, visibleDelegationParagraphs,
   GIT_CURRENT_STOCK_COMPARISON, gitRevisionInventory, gitRevisionStockComparison} from "./local-canonical-git-observation.mjs";
 import { ORDINARY_WATCHDOG_INTEGRATION, readOrdinaryWatchdogIntegrationPredecessor } from "./local-canonical-ordinary-watchdog-integration.mjs";
 
@@ -1057,6 +1058,9 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
       throw fail("revision_authenticated_authority_required");
     const liveBinding = digest(revisionLive);
     if (usesRevisionInventory(proof)) {
+      if (isWholeFileGitRevision(proof) && (gitRevisionInventory(revisionLive?.inputInventory) !== proof.inputs.inventory_sha256 ||
+          stockReceipt && gitRevisionInventory(stockReceipt.inputs) !== proof.inputs.inventory_sha256))
+        throw fail("revision_git_target_unverified");
       const sourceDecision = isInventoryBoundRevision(proof) && proof.commission.ordinal === 2
         ? revisionAuthorization.observations.contract_review : revisionAuthorization.observations.accepted_revision;
       let inventoryMatches = revisionLive?.inventory === proof.inputs.inventory_sha256;
@@ -1253,6 +1257,18 @@ function verifyRevisionOriginals(anchorRoot, repositoryRoot, proof, materialFile
   const receiptFile = path.join(repositoryRoot, ".augnes-local-verification", "receipts", `${proof.prior_attempt_id}.json`);
   read(receiptFile, 512 * 1024);
   if (digest(readFileSync(receiptFile)) !== proof.originals.receipt.sha256) throw fail("revision_original_receipt_changed");
+  if (isWholeFileGitRevision(proof)) {
+    const folder = path.dirname(materialFile ?? path.join(repositoryRoot, proof.local_relative_path));
+    const { whole_file_change: change } = JSON.parse(revisionArtifact(folder, proof.focused));
+    const name = "verify-local-receipt.log";
+    const locations = [`.augnes-local-verification/logs/${proof.prior_attempt_id}/${name}`, "../evidence/" + name];
+    if (!locations.includes(change?.stock_capture)) throw fail("revision_original_stock_path_invalid");
+    for (const relative of locations) {
+      const capture = path.resolve(repositoryRoot, relative);
+      if (relative === change.stock_capture || pathPresent(capture))
+        revisionArtifact(path.dirname(capture), {artifact: name, sha256: proof.originals.stock.sha256});
+    }
+  }
   if (isOrdinaryInitialPreparationRevision(proof)) {
     const folder=path.dirname(materialFile ?? path.join(repositoryRoot,proof.local_relative_path));
     const focused=JSON.parse(revisionArtifact(folder,proof.focused)),original=JSON.parse(revisionArtifact(folder,proof.originals.receipt));
@@ -1688,6 +1704,7 @@ const usesFreshRevisionGrant = p => isBrowserSuccessor(p) || isGitObservationSuc
 
 // Once this boundary is crossed the optional v7 inventory cannot be dropped.
 function validGitRevisionEdge(previous, next) {
+  if (isWholeFileGitRevision(next)) return previous === null;
   if (isOrdinaryInitialPreparationRevision(previous)) return false;
   if (isOrdinaryInitialPreparationRevision(next)) return previous === null && ordinaryInitialProofShape(next);
   if (isReviewedIntegration(next) && integrationRevisionBasis(previous,next))
@@ -1800,7 +1817,7 @@ function revisionMaterialShape(p, preparing = false) {
       c.delegation.id !== c.initial_authorization.grant_comment_id && c.initial_accepted.head !== p.head) &&
     (!successor || browserAuthorizationShape(c.initial_authorization) && c.initial_authorization.contract_review.head !== p.head) &&
     sha(c.root_family_id) && [1, 2].includes(c.root_number) && typeof c.root_attempt_id === "string" && sha(c.root_receipt_fingerprint) &&
-    (isOrdinaryInitialPreparationRevision(p) || isSingleInvocationRevision(p) || isSerialAggregateRevision(p) || isDirectGitInputRevision(p) ? c.ordinal === 1 && c.maximum_invocations === 1 : [1, 2].includes(c.ordinal) && c.maximum_invocations === 2) &&
+    (isOrdinaryInitialPreparationRevision(p) || isSingleInvocationRevision(p) || isSerialAggregateRevision(p) || isSingleUseGitInputRevision(p) ? c.ordinal === 1 && c.maximum_invocations === 1 : [1, 2].includes(c.ordinal) && c.maximum_invocations === 2) &&
     (c.ordinal === 1 ? c.root_family_id === p.prior_family_id && c.root_number === p.prior_number && c.root_attempt_id === p.prior_attempt_id && c.root_receipt_fingerprint === p.prior_receipt_fingerprint :
       c.root_family_id !== p.prior_family_id && c.root_attempt_id !== p.prior_attempt_id) && (preparing && (isSerialAggregateRevision(p) || isGitObservationRevision(p) || isInventoryBoundRevision(p) && c.ordinal === 1) ? !Object.hasOwn(p.accepted, "review") : revisionId(p.accepted.review?.id) && revisionRef(p.accepted.review)) &&
     ["receipt", "attempt", "completion", "stock"].every(k => revisionRef(p.originals?.[k])) &&
@@ -1988,12 +2005,13 @@ function validateReviewedRevisionAuthorityEvidence(p, review, grant, permissions
     Date.parse(delegation.created_at) < Date.parse(review.submitted_at));
   const gitScope = isGitObservationRevision(p) && linkedGitGrant && firstLine(review.body) === "Source review decision: ACCEPT / RETAIN for prospective qualification." &&
     [gitReviewTarget(p), p.prior_receipt_fingerprint].every(s => review.body.includes(s)) &&
-    firstLine(grant.body) === (gitSuccessor ? "Authorize ordinal two of the original reviewed Git-observation commission." : isDirectGitInputRevision(p) ?
+    firstLine(grant.body) === (gitSuccessor ? "Authorize ordinal two of the original reviewed Git-observation commission." : isWholeFileGitRevision(p) ? WHOLE_FILE_GIT_GRANT : isDirectGitInputRevision(p) ?
       "Authorize one prospective Mac qualification of this direct Git-input target." : isGitInputRevision(p) ?
       "Authorize prospective Mac qualification of this stable Git-input target." :
       "Authorize prospective Mac qualification of this reviewed Git-observation successor.") &&
     (!isGitInputRevision(p) || [review.body, grant.body].every(body => body.includes(p.commission.input_revision) && body.includes(gitInputHistoryBoundary(p)))) &&
-    (!isDirectGitInputRevision(p) || /exactly one admitted deciding invocation total/iu.test(grantText) &&
+    (!isWholeFileGitRevision(p) || [review.body, grant.body].every(body => visibleDelegationParagraphs(body).length > 0)) &&
+    (!isSingleUseGitInputRevision(p) || /exactly one admitted deciding invocation total/iu.test(grantText) &&
       /Reservation\/interruption consumes/iu.test(grantText) && /zero unchanged-target retry/iu.test(grantText) && /zero extra recovery/iu.test(grantText)) &&
     [p.schema, p.head, p.tree, p.base, p.branch, p.prior_receipt_fingerprint, gitReviewTarget(p),
       `https://github.com/hynk-studio/augnes/pull/${p.pull_request}#pullrequestreview-${p.accepted.review.id}`].every(s => grant.body.includes(s)) &&
@@ -2092,10 +2110,11 @@ export async function authorizeReviewedRevision(p, { transport = createGitHubObs
   return capability;
 }
 
-export function revisionArtifact(folder, reference, maximum = 512 * 1024) {
+export function revisionArtifact(folder, reference, maximum = 512 * 1024, ownerOnly = false) {
   if (!revisionKeys(reference, ["artifact", "sha256"]) || !/^[a-z0-9_-]+\.(?:json|log)$/u.test(reference.artifact ?? "") || !sha(reference.sha256)) throw fail("revision_artifact_invalid");
   const file = path.join(folder, reference.artifact), s = lstatSync(file);
-  if (realpathSync(file) !== file || !s.isFile() || s.isSymbolicLink() || s.nlink !== 1 || s.size > maximum || (s.mode & 0o022)) throw fail("revision_artifact_unsafe");
+  if (realpathSync(file) !== file || !s.isFile() || s.isSymbolicLink() || s.nlink !== 1 || s.size > maximum || (s.mode & 0o022) ||
+      (ownerOnly && (s.uid !== process.getuid() || (s.mode & 0o077)))) throw fail("revision_artifact_unsafe");
   const bytes = readFileSync(file);
   if (digest(bytes) !== reference.sha256) throw fail("revision_artifact_changed");
   rememberRevisionFile(file, bytes);
@@ -2240,6 +2259,15 @@ function verifyRetainedWebInput(repositoryRoot, expected) {
 // material, never mint the authenticated capability required by beginAttempt.
 export const inspectBrowserRevisionPreparation = args => inspectRevisionPreparation(args, isBrowserRevision);
 export const inspectGitRevisionPreparation = args => inspectRevisionPreparation(args, usesGitInventory);
+export async function prepareWholeFileGitRevision(args, { transport } = {}) {
+  const p = read(args.file);
+  if (!isWholeFileGitRevision(p)) throw fail("revision_preparation_invalid");
+  const publication = transport ?? createGitHubObserverAuthorizationTransport(p.pull_request);
+  assertRevisionPublication(p, await publication.pullRequest());
+  const prepared = await inspectGitRevisionPreparation(args);
+  if (prepared.target !== gitReviewTarget(p)) throw fail("revision_preparation_target_changed");
+  return { ...prepared, published_head_checked: true };
+}
 export const inspectSerialAggregatePreparation = args => inspectRevisionPreparation(args, isSerialAggregateRevision);
 // Current publication is checked only here and at authenticated admission.
 // Retrospective physical replay uses the recorded source and authority instead.
@@ -2490,6 +2518,8 @@ function prepareRevisionInspection({ file, repositoryRoot, predecessorRoot, anch
   return (current, assertUnchanged) => {
   if (typeof live === "function") live = current;
   if (!revisionEqual(runtimeInputs, evidence.inputs)) throw fail("revision_preparation_target_changed");
+  if (isWholeFileGitRevision(p) && gitRevisionInventory(live?.inputInventory) !== p.inputs.inventory_sha256)
+    throw fail("revision_preparation_target_changed");
   if (evidence.retainedObservation) verifyRetainedWebInput(repositoryRoot,evidence.retainedObservation);
   if (evidence.integrationBudget) inspectCurrentIntegrationBudgetInputs(repositoryRoot,evidence.integrationBudget);
   if (evidence.selectiveWorkload) inspectCurrentSelectiveFixtureWorkloadInputs(repositoryRoot,evidence.selectiveWorkload);
@@ -2644,7 +2674,7 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
       original.repository?.head_sha !== prior.head || original.repository.tree_sha !== prior.tree ||
       completion.contract !== ATTEMPT_CONTRACT || completion.attempt_id !== prior.attempt_id || completion.receipt_fingerprint !== p.prior_receipt_fingerprint ||
       !revisionTime(completion.finished_at) || completion.cleanup_complete !== (externalSettlement ? false : true) || completion.disposition !== original.outcome?.disposition ||
-      (completion.disposition === "input_invalidation" ? !(inputInvalidation || isDirectGitInputRevision(p) && gitIncident) : completion.disposition === "safety_violation" ? !(dependencySafety || externalSettlement || browserIncident || retainedBefore) :
+      (completion.disposition === "input_invalidation" ? !(inputInvalidation || isSingleUseGitInputRevision(p) && gitIncident) : completion.disposition === "safety_violation" ? !(dependencySafety || externalSettlement || browserIncident || retainedBefore) :
         completion.disposition === "unclassified_timeout" ? !serialIncident :
         completion.disposition === "unknown_relevance" ? !(gitIncident || acquisitionIncident) :
         completion.disposition === "completed_success" ? !postPass :
@@ -2668,6 +2698,7 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
       inputs.node?.observation?.present !== true || !sha(inputs.node.observation.sha256) || !sha(inputs.headers?.location_fingerprint) ||
       !validNodeHeaders(inputs.headers?.observation)) throw fail("revision_inputs_invalid");
   const source = parse(p.source), focused = parse(p.focused);
+  if (Object.hasOwn(focused, "whole_file_change") !== isWholeFileGitRevision(p)) throw fail("revision_whole_file_git_remedy_invalid");
   // Evidence bases are closed: omitting or mixing the prospective marker must
   // refuse, not route the same disclosure through a generic repair reader.
   if (Object.hasOwn(focused, "prospective") !== isProspectiveRequalification(p) ||
@@ -2702,7 +2733,8 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
     verifyBrowserRemedy(browserIncident, inputs.browser, probe.phase, probe.logs.map(ref => revisionArtifact(path.dirname(file), ref, 2 * 1024 * 1024)), witness);
   }
   const gitInputRemedy = gitIncident && isGitInputRevision(p)
-    ? verifyGitInputRemedy(p, original, gitIncident, source, focused, {parse, git}) : null;
+    ? verifyGitInputRemedy(p, original, gitIncident, source, focused, {parse, git,
+      privateBytes: (ref, maximum) => revisionArtifact(path.dirname(file), ref, maximum, true)}) : null;
   const changedInputs = browserIncident || gitInputRemedy ? true : previousRevision ? !revisionEqual(materialInputs(inputs), materialInputs(original.inputs.binding.runtime_inputs)) :
     inputs.node.location_fingerprint !== legacyNode.location_fingerprint || inputs.node.observation.sha256 !== legacyNode.before.sha256;
   if (!isProspectiveRequalification(p) && !changedCode.length && !changedInputs) throw fail("revision_material_remedy_required");
@@ -2753,7 +2785,7 @@ function validateRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
   // continuation; normal npm preparation produces dependencies separately.
   const pinnedPaths = ["package.json", "package-lock.json", "apps/augnes_apps/package.json", "apps/augnes_apps/package-lock.json",
     "apps/web_planning/package.json", "apps/web_planning/package-lock.json", ".node-version", ".nvmrc"];
-  if (git(["diff", "--name-only", boundedV7 || serial || isDirectGitInputRevision(p) ? prior.head : initial.head, p.head, "--", ...pinnedPaths]).length) throw fail("revision_pinned_inputs_changed");
+  if (git(["diff", "--name-only", boundedV7 || serial || isSingleUseGitInputRevision(p) ? prior.head : initial.head, p.head, "--", ...pinnedPaths]).length) throw fail("revision_pinned_inputs_changed");
   if (focused.schema !== "augnes.local-canonical-reviewed-revision-focused.v1" || focused.basis !== "implementation_owner_not_independent_review" ||
       focused.predecessor_receipt_fingerprint !== p.prior_receipt_fingerprint || focused.runtime_inputs_sha256 !== p.inputs.identity_sha256 ||
       !revisionTime(focused.finished_at) || Date.parse(focused.finished_at) <= Date.parse(completion.finished_at) ||

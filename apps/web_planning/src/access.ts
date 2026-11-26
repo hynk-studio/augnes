@@ -7,14 +7,19 @@ export interface Environment {
   PROJECT_ID: string; PROJECT_NAME?: string; AUTHOR_REF: string; REQUEST_SECRET: string;
   SITES_INGRESS_MODE?: string; RECONSTRUCTION_MODE?: string; PARTICIPATION_MODE?: string;
   PROJECT_ENTRY_MODE?: string; PROJECT_ADMITTED_EMAILS?: string; PUBLIC_REQUEST_MODE?: string; REQUEST_APPLICATION_MODE?: string;
+  PUBLIC_SUCCESSION_MODE?: string; PUBLIC_RECIPIENT_ORIGIN?: string;
 }
-export type Principal = { login: string | null; localFixture?: true; ingress?: "sites" | "cloudflare-access" };
+export type Principal = { login: string | null; localFixture?: true; ingress?: "sites" | "cloudflare-access" | "public-recipient" };
 export type Access = Store & { env: Environment; local: boolean; signout: string; recipientHash?: string;
   principalHash: string; ownerHash?: string; projectEntry?: true; projectName?: string; continuationWork?: string | null; successorId?: string };
 export interface Ticket { kind: "save"; workspace_id: string; project_id: string; author_ref: string;
   work_id: string; request_key: string; expected: Binding; expires: number; payload_fingerprint?: string; draft_fingerprint?: string }
 const loginPattern = /^[^\s,@]+@[^\s,@]+\.[^\s,@]+$/;
 export function login(value: unknown): string | null { return typeof value==="string" && loginPattern.test(value) ? value.toLowerCase() : null; }
+function signoutPath(principal:Principal) {
+  if(principal.ingress==='public-recipient')return '/auth/logout';
+  return principal.ingress==='cloudflare-access'?'/cdn-cgi/access/logout':'/signout-with-chatgpt';
+}
 export function sitesPrincipal(request: Request, env: Environment): Principal {
   // This is a platform trust contract, not header-based standalone authentication.
   // Leave disabled until the Sites deployment proves overwrite + no backend bypass.
@@ -22,6 +27,22 @@ export function sitesPrincipal(request: Request, env: Environment): Principal {
   return {login:login(request.headers.get("oai-authenticated-user-email")),ingress:"sites"};
 }
 export function projectEntryEnabled(env:Environment) { return env.PROJECT_ENTRY_MODE==='admitted-private-v1'; }
+export function sharedHomeEnabled(env:Environment) {
+  return projectEntryEnabled(env) && env.PUBLIC_SUCCESSION_MODE==='verified-email-home-v1';
+}
+
+export async function requireSharedHomeSchema(db:Database) {
+  const ready=await db.prepare(`SELECT 1 FROM web_planning_schema WHERE version=6 AND EXISTS
+    (SELECT 1 FROM sqlite_master WHERE type='index' AND name='web_planning_continuation_recipient')`).first();
+  if(!ready)fail('shared_home_migration_required',503);
+}
+function projectAuthorAdmitted(env:Environment,email:string,refuse:(reason:string,code:string,status:number)=>never) {
+  let admitted:unknown;
+  try { admitted=JSON.parse(env.PROJECT_ADMITTED_EMAILS??'[]'); }
+  catch { return refuse('admission_configuration','workspace_not_configured',503); }
+  if(!Array.isArray(admitted)||admitted.length>100||admitted.some(value=>!login(value)))refuse('admission_configuration','workspace_not_configured',503);
+  return email===login(env.OWNER_EMAIL)||admitted.some(value=>login(value)===email);
+}
 export function selectedProject(request:Request):string|null {
   const url=new URL(request.url),management=url.pathname.match(/^\/(?:delegations|publications)\/([a-f0-9-]{36})\/([a-f0-9-]{36})$/);
   const query=management?.[1]??(url.pathname==='/'?url.searchParams.get('project'):null),header=request.headers.get('x-web-planning-project');
@@ -74,8 +95,21 @@ export function authorizeApplicant(request:Request,env:Environment,principal:Pri
     url.search || request.headers.has('x-web-planning-project')) fail('access_denied',403);
   const DB=boundedDatabase(env.DB);
   return {DB,env:{...env,DB},publicationId,login:email,principalHash:hash(email),local:!!principal.localFixture,
-    signout:principal.ingress==='cloudflare-access'?'/cdn-cgi/access/logout':'/signout-with-chatgpt'};
+    signout:signoutPath(principal)};
 }
+// A home can list grants for one verified email. It carries no work or project write scope.
+export function authorizeSharedHome(request:Request,env:Environment,principal:Principal) {
+  if(!sharedHomeEnabled(env))fail('not_found',404);
+  const url=new URL(request.url);
+  const entry=request.method==='GET' && !url.search && ['/', '/projects', '/shared-work'].includes(url.pathname);
+  const refuse=authenticateRequest(request,env,principal,entry);
+  const email=login(principal.login);
+  if(!email || email.length>254 || (!principal.localFixture&&!principal.ingress) || request.headers.has('x-web-planning-project'))fail('access_denied',403);
+  return {DB:boundedDatabase(env.DB),env,principalHash:hash(email),mayManageProjects:principal.ingress!=='public-recipient' && projectAuthorAdmitted(env,email,refuse),
+    signout:signoutPath(principal)};
+}
+export type SharedHomeAccess=ReturnType<typeof authorizeSharedHome>;
+
 export async function authorize(request: Request, env: Environment, principal: Principal, participant?:string, projectEntry=false, successor?:string): Promise<Access> {
   env={...env,DB:boundedDatabase(env.DB)};
   const url=new URL(request.url);
@@ -85,18 +119,22 @@ export async function authorize(request: Request, env: Environment, principal: P
   const entry=request.method==='GET' && ((url.pathname==='/' && (!url.search || projectNavigation)) || (multi&&url.pathname==='/projects'&&!url.search) || (multi&&/^\/delegations\/[a-f0-9-]{36}\/[a-f0-9-]{36}$/.test(url.pathname)&&!url.search) || (env.PUBLIC_REQUEST_MODE==='selected-public-request-v1'&&/^\/publications\/[a-f0-9-]{36}\/[a-f0-9-]{36}$/.test(url.pathname)&&!url.search) || (multi&&successor&&url.pathname==='/continue/'+successor&&!url.search) || (participant && /^\/participate\/[a-f0-9-]{36}$/.test(url.pathname)&&!url.search));
   const refuse:(reason:string,code:string,status:number)=>never=authenticateRequest(request,env,principal,Boolean(entry));
   const selection=selectedProject(request);
-  if(participant){if(!principal.localFixture&&!principal.ingress)refuse('ingress_unverified','access_denied',403);if(env.PARTICIPATION_MODE!=='verified-recipient-v1')refuse('participation_disabled','access_denied',403);}
+  if(principal.ingress==='public-recipient'){
+    if(!successor || participant || projectEntry || !sharedHomeEnabled(env))refuse('recipient_scope','access_denied',403);
+    await requireSharedHomeSchema(env.DB);
+  }else if(participant){if(!principal.localFixture&&!principal.ingress)refuse('ingress_unverified','access_denied',403);if(env.PARTICIPATION_MODE!=='verified-recipient-v1')refuse('participation_disabled','access_denied',403);}
   else if(multi){
     if(!principal.localFixture&&!principal.ingress)refuse('ingress_unverified','access_denied',403);
-    let admitted:unknown;
-    try{admitted=JSON.parse(env.PROJECT_ADMITTED_EMAILS??'[]');}catch{refuse('admission_configuration','workspace_not_configured',503);}
-    if(!Array.isArray(admitted)||admitted.length>100||admitted.some(v=>!login(v)))refuse('admission_configuration','workspace_not_configured',503);
-    if(login(principal.login)!==login(env.OWNER_EMAIL)&&!admitted.some(v=>login(v)===login(principal.login)))refuse('principal_not_admitted','access_denied',403);
+    const email=login(principal.login)!;
+    if(!projectAuthorAdmitted(env,email,refuse)){
+      if(!successor || !sharedHomeEnabled(env) || email.length>254)refuse('principal_not_admitted','access_denied',403);
+      await requireSharedHomeSchema(env.DB);
+    }
   } else if (login(principal.login)!==login(env.OWNER_EMAIL)) refuse('owner_mismatch','access_denied',403);
   const schema=await env.DB.prepare("SELECT version,(SELECT sql FROM sqlite_master WHERE name='web_planning_revision' AND type='table') AS revision_sql,EXISTS (SELECT 1 FROM sqlite_master WHERE type='table' AND name='web_planning_file_part' AND instr(sql,'web_planning_part_ordinal')>0) AS parts FROM web_planning_schema").all<{version:number;revision_sql:string;parts:number}>();
   if (schema.results.length!==1 || ![4,5,6].includes(schema.results[0].version) || multi&&![5,6].includes(schema.results[0].version) || schema.results[0].parts!==1 || !schema.results[0].revision_sql?.includes('web_planning_revision_positive')) refuse('schema','incompatible_schema',503);
   const common={DB:env.DB,historyRead:{rows:0,bytes:0},env,local:principal.localFixture===true,principalHash:hash(login(principal.login)!),
-    signout:principal.ingress==='cloudflare-access'?'/cdn-cgi/access/logout':'/signout-with-chatgpt'};
+    signout:signoutPath(principal)};
   if(projectEntry){
     if(!multi)refuse('entry_disabled','access_denied',403);
     return {...common,workspace_id:env.WORKSPACE_ID,project_id:env.PROJECT_ID,author_ref:env.AUTHOR_REF,projectEntry:true};

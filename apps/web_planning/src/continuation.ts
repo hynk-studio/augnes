@@ -1,4 +1,4 @@
-import { login, projectEntryEnabled, type Access } from './access';
+import { login, projectEntryEnabled, requireSharedHomeSchema, sharedHomeEnabled, type Access } from './access';
 import { binding, boundedText, canonical, exact, fail, hash, headBinding, makeRevision, sameBinding, UUID, type Revision } from './contract';
 import { append, readWork } from './store';
 
@@ -13,8 +13,18 @@ async function available(s:Access) {
   if(!await s.DB.prepare("SELECT 1 FROM web_planning_schema WHERE version=6").first())fail('continuation_migration_required',503);
 }
 function owner(s:Access){if(s.recipientHash||s.projectEntry||s.principalHash!==s.ownerHash)fail('scope_denied',403);}
+function recipientOrigin(env:Access['env']) {
+  if(sharedHomeEnabled(env) && env.PUBLIC_RECIPIENT_ORIGIN){
+    try {
+      const url=new URL(env.PUBLIC_RECIPIENT_ORIGIN);
+      if(url.protocol==='https:' && url.origin===env.PUBLIC_RECIPIENT_ORIGIN)return url.origin;
+    } catch { /* Fall back to the existing private share URL. */ }
+  }
+  return env.APP_ORIGIN;
+}
+function grantRole(g:Grant){return g.max_updates===0?'read-work-v1':'continue-work-v1';}
 function view(s:Access,g:Grant){return {id:g.grant_id,work_id:g.work_id,recipient:g.recipient_login,obligation:g.obligation,
-  expires:g.expires,max_updates:g.max_updates,revoked_at:g.revoked_at,role:'continue-work-v1',link:s.env.APP_ORIGIN+'/continue/'+g.grant_id};}
+  expires:g.expires,max_updates:g.max_updates,revoked_at:g.revoked_at,role:grantRole(g),link:recipientOrigin(s.env)+'/continue/'+g.grant_id};}
 export async function listContinuations(s:Access,id:string,cursor='') {
   owner(s);await available(s);if(cursor&&!UUID.test(cursor))fail('invalid_cursor');
   const {results}=await s.DB.prepare(`SELECT * FROM web_planning_continuation WHERE workspace_id=? AND project_id=? AND work_id=? AND grant_id>? ORDER BY grant_id LIMIT 21`)
@@ -25,11 +35,14 @@ export async function createContinuation(s:Access,id:string,input:Record<string,
   owner(s);await available(s);
   exact(input,'workspace_id,project_id,grant_id,expected,recipient,obligation,expires,max_updates,confirm');
   const expected=binding(input.expected),recipient=login(input.recipient),obligation=boundedText(input.obligation,true);
-  if(!UUID.test(String(input.grant_id))||!recipient||hash(recipient)===s.ownerHash)fail('invalid_successor');
+  if(!UUID.test(String(input.grant_id))||!recipient||hash(recipient)===s.ownerHash || sharedHomeEnabled(s.env)&&recipient.length>254)fail('invalid_successor');
   if(input.confirm!=='share-this-work-history')fail('confirmation_required');
   const admitted=JSON.parse(s.env.PROJECT_ADMITTED_EMAILS??'[]') as string[];
-  if(recipient!==login(s.env.OWNER_EMAIL)&&!admitted.some(v=>login(v)===recipient))fail('successor_not_admitted',403);
-  if(!Number.isSafeInteger(input.expires)||!Number.isSafeInteger(input.max_updates)||Number(input.max_updates)<1||Number(input.max_updates)>20)fail('invalid_continuation_limit');
+  if(recipient!==login(s.env.OWNER_EMAIL)&&!admitted.some(v=>login(v)===recipient)){
+    if(!sharedHomeEnabled(s.env))fail('successor_not_admitted',403);
+    await requireSharedHomeSchema(s.DB);
+  }
+  if(!Number.isSafeInteger(input.expires)||!Number.isSafeInteger(input.max_updates)||Number(input.max_updates)<0||Number(input.max_updates)>20)fail('invalid_continuation_limit');
   const fingerprint=hash(canonical({work_id:id,expected,recipient,obligation,expires:input.expires,max_updates:input.max_updates}));
   const read=()=>s.DB.prepare('SELECT * FROM web_planning_continuation WHERE grant_id=? AND workspace_id=? AND project_id=?')
     .bind(String(input.grant_id),...scope(s)).first<Grant>();
@@ -78,11 +91,12 @@ export async function continuationContext(s:Access) {
 type Context=Awaited<ReturnType<typeof continuationContext>>;
 export function continuationView(s:Access,{g,chain}:Context) {
   return {workspace_id:s.workspace_id,project_id:s.project_id,work_id:g.work_id,grant_id:g.grant_id,
-    role:'continue-work-v1',obligation:g.obligation,expires:g.expires,max_updates:g.max_updates,
+    role:grantRole(g),obligation:g.obligation,expires:g.expires,max_updates:g.max_updates,
     remaining_updates:g.max_updates-chain.filter(r=>r.continuation?.grant_id===g.grant_id).length,
     saved:chain.at(-1),history:chain,attribution:'Updates identify the authenticated sign-in; human, agent and model authorship are not independently verified.'};
 }
 export async function writeContinuation(s:Access,c:Context,input:Record<string,unknown>,resolve=false) {
+  if(!resolve && c.g.max_updates===0)fail('continuation_read_only',403);
   exact(input,resolve?'workspace_id,project_id,request_key':'workspace_id,project_id,request_key,expected,report,next_action');
   if(!UUID.test(String(input.request_key)))fail('invalid_request_key');
   const prior=c.chain.find(r=>r.request_key===input.request_key);

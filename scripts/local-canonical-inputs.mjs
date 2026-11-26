@@ -380,7 +380,7 @@ function gitTrackingRole(resource, input) {
 // editor. Retain every byte except a complete, unique foreign branch section
 // containing exactly one plain remote and one plain refs/heads merge value.
 // Unsupported syntax anywhere retains whole-file protection.
-function gitTrackingProjection(bytes, protectedBranches) {
+export function gitTrackingProjection(bytes, protectedBranches) {
   const source = bytes.toString("utf8");
   if (!Buffer.from(source).equals(bytes) || source.includes("\0") || source.includes("\\")) return null;
   const blocks = [], seen = new Set();

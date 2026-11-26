@@ -1,4 +1,5 @@
 /dist/
 /dist-cloudflare/
+/dist-recipient/
 /.wrangler/
 /.dev.vars*

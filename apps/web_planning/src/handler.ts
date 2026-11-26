@@ -19,6 +19,7 @@ import participantJournal from "./participation-journal.js.txt?raw";
 import participantClient from "./participation-client.js.txt?raw";
 import projectsClient from './projects-client.js.txt?raw';
 import { projectEntryPage } from './project-entry';
+import { receivedWork, sharedHomePage, sharedSection } from './shared-work';
 import { createProject, listProjects } from './projects';
 import { applyReturn, inspectReturn } from "./return-continuation";
 import { inspectUse, previewReassessment, saveReassessment } from "./return-reassessment-ops";
@@ -34,7 +35,7 @@ import { hasSceneFile } from "./file-relations";
 import { DIRECTION_EXPORT, directionExport, validateDirectionExport } from "./direction-recovery";
 import { prepareSceneContext, prepareSceneDraft, previewSceneReview, saveSceneReview } from "./scenes";
 import { type FileBody, FILE_EXPORT_REQUEST_BYTES, LARGE_EXPORT_REQUEST_BYTES, LARGE_PAIR_REQUEST_BYTES, EXCHANGE_REQUEST_BYTES, historyFiles, selectedFiles, validateFileExport } from "./files";
-import { authorize, authorizeApplicant, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, projectEntryEnabled, selectedProject, type Environment, type Principal } from "./access";
+import { authorize, authorizeApplicant, authorizeSharedHome, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, projectEntryEnabled, selectedProject, sharedHomeEnabled, type Environment, type Principal } from "./access";
 import { binding, canonical, exact, exportWork, fail, hash, makeRevision, normalizePayload, reference, Refusal, REQUEST_BYTES, requestFingerprint, sameBinding, UUID, validateExport, validateRetainedIncorporations, type Revision } from "./contract";
 import { inspectDraftCapacity } from "./capacity";
 import { append, completeExport, downloadFile, eraseWork, headBinding, headsCurrent, listWork, readNoteHistory, readWork, reconstruct, reconstructWorks, requestRevision } from "./store";
@@ -90,6 +91,11 @@ function checkReplayedOccurrences(saved: Revision,edits: any[]) {
 export async function handle(request:Request,env:Environment,principal:Principal):Promise<Response> {
   try {
     const url=new URL(request.url), path=url.pathname;
+    const successor=path.match(/^\/(continue|api\/continuation)\/([a-f0-9-]{36})(.*)$/);
+    const publicHome=path==='/'&&!url.search&&!request.headers.has('x-web-planning-project') || path==='/projects';
+    const receivedPage=path==='/shared-work' || path==='/api/shared-work';
+    const sharedEntry=sharedHomeEnabled(env) && (publicHome||receivedPage||path==='/continuation.js'||path==='/style.css');
+    if(principal.ingress==='public-recipient' && !(sharedEntry || sharedHomeEnabled(env)&&successor&&UUID.test(successor[2])))fail('not_found',404);
     // Only the deliberately published projection is anonymous. Every private
     // operation still resolves the existing enforcing principal/project owner.
     const published=path.match(/^\/public-requests\/([a-f0-9-]{36})(\.json)?$/);
@@ -121,13 +127,12 @@ export async function handle(request:Request,env:Environment,principal:Principal
       }
       fail('not_found',404);
     }
-    const successor=path.match(/^\/(continue|api\/continuation)\/([a-f0-9-]{36})(.*)$/);
     if(successor&&UUID.test(successor[2])){
       const access=await authorize(request,env,principal,undefined,false,successor[2]),suffix=successor[3];
       const context=await continuationContext(access);let result:Response;
       if(url.search)fail('scope_denied',403);
       if(successor[1]==='continue'&&!suffix&&request.method==='GET'){
-        const csrf=csrfToken(access,request);result=html(continuationPage(access,csrf,successor[2]),{'Set-Cookie':csrfCookie(access,csrf)});
+        const csrf=csrfToken(access,request);result=html(continuationPage(access,csrf,successor[2],context.g.max_updates===0?'read-only':'continue'),{'Set-Cookie':csrfCookie(access,csrf)});
       }else if(successor[1]!=='api/continuation')fail('scope_denied',403);
       else if(request.method==='GET'&&!suffix)result=json(continuationView(access,context));
       else if(request.method==='GET'&&suffix==='/setup')result=new Response(JSON.stringify({format:'augnes_web_continuation.v1',origin:env.APP_ORIGIN,
@@ -212,6 +217,20 @@ export async function handle(request:Request,env:Environment,principal:Principal
       await activeGrant(access,id); // Readback/authorization loss never becomes an empty result.
       return result;
     }
+    if(sharedEntry){
+      const home=authorizeSharedHome(request,env,principal);
+      if(request.method!=='GET')fail('method_not_allowed',405);
+      if(url.search && (!receivedPage || url.searchParams.getAll('cursor').length!==1 || [...url.searchParams.keys()].some(key=>key!=='cursor')))fail('invalid_cursor');
+      if(path==='/continuation.js')return new Response(continuationClient,{headers:{...headers,'Content-Type':'text/javascript; charset=utf-8'}});
+      if(path==='/style.css')return new Response(style,{headers:{...headers,'Content-Type':'text/css; charset=utf-8'}});
+      const cursor=url.searchParams.get('cursor')??'';
+      const shared=await receivedWork(home,cursor);
+      if(path==='/api/shared-work')return json(shared);
+      const section=sharedSection(shared,!!cursor);
+      if(!publicHome || !home.mayManageProjects)return html(sharedHomePage(section,home.signout));
+      const author=await authorize(request,env,principal,undefined,true),csrf=csrfToken(author,request);
+      return html(projectEntryPage(csrf,author,section),{'Set-Cookie':csrfCookie(author,csrf)});
+    }
     const accountEntry=projectEntryEnabled(env)&&(path==='/projects'||path==='/api/projects'||path==='/projects.js'||path==='/continuation.js'||path==='/publications.js'||
       path==='/'&&!url.search&&!request.headers.has('x-web-planning-project')||['/style.css','/client.js','/exchange-text.mjs','/planning-notes.mjs','/favicon.ico'].includes(path));
     const access=await authorize(request,env,principal,undefined,accountEntry);
@@ -248,7 +267,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
     const manage=path.match(/^\/delegations\/([a-f0-9-]{36})\/([a-f0-9-]{36})$/);
     if(manage&&request.method==='GET'&&!url.search&&UUID.test(manage[1])&&UUID.test(manage[2])){
       await listContinuations(access,manage[2]);const chain=await readWork(access,manage[2]);if(!chain.length)fail('work_not_found',404);
-      const csrf=csrfToken(access,request);return html(continuationPage(access,csrf,manage[2],true),{'Set-Cookie':csrfCookie(access,csrf)});
+      const csrf=csrfToken(access,request);return html(continuationPage(access,csrf,manage[2],'manage'),{'Set-Cookie':csrfCookie(access,csrf)});
     }
     const publications=path.match(/^\/publications\/([a-f0-9-]{36})\/([a-f0-9-]{36})$/);
     if(publications&&request.method==='GET'&&!url.search&&UUID.test(publications[1])&&UUID.test(publications[2])){

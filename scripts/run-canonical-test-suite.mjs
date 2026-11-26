@@ -137,7 +137,7 @@ const goldenStep = {
   requireNaturalExit: true,
 };
 
-const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-input", "git-input-direct", "git-input-lifecycle", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-stock", "material-integration-preparation", "material-integration-reservation", "material-reservation", "serial-aggregate", "serial-material", "ordinary-watchdog-integration"].map(group => ({
+const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-input", "git-input-direct", "git-input-whole-file", "git-input-lifecycle", "git-input-successor", "git-successor", "commission", "successor", "final-input", "final-successor", "post-pass", "post-pass-controls", "post-pass-successor", "acquisition", "material-source", "material-controls", "material-successor", "material-final", "material-stock", "material-integration-preparation", "material-integration-reservation", "material-reservation", "serial-aggregate", "serial-material", "ordinary-watchdog-integration"].map(group => ({
   id: "local-canonical-reviewed-revision-" + group,
   label: "reviewed revision controls: " + group,
   sharedFixture: !["revision", "settlement", "browser", "serial-aggregate", "serial-material"].includes(group),
@@ -524,6 +524,14 @@ const suites = {
         label: "Companion lost-ownership retirement and reconciliation regressions",
         ...rootNode("scripts/test-companion-ownership-retirement.mjs"),
         timeoutMs: 60_000,
+        requireNaturalExit: true,
+      },
+      {
+        label: "Companion stale-manager stopped recovery and interruption regressions",
+        ...rootNode("scripts/test-companion-stale-manager-recovery.mjs"),
+        // This new aggregate owns the disposable refusal, interrupted/resumed
+        // and real-applier-crash matrix; it does not extend adjacent owners.
+        timeoutMs: 180_000,
         requireNaturalExit: true,
       },
     ] : []),

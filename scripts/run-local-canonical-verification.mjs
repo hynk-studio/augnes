@@ -118,6 +118,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-browser-bundle.mjs",
   "scripts/local-canonical-browser-revision.mjs",
   "scripts/local-canonical-git-observation.mjs",
+  "scripts/local-canonical-whole-file-git.mjs",
   "scripts/local-canonical-serial-aggregate.mjs",
   "scripts/project-experience-serial-budget.mjs",
   "scripts/project-experience-connection.mjs",

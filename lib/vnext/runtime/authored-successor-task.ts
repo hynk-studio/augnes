@@ -39,7 +39,7 @@ import { buildTaskStartGuideBriefCodexProjectionV02 } from "@/lib/vnext/guide-br
 import { fingerprintNativeHostPhysicalRootIdentityV01 } from "@/lib/vnext/native-host/project-root-identity";
 import { createCodexScopedTaskV01, inspectCodexScopedTaskSourceV01 } from "@/lib/vnext/native-host/codex-scoped-task";
 import { readProjectWorkInitializationV01 } from "./project-work-initialization";
-import { normalizeInitialProjectWorkDefinitionV01 } from "./initial-project-work-context";
+import { normalizeInitialProjectWorkDefinitionV01, workDefinitionNonGoalGaps } from "./initial-project-work-context";
 import { STATELESS_WORK } from "../stateless-work";
 
 const ACTION = "define_authored_successor_task";
@@ -77,13 +77,18 @@ export function readResultWorkPreparationV01(db: Database.Database, input: {
     expected_project_work_binding: initialization.project_work_binding!,
     expected_active_selection_revision: initialization.active_selection_revision, expected_root_fingerprint: roots[0]!.source_ref!,
   };
+  const reviewed_outcome = readReviewedOutcomeReuseV01(db, { ...input.config, packet: r.packet, receipt: r.receipt, assessment: r.criterion_assessment });
+  return { initialization, binding, result_source: buildResultWorkSourceV01(r), reviewed_outcome };
+}
+
+export function buildResultWorkSourceV01(r: ReturnType<typeof readProjectRunResultSourceBindingV01>) {
+  if (!r.packet) return null;
   // The receipt records a report, not verification of the report's prose.
   // Whole-note limits apply; a long report is never silently truncated.
-  let result_source = null;
   try {
     let preparationReport: { version?: string; agenda_ref?: string; observations?: unknown[] } | null = null;
     try { preparationReport = JSON.parse(r.receipt.result_summary.summary); } catch { /* Ordinary prose report. */ }
-    result_source = buildSelectedWorkSourceEntry(r.packet, {
+    return buildSelectedWorkSourceEntry(r.packet, {
       source: `${r.receipt.receipt_id} ${r.receipt.integrity.fingerprint}`, observed_at: r.receipt.recorded_at,
       provenance: "imported_unverified", label: "Unclassified / needs review",
       text: isSettledInspectionResult(r) && preparationReport?.version === SELECTED_SOURCE_RESULT
@@ -94,9 +99,8 @@ export function readResultWorkPreparationV01(db: Database.Database, input: {
   } catch (error) {
     if (!(error instanceof SelectedWorkSourceError)) throw error;
     // The reviewer can select a bounded attributed excerpt instead.
+    return null;
   }
-  const reviewed_outcome = readReviewedOutcomeReuseV01(db, { ...input.config, packet: r.packet, receipt: r.receipt, assessment: r.criterion_assessment });
-  return { initialization, binding, result_source, reviewed_outcome };
 }
 
 export function compareResultWorkSourcesV01(db: Database.Database, input: {
@@ -322,7 +326,7 @@ function buildUnchecked(input: { prior: TaskContextPacketV01; receipt: ReturnTyp
     selected_context: [...prior.selected_context.filter(e => e.entry_kind === "accepted_state_ref"), ...statelessMandatoryEntries(prior), ...entries, ...selected],
     excluded_context: prior.selected_context.filter(e => e.entry_kind !== "accepted_state_ref" && !statelessMandatoryEntries(prior).some(note => note.entry_id === e.entry_id) && !selected.some(note => note.entry_id === e.entry_id)).map(e => ({ entry_id: e.entry_id,
       source_ref: e.source_ref, external_ref: e.external_ref, why_excluded: material.request.selected_sources?.omitted_sources.find(row => row.source_binding === e.source_ref)?.reason ?? "Historical predecessor context; not an active successor instruction.", currentness: e.currentness })),
-    tensions: [], risks: [], gaps: [],
+    tensions: [], risks: [], gaps: workDefinitionNonGoalGaps(definition.stop_conditions, definitionRef),
     constraints: { required_checks: definition.checks.map(c => c.check_id).sort(), forbidden_actions: definition.stop_conditions,
       data_classification: prior.constraints.data_classification, context_budget: { max_selected_entries: 24, max_projection_items: 4,
         max_characters: 76_000, max_estimated_tokens: 19_000 } },

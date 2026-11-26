@@ -66,7 +66,7 @@ export const participation=sqliteTable('web_planning_participation',{
   check('web_planning_participation_disclosure',sql`json_valid(${t.disclosure})`),
 ]);
 
-// A finite, revocable right to append attributed updates to one existing work.
+// A revocable right to read one existing work and append up to the granted number of updates.
 // These operational grants never travel in a portable work export.
 export const continuation=sqliteTable('web_planning_continuation',{
   grant_id:text('grant_id').primaryKey(),
@@ -77,7 +77,8 @@ export const continuation=sqliteTable('web_planning_continuation',{
 },t=>[
   foreignKey({columns:[t.workspace_id,t.project_id],foreignColumns:[workspace.workspace_id,workspace.project_id]}),
   index('web_planning_continuation_work').on(t.workspace_id,t.project_id,t.work_id,t.grant_id),
-  check('web_planning_continuation_limit',sql`${t.max_updates} BETWEEN 1 AND 20`),
+  index('web_planning_continuation_recipient').on(t.workspace_id,t.recipient_hash,t.grant_id),
+  check('web_planning_continuation_limit',sql`${t.max_updates} BETWEEN 0 AND 20`),
 ]);
 
 // Explicitly selected public summaries are operational publication mappings.

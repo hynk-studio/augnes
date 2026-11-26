@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { migrationPrefix } from './web-planning-local-runtime.mjs';
+import { webRoot } from './build-web-planning.mjs';
 import path from 'node:path';
 import { headBinding, canonical, hash } from '../apps/web_planning/src/contract.ts';
 import { authorize } from '../apps/web_planning/src/access.ts';
 import { continuationContext, writeContinuation } from '../apps/web_planning/src/continuation.ts';
-import { openFileContinuation } from '../apps/augnes_apps/scripts/web-file-client.mjs';
+import { digest, openFileContinuation } from '../apps/augnes_apps/scripts/web-file-client.mjs';
+import { runCanonicalChild, canonicalChildAcceptanceFailure } from './canonical-child-runner.mjs';
 import { planningDraft } from '../apps/augnes_apps/scripts/planning-notes.mjs';
 import { directionExport } from '../apps/web_planning/src/direction-recovery.ts';
 import { CONTINUATION_EXPORT } from '../apps/web_planning/src/continuation-contract.ts';
@@ -23,7 +27,7 @@ export function checkContinuationDirectionBudget(){
 }
 export async function checkWorkContinuation({start,root,passed}) {
   checkContinuationDirectionBudget();
-  const s=await start('work-succession',{bindings:bindings()}),entry=await session(s,'A');
+  const s=await start('work-succession',{bindings:bindings(),migrationsFolder:await migrationPrefix(root,11)}),entry=await session(s,'A');
   const created=await ok(entry,'/api/projects',input('A')),other=await ok(entry,'/api/projects',{...input('A'),name:'Unshared project'});
   const p=created.project,id=p.continuation_work_id,owner=await session(s,'A',p),work='/api/work/'+id,grants=work+'/continuation';
   let head=created.saved;
@@ -58,6 +62,24 @@ export async function checkWorkContinuation({start,root,passed}) {
   assert.equal((await ok(owner,'/api/works')).items[0].latest_continuation.report,report.report);
   passed('successor: a separately signed-in fresh client reads existing purpose, source-grounded work and obligation; saves an attributed next step; reconciles a lost response without duplicate effects or changing historical authorship');
 
+  // Upgrade a populated predecessor store with the pinned D1 migrator.
+  const ended=await ok(owner,grants+'/create',grantInput()),lapsed=await ok(owner,grants+'/create',grantInput());
+  await ok(owner,grants+'/revoke',{grant_id:ended.id});
+  await s.db.prepare('UPDATE web_planning_continuation SET expires=? WHERE grant_id=?').bind(Date.now()-1,lapsed.id).run();
+  const rows=async()=>(await s.db.prepare('SELECT * FROM web_planning_continuation ORDER BY grant_id').all()).results;
+  const grantsBefore=await rows(),historyBefore=await ok(owner,work+'/history');
+  const localRequire=createRequire(path.join(webRoot,'package.json'));
+  const {drizzle}=localRequire('drizzle-orm/d1'),{migrate}=localRequire('drizzle-orm/d1/migrator');
+  await migrate(drizzle(s.db),{migrationsFolder:path.join(webRoot,'drizzle')});
+  assert.deepEqual(await rows(),grantsBefore);assert.deepEqual(await ok(owner,work+'/history'),historyBefore);
+  assert.deepEqual((await s.db.prepare('PRAGMA foreign_key_check').all()).results,[]);
+  const migrated=await ok(fresh,api);
+  assert.equal(migrated.role,'continue-work-v1');assert.equal(migrated.remaining_updates,1);
+  assert.deepEqual(await ok(fresh,api+'/save',report),{outcome:'saved',saved:head});
+  for(const inactive of [ended,lapsed])
+    assert.equal((await fresh.request('/api/continuation/'+inactive.id)).status,403);
+  passed('read-only migration: existing grant rows, expiry, revocation and attributed history survive; a partly used writer retains its allowance and idempotent save');
+
   for(const url of [work,work+'/history',work+'/export',grants, '/api/project','/api/works']){
     assert.equal((await fresh.request(url,undefined,{'x-web-planning-project':p.project_id})).status,403,url);
   }
@@ -81,7 +103,9 @@ export async function checkWorkContinuation({start,root,passed}) {
   const next={...report,expected:headBinding(head),report:'Noise limit is 40 dBA according to the venue response.',next_action:'Check the 18:00 room measurement against 40 dBA.'};
   const race=await Promise.all([1,2].map(()=>fresh.request(api+'/save',{...next,request_key:randomUUID()})));
   assert.deepEqual(race.map(r=>r.status).sort(),[200,409]);head=race.find(r=>r.status===200).data.saved;
-  assert.equal((await ok(fresh,api)).remaining_updates,0);
+  const exhausted=await ok(fresh,api);
+  assert.equal(exhausted.remaining_updates,0);assert.equal(exhausted.role,'continue-work-v1');
+  assert.deepEqual(await ok(fresh,api+'/save',report),{outcome:'saved',saved:resolved.saved},'an exhausted writer can still recover a confirmed update');
   assert.equal((await fresh.request(api+'/save',{...next,request_key:randomUUID(),expected:headBinding(head)})).status,409);
   assert.equal((await ok(await session(s,'B',p,'/continue/'+g.id),api)).remaining_updates,0,'fresh sessions cannot reset the grant budget');
   passed('scope and limits: unshared projects, owner APIs, erasure, edited setup and cross-grant CSRF refuse; concurrent writes consume only the permitted number of updates across fresh sessions');
@@ -146,7 +170,121 @@ export async function checkWorkContinuation({start,root,passed}) {
   assert.equal(response.headers.get('x-content-sha256'),fileHead.files[0].digest);
   assert.equal(response.headers.get('content-length'),String(Buffer.byteLength(originalText)));
   assert.equal((await fileReader.request(fileRoot+'/files/'+fileHead.revision+'/'+head.fingerprint.slice(7)+'/0')).status,409);
-  await ok(otherOwner,fileWork+'/continuation/revoke',{grant_id:fileGrant.id});
+
+  const readGrant=await ok(otherOwner,fileWork+'/continuation/create',{...grantInput(),expected:headBinding(fileHead),max_updates:0});
+  const reader=await session(s,'B',other.project,'/continue/'+readGrant.id);
+  const readDownload=download.replace(fileGrant.id,readGrant.id);
+  const readBytes=await s.mf.dispatchFetch(s.origin+readDownload,{headers:{cookie:reader.cookies}});
+  assert.equal(readBytes.status,200);assert.equal(await readBytes.text(),originalText);
+  assert.equal(readBytes.headers.get('x-content-sha256'),fileHead.files[0].digest);
+  await ok(otherOwner,fileWork+'/continuation/revoke',{grant_id:readGrant.id});
+  assert.equal((await reader.request(readDownload)).status,403);
+
+  const updated = Buffer.from('Proposed arrival at 17:30.\n');
+  const exchange = await ok(otherOwner, fileWork+'/exchanges/save', {
+    kind:'request', basis:null, expected:headBinding(fileHead), request_key:randomUUID(),
+    message:'Review the proposed change.', next_action:'Check the recorded arrival time.',
+    files:[{name:fileHead.files[0].name, media_type:'text/plain', bytes:updated.length,
+      digest:digest(updated), data:updated.toString('base64')}],
+  });
+  await writeFile(setupPath,JSON.stringify(await ok(fileReader,fileRoot+'/setup')));
+  await agent(s,'B',async()=>{
+    const client = await openFileContinuation(setupPath);
+    const state = await client.read();
+    const original = await client.readAttachment(fileHead,'files',0);
+    const proposal = await client.readAttachment(exchange.item.ref,'exchange-files',0);
+    assert.deepEqual(original.bytes,Buffer.from(originalText));
+    assert.deepEqual(proposal.bytes,updated);
+    assert.equal(proposal.file.name,original.file.name);
+    assert.deepEqual(proposal.ref,exchange.item.ref);
+    await assert.rejects(client.readAttachment({...fileHead,fingerprint:head.fingerprint},'files',0));
+    await assert.rejects(client.readAttachment({...fileHead,work_id:head.work_id},'files',0));
+    await assert.rejects(client.readAttachment(fileHead,'exchange-files',0));
+    const summary = 'Proposal at r'+proposal.ref.revision+': '+proposal.bytes.toString().trim()+
+      ' Recorded source at r'+original.ref.revision+': '+original.bytes.toString().trim();
+    await client.save({request_key:randomUUID(),expected:headBinding(state.saved),report:summary,
+      next_action:'Keep the recorded arrival until the proposal is approved.'});
+    const reopened = await openFileContinuation(setupPath);
+    assert.equal((await reopened.read()).saved.continuation.report,summary);
+    await ok(otherOwner,fileWork+'/continuation/revoke',{grant_id:fileGrant.id});
+    await assert.rejects(client.readAttachment(fileHead,'files',0),/continuation_unavailable|scope_denied|access_denied/);
+  });
   assert.equal((await fileReader.request(download)).status,403);
   passed('successor files: exact UTF-8/CRLF bytes, original filename and digest remain scoped to the granted revision; foreign fingerprints and revoked access refuse');
+  passed('local reader: same-name historical and exchange attachments support a report saved to the original work and read back after reopening');
+  await checkSharedHome(s,root,entry,passed);
+}
+
+async function checkSharedHome(s,root,entry,passed) {
+  const email='new-reader@example.test',otherSession=randomUUID();
+  await s.setOptions({bindings:{...s.env,PUBLIC_SUCCESSION_MODE:'verified-email-home-v1',PROJECT_ADMITTED_EMAILS:'[]',
+    LOCAL_PARTICIPANT_LOGIN:email,LOCAL_OTHER_SESSION:otherSession,LOCAL_OTHER_LOGIN:'another-reader@example.test'}});
+  const visit=(path,session=s.env.LOCAL_PARTICIPANT_SESSION,init={})=>s.mf.dispatchFetch(s.origin+path,
+    {...init,headers:{...(session?{cookie:'web_planning_local='+session}:{}),...init.headers}});
+  const inbox=async (session)=>{const r=await visit('/api/shared-work',session);assert.equal(r.status,200);return r.json();};
+  const empty={items:[],next:null};
+  assert.deepEqual(await inbox(),empty);
+  assert.match(await (await visit('/')).text(),/No work has been shared/);
+  assert.equal((await visit('/api/shared-work',null)).status,403);
+  assert.equal((await visit('/api/projects',undefined,{method:'POST'})).status,403);
+  assert.equal((await visit('/api/shared-work?cursor=other')).status,422);
+  assert.equal((await visit('/api/shared-work',undefined,{method:'POST'})).status,405);
+
+  const created=await ok(entry,'/api/projects',{...input('A'),purpose:'Schedule an open workshop'});
+  const p=created.project,id=p.continuation_work_id,owner=await session(s,'A',p),work='/api/work/'+id;
+  const grantInput={grant_id:randomUUID(),recipient:email.toUpperCase(),obligation:'Check <room> & report the count.',
+    expires:Date.now()+3600000,max_updates:1,confirm:'share-this-work-history',expected:headBinding(created.saved)};
+  const grant=await ok(owner,work+'/continuation/create',grantInput);
+  const row={grant_id:grant.id,work_id:id,goal:created.saved.definition.goal,obligation:grant.obligation};
+  assert.deepEqual(await inbox(),{items:[row],next:null});
+  assert.deepEqual(await inbox(otherSession),empty);
+  for(const path of [grant.link.slice(s.origin.length),'/api/continuation/'+grant.id])
+    assert.equal((await visit(path,otherSession)).status,403);
+  for(const path of ['/?project='+p.project_id,'/api/projects',work,work+'/export'])
+    assert.equal((await visit(path)).status,403);
+  const html=await (await visit('/projects')).text();
+  assert(html.includes('/continue/'+grant.id));assert(html.includes('&lt;room&gt; &amp;'));assert(!html.includes('id="project-create"'));
+  assert.equal((await visit('/continuation.js')).status,200);
+  assert.equal((await visit('/style.css')).status,200);
+  const setupPath=path.join(root,'found-on-home.json');
+  await agent(s,'B',async()=>{
+    async function cli(action,...args) {
+      let output='';
+      const result=await runCanonicalChild({suite:'web-planning',label:action,command:process.execPath,
+        cwd:path.resolve('apps/augnes_apps'),env:process.env,args:['scripts/file-exchange.mjs',action,...args],
+        stdout:{write:chunk=>{output+=chunk;}},timeoutMs:10000});
+      const failure=canonicalChildAcceptanceFailure(result,{requireNaturalExit:true});if(failure)throw Error(failure);
+      return JSON.parse(output);
+    }
+    const [found]=(await cli('shared-work')).items;
+    assert.deepEqual(await cli('shared-setup',found.grant_id,setupPath),{work_id:id,grant_id:grant.id});
+    const client=await openFileContinuation(setupPath),before=await client.read();
+    await client.save({request_key:randomUUID(),expected:headBinding(before.saved),report:'Six sessions fit.',
+      next_action:'Confirm the room.'});
+    const reopened=await (await openFileContinuation(setupPath)).read();
+    assert.equal(reopened.saved.work_id,id);assert.equal(reopened.saved.revision,before.saved.revision+1);
+    assert.equal(reopened.saved.continuation.report,'Six sessions fit.');assert.equal(reopened.remaining_updates,0);
+  });
+  assert.deepEqual(await inbox(),{items:[row],next:null},'exhaustion stops writes and retains authorized reading');
+  const head=(await ok(owner,work)).saved;
+  const anotherGrant=()=>ok(owner,work+'/continuation/create',{...grantInput,grant_id:randomUUID(),expected:headBinding(head)});
+  const expired=await anotherGrant();
+  await s.db.prepare('UPDATE web_planning_continuation SET expires=? WHERE grant_id=?').bind(Date.now()-1,expired.id).run();
+  assert.deepEqual(await inbox(),{items:[row],next:null});
+  await ok(owner,work+'/continuation/revoke',{grant_id:grant.id});
+  assert.deepEqual(await inbox(),empty);
+  assert.equal((await visit('/api/continuation/'+grant.id+'/setup')).status,403);
+  const active=[];
+  for(let i=0;i<21;i++)active.push((await anotherGrant()).id);
+  const pageOne=await inbox();
+  assert.equal(pageOne.items.length,20);
+  assert.equal(pageOne.next,pageOne.items[19].grant_id);
+  const pageTwo=await (await visit('/api/shared-work?cursor='+pageOne.next)).json();
+  assert.equal(pageTwo.next,null);
+  assert.deepEqual([...pageOne.items,...pageTwo.items].map(item=>item.grant_id),active.sort());
+  assert.deepEqual(await inbox(otherSession),empty);
+  await ok(owner,work+'/erase',{confirm:'erase-whole-work',expected:headBinding(head)});
+  assert.deepEqual(await inbox(),empty);
+  assert.notEqual((await visit('/continue/'+active[0])).status,200);
+  passed('public recipient home: verified email starts empty, only its shared work appears; fresh client updates and reopens the original; expiry, revocation and erasure remove discovery');
 }

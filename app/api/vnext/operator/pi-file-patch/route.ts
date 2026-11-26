@@ -2,7 +2,7 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { assertPacketDirectionCurrent } from "@/lib/vnext/persistence/project-direction-store";
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
-import { PiFilePatchError, PI_FILE_PATCH_TIMEOUT, createPiFilePatchAdapter, readPiPatchSelection } from "@/lib/vnext/native-host/pi-file-patch-adapter";
+import { PiFilePatchError, PI_FILE_PATCH_TIMEOUT, createPiFilePatchAdapter, readPiPatchSource } from "@/lib/vnext/native-host/pi-file-patch-adapter";
 import { admitPersistedHostTaskContextPacketV01, DirectNativeHostRoundTripErrorV01, runDirectNativeHostRoundTripV01 } from "@/lib/vnext/runtime/direct-native-host-round-trip";
 import {
   assertVNextLocalOperatorRequestBoundaryV01, authenticateVNextLocalOperatorCurrentCredentialV01,
@@ -27,9 +27,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (url.search) throw new PiFilePatchError("pi_patch_query_forbidden", 400);
     const body = await readBoundedVNextLocalOperatorBodyV01(request);
     const preview = body.action === "preview";
-    const keys = preview ? ["action", "path"] : ["action", "path", "binding"];
+    const predecessor = body.source === "predecessor";
+    const keys = ["action", predecessor ? "source" : "path", ...(preview ? [] : ["binding"])];
     if ((!preview && body.action !== "prepare") || Object.keys(body).length !== keys.length ||
-        !keys.every(key => Object.hasOwn(body, key)) || typeof body.path !== "string") {
+        !keys.every(key => Object.hasOwn(body, key)) || (!predecessor && typeof body.path !== "string")) {
       throw new PiFilePatchError("pi_patch_request_invalid", 400);
     }
     let credential = readVNextLocalOperatorCredentialFromRequestV01(request);
@@ -57,8 +58,11 @@ export async function POST(request: Request): Promise<NextResponse> {
       catch { throw new PiFilePatchError("pi_patch_work_changed"); }
       return currentBinding;
     }
-    const { selection, binding } = readPiPatchSelection(packet, admitted.root_scope, body.path, assertCurrent());
+    const source = typeof body.path === "string" ? { selectedPath: body.path } : { predecessorDatabase: db };
+    const material = readPiPatchSource(packet, admitted.root_scope, source, assertCurrent(), admitted.packet_lineage);
+    const { selection, binding } = material;
     if (preview) return NextResponse.json({ ok: true, binding, selection, ...identity,
+      ...(material.predecessor && { predecessor: material.predecessor }),
       operation: "Append one LF to an isolated copy, check it, and return a patch. The source file is read-only.",
       project_id: config.project_id, goal: packet.task.goal }, { headers });
     if (body.binding !== binding) throw new PiFilePatchError("pi_patch_approval_mismatch");
@@ -73,7 +77,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         expires_at: admission.cookie_expires_at, max_age_seconds: admission.cookie_max_age_seconds, secure: url.protocol === "https:" }));
     };
     const result = await runDirectNativeHostRoundTripV01(db, { config, mode: "interactive", operator_mutation: { credential } }, {
-      adapter: createPiFilePatchAdapter({ executable, selectedPath: selection.path, approvedBinding: binding, assertCurrent }),
+      adapter: createPiFilePatchAdapter({ executable, ...source, approvedBinding: binding, assertCurrent }),
       timeout_ms: PI_FILE_PATCH_TIMEOUT, stop_settle_timeout_ms: 3_000, cancellation_signal: request.signal,
       resolve_packet_selection: () => identity,
       on_invocation_admitted: ({ session_admission }) => rotate(session_admission),

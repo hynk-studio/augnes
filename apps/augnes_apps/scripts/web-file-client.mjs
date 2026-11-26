@@ -1,4 +1,4 @@
-import { prepareReturnDraft } from './planning-notes.mjs';
+import { compareNoteContext, prepareReturnDraft } from './planning-notes.mjs';
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify, isDeepStrictEqual } from 'node:util';
@@ -17,6 +17,11 @@ export async function openFileProject(origin = process.env.AUGNES_WEB_ORIGIN,pro
 export async function openFileProjects(origin=process.env.AUGNES_WEB_ORIGIN){
   const {request}=await openFileConnection(origin,'/projects',{},undefined,true);
   return {list:async cursor=>(await request('/api/projects'+(cursor?'?cursor='+encodeURIComponent(cursor):''))).json(),
+    shared:async cursor=>(await request('/api/shared-work'+(cursor?'?cursor='+encodeURIComponent(cursor):''))).json(),
+    async sharedSetup(grantId){
+      if(!uuid.test(grantId))fail('Choose a listed delegation ID.');
+      return (await request('/api/continuation/'+grantId+'/setup')).json();
+    },
     create:async input=>(await request('/api/projects',input)).json(),
     open:projectId=>openFileProject(origin,projectId)};
 }
@@ -103,6 +108,20 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
     async history(sourceWork=work_id) {
       if(typeof sourceWork!=='string' || !uuid.test(sourceWork))fail('Select a listed work.');
       return (await (await request('/api/work/'+sourceWork+'/history?view=notes')).json()).revisions;
+    },
+    async checkNoteSource(version, noteNumber) {
+      if (participant) fail('Open the private project task to check a saved note.');
+      if (!Number.isSafeInteger(version) || version < 1 || !Number.isSafeInteger(noteNumber) || noteNumber < 1)
+        fail('Choose a saved revision and a one-based note number.');
+      const history = await planning.history();
+      const saved = history[version - 1], note = saved?.sources[noteNumber - 1];
+      if (!note || saved.revision !== version || saved.work_id !== work_id ||
+          saved.workspace_id !== project.workspace_id || saved.project_id !== project.project_id)
+        fail('historical_note_unavailable');
+      const selected = { work_id, revision: version, fingerprint: saved.fingerprint, source_ref: note.source_ref };
+      const origin = saved.relations?.materials.find(material => material.source_ref === note.source_ref)?.from ?? selected;
+      const sourceHistory = origin.work_id === work_id ? history : await planning.history(origin.work_id);
+      return { selected, ...compareNoteContext(sourceHistory, origin) };
     },
     async retainedSource() {
       if(participant)fail('Open the destination task to read its retained material.');
@@ -337,6 +356,25 @@ export async function openFileContinuation(setupPath, expectedSetupDigest) {
     if(value.work_id!==setup.work_id||value.project_id!==setup.project_id||value.workspace_id!==setup.workspace_id||value.grant_id!==setup.grant_id)fail('Continuation selection changed.');
     return value;
   }
+  async function readAttachment(ref, kind, index) {
+    const { work_id, revision, fingerprint: revisionFingerprint } = ref ?? {};
+    if (work_id !== setup.work_id || !Number.isSafeInteger(revision) || revision < 1 ||
+        typeof revisionFingerprint !== 'string' || !fingerprint.test(revisionFingerprint) ||
+        !['files', 'exchange-files'].includes(kind) || !Number.isInteger(index) || index < 0 || index > 7) {
+      fail('Choose an attachment from a listed revision of this work.');
+    }
+    const { history } = await read();
+    const saved = history.find(entry => entry.revision === revision && entry.fingerprint === revisionFingerprint);
+    const file = kind === 'files' ? saved?.files?.[index] : saved?.exchange?.artifacts?.[index]?.file;
+    if (!file) fail('Attachment is not present in the selected revision.');
+
+    const response = await request([root, kind, revision, revisionFingerprint.slice(7), index].join('/'));
+    if (response.headers.get('content-length') !== String(file.bytes) ||
+        response.headers.get('x-content-sha256') !== file.digest) fail('Attachment metadata mismatch.');
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length !== file.bytes || digest(bytes) !== file.digest) fail('Attachment content mismatch.');
+    return { ref: { work_id, revision, fingerprint: revisionFingerprint }, kind, index, file, bytes };
+  }
   await read();
-  return {read,save:async input=>(await request(root+'/save',input)).json(),resolve:async request_key=>(await request(root+'/resolve',{request_key})).json()};
+  return {read,readAttachment,save:async input=>(await request(root+'/save',input)).json(),resolve:async request_key=>(await request(root+'/resolve',{request_key})).json()};
 }

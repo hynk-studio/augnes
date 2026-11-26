@@ -5,6 +5,8 @@ import { validProjectExperienceAccounting } from "./project-experience-serial-bu
 import { digest, classifyInputChange, effectiveInputObservation, inputEventIdentity, nonFaultInputChange, INPUT_CONTRACT, PREPARED_DEPENDENCY_CONTRACT, comparePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
 import { settledIsolatedResources, cancelledPhase, verifySettledPhaseFailure } from "./local-canonical-browser-revision.mjs";
 import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
+import { WHOLE_FILE_GIT_REVISION, WHOLE_FILE_GIT_HISTORY, isWholeFileGitRevision,
+  wholeFileGitObservation, verifyWholeFileGitRemedy } from "./local-canonical-whole-file-git.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { REGISTERED_FIXTURE_BUDGET, verifyRegisteredFixtureBudget, FIXTURE_BUDGET_CLAIM,
   isMaintenanceFixtureBudget, MAINTENANCE_FIXTURE_CASE, MAINTENANCE_FIXTURE_GRANT,
@@ -34,11 +36,13 @@ export const GIT_INPUT_REVISION = "stable-protected-git-input-v1";
 export const DIRECT_GIT_INPUT_REVISION = "direct-protected-git-input-v1";
 export const isDirectGitInputRevision = p => isGitObservationRevision(p) &&
   p.commission?.input_revision === DIRECT_GIT_INPUT_REVISION;
+export const isSingleUseGitInputRevision = p => isDirectGitInputRevision(p) || isWholeFileGitRevision(p);
 export const isGitInputRevision = p => isGitObservationRevision(p) &&
-  [GIT_INPUT_REVISION, DIRECT_GIT_INPUT_REVISION].includes(p.commission?.input_revision);
+  (p.commission?.input_revision === GIT_INPUT_REVISION || isSingleUseGitInputRevision(p));
 export const GIT_INPUT_HISTORY_BOUNDARY = "Historical window remains UNKNOWN; original false stock and consumed invocation remain unchanged.";
 export const DIRECT_GIT_INPUT_HISTORY_BOUNDARY = "Original direct Git input invalidation, false stock and consumed invocation remain unchanged.";
-export const gitInputHistoryBoundary = p => isDirectGitInputRevision(p) ? DIRECT_GIT_INPUT_HISTORY_BOUNDARY : GIT_INPUT_HISTORY_BOUNDARY;
+export const gitInputHistoryBoundary = p => isWholeFileGitRevision(p) ? WHOLE_FILE_GIT_HISTORY :
+  isDirectGitInputRevision(p) ? DIRECT_GIT_INPUT_HISTORY_BOUNDARY : GIT_INPUT_HISTORY_BOUNDARY;
 // A v7 commission descending from the spent Git-observation chain keeps the
 // complete input inventory throughout its physical lineage.
 export const isInventoryBoundRevision = p => p?.schema === "augnes.local-canonical-source-correction.v7" &&
@@ -72,8 +76,8 @@ function gitObservation(value) {
 // Retain the unknown first observation. The later measurement establishes a
 // change in the protected input, but supplies no preimage or list of changed keys.
 export function gitObservationIncident(r, prior, completion, stock, phases, inputRevision = null) {
-  if (inputRevision !== null && ![GIT_INPUT_REVISION, DIRECT_GIT_INPUT_REVISION].includes(inputRevision)) fail("revision_git_predecessor_invalid");
-  return readGitIncident(r, prior, completion, stock, phases, false, inputRevision === DIRECT_GIT_INPUT_REVISION);
+  if (inputRevision !== null && ![GIT_INPUT_REVISION, DIRECT_GIT_INPUT_REVISION, WHOLE_FILE_GIT_REVISION].includes(inputRevision)) fail("revision_git_predecessor_invalid");
+  return readGitIncident(r, prior, completion, stock, phases, false, inputRevision);
 }
 
 // Prospective eligibility only. A later complete ambient observation does not
@@ -82,7 +86,9 @@ export function gitAcquisitionIncident(r, prior, completion, stock, phases) {
   return readGitIncident(r, prior, completion, stock, phases, true);
 }
 
-function readGitIncident(r, prior, completion, stock, phases, acquisition, direct = false) {
+function readGitIncident(r, prior, completion, stock, phases, acquisition, inputRevision = null) {
+  const wholeFile = inputRevision === WHOLE_FILE_GIT_REVISION;
+  const direct = wholeFile || inputRevision === DIRECT_GIT_INPUT_REVISION;
   const i = r.inputs, a = r.attempt;
   if (r.receipt_version !== 4 || !a || a.number !== 1 || a.recovery !== null || (acquisition ?
       a.source_correction?.schema !== "augnes.local-canonical-source-correction.v7" ||
@@ -106,9 +112,11 @@ function readGitIncident(r, prior, completion, stock, phases, acquisition, direc
       new Set(resources.map(v=>v.id)).size !== resources.length || !Array.isArray(i.events) || i.events.length >= 64)
     fail("revision_git_observations_invalid");
   const git = resources.find(v=>v.id === "git-config"), faults=[];
-  if (git?.classification !== "execution" || git.gitTracking?.policy !== "isolated-current-branches-v1" ||
-      !git.gitTracking.protected_branches?.includes(digest(a.branch)) ||
-      !sha(git.location_fingerprint) || !gitObservation(git.before)) fail("revision_git_observations_invalid");
+  const observation = wholeFile ? wholeFileGitObservation : gitObservation;
+  if (git?.classification !== "execution" || !sha(git.location_fingerprint) || !observation(git.before) ||
+      (wholeFile ? Object.keys(git).sort().join(",") !== "before,classification,id,location_fingerprint" :
+        git.gitTracking?.policy !== "isolated-current-branches-v1" || !git.gitTracking.protected_branches?.includes(digest(a.branch))))
+    fail("revision_git_observations_invalid");
   let last = -1n;
   for (const event of i.events) {
     const role = resources.find(v=>v.id===event.resource);
@@ -130,13 +138,13 @@ function readGitIncident(r, prior, completion, stock, phases, acquisition, direc
   const change = direct ? faults[0] : acquisition ? later[0] : faults[1];
   if (faults.length !== (direct || acquisition ? 1 : 2) || (!direct && (race?.resource !== git.id || race.disposition !== "observer_failure")) || change?.resource !== git.id ||
       change.disposition !== (acquisition ? "ambient_observation" : "input_invalidation") ||
-      !gitObservation(change.after) || git.before.sha256 === change.after.sha256 ||
+      !observation(change.after) || git.before.sha256 === change.after.sha256 ||
       (acquisition ? later.length !== 1 || !equal(effectiveInputObservation(git.before,git,i),effectiveInputObservation(change.after,git,i)) ||
         binding.head !== a.head || binding.tree !== a.tree :
-        git.before.git_projection.effective_sha256 === change.after.git_projection.effective_sha256 ||
-        git.before.git_projection.scope_fingerprint !== change.after.git_projection.scope_fingerprint) ||
+        !wholeFile && (git.before.git_projection.effective_sha256 === change.after.git_projection.effective_sha256 ||
+        git.before.git_projection.scope_fingerprint !== change.after.git_projection.scope_fingerprint)) ||
       direct && (binding.head !== a.head || binding.tree !== a.tree ||
-        git.before.permission_identity !== change.after.permission_identity ||
+        !wholeFile && git.before.permission_identity !== change.after.permission_identity ||
         ["device", "uid", "gid", "mode", "links"].some(k => git.before.metadata[k] !== change.after.metadata[k])) ||
       !equal(i.first_fault,faultOf(direct ? change : race)) || !equal(r.outcome.first_fault,i.first_fault) ||
       !equal(i.secondary_faults,direct || acquisition ? [] : [faultOf(change)])) fail("revision_git_observations_invalid");
@@ -144,7 +152,9 @@ function readGitIncident(r, prior, completion, stock, phases, acquisition, direc
   if (!phase || r.phases.some(p => p.status === "not_run" && (p.started_at != null || p.finished_at != null || p.browser_use?.length)))
     fail("revision_git_predecessor_invalid");
   const browserIssues = [];
-  if (acquisition) {
+  if (wholeFile && (phase !== "integration" || !equal(r.phases.find(p => p.id === phase).browser_use, [])))
+    fail("revision_git_predecessor_invalid");
+  if (acquisition || wholeFile) {
     const browser = resources.find(v => v.id === "browser-executable"); let version = null;
     for (const phase of r.phases) {
       if (phase.status === "not_run") continue;
@@ -159,17 +169,18 @@ function readGitIncident(r, prior, completion, stock, phases, acquisition, direc
     }
     // An interrupted consuming phase can be incomplete; completed phases must
     // retain their original valid Browser identities.
-    if (browserIssues.some(code => code !== "receipt_browser_identity_invalid:"+phase)) fail("revision_git_stock_invalid");
+    if (browserIssues.some(code => code !== "receipt_browser_identity_invalid:"+phase) ||
+        wholeFile && !equal(browserIssues, ["receipt_browser_identity_invalid:integration"])) fail("revision_git_stock_invalid");
   }
   // The original separate reader may have lacked the physical anchor. Keep its
   // refusal verbatim; production preparation/reservation/stock must still
   // verifyRevisionOriginals and reconstruct the exact physical latest tip.
   const expected = [...(direct && stock.issues?.includes("receipt_attempt_records_unverified") ? ["receipt_attempt_records_unverified"] : []),
-    "receipt_classified_outcome_not_passing",...(acquisition ? browserIssues : ["receipt_current_inputs_unverified"]),"receipt_final_result_not_pass",
+    "receipt_classified_outcome_not_passing",...browserIssues,...(acquisition ? [] : ["receipt_current_inputs_unverified"]),"receipt_final_result_not_pass",
     "receipt_input_observation_blocked","receipt_non_deciding", ...(r.phases.some(p=>p.status==="not_run") ? ["receipt_phase_environment_binding_invalid"] : []),
     ...r.phases.filter(p=>p.status!=="pass").map(p=>"phase_not_passing:"+p.id)].sort();
   if (stock.status !== "non_deciding_or_stale" || stock.valid_deciding_evidence !== false ||
-      stock.content_fingerprint !== r.integrity.content_fingerprint || !equal([...stock.issues].sort(),expected) ||
+      stock.content_fingerprint !== r.integrity.content_fingerprint || !equal(wholeFile ? stock.issues : [...stock.issues].sort(),expected) ||
       !equal(stock.dimensions,{historical_integrity:"intact",execution:"incomplete_or_failed",evidence_validity:"invalid_or_incomplete",safety:"blocked",current_merge_applicability:acquisition ? "matches_observed_context" : "blocked"}))
     fail("revision_git_stock_invalid");
   return { config:git, ...(!direct ? {race} : {}), change, phase };
@@ -236,7 +247,8 @@ const gitInputVerificationPaths = new Set([
   "docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md",
 ]);
 
-export function verifyGitInputRemedy(p, original, incident, source, focused, { parse }) {
+export function verifyGitInputRemedy(p, original, incident, source, focused, readers) {
+  const { parse } = readers;
   const snapshot = parse(focused.input_inventory);
   const { contract, path_kind, binding, resources } = snapshot;
   if (gitRevisionInventory(snapshot) !== p.inputs.inventory_sha256 ||
@@ -248,11 +260,15 @@ export function verifyGitInputRemedy(p, original, incident, source, focused, { p
   // explicit direct case instead binds its complete source delta and requires
   // independent exact-source acceptance; a product correction is never its
   // input remedy and supplies no historical product-failure classification.
-  if (!isDirectGitInputRevision(p) && source.predecessor_to_final.paths.some(name => !gitInputVerificationPaths.has(name)))
+  if (!isSingleUseGitInputRevision(p) && source.predecessor_to_final.paths.some(name => !gitInputVerificationPaths.has(name)))
     fail("revision_product_source_changed");
   const current = resources.find(r => r.id === "git-config"), before = incident.config;
   const after = incident.change.after;
-  if (current.location_fingerprint !== before.location_fingerprint || !equal(current.gitTracking, before.gitTracking) ||
+  if (current.location_fingerprint !== before.location_fingerprint)
+    fail("revision_git_input_remedy_invalid");
+  if (isWholeFileGitRevision(p)) {
+    verifyWholeFileGitRemedy(p, incident, current, source, focused.whole_file_change, readers);
+  } else if (!equal(current.gitTracking, before.gitTracking) ||
       !equal(current.before.git_projection, after.git_projection) ||
       current.before.permission_identity !== after.permission_identity ||
       ["device", "uid", "gid", "mode", "links"].some(k => current.before.metadata[k] !== after.metadata[k]) ||
@@ -667,7 +683,7 @@ function materialWitnessSource(p,witness,equivalence,git) {
 // Read the two operative paragraphs of the maintainer's bounded delegation.
 // An investigation, quoted template or negative decision with matching IDs
 // does not delegate publication of a reviewed candidate's execution grant.
-function visibleDelegationParagraphs(body) {
+export function visibleDelegationParagraphs(body) {
   // This authority format uses visible prose, headings and links. Reject markup
   // which can hide normative paragraphs in a comment, collapsed block or example.
   if (/[<>\u202a-\u202e\u2066-\u2069]/u.test(body) || /^(?: {4}|\t| {0,3}(?:`{3,}|~{3,}|\$\$))/mu.test(body)) return [];

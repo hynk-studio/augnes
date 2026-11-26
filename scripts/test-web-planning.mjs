@@ -24,6 +24,7 @@ import { checkStoryWriting } from './web-planning-story-checks.mjs';
 import { checkCumulativeHistory, checkRetainedNotes } from './web-planning-history-checks.mjs';
 import { checkIncomingOccurrences } from './web-planning-note-occurrence-checks.mjs';
 import { checkCrossWorkNotes } from './web-planning-cross-work-notes.mjs';
+import { checkNoteSource } from './web-planning-note-source-checks.mjs';
 import { checkHistoricalIncorporation } from './web-planning-historical-incorporation-checks.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, readFile } from 'node:fs/promises';
@@ -212,6 +213,7 @@ try {
  await checkCapacity({c,scope:fixtureScope,passed});
  await checkRetainedNotes({c,passed});
  await checkCrossWorkNotes({start,client,passed});
+ await checkNoteSource({start,root,passed});
  await checkWorkSearch({start,client,newWork,save,root,passed});
  await checkIncomingOccurrences({start,client,passed});
  await checkHistoricalIncorporation({start,client,passed,root,open});
