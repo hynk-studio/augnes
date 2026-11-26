@@ -529,9 +529,7 @@ const suites = {
       {
         label: "Companion stale-manager stopped recovery and interruption regressions",
         ...rootNode("scripts/test-companion-stale-manager-recovery.mjs"),
-        // This new aggregate owns the disposable refusal, interrupted/resumed
-        // and real-applier-crash matrix; it does not extend adjacent owners.
-        timeoutMs: 180_000,
+        // The serial recovery matrix shares the standard child watchdog.
         requireNaturalExit: true,
       },
     ] : []),
