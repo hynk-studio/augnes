@@ -23,7 +23,7 @@ const selected = p => p?.schema === "augnes.local-canonical-source-correction.v2
   p.integration_case === "reviewed" && p.integration?.delivery_revision === "accounted-verifier-chain-v1" &&
   p.integration.predecessor_basis === ORDINARY_WATCHDOG_INTEGRATION;
 
-function retainedBytes(root,relative,maximum,remember) {
+export function retainedBytes(root,relative,maximum,remember) {
   requireThat(typeof relative === "string" && /^\.augnes-local-verification\/[A-Za-z0-9_./-]+$/u.test(relative) &&
     !relative.split("/").includes(".."),"receipt_path_invalid");
   const file=path.join(root,relative),s=lstatSync(file);

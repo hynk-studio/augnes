@@ -53,6 +53,7 @@ import { WHOLE_FILE_GIT_GRANT, isWholeFileGitRevision } from "./local-canonical-
 import {isDirectGitInputRevision, isSingleUseGitInputRevision, gitInputHistoryBoundary, isGitInputRevision, verifyGitInputRemedy, verifyGitInputPublication, visibleDelegationParagraphs,
   GIT_CURRENT_STOCK_COMPARISON, gitRevisionInventory, gitRevisionStockComparison} from "./local-canonical-git-observation.mjs";
 import { ORDINARY_WATCHDOG_INTEGRATION, readOrdinaryWatchdogIntegrationPredecessor } from "./local-canonical-ordinary-watchdog-integration.mjs";
+import { COMPANION_MATRIX_INTEGRATION, readCompanionMatrixPredecessor } from "./local-canonical-companion-matrix-integration.mjs";
 
 export const ATTEMPT_CONTRACT = "augnes.local-canonical-attempt-family.v1";
 const fail = code => Object.assign(new Error(code), { code });
@@ -252,6 +253,9 @@ const isAccountedReviewedIntegration = proof => isReviewedIntegration(proof) &&
   proof.integration?.delivery_revision === REVIEWED_INTEGRATION_DELIVERY;
 export const isOrdinaryWatchdogIntegration = proof => isAccountedReviewedIntegration(proof) &&
   proof.integration?.predecessor_basis === ORDINARY_WATCHDOG_INTEGRATION;
+const isCompanionMatrixIntegration = proof => isAccountedReviewedIntegration(proof) &&
+  proof.integration.predecessor_basis === COMPANION_MATRIX_INTEGRATION;
+const isWatchdogIntegration = proof => isOrdinaryWatchdogIntegration(proof) || isCompanionMatrixIntegration(proof);
 export const hasReviewedIntegrationMarker = value => [value,value?.source_correction,value?.attempt,value?.attempt?.source_correction]
   .some(v => v && (Object.hasOwn(v,"integration_case") || Object.hasOwn(v,"integration_authority") ||
     ["delivery_revision","adjustments","adjustment_delta_sha256","correction_chain","predecessor_basis"].some(key=>Object.hasOwn(v.integration??{},key))));
@@ -279,6 +283,17 @@ const followsOrdinaryWatchdogIntegration = (prior, completion, proof) =>
   prior.prior_attempt_id === null && prior.prior_receipt_fingerprint === null &&
   completion?.contract === ATTEMPT_CONTRACT && completion.attempt_id === prior.attempt_id &&
   completion.disposition === "product_failure" && completion.cleanup_complete === true && completion.infrastructure_code === null;
+
+function followsWatchdogIntegration(prior, completion, proof) {
+  if (!isCompanionMatrixIntegration(proof)) return followsOrdinaryWatchdogIntegration(prior, completion, proof);
+  const correction = prior?.source_correction;
+  return prior?.contract === ATTEMPT_CONTRACT && prior.number === 1 && prior.recovery === null &&
+    prior.prior_attempt_id === null && prior.prior_receipt_fingerprint === null &&
+    correction?.schema === "augnes.local-canonical-source-correction.v2" && correction.kind === "source_revision" &&
+    correction.head === prior.head && correction.tree === prior.tree && correction.branch === prior.branch &&
+    completion?.contract === ATTEMPT_CONTRACT && completion.attempt_id === prior.attempt_id &&
+    completion.disposition === "product_failure" && completion.cleanup_complete === true && completion.infrastructure_code === null;
+}
 
 // Shape screen only: the maintenance reader below replays the exact incident,
 // original integration proof, authenticated records and physical predecessor.
@@ -320,7 +335,7 @@ export function prepareAcceptedMainIntegrationCandidate({anchorRoot,repositoryRo
   }, (finish, current, check) => {
     finish({assertCurrent:check,revisionInputs:runtimeInputs,revisionLive:typeof live === "function" ? current : live});
     const review=readCandidateReview(path.join(repositoryRoot,proof.local_relative_path),proof);
-    const prepared=isReviewedIntegration(proof)&&(review.material_predecessor||review.revision_predecessor||review.ordinary_watchdog_predecessor)?{preparation_sha256:review.preparation.sha256,runtime_inputs_sha256:digest(runtimeInputs),
+    const prepared=isReviewedIntegration(proof)&&(review.material_predecessor||review.revision_predecessor||review.ordinary_watchdog_predecessor||review.companion_matrix_predecessor)?{preparation_sha256:review.preparation.sha256,runtime_inputs_sha256:digest(runtimeInputs),
       inventory_sha256:(typeof live === "function" ? current : live).inventory,
       commitment:digest({target:integrationTarget(proof),preparation_sha256:review.preparation.sha256})}:{};
     return {eligible_evidence:true,authorized:false,reserved:false,head:proof.head,tree:proof.tree,
@@ -1129,9 +1144,14 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
   if(isReviewedIntegration(proof)){
     const root=path.join(anchorRoot,".augnes-local-verification/families",proof.prior_family_id);
     const prior=read(path.join(root,`attempt-${proof.prior_number}.json`)),completion=read(path.join(root,`completion-${proof.prior_number}.json`));
-    if(integrationRevisionBasis(prior.source_correction,proof)||followsOrdinaryWatchdogIntegration(prior,completion,proof)){
-      preparedMaterialIntegration=readReviewedIntegration(repositoryRoot,proof,prior,completion,anchorRoot);
-      if(prior.source_correction)verifyRevisionOriginals(anchorRoot,repositoryRoot,prior.source_correction);
+    if(integrationRevisionBasis(prior.source_correction,proof)||followsWatchdogIntegration(prior,completion,proof)){
+      preparedMaterialIntegration=readReviewedIntegration(repositoryRoot,proof,prior,completion,anchorRoot,reserve||preparing);
+      if (isCompanionMatrixIntegration(proof)) {
+        const originalProof = readSourceCorrectionProof(path.join(repositoryRoot,prior.source_correction.local_relative_path),repositoryRoot);
+        integrationRequire(digest(originalProof) === digest(prior.source_correction),"predecessor_proof_changed");
+        prepareSourceCorrection({anchorRoot,repositoryRoot,branch,head:prior.head,tree:prior.tree,proof:originalProof,
+          acceptedMain:preparedMaterialIntegration.reviewedPredecessor.receipt.repository.base_sha,reserve:false})({});
+      } else if (prior.source_correction) verifyRevisionOriginals(anchorRoot,repositoryRoot,prior.source_correction);
     }
   }
   return ({ assertCurrent = null, revisionAuthorization = null, revisionInputs = null, revisionLive = null }) => {
@@ -1140,7 +1160,7 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
   const prior = read(path.join(priorRoot, `attempt-${proof.prior_number}.json`));
   const completion = read(path.join(priorRoot, `completion-${proof.prior_number}.json`));
   const materialIntegration=followsSuccessfulReviewedIntegration(prior,completion,proof);
-  const ordinaryWatchdogIntegration=followsOrdinaryWatchdogIntegration(prior,completion,proof);
+  const watchdogIntegration=followsWatchdogIntegration(prior,completion,proof);
   if (isReviewedRevision(prior.source_correction) && !materialIntegration) throw fail("attempt_revision_commission_terminal");
   if (hasMaintenanceMarker(prior) && !followsSuccessfulMaintenance(prior, completion, proof)) throw fail("maintenance_terminal");
   if (hasImprovementMarker(prior)) throw fail("improvement_terminal");
@@ -1150,7 +1170,7 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
       completion.cleanup_complete !== true ||
       readdirSync(priorRoot).includes(`attempt-${proof.prior_number + 1}.json`) ||
       !(proof.schema === "augnes.local-canonical-source-correction.v2" ?
-        (proof.kind === "verifier_correction" ? ["safety_violation", "input_invalidation"] : proof.kind === "accepted_main_integration" ? (ordinaryWatchdogIntegration?["product_failure"]:["completed_success"]) : ["completed_success", "product_failure", "user_cancellation"]) :
+        (proof.kind === "verifier_correction" ? ["safety_violation", "input_invalidation"] : proof.kind === "accepted_main_integration" ? (watchdogIntegration?["product_failure"]:["completed_success"]) : ["completed_success", "product_failure", "user_cancellation"]) :
         ["product_failure", "user_cancellation"]).includes(completion.disposition)) throw fail("source_correction_predecessor_invalid");
   const git = args => execFileSync("git", args, { cwd: repositoryRoot, timeout: 10000, maxBuffer: 16 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
   git(["merge-base", "--is-ancestor", prior.head, head]);
@@ -1183,8 +1203,8 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
       git(["merge-base", "--is-ancestor", acceptedMain, head]);
       if (isReviewedIntegration(proof)) {
         const material=preparedMaterialIntegration??readReviewedIntegration(repositoryRoot,proof,prior,completion,anchorRoot);
-        if(ordinaryWatchdogIntegration)onOrdinaryWatchdogHistory?.(material.ordinaryPredecessor.accounting);
-        if (materialIntegration||ordinaryWatchdogIntegration) {
+        if(isOrdinaryWatchdogIntegration(proof))onOrdinaryWatchdogHistory?.(material.ordinaryPredecessor.accounting);
+        if (materialIntegration||watchdogIntegration) {
           retainDependencyPrerequisites?.({observations:material.preparation.dependencies});
           if (reserve || preparing) assertIntegrationPreparedInputs(repositoryRoot,proof,material.preparation,revisionInputs,revisionLive);
           else if (stockReceipt?.inputs) {
@@ -1195,10 +1215,10 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
               if(observed)integrationRequire(observed.prerequisite&&comparePreparedDependencyInputs(expected,observed.prerequisite)==="unchanged","recorded_prerequisite_changed");
             }
           }
-          if(ordinaryWatchdogIntegration){
-            const preserved=material.ordinaryPredecessor.receipt.cleanup.companion_service.after;
+          if(watchdogIntegration){
+            const preserved=material.reviewedPredecessor.receipt.cleanup.companion_service.after;
             if(reserve||preparing)verifyBrowserRevisionPreservation(preserved,revisionLive?.service,{requireSameBinding:true});
-            else if(replayRootPredecessor)verifyRecordedBrowserPreservation(preserved,stockReceipt);
+            else if(replayRootPredecessor || isCompanionMatrixIntegration(proof) && stockReceipt?.inputs)verifyRecordedBrowserPreservation(preserved,stockReceipt);
             else if(stockReceipt?.inputs)verifyBrowserRevisionPreservation(preserved,{state:stockReceipt.cleanup?.companion_service?.after,
               diagnostics:stockReceipt.cleanup?.companion_service?.observations?.after},{requireSameBinding:true});
           }
@@ -1228,7 +1248,7 @@ function prepareSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tre
   }
   // Source/ownership/input observers above may block. Recheck this selected
   // finite commission after the last mutable boundary, immediately before wx.
-  if(reserve&&ordinaryWatchdogIntegration)assertIntegrationAuthorization(proof,preparedMaterialIntegration,revisionAuthorization);
+  if(reserve&&watchdogIntegration)assertIntegrationAuthorization(proof,preparedMaterialIntegration,revisionAuthorization);
   if (reserve) {
     append(priorRoot, "correction-successor.json", successor);
   }
@@ -1512,13 +1532,14 @@ function assertIntegrationPreparedInputs(root,p,v,runtime,live) {
     integrationRequire(comparePreparedDependencyInputs(expected,observePreparedDependencyInputs({repositoryRoot:root,phaseId:expected.phase_id}))==="unchanged","prepared_dependencies_changed");
 }
 
-export function readReviewedIntegration(root,p,prior,completion,anchorRoot=root) {
+export function readReviewedIntegration(root,p,prior,completion,anchorRoot=root,verifyUpstreamOriginals=false) {
   const {local_relative_path:relative,...raw}=p;
   integrationKeys(raw,"schema kind integration_case branch base accepted_main head tree pull_request prior_family_id prior_number prior_attempt_id prior_receipt_fingerprint prior_receipt_path integration planner review budget authorization");
-  const ordinaryWatchdog=isOrdinaryWatchdogIntegration(p);
+  const ordinaryWatchdog=isOrdinaryWatchdogIntegration(p), companionMatrix=isCompanionMatrixIntegration(p);
+  const watchdog=ordinaryWatchdog || companionMatrix;
   integrationRequire(isReviewedIntegration(p) && p.base===p.accepted_main && Number.isSafeInteger(p.pull_request) && p.pull_request>0 &&
     digest(p.budget)===digest({initial:1,recovery:0}) &&
-    (ordinaryWatchdog?followsOrdinaryWatchdogIntegration(prior,completion,p):completion.disposition==="completed_success") && completion.cleanup_complete===true,"target_invalid");
+    (watchdog?followsWatchdogIntegration(prior,completion,p):completion.disposition==="completed_success") && completion.cleanup_complete===true,"target_invalid");
   if(p.authorization!==null){
     integrationKeys(p.authorization,"acceptance_review_id acceptance_review_sha256 grant_comment_id grant_comment_sha256");
     integrationRequire([p.authorization.acceptance_review_id,p.authorization.grant_comment_id].every(x=>Number.isSafeInteger(x)&&x>0) &&
@@ -1527,12 +1548,12 @@ export function readReviewedIntegration(root,p,prior,completion,anchorRoot=root)
   const i=p.integration;
   const accounted=Object.hasOwn(i??{},"delivery_revision");
   integrationKeys(i,"commit tree merge_base overlaps delta_sha256 resolution_delta_sha256 correction_delta_sha256 correction_paths"+
-    (accounted?" delivery_revision adjustments adjustment_delta_sha256 correction_chain":"")+(ordinaryWatchdog?" predecessor_basis":""));
+    (accounted?" delivery_revision adjustments adjustment_delta_sha256 correction_chain":"")+(watchdog?" predecessor_basis":""));
   const git=integrationGit(root), identity=ref=>git(["rev-parse",ref+"^{tree}"]).toString().trim();
   if(accounted){
     integrationRequire(isAccountedReviewedIntegration(p)&&identity(p.head)===p.tree,"topology_invalid");
     const observed=observeReviewedIntegrationSource(root,{predecessor:prior.head,acceptedMain:p.base,commit:i.commit,head:p.head});
-    integrationRequire(digest(i)===digest(ordinaryWatchdog?{...observed,predecessor_basis:ORDINARY_WATCHDOG_INTEGRATION}:observed),"complete_accounting_invalid");
+    integrationRequire(digest(i)===digest(watchdog?{...observed,predecessor_basis:i.predecessor_basis}:observed),"complete_accounting_invalid");
   }else{
   integrationRequire([i.commit,i.tree,i.merge_base,p.base,p.head,p.tree].every(x=>/^[a-f0-9]{40}$/u.test(x??"")) &&
     git(["show","-s","--format=%P",i.commit]).toString().trim()===`${prior.head} ${p.base}` && identity(i.commit)===i.tree && identity(p.head)===p.tree &&
@@ -1555,10 +1576,10 @@ export function readReviewedIntegration(root,p,prior,completion,anchorRoot=root)
   const review=reader(p.review),planner=reader(p.planner);
   const material=isMaterialSourceRevision(prior.source_correction);
   integrationKeys(review,"schema kind head tree predecessor_head predecessor_tree source_review delta_sha256 changed_paths authority_reference reviewed_at integration_sha256 planner_sha256 reviewer implementation_actor no_write disposition judgments report"+
-    (ordinaryWatchdog?" ordinary_watchdog_predecessor preparation":accounted?" revision_predecessor preparation":material?" material_predecessor preparation":""));
+    (companionMatrix?" companion_matrix_predecessor preparation":ordinaryWatchdog?" ordinary_watchdog_predecessor preparation":accounted?" revision_predecessor preparation":material?" material_predecessor preparation":""));
   integrationKeys(review.judgments,"complete_integration complete_overlaps complete_corrections verifier_policy_adjustments_only affected_consumers authority_and_lineage no_weakened_contract"+
     (accounted?" complete_nonoverlap_adjustments complete_correction_chain":"")+
-    (ordinaryWatchdog?" settled_watchdog_evidence adopted_watchdog_conditions":accounted?" successful_predecessor_evidence":""));
+    (watchdog?" settled_watchdog_evidence adopted_watchdog_conditions":accounted?" successful_predecessor_evidence":""));
   integrationRequire(review.integration_sha256===digest(i) && review.planner_sha256===p.planner.sha256 &&
     typeof review.reviewed_at==="string" && Number.isFinite(Date.parse(review.reviewed_at)) && new Date(review.reviewed_at).toISOString()===review.reviewed_at && Date.parse(review.reviewed_at)<=Date.now() &&
     typeof review.reviewer==="string" && review.reviewer.length>0 && review.reviewer!==review.implementation_actor && typeof review.implementation_actor==="string" && review.implementation_actor.length>0 &&
@@ -1568,9 +1589,11 @@ export function readReviewedIntegration(root,p,prior,completion,anchorRoot=root)
   const report=reader(review.report,{json:false,maximum:128*1024});
   integrationRequire([p.head,p.tree,digest(i),review.delta_sha256].every(x=>report.includes(x)) && planner.base===p.base && planner.head===p.head &&
     planner.selected_plan==="full-canonical" && digest(planner.phases)===digest(REVIEWED_REVISION_PHASES) && Array.isArray(planner.owners) && planner.owners.length>0,"review_or_planner_unbound");
-  const reviewedPredecessor=ordinaryWatchdog?readOrdinaryWatchdogIntegrationPredecessor(root,p,prior,completion,reader,review,git,REVIEWED_REVISION_PHASES,{remember:rememberRevisionFile,anchorRoot}):
-    material||accounted?readMaterialIntegrationPredecessor(root,p,prior,completion,reader,review):null;
   const preparation=material||accounted?readIntegrationPreparation(root,p,reader,review):null;
+  const reviewedPredecessor=companionMatrix?readCompanionMatrixPredecessor({root,anchorRoot,p,prior,completion,
+    reader,review,git,phases:REVIEWED_REVISION_PHASES,preparation,remember:rememberRevisionFile,verifyUpstreamOriginals}):
+    ordinaryWatchdog?readOrdinaryWatchdogIntegrationPredecessor(root,p,prior,completion,reader,review,git,REVIEWED_REVISION_PHASES,{remember:rememberRevisionFile,anchorRoot}):
+    material||accounted?readMaterialIntegrationPredecessor(root,p,prior,completion,reader,review):null;
   return {review,planner,completion,materialPredecessor:material?reviewedPredecessor:null,reviewedPredecessor,preparation,
     ...(ordinaryWatchdog?{ordinaryPredecessor:reviewedPredecessor}:{})};
 }
@@ -1600,9 +1623,9 @@ export function validateIntegrationAuthorityRecords(p,e,records,{current=true,ex
   const av=body(a,INTEGRATION_ACCEPT,"target review_sha256 independent_report_sha256 scope");
   const ordinaryWatchdog=isOrdinaryWatchdogIntegration(p);
   const gv=body(g,INTEGRATION_GRANT,"target review_sha256 acceptance_sha256 planner_sha256 maximum_invocations recovery unchanged_retry stop_on_failure_or_interruption fresh_validation independent_result_audit owned_cleanup cumulative_cost_and_timing_risk"+
-    (ordinaryWatchdog?" starts_at expires_at":""));
-  if(ordinaryWatchdog){
-    integrationRequire(Array.isArray(e.ordinaryPredecessor?.accounting.grants)&&!e.ordinaryPredecessor.accounting.grants.includes(g.id),"grant_reused");
+    (isWatchdogIntegration(p)?" starts_at expires_at":""));
+  if(ordinaryWatchdog)integrationRequire(Array.isArray(e.ordinaryPredecessor?.accounting.grants)&&!e.ordinaryPredecessor.accounting.grants.includes(g.id),"grant_reused");
+  if(isWatchdogIntegration(p)){
     integrationRequire(integrationWindowUtc(gv.starts_at)&&integrationWindowUtc(gv.expires_at)&&Date.parse(g.created_at)<=Date.parse(gv.starts_at)&&
       strictlyAfter(gv.expires_at,gv.starts_at),"grant_window_invalid");
     const observed=executionAt??(current?new Date().toISOString():null);

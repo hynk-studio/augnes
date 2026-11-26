@@ -1493,6 +1493,36 @@ This introducing support keeps the product candidate's planner-selected Full,
 all required Browser coverage, separate fresh-process stock and independent
 result review. No separate support-Full-then-product-Full sequence is imposed.
 
+#### Reviewed integration after the Companion recovery matrix watchdog
+
+The reviewed integration selector `settled-companion-matrix-watchdog-integration-v1`
+uses the same accounted source delivery, non-reserving preparation, authenticated
+acceptance and time-limited one-use grant. Its predecessor is the latest settled
+ordinary v2 source revision. Five phases passed before Unit failed naturally.
+The registered Darwin recovery matrix passed its first 38 scenarios and reached
+the final crash-recovery fixture before its 180-second child watchdog intervened.
+The original false stock, physical correction edge, interrupted outcome and
+all consumed attempts keep their original meanings.
+
+The adopted main must carry the independently qualified 300-second registration.
+The reader checks the original upstream receipt against its physical completion
+and passing stock. It compares the complete unit logs and the Git sources of
+the registered workload. The positive run must have completed the same 39 cases,
+including the final recovery action beyond 180 seconds, with natural exit and
+complete cleanup. Preparation and reservation compare the upstream receipt and
+log copies with the registered checkout. Later inspection uses the retained
+copies and immutable completion. An excerpt or a timed simulation cannot supply
+either original log.
+
+Use `companion_matrix_predecessor` in the reviewed integration evidence. It
+contains the prior stock and unit log and the accepted receipt, stock and unit
+log. The original failed receipt and the current protected inputs bind through
+the existing integration proof. The delivery preserves the product tree and
+limits its additional changes to this admission support. Final qualification
+uses the new candidate's planner-selected Full and Browser phases, followed by
+separate receipt validation. One reservation consumes the grant, with zero
+recovery and zero unchanged-target retries.
+
 #### One prospective maintenance after a reproduced root installation
 
 The [#1662 root-layout commission](https://github.com/hynk-studio/augnes/pull/1662#issuecomment-6964475232)
