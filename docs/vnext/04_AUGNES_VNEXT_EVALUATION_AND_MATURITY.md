@@ -3343,6 +3343,26 @@ actions/outputs, including wrong initial reuse, unnecessary refusal/rechecking
 and common-checker rescue separately. Shared-endpoint gain/loss correlations
 alone do not establish a causal or unavoidable trade-off.
 
+For the GUARD-informed feedback comparison, pair source-linked assessments
+under the same success criterion and still-applicable conditions. Distinguish
+`satisfied → unsatisfied` as a fresh-regression candidate from
+`unsatisfied → unsatisfied` as a persistent gap; report `satisfied → satisfied`
+as retained satisfaction and `unsatisfied → satisfied` as improvement.
+Preserve `unknown`, `not_applicable`, skipped
+and otherwise ungraded observations without converting them into binary failure.
+Explain non-comparability and uncertainty from changed evidence, model or runtime
+conditions and sampling noise before attributing a difference to the method edit.
+These are diagnostic distinctions, not a priority order overriding task importance.
+
+When attributing benefit specifically to this feedback, keep candidate count,
+evaluator and admission rule comparable or report their changes as a combined
+intervention. [GUARD](https://arxiv.org/abs/2611.23476v1) (§4.2–4.5, Table C.7)
+motivates this question: its formal non-regression concerns self-review on gated
+buffers, and its Analyze ablation removes several components together. Neither
+establishes a diagnostic-only effect or an Augnes benefit. Assess the existing
+A → B → A′ outcomes under the comparison and burden rules below; the feedback
+does not itself select accepted state or add a required verification gate.
+
 Use the [strong-comparison rules](#strong-comparisons-and-independence): capable
 ordinary memo/code may invent the same representations and methods with equal
 evidence, tools and relevant total budget. Compare a proposed change with current

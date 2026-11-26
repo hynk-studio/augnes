@@ -2247,6 +2247,16 @@ scoped findings and current priorities; renaming those studies does not justify
 repeating them. It adds no implementation, provider allocation, Core schema,
 memory engine or product default, and transfers no historical study budget.
 
+**Research reference (2026-11-22): regression-aware method feedback.**
+[GUARD: Stabilizing Recursive Self-Improvement with Regret Guidance (v1)](https://arxiv.org/abs/2611.23476v1)
+motivates a comparison within this condition-discovery and retention work:
+does distinguishing newly regressed requirements from persistent gaps improve
+later actions or reduce total burden versus current Augnes with strong adaptive
+memo/code? Reuse the existing [R6 criterion assessment and source-bound comparison](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#operational-residue-to-semantic-assessment-boundary)
+and [04's recurring-condition evaluation](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#learning-and-retention-across-recurring-conditions-p4p5).
+This comparison is **Research / unexecuted** within #1373; the refinement's
+priorities, scoped findings and allocation boundaries above still apply.
+
 **Research reference (2026-11-13): repeated method selection.**
 [TRUST: Trustworthy Recursive Self-Improvement with Statistical Guarantees (v1)](https://arxiv.org/abs/2611.10787v1)
 motivates a conditional question within this method-reuse direction: when noisy
