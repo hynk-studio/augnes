@@ -134,6 +134,54 @@ async function witness(api, f, modulePath) {
   return { before, current, evidence };
 }
 
+// Observe the same physical edit from the two environments at the same time.
+// The disposable child owns the only write and reports only the two digests.
+async function identityEditAcrossEnvironments(api, f, modulePath) {
+  write(f.config, f.initial);
+  const protectedInput = api.freezeInputContract({ resources: [resource(api, f)],
+    pathKind: "isolated-model-free-v1", binding: {} });
+  const addition = "[user]\n\temail = fixture-operator@example.invalid\n";
+  const probe = `
+    import assert from "node:assert/strict";
+    import { appendFileSync } from "node:fs";
+    import { execFileSync } from "node:child_process";
+    import { createGitTrackingResource, freezeInputContract } from ${JSON.stringify(pathToFileURL(modulePath).href)};
+    const config = ${JSON.stringify(f.config)};
+    const role = createGitTrackingResource(config, ${JSON.stringify(f.roots)});
+    assert.equal(execFileSync("git", ["config", "--get", "fixture.source"], {encoding:"utf8"}).trim(), "inherited");
+    assert.equal(Object.hasOwn(role, "gitTracking"), false);
+    const frozen = freezeInputContract({ resources:[role], pathKind:"isolated-model-free-v1", binding:{} });
+    const before = frozen.snapshot().resources[0].before;
+    appendFileSync(config, ${JSON.stringify(addition)});
+    assert.equal(frozen.check({force:true})?.disposition, "input_invalidation");
+    const after = frozen.snapshot().events[0].after;
+    for (const observation of [before, after]) {
+      assert.equal(Object.hasOwn(observation, "permission_identity"), false);
+      assert.equal(Object.hasOwn(observation, "git_projection"), false);
+    }
+    console.log(JSON.stringify([before.sha256, after.sha256]));
+  `;
+  let stdout = "", stderr = "";
+  const result = await child(f, { label: "identity edit under command-scope Git configuration",
+    args: ["--input-type=module", "-e", probe],
+    env: { ...f.env, GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "fixture.source", GIT_CONFIG_VALUE_0: "inherited" },
+    stdout: { write(chunk) { stdout += chunk; } }, stderr: { write(chunk) { stderr += chunk; } } });
+  assert.equal(canonicalChildAcceptanceFailure(result, { suite: "git-input", timeoutMs: 5000, requireNaturalExit: true }), null, stderr);
+  assert.equal(protectedInput.check({ force: true })?.disposition, "input_invalidation");
+  const snapshot = protectedInput.snapshot();
+  const before = snapshot.resources[0].before, after = snapshot.events[0].after;
+  const wholeFileDigests = JSON.parse(stdout);
+  assert.deepEqual(wholeFileDigests, [sha(f.initial), sha(f.initial + addition)]);
+  assert.deepEqual([before.sha256, after.sha256], wholeFileDigests);
+  assert.equal(snapshot.resources[0].gitTracking.protected_branches.length, 2);
+  for (const observation of [before, after]) {
+    assert.equal(observation.git_projection.applicable, true);
+    assert.match(observation.permission_identity, /^[a-f0-9]{64}$/u);
+  }
+  assert.equal(before.git_projection.scope_fingerprint, after.git_projection.scope_fingerprint);
+  assert.notEqual(before.git_projection.effective_sha256, after.git_projection.effective_sha256);
+}
+
 async function controls(api, f, modulePath) {
   const findings = [];
   const validatedResource = resource(api, f);
@@ -330,6 +378,8 @@ async function controls(api, f, modulePath) {
     } finally { if (before === undefined) delete process.env[key]; else process.env[key] = before; }
   }
   findings.push("Git config overrides cannot acquire the narrow role");
+  await identityEditAcrossEnvironments(api, f, modulePath);
+  findings.push("whole-file and two-branch observers invalidate the same user.email edit and retain their own evidence");
   assert(legacyPair);
   const packet = path.join(f.root, "fresh-unmarked-observations.json"); write(packet, JSON.stringify(legacyPair));
   const fresh = await child(f, { label: "fresh unmarked Git comparison", args: ["--input-type=module", "-e", `

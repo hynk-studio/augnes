@@ -51,8 +51,9 @@ export function seedFailedIntegrationFixtureSources(c) {
   const sources=new Map(fixturePartitionPaths.map(name=>[name,fs.readFileSync(path.join(repository,name),"utf8")]));
   // Later controls belong to the live suite only. Normalize the disposable
   // copied registration before either side of the historical pair is built.
-  for(const [name,source]of sources)
-    sources.set(name,source.replaceAll(', "ordinary-watchdog-integration"',''));
+  for (const [name, source] of sources) {
+    sources.set(name, source.replaceAll(/, ?"(?:ordinary-watchdog-integration|git-input-whole-file)"/gu, ""));
+  }
   // These pre-existing incidents and their reader remedy retain 90 seconds.
   // Current 120-second source is not historical execution evidence.
   for(const file of ["scripts/run-canonical-test-suite.mjs","scripts/test-local-canonical-verification-contract.mjs"]){

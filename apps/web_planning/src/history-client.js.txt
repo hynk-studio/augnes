@@ -1,6 +1,41 @@
 // Only the selected revision's notes are expanded. History is inert: a choice
 // updates the existing draft and the normal Save still owns the write.
 function historyElement(tag,text){const node=document.createElement(tag);node.textContent=text;return node;}
+function noteContextComparison(result, expand) {
+  const {basis, head, status, changes, notes} = result;
+  if (status === 'note_not_selected')
+    return historyElement('p', `Revision ${head.revision} no longer selects this exact note.`);
+  if (status === 'same_recorded_context')
+    return historyElement('p', `This note, its requirements and their recorded origins match at revisions ${basis.revision} and ${head.revision}.`);
+
+  const details = historyElement('details', '');
+  details.append(historyElement('summary', `Recorded context changed between revisions ${basis.revision} and ${head.revision}`));
+  function describe(ref) {
+    const {text, source, label, provenance, observed_at} = notes[ref];
+    return `“${text}” (${[source, label, provenance.replaceAll('_',' '), observed_at].filter(Boolean).join(' · ')})`;
+  }
+  function origin({kind, from}) {
+    return from ? `${kind} from work ${from.work_id}, revision ${from.revision} · ${from.fingerprint} · note ${from.source_ref}` : kind;
+  }
+  details.ontoggle = () => {
+    if (!details.open || details.querySelector('ul')) return;
+    const list = historyElement('ul', '');
+    for (const change of changes) {
+      const parent = describe(change.source_ref);
+      let text;
+      if (change.kind === 'origin_changed')
+        text = `The recorded origin of ${parent} changed from ${origin(change.before)} to ${origin(change.after)}.`;
+      else if (change.kind === 'requirement_added')
+        text = `Added to this note’s context — ${parent} requires ${describe(change.required_ref)}.`;
+      else
+        text = `Removed from this note’s context — ${parent} required ${describe(change.required_ref)}.`;
+      list.append(historyElement('li', text));
+    }
+    details.append(list);
+  };
+  details.open = expand;
+  return details;
+}
 $('history').onclick=()=>run(()=>inspectNoteHistory(work));
 for(const id of ['context-view','conflict-latest'])$(id).addEventListener('click',event=>{
   const button=event.target.closest('button[data-note-origin]');
@@ -34,7 +69,7 @@ async function inspectNoteHistory(id,chosen,view=$('history-view')){
   view.textContent='Reading saved history…';
   try {
     const {revisions}=await api('/api/work/'+id+'/history?view=notes');
-    const {selectHistoricalNote,sameNote,sameOccurrence}=await import('/planning-notes.mjs');
+    const {selectHistoricalNote,sameNote,sameOccurrence,compareNoteContext}=await import('/planning-notes.mjs');
     if(!current())return;
     if(!other && !chosen && revisions.at(-1)?.fingerprint!==base?.fingerprint)throw Error('refresh_required');
     if(chosen && (revisions[chosen.revision-1]?.fingerprint!==chosen.fingerprint ||
@@ -76,6 +111,8 @@ async function inspectNoteHistory(id,chosen,view=$('history-view')){
         const selection=element('p','');let add;
         article.dataset.historyNote='';
         const locator={work_id:id,revision:revision.revision,fingerprint:revision.fingerprint,source_ref:s.source_ref};
+        if (revision.revision < revisions.at(-1).revision)
+          article.append(noteContextComparison(compareNoteContext(revisions, locator), sameOccurrence(chosen, locator)));
         article.refreshSelection=d=>{
           const index=d.notes.findIndex(n=>sameNote(n,note)),edit=d.material_edits[index];
           const from=edit?.historical??base?.relations?.materials.find(m=>m.source_ref===s.source_ref)?.from;

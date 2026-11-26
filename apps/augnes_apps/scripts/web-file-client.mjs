@@ -1,4 +1,4 @@
-import { prepareReturnDraft } from './planning-notes.mjs';
+import { compareNoteContext, prepareReturnDraft } from './planning-notes.mjs';
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify, isDeepStrictEqual } from 'node:util';
@@ -108,6 +108,20 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
     async history(sourceWork=work_id) {
       if(typeof sourceWork!=='string' || !uuid.test(sourceWork))fail('Select a listed work.');
       return (await (await request('/api/work/'+sourceWork+'/history?view=notes')).json()).revisions;
+    },
+    async checkNoteSource(version, noteNumber) {
+      if (participant) fail('Open the private project task to check a saved note.');
+      if (!Number.isSafeInteger(version) || version < 1 || !Number.isSafeInteger(noteNumber) || noteNumber < 1)
+        fail('Choose a saved revision and a one-based note number.');
+      const history = await planning.history();
+      const saved = history[version - 1], note = saved?.sources[noteNumber - 1];
+      if (!note || saved.revision !== version || saved.work_id !== work_id ||
+          saved.workspace_id !== project.workspace_id || saved.project_id !== project.project_id)
+        fail('historical_note_unavailable');
+      const selected = { work_id, revision: version, fingerprint: saved.fingerprint, source_ref: note.source_ref };
+      const origin = saved.relations?.materials.find(material => material.source_ref === note.source_ref)?.from ?? selected;
+      const sourceHistory = origin.work_id === work_id ? history : await planning.history(origin.work_id);
+      return { selected, ...compareNoteContext(sourceHistory, origin) };
     },
     async retainedSource() {
       if(participant)fail('Open the destination task to read its retained material.');

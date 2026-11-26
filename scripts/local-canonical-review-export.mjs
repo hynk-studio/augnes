@@ -8,6 +8,7 @@ import { digest, validInputFailureDiagnostics } from "./local-canonical-inputs.m
 import { hasSerialAccounting } from "./local-canonical-serial-aggregate.mjs";
 import { validProjectExperienceAccounting } from "./project-experience-serial-budget.mjs";
 import { hasProspectiveRequalificationMarker } from "./local-canonical-prospective-requalification.mjs";
+import { isWholeFileGitRevision } from "./local-canonical-whole-file-git.mjs";
 
 
 export const REVIEW_EXPORT_SCHEMA = "augnes.local-canonical-private-review.v1";
@@ -114,7 +115,8 @@ export function inspectPrivateReviewExport(value) {
 
 function revisionProofExport(p) {
   return { ...pick(p, ["schema", "kind", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "pull_request"]),
-    commission: pick(p.commission, ["root_family_id", "root_number", "root_attempt_id", "root_receipt_fingerprint", "ordinal", "maximum_invocations", "initial_authorization", "delegation", "input_acquisition", "source_revision", "preparation_revision", "evidence_kind", "route", "envelope_sha256", "inherited_serial"]),
+    commission: pick(p.commission, ["root_family_id", "root_number", "root_attempt_id", "root_receipt_fingerprint", "ordinal", "maximum_invocations", "initial_authorization", "delegation", "input_acquisition", "source_revision", "preparation_revision", "evidence_kind", "route", "envelope_sha256", "inherited_serial",
+      ...(isWholeFileGitRevision(p) ? ["input_revision"] : [])]),
     accepted: { ...pick(p.accepted, ["head", "tree", "base"]), review: pick(p.accepted?.review, ["id", "sha256"]) },
     authorization: { ...pick(p.authorization, ["grant_comment_id", "grant_sha256"]),
       ...(p.authorization?.contract_review ? { contract_review: pick(p.authorization.contract_review, ["pull_request", "id", "sha256", "head"]) } : {}),
