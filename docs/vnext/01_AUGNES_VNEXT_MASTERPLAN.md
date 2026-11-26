@@ -927,6 +927,16 @@ help derive, select or revise methods; their availability must not determine the
 ability to inspect durable work or use Core continuity, decision and recovery
 paths. Reusing a method does not itself authorize its execution.
 
+Project continuity, Companion service instances and verification environments are
+distinct scopes. The product direction includes independently addressable,
+compatible parallel Companion instances where useful, without requiring one service
+per project or treating service instances as agent roles. Lifecycle control and
+recovery should follow the selected target, its owned resources and evidenced shared
+dependencies, preserving unrelated independently permitted work. Single-instance
+operation remains valid. [03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#later-explicit-companion-targets-and-independent-lifecycle-scopes)
+owns the implementation sequence; this direction does not assert that general
+multi-instance operation is already supported.
+
 ### Non-model harness responsibility
 
 Augnes must be able to augment or replace the non-model harness responsibilities

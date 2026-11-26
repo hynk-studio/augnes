@@ -377,6 +377,55 @@ inactive project remains read-only and side-effect-free; its explicit protected
 work link authenticates that project without making it the default selection.
 This does not add an execution mode or qualify parallel source verification.
 
+### Parallel Companion target boundaries
+
+The target design preserves a simple single-service default while permitting
+optional, explicitly targeted parallel Companion services. This is a design
+requirement, not a claim of implemented multi-service support or a change to
+verification policy. Service topology remains an implementation choice.
+
+Installation/source identity, the existing workspace execution/storage boundary,
+live runtime instance/generation, and project/work/run identity have distinct
+lifetimes. A service's application checkout is not the work repository supplied
+by its client. These distinctions do not introduce Core records, required fields
+or endpoints, nor require one service or database per participant.
+
+Participants may read, explore and propose concurrently within a workspace,
+including contributions to the same canonical project. That project's accepted
+state remains governed by the existing proposal, authorized decision and Transition
+owners, with their applicable current-head, idempotency and conflict checks. A
+separate process, branch or copied database does not automatically acquire authority
+to advance the same accepted state. Parallel proposals do not require a global
+serial workflow; conflicting durable effects use the relevant writer.
+
+Lifecycle, maintenance and recovery coordination follow actual shared mutable
+resources and current ownership, including physical overlap through path aliases.
+Shared data/runtime or source/build/dependency resources and aggregate host
+capacity retain their applicable owners; a new process does not itself create
+authority or replenish an aggregate budget. Independent targets should remain usable when
+another target is unavailable, except where an affected shared dependency prevents
+the operation. Retained generations and completed recovery records remain
+history, not renewed credentials, grants or active ownership; unresolved current
+ownership cannot be dismissed as historical to permit an effect. History is
+preserved without becoming an indefinite global lock.
+
+Compatible single-service use may retain automatic default selection. Multi-service
+mode instead uses an enrolled service/workspace binding regardless of how many
+services are currently live. Resolve that intended target before scoped uniqueness
+and identity checks. Read, write, delegation and lifecycle routes use the same
+target resolution while retaining their operation-specific authentication,
+liveness and authority requirements. A connection may establish its binding once
+and revalidate it for use; this does not require manual selection or renewed
+approval for every call. Existing credential, generation and workspace/project
+checks still apply; a path hint or healthy endpoint is not authority.
+
+Before a second instance is activated, participating services/readers must enforce
+the multi-service binding and refuse legacy unbound requests, or unsupported
+client paths must be excluded. Missing, ambiguous or unsupported selection refuses
+the affected operation without silently choosing another service, changing
+canonical scope or transferring credentials. Multi-service use does not downgrade
+to an implicit legacy fallback when only one runtime happens to remain live.
+
 ### 2.5 canonical project identity and mutable display label
 
 Native registered-project discovery (#1399) reads the existing canonical identity
