@@ -61,6 +61,20 @@ const auth=(c,p,mutate)=>authorizeReviewedRevision(p,{transport:transport(c,muta
     return (mutate??(v=>v))(clone(c.authority.contractReview),req.args[1]);
   }})} : {})});
 const begin=(c,p,a,extra={})=>beginAttempt({anchorRoot:c.anchor,repositoryRoot:c.checkout,checkoutOwner:c.owner,branch:p.branch,head:p.head,tree:p.tree,acceptedMain:p.base,runId:"revision-"+p.commission.ordinal,contractFingerprint:digest("contract"),sourceCorrection:p,revisionAuthorization:a,revisionInputs:c.inputs,revisionLive:c.live,...extra});
+function assertRaceRefusal(error, anchor, proof) {
+  if (error.code !== "attempt_candidate_superseded") {
+    assert(["EEXIST","ENOENT","attempt_latest_tip_required","revision_validated_lineage_changed","revision_material_changed_during_validation"].includes(error.code), error.message);
+    return;
+  }
+  // The winner publishes the immutable predecessor edge before opening its
+  // candidate attempt. The attempt's directory entry may precede its contents.
+  const families = path.join(anchor, ".augnes-local-verification", "families");
+  const familyId = family(proof.branch, proof);
+  const edge = read(path.join(families, proof.prior_family_id, "correction-successor.json"));
+  assert.deepEqual(edge, {contract:"augnes.local-canonical-successor.v2", kind:"reviewed_revision",
+    family_id:familyId, head:proof.head, tree:proof.tree, proof_fingerprint:digest(proof)});
+  assert(lstatSync(path.join(families, familyId, "attempt-1.json")).isFile());
+}
 const stock=(c,r,a)=>inspectAttemptRecords({anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt:r,revisionAuthorization:a,revisionInputs:c.inputs,revisionLive:c.live});
 const natural={exit_code:0,signal:null,timed_out:false,cancelled:false,spawn_error_code:null,exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0,termination_reason:"natural_exit",duration_ms:1};
 function artifact(c,name,value){const f=path.join(c.artifacts,name);write(f,value);return{artifact:name,sha256:digest(readFileSync(f))};}
@@ -519,7 +533,7 @@ if(process.argv[2]==="--cold"){
 }else if(process.argv[2]==="--race"){
   const c=read(process.argv[3]);c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});
   try{const p=proof(c),a=await auth(c,p);write(c.ready,"ready");while(!existsSync(c.go))await new Promise(r=>setTimeout(r,5));
-    try{begin(c,p,a);console.log("admitted");}catch(e){assert(["EEXIST","ENOENT","attempt_latest_tip_required","revision_validated_lineage_changed","revision_material_changed_during_validation"].includes(e.code),e.message);console.log("refused");}
+    try{begin(c,p,a);console.log("admitted");}catch(e){assertRaceRefusal(e,c.anchor,p);console.log("refused");}
   }finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
 }else if (["--run-maintenance-reader-fixtures","--run-maintenance-budget-fixtures"].includes(process.argv[2]) || ["git","git-input","git-input-direct","git-input-whole-file","git-input-lifecycle","git-input-successor","git-successor","commission","successor","final-input","final-successor","post-pass","post-pass-controls","post-pass-successor","material-source","material-controls","material-successor","material-final","material-stock","material-integration-preparation","material-integration-reservation","material-reservation"].some(g => process.argv[2] === "--run-"+g+"-fixtures")) {
   const readerMode=process.argv[2]==="--run-maintenance-reader-fixtures";
@@ -545,7 +559,7 @@ if(process.argv[2]==="--cold"){
       c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});
       c.live=observeFixtureLive(c);
     }
-    const helpers={prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,finish:finishAttempt,
+    const helpers={prepare,artifact,read,write,proof,auth,begin,assertRaceRefusal,stock,receipt,storeReceipt,finish:finishAttempt,
       releaseOwner:()=>releaseCheckoutVerificationOwnership(c.owner,c.checkout), acquireOwner:()=>c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout}),
       run:runOwned,behavior:(subject,syntaxOnly=false)=>behavior(subject,syntaxOnly,runOwned),fresh:packet=>freshReader(c,packet,runOwned),sharedRoot:handoff.root,
       snapshot:path.join(handoff.root,"prospective-fixture"),fork:path.join(handoff.root,"final-case"),positive:path.join(handoff.root,"post-pass-case")};

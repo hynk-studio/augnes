@@ -1130,9 +1130,19 @@ export async function runGitInputRevisionControls(c,h,sourceSuccessor=false,life
   assert.equal(raceOutput.split("\n").filter(v=>v==="refused").length,1);
   const raceFamilies=path.join(raceAnchor,".augnes-local-verification/families");
   const reserved=readdirSync(raceFamilies).filter(id=>id!==p.prior_family_id);
-  assert.equal(reserved.length,1);assert(existsSync(path.join(raceFamilies,reserved[0],"attempt-1.json")));
-  assert(!existsSync(path.join(raceFamilies,reserved[0],"completion-1.json")));
-  assert(existsSync(path.join(raceFamilies,p.prior_family_id,"correction-successor.json")));
+  assert.equal(reserved.length,1);
+  const winnerRoot = path.join(raceFamilies, reserved[0]);
+  assert.deepEqual(readdirSync(winnerRoot), ["attempt-1.json"]);
+  const winner = h.read(path.join(winnerRoot, "attempt-1.json"));
+  assert.equal(winner.family_id, reserved[0]);
+  assert.deepEqual(winner.source_correction, proof);
+  // Exercise this losing interleaving even if the actual loser reached wx.
+  const superseded = {code:"attempt_candidate_superseded"};
+  h.assertRaceRefusal(superseded, raceAnchor, proof);
+  if (wholeFile) {
+    const foreign = {...proof, inputs:{...proof.inputs, inventory_sha256:digest("different inventory")}};
+    assert.throws(() => h.assertRaceRefusal(superseded, raceAnchor, foreign), {code:"ERR_ASSERTION"});
+  }
   const exe=inventory.resources.find(r=>r.id==="browser-executable");
   const browser={contract:"augnes.local-canonical-browser-use.v2",executable_name:"Fixture",location_fingerprint:exe.location_fingerprint,before:exe.before,after:exe.before,
     actual_version:"Chrome/1",runtime_versions:{http:"Chrome/1",cdp:"Chrome/1"},disposition:"unchanged",unchanged:true};
