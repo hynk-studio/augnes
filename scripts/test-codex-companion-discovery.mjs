@@ -17,7 +17,7 @@ import {
   parseRepositoryRetainedSourcesResponseV01,
   handleMessageV01,
 } from "../plugins/augnes-operator/mcp/companion-proxy.mjs";
-import { createConnectedProjectReaderV01 } from "../plugins/augnes-operator/mcp/connected-project-reader.mjs";
+import { createConnectedProjectReaderV01, prepareConnectedProjectConnectionV01 } from "../plugins/augnes-operator/mcp/connected-project-reader.mjs";
 import { registerOwnedChild, terminateOwnedProcessTree } from "./test-harness-process-lifecycle.mjs";
 
 async function rawStdioBoundary(environment, input) {
@@ -111,6 +111,82 @@ for (const stage of ["continuity", "sources"]) {
     assert.doesNotMatch(JSON.stringify(response), /private-path-and-token/u);
   }
 }
+
+// A persisted connection must refuse a different service even when it holds
+// a copy of the same canonical workspace/project and saved work.
+const connectedCall = { jsonrpc: "2.0", id: 1, method: "tools/call",
+  params: { name: "augnes_read_connected_project_work", arguments: {} } };
+const targetDirectory = path.join(os.tmpdir(), "connected-target-a");
+const connectedTarget = { runtimeStateDirectory: targetDirectory, repositoryFingerprint: "a".repeat(64) };
+let selectedTarget = { runtime_state_directory: targetDirectory, repository_fingerprint: "a".repeat(64), binding: connectedKey };
+let connectedTargetReads = 0;
+const targetReader = createConnectedProjectReaderV01({ repositoryRoot: process.cwd(), projectKey: connectedKey,
+  companionTarget: connectedTarget }, {
+  discover: async () => ({ status: "resolved", companion: selectedTarget }),
+  readContinuity: async () => {
+    connectedTargetReads++;
+    return { repository_resolution: { status: "resolved_exact", project_key: connectedKey },
+      continuity: { project: { project_key: connectedKey, root_availability: "available" },
+        current_work: { status: "current_work", currentness: "fresh" }, source_status: "exact",
+        snapshot: { status: "exact", binding: connectedKey } } };
+  },
+  readSources: async () => ({ status: "available", snapshot_binding: connectedKey,
+    work_definition: { goal: "Saved connected work" }, sources: [] }),
+});
+assert.equal((await targetReader(connectedCall)).result.structuredContent.status, "available");
+selectedTarget = { ...selectedTarget, runtime_state_directory: path.join(os.tmpdir(), "connected-target-b") };
+const retargeted = (await targetReader(connectedCall)).result;
+assert.equal(retargeted.structuredContent.status, "unavailable", "same-project B must not replace the connected Companion A");
+assert.equal(retargeted.structuredContent.reason, "connected_companion_mismatch");
+assert.equal(connectedTargetReads, 1, "refuse before reading the other service's project");
+assert.equal(retargeted.structuredContent.current_work, undefined);
+assert.doesNotMatch(JSON.stringify(retargeted), /connected-target|repositoryFingerprint/u);
+for (const companionTarget of [{}, { ...connectedTarget, runtimeStateDirectory: "relative" },
+  { ...connectedTarget, repositoryFingerprint: "invalid" }, { ...connectedTarget, extra: true }]) {
+  assert.throws(() => createConnectedProjectReaderV01({ repositoryRoot: process.cwd(), projectKey: connectedKey, companionTarget }), /configuration_required/);
+}
+// Connection setup captures both lookup location and workspace/project key;
+// a conflicting test hint cannot replace the persisted target on re-entry.
+const preparedCalls = [];
+selectedTarget = { runtime_state_directory: targetDirectory, repository_fingerprint: "a".repeat(64), binding: connectedKey };
+const preparationDependencies = {
+  environment: { AUGNES_COMPANION_RUNTIME_MANIFEST: "/ambient/other/runtime.json", AUGNES_COMPANION_TEST_MODE: "1" },
+  discover: async environment => { preparedCalls.push(environment); return { status: "resolved", companion: selectedTarget }; },
+  readContinuity: async () => ({ repository_resolution: { status: "resolved_exact", project_key: connectedKey },
+    continuity: { project: { project_key: connectedKey } } }),
+};
+const prepared = await prepareConnectedProjectConnectionV01(process.cwd(), preparationDependencies);
+const preparedEnv = prepared.mcpServers["augnes-connected-project"].env;
+assert.equal(preparedEnv.AUGNES_RUNTIME_STATE_DIR, targetDirectory);
+assert.equal(preparedEnv.AUGNES_CONNECTED_COMPANION_REPOSITORY, "a".repeat(64));
+assert.equal(preparedEnv.AUGNES_CONNECTED_PROJECT_KEY, connectedKey);
+assert.equal(preparedCalls[1].AUGNES_COMPANION_RUNTIME_MANIFEST, undefined);
+assert.equal(preparedCalls[1].AUGNES_RUNTIME_STATE_DIR, targetDirectory);
+assert.doesNotMatch(JSON.stringify(prepared), /proxy_token|generation_id|instance_id|ambient/u);
+await assert.rejects(prepareConnectedProjectConnectionV01(process.cwd(), {
+  ...preparationDependencies, readContinuity: async () => {
+    selectedTarget = { ...selectedTarget, binding: `sha256:${"b".repeat(64)}` };
+    return { repository_resolution: { status: "resolved_exact", project_key: connectedKey }, continuity: { project: { project_key: connectedKey } } };
+  },
+}), /connected_companion_changed/);
+// A delayed response is withheld if the same target restarted during the read.
+let delayedReads = 0;
+const delayedReader = createConnectedProjectReaderV01({ repositoryRoot: process.cwd(), projectKey: connectedKey,
+  companionTarget: connectedTarget }, {
+  ...preparationDependencies,
+  readContinuity: async () => ({ repository_resolution: { status: "resolved_exact", project_key: connectedKey },
+    continuity: { project: { project_key: connectedKey, root_availability: "available" },
+      current_work: { status: "current_work", currentness: "fresh" }, source_status: "exact", snapshot: { status: "exact", binding: connectedKey } } }),
+  readSources: async () => {
+    delayedReads++;
+    selectedTarget = { ...selectedTarget, binding: `sha256:${"c".repeat(64)}` };
+    return { status: "available", snapshot_binding: connectedKey, work_definition: { goal: "Old delayed work" }, sources: [] };
+  },
+});
+const delayed = (await delayedReader(connectedCall)).result.structuredContent;
+assert.equal(delayed.status, "refresh_required");assert.equal(delayed.reason, "companion_identity_changed");
+assert.equal(delayed.current_work, undefined);assert.equal(delayedReads, 1);
+console.log("connected_target_contract_passed: same-project replacement refused, persisted setup, generation change, no redispatch");
 
 const requireMcpSdk = createRequire(path.join(process.cwd(), "apps", "augnes_apps", "package.json"));
 const { Client } = requireMcpSdk("@modelcontextprotocol/sdk/client/index.js");
