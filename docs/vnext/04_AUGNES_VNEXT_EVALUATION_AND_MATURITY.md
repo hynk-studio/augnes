@@ -3299,6 +3299,40 @@ unnecessary rereading, and common preparation separately from arm-specific
 burden. This is an application of the existing evaluation distinctions, not a
 new framework or authorization to execute a study or change a product default.
 
+### Cross-model representation and continuity claims
+
+For the [communication and context reuse direction](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#development-and-operation-sequence--2026-10-25),
+separate the contribution being tested:
+
+| Claim | Discriminating comparison |
+|---|---|
+| Existing-knowledge recall alignment | Both models already possess the tested information; an intervention's success does not establish delivery of a new episode. |
+| New episode transfer | Use task facts or conditions initially unavailable to the recipient, including newly constructed arbitrary facts where useful, and compare with an informative text/structured handoff. |
+| Evidence retrieval support | Give the recipient equivalent permitted source access; distinguish improved selection/use from receiving additional evidence. |
+
+Observe condition-sensitive continuation through actual actions and source-bound
+judgments, using the [recurring-condition contrasts](#learning-and-retention-across-recurring-conditions-p4p5)
+where relevant: material changes should inform revision, while still-valid work
+survives irrelevant changes. An unchanged answer may still require a changed
+evidence basis. Geometric similarity or reproducing a predecessor's answer alone
+does not establish this behavior.
+
+Apply the [strong-comparison rules](#strong-comparisons-and-independence) to the
+claim, including current Augnes, capable adaptive notes/direct reading, and donor
+completion where it is a feasible alternative. Fit/select mappings on separate
+calibration material; hold out projects, subjects, later tasks or model pairs as
+needed for the generalization claimed. Disclose changed information, access,
+models or tools rather than attributing a whole-system difference to the
+representation. These are selective contrasts, not a fixed comparison matrix.
+
+Under [total burden](#cost-and-user-burden), include calibration, encoding,
+reconstruction, updates, fallback reads and human correction. Compare retained
+learned state with source-based rebuilding when deciding whether its recovery
+value justifies preservation; include compatible model/interpreter dependencies
+and input data-use scope. Loss of a cached representation and loss of a useful
+capability are distinct observations. Reuse existing evidence and allocation
+boundaries; this interpretation adds no mandatory development gate or study run.
+
 ### Conditional procedure adaptation (P4.6)
 
 The [first executable #1320 sequence](../verification/P4_6_CONDITIONAL_PROCEDURE_LEARNING.md)

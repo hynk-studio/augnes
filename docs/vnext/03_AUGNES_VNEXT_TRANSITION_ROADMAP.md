@@ -1664,6 +1664,29 @@ where model-state access or compatibility is absent. This possibility note assig
 no dedicated study, implementation, spending or new framework and leaves existing
 model-research allocations and Current/Next work unchanged.
 
+**Research refinement — Plato's Key (2026-11-25).** The
+[official research report](https://hazyresearch.stanford.edu/blog/2026-11-25-platos-key)
+aligns individual factual-recall hidden states across frozen base models. Its
+main comparison uses facts both models already recall; compression and chained
+maps report relative transfer accuracy, not preservation of complete work state.
+It motivates asking whether executor changes can preserve useful retrieval and
+condition-sensitive continuation with less reconstruction burden.
+
+Within existing L1/L2 work, distinguish helping a successor find permitted
+current evidence from conveying new episode facts and applicability conditions.
+Reuse the current-question guide and conditional-method owners. A compatible
+latent representation is an optional adapter/executor method where hidden-state
+read/write is supported; textual vectors, embedding output and KV-cache reuse
+do not by themselves provide that interface. Apply
+[04's claim-specific comparisons](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#cross-model-representation-and-continuity-claims).
+
+Where learned state contributes useful capability and source-based rebuilding
+would be materially costly, consider retaining it with the source, model,
+transform and compatible interpreter versions needed for later use or recovery.
+Its data-use scope remains tied to its inputs; retention does not promote it to
+accepted project state or authority. This refinement is **Research / unexecuted**
+within the existing direction and adds no implementation or study allocation.
+
 Keep qualitative interpretation and selection in the existing host/model
 procedure where sufficient. Programmatic owners enforce current source bindings,
 eligibility, grants, supported resource admission, duplicate handling and durable
