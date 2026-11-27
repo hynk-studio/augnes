@@ -744,16 +744,18 @@ if(process.argv[2]==="--cold"){
   const {runOrdinaryWatchdogIntegrationControls}=await import("./local-canonical-ordinary-watchdog-integration.mjs");
   const {runCompanionMatrixIntegrationControls}=await import("./local-canonical-companion-matrix-integration.mjs");
   await runCompanionMatrixIntegrationControls();
-  const owner=createCanonicalTestResourceRoot("ag-resource-test-"),lifecycle={pendingChildren:0};beginCanonicalTestResourceUse(owner);
-  const run=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);let c;
-  try{
-    c=setup(owner.root);
-    await runOrdinaryWatchdogIntegrationControls(c,{prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,run});
-  }finally{
-    if(lifecycle.pendingChildren===0&&c?.owner)releaseCheckoutVerificationOwnership(c.owner,c.checkout);
-    settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,
-      cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});
-    assert(cleanupCanonicalTestResources([owner])[0].completed);
+  for (const adoptedMerge of [false,true]) {
+    const owner=createCanonicalTestResourceRoot("ag-resource-test-"),lifecycle={pendingChildren:0};beginCanonicalTestResourceUse(owner);
+    const run=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);let c;
+    try{
+      c=setup(owner.root);
+      await runOrdinaryWatchdogIntegrationControls(c,{prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,run},{adoptedMerge});
+    }finally{
+      if(lifecycle.pendingChildren===0&&c?.owner)releaseCheckoutVerificationOwnership(c.owner,c.checkout);
+      settleCanonicalTestResourceUse(owner,{exit_observed:lifecycle.pendingChildren===0,streams_closed:lifecycle.pendingChildren===0,
+        cleanup_completed:lifecycle.pendingChildren===0,remaining_owned_processes:lifecycle.pendingChildren});
+      assert(cleanupCanonicalTestResources([owner])[0].completed);
+    }
   }
 }else if(process.argv[2]==="--run-ordinary-initial-fixtures"){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-"),lifecycle={pendingChildren:0};beginCanonicalTestResourceUse(owner);

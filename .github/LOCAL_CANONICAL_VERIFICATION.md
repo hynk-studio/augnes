@@ -1523,6 +1523,54 @@ uses the new candidate's planner-selected Full and Browser phases, followed by
 separate receipt validation. One reservation consumes the grant, with zero
 recovery and zero unchanged-target retries.
 
+#### Submitting an adopted fixture correction at its merge commit
+
+A product branch may submit its clean merge of an accepted main fixture
+correction under `delivery_revision:"adopted-fixture-merge-v1"`. Select one of
+the two settled watchdog bases above. The failed tip is the first parent and
+the accepted main is the second. The submitted head is that merge itself.
+The source reader checks the complete tree union, including exact modes and
+blobs. A two-sided policy-text edit must match Git's clean three-way result.
+Other overlaps, manual adjustments and later product or support commits
+fall outside this delivery. Existing reviewed support chains keep their own
+source and history checks. Any checkout with the objects can inspect the
+source stage using `node scripts/prepare-local-canonical-adopted-fixture.mjs source MERGE_SHA`.
+This prints the tree comparison without observing a host, an execution grant or
+the failed-run evidence.
+
+For a reviewed-revision watchdog, the reader binds the failed child to its
+registered inner and outer limits, the actual adopted limits and the spent
+ordinary commission. A different pair of increased limits must preserve the
+registered groups, their order, the surrounding registration logic and the
+other groups' allowances against reductions. For the Companion recovery
+matrix, the original upstream Full receipt must match the remedy's tree on
+main's first-parent history. Later unrelated main changes are allowed when
+the registration and covered workload still match. The complete logs must
+show the same 39 scenarios, the interrupted final action, and its natural
+completion beyond the original limit and inside the adopted one.
+
+On the registered worktree, fetch the accepted main and stage the original
+failed stock as `failed-stock.json` in a private evidence folder immediately
+under `.augnes-local-verification/`. For `ordinary`, include `accounting.json`
+and its referenced historical records. For `companion`, include the original
+upstream `accepted-receipt.json` and `accepted-stock.log`. The collector finds
+the physical logs and records the final planner and current inputs.
+
+```sh
+node scripts/prepare-local-canonical-adopted-fixture.mjs collect "$folder" "$basis" "$pr"
+node scripts/prepare-local-canonical-adopted-fixture.mjs prepare "$folder"
+```
+
+Between the commands, an independent reviewer examines `target.json`,
+`review-inputs.json`, the complete Git delta and the original evidence. Record
+the actual decision in `decision.json` using `decision-template.json` and
+write the bound report in `review.md`. The report identifies the head, tree,
+integration digest and reviewed delta digest. Successful preparation prints
+the pending proof path and receiving review body. The existing authenticated
+acceptance, subsequent time-limited one-use grant, exact-target execution,
+separate original-receipt validation and result review still apply. Preparation
+reserves zero invocations.
+
 #### One prospective maintenance after a reproduced root installation
 
 The [#1662 root-layout commission](https://github.com/hynk-studio/augnes/pull/1662#issuecomment-6964475232)

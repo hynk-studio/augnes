@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { digest } from "../local-canonical-inputs.mjs";
-import { ORDINARY_WATCHDOG_INTEGRATION } from "../local-canonical-ordinary-watchdog-integration.mjs";
+import { ADOPTED_FIXTURE_MERGE, ORDINARY_WATCHDOG_INTEGRATION } from "../local-canonical-ordinary-watchdog-integration.mjs";
 import { beginAttempt, finishAttempt, readSourceCorrectionProof, reconstructAttemptTip, inspectAttemptRecords,
   REVIEWED_REVISION_PHASES, observeReviewedIntegrationSource, prepareAcceptedMainIntegrationCandidate,
   integrationTarget, integrationMaterial, authorizeIntegration, INTEGRATION_ACCEPT, INTEGRATION_GRANT } from "../local-canonical-attempts.mjs";
@@ -105,14 +105,30 @@ async function cold(packet) {
   writeFileSync(c.output,canonicalSerialize(stock),{mode:0o600});
 }
 
-export async function runOrdinaryWatchdogIntegrationControls(c,h) {
+export async function runOrdinaryWatchdogIntegrationControls(c,h,{adoptedMerge=false}={}) {
   let refusals=0;const git=(...args)=>c.git(args).toString().trim(),commit=()=>git("-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","synthetic ordinary integration support");
   const sourceRoot=new URL("../",import.meta.url),originalBranch=c.branch;
   c.branch="codex/ordinary-watchdog-integration";git("checkout","-b",c.branch,c.base);
   h.write(path.join(c.checkout,".git/info/exclude"),".augnes-local-verification/\nnode_modules/\n");
   git("remote","add","origin","https://github.com/hynk-studio/augnes.git");
   const sources=Object.fromEntries(registrationPaths.map(file=>[file,readFileSync(new URL(file.slice("scripts/".length),sourceRoot),"utf8")]));
-  for(const [file,source]of Object.entries(sources))h.write(path.join(c.checkout,file),file.endsWith("closeout-budgets.mjs")?source.replaceAll("3_600_000","20_000").replaceAll("3_900_000","30_000"):source);
+  const policy=".github/LOCAL_CANONICAL_VERIFICATION.md";
+  const commonPolicy=Array.from({length:10},(_,i)=>"policy line "+i+"\n").join("");
+  const oldSources={...sources};
+  const budgetFile="scripts/local-canonical-closeout-budgets.mjs";
+  oldSources[budgetFile]=sources[budgetFile].replaceAll("3_600_000","20_000").replaceAll("3_900_000","30_000");
+  if (adoptedMerge) {
+    sources[budgetFile]=sources[budgetFile].replaceAll("3_600_000","3_720_000").replaceAll("3_900_000","4_020_000");
+  }
+  for(const [file,source]of Object.entries(oldSources))h.write(path.join(c.checkout,file),source);
+  if (adoptedMerge) {
+    h.write(path.join(c.checkout,policy),commonPolicy);
+    git("add",policy,...registrationPaths);
+    commit();
+    c.base=git("rev-parse","HEAD");
+    h.write(path.join(c.checkout,policy),commonPolicy.replace("line 0","product policy"));
+    git("add",policy);
+  }
   h.write(path.join(c.checkout,product),"export const productBehavior = 'preserved';\n");
   dependencyRecords(c,c.checkout);git("add","scripts","apps","package.json","package-lock.json");commit();
   const predecessorHead=git("rev-parse","HEAD"),predecessorTree=git("rev-parse","HEAD^{tree}");
@@ -137,14 +153,31 @@ export async function runOrdinaryWatchdogIntegrationControls(c,h) {
   assert.equal(beforeStock.valid_deciding_evidence,false);assert.equal(beforeStock.issues.length,14,JSON.stringify(beforeStock.issues));
   const baseline=c.base;
   git("checkout","-b","synthetic-adopted-main",baseline);
+  if (adoptedMerge) {
+    h.write(path.join(c.checkout,policy),commonPolicy.replace("line 9","main policy"));
+    git("add",policy);
+  }
   for(const [file,source]of Object.entries(sources))h.write(path.join(c.checkout,file),source);
   git("add",...registrationPaths);commit();const main=git("rev-parse","HEAD");
-  git("checkout",c.branch);try{git("merge","--no-ff","--no-commit",main);}catch{/* Both sides intentionally add the same bounded registrations. */}
+  git("checkout",c.branch);
+  if (adoptedMerge) git("merge","--no-ff","--no-commit",main);
+  else try{git("merge","--no-ff","--no-commit",main);}catch{/* Both sides intentionally add the same bounded registrations. */}
   for(const [file,source]of Object.entries(sources))h.write(path.join(c.checkout,file),source);
   git("add",...registrationPaths);commit();const merge=git("rev-parse","HEAD");
-  const support="scripts/local-canonical-ordinary-support-fixture.mjs";
-  h.write(path.join(c.checkout,support),"export const successorSupport = 'first';\n");git("add",support);commit();
-  h.write(path.join(c.checkout,support),"export const successorSupport = 'complete';\n");git("add",support);commit();
+  if (adoptedMerge) {
+    const observe = commit => observeReviewedIntegrationSource(c.checkout,{predecessor:predecessorHead,acceptedMain:main,commit,head:commit,deliveryRevision:ADOPTED_FIXTURE_MERGE});
+    assert.deepEqual(observe(merge).overlaps.map(row=>row.path),[policy]);
+    h.write(path.join(c.checkout,policy),commonPolicy);
+    git("add",policy);
+    const altered=git("-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit-tree",git("write-tree"),"-p",predecessorHead,"-p",main,"-m","discard both policy changes");
+    assert.throws(()=>observe(altered),{code:"integration_fixture_merge_overlap_invalid"});
+    git("reset","--hard",merge);
+  }
+  if (!adoptedMerge) {
+    const support="scripts/local-canonical-ordinary-support-fixture.mjs";
+    h.write(path.join(c.checkout,support),"export const successorSupport = 'first';\n");git("add",support);commit();
+    h.write(path.join(c.checkout,support),"export const successorSupport = 'complete';\n");git("add",support);commit();
+  }
   const head=git("rev-parse","HEAD"),tree=git("rev-parse","HEAD^{tree}");c.base=main;c.head=head;c.tree=tree;
   git("update-ref","refs/remotes/origin/main",main);git("update-ref","refs/remotes/origin/"+c.branch,head);
   const folder=path.join(c.checkout,".augnes-local-verification/ordinary-integration"),file=path.join(folder,"proof.json");
@@ -175,7 +208,8 @@ export async function runOrdinaryWatchdogIntegrationControls(c,h) {
   const predecessorRefs={stock:ref("original-false-stock.json",beforeStock),log:ref("original-authority.log",log),accounting:ref("original-accounting.json",accounting)};
   let p={schema:"augnes.local-canonical-source-correction.v2",kind:"accepted_main_integration",integration_case:"reviewed",branch:c.branch,base:main,accepted_main:main,head,tree,pull_request:999,
     prior_family_id:predecessor.family_id,prior_number:1,prior_attempt_id:predecessor.attempt_id,prior_receipt_fingerprint:prior.integrity.content_fingerprint,prior_receipt_path:path.relative(c.checkout,priorFile),
-    integration:{...observeReviewedIntegrationSource(c.checkout,{predecessor:predecessorHead,acceptedMain:main,commit:merge,head}),predecessor_basis:ORDINARY_WATCHDOG_INTEGRATION},
+    integration:{...observeReviewedIntegrationSource(c.checkout,{predecessor:predecessorHead,acceptedMain:main,commit:merge,head,
+      deliveryRevision:adoptedMerge?ADOPTED_FIXTURE_MERGE:undefined}),predecessor_basis:ORDINARY_WATCHDOG_INTEGRATION},
     planner:ref("planner.json",{base:main,head,selected_plan:"full-canonical",phases:[...REVIEWED_REVISION_PHASES],owners:["local-canonical-integrity"]}),review:null,budget:{initial:1,recovery:0},authorization:null};
   const preparation={schema:"augnes.local-canonical-integration-preparation.v1",target:integrationTarget(p),checkout_fingerprint:checkoutVerificationFingerprint(c.checkout),runtime_inputs:clone(c.inputs),
     input_inventory:inventory,inventory_sha256:live.inventory,dependencies:packages.map(v=>v.before)};
@@ -196,33 +230,40 @@ export async function runOrdinaryWatchdogIntegrationControls(c,h) {
   const goodP=clone(p),goodReview=clone(review),restore=()=>{p=clone(goodP);review=clone(goodReview);rebuild();};
   const reject=mutate=>{try{mutate();assert.throws(()=>{rebuild();prepare();});noEdge();refusals++;}finally{restore();}};
   for(const mutate of [()=>delete p.integration.predecessor_basis,()=>p.integration.predecessor_basis="unknown",()=>p.kind="verifier_correction",()=>p.integration_case="unknown",
-    ()=>p.prior_attempt_id="older-tip",()=>p.integration.correction_chain.pop(),()=>p.integration.correction_chain[0].parent=main,
+    ()=>p.prior_attempt_id="older-tip",()=>p.integration.delivery_revision=adoptedMerge?"accounted-verifier-chain-v1":ADOPTED_FIXTURE_MERGE,
+    ...(adoptedMerge?[()=>p.integration.correction_chain.push({commit:head,parent:main})]:
+      [()=>p.integration.correction_chain.pop(),()=>p.integration.correction_chain[0].parent=main]),
     ()=>review.judgments.settled_watchdog_evidence=false,()=>review.judgments.adopted_watchdog_conditions=false,()=>delete review.ordinary_watchdog_predecessor,
     ()=>review.ordinary_watchdog_predecessor.stock=ref("wrong-stock.json",{...beforeStock,valid_deciding_evidence:true}),
     ()=>review.ordinary_watchdog_predecessor.log=ref("natural-red.log",log.replace('"timed_out":true','"timed_out":false')),
     ()=>review.preparation=ref("stale-preparation.json",{...preparation,inventory_sha256:digest("stale inventory")})])reject(mutate);
-  // Rehash each deliberately wrong authority/history artifact through its full
-  // envelope. These exercise semantic refusals, rather than stale-ref failures.
-  for(const change of [
-    value=>value.permission=ref("wrong-original-permission.json",{...permission,permission:"read"}),
-    value=>value.commission=ref("wrong-original-commission.json",{...original,body:"unrelated authority"}),
-    value=>value.amendments[0].record=ref("wrong-original-amendment.json",{...amendment,created_at:utc(Date.parse(predecessor.started_at)+1000),updated_at:utc(Date.parse(predecessor.started_at)+1000)}),
-    value=>value.settlement=ref("wrong-original-consumption.json",{...settlement,new_commission:{...settlement.new_commission,remaining:1}}),
-    value=>value.settlement=ref("wrong-original-completion-hash.json",{...settlement,new_commission:{...settlement.new_commission,physical_completion_file_sha256:digest("other completion bytes")}}),
-  ])reject(()=>{const value=clone(accounting);change(value);review.ordinary_watchdog_predecessor.accounting=ref("wrong-accounting.json",value);});
-  for(const patch of [{cleanup_complete:false},{disposition:"completed_success"},{infrastructure_code:"external"}]) {
-    const saved=readFileSync(completionFile);try{h.write(completionFile,{...completion,...patch});assert.throws(prepare);noEdge();refusals++;}finally{h.write(completionFile,saved);}
-  }
-  for(const [target,bytes]of [[originalLog,Buffer.from(log.replace('"SIGTERM"','"SIGKILL"'))],
-    [completionFile,Buffer.concat([readFileSync(completionFile),Buffer.from("\n")])]]) {
-    const saved=readFileSync(target);try{h.write(target,bytes);assert.throws(prepare);noEdge();refusals++;}finally{h.write(target,saved);}
+  // Both delivery modes replay the same historical accounting reader.
+  if (!adoptedMerge) {
+    // Rehash each deliberately wrong authority/history artifact through its full
+    // envelope. These exercise semantic refusals, rather than stale-ref failures.
+    for(const change of [
+      value=>value.permission=ref("wrong-original-permission.json",{...permission,permission:"read"}),
+      value=>value.commission=ref("wrong-original-commission.json",{...original,body:"unrelated authority"}),
+      value=>value.amendments[0].record=ref("wrong-original-amendment.json",{...amendment,created_at:utc(Date.parse(predecessor.started_at)+1000),updated_at:utc(Date.parse(predecessor.started_at)+1000)}),
+      value=>value.settlement=ref("wrong-original-consumption.json",{...settlement,new_commission:{...settlement.new_commission,remaining:1}}),
+      value=>value.settlement=ref("wrong-original-completion-hash.json",{...settlement,new_commission:{...settlement.new_commission,physical_completion_file_sha256:digest("other completion bytes")}}),
+    ])reject(()=>{const value=clone(accounting);change(value);review.ordinary_watchdog_predecessor.accounting=ref("wrong-accounting.json",value);});
+    for(const patch of [{cleanup_complete:false},{disposition:"completed_success"},{infrastructure_code:"external"}]) {
+      const saved=readFileSync(completionFile);try{h.write(completionFile,{...completion,...patch});assert.throws(prepare);noEdge();refusals++;}finally{h.write(completionFile,saved);}
+    }
+    for(const [target,bytes]of [[originalLog,Buffer.from(log.replace('"SIGTERM"','"SIGKILL"'))],
+      [completionFile,Buffer.concat([readFileSync(completionFile),Buffer.from("\n")])]]) {
+      const saved=readFileSync(target);try{h.write(target,bytes);assert.throws(prepare);noEdge();refusals++;}finally{h.write(target,saved);}
+    }
   }
   const settledBytes=readFileSync(completionFile);rmSync(completionFile);
   try{assert.throws(prepare);noEdge();refusals++;}finally{h.write(completionFile,settledBytes);}
   const competing=path.join(ledger,"attempt-2.json");h.write(competing,{...predecessor,number:2});try{assert.throws(prepare);noEdge();refusals++;}finally{rmSync(competing);}
   assert.throws(()=>prepareAcceptedMainIntegrationCandidate({anchorRoot:c.anchor,repositoryRoot:c.checkout,proof,acceptedMain:main,runtimeInputs:c.inputs,live:{...refresh(),inventory:digest("changed current inputs")}}));refusals++;
   h.write(path.join(c.checkout,product),"export const unrelatedProductChange=true;\n");git("add",product);commit();
-  const outside=git("rev-parse","HEAD");assert.throws(()=>observeReviewedIntegrationSource(c.checkout,{predecessor:predecessorHead,acceptedMain:main,commit:merge,head:outside}),{code:"integration_verifier_scope_invalid"});refusals++;
+  const outside=git("rev-parse","HEAD");
+  assert.throws(()=>observeReviewedIntegrationSource(c.checkout,{predecessor:predecessorHead,acceptedMain:main,commit:merge,head:outside,
+    deliveryRevision:adoptedMerge?ADOPTED_FIXTURE_MERGE:undefined}),{code:adoptedMerge?"integration_delivery_invalid":"integration_verifier_scope_invalid"});refusals++;
   git("reset","--hard",head);
   await delay(2);const acceptedAt=now();await delay(2);const grantedAt=now(),common={target:integrationTarget(p),review_sha256:p.review.sha256};
   const acceptance={id:3001,user,author_association:"OWNER",state:"COMMENTED",commit_id:head,pull_request_url:url+"/pulls/999",submitted_at:acceptedAt,

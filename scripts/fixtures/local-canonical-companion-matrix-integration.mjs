@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { CANONICAL_ORIGIN_URL } from "../canonical-repository-identity.mjs";
 import { cleanupCanonicalTestResources, createCanonicalTestResourceRoot } from "../canonical-test-environment.mjs";
 import { checkoutVerificationFingerprint } from "../local-canonical-checkout-ownership.mjs";
-import { findCompanionMatrixCheckout, verifyCompanionMatrixLogs } from "../local-canonical-companion-matrix-integration.mjs";
+import { findCompanionMatrixCheckout, verifyCompanionMatrixLogs, verifyCompanionMatrixSource } from "../local-canonical-companion-matrix-integration.mjs";
+import { observeReviewedIntegrationSource } from "../local-canonical-attempts.mjs";
+import { ADOPTED_FIXTURE_MERGE } from "../local-canonical-ordinary-watchdog-integration.mjs";
 import { admitVerificationContext } from "../local-canonical-verification-context.mjs";
 
 const childLabel = "Companion stale-manager stopped recovery and interruption regressions";
@@ -51,8 +53,8 @@ const failedDuration = 180_160;
 const acceptedDuration = 185_600;
 
 // Exercise the log reader with generated native-format records and no processes or timers.
-function matrixLog(interrupted, commonDuration, duration) {
-  const bound = interrupted ? 180_000 : 300_000;
+function matrixLog(interrupted, commonDuration, duration, bounds = {before:180_000,adopted:300_000}) {
+  const bound = interrupted ? bounds.before : bounds.adopted;
   const heartbeat = ms => childLine("child_active", `elapsed_ms=${ms} timeout_ms=${bound} ${live} wait=process_exit`);
   const rows = [childLine("child_start", `timeout_ms=${bound}`), childLine("child_spawn", "pid=1400 wait=process_exit")];
   let elapsed = 0;
@@ -73,8 +75,8 @@ function matrixLog(interrupted, commonDuration, duration) {
   }
   if (interrupted) {
     rows.push(
-      childLine("child_cleanup_start", `elapsed_ms=180020 reason=bounded_timeout ${live}`),
-      heartbeat(180075),
+      childLine("child_cleanup_start", `elapsed_ms=${bound + 20} reason=bounded_timeout ${live}`),
+      heartbeat(bound + 75),
       childLine("child_cleanup_result", `elapsed_ms=${duration} reason=bounded_timeout streams_closed=true remaining_owned_processes=0`),
       childLine("child_result", `duration_ms=${duration} exit_code=null signal=SIGTERM timed_out=true ${settled} termination_reason=bounded_timeout`),
       `Error: canonical child timed out: suite=unit label=${childLabel} timeout_ms=${bound}`,
@@ -128,8 +130,78 @@ function checkRegisteredCheckout() {
   }
 }
 
+// A new bounded registration on the current source, followed by unrelated
+// main movement. No historical commit objects or Mac execution are required.
+function checkNextAdoptedRegistration() {
+  const fixture = createCanonicalTestResourceRoot("ag-resource-test-");
+  try {
+    const root = fixture.root;
+    const git = args => execFileSync("git", ["--no-replace-objects", "-C", root, ...args], {timeout:10000,stdio:["ignore","pipe","pipe"]});
+    const value = (...args) => git(args).toString().trim();
+    const tip = () => value("rev-parse","HEAD");
+    const commit = () => { git(["add","."]); git(["commit","--quiet","-m","fixture"]); return tip(); };
+    const branch = (name,start) => git(["checkout","--quiet","-b",name,start]);
+    const merge = ref => { git(["merge","--quiet","--no-ff","--no-edit",ref]); return tip(); };
+    git(["init","--quiet","--initial-branch=main"]);
+    git(["config","user.name","Fixture"]);
+    git(["config","user.email","fixture@example.invalid"]);
+    const source = name => readFileSync(new URL("../"+name,import.meta.url),"utf8");
+    mkdirSync(path.join(root,"scripts"));
+    const write = (name,data) => writeFileSync(path.join(root,name),data);
+    const suite = "scripts/run-canonical-test-suite.mjs", worker = "scripts/test-companion-stale-manager-recovery.mjs";
+    const initial = source("run-canonical-test-suite.mjs"), exact = '...rootNode("scripts/test-companion-stale-manager-recovery.mjs"),';
+    write(suite,initial);
+    write("scripts/canonical-child-runner.mjs",source("canonical-child-runner.mjs"));
+    write(worker,source("test-companion-stale-manager-recovery.mjs"));
+    const base = commit();
+    branch("product",base);
+    write("product.txt","original feature");
+    const prior = commit();
+    branch("fixture-fix",base);
+    const oldRow = initial.slice(initial.indexOf(exact)).split("requireNaturalExit: true,")[0];
+    const next = replaceOnce(initial,oldRow,oldRow+"timeoutMs: 420_000,\n        ");
+    write(suite,next);
+    const upstream = commit();
+    const accepted = {repository:{base_sha:base,head_sha:upstream,tree_sha:value("rev-parse","HEAD^{tree}")}};
+    git(["checkout","--quiet","main"]);
+    merge(upstream);
+    write("notes.md","unrelated accepted change");
+    const main = commit();
+    git(["checkout","--quiet","product"]);
+    const head = merge(main);
+    const witness = (acceptedMain,commit) => {
+      const integration = observeReviewedIntegrationSource(root,{predecessor:prior,acceptedMain,commit,head:commit,deliveryRevision:ADOPTED_FIXTURE_MERGE});
+      return {base:acceptedMain,head:commit,integration};
+    };
+    const p = witness(main,head);
+    const bounds = verifyCompanionMatrixSource(git,p,{head:prior},accepted);
+    assert.deepEqual(bounds,{before:300_000,adopted:420_000});
+    const failed = Buffer.from(matrixLog(true,7750,300160,bounds)), passed = Buffer.from(matrixLog(false,7750,304000,bounds));
+    assert.equal(verifyCompanionMatrixLogs(failed,passed,bounds).completed_scenarios,39);
+    assert.throws(()=>verifyCompanionMatrixLogs(failed,passed));
+    assert.throws(()=>verifyCompanionMatrixLogs(failed,passed,{before:300_000,adopted:450_000}));
+    assert.throws(()=>verifyCompanionMatrixSource(git,p,{head:prior},{repository:{...accepted.repository,tree_sha:value("rev-parse",prior+"^{tree}")}}));
+    assert.throws(()=>observeReviewedIntegrationSource(root,{predecessor:main,acceptedMain:prior,commit:head,head,deliveryRevision:ADOPTED_FIXTURE_MERGE}));
+    write("product.txt","extra product edit");
+    const extra = commit();
+    assert.throws(()=>observeReviewedIntegrationSource(root,{predecessor:prior,acceptedMain:main,commit:head,head:extra,deliveryRevision:ADOPTED_FIXTURE_MERGE}));
+
+    // Keep the same qualified upstream receipt but change a covered input on
+    // main. Even a clean source merge cannot inherit that workload witness.
+    branch("changed-main",main);
+    write(worker,source("test-companion-stale-manager-recovery.mjs")+"\n// different workload\n");
+    const drift = commit();
+    branch("other-product-merge",prior);
+    const changed = merge(drift);
+    assert.throws(()=>verifyCompanionMatrixSource(git,witness(drift,changed),{head:prior},accepted),{code:"integration_companion_matrix_workload_changed"});
+  } finally {
+    assert.equal(cleanupCanonicalTestResources([fixture])[0].completed,true);
+  }
+}
+
 export function runCompanionMatrixIntegrationControls() {
   checkRegisteredCheckout();
+  checkNextAdoptedRegistration();
   assert.equal(new Set(cases).size, 39);
   const failed = matrixLog(true, 4560, failedDuration);
   const accepted = matrixLog(false, 4630, acceptedDuration);
