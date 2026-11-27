@@ -11,7 +11,8 @@ import { createProjectExperienceRequestVerdictV1 } from './project-experience-re
 import { OPERATOR_REQUEST_LIFECYCLE_PHASES_V1, classifyOperatorLifecycleRequestFailureV1 } from './operator-execution-result-contract-v1.mjs';
 export async function runGuideLifecycleRegressionV1(args = process.argv.slice(2)) {
 const nativeFollowupSource = args[0] === '--native-followup-source';
-const operatorScope = args[0] === '--operator-scope' || nativeFollowupSource;
+const strategicReloadSource = args[0] === '--strategic-reload-source';
+const operatorScope = args[0] === '--operator-scope' || nativeFollowupSource || strategicReloadSource;
 const replayPhases = operatorScope ? OPERATOR_REQUEST_LIFECYCLE_PHASES_V1 : GUIDE_REPLAY_PHASES_V1;
 const ts = createRequire(import.meta.url)('typescript');
 const phase = replayPhases[0], route = '/api/augnes/read/guide-brief';
@@ -222,6 +223,70 @@ async function nativeFollowupBoundary(sourceFile, options = {}) {
   }
 }
 
+async function strategicReloadBoundary(sourceFile) {
+  const source = readFileSync(sourceFile, 'utf8');
+  const startMarker = 'const reloadBefore = databaseFingerprint(fixture.writable_database_path);';
+  const endMarker = 'assert.equal(databaseFingerprint(fixture.writable_database_path), reloadBefore);';
+  const start = source.indexOf(startMarker), end = source.indexOf(endMarker, start);
+  assert(start >= 0 && end > start, 'strategic reload must still check its database fingerprint');
+  const boundary = source.slice(start + startMarker.length, end);
+  const driver = ts.createSourceFile('operator-review-control.mjs', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const helpers = driver.statements.filter(ts.isFunctionDeclaration).map(fn => fn.getText(driver)).join('\n');
+  const run = vm.runInNewContext(helpers + '\n(async lifecycle => {' + boundary + '})');
+  const phase = 'strategic_analysis_and_proposal_review';
+  const prior = (await fixture({ phase })).lifecycle.snapshot();
+  assert(prior.events.some(event => event.event === 'committed'), 'the previous document already has a committed GuideBrief');
+
+  const results = [];
+  for (const [label, options, shouldAdopt] of [
+    ['valid', {}, true],
+    ['invalid body', { invalidBody: true }, false],
+    ['other project', { wrongProject: true }, false],
+    ['stale controller', { mutate: event => [event.event === 'committed' ? { ...event, same_controller: false } : event] }, false],
+  ]) {
+    const next = await fixture({ phase, holdReplacement: true, ...options });
+    const release = Promise.withResolvers();
+    const unadopted = new Error('the replacement has no current adoption');
+    let reloaded = false, departed = false;
+    const lifecycle = {
+      cdp: () => ({ async send(method) {
+        assert.equal(method, 'Page.reload'); assert.equal(reloaded, false); reloaded = true;
+      } }),
+      async waitForCondition(expression) {
+        // The proposal marker is already visible while the GuideBrief fetch is pending.
+        const document = { querySelector(selector) {
+          assert.equal(selector, '[data-vnext-strategic-advantage-transfer="proposal"]');
+          return {};
+        } };
+        assert.equal(vm.runInNewContext(expression, { document }), true);
+      },
+      guideLifecycleSnapshot() {
+        if (!reloaded) return prior;
+        const current = next.lifecycle.snapshot();
+        return { complete: prior.complete && current.complete, events: [...prior.events, ...current.events] };
+      },
+      async waitForHostCondition(predicate) {
+        if (!predicate()) await release.promise;
+        if (!predicate()) throw unadopted;
+      },
+    };
+    const attempt = run(lifecycle).then(() => { departed = true; return null; }, error => error);
+    await tick();
+    const departedWhilePending = departed, pendingVerdict = next.reason().reason;
+    await next.settleReplacement();
+    release.resolve();
+    const error = await attempt;
+    if (error && error !== unadopted) throw error;
+    assert.equal(reloaded, true);
+    assert.equal(pendingVerdict, 'guide_duplicate_event');
+    assert.equal(departedWhilePending, false, 'strategic reload released the document before the replacement GuideBrief was adopted');
+    assert.equal(departed, shouldAdopt, label);
+    assert.equal(next.expected(next.failure), shouldAdopt, label + ' stock failure verdict');
+    results.push({ replacement: label, released: departed });
+  }
+  return results;
+}
+
 const supersessionAccepted = f => [1, 2].map(read => {
   const entry = f.failuresByRead.get(read);
   return entry ? f.expected(entry) : false;
@@ -258,7 +323,11 @@ function assertSupersessionProducer(f) {
 // owned replay, not a fabricated failure, syntax error or production attempt.
 const supersessionSource = ['--supersession-verdict-source', '--supersession-verdict-observe'].includes(args[0]);
 const witnessMode = args[0] === '--verdict-source';
-if (nativeFollowupSource) {
+if (strategicReloadSource) {
+  assert.equal(args.length, 2); assert(path.isAbsolute(args[1]));
+  const results = await strategicReloadBoundary(args[1]);
+  console.log(JSON.stringify({ test: 'strategic-reload-guide-adoption', results, synthetic_controlled_schedule: true }));
+} else if (nativeFollowupSource) {
   assert.equal(args.length, 2); assert(path.isAbsolute(args[1]));
   const results = [];
   for (const options of [{}, { invalidBody: true }, { replacementFailed: true }])
@@ -425,10 +494,13 @@ if (nativeFollowupSource) {
   const nativeFollowupResults = [];
   if (operatorScope) for (const options of [{}, { invalidBody: true }, { replacementFailed: true }])
     nativeFollowupResults.push(await nativeFollowupBoundary(new URL('./browser-validate-operator-native-host-execution-v1.mjs', import.meta.url), options));
+  const strategicReloadResults = operatorScope
+    ? await strategicReloadBoundary(new URL('./browser-validate-operator-review-control-v1.mjs', import.meta.url)) : [];
   console.log(JSON.stringify({ test: 'project-experience-guide-lifecycle-v1', status: 'pass', adversarial_controls: negative.length + 3 + replayPhases.length,
     supersession_adversarial_controls: chainNegative.length, delayed_canceled_result_controls: 4, supersession_phases: replayPhases.length,
     replay_phases: replayPhases, operator_scope: operatorScope,
-    actual_hook_guard: true, observer_parity: true, exact_fetch_promise: true, native_followup_boundary: nativeFollowupResults, production_attempt: false }));
+    actual_hook_guard: true, observer_parity: true, exact_fetch_promise: true, native_followup_boundary: nativeFollowupResults,
+    strategic_reload_boundary: strategicReloadResults, production_attempt: false }));
 }
 
 }

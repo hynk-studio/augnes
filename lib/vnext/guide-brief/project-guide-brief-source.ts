@@ -77,6 +77,7 @@ export async function loadProjectGuideBriefAIWorkplaneProjectionV02(): Promise<G
       project_name: null,
       current_coordinate: "Current project guidance is unavailable",
       current_goal: null,
+      constraint_kind: "forbidden_actions",
       important_constraints: [],
       work_or_result_status: "Use the existing work surface without inferring missing project state.",
       material_blocker_or_judgment: "Current read sources could not be resolved.",

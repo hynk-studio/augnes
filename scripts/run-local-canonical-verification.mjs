@@ -193,6 +193,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-material-stock-predecessor.mjs",
   "scripts/local-canonical-stock-verifier-witness.mjs",
   "scripts/local-canonical-stock-verifier-output.mjs",
+  "scripts/local-canonical-companion-matrix-integration.mjs",
 ]);
 const RECEIPT_RETENTION = 20;
 const LOG_RUN_RETENTION = 5;

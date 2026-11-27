@@ -504,7 +504,7 @@ await runOperatorExecutionBrowserChildV1({
         result.strategic_candidate_defer_no_transition = true;
         completeDetailedField("strategic_candidate_defer_no_transition");
         const reloadBefore = databaseFingerprint(fixture.writable_database_path);
-        await lifecycle.cdp().send("Page.reload", { ignoreCache: true });
+        await reloadAndWaitForGuideBrief(lifecycle);
         await lifecycle.waitForCondition(
           `document.querySelector('[data-vnext-strategic-advantage-transfer="proposal"]') !== null`,
           "strategic proposal reload",
@@ -1274,26 +1274,12 @@ await runOperatorExecutionBrowserChildV1({
       result.guide_brief_post_application_consistent = true;
       completeDetailedField("guide_brief_post_application_consistent");
       const afterApply = databaseFingerprint(fixture.writable_database_path);
-      const guideDocumentsBeforeReload = new Set(
-        lifecycle.guideLifecycleSnapshot().events.map((event) => event.documentId),
-      );
-      await lifecycle.cdp().send("Page.reload", { ignoreCache: true });
+      await reloadAndWaitForGuideBrief(lifecycle);
       await lifecycle.waitForCondition(
         `document.querySelector('[data-vnext-semantic-review-detail="v0.1"]') !== null &&
           document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-status="available"][data-ai-workplane-guide-loading="false"]') !== null`,
         "applied proposal and available GuideBrief after reload",
       );
-      // The next phase leaves this document before restarting the runtime.
-      // Wait for the reloaded consumer's observed adoption before leaving it.
-      await lifecycle.waitForHostCondition(() => {
-        const guide = lifecycle.guideLifecycleSnapshot();
-        return guide.complete && guide.events.some((event) =>
-          event.kind === "consumer" && event.event === "committed" &&
-          !guideDocumentsBeforeReload.has(event.documentId) &&
-          event.current === true && event.same_controller === true &&
-          event.aborted === false && event.context_current === true
-        );
-      }, "reloaded GuideBrief adopted by its current consumer");
       assert.equal(databaseFingerprint(fixture.writable_database_path), afterApply);
       result.semantic_transition_reload_idempotent = true;
       completeDetailedField("semantic_transition_reload_idempotent");
@@ -1419,6 +1405,31 @@ await runOperatorExecutionBrowserChildV1({
     };
   },
 });
+
+async function reloadAndWaitForGuideBrief(lifecycle) {
+  const previousDocuments = new Set(
+    lifecycle.guideLifecycleSnapshot().events.map((event) => event.documentId),
+  );
+  await lifecycle.cdp().send("Page.reload", { ignoreCache: true });
+  // The proposal may already be visible while its new GuideBrief is in flight.
+  await lifecycle.waitForHostCondition(() => {
+    const guide = lifecycle.guideLifecycleSnapshot();
+    const read = guide.events.findLast((event) =>
+      event.event === "read_created" && !previousDocuments.has(event.documentId),
+    );
+    if (!guide.complete || !read) return false;
+    const events = guide.events.filter((event) =>
+      event.documentId === read.documentId && event.consumer === read.consumer && event.read === read.read,
+    );
+    return events.some((event) =>
+      event.event === "application_requested" && event.project_matches === true &&
+      event.current === true && event.aborted === false,
+    ) && events.some((event) =>
+      event.event === "committed" && event.current === true && event.same_controller === true &&
+      event.aborted === false && event.context_current === true,
+    );
+  }, "reloaded GuideBrief adopted by its current consumer");
+}
 
 async function startNavigationDiagnosticServer({
   routes,

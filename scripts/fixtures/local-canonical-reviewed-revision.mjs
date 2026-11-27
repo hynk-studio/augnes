@@ -742,6 +742,8 @@ if(process.argv[2]==="--cold"){
   }
 }else if(process.argv[2]==="--run-ordinary-watchdog-integration-fixtures"){
   const {runOrdinaryWatchdogIntegrationControls}=await import("./local-canonical-ordinary-watchdog-integration.mjs");
+  const {runCompanionMatrixIntegrationControls}=await import("./local-canonical-companion-matrix-integration.mjs");
+  await runCompanionMatrixIntegrationControls();
   const owner=createCanonicalTestResourceRoot("ag-resource-test-"),lifecycle={pendingChildren:0};beginCanonicalTestResourceUse(owner);
   const run=createTrackedReviewChildRunner(lifecycle,runCanonicalChild);let c;
   try{

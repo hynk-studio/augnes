@@ -2,8 +2,12 @@
 
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, renameSync, rmSync } from "node:fs";
+import { createRequire, registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 import Database from "better-sqlite3";
 
@@ -20,6 +24,9 @@ import {
 import {
   buildContinuitiesTemporalContextV01,
 } from "../lib/vnext/blank-state/continuities-temporal-context";
+import { createRunResultReviewHrefV01 } from "../lib/vnext/ai-workplane-review-href";
+import { projectClientHref } from "../lib/vnext/project-client-href";
+import { createRunResultWorkbenchEntryV01 } from "../lib/vnext/runtime/semantic-workbench-entry";
 import { buildProjectGuideBriefV02 } from "../lib/vnext/guide-brief/project-guide-brief";
 import {
   getOrCreateCanonicalProjectForLocalRootV01,
@@ -276,6 +283,148 @@ function view(sourceValue: BlankStateSourceV01) {
     generated_at: "2026-07-23T00:00:00.000Z",
   });
   return buildBlankStateViewV01(guide);
+}
+
+const { parse }: { parse(html: string): ParentNode } =
+  createRequire(import.meta.url)("next/dist/compiled/node-html-parser");
+
+async function loadMarkupComponent<T>(load: () => Promise<T>): Promise<T> {
+  // Node renders the production components without Next's CSS-module loader.
+  const styles = registerHooks({
+    load(url, context, next) {
+      if (url.endsWith(".module.css")) {
+        return { format: "commonjs", source: "module.exports = {};", shortCircuit: true };
+      }
+      return next(url, context);
+    },
+  });
+  try {
+    return await load();
+  } finally {
+    styles.deregister();
+  }
+}
+
+async function renderHomeMarkup(source: BlankStateSourceV01) {
+  const { BlankStateSurface } = await loadMarkupComponent(() => import("../components/blank-state/blank-state-surface"));
+  const guide = buildProjectGuideBriefV02({ source, generated_at: "2026-07-23T01:00:06.000Z" });
+  const navigate = () => assert.fail("Rendering the home dispatched navigation");
+  const router = {
+    back: navigate, forward: navigate, push: navigate, replace: navigate,
+    refresh: navigate, prefetch: navigate, bfcacheId: "guide-test",
+  };
+  const home = parse(renderToStaticMarkup(createElement(
+    AppRouterContext.Provider, { value: router },
+    createElement(BlankStateSurface, { source, guide }),
+  )));
+  return { home, guide };
+}
+
+async function assertGuideBriefMarkup(source: BlankStateSourceV01) {
+  const { home, guide } = await renderHomeMarkup(source);
+  const situation = home.querySelector(".continuities-current-situation");
+  assert.equal(home.querySelectorAll("[data-blank-state-primary-action]").length, 1);
+  assert.ok(situation);
+  assert.ok(situation.querySelector("[data-blank-state-primary-action]"));
+  const opener = situation.querySelector('[data-guide-brief-disclosure] button[aria-haspopup="dialog"][aria-controls]');
+  assert.ok(opener);
+  assert.equal(opener.getAttribute("aria-controls"), home.querySelector("dialog")?.getAttribute("id"));
+
+  const { ProjectGuideBriefRail } = await loadMarkupComponent(() => import("../components/guide/project-guide-brief-rail"));
+  for (const rule of ["Publish externally without approval.", "Do not disclose <private> files."]) {
+    const rail = parse(renderToStaticMarkup(createElement(ProjectGuideBriefRail, {
+      guide: { ...guide.projections.ai_workplane, important_constraints: [rule] },
+    })));
+    const value = rail.querySelector("dl > dt + dd[data-guide-brief-core-constraint]");
+    assert.equal(value?.textContent, rule);
+    assert.equal(value?.previousElementSibling?.textContent, "Forbidden action");
+  }
+}
+
+async function assertCompletedCardMarkup(
+  canonical: BlankStateSourceV01,
+  result: NonNullable<ProjectHomeProjectionV01["run_results"]["latest_result"]>,
+) {
+  const project = canonical.projection;
+  assert.ok(project && canonical.work_initialization);
+  const delegated = {
+    ...delegatedWork("result_ready"),
+    run_ref: "autonomy-run:test",
+    workspace_id: project.workspace_id,
+    project_id: project.project_id,
+  };
+  const receiptId = "run-receipt:000000000000000000000001";
+  const receiptHref = (id: string) => projectClientHref(createRunResultReviewHrefV01(id), project.project_id);
+  const delegatedHref = receiptHref(receiptId);
+  delegated.result = { receipt_ref: receiptId, outcome: "completed", review_href: delegatedHref };
+  const definedWork: ProjectWorkInitializationV01 = {
+    ...canonical.work_initialization,
+    state: "defined_initial_work",
+    reason: "current_initial_packet",
+    current_work: { goal: "Finish the bounded work", success_criteria: ["Save the result"], non_goals: [] },
+    current_packet: {
+      packet_id: "task-context-packet:test", packet_fingerprint: "a".repeat(64),
+      generated_at: "2026-07-23T00:00:00.000Z", lineage_kind: "initial_user_defined",
+    },
+    mutation_eligible: false,
+  };
+
+  const homeWith = (work: DelegatedWorkProjectionV01, latest: typeof result) => {
+    return renderHomeMarkup({
+      ...canonical,
+      delegated_work: work,
+      work_initialization: definedWork,
+      projection: {
+        ...project,
+        run_results: {
+          ...project.run_results,
+          current_run: null,
+          latest_result: latest,
+          workbench_entry: createRunResultWorkbenchEntryV01({
+            workspace_id: project.workspace_id,
+            project_id: project.project_id,
+            receipt_id: latest.receipt_ref,
+            entry_state: "assessment",
+            origin: "interactive",
+            reason: "Review the completed result",
+          }),
+        },
+      },
+    });
+  };
+  const receipt = { ...result, run_ref: delegated.run_ref, receipt_ref: receiptId, review_href: delegatedHref };
+  const primary = "[data-blank-state-primary-action]";
+  const completed = '[data-latest-run-result="completed"]';
+  const reviewLink = 'a[data-review-result-link="true"]';
+
+  const { home } = await homeWith(delegated, receipt);
+  const card = home.querySelector(completed);
+  assert.equal(card?.getAttribute("data-delegated-work-summary"), "result_ready");
+  const link = card?.querySelector(reviewLink);
+  assert.equal(link?.getAttribute("href"), delegatedHref, "Collapsed result card must open its exact project-scoped receipt");
+  assert.equal(link?.closest("details"), null);
+  assert.ok(card?.textContent?.includes(receipt.summary));
+  assert.equal(home.querySelector("[data-current-host-run]"), null);
+  assert.equal(home.querySelectorAll(primary).length, 1);
+  assert.equal(home.querySelector(`.continuities-current-situation ${primary}`)?.getAttribute("href"), delegatedHref);
+
+  const waiting = delegatedWork("waiting_for_approval");
+  const { home: waitingHome } = await homeWith({
+    ...waiting, workspace_id: project.workspace_id, project_id: project.project_id,
+  }, receipt);
+  assert.equal(waitingHome.querySelectorAll(primary).length, 1);
+  assert.equal(waitingHome.querySelector(primary)?.getAttribute("aria-label"), "Review requested access");
+  assert.equal(waitingHome.querySelector(`${completed} ${reviewLink}`)?.getAttribute("href"), delegatedHref);
+
+  const newerId = "run-receipt:000000000000000000000002";
+  const newerHref = receiptHref(newerId);
+  const { home: laterHome } = await homeWith(delegated, {
+    ...receipt, receipt_ref: newerId, run_ref: "autonomy-run:later", review_href: newerHref,
+    recorded_at: "2026-07-23T00:03:00.000Z", finished_at: "2026-07-23T00:03:00.000Z",
+  });
+  assert.equal(laterHome.querySelectorAll(completed).length, 1);
+  assert.equal(laterHome.querySelector(`${completed} ${reviewLink}`)?.getAttribute("href"), newerHref);
+  assert.equal(laterHome.querySelector(`[data-delegated-work-summary="result_ready"] ${reviewLink}`)?.getAttribute("href"), delegatedHref);
 }
 
 async function main() {
@@ -1152,6 +1301,8 @@ async function main() {
   const canonical = await loadBlankStateSourceV01({ route_mode: "canonical" }, { open_database: openDatabase });
   assert.equal(canonical.projection?.project_id, projectA.project.project_id);
   assert.equal(canonical.route_mode, "canonical");
+  await assertGuideBriefMarkup(canonical);
+  await assertCompletedCardMarkup(canonical, latestResult);
 
   const management = await loadBlankStateSourceV01({ route_mode: "project_management" }, { open_database: openDatabase });
   assert.equal(management.projection?.project_id, projectA.project.project_id);
@@ -1169,7 +1320,9 @@ async function main() {
   assert.equal(missing.projection?.project_summary.root_availability, "missing");
 
   console.log(JSON.stringify({
-    assertion_sites: 102,
+    assertion_sites: 173,
+    rendered_completed_result_cards: true,
+    rendered_guide_brief: true,
     blank_state_focuses: [
       "no_projects",
       "project_choice",
