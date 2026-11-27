@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdirSync } from "node:fs";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { verifyCompanionMatrixLogs } from "../local-canonical-companion-matrix-integration.mjs";
+import { CANONICAL_ORIGIN_URL } from "../canonical-repository-identity.mjs";
+import { cleanupCanonicalTestResources, createCanonicalTestResourceRoot } from "../canonical-test-environment.mjs";
+import { checkoutVerificationFingerprint } from "../local-canonical-checkout-ownership.mjs";
+import { findCompanionMatrixCheckout, verifyCompanionMatrixLogs } from "../local-canonical-companion-matrix-integration.mjs";
+import { admitVerificationContext } from "../local-canonical-verification-context.mjs";
 
 const childLabel = "Companion stale-manager stopped recovery and interruption regressions";
 const lastCase = "crashed-applier-exact-journal-recovery";
@@ -89,7 +96,40 @@ function replaceOnce(source, needle, replacement) {
   return source.replace(needle, replacement);
 }
 
+function checkRegisteredCheckout() {
+  const fixture = createCanonicalTestResourceRoot("ag-resource-test-");
+  try {
+    const anchor = path.join(fixture.root, "anchor"), upstream = path.join(fixture.root, "accepted checkout");
+    mkdirSync(anchor);
+    const git = args => execFileSync("git", ["-C", anchor, ...args], { timeout: 10_000 });
+    git(["init", "--quiet", "--initial-branch=main"]);
+    git(["remote", "add", "origin", CANONICAL_ORIGIN_URL]);
+    git(["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "--quiet", "--allow-empty", "-m", "fixture"]);
+    git(["worktree", "add", "--quiet", "--detach", upstream, "HEAD"]);
+    for (const dir of ["apps/augnes_apps", "apps/web_planning"]) mkdirSync(path.join(upstream, dir), { recursive: true });
+
+    const context = admitVerificationContext({ repositoryRoot: upstream, canonicalRoot: anchor, platform: "darwin", kind: "isolated-worktree" });
+    const owner = checkoutVerificationFingerprint(upstream);
+    const lookup = (ownerFingerprint, contextFingerprint) => findCompanionMatrixCheckout(git, {
+      checkout_ownership: { checkout_fingerprint: ownerFingerprint },
+      verification_context: { checkout_fingerprint: contextFingerprint },
+    });
+    const refused = { code: "integration_companion_matrix_upstream_originals_changed" };
+    assert.notEqual(owner, context.checkout_fingerprint);
+    assert.equal(lookup(owner, context.checkout_fingerprint), upstream);
+    assert.throws(() => lookup(owner, owner), refused);
+    assert.throws(() => lookup(context.checkout_fingerprint, context.checkout_fingerprint), refused);
+    assert.throws(() => lookup(owner, context.anchor_fingerprint), refused);
+    assert.throws(() => lookup(checkoutVerificationFingerprint(anchor), context.checkout_fingerprint), refused);
+    git(["worktree", "remove", upstream]);
+    assert.throws(() => lookup(owner, context.checkout_fingerprint), refused);
+  } finally {
+    assert.equal(cleanupCanonicalTestResources([fixture])[0].completed, true);
+  }
+}
+
 export function runCompanionMatrixIntegrationControls() {
+  checkRegisteredCheckout();
   assert.equal(new Set(cases).size, 39);
   const failed = matrixLog(true, 4560, failedDuration);
   const accepted = matrixLog(false, 4630, acceptedDuration);
@@ -134,5 +174,5 @@ export function runCompanionMatrixIntegrationControls() {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   runCompanionMatrixIntegrationControls();
-  console.log("Companion matrix integration log controls passed");
+  console.log("Companion matrix integration checkout and log controls passed");
 }

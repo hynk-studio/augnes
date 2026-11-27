@@ -7,6 +7,7 @@ import { digest } from "./local-canonical-inputs.mjs";
 import { usesDeclaredIntegrationBase, validAdmittedIntegrationBase } from "./local-canonical-integration-base.mjs";
 import { retainedBytes } from "./local-canonical-ordinary-watchdog-integration.mjs";
 import { verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
+import { physicalFingerprint } from "./local-canonical-verification-context.mjs";
 
 export const COMPANION_MATRIX_INTEGRATION = "settled-companion-matrix-watchdog-integration-v1";
 const registration = "scripts/run-canonical-test-suite.mjs";
@@ -188,6 +189,16 @@ function verifyAcceptedReceipt(receipt, stock, phases) {
       validPhaseBrowserUse(v, v.browser_use ?? [], browser)), "upstream_qualification");
 }
 
+export function findCompanionMatrixCheckout(git, receipt) {
+  const paths = git(["worktree", "list", "--porcelain", "-z"]).toString().split("\0")
+    .filter(row => row.startsWith("worktree ")).map(row => row.slice("worktree ".length));
+  const matches = paths.filter(dir => existsSync(dir) &&
+    checkoutVerificationFingerprint(dir) === receipt.checkout_ownership.checkout_fingerprint &&
+    physicalFingerprint(dir) === receipt.verification_context.checkout_fingerprint);
+  requireEvidence(matches.length === 1, "upstream_originals_changed");
+  return matches[0];
+}
+
 export function readCompanionMatrixPredecessor({root, anchorRoot, p, prior, completion, reader, review, git, phases, preparation, remember, verifyUpstreamOriginals}) {
   const refs = review.companion_matrix_predecessor;
   requireEvidence(equal(Object.keys(refs).sort(),["accepted_receipt","accepted_stock","accepted_unit_log","stock","unit_log"]), "references");
@@ -247,10 +258,9 @@ export function readCompanionMatrixPredecessor({root, anchorRoot, p, prior, comp
   // physical checkout. Historical replay uses the reviewed copies and physical
   // completion, so retiring the upstream checkout later does not invalidate it.
   if (verifyUpstreamOriginals) {
-    const worktrees = git(["worktree","list","--porcelain","-z"]).toString().split("\0").filter(row => row.startsWith("worktree "))
-      .map(row => row.slice("worktree ".length)).filter(dir => existsSync(dir) && checkoutVerificationFingerprint(dir) === accepted.verification_context.checkout_fingerprint);
-    requireEvidence(worktrees.length === 1 && physical(worktrees[0],logPath(accepted),maximumLog).equals(acceptedLog) &&
-      digest(physical(worktrees[0],".augnes-local-verification/receipts/" + accepted.run.id + ".json",512*1024)) === refs.accepted_receipt.sha256,
+    const checkout = findCompanionMatrixCheckout(git, accepted);
+    requireEvidence(physical(checkout,logPath(accepted),maximumLog).equals(acceptedLog) &&
+      digest(physical(checkout,".augnes-local-verification/receipts/" + accepted.run.id + ".json",512*1024)) === refs.accepted_receipt.sha256,
     "upstream_originals_changed");
   }
   const observation = verifyCompanionMatrixLogs(failedLog, acceptedLog);
