@@ -1425,7 +1425,9 @@ export function observeReviewedIntegrationSource(root,{predecessor,acceptedMain,
   integrationRequire(adoptedMerge ? head === commit : deliveryRevision === REVIEWED_INTEGRATION_DELIVERY, "delivery_invalid");
   integrationRequire([predecessor,acceptedMain,commit,head].every(x=>/^[a-f0-9]{40}$/u.test(x??"")),"topology_invalid");
   integrationRequire(git(["show","-s","--format=%P",commit]).toString().trim()===`${predecessor} ${acceptedMain}`,"topology_invalid");
-  const mergeBase=git(["merge-base",predecessor,acceptedMain]).toString().trim();
+  const mergeBases = git(["merge-base", ...(adoptedMerge ? ["--all"] : []), predecessor, acceptedMain]).toString().trim().split("\n");
+  if (adoptedMerge) integrationRequire(mergeBases.length === 1, "fixture_merge_base_ambiguous");
+  const [mergeBase] = mergeBases;
   const base=treeEntries(git,mergeBase),previous=treeEntries(git,predecessor),main=treeEntries(git,acceptedMain),actual=treeEntries(git,commit);
   const overlaps=[],adjustments=[];
   for(const name of [...new Set([...base.keys(),...previous.keys(),...main.keys(),...actual.keys()])].sort()){

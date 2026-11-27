@@ -130,6 +130,26 @@ function checkRegisteredCheckout() {
   }
 }
 
+function checkCrissCrossAdoption(root, value, base, product, remedy) {
+  const tree = ref => value("rev-parse",ref+"^{tree}");
+  const merge = (result,first,second) => value("commit-tree",result,"-p",first,"-p",second,"-m","fixture merge");
+  // Each earlier merge kept its first parent's tree. The virtual base of the
+  // two tips contains both changes, so a clean final merge drops both.
+  const predecessor = merge(tree(product),product,remedy);
+  const acceptedMain = merge(tree(remedy),remedy,product);
+  assert.deepEqual(value("merge-base","--all",predecessor,acceptedMain).split("\n").sort(),[product,remedy].sort());
+  const automatic = value("merge-tree","--write-tree",predecessor,acceptedMain);
+  assert.equal(automatic,tree(base));
+  const singleBase = value("merge-base",predecessor,acceptedMain);
+  const oneBaseResult = tree(singleBase === product ? remedy : product);
+  assert.notEqual(oneBaseResult,automatic);
+  for (const result of [oneBaseResult,automatic]) {
+    const commit = merge(result,predecessor,acceptedMain);
+    assert.throws(()=>observeReviewedIntegrationSource(root,{predecessor,acceptedMain,commit,head:commit,deliveryRevision:ADOPTED_FIXTURE_MERGE}),
+      {code:"integration_fixture_merge_base_ambiguous"});
+  }
+}
+
 // A new bounded registration on the current source, followed by unrelated
 // main movement. No historical commit objects or Mac execution are required.
 function checkNextAdoptedRegistration() {
@@ -150,18 +170,24 @@ function checkNextAdoptedRegistration() {
     const write = (name,data) => writeFileSync(path.join(root,name),data);
     const suite = "scripts/run-canonical-test-suite.mjs", worker = "scripts/test-companion-stale-manager-recovery.mjs";
     const initial = source("run-canonical-test-suite.mjs"), exact = '...rootNode("scripts/test-companion-stale-manager-recovery.mjs"),';
+    const policy = ".github/LOCAL_CANONICAL_VERIFICATION.md";
+    const policyText = Array.from({length:12}, (_, index) => "rule " + index + "\n").join("");
+    mkdirSync(path.join(root,".github"));
+    write(policy,policyText);
     write(suite,initial);
     write("scripts/canonical-child-runner.mjs",source("canonical-child-runner.mjs"));
     write(worker,source("test-companion-stale-manager-recovery.mjs"));
     const base = commit();
     branch("product",base);
     write("product.txt","original feature");
+    write(policy,policyText.replace("rule 0\n","product rule\n"));
     const prior = commit();
     branch("fixture-fix",base);
     const oldRow = initial.slice(initial.indexOf(exact)).split("requireNaturalExit: true,")[0];
     const next = replaceOnce(initial,oldRow,oldRow+"timeoutMs: 420_000,\n        ");
     write(suite,next);
     const upstream = commit();
+    checkCrissCrossAdoption(root,value,base,prior,upstream);
     const accepted = {repository:{base_sha:base,head_sha:upstream,tree_sha:value("rev-parse","HEAD^{tree}")}};
     git(["checkout","--quiet","main"]);
     merge(upstream);
@@ -194,6 +220,20 @@ function checkNextAdoptedRegistration() {
     branch("other-product-merge",prior);
     const changed = merge(drift);
     assert.throws(()=>verifyCompanionMatrixSource(git,witness(drift,changed),{head:prior},accepted),{code:"integration_companion_matrix_workload_changed"});
+
+    branch("policy-main",main);
+    write(policy,policyText.replace("rule 11\n","main rule\n"));
+    const policyMain = commit();
+    branch("policy-product",prior);
+    const policyMerge = merge(policyMain);
+    const policyWitness = witness(policyMain,policyMerge);
+    assert.deepEqual(policyWitness.integration.overlaps.map(row=>row.path),[policy]);
+    assert.deepEqual(verifyCompanionMatrixSource(git,policyWitness,{head:prior},accepted),bounds);
+
+    write(policy,policyText);
+    git(["add",policy]);
+    const altered = value("commit-tree",value("write-tree"),"-p",prior,"-p",policyMain,"-m","discard both policy edits");
+    assert.throws(()=>witness(policyMain,altered),{code:"integration_fixture_merge_overlap_invalid"});
   } finally {
     assert.equal(cleanupCanonicalTestResources([fixture])[0].completed,true);
   }

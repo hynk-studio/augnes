@@ -1529,8 +1529,10 @@ A product branch may submit its clean merge of an accepted main fixture
 correction under `delivery_revision:"adopted-fixture-merge-v1"`. Select one of
 the two settled watchdog bases above. The failed tip is the first parent and
 the accepted main is the second. The submitted head is that merge itself.
-The source reader checks the complete tree union, including exact modes and
-blobs. A two-sided policy-text edit must match Git's clean three-way result.
+Its parents must have exactly one best common ancestor. The source reader
+checks the complete tree union from that base, including exact modes and
+blobs. For both watchdog bases, a two-sided edit to
+`.github/LOCAL_CANONICAL_VERIFICATION.md` must match Git's clean three-way text result.
 Other overlaps, manual adjustments and later product or support commits
 fall outside this delivery. Existing reviewed support chains keep their own
 source and history checks. Any checkout with the objects can inspect the

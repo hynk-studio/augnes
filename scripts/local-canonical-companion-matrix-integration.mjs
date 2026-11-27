@@ -139,8 +139,9 @@ function directMatrixAdoption(git, p, prior, accepted) {
   const run = (...args) => git(args).toString().trimEnd();
   const {base_sha:base, head_sha:head, tree_sha:tree} = accepted.repository;
   const i = p.integration;
+  // The common source reader already checked the policy's three-way merge bytes.
   requireEvidence(p.head === i.commit && i.correction_chain.length === 0 &&
-    i.overlaps.length === 0 && i.adjustments.length === 0 &&
+    i.overlaps.every(row => row.path === ".github/LOCAL_CANONICAL_VERIFICATION.md") && i.adjustments.length === 0 &&
     run("merge-base", i.merge_base, base) === i.merge_base, "adoption");
   const rows = run("rev-list", "--first-parent", "--merges", "--parents", base + ".." + p.base).split("\n");
   const landed = rows.map(row => row.split(" ")).filter(parents =>
