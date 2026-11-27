@@ -1533,26 +1533,20 @@ function ContinuityItem({
   const currentRunStatus = item.source_family === "current_run"
     ? source.projection?.run_results.current_run?.status
     : undefined;
-  const resultEntryHref =
-    source.projection?.run_results.workbench_entry?.href ?? null;
-  const itemDestination =
-    item.next_action?.kind === "link"
-      ? item.next_action.href
-      : item.secondary_action?.href ?? null;
-  const isResultItem = item.source_family === "saved_result" ||
-    (delegatedStage === "result_ready") ||
-    Boolean(resultEntryHref && resultEntryHref === itemDestination);
-  const resultOutcome = isResultItem
+  const latestResultHref = source.projection?.run_results.workbench_entry?.href;
+  const delegatedResultHref = delegatedStage === "result_ready"
+    ? source.delegated_work?.result?.review_href
+    : undefined;
+  const isResultHref = (href: string) => href === latestResultHref || href === delegatedResultHref;
+  const nextLink = item.next_action?.kind === "link" ? item.next_action : null;
+  const itemDestination = nextLink?.href ?? item.secondary_action?.href;
+  const resultOutcome = latestResultHref && itemDestination === latestResultHref
     ? source.projection?.run_results.latest_result?.outcome ?? "unknown"
     : undefined;
-  const secondaryAction =
-    item.secondary_action ??
-    (!highlighted && item.next_action?.kind === "link"
-      ? {
-          label: item.next_action.label,
-          href: item.next_action.href,
-        }
-      : null);
+  const secondaryAction = item.secondary_action ?? (!highlighted ? nextLink : null);
+  const rowAction = highlighted && item.next_action
+    ? nextLink && isResultHref(nextLink.href) ? nextLink : null
+    : secondaryAction;
   const attentionLabel = blankStateAttentionLabelV01(item);
 
   return (
@@ -1605,18 +1599,18 @@ function ContinuityItem({
               {formatTimestamp(item.last_meaningful_change.occurred_at)}
             </time>
           ) : null}
-          {(!highlighted || !item.next_action) && secondaryAction ? (
+          {rowAction ? (
             <a
               className="blank-state-secondary-link"
-              href={scopedHref(secondaryAction.href)}
-              aria-label={secondaryAction.label}
+              href={scopedHref(rowAction.href)}
+              aria-label={rowAction.label}
               data-blank-state-delegated-work-link={
                 item.source_family === "delegated_work" ? "true" : undefined
               }
-              data-review-result-link={isResultItem ? "true" : undefined}
+              data-review-result-link={isResultHref(rowAction.href) ? "true" : undefined}
             >
               <span className="continuities-action-label-full">
-                {secondaryAction.label}
+                {rowAction.label}
               </span>
               <span
                 className="continuities-action-label-compact"
@@ -1670,7 +1664,7 @@ function ContinuityItem({
                 data-blank-state-delegated-work-link={
                   item.source_family === "delegated_work" ? "true" : undefined
                 }
-                data-review-result-link={isResultItem ? "true" : undefined}
+                data-review-result-link={isResultHref(secondaryAction.href) ? "true" : undefined}
               >
                 <span className="continuities-action-label-full">
                   {secondaryAction.label}
