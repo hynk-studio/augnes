@@ -881,7 +881,10 @@ async function historyGrowthRegression() {
           }
           const written = persistHistoryOperatorTransition(database, project, proposal, candidateIndex, count);
           latestWritten = written;
-          if (count === 1) firstApplied = written;
+          if (count === 1) {
+            firstApplied = written;
+            assertContinuityReceiptReadScope(database, project);
+          }
           if (count === 129) {
             assert.deepEqual(written.recorded.decision.lineage.prior_decisions, [{
               decision_id: firstApplied!.recorded.decision.decision_id,
@@ -1300,6 +1303,36 @@ async function invalidHistoryRegression(
     } finally {
       copy.close();
     }
+  }
+}
+
+function assertContinuityReceiptReadScope(database: Database.Database, project: SemanticReviewLoopProjectFixtureV01) {
+  let receiptReads = 0;
+  const copy = new Database(database.serialize(), {
+    verbose(sql) {
+      if (typeof sql === "string" && /FROM\s+vnext_core_records\s+WHERE\s+record_kind\s*=\s*'state_transition_receipt'\s+AND\s+record_id\s*=/i.test(sql)) {
+        receiptReads++;
+      }
+    },
+  });
+  const observe = () => projectVNextOperatorPilotContinuityV01(copy, {
+    config: historyConfig(project), clock: fixedClock(fixedGeneratedAt),
+  });
+  try {
+    const first = observe();
+    assert.equal(receiptReads, 1, "history, state and head share their one transition source");
+    copy.exec("BEGIN");
+    try {
+      assert.equal(copy.prepare("UPDATE vnext_semantic_target_heads SET updated_at = ?")
+        .run("2000-01-01T00:00:00.000Z").changes, 1);
+      assert.throws(observe, /operator_pilot_semantic_projection_head_drift/);
+    } finally {
+      copy.exec("ROLLBACK");
+    }
+    assert.deepEqual(observe(), first);
+    assert.equal(receiptReads, 3, "each subsequent observation reauthenticates the source");
+  } finally {
+    copy.close();
   }
 }
 

@@ -53,6 +53,7 @@ import {
 import {
   createValidatedVNextSemanticTransitionRelationReadSessionV01,
   loadValidatedVNextSemanticTransitionRelationV01,
+  type VNextSemanticTransitionRelationReadSessionV01,
 } from "@/lib/vnext/runtime/durable-semantic-transition";
 import {
   VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
@@ -314,9 +315,16 @@ function projectContinuitySnapshotV01(
     proposalCache.set(id, proposal);
     return proposal;
   };
+  // The history, state entries and target heads can refer to the same receipt.
+  // Share authenticated sources only for this synchronous database snapshot.
+  let transitionSession: VNextSemanticTransitionRelationReadSessionV01 | undefined;
+  const readTransition: VNextSemanticTransitionRelationReadSessionV01 = (source) => {
+    transitionSession ??= createValidatedVNextSemanticTransitionRelationReadSessionV01(db, input.config);
+    return transitionSession(source);
+  };
   const receiptDecisionKeys = new Set<string>();
   let latestReceipt: StateTransitionReceiptV01 | null = null;
-  for (const receipt of loadTransitionReceipts(db, input.config)) {
+  for (const receipt of loadTransitionReceipts(db, input.config, readTransition)) {
     receiptDecisionKeys.add(
       `${receipt.source_decision.decision_id}\0${receipt.source_decision.decision_fingerprint}`,
     );
@@ -346,7 +354,7 @@ function projectContinuitySnapshotV01(
         : !decisionsByProposal.has(proposal.proposal_id)
     ) pendingProposalCount += 1;
   }
-  const stateEntries = validateCurrentSemanticState(db, input.config);
+  const stateEntries = validateCurrentSemanticState(db, input.config, readTransition);
   const targetHeads = listVNextSemanticTargetHeadsV01(db, {
     workspace_id: input.config.workspace_id,
     project_id: input.config.project_id,
@@ -355,7 +363,7 @@ function projectContinuitySnapshotV01(
   if (targetHeads.length > MAX_STATE_TARGETS) {
     throw continuityError("operator_pilot_target_head_bound_exceeded", 422);
   }
-  validateTargetHeads(db, input.config, targetHeads);
+  validateTargetHeads(targetHeads, readTransition);
   const latestPacketBinding = readCurrentProjectWorkPacketLineageV01(db, input.config);
   const latestPacket = latestPacketBinding?.packet ?? null;
   const contextUseReceipts = loadContextUseReceipts(db, input.config);
@@ -879,7 +887,11 @@ function* loadDecisions(
   }
 }
 
-function* loadTransitionReceipts(db: Database.Database, config: VNextLocalOperatorPilotConfigV01) {
+function* loadTransitionReceipts(
+  db: Database.Database,
+  config: VNextLocalOperatorPilotConfigV01,
+  readTransition: VNextSemanticTransitionRelationReadSessionV01,
+) {
   for (const record of iterateVNextCoreRecordsV01(db, {
     ...config, record_kind: "state_transition_receipt", order: "oldest_first",
   })) {
@@ -887,9 +899,7 @@ function* loadTransitionReceipts(db: Database.Database, config: VNextLocalOperat
       throw continuityError("operator_pilot_continuity_receipt_invalid", 422);
     }
     const receipt = record.payload as StateTransitionReceiptV01;
-    const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
-      workspace_id: config.workspace_id,
-      project_id: config.project_id,
+    const transition = readTransition({
       transition_receipt_id: receipt.transition_receipt_id,
       transition_receipt_fingerprint: receipt.integrity.fingerprint,
     });
@@ -924,7 +934,16 @@ function* loadTransitionReceipts(db: Database.Database, config: VNextLocalOperat
   }
 }
 
-function validateCurrentSemanticState(db: Database.Database, config: VNextLocalOperatorPilotConfigV01) {
+function validateCurrentSemanticState(
+  db: Database.Database,
+  config: VNextLocalOperatorPilotConfigV01,
+  readTransition: VNextSemanticTransitionRelationReadSessionV01 = (source) =>
+    loadValidatedVNextSemanticTransitionRelationV01(db, {
+      workspace_id: config.workspace_id,
+      project_id: config.project_id,
+      ...source,
+    }),
+) {
   assertVNextSemanticProjectionPresenceV01(db, config);
   const entries = listVNextSemanticStateEntriesV01(db, config);
   if (entries.length > MAX_STATE_TARGETS) {
@@ -971,9 +990,7 @@ function validateCurrentSemanticState(db: Database.Database, config: VNextLocalO
     ) {
       throw continuityError("operator_pilot_semantic_state_projection_drift", 422);
     }
-    const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
-      workspace_id: config.workspace_id,
-      project_id: config.project_id,
+    const transition = readTransition({
       transition_receipt_id: entry.source_transition_receipt_id,
       transition_receipt_fingerprint: entry.source_transition_receipt_fingerprint,
     });
@@ -1001,14 +1018,11 @@ function validateCurrentSemanticState(db: Database.Database, config: VNextLocalO
 }
 
 function validateTargetHeads(
-  db: Database.Database,
-  config: VNextLocalOperatorPilotConfigV01,
   heads: ReturnType<typeof listVNextSemanticTargetHeadsV01>,
+  readTransition: VNextSemanticTransitionRelationReadSessionV01,
 ): void {
   for (const head of heads) {
-    const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
-      workspace_id: config.workspace_id,
-      project_id: config.project_id,
+    const transition = readTransition({
       transition_receipt_id: head.source_transition_receipt_id,
       transition_receipt_fingerprint:
         head.source_transition_receipt_fingerprint,
