@@ -187,6 +187,15 @@ Companion channel to read the current packet's selected notes. Supply
 Browser login/token is required for this read; Browser authentication and
 mutation controls are unchanged. See the
 [source-read contract](../../docs/CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-current-work-source-read).
+To choose which current notes to open, use the same tool with
+`sourceSelection: { mode: "inventory" }`. It returns source metadata and text
+sizes without note bodies. Then pass
+`sourceSelection: { mode: "selected", sourceBindings: ["<returned source_binding>"] }`
+with the same Resume binding to open exact whole notes. Both views support
+`includeWorkDefinition: true`. Omit `sourceSelection` for the existing complete
+read when every note is useful. The response identifies its coverage; inventory
+metadata is not a substitute for reading the relevant source. Each call still
+validates all notes locally, so compare both calls when assessing delivery cost.
 If the loaded client lacks this tool, compare it with the reviewed installed
 package before an explicit update. The Companion UI must support the requested
 contract through its normal lifecycle. Candidate qualification in a disposable runtime does not

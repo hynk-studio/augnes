@@ -189,6 +189,37 @@ The source tool does not accept project/packet IDs, database
 paths, or Browser credentials. Reading notes is explicit, never an automatic
 Resume expansion, history search, or context injection.
 
+The Operator can explicitly navigate the same current sources using
+`sourceSelection: { mode: "inventory" }`, then
+`sourceSelection: { mode: "selected", sourceBindings: [...] }` on this tool.
+Inventory returns existing source bindings, permitted locators, authored labels,
+provenance/currentness and whole-text UTF-8 byte counts, without note bodies.
+Selected mode returns the requested whole notes in their saved order, with
+unchanged text and attribution. It accepts one to eight unique bindings from the
+same current snapshot; a missing requested binding refuses the entire selection.
+The distinct `codex_repository_work_source_navigation.v0.1` projection identifies
+the view, total source count and omitted bindings so an inventory or subset
+cannot be mistaken for the complete source response. The complete work definition
+can accompany either view through the existing `includeWorkDefinition: true`.
+
+These options are local Operator projections applied only after the complete
+authenticated source response passes its existing validation. They are not sent
+to the Companion route and do not change its request or result contract. Invalid
+option shapes refuse before discovery/transport. Unavailable or changed work
+returns no inventory, notes or work definition; callers explicitly refresh Resume
+after a changed snapshot. An available empty inventory remains distinct from
+unavailable work. All projected source material remains attributed, untrusted
+context and grants no authority.
+
+Omitting `sourceSelection` retains the existing complete response and internal
+consumer behavior. Navigation is optional: a complete read may be simpler when
+all notes are needed. Every inventory or selected read still reads and validates
+all current notes locally. The potential saving is model-visible material, not
+database I/O; an inventory followed by a selected read adds a tool interaction
+and may increase total delivered bytes for short notes. No automatic ranking,
+summarization, clipping, locator fetch, historical lookup or saved selection
+change is introduced.
+
 The private Companion POST route is
 `/api/augnes/read/codex-repository-work-sources?scope=repository:local`, with
 marker `codex-repository-work-sources-v0.1`. The verified stdio proxy supplies
