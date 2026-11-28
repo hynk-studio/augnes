@@ -8,6 +8,7 @@ import { inspectReviewedFixtureRegistration } from "./local-canonical-fixture-bu
 // An explicit predecessor basis, not an extension of successful-predecessor
 // integration, infrastructure recovery, or the frozen replacement disposition.
 export const ORDINARY_WATCHDOG_INTEGRATION = "settled-ordinary-watchdog-integration-v1";
+export const ADOPTED_FIXTURE_MERGE = "adopted-fixture-merge-v1";
 const ACCOUNTING = "augnes.local-canonical-ordinary-watchdog-accounting.v1";
 const GROUP = "revision", CONTROL = "reviewed-revision";
 const repository = "hynk-studio/augnes", origin = "https://github.com/hynk-studio/augnes.git";
@@ -20,7 +21,7 @@ const requireThat = (condition,code) => { if (!condition) fail(code); };
 const keys = (v,fields) => requireThat(v && typeof v === "object" && !Array.isArray(v) &&
   equal(Object.keys(v).sort(),fields.split(" ").sort()),"shape_invalid");
 const selected = p => p?.schema === "augnes.local-canonical-source-correction.v2" && p.kind === "accepted_main_integration" &&
-  p.integration_case === "reviewed" && p.integration?.delivery_revision === "accounted-verifier-chain-v1" &&
+  p.integration_case === "reviewed" && ["accounted-verifier-chain-v1", ADOPTED_FIXTURE_MERGE].includes(p.integration?.delivery_revision) &&
   p.integration.predecessor_basis === ORDINARY_WATCHDOG_INTEGRATION;
 
 export function retainedBytes(root,relative,maximum,remember) {
@@ -171,7 +172,12 @@ export function readOrdinaryWatchdogIntegrationPredecessor(root,p,prior,completi
   const before=inspectReviewedFixtureRegistration(git,prior.head,GROUP),adopted=inspectReviewedFixtureRegistration(git,p.base,GROUP),
     current=inspectReviewedFixtureRegistration(git,p.head,GROUP);
   const preserves=(previous,next)=>equal(next.groups.filter(group=>previous.groups.includes(group)),previous.groups);
-  requireThat(equal(adopted.limits[GROUP],{inner:3600000,outer:3900000}) && equal(current.limits[GROUP],adopted.limits[GROUP]) &&
+  const originalBounds=equal(adopted.limits[GROUP],{inner:3600000,outer:3900000});
+  const relativeBounds=p.integration.delivery_revision===ADOPTED_FIXTURE_MERGE && equal(before.normalized,adopted.normalized) &&
+    equal(adopted.normalized,current.normalized) && equal(before.groups,adopted.groups) && equal(adopted.groups,current.groups) &&
+    before.groups.every(group=>before.limits[group].inner<=adopted.limits[group].inner &&
+      before.limits[group].outer<=adopted.limits[group].outer);
+  requireThat((originalBounds || relativeBounds) && equal(current.limits[GROUP],adopted.limits[GROUP]) &&
     preserves(before,adopted) && preserves(adopted,current) && adopted.groups.every(group=>equal(adopted.limits[group],current.limits[group])) &&
     before.limits[GROUP].inner<adopted.limits[GROUP].inner && before.limits[GROUP].outer<adopted.limits[GROUP].outer &&
     child.duration_ms>=before.limits[GROUP].inner && child.duration_ms<before.limits[GROUP].outer && child.duration_ms<=phase.duration_ms,

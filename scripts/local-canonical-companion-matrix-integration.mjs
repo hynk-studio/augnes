@@ -5,7 +5,7 @@ import { settledIsolatedResources, verifySettledPhaseFailure } from "./local-can
 import { checkoutVerificationFingerprint } from "./local-canonical-checkout-ownership.mjs";
 import { digest } from "./local-canonical-inputs.mjs";
 import { usesDeclaredIntegrationBase, validAdmittedIntegrationBase } from "./local-canonical-integration-base.mjs";
-import { retainedBytes } from "./local-canonical-ordinary-watchdog-integration.mjs";
+import { ADOPTED_FIXTURE_MERGE, retainedBytes } from "./local-canonical-ordinary-watchdog-integration.mjs";
 import { verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
 import { physicalFingerprint } from "./local-canonical-verification-context.mjs";
 
@@ -39,7 +39,9 @@ function resultDuration(line, failed) {
   return Number(match[1]);
 }
 
-function matrixWindow(bytes, failed) {
+const originalBounds = Object.freeze({before:180_000, adopted:300_000});
+
+function matrixWindow(bytes, failed, bounds) {
   requireEvidence(Buffer.isBuffer(bytes) && bytes.length <= maximumLog, "log_size");
   const text = bytes.toString("utf8");
   requireEvidence(Buffer.from(text).equals(bytes), "log_encoding");
@@ -48,7 +50,7 @@ function matrixWindow(bytes, failed) {
   const end = "[canonical:unit] child_result " + label + " ";
   const starts = lines.filter(line => line.startsWith(start));
   const ends = lines.filter(line => line.startsWith(end));
-  const limit = failed ? 180000 : 300000;
+  const limit = failed ? bounds.before : bounds.adopted;
   requireEvidence(equal(starts, [start + "timeout_ms=" + limit]) && ends.length === 1, "child_inventory");
   const first = lines.indexOf(starts[0]), last = lines.indexOf(ends[0]);
   requireEvidence(first < last, "child_order");
@@ -82,7 +84,7 @@ function matrixWindow(bytes, failed) {
     settled.includes(" reason=" + reason + " ") && settled.endsWith(" streams_closed=true remaining_owned_processes=0") &&
     (failed || (milestones[1].line.includes(" exit_code=0 signal=null ") && settled.includes(" term_sent=false kill_sent=false "))), "settlement");
   const duration = resultDuration(ends[0], failed);
-  requireEvidence(Number.isSafeInteger(duration) && duration >= 180000 && (failed || (duration > 180000 && duration < 300000)), "duration");
+  requireEvidence(Number.isSafeInteger(duration) && duration >= bounds.before && (failed || (duration > bounds.before && duration < bounds.adopted)), "duration");
   let previous = 0;
   for (const {kind, line} of lifecycle) {
     if (kind === "child_spawn") continue;
@@ -93,7 +95,7 @@ function matrixWindow(bytes, failed) {
     if (kind === "child_active") {
       requireEvidence(line.endsWith(" timeout_ms=" + limit + " exit_observed=false stdout_closed=false stderr_closed=false wait=process_exit"), "heartbeat");
     } else if (kind === "child_exit" || kind === "child_cleanup_start") {
-      requireEvidence(elapsed >= 180000 && (failed || elapsed < 300000), "observed_cutoff");
+      requireEvidence(elapsed >= bounds.before && (failed || elapsed < bounds.adopted), "observed_cutoff");
     }
   }
   const stages = ["scenario_start", "fixture_ready", "action_pass"];
@@ -116,47 +118,97 @@ function matrixWindow(bytes, failed) {
   const completions = events.filter(row => row.pass === true);
   if (!failed) {
     const prefixTime = completions.slice(0,-1).reduce((sum,row) => sum + row.elapsed_ms,0);
-    requireEvidence(completions.at(-1).effects === 1 && prefixTime + events.at(-2).elapsed_ms > 180000 &&
+    requireEvidence(completions.at(-1).effects === 1 && prefixTime + events.at(-2).elapsed_ms > bounds.before &&
       prefixTime + completions.at(-1).elapsed_ms <= duration + completions.length, "action_window");
   }
   return {names, duration, effects:completions.map(row => row.effects)};
 }
 
-export function verifyCompanionMatrixLogs(failedBytes, acceptedBytes) {
-  const failed = matrixWindow(failedBytes, true), accepted = matrixWindow(acceptedBytes, false);
+export function verifyCompanionMatrixLogs(failedBytes, acceptedBytes, bounds = originalBounds) {
+  requireEvidence([bounds.before, bounds.adopted].every(ms => Number.isSafeInteger(ms) && ms > 0 && ms <= 2147483647) &&
+    bounds.before < bounds.adopted, "bounds");
+  const failed = matrixWindow(failedBytes, true, bounds), accepted = matrixWindow(acceptedBytes, false, bounds);
   requireEvidence(equal(failed.names, accepted.names) && equal(failed.effects,accepted.effects.slice(0,-1)), "workload_mismatch");
   return {interrupted_scenario:finalScenario, completed_scenarios:accepted.names.length, accepted_duration_ms:accepted.duration};
 }
 
-// Read Git objects, never execute code from the predecessor. The only change
-// brought in from main is removal of this one override and its local comment.
-function verifyAdoptedSource(git, p, prior, accepted) {
+// The qualified upstream receipt identifies the remedy and its tested base.
+// Later main commits may change unrelated files. The registered command,
+// input workload, driver and the adopted registration must still match.
+function directMatrixAdoption(git, p, prior, accepted) {
+  const run = (...args) => git(args).toString().trimEnd();
+  const {base_sha:base, head_sha:head, tree_sha:tree} = accepted.repository;
+  const i = p.integration;
+  // The common source reader already checked the policy's three-way merge bytes.
+  requireEvidence(p.head === i.commit && i.correction_chain.length === 0 &&
+    i.overlaps.every(row => row.path === ".github/LOCAL_CANONICAL_VERIFICATION.md") && i.adjustments.length === 0 &&
+    run("merge-base", i.merge_base, base) === i.merge_base, "adoption");
+  const rows = run("rev-list", "--first-parent", "--merges", "--parents", base + ".." + p.base).split("\n");
+  const landed = rows.map(row => row.split(" ")).filter(parents =>
+    parents.length === 3 && parents[1] === base && parents[2] === head);
+  requireEvidence(landed.length === 1 && run("rev-parse", head + "^{tree}") === tree &&
+    run("rev-parse", landed[0][0] + "^{tree}") === tree &&
+    run("diff","--name-only","--no-renames",base,head,"--") === registration, "adoption");
+  const exactFiles = (left, right, files) => run("diff","--name-only","--no-renames",left,right,"--",...files) === "";
+  requireEvidence(exactFiles(prior.head,base,[registration,...workload,driver]) &&
+    exactFiles(head,p.base,[registration,...workload,driver]) &&
+    exactFiles(p.base,p.head,[registration,...workload,driver]), "workload_changed");
+  for (const ref of [base,head]) {
+    requireEvidence(run("ls-tree",ref,"--",registration).startsWith("100644 blob "), "registration");
+  }
+}
+
+// Inspect immutable Git objects. Historical chain deliveries retain their
+// exact 180s override removal and executor inventory edit.
+export function verifyCompanionMatrixSource(git, p, prior, accepted) {
   const i = p.integration;
   const run = (...args) => git(args).toString("utf8").trimEnd();
-  const parents = run("show","-s","--format=%P",p.base).split(" ");
-  requireEvidence(equal(parents,[i.merge_base, accepted.repository.head_sha]) &&
-    run("rev-parse",p.base + "^{tree}") === accepted.repository.tree_sha &&
-    accepted.repository.base_sha === i.merge_base &&
-    run("diff","--name-only","--no-renames",i.merge_base,p.base,"--") === registration &&
-    i.overlaps.length === 0 && i.adjustments.length === 0 &&
-    run("diff","--name-only","--no-renames",prior.head,i.commit,"--") === registration, "adoption");
-  requireEvidence(run("diff","--name-only",prior.head,p.base,"--",...workload) === "", "workload_changed");
-  const support = new Set([".github/LOCAL_CANONICAL_VERIFICATION.md", "scripts/local-canonical-attempts.mjs", driver,
-    witness, "scripts/local-canonical-ordinary-watchdog-integration.mjs",
-    "scripts/fixtures/local-canonical-companion-matrix-integration.mjs", "scripts/fixtures/local-canonical-reviewed-revision.mjs"]);
-  requireEvidence(i.correction_chain.every(commit => commit.paths.every(file => support.has(file))), "source_scope");
-  const entryAnchor = '  "scripts/local-canonical-stock-verifier-output.mjs",\n]);';
-  const oldDriver = run("show",prior.head + ":" + driver);
-  requireEvidence(oldDriver.split(entryAnchor).length === 2 && run("show",p.base + ":" + driver) === oldDriver &&
-    run("show",p.head + ":" + driver) === oldDriver.replace(entryAnchor,
+  const direct = i.delivery_revision === ADOPTED_FIXTURE_MERGE;
+  if (direct) {
+    directMatrixAdoption(git,p,prior,accepted);
+  } else {
+    const parents = run("show","-s","--format=%P",p.base).split(" ");
+    requireEvidence(equal(parents,[i.merge_base, accepted.repository.head_sha]) &&
+      run("rev-parse",p.base + "^{tree}") === accepted.repository.tree_sha &&
+      accepted.repository.base_sha === i.merge_base &&
+      run("diff","--name-only","--no-renames",i.merge_base,p.base,"--") === registration &&
+      i.overlaps.length === 0 && i.adjustments.length === 0 &&
+      run("diff","--name-only","--no-renames",prior.head,i.commit,"--") === registration, "adoption");
+    requireEvidence(run("diff","--name-only",prior.head,p.base,"--",...workload) === "", "workload_changed");
+    const oldDriver = run("show",prior.head + ":" + driver);
+    requireEvidence(run("show",p.base + ":" + driver) === oldDriver, "executor_scope");
+    const support = new Set([".github/LOCAL_CANONICAL_VERIFICATION.md", "scripts/local-canonical-attempts.mjs", driver,
+      witness, "scripts/local-canonical-ordinary-watchdog-integration.mjs",
+      "scripts/fixtures/local-canonical-companion-matrix-integration.mjs", "scripts/fixtures/local-canonical-reviewed-revision.mjs"]);
+    requireEvidence(i.correction_chain.every(commit => commit.paths.every(file => support.has(file))), "source_scope");
+    const entryAnchor = '  "scripts/local-canonical-stock-verifier-output.mjs",\n]);';
+    requireEvidence(oldDriver.split(entryAnchor).length === 2 && run("show",p.head + ":" + driver) === oldDriver.replace(entryAnchor,
       '  "scripts/local-canonical-stock-verifier-output.mjs",\n  "' + witness + '",\n]);'), "executor_scope");
-  const before = run("show",prior.head + ":" + registration), after = run("show",p.head + ":" + registration);
-  const entry = /(\n        label: "Companion stale-manager stopped recovery and interruption regressions",\n        \.\.\.rootNode\("scripts\/test-companion-stale-manager-recovery\.mjs"\),\n)((?:        \/\/[^\n]*\n)*)(        timeoutMs: 180_000,\n)?(        requireNaturalExit: true,\n      \},\n    \] : \[\]\),)/gu;
+  }
+  const registrationAt = ref => {
+    const source = git(["show",ref + ":" + registration]).toString();
+    return direct ? source : source.trimEnd();
+  };
+  const before = registrationAt(prior.head), after = registrationAt(p.head);
+  const entry = /(\n        label: "Companion stale-manager stopped recovery and interruption regressions",\n        \.\.\.rootNode\("scripts\/test-companion-stale-manager-recovery\.mjs"\),\n)((?:        \/\/[^\n]*\n)*)(?:        timeoutMs: ([1-9]\d*(?:_\d+)*),\n)?(        requireNaturalExit: true,\n      \},\n    \] : \[\]\),)/gu;
   const oldRows = [...before.matchAll(entry)], newRows = [...after.matchAll(entry)];
-  requireEvidence(oldRows.length === 1 && newRows.length === 1 && oldRows[0][3] && !newRows[0][3] &&
+  requireEvidence(oldRows.length === 1 && newRows.length === 1 &&
     before.replace(entry,"$1$4") === after.replace(entry,"$1$4") &&
-    after.includes("const timeoutMs = step.timeoutMs ?? DEFAULT_CANONICAL_CHILD_TIMEOUT_MS;") &&
-    run("show",p.base + ":scripts/canonical-child-runner.mjs").includes("export const DEFAULT_CANONICAL_CHILD_TIMEOUT_MS = 300_000;"), "registration");
+    after.includes("const timeoutMs = step.timeoutMs ?? DEFAULT_CANONICAL_CHILD_TIMEOUT_MS;"), "registration");
+  const runner = run("show",p.base + ":scripts/canonical-child-runner.mjs");
+  if (!direct) {
+    requireEvidence(oldRows[0][3] === "180_000" && !newRows[0][3] &&
+      runner.includes("export const DEFAULT_CANONICAL_CHILD_TIMEOUT_MS = 300_000;"), "registration");
+    return originalBounds;
+  }
+  const defaults = [...runner
+    .matchAll(/^export const DEFAULT_CANONICAL_CHILD_TIMEOUT_MS = ([1-9]\d*(?:_\d+)*);$/gmu)];
+  requireEvidence(defaults.length === 1, "registration");
+  const effective = row => Number((row[3] ?? defaults[0][1]).replaceAll("_",""));
+  const bounds = {before:effective(oldRows[0]), adopted:effective(newRows[0])};
+  requireEvidence([bounds.before,bounds.adopted].every(ms => Number.isSafeInteger(ms) && ms > 0 && ms <= 2147483647) &&
+    bounds.before < bounds.adopted, "registration");
+  return bounds;
 }
 
 function parseAcceptedStock(bytes, receipt) {
@@ -235,7 +287,7 @@ export function readCompanionMatrixPredecessor({root, anchorRoot, p, prior, comp
   verifySettledPhaseFailure(receipt, stock, preparation.runtime_inputs, phases, receipt.inputs.resources.find(row => row.id === "browser-executable"),
     false, 1, false, true, true);
   verifyAcceptedReceipt(accepted, acceptedStock, phases);
-  verifyAdoptedSource(git, p, prior, accepted);
+  const bounds = verifyCompanionMatrixSource(git, p, prior, accepted);
   const family = accepted.attempt.family_id;
   requireEvidence(/^[a-f0-9]{64}$/u.test(family), "upstream_family");
   const ledger = ".augnes-local-verification/families/" + family + "/";
@@ -263,6 +315,6 @@ export function readCompanionMatrixPredecessor({root, anchorRoot, p, prior, comp
       digest(physical(checkout,".augnes-local-verification/receipts/" + accepted.run.id + ".json",512*1024)) === refs.accepted_receipt.sha256,
     "upstream_originals_changed");
   }
-  const observation = verifyCompanionMatrixLogs(failedLog, acceptedLog);
+  const observation = verifyCompanionMatrixLogs(failedLog, acceptedLog, bounds);
   return {receipt, stock, observation};
 }

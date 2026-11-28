@@ -52,7 +52,7 @@ import { isProspectiveRequalification, hasProspectiveRequalificationMarker, PROS
 import { WHOLE_FILE_GIT_GRANT, isWholeFileGitRevision } from "./local-canonical-whole-file-git.mjs";
 import {isDirectGitInputRevision, isSingleUseGitInputRevision, gitInputHistoryBoundary, isGitInputRevision, verifyGitInputRemedy, verifyGitInputPublication, visibleDelegationParagraphs,
   GIT_CURRENT_STOCK_COMPARISON, gitRevisionInventory, gitRevisionStockComparison} from "./local-canonical-git-observation.mjs";
-import { ORDINARY_WATCHDOG_INTEGRATION, readOrdinaryWatchdogIntegrationPredecessor } from "./local-canonical-ordinary-watchdog-integration.mjs";
+import { ADOPTED_FIXTURE_MERGE, ORDINARY_WATCHDOG_INTEGRATION, readOrdinaryWatchdogIntegrationPredecessor } from "./local-canonical-ordinary-watchdog-integration.mjs";
 import { COMPANION_MATRIX_INTEGRATION, readCompanionMatrixPredecessor } from "./local-canonical-companion-matrix-integration.mjs";
 
 export const ATTEMPT_CONTRACT = "augnes.local-canonical-attempt-family.v1";
@@ -249,11 +249,14 @@ export function beginAttempt(options) {
 const isAcceptedMainIntegration = proof => proof?.schema === "augnes.local-canonical-source-correction.v2" && proof.kind === "accepted_main_integration";
 export const isReviewedIntegration = proof => isAcceptedMainIntegration(proof) && proof.integration_case === "reviewed";
 export const REVIEWED_INTEGRATION_DELIVERY = "accounted-verifier-chain-v1";
+export const isAdoptedFixtureMerge = proof => isReviewedIntegration(proof) &&
+  proof.integration?.delivery_revision === ADOPTED_FIXTURE_MERGE &&
+  [ORDINARY_WATCHDOG_INTEGRATION, COMPANION_MATRIX_INTEGRATION].includes(proof.integration.predecessor_basis);
 const isAccountedReviewedIntegration = proof => isReviewedIntegration(proof) &&
   proof.integration?.delivery_revision === REVIEWED_INTEGRATION_DELIVERY;
-export const isOrdinaryWatchdogIntegration = proof => isAccountedReviewedIntegration(proof) &&
+export const isOrdinaryWatchdogIntegration = proof => (isAccountedReviewedIntegration(proof) || isAdoptedFixtureMerge(proof)) &&
   proof.integration?.predecessor_basis === ORDINARY_WATCHDOG_INTEGRATION;
-const isCompanionMatrixIntegration = proof => isAccountedReviewedIntegration(proof) &&
+const isCompanionMatrixIntegration = proof => (isAccountedReviewedIntegration(proof) || isAdoptedFixtureMerge(proof)) &&
   proof.integration.predecessor_basis === COMPANION_MATRIX_INTEGRATION;
 const isWatchdogIntegration = proof => isOrdinaryWatchdogIntegration(proof) || isCompanionMatrixIntegration(proof);
 export const hasReviewedIntegrationMarker = value => [value,value?.source_correction,value?.attempt,value?.attempt?.source_correction]
@@ -1389,7 +1392,7 @@ function readCandidateReview(file, proof) {
 }
 
 // The explicitly selected integration case reads existing immutable objects.
-// It never asks Git to recreate a merge, apply a patch, or write an object.
+// Content comparisons and the optional policy text merge do not write objects.
 export const INTEGRATION_ACCEPT = "Accept this reviewed integration candidate and its complete source delivery.";
 export const INTEGRATION_GRANT = "Commission one qualification of this reviewed integration with an explicit budget.";
 const integrationCapabilities = new WeakMap();
@@ -1416,11 +1419,15 @@ const verifierIntegrationEntries = entries => entries.length<=200 && entries.eve
 
 // Read-only capture and validation share the existing Git owner. Every supplied
 // entry/delta is still compared with these immutable objects at each boundary.
-export function observeReviewedIntegrationSource(root,{predecessor,acceptedMain,commit,head}) {
+export function observeReviewedIntegrationSource(root,{predecessor,acceptedMain,commit,head,deliveryRevision=REVIEWED_INTEGRATION_DELIVERY}) {
   const git=integrationGit(root),identity=ref=>git(["rev-parse",ref+"^{tree}"]).toString().trim();
+  const adoptedMerge = deliveryRevision === ADOPTED_FIXTURE_MERGE;
+  integrationRequire(adoptedMerge ? head === commit : deliveryRevision === REVIEWED_INTEGRATION_DELIVERY, "delivery_invalid");
   integrationRequire([predecessor,acceptedMain,commit,head].every(x=>/^[a-f0-9]{40}$/u.test(x??"")),"topology_invalid");
   integrationRequire(git(["show","-s","--format=%P",commit]).toString().trim()===`${predecessor} ${acceptedMain}`,"topology_invalid");
-  const mergeBase=git(["merge-base",predecessor,acceptedMain]).toString().trim();
+  const mergeBases = git(["merge-base", ...(adoptedMerge ? ["--all"] : []), predecessor, acceptedMain]).toString().trim().split("\n");
+  if (adoptedMerge) integrationRequire(mergeBases.length === 1, "fixture_merge_base_ambiguous");
+  const [mergeBase] = mergeBases;
   const base=treeEntries(git,mergeBase),previous=treeEntries(git,predecessor),main=treeEntries(git,acceptedMain),actual=treeEntries(git,commit);
   const overlaps=[],adjustments=[];
   for(const name of [...new Set([...base.keys(),...previous.keys(),...main.keys(),...actual.keys()])].sort()){
@@ -1429,6 +1436,19 @@ export function observeReviewedIntegrationSource(root,{predecessor,acceptedMain,
     else {const expected=a===b?m:a;if(expected!==value)adjustments.push({path:name,expected:expected??null,result:value??null});}
   }
   integrationRequire(verifierIntegrationEntries(overlaps)&&verifierIntegrationEntries(adjustments),"verifier_scope_invalid");
+  if (adoptedMerge) {
+    integrationRequire(mergeBase !== predecessor && mergeBase !== acceptedMain && adjustments.length === 0, "fixture_merge_not_adopted");
+    // The original Native integration had a clean, two-sided edit to the
+    // verification policy. Reconstruct its text without writing Git objects.
+    for (const row of overlaps) {
+      const entries = [row.predecessor, row.base, row.main, row.result];
+      integrationRequire(row.path === ".github/LOCAL_CANONICAL_VERIFICATION.md" &&
+        entries.every(entry => typeof entry === "string" && /^100644 blob [a-f0-9]{40}$/u.test(entry)), "fixture_merge_overlap_invalid");
+      const [previousBlob, baseBlob, mainBlob, resultBlob] = entries.map(entry => entry.split(" ")[2]);
+      const merged = git(["merge-file", "--stdout", "--object-id", previousBlob, baseBlob, mainBlob]);
+      integrationRequire(merged.equals(git(["cat-file", "blob", resultBlob])), "fixture_merge_overlap_invalid");
+    }
+  }
   const chain=[];
   for(let cursor=head;cursor!==commit;){
     integrationRequire(chain.length<16,"correction_chain_unbounded");
@@ -1440,9 +1460,9 @@ export function observeReviewedIntegrationSource(root,{predecessor,acceptedMain,
     chain.push({commit:cursor,parent,parent_tree:identity(parent),tree:identity(cursor),delta_sha256:integrationDelta(git,parent,cursor),paths,entries});
     cursor=parent;
   }
-  integrationRequire(chain.length>0,"correction_chain_invalid");
+  integrationRequire(adoptedMerge || chain.length>0,"correction_chain_invalid");
   const overlapNames=overlaps.map(x=>x.path),adjustmentNames=adjustments.map(x=>x.path);
-  return {delivery_revision:REVIEWED_INTEGRATION_DELIVERY,commit,tree:identity(commit),merge_base:mergeBase,overlaps,adjustments,
+  return {delivery_revision:deliveryRevision,commit,tree:identity(commit),merge_base:mergeBase,overlaps,adjustments,
     delta_sha256:integrationDelta(git,predecessor,commit),
     resolution_delta_sha256:overlapNames.length?integrationDelta(git,predecessor,commit,overlapNames):digest(Buffer.alloc(0)),
     adjustment_delta_sha256:adjustmentNames.length?integrationDelta(git,predecessor,commit,adjustmentNames):digest(Buffer.alloc(0)),
@@ -1551,8 +1571,8 @@ export function readReviewedIntegration(root,p,prior,completion,anchorRoot=root,
     (accounted?" delivery_revision adjustments adjustment_delta_sha256 correction_chain":"")+(watchdog?" predecessor_basis":""));
   const git=integrationGit(root), identity=ref=>git(["rev-parse",ref+"^{tree}"]).toString().trim();
   if(accounted){
-    integrationRequire(isAccountedReviewedIntegration(p)&&identity(p.head)===p.tree,"topology_invalid");
-    const observed=observeReviewedIntegrationSource(root,{predecessor:prior.head,acceptedMain:p.base,commit:i.commit,head:p.head});
+    integrationRequire((isAccountedReviewedIntegration(p)||isAdoptedFixtureMerge(p))&&identity(p.head)===p.tree,"topology_invalid");
+    const observed=observeReviewedIntegrationSource(root,{predecessor:prior.head,acceptedMain:p.base,commit:i.commit,head:p.head,deliveryRevision:i.delivery_revision});
     integrationRequire(digest(i)===digest(watchdog?{...observed,predecessor_basis:i.predecessor_basis}:observed),"complete_accounting_invalid");
   }else{
   integrationRequire([i.commit,i.tree,i.merge_base,p.base,p.head,p.tree].every(x=>/^[a-f0-9]{40}$/u.test(x??"")) &&
