@@ -2,6 +2,10 @@
 
 ## One ordinary local setup path
 
+These steps set up the Operator and Companion on macOS. For Linux or Windows
+source development, use the
+[foreground source setup](../../README.md#local-source-setup).
+
 1. From this repository root, register the repo-local marketplace and install
    the reviewed plugin once:
 
@@ -28,8 +32,6 @@
    return this address. If no verified address is returned, run
    `npm run augnes:service:status` and use the
    [ordinary recovery guidance](#ordinary-use-and-recovery).
-   For Linux/Windows source development, use
-   the [foreground Quickstart](../../README.md#quickstart).
 
    Connect the intended local project in the Browser. If you want to use its
    protected Browser editors, run `npm run augnes -- access` from another
