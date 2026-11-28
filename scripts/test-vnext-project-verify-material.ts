@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -47,6 +47,7 @@ import {
   readClaimFamilyLineageV01,
   readClaimRecordV01,
   readEvidenceRecordV01,
+  withProjectVerifyReceiptMaterialSnapshotV01,
   ProjectVerifyMaterialStoreErrorV01,
 } from "@/lib/vnext/persistence/project-verify-material-store";
 import {
@@ -2620,8 +2621,58 @@ function assertLifecycleSelectionWorkBoundV01(): void {
         record_fingerprint: relation.integrity.fingerprint });
     assert.equal(receiptReads, 6,
       "the three source gates retain both receipt and proposal authentication, without repeating them for the adjacent family read");
+    assertReceiptMaterialSnapshotV01(before, admitted.material.evidence_records[0]!.evidence_id);
   } finally {
     db.close();
+  }
+}
+
+function assertReceiptMaterialSnapshotV01(database: Buffer, evidenceId: string): void {
+  const dir = mkdtempSync(join(tmpdir(), "augnes-receipt-material-"));
+  const path = join(dir, "material.sqlite");
+  const scope = { workspace_id: WORKSPACE_ID, project_id: PROJECT_ID };
+  let reader: Database.Database | undefined;
+  let receiptReads = 0;
+  try {
+    writeFileSync(path, database);
+    reader = new Database(path, {
+      readonly: true,
+      verbose: (sql) => {
+        if (String(sql).includes("WHERE record_kind = 'run_receipt' AND record_id =")) receiptReads++;
+      },
+    });
+    const db = reader;
+    const read = () => readEvidenceRecordV01(db, { ...scope, evidence_id: evidenceId });
+    db.exec("BEGIN");
+    const expected = read();
+    const perRead = receiptReads;
+    assert(expected && perRead > 0);
+
+    receiptReads = 0;
+    withProjectVerifyReceiptMaterialSnapshotV01(db, () => {
+      assert.deepEqual(read(), expected);
+      assert.deepEqual(read(), expected);
+      assert.equal(receiptReads, perRead, "independent material readers authenticate the same receipt once");
+    });
+    receiptReads = 0;
+    assert.deepEqual(read(), expected);
+    assert.equal(receiptReads, perRead, "a later reader cannot borrow the completed scope");
+
+    withProjectVerifyReceiptMaterialSnapshotV01(db, () => {
+      assert.deepEqual(read(), expected);
+      db.exec("COMMIT");
+      const writer = new Database(path);
+      try {
+        admitEvidenceRecordV01(writer, { ...scope, evidence: evidenceV01({ identityKey: "receipt-snapshot-change" }) });
+      } finally { writer.close(); }
+      db.exec("BEGIN");
+      receiptReads = 0;
+      assert.deepEqual(read(), expected);
+      assert.equal(receiptReads, perRead, "a newer committed view on the same connection must authenticate again");
+    });
+  } finally {
+    reader?.close();
+    rmSync(dir, { recursive: true, force: true });
   }
 }
 
