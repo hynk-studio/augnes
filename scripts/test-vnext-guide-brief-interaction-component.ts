@@ -117,7 +117,12 @@ assert.doesNotMatch(
 );
 
 assert.match(blankState, /surface\.open_current_action/);
-assert.match(blankState, /view\.primary_action\?\.kind === "link"/);
+assert.match(
+  blankState,
+  /const exactDestination\s*=\s*view\.primary_action\?\.kind === "link"\s*\? scopedHref\(view\.primary_action\.href\)/,
+  "GuideBrief navigation must bind the destination to the project displayed on Home",
+);
+assert.match(blankState, /destination: exactDestination,/);
 assert.match(blankState, /window\.location\.assign\(exactDestination\)/);
 assert.doesNotMatch(
   blankState,
