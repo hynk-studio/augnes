@@ -30,11 +30,21 @@ engine, require a model call or change the existing approval boundaries.
 [Authority](#repository-authority) ·
 [Verification](#canonical-verification)
 
-**Join an open research project.** In the [public research portfolio](https://github.com/hynk-studio/augnes/issues/1632),
-you can [test whether a pattern in penguin measurements holds within species and sex](https://github.com/hynk-studio/augnes/issues/1633#issuecomment-7002654468)
-or [check how a CSV reader handles a quoted line break](https://github.com/hynk-studio/augnes/issues/1637#issuecomment-7003942362).
-Each call links the data and a worked result. You can use your own tools and
-reply in the GitHub issue with a reproducible finding.
+**Public research.** Read the results and try the examples without installing
+Augnes. [Research portfolio and participation guide](https://github.com/hynk-studio/augnes/issues/1632)
+
+- **Palmer penguin bill depth and body mass.** The pooled slope was negative,
+  and all six species-by-sex slopes were positive on the same 333 birds.
+  [Published result](https://github.com/hynk-studio/augnes/issues/1633#issuecomment-7014538724) ·
+  [Data and independent reproduction](https://github.com/hynk-studio/augnes/issues/1633)
+- **CSV, OpenRefine, and EPUB.** Two CSV readers agreed on 5,848 field values.
+  You can report observations on [quoted CSV fields and line breaks](https://github.com/hynk-studio/augnes/issues/1637#issuecomment-7003942362),
+  [OpenRefine recipes with a missing column](https://github.com/hynk-studio/augnes/issues/1637#issuecomment-7044820529),
+  and [EPUB return links after an extended image description](https://github.com/hynk-studio/augnes/issues/1637#issuecomment-7053596616).
+- **Stories260K neuron predictions.** The designated description tied the
+  last-word baseline at 58/72 on 24 held-out prompts.
+  [Published result](https://github.com/hynk-studio/augnes/issues/1634#issuecomment-7006509035) ·
+  [Public predictor and replay instructions](https://github.com/hynk-studio/augnes/issues/1687#issuecomment-7006498660)
 
 ## Try a method without setup
 
