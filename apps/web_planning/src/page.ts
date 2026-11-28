@@ -109,6 +109,12 @@ ${a.env.PROJECT_ENTRY_MODE==='admitted-private-v1'?'<button id="manage-continuat
 export const style=`#exchange-panel{overflow-wrap:anywhere;min-width:0}#exchange-panel select{max-width:100%}#exchange-panel button{max-width:100%;white-space:normal}
 #search-view,#search-results{overflow-wrap:anywhere;min-width:0}#search-view select{max-width:100%}#search-results{padding-left:1rem}#search-results small{display:block}#search-results p{white-space:pre-wrap}#search-results button{white-space:normal}#search-view .note-text{white-space:pre-wrap}
 #history-view{overflow-wrap:anywhere;min-width:0}#history-view select{max-width:100%}#history-view summary{min-height:44px}
+.recipient-work{max-width:54rem;margin-inline:auto;overflow-wrap:anywhere}
+.recipient-work h1{max-width:none}.recipient-work h2{margin:1.75rem 0 .5rem}.recipient-work h3{margin:.85rem 0 .25rem}
+.recipient-work #limits{padding:.75rem 1rem;border-left:3px solid var(--green);background:var(--soft)}
+.recipient-work #work-context p{margin:.35rem 0;white-space:pre-wrap}.recipient-work small{display:block;color:var(--muted)}
+.recipient-work #work-context a,.recipient-work #setup{display:inline-block;min-height:44px;padding:.55rem 0;margin-right:1rem}
+.recipient-work summary{min-height:44px;padding:.6rem 0;cursor:pointer}.recipient-work #saved-history{border-top:1px solid var(--line);margin-top:1rem}
 #work-list>li{min-width:0;overflow-wrap:anywhere}#work-list time,#work-list small{display:block;font-size:.82rem;color:var(--muted)}
 #work-list details{margin:4px 0}#work-list summary{cursor:pointer;color:var(--green);padding:10px 0;min-height:44px}#work-list .list-record{margin:8px 0;padding-left:10px;border-left:2px solid var(--line)}#work-list p{margin:4px 0;white-space:pre-wrap}
 @media(max-width:720px){#work-list{display:block;max-height:42vh;overflow:auto}#work-list:has(details[open]){max-height:none}#work-list>li{max-width:none}}

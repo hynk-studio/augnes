@@ -14,7 +14,7 @@ export async function checkContinuationClient(){
     const context=vm.createContext({console,crypto,AbortSignal,Error,JSON,
       window:{addEventListener:(event,fn)=>events.set(event,fn)},location:{reload(){reloads++;}},
       sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},
-      document:{querySelector:q=>({content:meta[q.match(/name="([^"]+)"/)[1]]}),getElementById:element,createElement:()=>element(crypto.randomUUID()),querySelectorAll:()=>[...elements.values()]},
+      document:{querySelector:q=>({content:meta[q.match(/name="([^"]+)"/)[1]]}),getElementById:element,createElement:tag=>Object.assign(element(crypto.randomUUID()),{tag}),querySelectorAll:()=>[...elements.values()]},
       fetch:async(path,options)=>{
         if(denied)return new Response('{"error":"access_denied"}',{status:403,headers:{'X-Web-Planning-Response':'1'}});
         let status=200,value;
@@ -94,6 +94,42 @@ export async function checkContinuationClient(){
       const text=e=>[e.textContent,...e.children.map(text)].join('\n'),shown=text(c.element('work-context'));
       for(const phrase of ['Do not send the notice yet','unverified','unknown','Wait for the venue confirmation','Do not use the previous draft','End this method','Measure before choosing'])assert(shown.includes(phrase),'complete history must disclose '+phrase);
       c.deny();await c.element('refresh').onclick();assert.equal(c.element('work-context').children.length,0,'access loss clears the complete history too');
+    })(),
+    (async()=>{
+      const c=await client(false),work='shared-work';
+      const revision=(n,fields)=>({...head,work_id:work,revision:n,fingerprint:'sha256:'+String(n).repeat(64),...fields});
+      const ref=r=>({work_id:r.work_id,revision:r.revision,fingerprint:r.fingerprint});
+      const note={name:'venue.txt',role:'source',bytes:5,digest:'sha256:'+'e'.repeat(64)};
+      const source=revision(1,{files:[note]});
+      const use=(decision,name)=>({decision,returned:{...ref(source),work_id:'other-work'},index:0,original:{file:{...note,name}},output:note,
+        rationale:'Initial selection',next_action:'Read the venue note.'});
+      const first=revision(2,{return_use:use('adapted','schedule.txt')});
+      const other=revision(3,{return_use:use('unchanged','budget.txt')});
+      const request=revision(4,{exchange:{kind:'request',message:'Please check the east ramp.',next_action:'Ask the venue.',artifacts:[]}});
+      const review=revision(5,{return_reassessment:{use:ref(first),decision:'updated',context:'The room changed.',rationale:'The old room closed.',
+        next_action:'Verify the new room.',output:null,evidence:{ref:ref(source),kind:'file',index:0,file:note}}});
+      const recipient=revision(6,{continuation:{grant_id:'work-or-grant',principal_ref:'recorded-principal',report:'Our copy still uses the old room.',next_action:'Use old room.'}});
+      const history=[source,first,other,request,review,recipient];
+      const render=async()=>{
+        c.read({saved:recipient,history});await c.element('refresh').onclick();
+        return c.element('work-context').children.filter(e=>e.tag!=='details');
+      };
+      let brief=await render();
+      const rows=brief.map(e=>e.textContent);
+      assert(rows.includes('schedule.txt · updated') && !rows.includes('schedule.txt · adapted'));
+      assert(rows.includes('This use has no output selected in the current work.'));
+      assert(rows.includes('Reason: The old room closed.'));
+      assert(rows.includes('Revision 6 · recorded-principal') && rows.includes('Proposed next step: Use old room.'));
+      assert(rows.includes('Please check the east ramp.'),'another file decision cannot hide a separate request');
+      assert(brief.some(e=>e.href==='/api/continuation/work-or-grant/files/1/'+source.fingerprint.slice(7)+'/0'));
+      const others=c.element('work-context').children.find(e=>e.tag==='details' && e.id!=='saved-history');
+      assert(others.children.some(e=>e.textContent==='budget.txt · unchanged'));
+      // Same filename, manifest and revision number in a different work are not
+      // the cited occurrence. The local decision record stays available.
+      review.return_reassessment.evidence.ref={...ref(source),work_id:'other-work'};
+      brief=await render();
+      assert(!brief.some(e=>e.href?.includes('/files/')));
+      assert(brief.some(e=>e.textContent.includes('outside this shared history')) && brief.some(e=>e.href==='#revision-5'));
     })(),
   ]);
   const failures=regressions.filter(r=>r.status==='rejected');if(failures.length)throw new AggregateError(failures.map(r=>r.reason),'continuation recovery/history regressions');
