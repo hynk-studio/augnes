@@ -7,7 +7,12 @@ let current=null,busy=false,lost=false,pending=null,cursor=null,confirmedAbsent=
 const status=text=>{$('status').textContent=text;};
 function controls(){
   if(manage){$('grant-fields').disabled=busy||!!pending&&!confirmedAbsent||!current;$('grant-submit').disabled=busy||!!pending&&!confirmedAbsent||!current;$('grant-reconcile').hidden=!pending;}
-  else if(!readOnly){$('update-fields').disabled=busy||!!pending&&!confirmedAbsent||!current;$('update-submit').disabled=busy||!!pending&&!confirmedAbsent||!current||current.remaining_updates<=0;$('resolve').hidden=!pending;}
+  else if(!readOnly){
+    const canPrepare=current && current.remaining_updates>0 && (!pending||confirmedAbsent);
+    $('update-fields').disabled=$('update-submit').disabled=busy||!canPrepare;
+    if($('go-to-update'))$('go-to-update').hidden=!canPrepare;
+    $('resolve').hidden=!pending;
+  }
   $('refresh').disabled=busy;$('refresh').textContent=pending?'Read current work (pending save retained)':'Read current work';
 }
 async function api(path,body){
@@ -24,29 +29,155 @@ async function api(path,body){
   }
   const value=await r.json();if(lost)throw Error('access_denied');if(!r.ok)throw Error(value.error??'storage_unavailable');return value;
 }
-function paragraph(parent,text){const p=document.createElement('p');p.textContent=text;parent.append(p);}
+function addText(parent,tag,text){
+  const element=document.createElement(tag);
+  element.textContent=text;
+  parent.append(element);
+  return element;
+}
+function paragraph(parent,text){return addText(parent,'p',text);}
+function recordLink(parent,revision){
+  const link=addText(parent,'a','View saved revision '+revision);
+  const target='revision-'+revision;
+  link.href='#'+target;
+  link.onclick=()=>{
+    $('saved-history').open=true;
+    $(target).parentElement.open=true;
+  };
+}
+function attachmentPath(kind,revision,index){
+  return root+'/'+kind+'/'+revision.revision+'/'+revision.fingerprint.slice(7)+'/'+index;
+}
+function sameFile(a,b){
+  return a && b && a.name===b.name && a.digest===b.digest && a.bytes===b.bytes && a.role===b.role;
+}
+function showFileDecision(parent,revision,useRecord,history,head){
+  const use=useRecord.return_use;
+  const review=revision.return_reassessment;
+  const decision=review??use;
+  addText(parent,'h3',use.original.file.name+' · '+decision.decision);
+  if(review)paragraph(parent,review.context);
+  paragraph(parent,'Reason: '+decision.rationale);
+  if(decision.limits)paragraph(parent,'Limits: '+decision.limits);
+  if(decision.reported_check)paragraph(parent,'Reported check: '+decision.reported_check);
+  if(use.output && decision.decision!=='ended' && !head.files?.some(file=>sameFile(file,decision.output)))
+    paragraph(parent,'This use has no output selected in the current work.');
+  paragraph(parent,'Recorded next step: '+decision.next_action);
+
+  const evidence=review?review.evidence:{ref:use.returned,kind:'return',index:use.index,file:use.original.file};
+  const source=history[evidence.ref.revision-1];
+  const returned=evidence.kind==='return';
+  const file=returned?source?.exchange?.artifacts[evidence.index]?.file:source?.files?.[evidence.index];
+  if(source && source.work_id===evidence.ref.work_id && source.fingerprint===evidence.ref.fingerprint && sameFile(file,evidence.file)){
+    const link=addText(parent,'a','Download evidence: '+file.name+' · Revision '+source.revision+' (untrusted attachment)');
+    link.href=attachmentPath(returned?'exchange-files':'files',source,evidence.index);
+  }else{
+    paragraph(parent,'Referenced evidence: '+evidence.file.name+' · Revision '+evidence.ref.revision+'. The original is outside this shared history.');
+  }
+  recordLink(parent,revision.revision);
+}
+function showRecipientBrief(box,value,history){
+  const head=value.saved;
+  addText(box,'h1',head.definition.goal);
+  const limits=document.createElement('div');
+  limits.id='limits';
+  box.append(limits);
+  paragraph(limits,(readOnly?'Purpose of sharing: ':'Your assignment: ')+value.obligation);
+  const access=readOnly?'Read only':value.remaining_updates+' of '+value.max_updates+' updates remaining';
+  addText(limits,'small',access+' · Access ends '+new Date(value.expires).toLocaleString());
+  if(!readOnly && value.remaining_updates>0){
+    const link=addText(limits,'a','Go to update form');
+    link.id='go-to-update';
+    link.href='#report';
+  }
+
+  // Reassessments refer to one particular use. A later recipient report or a
+  // decision about another use cannot replace that use's recorded judgment.
+  const decisions=new Map();
+  for(const revision of history){
+    if(revision.return_use?.decision)decisions.set(revision.fingerprint,{use:revision,latest:revision});
+    const decision=decisions.get(revision.return_reassessment?.use?.fingerprint);
+    if(decision)decision.latest=revision;
+  }
+  const ordered=[...decisions.values()].sort((a,b)=>b.latest.revision-a.latest.revision);
+  if(ordered.length){
+    addText(box,'h2','Owner decisions on returned files');
+    const [first,...others]=ordered;
+    showFileDecision(box,first.latest,first.use,history,head);
+    if(others.length){
+      const more=document.createElement('details');
+      addText(more,'summary','Other file decisions ('+others.length+')');
+      for(const {latest,use} of others)showFileDecision(more,latest,use,history,head);
+      box.append(more);
+    }
+  }else{
+    paragraph(box,'No owner decision on a returned file has been recorded.');
+  }
+  const comparison=head.relations?.review;
+  if(comparison){
+    addText(box,'h2','Saved comparison');
+    paragraph(box,comparison.rationale);
+    if(comparison.next_question)paragraph(box,'Next question: '+comparison.next_question);
+    recordLink(box,head.revision);
+  }
+  addText(box,'h2','Current work notes');
+  for(const note of head.sources){
+    addText(box,'h3',note.why_included);
+    paragraph(box,note.bounded_summary);
+    const attribution=note.compatibility_source_ref?.external_id;
+    const basis=[attribution,note.trust_class?.replaceAll('_',' '),'currentness '+(note.currentness?.status??'unknown')];
+    addText(box,'small',basis.filter(Boolean).join(' · '));
+  }
+  paragraph(box,'Success criteria: '+head.definition.success_criteria.join('; '));
+  if(head.definition.non_goals?.length)paragraph(box,'Outside this work: '+head.definition.non_goals.join('; '));
+  recordLink(box,head.revision);
+
+  const last=history.findLast(revision=>revision.continuation);
+  if(last){
+    const update=last.continuation;
+    addText(box,'h2','Latest recipient report');
+    addText(box,'small','Revision '+last.revision+' · '+update.principal_ref);
+    paragraph(box,update.report);
+    paragraph(box,'Proposed next step: '+update.next_action);
+    recordLink(box,last.revision);
+  }
+  const lastExchange=history.findLast(revision=>revision.exchange);
+  if(lastExchange){
+    const exchange=lastExchange.exchange;
+    addText(box,'h2',exchange.kind==='return'?'Latest file return':'Latest file request');
+    addText(box,'small','Revision '+lastExchange.revision+' · '+(exchange.contributor?.principal_ref??lastExchange.author_ref));
+    paragraph(box,exchange.message);
+    if(exchange.next_action)paragraph(box,'Proposed next step: '+exchange.next_action);
+    recordLink(box,lastExchange.revision);
+  }
+}
 function show(value){
-  current=value;const h=value.saved,box=$('work-context');box.replaceChildren();
-  const title=document.createElement('h2');title.textContent=h.definition.goal;box.append(title);
-  paragraph(box,'Success criteria: '+h.definition.success_criteria.join('; '));
-  if(h.definition.non_goals?.length)paragraph(box,'Outside this work: '+h.definition.non_goals.join('; '));
-  for(const n of h.sources)paragraph(box,n.why_included+': '+n.bounded_summary+' — '+n.compatibility_source_ref.external_id);
-  for(const r of value.history??[h]){
-    if(r.continuation)paragraph(box,'Revision '+r.revision+' · '+r.continuation.principal_ref+' · Obligation: '+r.continuation.obligation+' · Report: '+r.continuation.report+' · Next: '+r.continuation.next_action);
-    if(r.exchange)paragraph(box,'Revision '+r.revision+' · '+r.exchange.kind+': '+r.exchange.message+' · Next: '+r.exchange.next_action);
+  current=value;const h=value.saved,box=$('work-context'),history=value.history??[h];box.replaceChildren();
+  let archive=box;
+  if(manage){
+    addText(box,'h2',h.definition.goal);
+    paragraph(box,'Success criteria: '+h.definition.success_criteria.join('; '));
+    if(h.definition.non_goals?.length)paragraph(box,'Outside this work: '+h.definition.non_goals.join('; '));
+    for(const n of h.sources)paragraph(box,n.why_included+': '+n.bounded_summary+' — '+n.compatibility_source_ref.external_id);
+  }else{
+    showRecipientBrief(box,value,history);
+    archive=document.createElement('details');
+    archive.id='saved-history';
+    addText(archive,'summary','Work history and attachments ('+history.length+')');
+    box.append(archive);
+  }
+  for(const r of history){
+    if(r.continuation)paragraph(archive,'Revision '+r.revision+' · '+r.continuation.principal_ref+' · Obligation: '+r.continuation.obligation+' · Report: '+r.continuation.report+' · Next: '+r.continuation.next_action);
+    if(r.exchange)paragraph(archive,'Revision '+r.revision+' · '+r.exchange.kind+': '+r.exchange.message+' · Next: '+r.exchange.next_action);
     const record=document.createElement('details'),label=document.createElement('summary'),content=document.createElement('pre');
     label.textContent='Revision '+r.revision+' · Complete saved record';
     // Keep every historical judgment, source status, dependency and attribution
     // inspectable as recorded, without dereferencing other work or executing it.
-    content.textContent=JSON.stringify(r,null,2);record.append(label,content);box.append(record);
+    if(!manage)label.id='revision-'+r.revision;
+    content.textContent=JSON.stringify(r,null,2);record.append(label,content);archive.append(record);
     if(!manage)for(const [kind,files] of [['files',r.files??[]],['exchange-files',r.exchange?.artifacts??[]]])for(const [index,item] of files.entries()){const f=item.file??item;
-      const a=document.createElement('a');a.textContent='Revision '+r.revision+': '+f.name+' (untrusted attachment)';a.href=root+'/'+kind+'/'+r.revision+'/'+r.fingerprint.slice(7)+'/'+index;box.append(a,document.createElement('br'));
+      const a=addText(archive,'a','Revision '+r.revision+': '+f.name+' (untrusted attachment)');a.href=attachmentPath(kind,r,index);archive.append(document.createElement('br'));
     }
-  }
-  if(!manage){
-    const purpose=readOnly?'Purpose of sharing: ':'Current obligation: ';
-    const permission=readOnly?'Read only':value.remaining_updates+' of '+value.max_updates+' updates remaining';
-    $('limits').textContent=purpose+value.obligation+' · '+permission+' · Access ends '+new Date(value.expires).toLocaleString();
   }
   controls();
 }
