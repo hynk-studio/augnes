@@ -113,6 +113,16 @@ function showRecipientBrief(box,value,history){
   }else{
     paragraph(box,'No owner decision on a returned file has been recorded.');
   }
+  const last=history.findLast(revision=>revision.continuation);
+  if(last){
+    const update=last.continuation;
+    addText(box,'h2','Latest recipient report');
+    addText(box,'small','Revision '+last.revision+' · '+update.principal_ref);
+    paragraph(box,update.report);
+    paragraph(box,'Proposed next step: '+update.next_action);
+    recordLink(box,last.revision);
+  }
+
   const comparison=head.relations?.review;
   if(comparison){
     addText(box,'h2','Saved comparison');
@@ -132,15 +142,6 @@ function showRecipientBrief(box,value,history){
   if(head.definition.non_goals?.length)paragraph(box,'Outside this work: '+head.definition.non_goals.join('; '));
   recordLink(box,head.revision);
 
-  const last=history.findLast(revision=>revision.continuation);
-  if(last){
-    const update=last.continuation;
-    addText(box,'h2','Latest recipient report');
-    addText(box,'small','Revision '+last.revision+' · '+update.principal_ref);
-    paragraph(box,update.report);
-    paragraph(box,'Proposed next step: '+update.next_action);
-    recordLink(box,last.revision);
-  }
   const lastExchange=history.findLast(revision=>revision.exchange);
   if(lastExchange){
     const exchange=lastExchange.exchange;
