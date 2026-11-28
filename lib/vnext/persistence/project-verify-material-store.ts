@@ -72,6 +72,31 @@ export interface ProjectVerifyMaterialReadSessionV01 {
   readonly [PROJECT_VERIFY_MATERIAL_READ_SESSION_OPAQUE_V01]: true;
 }
 
+const receiptMaterialSnapshotsV01 = new WeakMap<Database.Database, {
+  dataVersion: unknown;
+  byReceipt: Map<string, RunCriterionProjectVerifyMaterialV01>;
+}>();
+
+/** @internal Reuse authenticated run/criterion material during one synchronous
+ * group of reads on an already open read-only snapshot. */
+export function withProjectVerifyReceiptMaterialSnapshotV01<T>(
+  db: Database.Database,
+  read: () => T,
+): T {
+  if (!db.readonly || !db.inTransaction) return read();
+  const enclosing = receiptMaterialSnapshotsV01.get(db);
+  receiptMaterialSnapshotsV01.set(db, {
+    dataVersion: db.pragma("data_version", { simple: true }),
+    byReceipt: new Map(),
+  });
+  try {
+    return read();
+  } finally {
+    if (enclosing) receiptMaterialSnapshotsV01.set(db, enclosing);
+    else receiptMaterialSnapshotsV01.delete(db);
+  }
+}
+
 /**
  * Private state behind the opaque read-session handle. It memoizes only
  * successful authentication of immutable Core material. Public standalone
@@ -198,6 +223,16 @@ class ProjectVerifyMaterialReadSessionStateV01 {
     });
     const cached = this.expectedMaterialByReceipt.get(key);
     if (cached) return structuredClone(cached);
+    const snapshot = receiptMaterialSnapshotsV01.get(db);
+    // A read-only connection can end a transaction and observe another
+    // connection's commit. Never reuse material across that change of view.
+    const shared =
+      snapshot && db.inTransaction &&
+      db.pragma("data_version", { simple: true }) === snapshot.dataVersion
+        ? snapshot.byReceipt
+        : undefined;
+    const authenticated = shared?.get(key);
+    if (authenticated) return structuredClone(authenticated);
     const expected = resolveExpectedRunCriterionProjectVerifyMaterialV01(db, {
       ...scope,
       receipt_id: receiptRef.external_id,
@@ -213,6 +248,9 @@ class ProjectVerifyMaterialReadSessionStateV01 {
       PROJECT_VERIFY_RECORD_LIST_LIMIT_V01
     ) {
       this.expectedMaterialByReceipt.set(key, structuredClone(expected));
+    }
+    if (shared && shared.size < PROJECT_VERIFY_RECORD_LIST_LIMIT_V01) {
+      shared.set(key, expected);
     }
     return structuredClone(expected);
   }

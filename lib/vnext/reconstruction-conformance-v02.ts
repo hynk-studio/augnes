@@ -4,6 +4,7 @@ import { canonicalizeProtocolValueV01, createProtocolSha256V01 } from "./protoco
 import { assertReconstructionConformanceReportV01, buildReconstructionConformanceReportV01 } from "./reconstruction-conformance";
 import { createCodexCurrentContinuitySnapshotBindingV01, readCodexCurrentContinuitySnapshotV01 } from "./codex-current-continuity/codex-current-continuity";
 import { readProjectSelectionStateV02 } from "./persistence/project-lifecycle-registry";
+import { withProjectVerifyReceiptMaterialSnapshotV01 } from "./persistence/project-verify-material-store";
 import { isCurrentProjectSelectionRevision } from "./project-selection";
 import { countVNextCoreRecordsV01, iterateVNextCoreRecordsV01 } from "./persistence/durable-semantic-store";
 import { exportActivePortableProjectV01, MAX_PORTABLE_PROJECT_BYTES_V01, PORTABLE_PROJECT_SUPPORTED_RECORD_KINDS_V01 } from "./portability/portable-project";
@@ -130,7 +131,9 @@ async function observe(input: CollectionInput): Promise<ObservationRead> {
         snapshot.projection.project.selection_revision !== selection.selection_revision) return incomplete();
     stage = "verify_owners";
     const reconciliation = readProjectVerifyReconciliationV01(db, { ...scope, observed_at: env.decision_time_cutoff });
-    const lineages = env.lineages.map(({ lookup }) => readProjectVerifyLineageV01(db!, { ...scope, observed_at: env.decision_time_cutoff, lookup }));
+    const lineages = withProjectVerifyReceiptMaterialSnapshotV01(db, () =>
+      env.lineages.map(({ lookup }) => readProjectVerifyLineageV01(db!, { ...scope, observed_at: env.decision_time_cutoff, lookup })),
+    );
     // Retain the original RC1 fixture owner's required applied lineage. Equal
     // empty/irrelevant query collections are not evidence of this relationship.
     stage = "lineage_scope";
