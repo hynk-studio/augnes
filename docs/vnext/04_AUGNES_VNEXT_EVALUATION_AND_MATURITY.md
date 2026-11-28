@@ -784,6 +784,31 @@ reported separately. Controlled sign-ins
 and scripted judgments establish implementation behavior, not model understanding,
 hosted adoption, organic use, general organizations or the benefit of delegation.
 
+#### Recovery from the successor's ordinary entry
+
+For a claim of recovery after both the former operator and device are lost,
+declare the successor's normal entry, surviving services, authorized role,
+question and time of interest, and the task's completion criterion. Record the
+first point reached or blocked on the actual route:
+
+| Question | Observation that supports the answer |
+| --- | --- |
+| Could the successor find the intended work? | Start from the stated entry. Follow a reference already retained there and bind the commission to its project lineage and work. Record any locator supplied at takeover and which part of discovery it skipped. |
+| Which decision can be recovered? | Bind the evidence to the edition and time it covers. If two compatible histories imply different answers, record the uncertainty and the observation that would distinguish them. |
+| Could the successor carry out the task? | Observe a role-permitted use of the material and the required result. If the commission calls for a return, read it back on the intended work with its attribution. |
+| Could a later worker do better because of this history? | Observe use, revision or justified non-use on a separate task and compare outcomes and total burden against a credible ordinary handoff. |
+
+For example, the same-name fork and the original can both produce the right
+number. Only the commission's lineage identifies where the result belongs.
+In [scoped Web succession](../../apps/web_planning/README.md#scoped-work-succession-1628),
+the recipient's Projects list contains their own projects. A recipient can keep
+the owner's continuation link in a private project note they ordinarily open.
+Holding the work and its grant fixed while varying that pre-loss reference tests
+discovery. A separate expired or revoked grant tests present authority even
+when that reference survives. A requested calculation can be complete while a
+downstream publication remains unconfirmed. State the affected host direction,
+role and material types when interpreting a transfer.
+
 ### Independent private Web project entry evidence (#1627)
 
 The bounded entry claim requires two separately authenticated, explicitly admitted

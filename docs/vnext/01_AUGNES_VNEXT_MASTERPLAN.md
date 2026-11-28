@@ -897,6 +897,20 @@ authority and reconciliation owners govern stale writes and uncertain effects;
 the product must not suggest a fresh attempt merely because an earlier response
 was lost. Retaining a result and authorizing a new action from it remain distinct.
 
+When both the previous operator and device are unavailable, state where the
+authorized successor normally starts and which surviving reference connects the
+commission to its project and work. A private link retained there before the
+loss can supply that connection. An identical name or a copied project ID can
+belong to several branches. The commission and its adopted lineage determine
+which branch can receive this result.
+
+Identify the time each claim covers. The last shared decision can be known
+while a later local approval or an external effect remains unresolved. A
+successor may reach a different decision under the project's current evidence
+and delegated discretion and still continue the same undertaking. A claim of
+completed work extends only to the deliverable or effect actually confirmed
+within that role. See [how to evaluate recovery from an ordinary entry](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#recovery-from-the-successors-ordinary-entry).
+
 Withdrawal of support limits use of that provider's resources without changing
 the undertaking's purpose, initiation history or result rights. Expired action
 authority prevents new action under that grant; cancellation of already external
