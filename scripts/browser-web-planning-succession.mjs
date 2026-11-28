@@ -76,7 +76,8 @@ export async function browserWorkSuccession({owner,successor,local,click,set,set
   const records=await b.eval("[...document.querySelectorAll('#work-context details pre')].map(e=>JSON.parse(e.textContent))");
   assert.deepEqual(records,history,'ordinary browser exposes complete recorded history, including constraints and source status');
   assert.match(await b.eval("$('limits').textContent"),/unknown noise condition/);
-  await set(b,'report','Our draft still names Tuesday; evening noise remains unmeasured.');await set(b,'next-action','Use Tuesday. Measure the room at 18:00 before the owner sends the notice.');
+  const proposedNextStep='Use Tuesday. Measure the room at 18:00 before the owner sends the notice.';
+  await set(b,'report','Our draft still names Tuesday; evening noise remains unmeasured.');await set(b,'next-action',proposedNextStep);
   const saveAck=await barrier(b,'/api/continuation/'+grant+'/save');
   await click(b,'update-submit');await saveAck.wait();await saveAck.release('disconnect');
   const pendingSave=await b.eval('pending');assert.deepEqual(Object.keys(pendingSave),['request_key']);
@@ -91,6 +92,31 @@ export async function browserWorkSuccession({owner,successor,local,click,set,set
   assert.equal(await fresh.eval("$('saved-history').open"),false);
   assert.match(visible,/deferred[\s\S]+The venue declined Tuesday\.[\s\S]+Recorded next step: Check Thursday availability\.[\s\S]+Latest recipient report[\s\S]+Proposed next step: Use Tuesday\./);
   assert.equal(await fresh.eval("document.documentElement.scrollWidth<=innerWidth"),true);
+  const passages=['reply.txt · deferred','Reason: '+original.return_use.rationale,
+    'Recorded next step: '+original.return_use.next_action,'Proposed next step: '+proposedNextStep];
+  const layouts=[];
+  for(const [width,height] of [[1280,800],[390,844]]){
+    await fresh.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width===390});
+    const layout=await fresh.eval(`(() => {
+      const candidates=[...document.querySelectorAll('#work-context h3, #work-context p')];
+      const elements=${JSON.stringify(passages)}.map(text=>candidates.find(el=>el.textContent===text));
+      if(elements.some(el=>!el))throw Error('Missing a decision or proposal passage');
+      elements[0].scrollIntoView({block:'start',behavior:'instant'});
+      const bounds=elements.map(el=>{
+        const range=document.createRange();
+        range.selectNodeContents(el);
+        return range.getBoundingClientRect();
+      });
+      const viewport=window.visualViewport;
+      const visible=bounds.every(r=>r.width>0 && r.height>0 &&
+        r.top>=viewport.offsetTop && r.bottom<=viewport.offsetTop+viewport.height &&
+        r.left>=viewport.offsetLeft && r.right<=viewport.offsetLeft+viewport.width);
+      return {span:bounds.at(-1).bottom-bounds[0].top,visible,scale:viewport.scale};
+    })()`);
+    layouts.push({width,height,...layout});
+  }
+  assert.ok(layouts.every(layout=>layout.visible && layout.scale===1),
+    'Decision, reason, recorded next step and full proposal must fit together after scrolling: '+JSON.stringify(layouts));
   const evidence=await fresh.eval(`(async()=>{
     const link=[...$('work-context').querySelectorAll('a')].find(a=>a.textContent.includes('Download evidence'));
     const response=await fetch(link.href);return [link.pathname,response.status,await response.text()];
@@ -130,5 +156,7 @@ export async function browserWorkSuccession({owner,successor,local,click,set,set
   assert.match(await fresh.eval("$('work-context').textContent"),/38 dBA/);
   assert.match(await fresh.eval("$('limits').textContent"),/Read only/);
   checks.push('Read-only browser share: owner selects the permission, recipient discovers the existing history and reads the recorded measurement without an edit form');
-  checks.push('From shared home at 390px: recorded file decision and conflicting recipient suggestion are distinct, exact evidence bytes and decision revision open, exhausted and read-only grants expose no update action');
+  const spans=layouts.map(({width,height,span})=>width+'×'+height+' / '+span.toFixed(1)+' CSS px').join(', ');
+  checks.push('From shared home at 390px: recorded file decision and conflicting recipient suggestion are distinct, exact evidence bytes and decision revision open, exhausted and read-only grants expose no update action. '+
+    'Decision and full proposal fit together after scrolling: '+spans);
 }
