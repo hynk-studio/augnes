@@ -788,7 +788,7 @@ export function BlankStateClient({
     });
     const exactDestination =
       view.primary_action?.kind === "link"
-        ? view.primary_action.href
+        ? scopedHref(view.primary_action.href)
         : null;
     const targetHandle =
       exactDestination === null
@@ -883,7 +883,7 @@ export function BlankStateClient({
             }]
           : [],
     };
-  }, [busy, guide, view.primary_action]);
+  }, [busy, guide, scopedHref, view.primary_action]);
   const projectManagement = recovery ? (
     <ProjectRecovery
       recovery={recovery}
