@@ -196,6 +196,8 @@ Supported operation and detailed managed-run/platform qualifications are in
 
 ## Quickstart
 
+To run Augnes from a checkout, see [local source setup](#local-source-setup).
+
 **Experimental llama.cpp host connection:** prepare a private MCP configuration
 for an existing local Companion or a permitted hosted Web file task using the
 [llama.cpp connection guide](docs/LLAMA_CPP_CONNECTIONS.md). Setup does not
@@ -259,17 +261,33 @@ can use **Prepare a source inspection** to select the new decision and its
 supporting files. That step uses one more record. Use a version that supports
 continued decisions to reopen or restore this history.
 
+### Local source setup
+
 The source checkout supports patched Node.js `^22.23.4 || ^24.22.1`
 with npm 10 or 11. Node 22 is a source compatibility line; Companion requires
-Node 24.22.1 or later within Node 24. Exact Local Canonical verification uses Node.js 24.22.1 and
-npm 11.16.0.
+Node 24.22.1 or later within Node 24. Exact Local Canonical verification uses
+Node.js 24.22.1 and npm 11.16.0.
 
-On a supported macOS development host, install the exact checkout-bound local
-Companion service once:
+From the source checkout, install both dependency sets:
 
 ```bash
 npm install
 npm --prefix apps/augnes_apps install
+```
+
+**Foreground development (including Linux and Windows).** From the same
+checkout, run:
+
+```bash
+npm run dev
+```
+
+Keep that terminal open while using Augnes.
+
+**macOS Companion service.** On a supported macOS development host, install
+the exact checkout-bound local service once:
+
+```bash
 npm run augnes:service:install
 ```
 
@@ -280,12 +298,8 @@ survives the installing terminal, starts at login, and recovers unexpected
 runtime failure. It grants no repository execution, managed-run Resume,
 provider, semantic, external-effect, publication, or merge authority. Stop or
 remove it reversibly with `npm run augnes:service:stop` or
-`npm run augnes:service:uninstall`. Linux and Windows service installation are
-unsupported; their source development flow remains foreground-only.
-
-For foreground source development, including Linux and Windows, install the
-same two dependency sets above and run `npm run dev` from this checkout instead
-of the service-install command. Keep that terminal open while using Augnes.
+`npm run augnes:service:uninstall`. The supported Linux and Windows source
+development path is foreground-only.
 
 Normal startup prepares the application-owned local database and does not
 reset or seed operator data. Ordinary reads and writes then connect only to that
